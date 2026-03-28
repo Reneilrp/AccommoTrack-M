@@ -29,9 +29,12 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
+    setFetchError('');
     try {
       const res = await api.get('/notifications?role=tenant');
       const rawNotifs = res.data?.data || res.data || [];
@@ -51,6 +54,7 @@ export default function Notifications() {
       setNotifications(items);
     } catch (err) {
       console.error('Error fetching notifications', err);
+      setFetchError('Unable to load notifications right now. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -61,14 +65,33 @@ export default function Notifications() {
   }, [fetchNotifications]);
 
   const markAsRead = async (id) => {
+    const previousState = notifications;
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+
+    if (!id.startsWith('n-')) return;
+
     const backendId = id.replace('n-', '');
-    await api.patch(`/notifications/${backendId}/read`).catch(() => {});
+    try {
+      await api.patch(`/notifications/${backendId}/read`);
+      setActionError('');
+    } catch (err) {
+      console.error('Failed to mark notification as read', err);
+      setNotifications(previousState);
+      setActionError('Could not mark that notification as read. Please try again.');
+    }
   };
 
   const markAllRead = async () => {
+    const previousState = notifications;
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    await api.patch('/notifications/read-all?role=tenant').catch(() => {});
+    try {
+      await api.patch('/notifications/read-all?role=tenant');
+      setActionError('');
+    } catch (err) {
+      console.error('Failed to mark all notifications as read', err);
+      setNotifications(previousState);
+      setActionError('Could not mark all notifications as read. Please try again.');
+    }
   };
 
   const displayed = notifications.filter((n) => {
@@ -142,6 +165,21 @@ export default function Notifications() {
           Unread only
         </button>
       </div>
+
+      {(fetchError || actionError) && (
+        <div className="mb-6 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+            <AlertCircle className="w-4 h-4 mt-0.5" />
+            <span>{actionError || fetchError}</span>
+          </div>
+          <button
+            onClick={fetchNotifications}
+            className="text-xs font-semibold text-red-700 dark:text-red-300 underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Notification List */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">

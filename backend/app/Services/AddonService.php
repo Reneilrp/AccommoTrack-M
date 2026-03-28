@@ -89,6 +89,18 @@ class AddonService
                 // Check for existing PENDING invoice for this booking
                 $latestInvoice = $booking->invoices()
                     ->where('status', 'pending')
+                    ->where(function ($query) {
+                        $query->whereNull('invoice_type')
+                            ->orWhere('invoice_type', 'rent');
+                    })
+                    ->where(function ($query) {
+                        $query->whereNull('reference')
+                            ->orWhere('reference', 'not like', 'INV-ADD-%');
+                    })
+                    ->where(function ($query) {
+                        $query->whereNull('description')
+                            ->orWhere('description', 'not like', 'Add-on:%');
+                    })
                     ->orderBy('due_date', 'desc')
                     ->first();
 
@@ -131,6 +143,7 @@ class AddonService
                         'booking_id' => $booking->id,
                         'tenant_id' => $booking->tenant_id,
                         'description' => "Add-on: {$addon->name} (".($addon->price_type === 'monthly' ? 'Monthly recurring' : 'One-time fee').')',
+                        'invoice_type' => 'addon',
                         'amount_cents' => $amountCents,
                         'currency' => 'PHP',
                         'status' => 'pending',

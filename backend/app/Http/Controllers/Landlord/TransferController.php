@@ -5,12 +5,20 @@ namespace App\Http\Controllers\Landlord;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\TransferRequest;
+use App\Services\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TransferController extends Controller
 {
     use ResolvesLandlordAccess;
+
+    protected $refundService;
+
+    public function __construct(RefundService $refundService)
+    {
+        $this->refundService = $refundService;
+    }
 
     public function index(Request $request)
     {
@@ -94,6 +102,20 @@ class TransferController extends Controller
 
             $tenantController = app(\App\Http\Controllers\Landlord\TenantController::class);
 
+            // Calculate credit before transfer
+            $activeBooking = null;
+            if ($transferReq->booking_id) {
+                $activeBooking = \App\Models\Booking::find($transferReq->booking_id);
+            }
+            
+            $creditCalculation = null;
+            $creditAmount = 0;
+            if ($activeBooking) {
+                $damageCharge = $validated['damage_charge'] ?? 0;
+                $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge);
+                $creditAmount = $creditCalculation['final_credit'];
+            }
+
             // Create a fake request to pass to transferRoom
             $fakeRequest = new Request([
                 'booking_id' => $transferReq->booking_id,
@@ -121,6 +143,8 @@ class TransferController extends Controller
                 'status' => 'approved',
                 'landlord_notes' => $validated['landlord_notes'] ?? null,
                 'handled_at' => now(),
+                'credit_amount' => $creditAmount,
+                'credit_calculation' => $creditCalculation,
             ]);
 
             DB::commit();
@@ -157,35 +181,35 @@ class TransferController extends Controller
                 'remaining_days' => 0,
                 'old_room_unused_value' => 0,
                 'new_room_cost' => 0,
+                'credit_available' => 0,
             ]);
         }
 
-        $startDate = \Carbon\Carbon::parse($activeBooking->start_date);
-        $today = now();
+        // Calculate prorated credit using RefundService
+        $damageCharge = $request->input('damage_charge', 0);
+        $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge);
         
-        $nextBillingDate = $startDate->copy();
-        while ($nextBillingDate->lte($today)) {
-            $nextBillingDate->addMonth();
-        }
-        
-        $remainingDays = $today->diffInDays($nextBillingDate);
-        $monthlyRent = $activeBooking->monthly_rent ?? 0;
-        
-        $oldRoomDailyRate = $monthlyRent / 30;
-        $unusedValueOldRoom = $oldRoomDailyRate * $remainingDays;
-        
+        // Calculate new room cost for remaining days
         $newRoom = $transferReq->requestedRoom;
-        $newMonthlyRent = $newRoom->monthly_rate ?? $newRoom->price ?? 0;
-        $newRoomDailyRate = $newMonthlyRent / 30;
-        $costOfNewRoomForRemainingDays = $newRoomDailyRate * $remainingDays;
-        
-        $suggestedAdjustment = round($costOfNewRoomForRemainingDays - $unusedValueOldRoom, 2);
+        $remainingDays = (int) ($creditCalculation['remaining_days'] ?? 0);
+        $newMonthlyRentCents = (int) round(((float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0)) * 100);
+        $costOfNewRoomForRemainingDaysCents = (int) round(($newMonthlyRentCents * $remainingDays) / 30);
+        $oldRoomUnusedValueCents = (int) ($creditCalculation['unused_value_cents']
+            ?? round(((float) ($creditCalculation['unused_value'] ?? 0)) * 100));
+
+        // Positive means tenant needs to pay more, negative means tenant gets extra credit.
+        $suggestedAdjustmentCents = $costOfNewRoomForRemainingDaysCents - $oldRoomUnusedValueCents;
+        $suggestedAdjustment = round($suggestedAdjustmentCents / 100, 2);
 
         return response()->json([
             'suggested_adjustment' => $suggestedAdjustment,
             'remaining_days' => $remainingDays,
-            'old_room_unused_value' => round($unusedValueOldRoom, 2),
-            'new_room_cost' => round($costOfNewRoomForRemainingDays, 2),
+            'old_room_unused_value' => round($oldRoomUnusedValueCents / 100, 2),
+            'new_room_cost' => round($costOfNewRoomForRemainingDaysCents / 100, 2),
+            'credit_available' => $creditCalculation['final_credit'],
+            'paid_amount' => $creditCalculation['paid_amount'],
+            'damage_charge' => $creditCalculation['damage_charge'],
+            'penalty' => $creditCalculation['penalty'],
         ]);
     }
 }

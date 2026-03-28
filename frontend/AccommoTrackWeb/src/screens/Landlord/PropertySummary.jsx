@@ -90,6 +90,22 @@ function normalizeAmount(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function extractSuggestedPrice(value) {
+  if (!value || typeof value !== 'string') return null;
+  const match = value.match(/suggested\s*price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i);
+  if (!match?.[1]) return null;
+  return normalizeAmount(match[1].replace(/,/g, ''));
+}
+
+function stripSuggestedPriceText(value) {
+  if (!value || typeof value !== 'string') return '';
+  const cleaned = value
+    .replace(/\s*\|?\s*suggested\s*price\s*:\s*₱?\s*[\d,]+(?:\.\d+)?/ig, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return cleaned.replace(/\|\s*$/, '').trim();
+}
+
 function StatCard({ label, value, sub, icon: Icon, accent = 'blue', onClick }) {
   const accents = {
     red: 'border-t-red-500 bg-red-50 dark:bg-red-900/10',
@@ -143,6 +159,14 @@ function PropertyDashboard({ propertyId, navigate }) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState({});
   const [activeFilter, setActiveFilter] = useState('all');
+  const [addonActionNotes, setAddonActionNotes] = useState({});
+  const [addonActionModal, setAddonActionModal] = useState({
+    isOpen: false,
+    mode: 'edit',
+    request: null,
+    actionNote: '',
+    rejectReason: '',
+  });
 
   useEffect(() => {
     if (!propertyId) return;
@@ -226,22 +250,100 @@ function PropertyDashboard({ propertyId, navigate }) {
     }
   };
 
-  const handleAddonRequestAction = async (requestId, bookingId, addonId, action) => {
+  const handleAddonRequestAction = async (requestId, bookingId, addonId, action, note = null) => {
     const key = `addon_${requestId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
     const toastId = toast.loading(action === 'approve' ? 'Approving add-on...' : 'Rejecting add-on...');
     try {
-      await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, { action, note: null });
+      await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, {
+        action,
+        note: typeof note === 'string' && note.trim() ? note.trim() : null,
+      });
       setDashData(p => ({
         ...p,
         pendingAddonRequests: p.pendingAddonRequests.filter(r => r.requestId !== requestId),
       }));
+      setAddonActionNotes((prev) => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
       toast.success(`Add-on ${action}d successfully!`, { id: toastId });
+      return true;
     } catch (err) {
       console.error(`Failed to ${action} add-on request`, err);
       toast.error(err.response?.data?.message || `Failed to ${action} add-on`, { id: toastId });
+      return false;
     } finally {
       setActionLoading(p => ({ ...p, [key]: false }));
+    }
+  };
+
+  const openAddonActionModal = (mode, item) => {
+    setAddonActionModal({
+      isOpen: true,
+      mode,
+      request: item,
+      actionNote: addonActionNotes[item.id] || '',
+      rejectReason: '',
+    });
+  };
+
+  const closeAddonActionModal = () => {
+    setAddonActionModal({
+      isOpen: false,
+      mode: 'edit',
+      request: null,
+      actionNote: '',
+      rejectReason: '',
+    });
+  };
+
+  const handleSaveAddonActionNote = () => {
+    if (!addonActionModal.request?.id) {
+      closeAddonActionModal();
+      return;
+    }
+
+    const requestId = addonActionModal.request.id;
+    const trimmedNote = addonActionModal.actionNote.trim();
+
+    setAddonActionNotes((prev) => {
+      const next = { ...prev };
+      if (trimmedNote) next[requestId] = trimmedNote;
+      else delete next[requestId];
+      return next;
+    });
+
+    toast.success('Action details updated.');
+    closeAddonActionModal();
+  };
+
+  const handleConfirmAddonReject = async () => {
+    const request = addonActionModal.request;
+    if (!request?.id) return;
+
+    const reason = addonActionModal.rejectReason.trim();
+    if (!reason) {
+      toast.error('Rejection reason is required.');
+      return;
+    }
+
+    const details = addonActionModal.actionNote.trim();
+    const rejectNote = details
+      ? `Details: ${details}\nReason: ${reason}`
+      : `Reason: ${reason}`;
+
+    const success = await handleAddonRequestAction(
+      request.id,
+      request.bookingId,
+      request.addonId,
+      'reject',
+      rejectNote,
+    );
+
+    if (success) {
+      closeAddonActionModal();
     }
   };
 
@@ -252,11 +354,7 @@ function PropertyDashboard({ propertyId, navigate }) {
     maintenanceRequests,
     transferRequests,
     recentReviews,
-    occupiedRooms,
-    totalRooms,
   } = dashData;
-
-  const occupancy = totalRooms > 0 ? `${occupiedRooms}/${totalRooms}` : '—';
 
   const activityItems = [
     ...pendingBookings.map((b) => ({
@@ -303,19 +401,24 @@ function PropertyDashboard({ propertyId, navigate }) {
       amount: null,
       note: 'Room transfer',
     })),
-    ...pendingAddonRequests.map((req) => ({
-      key: `addon-${req.requestId}`,
-      id: req.requestId,
-      bookingId: req.bookingId,
-      addonId: req.addonId,
-      type: 'addon',
-      tenant: readName(req.tenant, 'Tenant'),
-      room: `Room ${req.roomNumber || '—'}`,
-      date: req.createdAt || req.created_at,
-      status: req.status || 'Pending',
-      amount: normalizeAmount(req.suggestedPrice ?? req.price ?? req.amount),
-      note: req.addonName || 'Add-on request',
-    })),
+    ...pendingAddonRequests.map((req) => {
+      const requestNote = req.requestNote || req.request_note || '';
+      const parsedSuggestedPrice = extractSuggestedPrice(requestNote);
+      return {
+        key: `addon-${req.requestId}`,
+        id: req.requestId,
+        bookingId: req.bookingId,
+        addonId: req.addonId,
+        type: 'addon',
+        tenant: readName(req.tenant, 'Tenant'),
+        room: `Room ${req.roomNumber || '—'}`,
+        date: req.requestedAt || req.requested_at || req.createdAt || req.created_at,
+        status: req.status || 'Pending',
+        amount: normalizeAmount(req.suggestedPrice ?? req.suggested_price ?? parsedSuggestedPrice ?? req.price ?? req.amount),
+        note: req.addonName || 'Add-on request',
+        requestNote: stripSuggestedPriceText(requestNote),
+      };
+    }),
     ...recentReviews.map((r) => ({
       key: `review-${r.id}`,
       id: r.id,
@@ -382,16 +485,23 @@ function PropertyDashboard({ propertyId, navigate }) {
     }
 
     if (item.type === 'addon') {
+      const savedActionNote = addonActionNotes[item.id] || '';
       return (
         <div className="inline-flex items-center gap-1.5">
           <button
-            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve')}
+            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve', savedActionNote)}
             className="px-2 py-1 text-[11px] font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
           >
             {actionLoading[`addon_${item.id}_approve`] ? '...' : 'Approve'}
           </button>
           <button
-            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'reject')}
+            onClick={() => openAddonActionModal('edit', item)}
+            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => openAddonActionModal('reject', item)}
             className="px-2 py-1 text-[11px] font-semibold rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
           >
             {actionLoading[`addon_${item.id}_reject`] ? '...' : 'Reject'}
@@ -547,7 +657,14 @@ function PropertyDashboard({ propertyId, navigate }) {
                         <TypeBadge type={item.type} />
                       </td>
                       <td className="px-5 py-3.5 font-medium text-gray-800 dark:text-gray-200">{item.tenant}</td>
-                      <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{item.room}</td>
+                      <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">
+                        <div className="space-y-1">
+                          <p>{item.room}</p>
+                          {item.type === 'addon' && item.requestNote ? (
+                            <p className="text-xs text-gray-400 dark:text-gray-500" title={item.requestNote}>Note: {item.requestNote}</p>
+                          ) : null}
+                        </div>
+                      </td>
                       <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 tabular-nums">
                         {formatDisplayDate(item.date)}
                       </td>
@@ -585,6 +702,9 @@ function PropertyDashboard({ propertyId, navigate }) {
                       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{item.tenant}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.room}</p>
                       {item.note && <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{item.note}</p>}
+                      {item.type === 'addon' && item.requestNote ? (
+                        <p className="text-xs text-gray-400 dark:text-gray-500 truncate" title={item.requestNote}>Note: {item.requestNote}</p>
+                      ) : null}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs text-gray-500 dark:text-gray-400">{formatDisplayDate(item.date)}</p>
@@ -601,6 +721,85 @@ function PropertyDashboard({ propertyId, navigate }) {
           </>
         )}
       </section>
+
+      {addonActionModal.isOpen && addonActionModal.request && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={closeAddonActionModal}>
+          <div
+            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+              {addonActionModal.mode === 'reject' ? 'Reject Add-on Request' : 'Edit Add-on Action Details'}
+            </h3>
+
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3 mb-4 text-sm space-y-1">
+              <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Tenant:</span> {addonActionModal.request.tenant}</p>
+              <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Add-on:</span> {addonActionModal.request.note || 'Add-on request'}</p>
+              <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Room:</span> {addonActionModal.request.room}</p>
+              <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Requested:</span> {formatDisplayDate(addonActionModal.request.date)}</p>
+              {addonActionModal.request.requestNote ? (
+                <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Tenant Note:</span> {addonActionModal.request.requestNote}</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                  Details
+                  {addonActionModal.mode === 'edit' ? ' (optional)' : ' (optional, for context)'}
+                </label>
+                <textarea
+                  value={addonActionModal.actionNote}
+                  onChange={(e) => setAddonActionModal((prev) => ({ ...prev, actionNote: e.target.value }))}
+                  placeholder="Add details for this action"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              {addonActionModal.mode === 'reject' && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                    Reason for Rejection <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={addonActionModal.rejectReason}
+                    onChange={(e) => setAddonActionModal((prev) => ({ ...prev, rejectReason: e.target.value }))}
+                    placeholder="Explain why this request is being rejected"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-red-300 dark:border-red-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={closeAddonActionModal}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              {addonActionModal.mode === 'reject' ? (
+                <button
+                  onClick={handleConfirmAddonReject}
+                  disabled={!!actionLoading[`addon_${addonActionModal.request.id}_reject`]}
+                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold"
+                >
+                  {actionLoading[`addon_${addonActionModal.request.id}_reject`] ? 'Rejecting...' : 'Confirm Reject'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleSaveAddonActionNote}
+                  className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold"
+                >
+                  Save Details
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

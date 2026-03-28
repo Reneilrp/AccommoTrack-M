@@ -280,6 +280,17 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const activities = dashboardData.activities || [];
   const upcomingCheckouts = dashboardData.upcomingPayments?.upcomingCheckouts || [];
   const unpaidBookings = dashboardData.upcomingPayments?.unpaidBookings || [];
+  const vacatingSoon = dashboardData.upcomingPayments?.vacatingSoon || [];
+  const billingHealth = dashboardData.upcomingPayments?.billingHealth || {
+    dueForBillingCount: 0,
+    dueForBilling: [],
+    overdueInvoicesCount: 0,
+    overdueInvoicesAmount: 0,
+    dueSoonInvoicesCount: 0,
+    dueSoonInvoicesAmount: 0,
+    overdueInvoices: [],
+    dueSoonInvoices: [],
+  };
   const propertyPerformance = dashboardData.propertyPerformance || [];
 
   const findPropertyPerformance = () => {
@@ -605,6 +616,138 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
             )}
           </View>
         </View>
+
+        {/* Vacating Soon */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Vacating Soon</Text>
+            <Text style={styles.sectionHelper}>{vacatingSoon.length} noticed</Text>
+          </View>
+          <View style={styles.cardContainer}>
+            {vacatingSoon.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="checkmark-done-outline" size={36} color="#9CA3AF" />
+                <Text style={styles.emptyStateText}>No move-out notices</Text>
+              </View>
+            ) : (
+              vacatingSoon.slice(0, 5).map((tenant) => {
+                const urgency = urgencyColorMap[tenant.urgency] || urgencyColorMap.low;
+                return (
+                  <TouchableOpacity
+                    key={tenant.id}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('Bookings', {
+                      filter: 'confirmed',
+                      searchQuery: tenant.tenantName,
+                      focusBookingId: tenant.id,
+                      drilldownToken: Date.now(),
+                    })}
+                    style={[styles.listItem, { borderColor: urgency.border, backgroundColor: urgency.bg }]}
+                  >
+                    <View style={styles.listContent}>
+                      <Text style={styles.listTitle}>{tenant.tenantName}</Text>
+                      <Text style={styles.listSubtitle}>{tenant.propertyTitle} • Room {tenant.roomNumber}</Text>
+                      <Text style={styles.listMeta}>Move-out {tenant.endDate}</Text>
+                    </View>
+                    <View style={[styles.pill, { backgroundColor: '#FFFFFF' }]}>
+                      <Text style={[styles.pillText, { color: urgency.fg }]}>{tenant.daysLeft}d</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+        </View>
+
+        {/* Billing Health */}
+        {!isCaretaker && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Billing Health</Text>
+              <Text style={styles.sectionHelper}>{billingHealth.overdueInvoicesCount || 0} overdue</Text>
+            </View>
+
+            <View style={[styles.cardContainer, { gap: 12 }]}> 
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    const dueSoonInvoice = (billingHealth.dueSoonInvoices || [])[0];
+                    if (dueSoonInvoice?.id) {
+                      navigation.navigate('Payments', {
+                        filter: 'pending',
+                        searchQuery: dueSoonInvoice.tenantName,
+                        focusInvoiceId: dueSoonInvoice.id,
+                        drilldownToken: Date.now(),
+                      });
+                      return;
+                    }
+
+                    navigation.navigate('Payments', { filter: 'pending' });
+                  }}
+                  style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#FCD34D', backgroundColor: '#FFFBEB' }}
+                >
+                  <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '700' }}>Due This Week</Text>
+                  <Text style={{ fontSize: 20, color: '#92400E', fontWeight: '800', marginTop: 4 }}>{billingHealth.dueForBillingCount || 0}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    const overdueInvoice = (billingHealth.overdueInvoices || [])[0];
+                    if (overdueInvoice?.id) {
+                      navigation.navigate('Payments', {
+                        filter: 'overdue',
+                        searchQuery: overdueInvoice.tenantName,
+                        focusInvoiceId: overdueInvoice.id,
+                        drilldownToken: Date.now(),
+                      });
+                      return;
+                    }
+
+                    navigation.navigate('Payments', { filter: 'overdue' });
+                  }}
+                  style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }}
+                >
+                  <Text style={{ fontSize: 11, color: '#991B1B', fontWeight: '700' }}>Overdue Invoices</Text>
+                  <Text style={{ fontSize: 20, color: '#991B1B', fontWeight: '800', marginTop: 4 }}>{billingHealth.overdueInvoicesCount || 0}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ paddingHorizontal: 4 }}>
+                <Text style={styles.listMeta}>Overdue Amount: ₱{Number(billingHealth.overdueInvoicesAmount || 0).toLocaleString()}</Text>
+                <Text style={styles.listMeta}>Due Soon Amount: ₱{Number(billingHealth.dueSoonInvoicesAmount || 0).toLocaleString()}</Text>
+              </View>
+
+              {(billingHealth.overdueInvoices || []).slice(0, 3).map((invoice) => (
+                <TouchableOpacity
+                  key={invoice.id}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('Payments', {
+                    filter: 'overdue',
+                    searchQuery: invoice.tenantName,
+                    focusInvoiceId: invoice.id,
+                    drilldownToken: Date.now(),
+                  })}
+                  style={[styles.listItem, { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }]}
+                > 
+                  <View style={styles.listContent}>
+                    <Text style={styles.listTitle}>{invoice.tenantName}</Text>
+                    <Text style={styles.listSubtitle}>{invoice.propertyTitle} • Room {invoice.roomNumber}</Text>
+                    <Text style={[styles.listMeta, { color: '#991B1B' }]}>Due {invoice.dueDate}</Text>
+                  </View>
+                  <Text style={styles.listAmount}>₱{Number(invoice.amount || 0).toLocaleString()}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {(billingHealth.overdueInvoices || []).length === 0 && (
+                <View style={styles.emptyState}>
+                  <Ionicons name="checkmark-circle-outline" size={36} color="#9CA3AF" />
+                  <Text style={styles.emptyStateText}>No overdue invoices</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Unpaid Bookings */}
         {!isCaretaker && (

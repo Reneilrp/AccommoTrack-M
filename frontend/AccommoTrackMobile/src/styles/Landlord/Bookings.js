@@ -513,6 +513,64 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     letterSpacing: 0.5
   },
+  depositBalanceLabel: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    marginBottom: 6,
+  },
+  depositBalanceValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+  settlementFeeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  settlementFeeField: {
+    flex: 1,
+  },
+  settleDepositBtn: {
+    marginTop: 8,
+    backgroundColor: '#4F46E5',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  settleDepositBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  settlementHistoryTitle: {
+    marginTop: 14,
+    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  settlementHistoryCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  settlementHistoryAmount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  settlementHistoryMeta: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    marginBottom: 2,
+  },
   infoGrid: {
     gap: 16
   },

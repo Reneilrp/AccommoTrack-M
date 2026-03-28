@@ -20,10 +20,14 @@ class TransferRequest extends Model
         'status',
         'landlord_notes',
         'handled_at',
+        'credit_amount',
+        'credit_calculation',
     ];
 
     protected $casts = [
         'handled_at' => 'datetime',
+        'credit_calculation' => 'array',
+        'credit_amount' => 'decimal:2',
     ];
 
     public function tenant()

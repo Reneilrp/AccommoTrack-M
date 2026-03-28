@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import api from "../../utils/api";
 import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, FileDown, Filter, ShieldCheck, ShieldX } from "lucide-react";
 import toast from "react-hot-toast";
@@ -143,6 +143,7 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
 };
 
 export default function Payments() {
+  const location = useLocation();
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_payments;
 
@@ -152,14 +153,15 @@ export default function Payments() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const __navigate = useNavigate();
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [refundConfirmTx, setRefundConfirmTx] = useState(null);
   const [refundAmount, setRefundAmount] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [verifyingAction, setVerifyingAction] = useState(null);
   const [isRefunding, setIsRefunding] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [invoiceDrilldownApplied, setInvoiceDrilldownApplied] = useState(false);
   const [recordData, setRecordData] = useState({
     amount: "",
     method: "cash",
@@ -169,7 +171,43 @@ export default function Payments() {
 
   useEffect(() => {
     loadInvoices();
+    // Initial fetch only; loadInvoices is intentionally not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || "");
+    const filterParam = params.get("filter");
+    const searchParam = params.get("search");
+
+    if (filterParam) {
+      setPaymentFilter(filterParam);
+    }
+
+    if (searchParam !== null) {
+      setSearchQuery(searchParam);
+    }
+
+    setInvoiceDrilldownApplied(false);
+  }, [location.search]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || "");
+    const invoiceId = params.get("invoiceId");
+
+    if (!invoiceId || invoiceDrilldownApplied || invoices.length === 0) {
+      return;
+    }
+
+    const targetInvoice = invoices.find((invoice) => String(invoice.id) === String(invoiceId));
+    if (!targetInvoice) {
+      return;
+    }
+
+    setInvoiceDrilldownApplied(true);
+    setSelectedInvoice(targetInvoice);
+    setShowInvoiceModal(true);
+  }, [location.search, invoices, invoiceDrilldownApplied]);
 
   useEffect(() => {
     if (selectedInvoice) {
@@ -348,15 +386,24 @@ export default function Payments() {
   };
 
   const handleVerifyCash = async (action) => {
-    if (!selectedInvoice) return;
+    const invoiceId = selectedInvoice?.id || selectedInvoice?.invoice_id;
+    if (!invoiceId) {
+      toast.error('Unable to verify payment: invoice is missing an ID.');
+      return;
+    }
+
+    setVerifyingAction(action);
     try {
-      await api.post(`/invoices/${selectedInvoice.id}/verify-cash`, { action });
+      await api.post(`/invoices/${invoiceId}/verify-cash`, { action });
       toast.success(action === 'approve' ? 'Cash payment approved — invoice marked as Paid.' : 'Cash payment rejected — tenant will be notified.');
       setShowInvoiceModal(false);
       invalidateAnalyticsCache();
       await loadInvoices();
     } catch (e) {
+      console.error('Failed to verify cash payment', e);
       toast.error(e.response?.data?.message || 'Failed to verify payment');
+    } finally {
+      setVerifyingAction(null);
     }
   };
 
@@ -655,7 +702,7 @@ export default function Payments() {
         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
           {bookingFromMap?.__derived?.room_label || roomDisplay}
         </td>
-        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
+        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap hidden xl:table-cell">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-500" />
             <span>{issued ? formatDate(issued) : "—"}</span>
@@ -664,20 +711,20 @@ export default function Payments() {
         <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
           <PriceRow amount={price} />
         </td>
-        <td className="px-6 py-4 text-sm font-semibold text-green-600 dark:text-green-400">
+        <td className="px-6 py-4 text-sm font-semibold text-green-600 dark:text-green-400 hidden 2xl:table-cell">
           <PriceRow amount={paidAmount} />
         </td>
-        <td className="px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400">
+        <td className="px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400 hidden 2xl:table-cell">
           <PriceRow amount={balance} />
         </td>
         <td className="px-6 py-4">
           <span
             className={`px-4 py-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(status)}`}
           >
-            {status ? status.charAt(0).toUpperCase() + status.slice(1) : "—"}
+            {status === 'pending_verification' ? 'Verify' : (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—")}
           </span>
         </td>
-        <td className="px-6 py-4 text-sm">
+        <td className="px-6 py-4 text-sm sticky right-0 z-10 bg-white dark:bg-gray-800 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
           {inv.booking_id || inv.id ? (
             <button
               onClick={() => {
@@ -896,16 +943,14 @@ export default function Payments() {
 
           {stats.pendingVerifCount > 0 && (
             <div
-              onClick={() => setPaymentFilter('pending_verification')}
-              className="relative overflow-hidden bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 shadow-sm border-2 border-orange-300 dark:border-orange-700 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors col-span-2 md:col-span-1"
+              className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-2">Cash Pending Verification</p>
-                  <p className="text-2xl font-bold text-orange-700 dark:text-orange-300 mt-2">{stats.pendingVerifCount}</p>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Cash Verification</p>
+                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-2">{stats.pendingVerifCount}</p>
                 </div>
-                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/50 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 </div>
               </div>
@@ -990,22 +1035,22 @@ export default function Payments() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Room
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">
                     Issued
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Price
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider hidden 2xl:table-cell">
                     Paid
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider hidden 2xl:table-cell">
                     Balance
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky right-0 z-20 bg-gray-50 dark:bg-gray-700/50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.25)]">
                     Actions
                   </th>
                 </tr>
@@ -1171,18 +1216,22 @@ export default function Payments() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <button
+                        type="button"
                         onClick={() => handleVerifyCash('approve')}
-                        className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors shadow-md"
+                        disabled={!!verifyingAction}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors shadow-md"
                       >
-                        <ShieldCheck className="w-4 h-4" />
-                        Approve Payment
+                        {verifyingAction === 'approve' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                        {verifyingAction === 'approve' ? 'Approving...' : 'Approve Payment'}
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleVerifyCash('reject')}
-                        className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-md"
+                        disabled={!!verifyingAction}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors shadow-md"
                       >
-                        <ShieldX className="w-4 h-4" />
-                        Reject Payment
+                        {verifyingAction === 'reject' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldX className="w-4 h-4" />}
+                        {verifyingAction === 'reject' ? 'Rejecting...' : 'Reject Payment'}
                       </button>
                     </div>
                   </div>
@@ -1582,6 +1631,7 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
   const [rooms, setRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [roomsError, setRoomsError] = useState('');
   const [preset, setPreset] = useState('This Month');
   const [dateFrom, setDateFrom] = useState(PRESETS[0].getDates().from);
   const [dateTo, setDateTo]   = useState(PRESETS[0].getDates().to);
@@ -1589,18 +1639,37 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
 
   const isCustom = preset === 'Custom';
 
-  useEffect(() => {
-    if (!selectedProperty) { setRooms([]); setSelectedRoom(''); return; }
+  const fetchRoomsForProperty = useCallback(async (propertyId) => {
+    if (!propertyId) return;
+
     setLoadingRooms(true);
-    api.get(`/rooms/property/${selectedProperty}`)
-      .then(res => {
-        const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
-        setRooms(list);
-      })
-      .catch(() => setRooms([]))
-      .finally(() => setLoadingRooms(false));
+    setRoomsError('');
+
+    try {
+      const res = await api.get(`/rooms/property/${propertyId}`);
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : (Array.isArray(res.data) ? res.data : []);
+      setRooms(list);
+    } catch (__err) {
+      setRooms([]);
+      setRoomsError('Unable to load rooms for this property right now. You can retry or continue with property-level export.');
+    } finally {
+      setLoadingRooms(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProperty) {
+      setRooms([]);
+      setRoomsError('');
+      setSelectedRoom('');
+      return;
+    }
+
+    fetchRoomsForProperty(selectedProperty);
     setSelectedRoom('');
-  }, [selectedProperty]);
+  }, [selectedProperty, fetchRoomsForProperty]);
 
   const handlePreset = (label) => {
     setPreset(label);
@@ -1705,6 +1774,18 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
                 <option value="">{loadingRooms ? 'Loading rooms...' : 'All Rooms'}</option>
                 {rooms.map(r => <option key={r.id} value={r.id}>Room {r.room_number}</option>)}
               </select>
+              {roomsError && (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">{roomsError}</p>
+                  <button
+                    type="button"
+                    onClick={() => fetchRoomsForProperty(selectedProperty)}
+                    className="text-[11px] font-bold text-amber-700 dark:text-amber-300 underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

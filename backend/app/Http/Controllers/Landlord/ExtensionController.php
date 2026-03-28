@@ -43,6 +43,15 @@ class ExtensionController extends Controller
 
         return DB::transaction(function () use ($ext, $validated) {
             $action = $validated['action'];
+
+            if (($ext->booking->contract_mode ?? 'monthly') === 'monthly' && ! $ext->booking->end_date) {
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'Open-ended monthly bookings do not require extension handling.',
+                ], 422);
+            }
+
             $ext->status = $action === 'modify' ? 'modified' : ($action === 'approve' ? 'approved' : 'rejected');
             $ext->landlord_notes = $validated['landlord_notes'] ?? null;
             $ext->handled_at = now();
@@ -99,7 +108,9 @@ class ExtensionController extends Controller
                     'metadata' => [
                         'extension_request_id' => $ext->id,
                         'type' => $ext->extension_type,
-                        'days' => \Carbon\Carbon::parse($ext->current_end_date)->diffInDays(\Carbon\Carbon::parse($finalDate)),
+                        'days' => $ext->current_end_date
+                            ? \Carbon\Carbon::parse($ext->current_end_date)->diffInDays(\Carbon\Carbon::parse($finalDate))
+                            : null,
                     ],
                 ]);
             }

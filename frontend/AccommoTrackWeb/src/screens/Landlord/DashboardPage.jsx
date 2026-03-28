@@ -26,7 +26,23 @@ export default function DashboardPage({ user }) {
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [activities, setActivities] = useState(cachedData?.activities || []);
   const [verificationStatus, setVerificationStatus] = useState(null);
-  const [upcomingPayments, setUpcomingPayments] = useState(cachedData?.upcomingPayments || { upcomingCheckouts: [], unpaidBookings: [] });
+  const [upcomingPayments, setUpcomingPayments] = useState(
+    cachedData?.upcomingPayments || {
+      upcomingCheckouts: [],
+      unpaidBookings: [],
+      vacatingSoon: [],
+      billingHealth: {
+        dueForBillingCount: 0,
+        dueForBilling: [],
+        overdueInvoicesCount: 0,
+        overdueInvoicesAmount: 0,
+        dueSoonInvoicesCount: 0,
+        dueSoonInvoicesAmount: 0,
+        overdueInvoices: [],
+        dueSoonInvoices: [],
+      },
+    }
+  );
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
   const initialLoadRef = React.useRef(!cachedData);
@@ -112,6 +128,32 @@ export default function DashboardPage({ user }) {
       case 'low': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString()}`;
+
+  const openBookingDrilldown = (booking) => {
+    if (!booking?.id) return;
+
+    const params = new URLSearchParams();
+    params.set('status', 'confirmed');
+    params.set('bookingId', String(booking.id));
+    if (booking.tenantName) {
+      params.set('search', booking.tenantName);
+    }
+    __navigate(`/bookings?${params.toString()}`);
+  };
+
+  const openInvoiceDrilldown = (invoice, defaultFilter = 'overdue') => {
+    if (!invoice?.id) return;
+
+    const params = new URLSearchParams();
+    params.set('filter', defaultFilter);
+    params.set('invoiceId', String(invoice.id));
+    if (invoice.tenantName) {
+      params.set('search', invoice.tenantName);
+    }
+    __navigate(`/payments?${params.toString()}`);
   };
 
   const formatDate = (dateString) => {
@@ -279,6 +321,96 @@ export default function DashboardPage({ user }) {
               }
             </div>
           </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Vacating Soon</h2>
+            <p className="text-xs text-gray-500 mb-4">Tenants who submitted move-out notice</p>
+            <div className="space-y-4">
+              {(upcomingPayments.vacatingSoon || []).length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No move-out notices yet</p>
+              ) : (
+                (upcomingPayments.vacatingSoon || []).slice(0, 4).map((tenant) => (
+                  <button
+                    key={tenant.id}
+                    onClick={() => openBookingDrilldown(tenant)}
+                    className={`w-full p-4 rounded-lg border text-left transition-colors hover:brightness-95 ${getUrgencyColor(tenant.urgency)}`}
+                  >
+                    <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white">
+                      <span>{tenant.tenantName}</span>
+                      <span>{tenant.daysLeft}d</span>
+                    </div>
+                    <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">{tenant.propertyTitle} - Room {tenant.roomNumber}</p>
+                    <p className="text-[11px] mt-1 text-gray-500">Move-out: {tenant.endDate}</p>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {!isCaretaker && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Billing Health</h2>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  onClick={() => {
+                    const dueSoonInvoice = (upcomingPayments.billingHealth?.dueSoonInvoices || [])[0];
+                    if (dueSoonInvoice) {
+                      openInvoiceDrilldown(dueSoonInvoice, 'pending');
+                      return;
+                    }
+                    __navigate('/payments?filter=pending');
+                  }}
+                  className="p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 text-left hover:brightness-95 transition-colors"
+                >
+                  <p className="text-[11px] text-amber-700 font-semibold uppercase">Due This Week</p>
+                  <p className="text-lg font-bold text-amber-800 dark:text-amber-300">{upcomingPayments.billingHealth?.dueForBillingCount || 0}</p>
+                </button>
+                <button
+                  onClick={() => {
+                    const overdueInvoice = (upcomingPayments.billingHealth?.overdueInvoices || [])[0];
+                    if (overdueInvoice) {
+                      openInvoiceDrilldown(overdueInvoice, 'overdue');
+                      return;
+                    }
+                    __navigate('/payments?filter=overdue');
+                  }}
+                  className="p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-700 text-left hover:brightness-95 transition-colors"
+                >
+                  <p className="text-[11px] text-red-700 font-semibold uppercase">Overdue Invoices</p>
+                  <p className="text-lg font-bold text-red-800 dark:text-red-300">{upcomingPayments.billingHealth?.overdueInvoicesCount || 0}</p>
+                </button>
+              </div>
+              <div className="space-y-2 mb-4">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Overdue Amount: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(upcomingPayments.billingHealth?.overdueInvoicesAmount || 0)}</span>
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Due Soon Amount: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(upcomingPayments.billingHealth?.dueSoonInvoicesAmount || 0)}</span>
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {(upcomingPayments.billingHealth?.overdueInvoices || []).slice(0, 3).map((invoice) => (
+                  <button
+                    key={invoice.id}
+                    onClick={() => openInvoiceDrilldown(invoice, 'overdue')}
+                    className="w-full p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 text-left hover:brightness-95 transition-colors"
+                  >
+                    <div className="flex justify-between text-xs font-semibold text-gray-900 dark:text-white">
+                      <span>{invoice.tenantName}</span>
+                      <span>{formatCurrency(invoice.amount)}</span>
+                    </div>
+                    <p className="text-[11px] mt-1 text-gray-600 dark:text-gray-400">
+                      {invoice.propertyTitle} - Room {invoice.roomNumber} - Due {invoice.dueDate}
+                    </p>
+                  </button>
+                ))}
+                {(upcomingPayments.billingHealth?.overdueInvoices || []).length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-2">No overdue invoices</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {!isCaretaker && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">

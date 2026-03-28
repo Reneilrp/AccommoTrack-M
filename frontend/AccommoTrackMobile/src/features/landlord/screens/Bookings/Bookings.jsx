@@ -47,7 +47,7 @@ const formatDate = (value) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export default function BookingsScreen({ navigation }) {
+export default function BookingsScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [bookings, setBookings] = useState([]);
@@ -75,6 +75,34 @@ export default function BookingsScreen({ navigation }) {
     damage_description: '',
     landlord_notes: ''
   });
+  const [settlementHistory, setSettlementHistory] = useState([]);
+  const [settlementHistoryLoading, setSettlementHistoryLoading] = useState(false);
+  const [submittingSettlement, setSubmittingSettlement] = useState(false);
+  const [pendingFocusBookingId, setPendingFocusBookingId] = useState(null);
+  const [settlementForm, setSettlementForm] = useState({
+    damageFee: '',
+    cleaningFee: '',
+    otherFee: '',
+    markRefunded: false,
+    refundMethod: '',
+    refundReference: '',
+    note: ''
+  });
+
+  const resetSettlementState = () => {
+    setSettlementHistory([]);
+    setSettlementHistoryLoading(false);
+    setSubmittingSettlement(false);
+    setSettlementForm({
+      damageFee: '',
+      cleaningFee: '',
+      otherFee: '',
+      markRefunded: false,
+      refundMethod: '',
+      refundReference: '',
+      note: ''
+    });
+  };
 
   const loadStats = useCallback(async () => {
     try {
@@ -144,6 +172,41 @@ export default function BookingsScreen({ navigation }) {
       loadTransferRequests();
     }, [loadBookings, loadStats, loadExtensionRequests, loadTransferRequests])
   );
+
+  useEffect(() => {
+    const params = route?.params || {};
+    const requestedFilter = params.filter;
+    const requestedSearch = params.searchQuery;
+    const focusBookingId = params.focusBookingId;
+
+    if (requestedFilter && FILTERS.includes(requestedFilter)) {
+      setFilter(requestedFilter);
+    }
+
+    if (typeof requestedSearch === 'string') {
+      setSearchQuery(requestedSearch);
+    }
+
+    if (focusBookingId) {
+      setPendingFocusBookingId(String(focusBookingId));
+    }
+  }, [route?.params?.filter, route?.params?.searchQuery, route?.params?.focusBookingId, route?.params?.drilldownToken]);
+
+  useEffect(() => {
+    if (!pendingFocusBookingId || bookings.length === 0) return;
+
+    const targetBooking = bookings.find((booking) => String(booking.id) === String(pendingFocusBookingId));
+    if (!targetBooking) return;
+
+    openDetailModal(targetBooking);
+    setPendingFocusBookingId(null);
+
+    if (typeof navigation?.setParams === 'function') {
+      navigation.setParams({
+        focusBookingId: undefined,
+      });
+    }
+  }, [bookings, pendingFocusBookingId, navigation]);
 
   const handleRefresh = () => {
     loadBookings(true);
@@ -397,14 +460,43 @@ export default function BookingsScreen({ navigation }) {
     });
   }, [bookings, filter, searchQuery]);
 
+  const fetchSettlementHistory = useCallback(async (bookingId, showErrors = true) => {
+    try {
+      setSettlementHistoryLoading(true);
+      const response = await PropertyService.getBookingDepositSettlements(bookingId);
+      if (!response.success) throw new Error(response.error || 'Unable to fetch settlement history');
+
+      const payload = response.data || {};
+      const nextBalance = Number(payload.deposit_balance || 0);
+      const history = Array.isArray(payload.settlements) ? payload.settlements : [];
+
+      setSettlementHistory(history);
+      setBookings((prev) => prev.map((booking) => (
+        booking.id === bookingId ? { ...booking, deposit_balance: nextBalance } : booking
+      )));
+      setSelectedBooking((prev) => (
+        prev && prev.id === bookingId ? { ...prev, deposit_balance: nextBalance } : prev
+      ));
+    } catch (err) {
+      if (showErrors) {
+        Alert.alert('Deposit Settlement', err.message || 'Unable to fetch settlement history.');
+      }
+    } finally {
+      setSettlementHistoryLoading(false);
+    }
+  }, []);
+
   const openDetailModal = (booking) => {
     setSelectedBooking(booking);
     setDetailVisible(true);
+    resetSettlementState();
+    fetchSettlementHistory(booking.id, false);
   };
 
   const closeDetailModal = () => {
     setSelectedBooking(null);
     setDetailVisible(false);
+    resetSettlementState();
   };
 
   const openCancelModal = (booking) => {
@@ -425,6 +517,15 @@ export default function BookingsScreen({ navigation }) {
 
   const handleBookingStatus = async (status, extra = {}) => {
     if (!selectedBooking) return;
+
+    if (status === 'completed' && Number(selectedBooking.deposit_balance || 0) > 0) {
+      Alert.alert(
+        'Deposit Settlement Required',
+        `Settle the deposit balance of ${formatCurrency(selectedBooking.deposit_balance)} before completing this booking.`
+      );
+      return;
+    }
+
     try {
       setActionLoading(true);
       const response = await PropertyService.updateBookingStatus(selectedBooking.id, { status, ...extra });
@@ -448,11 +549,83 @@ export default function BookingsScreen({ navigation }) {
       if (!response.success) throw new Error(response.error || 'Unable to update payment');
       await loadBookings();
       await loadStats();
-      updateSelectedBooking({ paymentStatus });
+      updateSelectedBooking({ paymentStatus, ...response.data?.booking });
+
+      if (response.data?.completion_blocked) {
+        Alert.alert('Payment Updated', response.data?.message || 'Payment updated, but booking cannot be completed until deposit is settled.');
+      }
     } catch (err) {
       Alert.alert('Payment', err.message || 'Unable to update payment');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleSettleDeposit = async () => {
+    if (!selectedBooking) return;
+
+    const damageFee = Number.parseFloat(settlementForm.damageFee) || 0;
+    const cleaningFee = Number.parseFloat(settlementForm.cleaningFee) || 0;
+    const otherFee = Number.parseFloat(settlementForm.otherFee) || 0;
+    const markRefunded = Boolean(settlementForm.markRefunded);
+    const totalDeductions = damageFee + cleaningFee + otherFee;
+
+    if (totalDeductions <= 0 && !markRefunded) {
+      Alert.alert('Deposit Settlement', 'Add at least one deduction or mark remaining balance as refunded.');
+      return;
+    }
+
+    if (markRefunded && !settlementForm.refundMethod.trim()) {
+      Alert.alert('Deposit Settlement', 'Refund method is required when marking as refunded.');
+      return;
+    }
+
+    try {
+      setSubmittingSettlement(true);
+      const response = await PropertyService.settleBookingDeposit(selectedBooking.id, {
+        damage_fee: damageFee,
+        cleaning_fee: cleaningFee,
+        other_fee: otherFee,
+        mark_refunded: markRefunded,
+        refund_method: markRefunded ? settlementForm.refundMethod.trim() : null,
+        refund_reference: markRefunded && settlementForm.refundReference.trim()
+          ? settlementForm.refundReference.trim()
+          : null,
+        note: settlementForm.note.trim() || null,
+      });
+
+      if (!response.success) throw new Error(response.error || 'Unable to settle deposit');
+
+      const payload = response.data || {};
+      const nextBalance = Number(payload.deposit_balance || 0);
+      const latestSettlement = payload.settlement || null;
+
+      setBookings((prev) => prev.map((booking) => (
+        booking.id === selectedBooking.id ? { ...booking, deposit_balance: nextBalance } : booking
+      )));
+      setSelectedBooking((prev) => (
+        prev && prev.id === selectedBooking.id ? { ...prev, deposit_balance: nextBalance } : prev
+      ));
+      setSettlementHistory((prev) => (latestSettlement ? [latestSettlement, ...prev] : prev));
+      if (!latestSettlement) {
+        await fetchSettlementHistory(selectedBooking.id, false);
+      }
+
+      setSettlementForm({
+        damageFee: '',
+        cleaningFee: '',
+        otherFee: '',
+        markRefunded: false,
+        refundMethod: '',
+        refundReference: '',
+        note: ''
+      });
+
+      Alert.alert('Deposit Settlement', response.message || 'Deposit settlement recorded successfully.');
+    } catch (err) {
+      Alert.alert('Deposit Settlement', err.message || 'Unable to settle deposit.');
+    } finally {
+      setSubmittingSettlement(false);
     }
   };
 
@@ -760,6 +933,118 @@ export default function BookingsScreen({ navigation }) {
                     </TouchableOpacity>
                   ))}
                 </View>
+              </View>
+
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionHeader}>Deposit Settlement</Text>
+                <Text style={styles.depositBalanceLabel}>Current Deposit Balance</Text>
+                <Text style={styles.depositBalanceValue}>{formatCurrency(selectedBooking.deposit_balance || 0)}</Text>
+
+                <View style={styles.settlementFeeRow}>
+                  <View style={styles.settlementFeeField}>
+                    <Text style={styles.transferApprovalLabel}>Damage Fee</Text>
+                    <TextInput
+                      value={settlementForm.damageFee}
+                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, damageFee: value }))}
+                      keyboardType="numeric"
+                      placeholder="0.00"
+                      style={styles.transferApprovalInput}
+                    />
+                  </View>
+                  <View style={styles.settlementFeeField}>
+                    <Text style={styles.transferApprovalLabel}>Cleaning Fee</Text>
+                    <TextInput
+                      value={settlementForm.cleaningFee}
+                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, cleaningFee: value }))}
+                      keyboardType="numeric"
+                      placeholder="0.00"
+                      style={styles.transferApprovalInput}
+                    />
+                  </View>
+                  <View style={styles.settlementFeeField}>
+                    <Text style={styles.transferApprovalLabel}>Other Fee</Text>
+                    <TextInput
+                      value={settlementForm.otherFee}
+                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, otherFee: value }))}
+                      keyboardType="numeric"
+                      placeholder="0.00"
+                      style={styles.transferApprovalInput}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.switchRow}>
+                  <Text style={styles.detailLabel}>Mark remaining balance as refunded?</Text>
+                  <Switch
+                    value={settlementForm.markRefunded}
+                    onValueChange={(value) => setSettlementForm((prev) => ({ ...prev, markRefunded: value }))}
+                    trackColor={{ true: '#86EFAC', false: '#CBD5F5' }}
+                    thumbColor={settlementForm.markRefunded ? theme.colors.primary : '#FFFFFF'}
+                  />
+                </View>
+
+                {settlementForm.markRefunded ? (
+                  <>
+                    <Text style={styles.transferApprovalLabel}>Refund Method *</Text>
+                    <TextInput
+                      value={settlementForm.refundMethod}
+                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundMethod: value }))}
+                      placeholder="Cash, GCash, Bank Transfer"
+                      style={styles.transferApprovalInput}
+                    />
+
+                    <Text style={styles.transferApprovalLabel}>Refund Reference</Text>
+                    <TextInput
+                      value={settlementForm.refundReference}
+                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundReference: value }))}
+                      placeholder="Optional reference id"
+                      style={styles.transferApprovalInput}
+                    />
+                  </>
+                ) : null}
+
+                <Text style={styles.transferApprovalLabel}>Notes</Text>
+                <TextInput
+                  value={settlementForm.note}
+                  onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, note: value }))}
+                  placeholder="Optional settlement note"
+                  style={styles.transferApprovalTextArea}
+                  multiline
+                />
+
+                <TouchableOpacity
+                  style={styles.settleDepositBtn}
+                  onPress={handleSettleDeposit}
+                  disabled={submittingSettlement}
+                >
+                  {submittingSettlement ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.settleDepositBtnText}>Record Deposit Settlement</Text>
+                  )}
+                </TouchableOpacity>
+
+                <Text style={styles.settlementHistoryTitle}>Settlement History</Text>
+                {settlementHistoryLoading ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : settlementHistory.length === 0 ? (
+                  <Text style={styles.requestEmptyText}>No settlement records yet.</Text>
+                ) : (
+                  settlementHistory.map((entry) => (
+                    <View key={entry.id} style={styles.settlementHistoryCard}>
+                      <Text style={styles.settlementHistoryAmount}>
+                        Deductions {formatCurrency(entry.total_deductions || 0)} • Balance {formatCurrency(entry.ending_balance || 0)}
+                      </Text>
+                      <Text style={styles.settlementHistoryMeta}>{formatDate(entry.created_at)}</Text>
+                      {entry.mark_refunded ? (
+                        <Text style={styles.settlementHistoryMeta}>
+                          Refunded via {entry.refund_method || 'N/A'}{entry.refund_reference ? ` • ${entry.refund_reference}` : ''}
+                        </Text>
+                      ) : null}
+                      {entry.note ? <Text style={styles.requestNote}>{entry.note}</Text> : null}
+                    </View>
+                  ))
+                )}
               </View>
 
               {/* Booking Actions */}

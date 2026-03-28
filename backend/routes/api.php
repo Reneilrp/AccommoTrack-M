@@ -143,6 +143,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/change-password', [TenantSettingsController::class, 'changePassword']);
         // Tenant: cancel own booking
         Route::patch('/bookings/{id}/cancel', [TenantBookingController::class, 'cancel']);
+        // Tenant: request move-out notice for active stay
+        Route::patch('/bookings/{id}/request-move-out', [TenantBookingController::class, 'requestMoveOutNotice']);
         // Tenant: Reviews
         Route::post('/reviews', [ReviewController::class, 'store']);
         Route::get('/reviews', [ReviewController::class, 'getTenantReviews']);
@@ -280,6 +282,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{id}', [LandlordBookingController::class, 'show']);
     Route::patch('/bookings/{id}/status', [LandlordBookingController::class, 'updateStatus']);
     Route::patch('/bookings/{id}/payment', [LandlordBookingController::class, 'updatePaymentStatus']);
+    Route::post('/bookings/{id}/deposit-settlement', [LandlordBookingController::class, 'settleDeposit']);
+    Route::get('/bookings/{id}/deposit-settlements', [LandlordBookingController::class, 'getDepositSettlements']);
 
     // ===== PAYMENTS / INVOICES =====
     Route::get('/invoices', [InvoiceController::class, 'index']);

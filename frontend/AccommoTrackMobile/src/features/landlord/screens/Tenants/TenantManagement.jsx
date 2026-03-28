@@ -76,6 +76,22 @@ export default function TenantsScreen({ navigation, route }) {
     damage_description: ''
   });
 
+  const [assignVisible, setAssignVisible] = useState(false);
+  const [assigningTenant, setAssigningTenant] = useState(null);
+  const [availableRoomsForAssign, setAvailableRoomsForAssign] = useState([]);
+  const [loadingRoomsForAssign, setLoadingRoomsForAssign] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignData, setAssignData] = useState({
+    room_id: '',
+    move_in_date: '',
+    end_date: '',
+    notes: ''
+  });
+
+  const [unassignVisible, setUnassignVisible] = useState(false);
+  const [unassigningTenant, setUnassigningTenant] = useState(null);
+  const [isUnassigning, setIsUnassigning] = useState(false);
+
   const [evictionVisible, setEvictionVisible] = useState(false);
   const [evictingTenant, setEvictingTenant] = useState(null);
   const [evictionReason, setEvictionReason] = useState('');
@@ -238,6 +254,99 @@ export default function TenantsScreen({ navigation, route }) {
     }
   };
 
+  const handleAssignInitiate = async (tenant) => {
+    if (tenant.room) {
+      Alert.alert('Already assigned', 'This tenant already has a room. Use Transfer instead.');
+      return;
+    }
+    if (!selectedPropertyId) {
+      Alert.alert('Property required', 'Please select a property first.');
+      return;
+    }
+
+    setAssigningTenant(tenant);
+    setAssignData({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+    setAvailableRoomsForAssign([]);
+    setAssignVisible(true);
+    setLoadingRoomsForAssign(true);
+
+    try {
+      const response = await PropertyService.getRoomsByProperty(selectedPropertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load rooms');
+      }
+
+      const rooms = (response.data || []).filter((room) => room.status === 'available');
+      setAvailableRoomsForAssign(rooms);
+    } catch (assignError) {
+      Alert.alert('Error', assignError.message || 'Failed to load available rooms.');
+    } finally {
+      setLoadingRoomsForAssign(false);
+    }
+  };
+
+  const handleAssignSubmit = async () => {
+    if (!assigningTenant) return;
+    if (!assignData.room_id) {
+      Alert.alert('Required fields', 'Please select a room.');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const payload = {
+        room_id: Number(assignData.room_id),
+        move_in_date: assignData.move_in_date.trim() || undefined,
+        end_date: assignData.end_date.trim() || undefined,
+        notes: assignData.notes.trim() || undefined
+      };
+
+      const response = await PropertyService.assignTenantToRoom(assigningTenant.id, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to assign room.');
+      }
+
+      setAssignVisible(false);
+      setAssigningTenant(null);
+      await loadTenants(true);
+      Alert.alert('Success', 'Room assignment completed successfully.');
+    } catch (assignError) {
+      Alert.alert('Error', assignError.message || 'Failed to assign room.');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassignInitiate = (tenant) => {
+    if (!tenant.room) {
+      Alert.alert('Not assigned', 'This tenant does not have an assigned room.');
+      return;
+    }
+    setUnassigningTenant(tenant);
+    setUnassignVisible(true);
+  };
+
+  const handleUnassignConfirm = async () => {
+    if (!unassigningTenant) return;
+
+    setIsUnassigning(true);
+    try {
+      const response = await PropertyService.unassignTenantFromRoom(unassigningTenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to unassign tenant.');
+      }
+
+      setUnassignVisible(false);
+      setUnassigningTenant(null);
+      await loadTenants(true);
+      Alert.alert('Success', 'Tenant unassigned successfully.');
+    } catch (unassignError) {
+      Alert.alert('Error', unassignError.message || 'Failed to unassign tenant.');
+    } finally {
+      setIsUnassigning(false);
+    }
+  };
+
   const handleEvictionInitiate = (tenant) => {
     setEvictingTenant(tenant);
     setEvictionReason('');
@@ -347,9 +456,25 @@ export default function TenantsScreen({ navigation, route }) {
               <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFFFFF" />
               <Text style={styles.primaryBtnText}>Message</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.successBtn, currentRoom ? styles.actionDisabledBtn : null]}
+              onPress={() => handleAssignInitiate(item)}
+              disabled={!!currentRoom}
+            >
+              <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.successBtnText}>Assign</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.warningBtn} onPress={() => handleTransferInitiate(item)}>
               <Ionicons name="swap-horizontal-outline" size={16} color="#FFFFFF" />
               <Text style={styles.warningBtnText}>Transfer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.unassignBtn, !currentRoom ? styles.actionDisabledBtn : null]}
+              onPress={() => handleUnassignInitiate(item)}
+              disabled={!currentRoom}
+            >
+              <Ionicons name="person-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.unassignBtnText}>Unassign</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.dangerBtn} onPress={() => handleEvictionInitiate(item)}>
               <Ionicons name="person-remove-outline" size={16} color="#FFFFFF" />
@@ -581,6 +706,104 @@ export default function TenantsScreen({ navigation, route }) {
                 disabled={isTransferring || availableRooms.length === 0}
               >
                 <Text style={styles.modalConfirmText}>{isTransferring ? 'Transferring...' : 'Transfer'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={assignVisible} transparent animationType="fade" onRequestClose={() => setAssignVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={styles.actionModalTitle}>Assign Room</Text>
+            <Text style={styles.actionModalSubtitle}>
+              {assigningTenant
+                ? `Assign ${assigningTenant.first_name} ${assigningTenant.last_name} to an available room.`
+                : 'Select a tenant to assign.'}
+            </Text>
+
+            <Text style={styles.actionFieldLabel}>Room *</Text>
+            <ScrollView style={styles.roomsPicker}>
+              {loadingRoomsForAssign && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
+              {!loadingRoomsForAssign && availableRoomsForAssign.length === 0 && (
+                <Text style={styles.helperText}>No available rooms found.</Text>
+              )}
+              {availableRoomsForAssign.map((room) => (
+                <TouchableOpacity
+                  key={room.id}
+                  style={[
+                    styles.roomOption,
+                    normalizeId(assignData.room_id) === normalizeId(room.id) && styles.roomOptionActive
+                  ]}
+                  onPress={() => setAssignData((current) => ({ ...current, room_id: room.id }))}
+                >
+                  <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
+                  <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
+            <TextInput
+              value={assignData.move_in_date}
+              onChangeText={(value) => setAssignData((current) => ({ ...current, move_in_date: value }))}
+              placeholder="2026-03-28"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
+            <TextInput
+              value={assignData.end_date}
+              onChangeText={(value) => setAssignData((current) => ({ ...current, end_date: value }))}
+              placeholder="2026-09-28"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Notes</Text>
+            <TextInput
+              value={assignData.notes}
+              onChangeText={(value) => setAssignData((current) => ({ ...current, notes: value }))}
+              placeholder="Optional assignment notes"
+              style={styles.actionTextArea}
+              multiline
+            />
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAssignVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSuccessBtn, (isAssigning || availableRoomsForAssign.length === 0) && styles.modalDisabledBtn]}
+                onPress={handleAssignSubmit}
+                disabled={isAssigning || availableRoomsForAssign.length === 0}
+              >
+                <Text style={styles.modalConfirmText}>{isAssigning ? 'Assigning...' : 'Assign'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={unassignVisible} transparent animationType="fade" onRequestClose={() => setUnassignVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={[styles.actionModalTitle, { color: '#B45309' }]}>Confirm Unassign</Text>
+            <Text style={styles.actionModalSubtitle}>
+              {unassigningTenant
+                ? `Unassign ${unassigningTenant.first_name} ${unassigningTenant.last_name} from their current room?`
+                : 'Select a tenant to unassign.'}
+            </Text>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setUnassignVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, isUnassigning && styles.modalDisabledBtn]}
+                onPress={handleUnassignConfirm}
+                disabled={isUnassigning}
+              >
+                <Text style={styles.modalConfirmText}>{isUnassigning ? 'Unassigning...' : 'Unassign'}</Text>
               </TouchableOpacity>
             </View>
           </View>

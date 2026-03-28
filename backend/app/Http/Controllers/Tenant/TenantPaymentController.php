@@ -51,7 +51,15 @@ class TenantPaymentController extends Controller
                         'remainingBalance' => (float) $remainingCents / 100,
                         'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
                         'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : '—',
-                        'status' => ucfirst($invoice->status),
+                        'status' => match($invoice->status) {
+                            'pending_verification' => 'Awaiting Verification',
+                            'paid' => 'Paid',
+                            'partial' => 'Partially Paid',
+                            'overdue' => 'Overdue',
+                            'cancelled' => 'Cancelled',
+                            'refunded' => 'Refunded',
+                            default => ucfirst($invoice->status)
+                        },
                         'statusRaw' => $invoice->status,
                         'method' => $lastTx ? ucfirst(str_replace('paymongo_', '', $lastTx->method)) : 'N/A',
                         'referenceNo' => $lastTx->gateway_reference ?? ($invoice->reference ?? 'N/A'),

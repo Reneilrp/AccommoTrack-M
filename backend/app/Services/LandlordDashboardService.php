@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Property;
 use App\Models\Room;
@@ -213,18 +214,78 @@ class LandlordDashboardService
             $checkoutsQuery->whereIn('property_id', $assignedPropertyIds);
         }
 
+        $vacatingSoonQuery = Booking::where('landlord_id', $landlordId)
+            ->whereNotNull('notice_given_at')
+            ->whereNotNull('end_date')
+            ->whereIn('status', ['confirmed', 'partial-completed'])
+            ->whereBetween('end_date', [now(), now()->addDays(60)])
+            ->with(['tenant', 'property', 'room'])
+            ->orderBy('end_date', 'asc');
+        if ($assignedPropertyIds) {
+            $vacatingSoonQuery->whereIn('property_id', $assignedPropertyIds);
+        }
+
+        $dueForBillingQuery = Booking::where('landlord_id', $landlordId)
+            ->whereIn('status', ['confirmed', 'partial-completed'])
+            ->where('payment_plan', 'monthly')
+            ->whereNotNull('next_billing_date')
+            ->whereBetween('next_billing_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+            ->with(['tenant', 'property', 'room'])
+            ->orderBy('next_billing_date', 'asc');
+        if ($assignedPropertyIds) {
+            $dueForBillingQuery->whereIn('property_id', $assignedPropertyIds);
+        }
+
         $unpaidBookings = [];
+        $overdueInvoices = collect();
+        $dueSoonInvoices = collect();
         if (! $isCaretaker) {
             $unpaidBookings = Booking::where('landlord_id', $landlordId)
                 ->where('status', 'confirmed')
                 ->whereIn('payment_status', ['unpaid', 'partial'])
                 ->with(['tenant', 'property', 'room'])
                 ->orderBy('start_date', 'asc')->get();
+
+            $overdueInvoicesQuery = Invoice::where('landlord_id', $landlordId)
+                ->whereIn('status', ['pending', 'overdue'])
+                ->whereNotNull('due_date')
+                ->whereDate('due_date', '<', now()->toDateString())
+                ->with(['tenant', 'property', 'booking.room'])
+                ->orderBy('due_date', 'asc');
+
+            $dueSoonInvoicesQuery = Invoice::where('landlord_id', $landlordId)
+                ->whereIn('status', ['pending', 'overdue'])
+                ->whereNotNull('due_date')
+                ->whereBetween('due_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+                ->with(['tenant', 'property', 'booking.room'])
+                ->orderBy('due_date', 'asc');
+
+            if ($assignedPropertyIds) {
+                $overdueInvoicesQuery->whereIn('property_id', $assignedPropertyIds);
+                $dueSoonInvoicesQuery->whereIn('property_id', $assignedPropertyIds);
+            }
+
+            $overdueInvoices = $overdueInvoicesQuery->get();
+            $dueSoonInvoices = $dueSoonInvoicesQuery->get();
         }
+
+        $dueForBilling = $dueForBillingQuery->get();
+        $vacatingSoon = $vacatingSoonQuery->get();
 
         return [
             'upcomingCheckouts' => $checkoutsQuery->get(),
             'unpaidBookings' => $unpaidBookings,
+            'vacatingSoon' => $vacatingSoon,
+            'billingHealth' => [
+                'due_for_billing_count' => $dueForBilling->count(),
+                'due_for_billing' => $dueForBilling,
+                'overdue_invoices_count' => $overdueInvoices->count(),
+                'overdue_invoices_amount' => (float) round($overdueInvoices->sum(fn (Invoice $invoice) => $invoice->amount_cents) / 100, 2),
+                'due_soon_invoices_count' => $dueSoonInvoices->count(),
+                'due_soon_invoices_amount' => (float) round($dueSoonInvoices->sum(fn (Invoice $invoice) => $invoice->amount_cents) / 100, 2),
+                'overdue_invoices' => $overdueInvoices,
+                'due_soon_invoices' => $dueSoonInvoices,
+            ],
         ];
     }
 

@@ -57,29 +57,41 @@ const LandlordRegister = () => {
 
   // Field level server errors
   const [fieldErrors, setFieldErrors] = useState({});
+  const idTypesRequestedRef = useRef(false);
 
   // Live password checks
   const [passwordChecks, setPasswordChecks] = useState({ minLen: false, hasUpper: false, numCount: false, hasSpecial: false });
 
   // Fetch ID types from backend
   useEffect(() => {
-    if (step === 3 && idTypes.length === 0 && !idTypesLoading) {
-      setIdTypesLoading(true);
-      setIdTypesError('');
-      // Use configured api client
-      api.get('/valid-id-types')
-        .then(res => {
-          setIdTypes(Array.isArray(res.data) ? res.data : []);
-          setIdTypesLoading(false);
-        })
-        .catch(() => {
-          setIdTypesError('Failed to load ID types. Please try again.');
-          // Fallback static types if API fails
-          setIdTypes(['Passport', 'Driver\'s License', 'National ID', 'SSS UMID', 'PhilHealth ID', 'Other']);
-          setIdTypesLoading(false);
-        });
-    }
-  }, [step, idTypes.length, idTypesLoading]);
+    if (step !== 3 || idTypes.length > 0 || idTypesRequestedRef.current) return;
+
+    idTypesRequestedRef.current = true;
+    setIdTypesLoading(true);
+    setIdTypesError('');
+
+    let isMounted = true;
+
+    api.get('/valid-id-types')
+      .then(res => {
+        if (!isMounted) return;
+        setIdTypes(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setIdTypesError('Failed to load ID types. Please try again.');
+        // Fallback static types if API fails
+        setIdTypes(['Passport', 'Driver\'s License', 'National ID', 'SSS UMID', 'PhilHealth ID', 'Other']);
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIdTypesLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [step, idTypes.length]);
 
 
   const handleChange = (e) => {
@@ -691,7 +703,18 @@ const LandlordRegister = () => {
                   ) : idTypesError ? (
                     <div className="text-red-600 dark:text-red-400 text-sm mb-2 flex flex-col gap-2">
                       <span>{idTypesError}</span>
-                      <button type="button" className="text-green-700 dark:text-green-400 underline self-start text-xs font-bold" onClick={() => { setIdTypes([]); setIdTypesError(''); setIdTypesLoading(false); }}>Retry</button>
+                      <button
+                        type="button"
+                        className="text-green-700 dark:text-green-400 underline self-start text-xs font-bold"
+                        onClick={() => {
+                          idTypesRequestedRef.current = false;
+                          setIdTypes([]);
+                          setIdTypesError('');
+                          setIdTypesLoading(false);
+                        }}
+                      >
+                        Retry
+                      </button>
                     </div>
                   ) : (
                     <div className="relative">

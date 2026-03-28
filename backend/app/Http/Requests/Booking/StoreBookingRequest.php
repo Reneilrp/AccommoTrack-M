@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Booking;
 
+use App\Models\Room;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,27 +22,64 @@ class StoreBookingRequest extends FormRequest
      */
     public function rules(): array
     {
+        $roomId = $this->input('room_id');
+        $billingPolicy = null;
+
+        if ($roomId) {
+            $billingPolicy = Room::query()->whereKey($roomId)->value('billing_policy');
+        }
+
+        $normalizedBillingPolicy = strtolower((string) $billingPolicy);
+        $requestedContractMode = strtolower((string) $this->input('contract_mode', ''));
+
+        if ($normalizedBillingPolicy === 'daily') {
+            $resolvedContractMode = 'daily';
+        } elseif ($normalizedBillingPolicy === 'monthly') {
+            $resolvedContractMode = 'monthly';
+        } else {
+            $resolvedContractMode = in_array($requestedContractMode, ['daily', 'monthly'], true)
+                ? $requestedContractMode
+                : 'monthly';
+        }
+
+        $isDailyContract = $resolvedContractMode === 'daily';
+
+        $endDateRules = [
+            $isDailyContract ? 'required' : 'nullable',
+            'date',
+            'after:start_date',
+            function ($attribute, $value, $fail) {
+                if (! $value) {
+                    return;
+                }
+
+                $startDate = $this->input('start_date');
+                if ($startDate) {
+                    $fourYearsLater = Carbon::parse($startDate)->addYears(4);
+                    if (Carbon::parse($value)->gt($fourYearsLater)) {
+                        $fail('The booking duration cannot exceed 4 years.');
+                    }
+                }
+            },
+        ];
+
         $rules = [
             'room_id' => 'required|exists:rooms,id',
             'bed_count' => 'nullable|integer|min:1',
             'start_date' => 'required|date|after_or_equal:today',
-            'end_date' => [
-                'required',
-                'date',
-                'after:start_date',
-                function ($attribute, $value, $fail) {
-                    $startDate = $this->input('start_date');
-                    if ($startDate) {
-                        $fourYearsLater = Carbon::parse($startDate)->addYears(4);
-                        if (Carbon::parse($value)->gt($fourYearsLater)) {
-                            $fail('The booking duration cannot exceed 4 years.');
-                        }
-                    }
-                },
-            ],
+            'end_date' => $endDateRules,
             'notes' => 'nullable|string|max:1000',
             'payment_plan' => 'nullable|string|in:full,monthly',
+            'contract_mode' => ['nullable', 'string', 'in:daily,monthly'],
         ];
+
+        if ($normalizedBillingPolicy === 'daily') {
+            $rules['contract_mode'] = ['nullable', 'string', Rule::in(['daily'])];
+        } elseif ($normalizedBillingPolicy === 'monthly') {
+            $rules['contract_mode'] = ['nullable', 'string', Rule::in(['monthly'])];
+        } elseif ($normalizedBillingPolicy === 'monthly_with_daily') {
+            $rules['contract_mode'] = ['nullable', 'string', Rule::in(['daily', 'monthly'])];
+        }
 
         $user = $this->user();
         if ($user && $user->role === 'tenant') {
@@ -77,8 +115,10 @@ class StoreBookingRequest extends FormRequest
             'guest_name.required_without' => 'Please enter a guest name when no tenant is selected.',
             'start_date.required' => 'Please select a check-in date.',
             'start_date.after_or_equal' => 'Check-in date must be today or later.',
-            'end_date.required' => 'Please select a check-out date.',
+            'end_date.required' => 'Please select a check-out date for daily bookings.',
             'end_date.after' => 'Check-out date must be after check-in date.',
+            'contract_mode.required' => 'Please choose a booking mode for this room.',
+            'contract_mode.in' => 'Invalid booking mode selected for this room.',
         ];
     }
 }

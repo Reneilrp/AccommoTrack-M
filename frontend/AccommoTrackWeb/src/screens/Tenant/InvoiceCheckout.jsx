@@ -424,9 +424,11 @@ export default function InvoiceCheckout() {
           <PriceRow amount={remainingBalance} />
         </p>
         {pendingOffline > 0 && (
-          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 font-semibold leading-snug">
-            ₱{pendingOffline.toLocaleString()} is pending landlord verification and not yet deducted.
-          </p>
+          <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+            <p className="text-[11px] text-orange-700 dark:text-orange-400 font-bold leading-snug">
+              Note: ₱{pendingOffline.toLocaleString()} is currently awaiting landlord verification and is not yet deducted from your balance.
+            </p>
+          </div>
         )}
       </div>
 

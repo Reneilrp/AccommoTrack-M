@@ -33,7 +33,25 @@ const LandlordDashboardService = {
             // Extract data from settled promises, use defaults for rejected ones
             const statsRes = results[0].status === 'fulfilled' ? results[0].value : { data: null };
             const activitiesRes = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
-            const paymentsRes = results[2].status === 'fulfilled' ? results[2].value : { data: { upcomingCheckouts: [], unpaidBookings: [] } };
+            const paymentsRes = results[2].status === 'fulfilled'
+                ? results[2].value
+                : {
+                    data: {
+                        upcomingCheckouts: [],
+                        unpaidBookings: [],
+                        vacatingSoon: [],
+                        billingHealth: {
+                            dueForBillingCount: 0,
+                            dueForBilling: [],
+                            overdueInvoicesCount: 0,
+                            overdueInvoicesAmount: 0,
+                            dueSoonInvoicesCount: 0,
+                            dueSoonInvoicesAmount: 0,
+                            overdueInvoices: [],
+                            dueSoonInvoices: [],
+                        },
+                    },
+                };
             const chartRes = results[3].status === 'fulfilled' ? results[3].value : { data: { labels: [], data: [] } };
             const performanceRes = results[4].status === 'fulfilled' ? results[4].value : { data: [] };
 
@@ -42,7 +60,21 @@ const LandlordDashboardService = {
                 data: {
                     stats: statsRes.data,
                     activities: activitiesRes.data || [],
-                    upcomingPayments: paymentsRes.data || { upcomingCheckouts: [], unpaidBookings: [] },
+                    upcomingPayments: paymentsRes.data || {
+                        upcomingCheckouts: [],
+                        unpaidBookings: [],
+                        vacatingSoon: [],
+                        billingHealth: {
+                            dueForBillingCount: 0,
+                            dueForBilling: [],
+                            overdueInvoicesCount: 0,
+                            overdueInvoicesAmount: 0,
+                            dueSoonInvoicesCount: 0,
+                            dueSoonInvoicesAmount: 0,
+                            overdueInvoices: [],
+                            dueSoonInvoices: [],
+                        },
+                    },
                     revenueChart: chartRes.data || { labels: [], data: [] },
                     propertyPerformance: performanceRes.data || [],
                 },

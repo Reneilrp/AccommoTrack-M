@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PaymentTransaction;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\User;
@@ -151,23 +153,24 @@ class AnalyticsService
         $availableRooms = (int) $properties->sum(fn ($p) => $p->rooms->where('status', 'available')->count());
         $occupancyRate = $totalRooms > 0 ? round(($occupiedSlots / $totalRooms) * 100, 1) : 0;
 
-        // Fix #4: Use actual collected payment amounts, not contracted booking amounts
-        $paymentsQuery = Payment::forLandlord($landlordId)->where('status', 'paid');
-        if ($propertyId) {
-            $paymentsQuery->whereHas('booking', fn ($q) => $q->where('property_id', $propertyId));
-        }
-        $totalRevenue = $paymentsQuery->sum('amount');
+        // Cash basis: revenue is counted only from paid invoices.
+        $collectedInvoicesQuery = $this->baseCollectedInvoiceQuery($landlordId, $propertyId);
+        $totalRevenueCents = (int) (clone $collectedInvoicesQuery)->sum('amount_cents');
 
         // Calculate Revenue Growth (Current Month vs Previous Month)
-        $monthlyRevenue = (clone $paymentsQuery)
-            ->whereMonth('payment_date', now()->month)
-            ->whereYear('payment_date', now()->year)
-            ->sum('amount');
+        $monthlyRevenueCents = (int) (clone $collectedInvoicesQuery)
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
+            ->sum('amount_cents');
 
-        $prevMonthRevenue = (clone $paymentsQuery)
-            ->whereMonth('payment_date', now()->subMonth()->month)
-            ->whereYear('payment_date', now()->subMonth()->year)
-            ->sum('amount');
+        $prevMonthRevenueCents = (int) (clone $collectedInvoicesQuery)
+            ->whereMonth('paid_at', now()->subMonth()->month)
+            ->whereYear('paid_at', now()->subMonth()->year)
+            ->sum('amount_cents');
+
+        $monthlyRevenue = $monthlyRevenueCents / 100;
+        $prevMonthRevenue = $prevMonthRevenueCents / 100;
+        $totalRevenue = $totalRevenueCents / 100;
 
         $revenueGrowth = 0;
         if ($prevMonthRevenue > 0) {
@@ -200,32 +203,27 @@ class AnalyticsService
      */
     public function calculateRevenueAnalytics(int $landlordId, ?int $propertyId, array $dateRange, string $timeRange = 'month'): array
     {
-        $query = Booking::forLandlord($landlordId)
-            ->confirmed()
-            ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']]);
-
-        if ($propertyId) {
-            $query->where('property_id', $propertyId);
-        }
+        $collectedInRangeQuery = $this->baseCollectedInvoiceQuery($landlordId, $propertyId)
+            ->whereBetween('paid_at', [$dateRange['start'], $dateRange['end']]);
 
         // Determine grouping and label format based on time range
         $grouping = match ($timeRange) {
-            'week' => 'DATE_FORMAT(created_at, "%Y-%m-%d") as period',
-            'month' => 'CONCAT("Week ", FLOOR((DAY(created_at) - 1) / 7) + 1) as period',
-            'year' => 'DATE_FORMAT(created_at, "%Y-%m") as period',
-            default => 'DATE_FORMAT(created_at, "%Y-%m") as period',
+            'week' => 'DATE_FORMAT(paid_at, "%Y-%m-%d") as period',
+            'month' => 'CONCAT("Week ", FLOOR((DAY(paid_at) - 1) / 7) + 1) as period',
+            'year' => 'DATE_FORMAT(paid_at, "%Y-%m") as period',
+            default => 'DATE_FORMAT(paid_at, "%Y-%m") as period',
         };
 
-        // Get actual trend from DB
-        $results = (clone $query)
+        // Cash-basis trend from paid invoices.
+        $resultsCents = (clone $collectedInRangeQuery)
             ->select(
                 DB::raw($grouping),
-                DB::raw('SUM(total_amount) as revenue')
+                DB::raw('SUM(amount_cents) as revenue_cents')
             )
             ->groupBy(DB::raw(preg_replace('/ as period$/', '', $grouping)))
             ->orderBy('period')
             ->get()
-            ->pluck('revenue', 'period')
+            ->pluck('revenue_cents', 'period')
             ->toArray();
 
         // Fill gaps to ensure current periods are shown even if 0
@@ -233,40 +231,35 @@ class AnalyticsService
         if ($timeRange === 'week') {
             for ($i = 0; $i < 7; $i++) {
                 $date = (clone $dateRange['start'])->addDays($i)->format('Y-m-d');
-                $trend[] = ['month' => $date, 'revenue' => (float) ($results[$date] ?? 0)];
+                $trend[] = ['month' => $date, 'revenue' => (float) (($resultsCents[$date] ?? 0) / 100)];
             }
         } elseif ($timeRange === 'month') {
             $maxWeek = (int) ceil(now()->day / 7);
             // Ensure we at least show up to the current week of the month
             for ($w = 1; $w <= max(4, $maxWeek); $w++) {
                 $key = "Week $w";
-                $trend[] = ['month' => $key, 'revenue' => (float) ($results[$key] ?? 0)];
+                $trend[] = ['month' => $key, 'revenue' => (float) (($resultsCents[$key] ?? 0) / 100)];
             }
         } elseif ($timeRange === 'year') {
             for ($m = 1; $m <= 12; $m++) {
                 $monthKey = now()->year.'-'.str_pad($m, 2, '0', STR_PAD_LEFT);
-                $trend[] = ['month' => $monthKey, 'revenue' => (float) ($results[$monthKey] ?? 0)];
+                $trend[] = ['month' => $monthKey, 'revenue' => (float) (($resultsCents[$monthKey] ?? 0) / 100)];
             }
         }
 
-        // Expected (potential) vs actual revenue for current month
+        // Expected (potential) vs actual collected revenue for current month.
         $expectedMonthly = $this->calculatePotentialRevenue($landlordId, $propertyId);
-        $actualMonthlyQuery = Booking::forLandlord($landlordId)
-            ->confirmed()
-            ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year);
-        if ($propertyId) {
-            $actualMonthlyQuery->where('property_id', $propertyId);
-        }
-        $actualMonthly = $actualMonthlyQuery->sum('total_amount');
+        $actualMonthlyCents = (int) (clone $this->baseCollectedInvoiceQuery($landlordId, $propertyId))
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
+            ->sum('amount_cents');
+        $actualMonthly = $actualMonthlyCents / 100;
+
         $collectionRate = $expectedMonthly > 0
             ? round(($actualMonthly / $expectedMonthly) * 100, 1)
             : 0;
 
-        $totalRevenueQuery = Booking::forLandlord($landlordId)->confirmed();
-        if ($propertyId) {
-            $totalRevenueQuery->where('property_id', $propertyId);
-        }
+        $totalRevenue = ((int) (clone $this->baseCollectedInvoiceQuery($landlordId, $propertyId))->sum('amount_cents')) / 100;
 
         // Income Breakdown: Rent vs Add-ons
         $addonRevenue = DB::table('booking_addons')
@@ -279,20 +272,13 @@ class AnalyticsService
             })
             ->sum(DB::raw('quantity * price_at_booking'));
 
-        $totalPeriodRevenue = $actualMonthly; // For 'month' range, this is same as actualMonthly
-        if ($timeRange !== 'month') {
-            $totalPeriodRevenue = Booking::forLandlord($landlordId)
-                ->confirmed()
-                ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']]);
-            if ($propertyId) $totalPeriodRevenue->where('property_id', $propertyId);
-            $totalPeriodRevenue = $totalPeriodRevenue->sum('total_amount');
-        }
+        $totalPeriodRevenue = ((int) (clone $collectedInRangeQuery)->sum('amount_cents')) / 100;
 
         $rentRevenue = max(0, $totalPeriodRevenue - $addonRevenue);
 
         return [
             'monthly_trend' => $trend,
-            'total_revenue' => round($totalRevenueQuery->sum('total_amount'), 2),
+            'total_revenue' => round($totalRevenue, 2),
             'expected_monthly' => round($expectedMonthly, 2),
             'actual_monthly' => round($actualMonthly, 2),
             'collection_rate' => $collectionRate,
@@ -301,6 +287,23 @@ class AnalyticsService
                 ['name' => 'Add-ons', 'value' => round($addonRevenue, 2)],
             ]
         ];
+    }
+
+    /**
+     * Cash-basis collected revenue query.
+     */
+    protected function baseCollectedInvoiceQuery(int $landlordId, ?int $propertyId = null)
+    {
+        $query = Invoice::query()
+            ->where('landlord_id', $landlordId)
+            ->where('status', 'paid')
+            ->whereNotNull('paid_at');
+
+        if ($propertyId) {
+            $query->where('property_id', $propertyId);
+        }
+
+        return $query;
     }
 
     /**
@@ -378,17 +381,17 @@ class AnalyticsService
         $currentMonth = now()->month;
         $currentYear = now()->year;
 
-        $monthlyRevenueByRoom = Payment::forLandlord($landlordId)
-            ->where('status', 'paid')
-            ->whereMonth('payment_date', $currentMonth)
-            ->whereYear('payment_date', $currentYear)
-            ->whereHas('booking', function ($q) use ($propertyId) {
-                $q->where('property_id', $propertyId);
-            })
-            ->whereNotNull('room_id')
-            ->select('room_id', DB::raw('SUM(amount) as monthly_revenue'))
-            ->groupBy('room_id')
-            ->pluck('monthly_revenue', 'room_id');
+        $monthlyRevenueByRoom = PaymentTransaction::where('payment_transactions.status', 'succeeded')
+            ->whereMonth('payment_transactions.created_at', $currentMonth)
+            ->whereYear('payment_transactions.created_at', $currentYear)
+            ->join('invoices', 'payment_transactions.invoice_id', '=', 'invoices.id')
+            ->join('bookings', 'invoices.booking_id', '=', 'bookings.id')
+            ->where('invoices.property_id', $propertyId)
+            ->where('invoices.landlord_id', $landlordId)
+            ->whereNotNull('bookings.room_id')
+            ->select('bookings.room_id', DB::raw('SUM(payment_transactions.amount_cents) as monthly_revenue_cents'))
+            ->groupBy('bookings.room_id')
+            ->pluck('monthly_revenue_cents', 'room_id');
 
         return Room::forLandlord($landlordId)
             ->where('property_id', $propertyId)
@@ -397,7 +400,7 @@ class AnalyticsService
             }])
             ->get()
             ->map(function ($room) use ($monthlyRevenueByRoom) {
-                $monthlyRevenue = (float) ($monthlyRevenueByRoom[$room->id] ?? 0);
+                $monthlyRevenue = (float) (($monthlyRevenueByRoom[$room->id] ?? 0) / 100);
 
                 return [
                     'id' => $room->id,
@@ -436,15 +439,24 @@ class AnalyticsService
             ->with(['rooms' => function ($q) {
                 $q->withCount('tenants');
             }])
-            ->withSum(['payments as total_revenue' => fn ($q) => $q->where('payments.status', 'paid')], 'payments.amount')
-            ->withSum(['payments as monthly_revenue' => fn ($q) => $q->where('payments.status', 'paid')
-                ->whereMonth('payments.payment_date', $currentMonth)->whereYear('payments.payment_date', $currentYear)], 'payments.amount')
             ->get()
-            ->map(function ($property) {
+            ->map(function ($property) use ($currentMonth, $currentYear) {
                 // We need to get total slots and available rooms separately as they can't be done in one go with withCount
                 $totalSlots = (int) $property->rooms->sum('capacity');
                 $occupiedSlots = (int) $property->rooms->sum('tenants_count');
                 $availableRooms = (int) $property->rooms->where('status', 'available')->count();
+                
+                $totalRevenueCents = (int) PaymentTransaction::where('status', 'succeeded')
+                    ->whereHas('invoice', function ($q) use ($property) {
+                        $q->where('property_id', $property->id);
+                    })->sum('amount_cents');
+
+                $monthlyRevenueCents = (int) PaymentTransaction::where('status', 'succeeded')
+                    ->whereMonth('created_at', $currentMonth)
+                    ->whereYear('created_at', $currentYear)
+                    ->whereHas('invoice', function ($q) use ($property) {
+                        $q->where('property_id', $property->id);
+                    })->sum('amount_cents');
 
                 return [
                     'id' => $property->id,
@@ -455,9 +467,9 @@ class AnalyticsService
                     'occupied_slots' => $occupiedSlots,
                     'available_rooms' => $availableRooms,
                     'occupancy_rate' => $totalSlots > 0 ? round(($occupiedSlots / $totalSlots) * 100, 1) : 0,
-                    'monthly_revenue' => round($property->monthly_revenue ?? 0, 2),
-                    'total_revenue' => round($property->total_revenue ?? 0, 2),
-                    'revpar' => $property->rooms_count > 0 ? round(($property->monthly_revenue ?? 0) / $property->rooms_count, 2) : 0, // NEW
+                    'monthly_revenue' => round($monthlyRevenueCents / 100, 2),
+                    'total_revenue' => round($totalRevenueCents / 100, 2),
+                    'revpar' => $property->rooms_count > 0 ? round(($monthlyRevenueCents / 100) / $property->rooms_count, 2) : 0,
                 ];
             })
             ->toArray();
@@ -500,12 +512,10 @@ class AnalyticsService
      */
     public function calculatePaymentAnalytics(int $landlordId, ?int $propertyId = null): array
     {
-        $query = Payment::forLandlord($landlordId);
+        $query = Invoice::where('landlord_id', $landlordId);
 
         if ($propertyId) {
-            $query->whereHas('booking', function ($q) use ($propertyId) {
-                $q->where('property_id', $propertyId);
-            });
+            $query->where('property_id', $propertyId);
         }
 
         $stats = $query
@@ -515,10 +525,18 @@ class AnalyticsService
                 DB::raw('SUM(CASE WHEN status = "partial" THEN 1 ELSE 0 END) as partial'),
                 DB::raw('SUM(CASE WHEN status = "overdue" OR (status = "pending" AND due_date < NOW()) THEN 1 ELSE 0 END) as overdue'),
                 DB::raw('SUM(CASE WHEN status = "pending" AND due_date >= NOW() THEN 1 ELSE 0 END) as pending'),
-                DB::raw('SUM(CASE WHEN status = "paid" THEN amount ELSE 0 END) as collected'),
-                DB::raw('SUM(CASE WHEN status IN ("pending", "partial", "overdue") THEN amount ELSE 0 END) as outstanding')
+                DB::raw('SUM(amount_cents) as total_cents')
             )
             ->first();
+
+        // Calculate collected from transactions
+        $collectedQuery = PaymentTransaction::where('status', 'succeeded')
+            ->whereHas('invoice', function ($q) use ($landlordId, $propertyId) {
+                $q->where('landlord_id', $landlordId);
+                if ($propertyId) $q->where('property_id', $propertyId);
+            });
+        
+        $collectedCents = (int) $collectedQuery->sum('amount_cents');
 
         $total = (int) ($stats->total ?? 0);
         $paid = (int) ($stats->paid ?? 0);
@@ -530,10 +548,12 @@ class AnalyticsService
 
         return [
             'paid' => $paid,
-            'unpaid' => $pending, // Mapping 'pending' to 'unpaid' for frontend compatibility
+            'unpaid' => $pending,
             'partial' => $partial,
             'overdue' => $overdue,
             'payment_rate' => $paymentRate,
+            'collected' => $collectedCents / 100,
+            'outstanding' => (($stats->total_cents ?? 0) - $collectedCents) / 100,
         ];
     }
 
@@ -574,40 +594,41 @@ class AnalyticsService
     }
 
     /**
-     * Helper: Count active tenants
+     * Helper: Count active tenant assignments (room occupancies)
      */
     protected function countActiveTenants(int $landlordId, ?int $propertyId = null): int
     {
-        return User::where('role', 'tenant')
-            ->whereHas('room', function ($q) use ($landlordId, $propertyId) {
-                $q->whereHas('property', function ($q2) use ($landlordId, $propertyId) {
-                    $q2->where('landlord_id', $landlordId);
-                    if ($propertyId) {
-                        $q2->where('id', $propertyId);
-                    }
-                });
-            })
-            ->count();
+        $query = DB::table('room_tenant_assignments')
+            ->join('rooms', 'room_tenant_assignments.room_id', '=', 'rooms.id')
+            ->join('properties', 'rooms.property_id', '=', 'properties.id')
+            ->where('properties.landlord_id', $landlordId)
+            ->where('room_tenant_assignments.status', 'active');
+
+        if ($propertyId) {
+            $query->where('properties.id', $propertyId);
+        }
+
+        return $query->count();
     }
 
     /**
-     * Helper: Count new tenants this month
+     * Helper: Count new tenant assignments this month
      */
     protected function countNewTenantsThisMonth(int $landlordId, ?int $propertyId = null): int
     {
-        return User::where('role', 'tenant')
-            ->whereHas('tenantProfile', function ($q) {
-                $q->where('status', 'active')
-                    ->whereMonth('move_in_date', now()->month)
-                    ->whereYear('move_in_date', now()->year);
-            })
-            ->whereHas('room.property', function ($q) use ($landlordId, $propertyId) {
-                $q->where('landlord_id', $landlordId);
-                if ($propertyId) {
-                    $q->where('id', $propertyId);
-                }
-            })
-            ->count();
+        $query = DB::table('room_tenant_assignments')
+            ->join('rooms', 'room_tenant_assignments.room_id', '=', 'rooms.id')
+            ->join('properties', 'rooms.property_id', '=', 'properties.id')
+            ->where('properties.landlord_id', $landlordId)
+            ->where('room_tenant_assignments.status', 'active')
+            ->whereMonth('room_tenant_assignments.created_at', now()->month)
+            ->whereYear('room_tenant_assignments.created_at', now()->year);
+
+        if ($propertyId) {
+            $query->where('properties.id', $propertyId);
+        }
+
+        return $query->count();
     }
 
     /**

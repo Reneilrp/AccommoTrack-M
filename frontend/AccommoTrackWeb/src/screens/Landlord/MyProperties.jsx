@@ -353,11 +353,6 @@ export default function MyProperties({ __user }) {
                   />
                 </div>
 
-                {/* Filter Button */}
-                <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex-shrink-0">
-                  <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                </button>
-
                 {/* Refresh Button */}
                 <button
                   onClick={fetchProperties}

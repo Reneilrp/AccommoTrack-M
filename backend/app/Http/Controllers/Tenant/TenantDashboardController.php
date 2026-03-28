@@ -53,13 +53,14 @@ class TenantDashboardController extends Controller
             $data = $this->dashboardService->getUpcomingPayments(Auth::id());
 
             $upcomingCheckouts = $data['upcomingCheckouts']->map(function ($booking) {
-                $daysLeft = now()->diffInDays($booking->end_date, false);
+                $daysLeft = $booking->end_date ? now()->diffInDays($booking->end_date, false) : null;
 
                 return [
                     'id' => $booking->id, 'propertyTitle' => $booking->property->title, 'roomNumber' => $booking->room->room_number,
-                    'endDate' => $booking->end_date->format('Y-m-d'), 'daysLeft' => (int) $daysLeft,
+                    'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                    'daysLeft' => $daysLeft !== null ? (int) $daysLeft : null,
                     'amount' => (float) $booking->monthly_rent, 'paymentStatus' => $booking->payment_status,
-                    'urgency' => $daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low'),
+                    'urgency' => $daysLeft === null ? 'low' : ($daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low')),
                 ];
             });
 
@@ -88,14 +89,20 @@ class TenantDashboardController extends Controller
             $formattedUpcoming = $upcomingBooking ? [
                 'id' => $upcomingBooking->id, 'property' => $upcomingBooking->property->title,
                 'room' => $upcomingBooking->room->room_number, 'startDate' => $upcomingBooking->start_date->format('Y-m-d'),
-                'daysUntil' => now()->diffInDays($upcomingBooking->start_date),
+                'daysUntil' => max(0, (int) now()->startOfDay()->diffInDays($upcomingBooking->start_date->copy()->startOfDay(), false)),
             ] : null;
 
             $formattedPendingCheckIns = $pendingCheckIns->map(function ($b) {
+                $startDate = \Carbon\Carbon::parse($b->start_date)->startOfDay();
+                $today = now()->startOfDay();
+                $daysOverdue = max(0, (int) $startDate->diffInDays($today, false));
+
                 return [
                     'id' => $b->id, 'property' => $b->property->title,
                     'room' => $b->room->room_number, 'startDate' => $b->start_date->format('Y-m-d'),
-                    'daysOverdue' => now()->diffInDays($b->start_date),
+                    'daysOverdue' => $daysOverdue,
+                    'property_id' => $b->property_id,
+                    'propertyId' => $b->property_id,
                     'status' => $b->status,
                     'isOverdue' => true
                 ];
@@ -133,20 +140,27 @@ class TenantDashboardController extends Controller
                 return [
                     'booking' => [
                         'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
-                        'startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date->format('Y-m-d'),
-                        'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date->format('Y-m-d'),
+                        'startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                        'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
                         'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $booking->monthly_rent,
                         'total_months' => $booking->total_months, 'monthly_rent' => (float) $booking->monthly_rent,
                         'billing_policy' => $booking->room->billing_policy ?? 'monthly',
                         'unit_price' => (float) ($booking->room->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
                         'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
                         'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
+                        'contract_mode' => $booking->contract_mode,
+                        'contractMode' => $booking->contract_mode,
+                        'next_billing_date' => $booking->next_billing_date ? $booking->next_billing_date->format('Y-m-d') : null,
+                        'billing_day' => $booking->billing_day,
+                        'notice_given_at' => $booking->notice_given_at ? $booking->notice_given_at->toISOString() : null,
                         'hasReview' => (bool) $booking->review,
-                        'isOverdue' => now()->gt($booking->end_date) && !in_array($booking->status, ['completed', 'cancelled']),
+                        'isOverdue' => $booking->end_date ? (now()->gt($booking->end_date) && !in_array($booking->status, ['completed', 'cancelled'])) : false,
                         'due_day' => (int) $booking->start_date->format('d'),
-                        'daysRemaining' => now()->diffInDays($booking->end_date, false) < 0 ? 0 : (int) floor(now()->diffInDays($booking->end_date)),
+                        'daysRemaining' => $booking->end_date
+                            ? (now()->diffInDays($booking->end_date, false) < 0 ? 0 : (int) floor(now()->diffInDays($booking->end_date)))
+                            : null,
                         'daysStayed' => now()->diffInDays($booking->start_date, false) > 0 ? 0 : (int) floor(abs(now()->diffInDays($booking->start_date, false))),
-                        'monthsRemaining' => now()->diffInMonths($booking->end_date),
+                        'monthsRemaining' => $booking->end_date ? now()->diffInMonths($booking->end_date) : null,
                     ],
                     'room' => [
                         'id' => $booking->room->id,
@@ -364,11 +378,16 @@ class TenantDashboardController extends Controller
                     'property' => ['id' => $booking->property->id, 'title' => $booking->property->title, 'image' => $booking->property->image_url],
                     'room' => ['id' => $booking->room->id, 'roomNumber' => $booking->room->room_number],
                     'landlord' => ['name' => $booking->landlord->name],
-                    'period' => ['startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date->format('Y-m-d'), 'totalMonths' => $booking->total_months],
+                    'period' => [
+                        'startDate' => $booking->start_date->format('Y-m-d'),
+                        'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                        'totalMonths' => $booking->total_months,
+                    ],
                     'status' => $booking->status,
                     'billing_policy' => $booking->room?->billing_policy ?? 'monthly',
                     'unit_price' => (float) ($booking->room?->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
                     'confirmedAt' => $booking->confirmed_at,
+                    'noticeGivenAt' => $booking->notice_given_at,
                     'activityLog' => $sortedActivity,
                     'financials' => ['monthlyRent' => (float) $booking->monthly_rent, 'totalAmount' => (float) $booking->total_amount, 'addonTotal' => (float) $addonTotal, 'totalPaid' => (float) $totalPaid, 'paymentsCount' => $booking->payments->count()],
                     'addons' => $booking->addons->map(function ($a) {

@@ -42,12 +42,28 @@ export default function AddonsScreen({ hideHeader = false }) {
     name: '',
     addon_type: 'rental',
     price_type: 'monthly',
-    note: ''
+    note: '',
+    suggested_price: ''
   });
 
   useEffect(() => {
     loadAddons();
   }, []);
+
+  const normalizeNote = (value) => {
+    const trimmed = String(value || '').trim();
+    return trimmed || null;
+  };
+
+  const normalizeSuggestedPrice = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+
+    const numericValue = Number(raw);
+    if (!Number.isFinite(numericValue) || numericValue < 0) return null;
+
+    return numericValue;
+  };
 
   const loadAddons = async () => {
     setLoading(true);
@@ -82,17 +98,27 @@ export default function AddonsScreen({ hideHeader = false }) {
   };
 
   const onRequest = async (addon, isCustom = false) => {
-    const payload = isCustom ? {
-        is_custom: true,
-        ...customData,
-        quantity: 1,
-        booking_id: bookingId
-    } : {
-        addon_id: addon.id,
-        quantity: qtys[addon.id] || 1,
-        note: notes[addon.id] || null,
-        booking_id: bookingId
-    };
+    const normalizedSuggestedPrice = normalizeSuggestedPrice(customData.suggested_price);
+
+    const payload = isCustom
+      ? {
+          is_custom: true,
+          name: customData.name.trim(),
+          addon_type: customData.addon_type,
+          price_type: customData.price_type,
+          quantity: 1,
+          note: normalizeNote(customData.note),
+          booking_id: bookingId,
+          ...(normalizedSuggestedPrice !== null
+            ? { suggested_price: normalizedSuggestedPrice }
+            : {}),
+        }
+      : {
+          addon_id: addon.id,
+          quantity: qtys[addon.id] || 1,
+          note: normalizeNote(notes[addon.id]),
+          booking_id: bookingId,
+        };
 
     setSubmittingId(isCustom ? 'custom' : addon.id);
     try {
@@ -100,7 +126,7 @@ export default function AddonsScreen({ hideHeader = false }) {
       if (res.success) {
         showSuccess('Add-on request submitted');
         setShowCustomForm(false);
-        setCustomData({ name: '', addon_type: 'rental', price_type: 'monthly', note: '' });
+        setCustomData({ name: '', addon_type: 'rental', price_type: 'monthly', note: '', suggested_price: '' });
         await loadAddons();
       } else {
         showError('Error', res.error || 'Failed to request addon');
@@ -256,6 +282,16 @@ export default function AddonsScreen({ hideHeader = false }) {
                                     </TouchableOpacity>
                                 </View>
                             </View>
+
+                            <Text style={styles.formLabel}>Suggested Price (Optional)</Text>
+                            <TextInput
+                              placeholder="Suggested price (optional)"
+                              placeholderTextColor={theme.colors.textTertiary}
+                              keyboardType="decimal-pad"
+                              value={customData.suggested_price}
+                              onChangeText={t => setCustomData({ ...customData, suggested_price: t.replace(/[^0-9.]/g, '') })}
+                              style={styles.formInput}
+                            />
 
                             <Text style={styles.formLabel}>Notes for Landlord</Text>
                             <TextInput 

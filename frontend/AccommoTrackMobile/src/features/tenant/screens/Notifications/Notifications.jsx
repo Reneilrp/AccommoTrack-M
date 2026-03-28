@@ -128,9 +128,6 @@ const getStyles = (theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },
-    notificationUnread: {
-      backgroundColor: theme.isDark ? theme.colors.brand900 : "#F0FDF4",
-    },
     iconContainer: {
       width: 44,
       height: 44,
@@ -144,7 +141,6 @@ const getStyles = (theme) =>
       fontWeight: "500",
       color: theme.colors.text,
     },
-    unreadText: { fontWeight: "700", color: theme.colors.text },
     notificationMessage: {
       fontSize: 13,
       color: theme.colors.textSecondary,
@@ -176,44 +172,32 @@ const getStyles = (theme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    segmentButtonActive: {},
     segmentText: {
       fontSize: 13,
       color: theme.colors.textSecondary,
       fontWeight: "600",
     },
-    segmentTextActive: {
-      color: theme.colors.textInverse,
-    },
-    dateRow: {
+    errorBanner: {
+      marginHorizontal: 16,
+      marginTop: 12,
+      marginBottom: 6,
+      borderRadius: 10,
+      borderWidth: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
     },
-    dateButton: {
+    errorText: {
       flex: 1,
-      backgroundColor: theme.colors.surface,
-      paddingVertical: 8,
-      paddingHorizontal: 8,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      marginRight: 8,
+      fontSize: 12,
+      fontWeight: "500",
+      marginLeft: 8,
     },
-    dateButtonText: {
-      fontSize: 13,
-      color: theme.colors.text,
-    },
-    clearButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      backgroundColor: theme.colors.error,
-      borderRadius: 8,
-    },
-    clearButtonText: {
-      color: theme.colors.textInverse,
-      fontSize: 13,
-      fontWeight: "600",
+    errorRetryText: {
+      fontSize: 12,
+      fontWeight: "700",
+      marginLeft: 10,
     },
   });
 
@@ -221,97 +205,114 @@ export default function TenantNotifications({ navigation }) {
   const { theme } = useTheme();
   const notificationTypeMap = getNotificationTypeMap(theme);
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filterType, setFilterType] = useState("all"); // 'all' | 'bookings' | 'payments'
+  const [filterType, setFilterType] = useState("all");
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS });
+  const [fetchError, setFetchError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
+    setFetchError("");
+
     try {
-      const [backendRes, bookingsRes, paymentsRes] = await Promise.all([
-        api.get("/notifications?role=tenant").catch(() => ({ data: [] })),
-        BookingService.getMyBookings(),
-        PaymentService.getPayments(),
-      ]);
+      const [backendResult, bookingsResult, paymentsResult] =
+        await Promise.allSettled([
+          api.get("/notifications?role=tenant"),
+          BookingService.getMyBookings(),
+          PaymentService.getPayments(),
+        ]);
 
       const items = [];
+      let failedSources = 0;
 
-      // Real backend notifications (push events: booking approved, new message, etc.)
-      const backendNotifs = Array.isArray(backendRes.data)
-        ? backendRes.data
-        : [];
-      backendNotifs.forEach((n) => {
-        items.push({
-          id: `n-${n.id}`,
-          type: n.data?.type || "default",
-          title: n.data?.title || "Notification",
-          message: n.data?.message || "",
-          timestamp: n.created_at || new Date().toISOString(),
-          read: !!n.read_at,
-          raw: n,
-        });
-      });
+      if (backendResult.status === "fulfilled") {
+        const backendPayload =
+          backendResult.value?.data?.data || backendResult.value?.data || [];
+        const backendNotifs = Array.isArray(backendPayload) ? backendPayload : [];
 
-      if (bookingsRes.success && Array.isArray(bookingsRes.data)) {
-        bookingsRes.data.forEach((b) => {
+        backendNotifs.forEach((n) => {
           items.push({
-            id: `b-${b.id}`,
-            type: "booking",
-            title: `Booking ${b.reference || b.id}`,
-            message: `Status: ${b.status}`,
-            timestamp: b.updated_at || b.created_at || new Date().toISOString(),
-            read: b.status === "confirmed" || b.status === "cancelled",
-            raw: b,
+            id: `n-${n.id}`,
+            type: n.data?.type || "default",
+            title: n.data?.title || "Notification",
+            message: n.data?.message || "",
+            timestamp: n.created_at || new Date().toISOString(),
+            read: !!n.read_at,
+            raw: n,
           });
         });
+      } else {
+        failedSources += 1;
       }
 
-      if (paymentsRes.success && Array.isArray(paymentsRes.data)) {
-        paymentsRes.data.forEach((p) => {
-          items.push({
-            id: `p-${p.id}`,
-            type: "payment",
-            title: `Invoice ${p.invoice_reference || p.id}`,
-            message: `Payment status: ${p.status}`,
-            timestamp: p.updated_at || p.created_at || new Date().toISOString(),
-            read: p.status === "paid",
-            raw: p,
+      if (bookingsResult.status === "fulfilled") {
+        const bookingsRes = bookingsResult.value;
+        if (bookingsRes?.success && Array.isArray(bookingsRes.data)) {
+          bookingsRes.data.forEach((b) => {
+            items.push({
+              id: `b-${b.id}`,
+              type: "booking",
+              title: `Booking ${b.reference || b.id}`,
+              message: `Status: ${b.status}`,
+              timestamp: b.updated_at || b.created_at || new Date().toISOString(),
+              read: b.status === "confirmed" || b.status === "cancelled",
+              raw: b,
+            });
           });
-        });
+        } else {
+          failedSources += 1;
+        }
+      } else {
+        failedSources += 1;
       }
 
-      // Sort latest first
+      if (paymentsResult.status === "fulfilled") {
+        const paymentsRes = paymentsResult.value;
+        if (paymentsRes?.success && Array.isArray(paymentsRes.data)) {
+          paymentsRes.data.forEach((p) => {
+            items.push({
+              id: `p-${p.id}`,
+              type: "payment",
+              title: `Invoice ${p.invoice_reference || p.id}`,
+              message: `Payment status: ${p.status}`,
+              timestamp: p.updated_at || p.created_at || new Date().toISOString(),
+              read: p.status === "paid",
+              raw: p,
+            });
+          });
+        } else {
+          failedSources += 1;
+        }
+      } else {
+        failedSources += 1;
+      }
+
+      if (failedSources > 0) {
+        setFetchError(
+          failedSources === 3
+            ? "Unable to load notifications right now. Pull to refresh."
+            : "Some notification data could not be loaded. Pull to refresh.",
+        );
+      }
+
       items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
       setNotifications(items);
     } catch (err) {
       console.warn("Error fetching tenant notifications", err);
+      setFetchError("Unable to load notifications right now. Pull to refresh.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // derive displayed notifications using filters and user preferences
-  const displayedNotifications = notifications.filter((n) => {
-    // type filter
-    if (filterType === "bookings" && n.type !== "booking") return false;
-    if (filterType === "payments" && n.type !== "payment") return false;
-
-    // Respect saved preferences: hide types user disabled
-    if (n.type === "booking" && prefs.email_booking === false) return false;
-    if (n.type === "payment" && prefs.email_payment === false) return false;
-    if (n.type === "message" && prefs.push_messages === false) return false;
-
-    return true;
-  });
-
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // load saved notification preferences and apply to feed
   useEffect(() => {
     (async () => {
       try {
@@ -323,6 +324,15 @@ export default function TenantNotifications({ navigation }) {
     })();
   }, []);
 
+  const displayedNotifications = notifications.filter((n) => {
+    if (filterType === "bookings" && n.type !== "booking") return false;
+    if (filterType === "payments" && n.type !== "payment") return false;
+    if (n.type === "booking" && prefs.email_booking === false) return false;
+    if (n.type === "payment" && prefs.email_payment === false) return false;
+    if (n.type === "message" && prefs.push_messages === false) return false;
+    return true;
+  });
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchNotifications();
@@ -330,13 +340,35 @@ export default function TenantNotifications({ navigation }) {
   };
 
   const markAsRead = async (id) => {
+    const previousState = notifications;
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
-    // Persist read state on the backend for real notifications
-    if (id.startsWith("n-")) {
-      const backendId = id.replace("n-", "");
-      await api.patch(`/notifications/${backendId}/read`).catch(() => {});
+
+    if (!id.startsWith("n-")) return;
+
+    const backendId = id.replace("n-", "");
+    try {
+      await api.patch(`/notifications/${backendId}/read`);
+      setActionError("");
+    } catch (err) {
+      console.warn("Failed to mark notification as read", err);
+      setNotifications(previousState);
+      setActionError("Could not mark that notification as read. Please try again.");
+    }
+  };
+
+  const markAllAsRead = async () => {
+    const previousState = notifications;
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+
+    try {
+      await api.patch("/notifications/read-all?role=tenant");
+      setActionError("");
+    } catch (err) {
+      console.warn("Failed to mark all notifications as read", err);
+      setNotifications(previousState);
+      setActionError("Could not mark all notifications as read. Please try again.");
     }
   };
 
@@ -374,7 +406,7 @@ export default function TenantNotifications({ navigation }) {
         backgroundColor={theme.colors.primary}
       />
 
-      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}> 
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -386,20 +418,13 @@ export default function TenantNotifications({ navigation }) {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}> 
           Notifications
         </Text>
 
         <View style={styles.headerSide}>
           {unreadCount > 0 ? (
-            <TouchableOpacity
-              onPress={() =>
-                setNotifications((prev) =>
-                  prev.map((n) => ({ ...n, read: true })),
-                )
-              }
-              style={styles.markAllButton}
-            >
+            <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
               <Text style={styles.markAllText}>Mark all</Text>
             </TouchableOpacity>
           ) : (
@@ -408,7 +433,6 @@ export default function TenantNotifications({ navigation }) {
         </View>
       </View>
 
-      {/* Filter bar: type + date range */}
       <View
         style={[
           styles.filterBar,
@@ -442,6 +466,7 @@ export default function TenantNotifications({ navigation }) {
               All
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => setFilterType("bookings")}
             style={[
@@ -465,6 +490,7 @@ export default function TenantNotifications({ navigation }) {
               Bookings
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => setFilterType("payments")}
             style={[
@@ -491,6 +517,42 @@ export default function TenantNotifications({ navigation }) {
         </View>
       </View>
 
+      {(fetchError || actionError) && (
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              backgroundColor: theme.isDark ? "rgba(127,29,29,0.25)" : "#FEF2F2",
+              borderColor: theme.isDark ? "#7F1D1D" : "#FCA5A5",
+            },
+          ]}
+        >
+          <Ionicons
+            name="alert-circle-outline"
+            size={16}
+            color={theme.isDark ? "#FCA5A5" : "#B91C1C"}
+          />
+          <Text
+            style={[
+              styles.errorText,
+              { color: theme.isDark ? "#FCA5A5" : "#B91C1C" },
+            ]}
+          >
+            {actionError || fetchError}
+          </Text>
+          <TouchableOpacity onPress={fetchNotifications}>
+            <Text
+              style={[
+                styles.errorRetryText,
+                { color: theme.isDark ? "#FCA5A5" : "#B91C1C" },
+              ]}
+            >
+              Retry
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -510,7 +572,7 @@ export default function TenantNotifications({ navigation }) {
               size={64}
               color={theme.colors.textTertiary}
             />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}> 
               No notifications
             </Text>
             <Text
@@ -527,6 +589,7 @@ export default function TenantNotifications({ navigation }) {
             const typeConfig =
               notificationTypeMap[notification.type] ||
               notificationTypeMap.default;
+
             return (
               <TouchableOpacity
                 key={notification.id}
@@ -557,6 +620,7 @@ export default function TenantNotifications({ navigation }) {
                     color={typeConfig.color}
                   />
                 </View>
+
                 <View style={styles.notificationContent}>
                   <Text
                     style={[
@@ -587,6 +651,7 @@ export default function TenantNotifications({ navigation }) {
                     {formatRelativeTime(notification.timestamp)}
                   </Text>
                 </View>
+
                 {!notification.read && (
                   <View
                     style={[

@@ -191,6 +191,14 @@ class RoomService
                 throw new \Exception('No active booking found for this tenant in this room.');
             }
 
+            if (($booking->contract_mode ?? 'monthly') === 'monthly' && ! $booking->end_date) {
+                throw new \Exception('Open-ended monthly stay does not need extension. Ask the tenant to submit a move-out notice when needed.');
+            }
+
+            if (! $booking->end_date) {
+                throw new \Exception('Cannot extend a stay without an existing move-out date.');
+            }
+
             $currentEnd = \Carbon\Carbon::parse($booking->end_date);
             $newEnd = $currentEnd->copy();
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown } from 'lucide-react';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -39,6 +39,15 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [loadingRoomsForTransfer, setLoadingRoomsForTransfer] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
   const [transferData, setTransferData] = useState({ new_room_id: '', reason: '', damage_charge: '', damage_description: '' });
+  const [assigningTenant, setAssigningTenant] = useState(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [availableRoomsForAssign, setAvailableRoomsForAssign] = useState([]);
+  const [loadingRoomsForAssign, setLoadingRoomsForAssign] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignData, setAssignData] = useState({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+  const [showUnassignModal, setShowUnassignModal] = useState(false);
+  const [unassigningTenant, setUnassigningTenant] = useState(null);
+  const [isUnassigning, setIsUnassigning] = useState(false);
   const [__error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   const [filter, setFilter] = useState('all');
@@ -151,6 +160,76 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const handleEvictInitiate = (tenant) => {
     setEvictingTenant(tenant);
     setShowEvictModal(true);
+  };
+
+  const handleAssignInitiate = async (tenant) => {
+    const propertyId = tenant.room?.property_id || selectedPropertyId;
+    if (!propertyId) {
+      toast.error('Select a property before assigning a room');
+      return;
+    }
+
+    setAssigningTenant(tenant);
+    setAssignData({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+    setAvailableRoomsForAssign([]);
+    setShowAssignModal(true);
+    setLoadingRoomsForAssign(true);
+    try {
+      const res = await api.get(`/rooms/property/${propertyId}`);
+      const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+      setAvailableRoomsForAssign(list.filter(r => r.status === 'available'));
+    } catch {
+      setError('Failed to load available rooms for assignment');
+    } finally {
+      setLoadingRoomsForAssign(false);
+    }
+  };
+
+  const handleAssignSubmit = async (e) => {
+    e.preventDefault();
+    if (!assigningTenant) return;
+    if (!assignData.room_id) {
+      toast.error('Please select a room');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const payload = { room_id: Number(assignData.room_id) };
+      if (assignData.move_in_date) payload.move_in_date = assignData.move_in_date;
+      if (assignData.end_date) payload.end_date = assignData.end_date;
+      if (assignData.notes?.trim()) payload.notes = assignData.notes.trim();
+
+      await api.post(`/landlord/tenants/${assigningTenant.id}/assign-room`, payload);
+      toast.success('Room assignment completed successfully');
+      setShowAssignModal(false);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to assign room');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassignInitiate = (tenant) => {
+    setUnassigningTenant(tenant);
+    setShowUnassignModal(true);
+  };
+
+  const handleUnassignConfirm = async () => {
+    if (!unassigningTenant) return;
+
+    setIsUnassigning(true);
+    try {
+      await api.delete(`/landlord/tenants/${unassigningTenant.id}/unassign-room`);
+      toast.success('Tenant unassigned successfully');
+      setShowUnassignModal(false);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to unassign tenant');
+    } finally {
+      setIsUnassigning(false);
+    }
   };
 
   const handleTransferSubmit = async (e) => {
@@ -302,7 +381,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                   <div className="absolute top-3 left-3 z-10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-2 rounded-full">
                     <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => handleSelectTenant(tenant.id)} className="w-4 h-4 text-green-600 rounded-full border-gray-300 focus:ring-green-500" />
                   </div>
-                  <TenantCard tenant={tenant} onTransfer={handleTransferInitiate} onEvict={handleEvictInitiate} canTransfer={!isCaretaker} />
+                  <TenantCard
+                    tenant={tenant}
+                    onTransfer={handleTransferInitiate}
+                    onAssign={handleAssignInitiate}
+                    onUnassign={handleUnassignInitiate}
+                    onEvict={handleEvictInitiate}
+                    canTransfer={!isCaretaker}
+                  />
                 </div>
               ))
             )}
@@ -314,6 +400,8 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             onSelect={handleSelectTenant}
             onSelectAll={handleSelectAll}
             onTransfer={handleTransferInitiate}
+            onAssign={handleAssignInitiate}
+            onUnassign={handleUnassignInitiate}
             onEvict={handleEvictInitiate}
             canTransfer={!isCaretaker}
             searchQuery={searchQuery}
@@ -321,7 +409,27 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         )}
       </div>
 
+      {showAssignModal && (
+        <AssignModal
+          tenant={assigningTenant}
+          availableRooms={availableRoomsForAssign}
+          loading={loadingRoomsForAssign}
+          isSubmitting={isAssigning}
+          data={assignData}
+          setData={setAssignData}
+          onClose={() => setShowAssignModal(false)}
+          onSubmit={handleAssignSubmit}
+        />
+      )}
       {showTransferModal && <TransferModal tenant={transferringTenant} availableRooms={availableRooms} loading={loadingRoomsForTransfer} isSubmitting={isTransferring} data={transferData} setData={setTransferData} onClose={() => setShowTransferModal(false)} onSubmit={handleTransferSubmit} />}
+      {showUnassignModal && (
+        <UnassignModal
+          tenant={unassigningTenant}
+          isSubmitting={isUnassigning}
+          onClose={() => setShowUnassignModal(false)}
+          onConfirm={handleUnassignConfirm}
+        />
+      )}
       {showEvictModal && <EvictionModal tenant={evictingTenant} onClose={() => setShowEvictModal(false)} onConfirm={loadTenants} />}
     </div>
   );
@@ -338,7 +446,6 @@ const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
   };
   return (
     <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-      <div className={`absolute top-0 left-0 right-0 h-1 ${colors[color].border}`} />
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
@@ -351,6 +458,50 @@ const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
     </div>
   );
 };
+
+const AssignModal = ({ tenant, availableRooms, loading, isSubmitting, data, setData, onClose, onSubmit }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><UserPlus className="w-5 h-5 text-emerald-500" />Assign Room</h2>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+      </div>
+      <form onSubmit={onSubmit} className="p-6 space-y-6">
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg text-sm text-emerald-800 dark:text-emerald-300">
+          Assigning <strong>{tenant.first_name} {tenant.last_name}</strong> to a room.
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Room *</label>
+          <select required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white" value={data.room_id} onChange={e => setData({ ...data, room_id: e.target.value })} disabled={loading}>
+            <option value="">{loading ? 'Loading rooms...' : 'Select Room'}</option>
+            {availableRooms.map(r => (<option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>))}
+          </select>
+          {availableRooms.length === 0 && !loading && <p className="text-[10px] text-red-500 mt-2 font-bold italic">No available rooms in this property.</p>}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Move-in Date</label>
+            <input type="date" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white" value={data.move_in_date} onChange={e => setData({ ...data, move_in_date: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contract End Date</label>
+            <input type="date" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white" value={data.end_date} onChange={e => setData({ ...data, end_date: e.target.value })} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Notes</label>
+          <textarea className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none" value={data.notes} onChange={e => setData({ ...data, notes: e.target.value })} placeholder="Optional assignment notes..." />
+        </div>
+        <div className="flex gap-4 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+          <button type="submit" disabled={isSubmitting || availableRooms.length === 0} className="flex-1 px-4 py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Assigning...</> : 'Assign Room'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+);
 
 const TransferModal = ({ tenant, availableRooms, loading, isSubmitting, data, setData, onClose, onSubmit }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -399,6 +550,23 @@ const TransferModal = ({ tenant, availableRooms, loading, isSubmitting, data, se
   </div>
 );
 
+const UnassignModal = ({ tenant, onClose, onConfirm, isSubmitting }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700 shadow-2xl">
+      <h3 className="text-lg font-bold text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-2"><UserMinus /> Confirm Unassign</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+        You are about to remove <strong>{tenant.first_name} {tenant.last_name}</strong> from their current room. This will end their active booking and mark them as inactive.
+      </p>
+      <div className="flex gap-4 mt-4">
+        <button onClick={onClose} disabled={isSubmitting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
+        <button onClick={onConfirm} disabled={isSubmitting} className="flex-1 px-4 py-4 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Unassign'}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 const EvictionModal = ({ tenant, onClose, onConfirm }) => {
   const [reason, setReason] = useState('');
   const [isEvicting, setIsEvicting] = useState(false);
@@ -437,7 +605,7 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
 
 // ─── List View ────────────────────────────────────────────────────────────────
 
-const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTransfer, onEvict, canTransfer, searchQuery }) => {
+const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTransfer, onAssign, onUnassign, onEvict, canTransfer, searchQuery }) => {
   const navigate = useNavigate();
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -617,11 +785,25 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
                           </button>
                           <div className="border-t border-gray-100 dark:border-gray-700" />
                           <button
+                            onClick={() => { setOpenMenuId(null); onAssign?.(tenant); }}
+                            disabled={!canTransfer || !!tenant.room}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <UserPlus className="w-3.5 h-3.5 text-emerald-500" /> Assign Room
+                          </button>
+                          <button
                             onClick={() => { setOpenMenuId(null); onTransfer?.(tenant); }}
                             disabled={!canTransfer || !tenant.room}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Shuffle className="w-3.5 h-3.5 text-amber-500" /> Transfer Room
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); onUnassign?.(tenant); }}
+                            disabled={!canTransfer || !tenant.room}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign Room
                           </button>
                           <button
                             onClick={() => { setOpenMenuId(null); setExpandedEmergency(showEmergency ? null : tenant.id); }}

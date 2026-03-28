@@ -12,12 +12,14 @@ class NewPaymentReceived extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    protected bool $isPending;
+
     /**
      * Create a new notification instance.
      */
-    public function __construct()
+    public function __construct(bool $isPending = false)
     {
-        //
+        $this->isPending = $isPending;
     }
 
     /**
@@ -35,9 +37,13 @@ class NewPaymentReceived extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $subject = $this->isPending ? 'Action Required: Cash Payment Verification' : 'New Payment Received';
+        $line1 = $this->isPending ? 'A tenant has recorded a cash payment that requires your verification.' : 'You have received a new payment.';
+
         return (new MailMessage)
-            ->subject('New Payment Received')
-            ->line('You have received a new payment.')
+            ->subject($subject)
+            ->line($line1)
+            ->action('View Payments', url('/landlord/payments'))
             ->line('Thank you for using our application!');
     }
 
@@ -50,9 +56,10 @@ class NewPaymentReceived extends Notification implements ShouldQueue
     {
         return [
             'type' => 'payment_received',
-            'title' => 'New Payment Received',
-            'message' => 'You have received a new payment.',
+            'title' => $this->isPending ? 'Cash Verification Required' : 'New Payment Received',
+            'message' => $this->isPending ? 'A tenant has recorded a cash payment awaiting your approval.' : 'You have received a new payment.',
             'url' => '/landlord/payments',
+            'is_pending' => $this->isPending,
         ];
     }
 
@@ -65,7 +72,7 @@ class NewPaymentReceived extends Notification implements ShouldQueue
 
         return [
             'type' => $data['type'] ?? 'payment',
-            'title' => $data['title'] ?? 'New Payment Received',
+            'title' => $data['title'],
             'message' => $data['message'],
             'data' => $data,
         ];

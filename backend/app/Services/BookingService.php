@@ -106,22 +106,35 @@ class BookingService
             }
 
             $startDate = Carbon::parse($data['start_date']);
-            $endDate = Carbon::parse($data['end_date']);
-            $days = $startDate->diffInDays($endDate);
+            $billingPolicy = strtolower((string) ($room->billing_policy ?? 'monthly'));
+            $requestedContractMode = strtolower((string) ($data['contract_mode'] ?? ''));
+            $endDate = ! empty($data['end_date']) ? Carbon::parse($data['end_date']) : null;
+
+            if ($billingPolicy === 'daily') {
+                $contractMode = 'daily';
+            } elseif ($billingPolicy === 'monthly') {
+                $contractMode = 'monthly';
+            } else {
+                $contractMode = in_array($requestedContractMode, ['daily', 'monthly'], true)
+                    ? $requestedContractMode
+                    : 'monthly';
+            }
 
             $today = Carbon::today();
 
-            if ($room->billing_policy === 'daily') {
-                // For daily rooms, check-in must be today or later
-                if ($startDate->lessThan($today)) {
-                    throw new \Exception('Check-in date cannot be in the past.');
-                }
-            } else {
-                // For monthly/others, check-in can be today
-                if ($startDate->lessThan($today)) {
-                    throw new \Exception('Check-in date cannot be in the past.');
-                }
+            if ($startDate->lessThan($today)) {
+                throw new \Exception('Check-in date cannot be in the past.');
             }
+
+            if ($contractMode === 'daily' && ! $endDate) {
+                throw new \Exception('Check-out date is required for daily bookings.');
+            }
+
+            if ($endDate && $endDate->lessThanOrEqualTo($startDate)) {
+                throw new \Exception('Check-out date must be after check-in date.');
+            }
+
+            $days = $endDate ? max(1, $startDate->diffInDays($endDate)) : 30;
 
             // Prevent bookings more than 3 months in advance
             if ($startDate->greaterThan(now()->addMonths(3))) {
@@ -131,17 +144,24 @@ class BookingService
             // Enforce minimum stay if configured
             $minStay = $room->min_stay_days ?? null;
 
-            // If billing policy is monthly, the implicit minimum stay is 30 days
-            if (($room->billing_policy === 'monthly' || $room->billing_policy === 'monthly_with_daily') && ($minStay === null || $minStay < 30)) {
+            // Monthly contract bookings should always observe at least a 30-day minimum stay.
+            if ($contractMode === 'monthly' && ($minStay === null || $minStay < 30)) {
                 $minStay = 30;
             }
 
-            if ($minStay && $days < $minStay) {
+            if ($minStay && $endDate && $days < $minStay) {
                 throw new \Exception("Minimum stay for this room is {$minStay} days.");
             }
 
-            // Calculate pricing (use calendar-period-aware calculation)
-            $priceResult = $room->calculatePriceForPeriod($startDate, $endDate);
+            // Calculate pricing (use calendar-period-aware calculation when a move-out date exists).
+            // For open-ended monthly stays, default preview/pricing base is first 30 days.
+            if ($endDate) {
+                $priceResult = $contractMode === 'daily'
+                    ? $room->calculatePriceForDays($days)
+                    : $room->calculatePriceForPeriod($startDate, $endDate);
+            } else {
+                $priceResult = $room->calculatePriceForDays(30);
+            }
 
             // If per_bed, price is per bed; if full_room, price is for the whole unit
             if (($room->pricing_model ?? 'full_room') === 'per_bed') {
@@ -150,7 +170,17 @@ class BookingService
                 $totalAmount = $priceResult['total'];
             }
 
-            $totalMonths = $priceResult['breakdown']['months'] ?? intdiv($days, 30);
+            $totalMonths = $endDate
+                ? ($priceResult['breakdown']['months'] ?? intdiv($days, 30))
+                : 1;
+
+            $requestedPaymentPlan = $data['payment_plan'] ?? 'full';
+            if ($contractMode === 'daily') {
+                $requestedPaymentPlan = 'full';
+            }
+            if (! $endDate && $contractMode === 'monthly') {
+                $requestedPaymentPlan = 'monthly';
+            }
 
             $bookingReference = 'BK-'.strtoupper(Str::random(8));
 
@@ -163,13 +193,14 @@ class BookingService
                 'bed_count' => $requestedBeds,
                 'booking_reference' => $bookingReference,
                 'start_date' => $startDate->format('Y-m-d'),
-                'end_date' => $endDate->format('Y-m-d'),
-                'total_months' => $totalMonths,
+                'end_date' => $endDate?->format('Y-m-d'),
+                'total_months' => max(1, $totalMonths),
                 'monthly_rent' => $room->monthly_rate ?? 0.00,
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
-                'payment_plan' => $data['payment_plan'] ?? 'full',
+                'payment_plan' => $requestedPaymentPlan,
+                'contract_mode' => $contractMode,
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -184,6 +215,7 @@ class BookingService
                     'booking_id' => $booking->id,
                     'tenant_id' => $tenantId,
                     'description' => 'Reservation Fee for booking '.$bookingReference,
+                    'invoice_type' => 'reservation_fee',
                     'amount_cents' => (int) round($room->property->reservation_fee_amount * 100),
                     'currency' => 'PHP',
                     'status' => 'pending',
@@ -338,6 +370,7 @@ class BookingService
                 'booking_id' => $booking->id,
                 'tenant_id' => $booking->tenant_id, // can be null for walk-ins
                 'description' => $description,
+                'invoice_type' => 'rent',
                 'amount_cents' => (int) round($amount * 100),
                 'currency' => 'PHP',
                 'status' => 'pending',
@@ -350,6 +383,25 @@ class BookingService
                 'reference' => $reference,
                 'plan' => $booking->payment_plan,
             ]);
+        }
+
+        // Initialize state-driven recurring billing fields for monthly plans.
+        if ($booking->payment_plan === 'monthly') {
+            $startDate = Carbon::parse($booking->start_date);
+
+            if (! $booking->billing_day) {
+                $booking->billing_day = (int) $startDate->day;
+            }
+
+            if (! $booking->next_billing_date) {
+                $nextBillingDate = $startDate->copy()->addMonthNoOverflow();
+
+                if (($booking->room->billing_policy ?? 'monthly') !== 'daily' && $booking->room->requiresAdvance()) {
+                    $nextBillingDate = $nextBillingDate->addMonthNoOverflow();
+                }
+
+                $booking->next_billing_date = $nextBillingDate->toDateString();
+            }
         }
 
         Log::info('Booking confirmed', [
@@ -366,6 +418,10 @@ class BookingService
      */
     protected function handleCompletion(Booking $booking, string $status): void
     {
+        if ($status === 'completed' && (float) ($booking->deposit_balance ?? 0) > 0) {
+            throw new \DomainException('Deposit balance must be settled before marking this booking as completed.');
+        }
+
         Log::info('Booking marked as completed', [
             'booking_id' => $booking->id,
             'status' => $status,
@@ -434,30 +490,67 @@ class BookingService
     public function updatePaymentStatus(Booking $booking, string $paymentStatus): array
     {
         $statusUpgraded = false;
+        $completionBlocked = false;
         $booking->payment_status = $paymentStatus;
 
         // Auto-upgrade: If booking is 'partial-completed' and payment becomes 'paid', upgrade to 'completed'
         if ($booking->status === 'partial-completed' && $paymentStatus === 'paid') {
-            $booking->status = 'completed';
-            $statusUpgraded = true;
+            if ((float) ($booking->deposit_balance ?? 0) > 0) {
+                $completionBlocked = true;
+            } else {
+                $booking->status = 'completed';
+                $statusUpgraded = true;
 
-            Log::info('Booking auto-upgraded from partial-completed to completed', [
+                Log::info('Booking auto-upgraded from partial-completed to completed', [
+                    'booking_id' => $booking->id,
+                ]);
+            }
+        }
+
+        if ($completionBlocked) {
+            Log::info('Booking completion blocked due to unsettled deposit', [
                 'booking_id' => $booking->id,
+                'deposit_balance' => $booking->deposit_balance,
             ]);
         }
 
         $booking->save();
 
-        // Synchronize with invoices
-        $booking->invoices()->update(['status' => $paymentStatus]);
+        // Synchronize only rent invoices to avoid mutating add-on and other special invoices.
+        $this->rentInvoicesForPaymentSync($booking)->update(['status' => $paymentStatus]);
         if ($paymentStatus === 'paid') {
-            $booking->invoices()->update(['paid_at' => now()]);
+            $this->rentInvoicesForPaymentSync($booking)->update(['paid_at' => now()]);
         }
 
         return [
             'booking' => $booking,
             'status_upgraded' => $statusUpgraded,
+            'completion_blocked' => $completionBlocked,
         ];
+    }
+
+    protected function rentInvoicesForPaymentSync(Booking $booking)
+    {
+        return $booking->invoices()
+            ->where(function ($query) {
+                $query->whereNull('invoice_type')
+                    ->orWhere('invoice_type', 'rent');
+            })
+            ->where(function ($query) {
+                $query->whereNull('reference')
+                    ->orWhere(function ($referenceQuery) {
+                        $referenceQuery->where('reference', 'not like', 'INV-ADD-%')
+                            ->where('reference', 'not like', 'INV-EXT-%')
+                            ->where('reference', 'not like', 'RES-%')
+                            ->where('reference', 'not like', 'DMG-%')
+                            ->where('reference', 'not like', 'ADJ-%')
+                            ->where('reference', 'not like', 'CASH-%');
+                    });
+            })
+            ->where(function ($query) {
+                $query->whereNull('description')
+                    ->orWhere('description', 'not like', 'Add-on:%');
+            });
     }
 
     /**

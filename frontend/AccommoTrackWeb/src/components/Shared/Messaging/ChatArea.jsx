@@ -1,6 +1,5 @@
-import React, { useRef } from 'react';
-import { Phone, MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X } from 'lucide-react';
-import { getImageUrl } from '../../../utils/api';
+import React, { useMemo, useRef, useState } from 'react';
+import { MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X } from 'lucide-react';
 
 const ChatArea = ({
   selectedChat,
@@ -14,13 +13,88 @@ const ChatArea = ({
   getInitials,
   formatTime,
   currentUserId,
-  __normalizedRole,
+  normalizedRole,
   messagesEndRef,
   imagePreview,
   handleImageSelect,
   removeSelectedImage
 }) => {
   const fileInputRef = useRef(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const otherUser = selectedChat?.other_user || null;
+  const isLandlordView = normalizedRole === 'landlord' || normalizedRole === 'caretaker';
+  const isTenantConversation = otherUser?.role === 'tenant';
+
+  const mediaItems = useMemo(() => {
+    if (!Array.isArray(messages)) return [];
+
+    const seen = new Set();
+
+    return messages
+      .filter((msg) => {
+        const imageUrl = msg?.image_url;
+        if (!imageUrl || seen.has(imageUrl)) return false;
+        seen.add(imageUrl);
+        return true;
+      })
+      .map((msg) => ({
+        id: msg.id,
+        image_url: msg.image_url,
+        created_at: msg.created_at,
+        sender_role: msg.sender_role,
+      }));
+  }, [messages]);
+
+  const getAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+
+    const dob = new Date(dateOfBirth);
+    if (Number.isNaN(dob.getTime())) return null;
+
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const monthDelta = now.getMonth() - dob.getMonth();
+
+    if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < dob.getDate())) {
+      age -= 1;
+    }
+
+    return age >= 0 ? age : null;
+  };
+
+  const formatPreferences = (preferences) => {
+    if (!preferences) return [];
+    if (Array.isArray(preferences)) {
+      return preferences
+        .filter(Boolean)
+        .map((value) => String(value).trim())
+        .filter(Boolean);
+    }
+
+    if (typeof preferences === 'string') {
+      return preferences
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+    }
+
+    if (typeof preferences === 'object') {
+      return Object.entries(preferences)
+        .filter(([, value]) => value !== null && value !== undefined && value !== false && value !== '')
+        .map(([key, value]) => {
+          if (value === true) return key;
+          if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
+          return `${key}: ${String(value)}`;
+        });
+    }
+
+    return [];
+  };
+
+  const userPreferences = formatPreferences(otherUser?.preferences);
+  const userAge = getAge(otherUser?.date_of_birth);
+
   if (!selectedChat) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
@@ -36,7 +110,7 @@ const ChatArea = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
+    <div className="relative flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
       {/* Chat Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-4 flex items-center justify-between z-10 shadow-sm">
         <div className="flex items-center gap-4">
@@ -55,10 +129,12 @@ const ChatArea = ({
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
-            <Phone className="w-5 h-5" />
-          </button>
-          <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+          <button
+            onClick={() => setIsDetailsOpen((prev) => !prev)}
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
+            aria-label="Open chat details"
+            title="Open chat details"
+          >
             <MoreVertical className="w-5 h-5" />
           </button>
         </div>
@@ -76,8 +152,6 @@ const ChatArea = ({
             // Using standardized fields from MessageResource
             const isMine = msg.is_mine;
             const actualSenderId = msg.actual_sender_id;
-            const __isFromLandlordSide = msg.sender_role === 'caretaker' || msg.sender_role === 'landlord';
-            
             const isCaretakerMessage = msg.sender_role === 'caretaker';
             const isSentByCurrentCaretaker = isCaretakerMessage && actualSenderId && String(actualSenderId) === String(currentUserId);
             
@@ -196,6 +270,128 @@ const ChatArea = ({
           </button>
         </div>
       </div>
+
+      {isDetailsOpen && (
+        <button
+          type="button"
+          onClick={() => setIsDetailsOpen(false)}
+          className="absolute inset-0 z-20 bg-black/30 backdrop-blur-[1px] lg:hidden"
+          aria-label="Close details panel"
+        />
+      )}
+
+      <aside
+        className={`absolute top-0 right-0 z-30 h-full w-full sm:w-[360px] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-2xl transition-transform duration-300 ${
+          isDetailsOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">Chat Details</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Personal details and shared media</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsDetailsOpen(false)}
+              className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label="Close details panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+              <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 dark:text-gray-400 mb-3">Personal Details</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-gray-500 dark:text-gray-400">Name</span>
+                  <span className="text-right font-semibold text-gray-900 dark:text-white">
+                    {otherUser?.first_name || otherUser?.last_name
+                      ? `${otherUser?.first_name || ''} ${otherUser?.last_name || ''}`.trim()
+                      : 'Unavailable'}
+                  </span>
+                </div>
+
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-gray-500 dark:text-gray-400">Gender</span>
+                  <span className="text-right font-semibold text-gray-900 dark:text-white capitalize">
+                    {otherUser?.gender || otherUser?.identified_as || 'Not provided'}
+                  </span>
+                </div>
+
+                {selectedChat?.property && (
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-gray-500 dark:text-gray-400">Property</span>
+                    <span className="text-right font-semibold text-gray-900 dark:text-white">
+                      {selectedChat.property.title}
+                    </span>
+                  </div>
+                )}
+
+                {isLandlordView && isTenantConversation && (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">Age</span>
+                      <span className="text-right font-semibold text-gray-900 dark:text-white">
+                        {userAge !== null ? `${userAge} years old` : 'Not provided'}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mb-2">Preferences</p>
+                      {userPreferences.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">No preferences shared yet.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {userPreferences.map((pref) => (
+                            <span
+                              key={pref}
+                              className="px-2.5 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold"
+                            >
+                              {pref}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 dark:text-gray-400">Media</p>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{mediaItems.length} photo{mediaItems.length === 1 ? '' : 's'}</span>
+              </div>
+
+              {mediaItems.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No photos shared in this conversation yet.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {mediaItems.map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => window.open(item.image_url, '_blank', 'noopener,noreferrer')}
+                      className="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+                      title={item.created_at ? `Sent ${formatTime(item.created_at)}` : 'Open image'}
+                    >
+                      <img
+                        src={item.image_url}
+                        alt="Shared media"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 };

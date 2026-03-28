@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -24,98 +25,204 @@ class GenerateMonthlyInvoices extends Command
      *
      * @var string
      */
-    protected $description = 'Generate any missing monthly invoices for active bookings.';
+    protected $description = 'Generate recurring monthly invoices for active monthly bookings.';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        Log::info('Starting monthly invoice generation task...');
-        $this->info('Starting monthly invoice generation task...');
+        $lock = Cache::lock('invoices:generate-monthly', 600);
+        if (! $lock->get()) {
+            $message = 'Monthly invoice generation is already running. Skipping duplicate execution.';
+            $this->warn($message);
+            Log::warning($message);
 
-        $bookings = Booking::whereIn('status', ['confirmed', 'active'])
-            ->where('payment_plan', 'monthly')
-            ->get();
+            return Command::SUCCESS;
+        }
+
+        Log::info('Starting state-driven monthly invoice generation task...');
+        $this->info('Starting state-driven monthly invoice generation task...');
+
         $generatedCount = 0;
-        $now = Carbon::now();
+        $skippedCount = 0;
+        $failedCount = 0;
+        $today = Carbon::today();
 
-        foreach ($bookings as $booking) {
-            $startDate = Carbon::parse($booking->start_date);
-            // Don't process bookings that haven't started yet
-            if ($startDate->isFuture()) {
-                continue;
+        try {
+            $bookings = Booking::query()
+                ->whereIn('status', ['confirmed', 'active'])
+                ->where('payment_plan', 'monthly')
+                ->where(function ($query) use ($today) {
+                    $query->whereNull('next_billing_date')
+                        ->orWhereDate('next_billing_date', '<=', $today->toDateString());
+                })
+                ->get();
+
+            foreach ($bookings as $booking) {
+                try {
+                    $result = $this->processBooking($booking->id);
+
+                    if ($result === 'generated') {
+                        $generatedCount++;
+                    } else {
+                        $skippedCount++;
+                    }
+                } catch (\Throwable $e) {
+                    $failedCount++;
+                    Log::error('Monthly invoice generation failed for booking', [
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
-            // Calculate total months passed since booking started.
-            $monthsSinceStart = $startDate->diffInMonths($now) + 1;
+            $summary = "Completed monthly generation. Generated {$generatedCount}, skipped {$skippedCount}, failed {$failedCount}.";
+            $this->info($summary);
+            Log::info($summary);
 
-            // Loop through each month from the start date to the current month, but not exceeding total_months
-            $maxMonths = (int) ($booking->total_months || 1);
-            for ($i = 0; $i < min($monthsSinceStart, $maxMonths); $i++) {
-                $billingDateForLoop = $startDate->copy()->addMonths($i);
-                $billingPeriodStart = $billingDateForLoop->copy()->startOfMonth();
+            return Command::SUCCESS;
+        } finally {
+            optional($lock)->release();
+        }
+    }
 
+    /**
+     * Process one booking inside a transaction + row lock to avoid duplicate invoices.
+     */
+    protected function processBooking(int $bookingId): string
+    {
+        return DB::transaction(function () use ($bookingId) {
+            $booking = Booking::with('room')
+                ->whereKey($bookingId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $booking || ! in_array($booking->status, ['confirmed', 'active'], true)) {
+                return 'skipped';
+            }
+
+            $this->initializeBillingState($booking);
+
+            if (! $booking->next_billing_date) {
+                return 'skipped';
+            }
+
+            $billingDate = Carbon::parse($booking->next_billing_date)->startOfDay();
+            if ($billingDate->isFuture()) {
+                return 'skipped';
+            }
+
+            if ($booking->end_date && $billingDate->gt(Carbon::parse($booking->end_date))) {
+                $booking->next_billing_date = null;
+                $booking->save();
+
+                return 'skipped';
+            }
+
+            $periodStart = $billingDate->copy();
+            $periodEnd = $billingDate->copy()->addMonthNoOverflow()->subDay();
+            $periodKey = $periodStart->format('Y-m-d');
+
+            $invoiceExists = Invoice::query()
+                ->where('booking_id', $booking->id)
+                ->where('invoice_type', 'rent')
+                ->where('billing_period_key', $periodKey)
+                ->exists();
+
+            if (! $invoiceExists) {
                 $recurringAddonAmount = $booking->addons()
                     ->where('booking_addons.status', 'active')
                     ->where('price_type', 'monthly')
-                    ->where(function ($query) use ($billingPeriodStart) {
+                    ->where(function ($query) use ($periodStart) {
                         $query->whereNull('booking_addons.cancellation_effective_at')
-                            ->orWhere('booking_addons.cancellation_effective_at', '>', $billingPeriodStart);
+                            ->orWhere('booking_addons.cancellation_effective_at', '>', $periodStart);
                     })
-                    ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+                    ->sum(DB::raw("booking_addons.price_at_booking * booking_addons.quantity"));
 
-                $baseInvoiceAmount = $booking->monthly_rent + $recurringAddonAmount;
+                $baseInvoiceAmount = (float) $booking->monthly_rent + (float) $recurringAddonAmount;
 
-                if ($baseInvoiceAmount <= 0) {
-                    continue; // Skip bookings with no monthly charge
-                }
+                if ($baseInvoiceAmount > 0) {
+                    $reference = 'INV-'.$periodStart->format('Ym').'-'.strtoupper(Str::random(6));
 
-                // Check if an invoice for this specific billing month already exists
-                // OR if this is the first recurring month and an advance was already paid
-                $invoiceExists = $booking->invoices()
-                    ->whereYear('due_date', $billingDateForLoop->year)
-                    ->whereMonth('due_date', $billingDateForLoop->month)
-                    ->exists();
-
-                // Logic: If i == 1 (second month), check if the FIRST invoice (i=0) included an advance.
-                // In AccommoTrack, the advance covers the LAST month or the NEXT month depending on landlord policy.
-                // Usually, 1 month advance means you've paid for the next month already.
-                if ($i === 1 && ! $invoiceExists) {
-                    $firstInvoice = $booking->invoices()->orderBy('created_at', 'asc')->first();
-                    if ($firstInvoice && str_contains(strtolower($firstInvoice->description), 'advance')) {
-                        Log::info("Skipping second month invoice for booking #{$booking->id} as advance was detected in initial invoice.");
-                        continue; 
-                    }
-                }
-
-                if (! $invoiceExists) {
-                    // Create the missing invoice for this billing period
-                    $reference = 'INV-'.$billingDateForLoop->format('Ym').'-'.strtoupper(Str::random(6));
                     Invoice::create([
                         'reference' => $reference,
                         'landlord_id' => $booking->landlord_id,
                         'property_id' => $booking->property_id,
                         'booking_id' => $booking->id,
                         'tenant_id' => $booking->tenant_id,
-                        'description' => 'Monthly Rent and Services for '.$billingDateForLoop->format('F Y'),
+                        'description' => 'Monthly rent and services for '.$periodStart->format('F Y'),
+                        'invoice_type' => 'rent',
+                        'billing_period_start' => $periodStart,
+                        'billing_period_end' => $periodEnd,
+                        'billing_period_key' => $periodKey,
                         'amount_cents' => (int) round($baseInvoiceAmount * 100),
                         'currency' => 'PHP',
                         'status' => 'pending',
-                        'issued_at' => $now,
-                        'due_date' => $billingDateForLoop,
+                        'issued_at' => now(),
+                        'due_date' => $periodStart,
                         'metadata' => [
                             'generated_by' => 'system',
-                            'billing_period' => $billingDateForLoop->format('Y-m'),
+                            'billing_period' => $periodStart->format('Y-m'),
+                            'billing_period_key' => $periodKey,
                         ],
                     ]);
-                    $generatedCount++;
-                    Log::info("Generated invoice for booking #{$booking->id} for period {$billingDateForLoop->format('Y-m')}");
+
+                    Log::info('Generated recurring invoice', [
+                        'booking_id' => $booking->id,
+                        'billing_period_key' => $periodKey,
+                    ]);
                 }
             }
+
+            $nextBillingDate = $billingDate->copy()->addMonthNoOverflow();
+            $booking->next_billing_date = $booking->end_date && $nextBillingDate->gt(Carbon::parse($booking->end_date))
+                ? null
+                : $nextBillingDate->toDateString();
+            $booking->save();
+
+            return $invoiceExists ? 'skipped' : 'generated';
+        });
+    }
+
+    /**
+     * Initialize new billing state columns for legacy bookings before processing.
+     */
+    protected function initializeBillingState(Booking $booking): void
+    {
+        $dirty = false;
+        $startDate = Carbon::parse($booking->start_date);
+
+        if (! $booking->billing_day) {
+            $booking->billing_day = (int) $startDate->day;
+            $dirty = true;
         }
 
-        $this->info("Completed invoice generation. Generated {$generatedCount} new invoices.");
-        Log::info("Completed invoice generation. Generated {$generatedCount} new invoices.");
+        if (! $booking->next_billing_date) {
+            $nextBillingDate = $startDate->copy()->addMonthNoOverflow();
+
+            if (($booking->room->billing_policy ?? 'monthly') !== 'daily' && $booking->room->requiresAdvance()) {
+                $nextBillingDate = $nextBillingDate->addMonthNoOverflow();
+            }
+
+            $latestDueDate = $booking->invoices()
+                ->whereNotNull('due_date')
+                ->orderByDesc('due_date')
+                ->value('due_date');
+
+            if ($latestDueDate) {
+                $candidate = Carbon::parse($latestDueDate)->addMonthNoOverflow();
+                if ($candidate->gt($nextBillingDate)) {
+                    $nextBillingDate = $candidate;
+                }
+            }
+
+            $booking->next_billing_date = $nextBillingDate->toDateString();
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $booking->save();
+        }
     }
 }

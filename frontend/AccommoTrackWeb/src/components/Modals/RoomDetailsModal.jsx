@@ -36,6 +36,11 @@ export default function RoomDetailsModal({
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentPlan, setPaymentPlan] = useState("monthly");
+  const [contractMode, setContractMode] = useState(
+    String(room?.billing_policy || "monthly").toLowerCase() === "daily"
+      ? "daily"
+      : "monthly",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
   const [duration, setDuration] = useState(null);
@@ -63,6 +68,10 @@ export default function RoomDetailsModal({
   };
 
   const billingPolicy = String(room?.billing_policy || "monthly").toLowerCase();
+  const supportsContractModeSwitch = billingPolicy === "monthly_with_daily";
+  const isDailyContract =
+    billingPolicy === "daily" ||
+    (supportsContractModeSwitch && contractMode === "daily");
   const monthlyRate = toMoneyNumber(
     room?.monthly_rate ?? room?.monthlyRate ?? room?.price,
     0,
@@ -72,23 +81,52 @@ export default function RoomDetailsModal({
     monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0,
   );
 
-  const primaryRate = billingPolicy === "daily" ? dailyRate : monthlyRate;
-  const primaryRateLabel = billingPolicy === "daily" ? "Daily Rate" : "Monthly Rate";
+  const primaryRate = isDailyContract ? dailyRate : monthlyRate;
+  const primaryRateLabel = isDailyContract ? "Daily Rate" : "Monthly Rate";
+
+  useEffect(() => {
+    if (billingPolicy === "daily") {
+      setContractMode("daily");
+      return;
+    }
+
+    setContractMode("monthly");
+  }, [billingPolicy, room?.id]);
 
   // Initialize dates
   useEffect(() => {
     const today = new Date();
-    const defaultEnd = new Date(today);
-    defaultEnd.setDate(defaultEnd.getDate() + 30);
 
     setStartDate(today.toISOString().split("T")[0]);
-    setEndDate(defaultEnd.toISOString().split("T")[0]);
-  }, []);
+    if (isDailyContract) {
+      const defaultEnd = new Date(today);
+      defaultEnd.setDate(defaultEnd.getDate() + 1);
+      setEndDate(defaultEnd.toISOString().split("T")[0]);
+    } else {
+      setEndDate("");
+    }
+  }, [isDailyContract]);
 
   // Fetch pricing whenever dates change
   useEffect(() => {
     const fetchPricing = async () => {
-      if (!room?.id || !startDate || !endDate || new Date(endDate) <= new Date(startDate)) {
+      if (!room?.id || !startDate) {
+        setTotalPrice(0);
+        setDuration(null);
+        return;
+      }
+
+      const start = new Date(startDate);
+      const hasValidCheckout = Boolean(endDate) && new Date(endDate) > start;
+
+      let pricingEndDate = endDate;
+      if (!isDailyContract && !hasValidCheckout) {
+        const previewEnd = new Date(start);
+        previewEnd.setDate(previewEnd.getDate() + 30);
+        pricingEndDate = previewEnd.toISOString().split("T")[0];
+      }
+
+      if (!pricingEndDate || new Date(pricingEndDate) <= start) {
         setTotalPrice(0);
         setDuration(null);
         return;
@@ -97,7 +135,7 @@ export default function RoomDetailsModal({
       setLoadingPricing(true);
       try {
         const res = await api.get(`/rooms/${room.id}/pricing`, {
-          params: { start: startDate, end: endDate, bed_count: bedCount }
+          params: { start: startDate, end: pricingEndDate, bed_count: bedCount }
         });
         
         setTotalPrice(res.data.total);
@@ -118,7 +156,7 @@ export default function RoomDetailsModal({
 
     const timer = setTimeout(fetchPricing, 300); // Debounce
     return () => clearTimeout(timer);
-  }, [startDate, endDate, room?.id, bedCount]);
+  }, [startDate, endDate, room?.id, bedCount, isDailyContract]);
 
   useEffect(() => {
     return () => {
@@ -132,11 +170,17 @@ export default function RoomDetailsModal({
     const newStart = e.target.value;
     setStartDate(newStart);
 
-    // Auto-set end date to 30 days later
-    const start = new Date(newStart);
-    const newEnd = new Date(start);
-    newEnd.setDate(newEnd.getDate() + 30);
-    setEndDate(newEnd.toISOString().split("T")[0]);
+    if (isDailyContract) {
+      const start = new Date(newStart);
+      const newEnd = new Date(start);
+      newEnd.setDate(newEnd.getDate() + 1);
+      setEndDate(newEnd.toISOString().split("T")[0]);
+      return;
+    }
+
+    if (endDate && new Date(endDate) <= new Date(newStart)) {
+      setEndDate("");
+    }
   };
 
   const handleSubmit = async () => {
@@ -145,8 +189,10 @@ export default function RoomDetailsModal({
       return;
     }
 
-    if (!startDate || !endDate) {
-      toast.error("Please select both check-in and check-out dates.");
+    if (!startDate || (isDailyContract && !endDate)) {
+      toast.error(isDailyContract
+        ? "Please select both check-in and check-out dates."
+        : "Please select a move-in date.");
       return;
     }
 
@@ -154,7 +200,7 @@ export default function RoomDetailsModal({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (room.billing_policy === 'daily') {
+    if (isDailyContract) {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         if (start < tomorrow) {
@@ -168,17 +214,23 @@ export default function RoomDetailsModal({
         }
     }
 
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const hasCheckout = Boolean(endDate) && new Date(endDate) > start;
+    if (endDate && !hasCheckout) {
+      toast.error("Check-out date must be after check-in date.");
+      return;
+    }
+
+    const end = hasCheckout ? new Date(endDate) : null;
+    const diffTime = end ? Math.abs(end - start) : 0;
+    const diffDays = end ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
     
     // Explicitly enforce minimum stay for monthly rooms
     const minStay = parseInt(room.min_stay_days) || 1;
-    const effectiveMinStay = (room.billing_policy === 'monthly' || room.billing_policy === 'monthly_with_daily') 
+    const effectiveMinStay = !isDailyContract
       ? Math.max(30, minStay) 
       : minStay;
 
-    if (diffDays < effectiveMinStay) {
+    if (hasCheckout && diffDays < effectiveMinStay) {
       toast.error(`The minimum stay for this room is ${effectiveMinStay} days.`);
       return;
     }
@@ -192,8 +244,12 @@ export default function RoomDetailsModal({
     }
 
     // Check if selector should be shown
-    const isMonthlyBilling = room?.billing_policy === 'monthly' || room?.billing_policy === 'monthly_with_daily';
-    const showSelector = isMonthlyBilling && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+    const isMonthlyBilling = !isDailyContract;
+    const showSelector = isMonthlyBilling && hasCheckout && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+
+    const finalPaymentPlan = isDailyContract
+      ? 'full'
+      : (hasCheckout ? (showSelector ? paymentPlan : 'full') : 'monthly');
 
     // Submit booking to server (use shared /bookings endpoint)
     setIsSubmitting(true);
@@ -202,9 +258,10 @@ export default function RoomDetailsModal({
         room_id: room.id,
         bed_count: bedCount,
         start_date: startDate,
-        end_date: endDate,
+        end_date: hasCheckout ? endDate : null,
         notes: notes || "",
-        payment_plan: showSelector ? paymentPlan : 'full',
+        payment_plan: finalPaymentPlan,
+        contract_mode: isDailyContract ? 'daily' : 'monthly',
       };
 
       const svc = bookingService || bookingServiceDefault;
@@ -633,6 +690,17 @@ export default function RoomDetailsModal({
                     </div>
                   </div>
 
+                  {(room.require_advance || room.requireAdvance || property?.require_advance) && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl">
+                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                        1 Month Advance Required
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                        This room requires one month advance payment as part of move-in costs.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Date Selection */}
                   <div className="space-y-4">
                     {(room.room_type === 'bedSpacer' || room.room_type === 'bedspacer') && (
@@ -657,8 +725,34 @@ export default function RoomDetailsModal({
                       </div>
                     )}
                     <div>
+                      {supportsContractModeSwitch && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Stay Mode
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setContractMode('monthly')}
+                              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${!isDailyContract ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                            >
+                              Monthly Contract
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setContractMode('daily')}
+                              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${isDailyContract ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                            >
+                              Daily Contract
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            Monthly contract supports open-ended tenancy. Daily contract requires a fixed check-out date.
+                          </p>
+                        </div>
+                      )}
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Check-in Date
+                        {isDailyContract ? 'Check-in Date' : 'Move-in Date'}
                       </label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
@@ -670,13 +764,15 @@ export default function RoomDetailsModal({
                         />
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        Bookings can be made up to 3 months in advance
+                        {isDailyContract
+                          ? 'Bookings can be made up to 3 months in advance'
+                          : 'Move-ins can be scheduled up to 3 months in advance'}
                       </p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Check-out Date
+                        {isDailyContract ? 'Check-out Date' : 'Planned Move-out Date (Optional)'}
                       </label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
@@ -688,6 +784,11 @@ export default function RoomDetailsModal({
                           className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         />
                       </div>
+                      {!isDailyContract && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                          Leave this blank for an open-ended tenancy. Monthly billing will continue until move-out notice is submitted.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -695,10 +796,11 @@ export default function RoomDetailsModal({
                   {duration && (
                     <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl space-y-2 text-sm border border-transparent dark:border-gray-700">
                       <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                        <span>Duration:</span>
+                        <span>{endDate ? 'Duration:' : 'Estimated Initial Billing:'}</span>
                         <span className="font-medium text-gray-900 dark:text-white">
-                          {duration.days} days ({duration.months} months,{" "}
-                          {duration.extraDays} days)
+                          {endDate
+                            ? `${duration.days} days (${duration.months} months, ${duration.extraDays} days)`
+                            : `First ${duration.days} days (${duration.months} month)`}
                         </span>
                       </div>
                       <div className="flex justify-between text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -728,8 +830,17 @@ export default function RoomDetailsModal({
 
                   {/* Payment Plan Selection */}
                   {(() => {
-                    const isMonthlyBilling = room?.billing_policy === 'monthly' || room?.billing_policy === 'monthly_with_daily';
-                    const showPaymentPlanSelector = isMonthlyBilling && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+                    const isMonthlyBilling = !isDailyContract;
+                    const hasCheckoutDate = Boolean(endDate) && new Date(endDate) > new Date(startDate);
+                    const showPaymentPlanSelector = isMonthlyBilling && hasCheckoutDate && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+
+                    if (isMonthlyBilling && !hasCheckoutDate) {
+                      return (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 text-sm text-blue-800 dark:text-blue-300">
+                          This booking will start as open-ended tenancy. Billing plan is set to monthly recurring until move-out notice.
+                        </div>
+                      );
+                    }
                   
                     if (!showPaymentPlanSelector) return null;
                   

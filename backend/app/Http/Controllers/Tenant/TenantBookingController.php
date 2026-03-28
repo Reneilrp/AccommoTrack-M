@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Booking\RequestMoveOutNoticeRequest;
+use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\TenantProfile;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -156,7 +159,7 @@ class TenantBookingController extends Controller
             }
 
             // cycleStart is the start date for the current billing cycle
-            $cycleStart = $startDate->copy()->addMonths($months);
+            $cycleStart = $startDate->copy()->addMonths($months)->startOfDay();
 
             // Base monthly amount (use booking.monthly_rent for tenant-specific rent)
             $monthlyDue = (float) ($booking->monthly_rent ?? $booking->room->monthly_rate ?? 0);
@@ -165,7 +168,7 @@ class TenantBookingController extends Controller
             $daysInMonth = 30; // Hardcoded to 30
             $daysOverdue = 0;
             if ($today->greaterThan($cycleStart)) {
-                $daysOverdue = $cycleStart->diffInDays($today);
+                $daysOverdue = max(0, (int) $cycleStart->diffInDays($today, false));
             }
 
             $partialCharge = 0.0;
@@ -205,6 +208,95 @@ class TenantBookingController extends Controller
             return response()->json(['success' => false, 'message' => 'Booking not found'], 404);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to create invoice', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Tenant requests move-out and sets an agreed departure date.
+     * PATCH /api/tenant/bookings/{id}/request-move-out
+     */
+    public function requestMoveOutNotice(RequestMoveOutNoticeRequest $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            $booking = Booking::with(['property', 'room', 'landlord'])
+                ->where('tenant_id', Auth::id())
+                ->findOrFail($id);
+
+            if (in_array($booking->status, ['cancelled', 'completed', 'partial-completed'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'Move-out notice is only allowed for active stays.',
+                ], 422);
+            }
+
+            if (! in_array($booking->status, ['confirmed', 'active'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'Booking must be confirmed before requesting move-out.',
+                ], 422);
+            }
+
+            $moveOutDate = Carbon::parse($request->validated()['move_out_date'])->startOfDay();
+            if ($booking->start_date && $moveOutDate->lt(Carbon::parse($booking->start_date)->startOfDay())) {
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'Move-out date cannot be earlier than your check-in date.',
+                ], 422);
+            }
+
+            $booking->notice_given_at = now();
+            $booking->end_date = $moveOutDate->toDateString();
+
+            // If recurring billing is already queued after move-out date, stop future generations.
+            if ($booking->next_billing_date && Carbon::parse($booking->next_billing_date)->gt($moveOutDate)) {
+                $booking->next_billing_date = null;
+            }
+
+            $notes = trim((string) ($booking->notes ?? ''));
+            $reason = trim((string) ($request->validated()['reason'] ?? ''));
+            if ($reason !== '') {
+                $noticeLine = 'Move-out notice: '.$reason;
+                $booking->notes = $notes === '' ? $noticeLine : ($notes."\n".$noticeLine);
+            }
+
+            $booking->save();
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'booking' => (new BookingResource($booking))->resolve(),
+                    'notice' => [
+                        'notice_given_at' => optional($booking->notice_given_at)->toISOString(),
+                        'move_out_date' => optional($booking->end_date)->format('Y-m-d'),
+                    ],
+                ],
+                'message' => 'Move-out request submitted successfully.',
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Booking not found.',
+            ], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Tenant move-out notice request failed', [
+                'booking_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Failed to submit move-out request.',
+            ], 500);
         }
     }
 }

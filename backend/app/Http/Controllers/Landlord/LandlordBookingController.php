@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
+use App\Http\Requests\Booking\SettleDepositRequest;
 use App\Http\Requests\Booking\StoreBookingRequest;
 use App\Http\Requests\Booking\UpdatePaymentStatusRequest;
 use App\Http\Requests\Booking\UpdateStatusRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
+use App\Models\BookingDepositSettlement;
 use App\Services\BookingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LandlordBookingController extends Controller
@@ -158,6 +161,10 @@ class LandlordBookingController extends Controller
                 'room_updated' => $result['room_updated'],
                 'tenant_name' => $result['tenant_name'],
             ], 200);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Failed to update booking status', [
                 'error' => $e->getMessage(),
@@ -190,16 +197,182 @@ class LandlordBookingController extends Controller
             );
 
             return response()->json([
-                'message' => $result['status_upgraded']
+                'message' => $result['completion_blocked']
+                    ? 'Payment updated, but booking cannot be completed until deposit is fully settled.'
+                    : ($result['status_upgraded']
                     ? 'Payment updated and booking upgraded to completed!'
-                    : 'Payment status updated successfully',
+                    : 'Payment status updated successfully'),
                 'booking' => (new BookingResource($result['booking']))->resolve(),
                 'status_upgraded' => $result['status_upgraded'],
+                'completion_blocked' => $result['completion_blocked'],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update payment status',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Apply deposit settlement (deductions/refund) to a booking.
+     */
+    public function settleDeposit(SettleDepositRequest $request, $id)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $booking = Booking::with(['tenant', 'property', 'room'])
+                ->forLandlord($context['landlord_id'])
+                ->findOrFail($id);
+
+            $this->checkPropertyAccess($context, $booking->property_id);
+
+            $payload = $request->validated();
+
+            $settlement = DB::transaction(function () use ($booking, $payload, $context) {
+                $startingBalance = (float) ($booking->deposit_balance ?? 0);
+                $damageFee = round((float) ($payload['damage_fee'] ?? 0), 2);
+                $cleaningFee = round((float) ($payload['cleaning_fee'] ?? 0), 2);
+                $otherFee = round((float) ($payload['other_fee'] ?? 0), 2);
+                $totalDeductions = round($damageFee + $cleaningFee + $otherFee, 2);
+                $markRefunded = (bool) ($payload['mark_refunded'] ?? false);
+
+                $appliedDeductions = min($startingBalance, $totalDeductions);
+                $excessCharges = max(0, round($totalDeductions - $startingBalance, 2));
+                $refundDue = max(0, round($startingBalance - $appliedDeductions, 2));
+                $refundPaid = $markRefunded ? $refundDue : 0.0;
+                $endingBalance = $markRefunded ? 0.0 : $refundDue;
+
+                $record = BookingDepositSettlement::create([
+                    'booking_id' => $booking->id,
+                    'settled_by' => $context['user']->id,
+                    'starting_balance' => $startingBalance,
+                    'damage_fee' => $damageFee,
+                    'cleaning_fee' => $cleaningFee,
+                    'other_fee' => $otherFee,
+                    'total_deductions' => round($appliedDeductions, 2),
+                    'excess_charges' => $excessCharges,
+                    'refund_due' => $refundDue,
+                    'refund_paid' => $refundPaid,
+                    'ending_balance' => $endingBalance,
+                    'mark_refunded' => $markRefunded,
+                    'refund_method' => $markRefunded ? ($payload['refund_method'] ?? null) : null,
+                    'refund_reference' => $markRefunded ? ($payload['refund_reference'] ?? null) : null,
+                    'note' => $payload['note'] ?? null,
+                ]);
+
+                $booking->deposit_balance = $endingBalance;
+                $booking->save();
+
+                return $record;
+            });
+
+            $booking->refresh();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'booking_id' => $booking->id,
+                    'deposit_balance' => (float) $booking->deposit_balance,
+                    'settlement' => [
+                        'id' => $settlement->id,
+                        'starting_balance' => (float) $settlement->starting_balance,
+                        'damage_fee' => (float) $settlement->damage_fee,
+                        'cleaning_fee' => (float) $settlement->cleaning_fee,
+                        'other_fee' => (float) $settlement->other_fee,
+                        'total_deductions' => (float) $settlement->total_deductions,
+                        'excess_charges' => (float) $settlement->excess_charges,
+                        'refund_due' => (float) $settlement->refund_due,
+                        'refund_paid' => (float) $settlement->refund_paid,
+                        'ending_balance' => (float) $settlement->ending_balance,
+                        'mark_refunded' => (bool) $settlement->mark_refunded,
+                        'refund_method' => $settlement->refund_method,
+                        'refund_reference' => $settlement->refund_reference,
+                        'note' => $settlement->note,
+                        'created_at' => optional($settlement->created_at)->toISOString(),
+                    ],
+                ],
+                'message' => 'Deposit settlement recorded successfully.',
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Booking not found.',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to settle booking deposit', [
+                'booking_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Failed to settle booking deposit.',
+            ], 500);
+        }
+    }
+
+    /**
+     * List historical deposit settlements for a booking.
+     */
+    public function getDepositSettlements(Request $request, $id)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $booking = Booking::forLandlord($context['landlord_id'])->findOrFail($id);
+            $this->checkPropertyAccess($context, $booking->property_id);
+
+            $history = BookingDepositSettlement::query()
+                ->where('booking_id', $booking->id)
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(function (BookingDepositSettlement $record) {
+                    return [
+                        'id' => $record->id,
+                        'starting_balance' => (float) $record->starting_balance,
+                        'damage_fee' => (float) $record->damage_fee,
+                        'cleaning_fee' => (float) $record->cleaning_fee,
+                        'other_fee' => (float) $record->other_fee,
+                        'total_deductions' => (float) $record->total_deductions,
+                        'excess_charges' => (float) $record->excess_charges,
+                        'refund_due' => (float) $record->refund_due,
+                        'refund_paid' => (float) $record->refund_paid,
+                        'ending_balance' => (float) $record->ending_balance,
+                        'mark_refunded' => (bool) $record->mark_refunded,
+                        'refund_method' => $record->refund_method,
+                        'refund_reference' => $record->refund_reference,
+                        'note' => $record->note,
+                        'created_at' => optional($record->created_at)->toISOString(),
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'booking_id' => $booking->id,
+                    'deposit_balance' => (float) ($booking->deposit_balance ?? 0),
+                    'settlements' => $history,
+                ],
+                'message' => 'Deposit settlements fetched successfully.',
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Booking not found.',
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Failed to fetch deposit settlements.',
             ], 500);
         }
     }

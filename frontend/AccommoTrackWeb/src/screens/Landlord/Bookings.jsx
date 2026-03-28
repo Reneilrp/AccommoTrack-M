@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw, CalendarDays, Calculator } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
@@ -8,6 +9,7 @@ import { SkeletonStatCard, SkeletonTableRow } from '../../components/Shared/Skel
 import { useUIState } from '../../contexts/UIStateContext';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
+  const location = useLocation();
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_bookings;
 
@@ -31,6 +33,40 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const [loadingExtensions, setLoadingExtensions] = useState(false);
   const [transferRequests, setTransferRequests] = useState([]);
   const [loadingTransfers, setLoadingTransfers] = useState(false);
+  const [drilldownApplied, setDrilldownApplied] = useState(false);
+  const [depositSettlementHistory, setDepositSettlementHistory] = useState([]);
+  const [loadingDepositSettlementHistory, setLoadingDepositSettlementHistory] = useState(false);
+  const [submittingDepositSettlement, setSubmittingDepositSettlement] = useState(false);
+  const [depositSettlementForm, setDepositSettlementForm] = useState({
+    damageFee: '',
+    cleaningFee: '',
+    otherFee: '',
+    markRefunded: false,
+    refundMethod: '',
+    refundReference: '',
+    note: ''
+  });
+
+  const resetDepositSettlementState = () => {
+    setDepositSettlementHistory([]);
+    setLoadingDepositSettlementHistory(false);
+    setSubmittingDepositSettlement(false);
+    setDepositSettlementForm({
+      damageFee: '',
+      cleaningFee: '',
+      otherFee: '',
+      markRefunded: false,
+      refundMethod: '',
+      refundReference: '',
+      note: ''
+    });
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedBooking(null);
+    resetDepositSettlementState();
+  };
 
   const readOnlyGuard = () => {
     if (canManageBookings) return false;
@@ -38,7 +74,20 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     return true;
   };
 
-  const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Open-ended';
+
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const canShowDepositSettlement = (booking) => {
+    const status = String(booking?.status || '').toLowerCase();
+    return ['confirmed', 'partial-completed', 'partial_completed', 'completed', 'cancelled'].includes(status);
+  };
 
   const handleRefresh = async () => {
     await Promise.all([
@@ -59,6 +108,39 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     window.addEventListener('open-add-booking', handleOpenAdd);
     return () => window.removeEventListener('open-add-booking', handleOpenAdd);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const nextStatus = params.get('status');
+    const nextSearch = params.get('search');
+
+    if (nextStatus) {
+      setFilterStatus(nextStatus);
+    }
+
+    if (nextSearch !== null) {
+      setSearchQuery(nextSearch);
+    }
+
+    setDrilldownApplied(false);
+  }, [location.search]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const bookingId = params.get('bookingId');
+
+    if (!bookingId || drilldownApplied || bookings.length === 0) {
+      return;
+    }
+
+    const targetBooking = bookings.find((booking) => String(booking.id) === String(bookingId));
+    if (!targetBooking) {
+      return;
+    }
+
+    setDrilldownApplied(true);
+    handleOpenDetailModal(targetBooking);
+  }, [location.search, bookings, drilldownApplied]);
 
   const fetchBookings = async () => {
     try {
@@ -148,6 +230,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const handleUpdateStatus = async (bookingId, newStatus, cancellationReason = null, refundData = null) => {
     if (readOnlyGuard()) return;
+
+    const activeBooking = selectedBooking?.id === bookingId
+      ? selectedBooking
+      : bookings.find((booking) => booking.id === bookingId);
+
+    if (newStatus === 'completed' && Number(activeBooking?.deposit_balance || 0) > 0) {
+      toast.error(`Settle the deposit balance (₱${Number(activeBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+      return;
+    }
+
     const toastId = toast.loading(`${newStatus === 'cancelled' ? 'Cancelling' : 'Updating'} booking...`);
     setProcessing(true);
     try {
@@ -160,13 +252,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
       await fetchBookings();
       await fetchStats();
-      setShowDetailModal(false);
+      closeDetailModal();
       setShowCancelModal(false);
 
       toast.success(`Booking ${newStatus} successfully!`, { id: toastId });
     } catch (err) {
       console.error('Error updating status:', err);
-      toast.error('Failed to update booking status', { id: toastId });
+      toast.error(err.response?.data?.message || 'Failed to update booking status', { id: toastId });
     } finally {
       setProcessing(false);
     }
@@ -194,14 +286,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       }
 
       // Show appropriate message
-      if (result.status_upgraded) {
+      if (result.completion_blocked) {
+        toast.success(result.message || 'Payment updated, but deposit must be settled before completion.');
+      } else if (result.status_upgraded) {
         toast.success('Payment updated! Booking automatically upgraded to Completed.');
       } else {
-        toast.success('Payment status updated!');
+        toast.success(result.message || 'Payment status updated!');
       }
     } catch (err) {
       console.error('Error updating payment:', err);
-      toast.error('Failed to update payment status');
+      toast.error(err.response?.data?.message || 'Failed to update payment status');
     }
   };
 
@@ -214,6 +308,123 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       shouldRefund: false
     });
     setShowCancelModal(true);
+  };
+
+  const fetchDepositSettlementHistory = async (bookingId, showError = true) => {
+    try {
+      setLoadingDepositSettlementHistory(true);
+      const response = await api.get(`/bookings/${bookingId}/deposit-settlements`);
+      const payload = response?.data?.data || {};
+      const settlements = Array.isArray(payload.settlements) ? payload.settlements : [];
+      const latestBalance = Number(payload.deposit_balance || 0);
+
+      setDepositSettlementHistory(settlements);
+      setSelectedBooking((prev) => (
+        prev && prev.id === bookingId
+          ? { ...prev, deposit_balance: latestBalance }
+          : prev
+      ));
+      setBookings((prev) => prev.map((booking) => (
+        booking.id === bookingId
+          ? { ...booking, deposit_balance: latestBalance }
+          : booking
+      )));
+    } catch (err) {
+      if (showError) {
+        toast.error(err.response?.data?.message || 'Failed to fetch deposit settlement history');
+      }
+    } finally {
+      setLoadingDepositSettlementHistory(false);
+    }
+  };
+
+  const handleOpenDetailModal = async (booking) => {
+    setSelectedBooking(booking);
+    setShowDetailModal(true);
+    resetDepositSettlementState();
+    if (canShowDepositSettlement(booking)) {
+      await fetchDepositSettlementHistory(booking.id, false);
+    }
+  };
+
+  const handleDepositSettlementInput = (field, value) => {
+    setDepositSettlementForm((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSettleDeposit = async () => {
+    if (readOnlyGuard()) return;
+    if (!selectedBooking) return;
+
+    const damageFee = Number.parseFloat(depositSettlementForm.damageFee) || 0;
+    const cleaningFee = Number.parseFloat(depositSettlementForm.cleaningFee) || 0;
+    const otherFee = Number.parseFloat(depositSettlementForm.otherFee) || 0;
+    const markRefunded = Boolean(depositSettlementForm.markRefunded);
+    const totalDeductions = damageFee + cleaningFee + otherFee;
+
+    if (totalDeductions <= 0 && !markRefunded) {
+      toast.error('Add a deduction or mark the remaining balance as refunded.');
+      return;
+    }
+
+    if (markRefunded && !depositSettlementForm.refundMethod.trim()) {
+      toast.error('Refund method is required when marking as refunded.');
+      return;
+    }
+
+    try {
+      setSubmittingDepositSettlement(true);
+      const response = await api.post(`/bookings/${selectedBooking.id}/deposit-settlement`, {
+        damage_fee: damageFee,
+        cleaning_fee: cleaningFee,
+        other_fee: otherFee,
+        mark_refunded: markRefunded,
+        refund_method: markRefunded ? depositSettlementForm.refundMethod.trim() : null,
+        refund_reference: markRefunded && depositSettlementForm.refundReference.trim()
+          ? depositSettlementForm.refundReference.trim()
+          : null,
+        note: depositSettlementForm.note.trim() || null
+      });
+
+      const payload = response?.data?.data || {};
+      const updatedBalance = Number(payload.deposit_balance || 0);
+      const latestSettlement = payload.settlement || null;
+
+      setSelectedBooking((prev) => (
+        prev && prev.id === selectedBooking.id
+          ? { ...prev, deposit_balance: updatedBalance }
+          : prev
+      ));
+      setBookings((prev) => prev.map((booking) => (
+        booking.id === selectedBooking.id
+          ? { ...booking, deposit_balance: updatedBalance }
+          : booking
+      )));
+
+      if (latestSettlement) {
+        setDepositSettlementHistory((prev) => [latestSettlement, ...prev]);
+      } else {
+        await fetchDepositSettlementHistory(selectedBooking.id, false);
+      }
+
+      setDepositSettlementForm({
+        damageFee: '',
+        cleaningFee: '',
+        otherFee: '',
+        markRefunded: false,
+        refundMethod: '',
+        refundReference: '',
+        note: ''
+      });
+
+      toast.success(response?.data?.message || 'Deposit settlement recorded successfully.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to settle deposit.');
+    } finally {
+      setSubmittingDepositSettlement(false);
+    }
   };
 
   const handleCancelConfirm = () => {
@@ -436,7 +647,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${getStatusColor(b.status)}`}>{b.status}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <button onClick={() => { setSelectedBooking(b); setShowDetailModal(true); }} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-2 transition-colors">
+                          <button onClick={() => handleOpenDetailModal(b)} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-2 transition-colors">
                             <Eye className="w-3.5 h-3.5" /> View
                           </button>
                         </td>
@@ -457,7 +668,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 z-10">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Booking Details</h2>
-              <button onClick={() => setShowDetailModal(false)} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+              <button onClick={closeDetailModal} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
                 <X className="w-6 h-6 text-gray-500 dark:text-gray-500" />
               </button>
             </div>
@@ -501,6 +712,161 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   </span>
                 </div>
               </div>
+
+              {canShowDepositSettlement(selectedBooking) ? (
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Deposit Settlement</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Current Balance: <span className="font-bold text-gray-900 dark:text-white">₱{Number(selectedBooking.deposit_balance || 0).toLocaleString()}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {canManageBookings ? (
+                    <div className="space-y-4 rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-gray-50/70 dark:bg-gray-700/30">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Damage Fee</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={depositSettlementForm.damageFee}
+                            onChange={(e) => handleDepositSettlementInput('damageFee', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Cleaning Fee</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={depositSettlementForm.cleaningFee}
+                            onChange={(e) => handleDepositSettlementInput('cleaningFee', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Other Fee</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={depositSettlementForm.otherFee}
+                            onChange={(e) => handleDepositSettlementInput('otherFee', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+
+                      <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-200">
+                        <input
+                          type="checkbox"
+                          checked={depositSettlementForm.markRefunded}
+                          onChange={(e) => handleDepositSettlementInput('markRefunded', e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                        Mark remaining balance as refunded
+                      </label>
+
+                      {depositSettlementForm.markRefunded && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Refund Method</label>
+                            <input
+                              type="text"
+                              value={depositSettlementForm.refundMethod}
+                              onChange={(e) => handleDepositSettlementInput('refundMethod', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                              placeholder="Cash, GCash, Bank Transfer"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Refund Reference</label>
+                            <input
+                              type="text"
+                              value={depositSettlementForm.refundReference}
+                              onChange={(e) => handleDepositSettlementInput('refundReference', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                              placeholder="Optional reference ID"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Notes</label>
+                        <textarea
+                          value={depositSettlementForm.note}
+                          onChange={(e) => handleDepositSettlementInput('note', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white resize-none"
+                          placeholder="Optional summary (damages, refund reason, etc.)"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleSettleDeposit}
+                        disabled={submittingDepositSettlement}
+                        className="w-full md:w-auto px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {submittingDepositSettlement && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Record Deposit Settlement
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                      Settlement actions are disabled in caretaker view.
+                    </p>
+                  )}
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Settlement History</p>
+                    {loadingDepositSettlementHistory ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading settlement history...
+                      </div>
+                    ) : depositSettlementHistory.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No settlement records yet.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {depositSettlementHistory.map((entry) => (
+                          <div key={entry.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="font-semibold text-gray-900 dark:text-white">
+                                Deductions ₱{Number(entry.total_deductions || 0).toLocaleString()} • Balance ₱{Number(entry.ending_balance || 0).toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(entry.created_at)}</p>
+                            </div>
+                            {entry.mark_refunded ? (
+                              <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
+                                Refunded via {entry.refund_method || 'N/A'}{entry.refund_reference ? ` • Ref ${entry.refund_reference}` : ''}
+                              </p>
+                            ) : null}
+                            {entry.note ? <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{entry.note}</p> : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
+                  <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+                    <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-2">Deposit Settlement</p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      Deposit settlement is available after the booking is confirmed.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                 {canManageBookings ? (
@@ -576,6 +942,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                             <button
                               onClick={async () => {
                                 if (window.confirm('Mark this booking as fully completed and paid?')) {
+                                  if (Number(selectedBooking.deposit_balance || 0) > 0) {
+                                    toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+                                    return;
+                                  }
+
                                   // Fix #1: await payment update FIRST to avoid race condition
                                   if (paymentStatus !== 'paid') {
                                     await handleUpdatePayment(selectedBooking.id, 'paid');
@@ -622,6 +993,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               <button
                                 onClick={() => {
                                   if (window.confirm('Mark this booking as completed?')) {
+                                    if (Number(selectedBooking.deposit_balance || 0) > 0) {
+                                      toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+                                      return;
+                                    }
                                     handleUpdateStatus(selectedBooking.id, 'completed');
                                   }
                                 }}
@@ -646,6 +1021,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                                 <button
                                   onClick={() => {
                                     if (window.confirm('Mark as completed with full payment received?')) {
+                                      if (Number(selectedBooking.deposit_balance || 0) > 0) {
+                                        toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+                                        return;
+                                      }
                                       handleUpdateStatus(selectedBooking.id, 'completed');
                                     }
                                   }}
@@ -1101,22 +1480,22 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-600 dark:text-gray-400">Unused Days in Old Room:</span>
-                            <span className="font-bold text-gray-800 dark:text-gray-200">{prorationDetails.remaining_days} Days</span>
+                            <span className="font-bold text-gray-800 dark:text-gray-200">{Math.max(0, Math.round(Number(prorationDetails.remaining_days || 0)))} Days</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-600 dark:text-gray-400">Credit from Old Room:</span>
-                            <span className="font-bold text-green-600">- ₱{prorationDetails.old_room_unused_value.toLocaleString()}</span>
+                            <span className="font-bold text-green-600">- ₱{Number(prorationDetails.old_room_unused_value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600 dark:text-gray-400">Cost of New Room (for {prorationDetails.remaining_days} Days):</span>
-                            <span className="font-bold text-amber-600">+ ₱{prorationDetails.new_room_cost.toLocaleString()}</span>
+                            <span className="text-gray-600 dark:text-gray-400">Cost of New Room (for {Math.max(0, Math.round(Number(prorationDetails.remaining_days || 0)))} Days):</span>
+                            <span className="font-bold text-amber-600">+ ₱{Number(prorationDetails.new_room_cost || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         </div>
                         <div className="flex justify-between items-center border-t border-blue-200 dark:border-blue-800 pt-3 mt-3">
                           <span className="font-bold text-blue-900 dark:text-blue-100">Suggested Final Adjustment:</span>
                           <div className="text-right">
                             <span className={`text-xl font-black ${prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                              {prorationDetails.suggested_adjustment > 0 ? '+' : ''}₱{prorationDetails.suggested_adjustment.toLocaleString()}
+                              {prorationDetails.suggested_adjustment > 0 ? '+' : ''}₱{Number(prorationDetails.suggested_adjustment || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           </div>
                         </div>

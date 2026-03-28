@@ -22,6 +22,10 @@ class ConversationResource extends JsonResource
                 'first_name' => $otherUser->first_name,
                 'last_name' => $otherUser->last_name,
                 'role' => $otherUser->role,
+                'gender' => $otherUser->gender,
+                'identified_as' => $otherUser->identified_as,
+                'date_of_birth' => optional($otherUser->date_of_birth)->toDateString(),
+                'preferences' => $otherUser->preferences,
                 'profile_image' => $otherUser->profile_image ? (str_starts_with($otherUser->profile_image, 'http') ? $otherUser->profile_image : asset('storage/'.$otherUser->profile_image)) : null,
             ] : null,
             'property' => $this->property ? [

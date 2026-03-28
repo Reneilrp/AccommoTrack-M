@@ -72,7 +72,10 @@ class RoomResource extends JsonResource
                     ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
                     ->whereNull('tenant_id')
                     ->where('start_date', '<=', now())
-                    ->where('end_date', '>=', now())
+                    ->where(function ($query) {
+                        $query->whereNull('end_date')
+                            ->orWhere('end_date', '>=', now());
+                    })
                     ->get()
                     ->map(function ($b) {
                         return [

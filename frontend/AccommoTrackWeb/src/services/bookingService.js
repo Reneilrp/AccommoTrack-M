@@ -40,6 +40,16 @@ const bookingService = {
       console.error('cancelBooking error:', err?.response?.data || err);
       throw err;
     }
+  },
+
+  async requestMoveOut(bookingId, data = {}) {
+    try {
+      const res = await api.patch(`/tenant/bookings/${bookingId}/request-move-out`, data);
+      return res.data;
+    } catch (err) {
+      console.error('requestMoveOut error:', err?.response?.data || err);
+      throw err;
+    }
   }
 };
 

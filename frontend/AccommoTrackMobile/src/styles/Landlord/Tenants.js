@@ -278,6 +278,38 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '700',
     fontSize: 13
   },
+  successBtn: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#16A34A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6
+  },
+  successBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
+  unassignBtn: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#B45309',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6
+  },
+  unassignBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
   dangerBtn: {
     flex: 1,
     minWidth: '46%',
@@ -293,6 +325,9 @@ export const getStyles = (theme) => StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13
+  },
+  actionDisabledBtn: {
+    opacity: 0.5
   },
   selectCheckbox: {
     position: 'absolute',

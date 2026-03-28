@@ -88,6 +88,7 @@ class TenantDashboardService
     {
         $upcomingCheckouts = Booking::where('tenant_id', $tenantId)
             ->where('status', 'confirmed')
+            ->whereNotNull('end_date')
             ->whereBetween('end_date', [now(), now()->addDays(30)])
             ->with(['property', 'room'])
             ->orderBy('end_date', 'asc')

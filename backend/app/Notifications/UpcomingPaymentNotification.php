@@ -15,12 +15,45 @@ class UpcomingPaymentNotification extends Notification implements ShouldQueue
 
     protected $invoice;
 
+    protected $reminderType;
+
     /**
      * Create a new notification instance.
      */
-    public function __construct(Invoice $invoice)
+    public function __construct(Invoice $invoice, string $reminderType = 'due_3_days')
     {
         $this->invoice = $invoice;
+        $this->reminderType = $reminderType;
+    }
+
+    protected function getReminderContent(): array
+    {
+        $amount = $this->invoice->currency.' '.number_format($this->invoice->amount_cents / 100, 2);
+        $dueDateText = $this->invoice->due_date?->format('M d, Y') ?? 'N/A';
+
+        switch ($this->reminderType) {
+            case 'due_1_day':
+                return [
+                    'subject' => 'Payment Due Tomorrow',
+                    'title' => 'Payment Due Tomorrow',
+                    'message' => "Your payment of {$amount} is due tomorrow ({$dueDateText}).",
+                ];
+
+            case 'overdue_followup':
+                return [
+                    'subject' => 'Payment Overdue Reminder',
+                    'title' => 'Payment Overdue',
+                    'message' => "Your payment of {$amount} is overdue since {$dueDateText}. Please settle it as soon as possible.",
+                ];
+
+            case 'due_3_days':
+            default:
+                return [
+                    'subject' => 'Upcoming Payment Due',
+                    'title' => 'Upcoming Payment Due',
+                    'message' => "Your payment of {$amount} is due in 3 days ({$dueDateText}).",
+                ];
+        }
     }
 
     /**
@@ -36,9 +69,11 @@ class UpcomingPaymentNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $content = $this->getReminderContent();
+
         return (new MailMessage)
-            ->subject('Upcoming Payment Due')
-            ->line('Your payment for '.$this->invoice->reference.' is due soon.')
+            ->subject($content['subject'])
+            ->line($content['message'])
             ->line('Due Date: '.$this->invoice->due_date->format('F d, Y'))
             ->line('Amount: '.$this->invoice->currency.' '.number_format($this->invoice->amount_cents / 100, 2))
             ->action('View Invoice', url('/tenant/payments/'.$this->invoice->id))
@@ -50,12 +85,15 @@ class UpcomingPaymentNotification extends Notification implements ShouldQueue
      */
     public function toArray(object $notifiable): array
     {
+        $content = $this->getReminderContent();
+
         return [
-            'type' => 'upcoming_payment',
-            'title' => 'Upcoming Payment Due',
-            'message' => 'Your payment of '.$this->invoice->currency.' '.number_format($this->invoice->amount_cents / 100, 2).' is due on '.$this->invoice->due_date->format('M d, Y'),
+            'type' => 'billing_reminder',
+            'title' => $content['title'],
+            'message' => $content['message'],
             'url' => '/tenant/payments/'.$this->invoice->id,
             'invoice_id' => $this->invoice->id,
+            'reminder_type' => $this->reminderType,
         ];
     }
 

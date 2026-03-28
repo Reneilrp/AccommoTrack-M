@@ -19,11 +19,35 @@ class ExtensionController extends Controller
             ->whereIn('status', ['confirmed', 'active', 'completed', 'partial-completed'])
             ->firstOrFail();
 
+        if (($booking->contract_mode ?? 'monthly') === 'monthly' && ! $booking->end_date) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Open-ended monthly stays do not need extension requests. Submit move-out notice when you are ready to leave.',
+            ], 422);
+        }
+
+        if (! $booking->end_date) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Cannot request extension without a current move-out date.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'extension_type' => 'required|in:monthly,daily',
             'requested_end_date' => 'required|date|after:today',
             'notes' => 'nullable|string|max:500',
         ]);
+
+        if (($booking->contract_mode ?? null) === 'daily' && $validated['extension_type'] !== 'daily') {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Daily contracts must use daily extension requests.',
+            ], 422);
+        }
 
         $requestedDate = Carbon::parse($validated['requested_end_date']);
         $currentEndDate = Carbon::parse($booking->end_date);

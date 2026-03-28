@@ -129,6 +129,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [bookingData, setBookingData] = useState({
     start_date: new Date(),
     end_date: null,
+    contract_mode: 'monthly',
     notes: '',
     payment_method: 'cash',
     payment_plan: 'full',
@@ -138,18 +139,35 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [isPricingLoading, setIsPricingLoading] = useState(false);
   const [pricingBreakdown, setPricingBreakdown] = useState(null);
 
+  const roomBillingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
+  const supportsContractModeSwitch = roomBillingPolicy === 'monthly_with_daily';
+  const isDailyContract = roomBillingPolicy === 'daily' || (supportsContractModeSwitch && bookingData.contract_mode === 'daily');
+
   // Fetch price from backend instead of local calculation
   useEffect(() => {
     const fetchPrice = async () => {
-      if (!bookingData.start_date || !bookingData.end_date) {
+      if (!bookingData.start_date) {
         setTotalPrice(0);
+        setPricingBreakdown(null);
         return;
       }
 
       setIsPricingLoading(true);
       try {
+        const effectiveEndDate = bookingData.end_date
+          ? new Date(bookingData.end_date)
+          : (!isDailyContract
+              ? new Date(new Date(bookingData.start_date).setDate(new Date(bookingData.start_date).getDate() + 30))
+              : null);
+
+        if (!effectiveEndDate) {
+          setTotalPrice(0);
+          setPricingBreakdown(null);
+          return;
+        }
+
         const startStr = bookingData.start_date.toISOString().split('T')[0];
-        const endStr = bookingData.end_date.toISOString().split('T')[0];
+        const endStr = effectiveEndDate.toISOString().split('T')[0];
         
         // Ensure end date is actually after start date
         if (new Date(endStr) <= new Date(startStr)) {
@@ -171,7 +189,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
     const timer = setTimeout(fetchPrice, 300); // Debounce
     return () => clearTimeout(timer);
-  }, [bookingData.start_date, bookingData.end_date, activeRoom.id]);
+  }, [bookingData.start_date, bookingData.end_date, activeRoom.id, isDailyContract]);
 
   // Get allowed methods from landlord settings, default to cash only if not set
   const allowedMethods = activeRoom?.landlord?.payment_methods_settings?.allowed || ['cash'];
@@ -243,14 +261,19 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         return;
       }
 
-      // Calculate default checkout date (30 days / 1 month later) - allow it to extend beyond 3 months
-      const defaultEndDate = new Date(selectedDate);
-      defaultEndDate.setDate(defaultEndDate.getDate() + 30);
+      // Daily contracts require a concrete check-out date.
+      let updatedEndDate = bookingData.end_date;
+      if (isDailyContract) {
+        updatedEndDate = new Date(selectedDate);
+        updatedEndDate.setDate(updatedEndDate.getDate() + 1);
+      } else if (updatedEndDate && updatedEndDate <= selectedDate) {
+        updatedEndDate = null;
+      }
 
       setBookingData(prev => ({
         ...prev,
         start_date: selectedDate,
-        end_date: defaultEndDate,
+        end_date: updatedEndDate,
       }));
     }
   };
@@ -295,14 +318,18 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       return;
     }
 
-    // Reset form with today's date and default end date 30 days later
+    // Reset form with today's date and contract-aware checkout defaults.
     const today = new Date();
-    const defaultEndDate = new Date(today);
-    defaultEndDate.setDate(defaultEndDate.getDate() + 30);
+    const bookingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
+    const defaultContractMode = bookingPolicy === 'daily' ? 'daily' : 'monthly';
+    const defaultEndDate = defaultContractMode === 'daily'
+      ? new Date(new Date(today).setDate(today.getDate() + 1))
+      : null;
 
     setBookingData({
       start_date: today,
       end_date: defaultEndDate,
+      contract_mode: defaultContractMode,
       notes: '',
       payment_method: 'cash', // Reset to default
       payment_plan: 'full',
@@ -330,13 +357,18 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   };
 
   const validateDates = () => {
-    if (!bookingData.start_date || !bookingData.end_date) {
-      Alert.alert('Missing Information', 'Please select both check-in and check-out dates.');
+    if (!bookingData.start_date) {
+      Alert.alert('Missing Information', 'Please select a check-in date.');
+      return false;
+    }
+
+    if (isDailyContract && !bookingData.end_date) {
+      Alert.alert('Missing Information', 'Please select both check-in and check-out dates for daily contracts.');
       return false;
     }
 
     const start = new Date(bookingData.start_date);
-    const end = new Date(bookingData.end_date);
+    const end = bookingData.end_date ? new Date(bookingData.end_date) : null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -344,7 +376,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       Alert.alert('Invalid Date', 'Check-in date cannot be in the past.');
       return false;
     }
-    if (end <= start) {
+    if (end && end <= start) {
       Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
       return false;
     }
@@ -369,9 +401,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       const data = {
         room_id: activeRoom.id,
         start_date: bookingData.start_date.toISOString().split('T')[0],
-        end_date: bookingData.end_date.toISOString().split('T')[0],
+        end_date: bookingData.end_date ? bookingData.end_date.toISOString().split('T')[0] : null,
+        contract_mode: isDailyContract ? 'daily' : 'monthly',
         payment_method: bookingData.payment_method || 'cash',
-        payment_plan: bookingData.payment_plan,
+        payment_plan: isDailyContract ? 'full' : bookingData.payment_plan,
         notes: bookingData.notes || null
       };
 
@@ -735,6 +768,63 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             <Text style={styles.modalTitle}>Book Room {activeRoom.room_number}</Text>
             <Text style={styles.psText}>Monthly = 30 days (no prorate)</Text>
 
+            {supportsContractModeSwitch && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Stay Mode</Text>
+                <View style={styles.paymentMethodRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentMethodBtn,
+                      !isDailyContract && styles.paymentMethodBtnActive,
+                    ]}
+                    onPress={() => setBookingData(prev => ({
+                      ...prev,
+                      contract_mode: 'monthly',
+                      end_date: null,
+                      payment_plan: prev.payment_plan === 'monthly' ? 'monthly' : 'full',
+                    }))}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentMethodBtnText,
+                        !isDailyContract && styles.paymentMethodBtnTextActive,
+                      ]}
+                    >
+                      Monthly Contract
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentMethodBtn,
+                      isDailyContract && styles.paymentMethodBtnActive,
+                    ]}
+                    onPress={() => setBookingData(prev => {
+                      const defaultEndDate = new Date(prev.start_date || new Date());
+                      defaultEndDate.setDate(defaultEndDate.getDate() + 1);
+                      return {
+                        ...prev,
+                        contract_mode: 'daily',
+                        end_date: prev.end_date || defaultEndDate,
+                        payment_plan: 'full',
+                      };
+                    })}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentMethodBtnText,
+                        isDailyContract && styles.paymentMethodBtnTextActive,
+                      ]}
+                    >
+                      Daily Contract
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.summaryNote}>
+                  Monthly contracts may leave check-out blank for open-ended stay.
+                </Text>
+              </View>
+            )}
+
             {/* Start Date Picker */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Check-in Date <Text style={{color: '#ef4444'}}>*</Text></Text>
@@ -761,7 +851,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
             {/* End Date Picker */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Check-out Date <Text style={{color: '#ef4444'}}>*</Text></Text>
+              <Text style={styles.inputLabel}>
+                {isDailyContract ? 'Check-out Date' : 'Planned Move-out Date (Optional)'}
+                {isDailyContract ? <Text style={{color: '#ef4444'}}> *</Text> : null}
+              </Text>
               <TouchableOpacity
                 style={styles.dateButton}
                 onPress={() => setShowEndDatePicker(true)}
@@ -820,8 +913,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               </View>
             </View>
 
-            {/* Payment Plan Selection - Only for stays >= 2 months */}
-            {pricingBreakdown && pricingBreakdown.months >= 2 && (
+            {/* Payment Plan Selection - Only for monthly contract stays >= 2 months */}
+            {!isDailyContract && pricingBreakdown && pricingBreakdown.months >= 2 && (
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Payment Plan <Text style={{color: '#ef4444'}}>*</Text></Text>
                 
@@ -861,7 +954,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             )}
 
             {/* Duration & Cost Summary */}
-            {bookingData.end_date && (
+            {(bookingData.end_date || !isDailyContract) && (
               <View style={styles.summaryContainer}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Duration</Text>
@@ -922,9 +1015,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             </View>
 
             <TouchableOpacity
-              style={[styles.submitButton, (!bookingData.end_date || isSubmitting) && styles.submitButtonDisabled]}
+              style={[styles.submitButton, ((isDailyContract && !bookingData.end_date) || isSubmitting) && styles.submitButtonDisabled]}
               onPress={handleSubmitBooking}
-              disabled={!bookingData.end_date || isSubmitting}
+              disabled={(isDailyContract && !bookingData.end_date) || isSubmitting}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#fff" />

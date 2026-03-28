@@ -95,11 +95,16 @@ class Booking extends Model
         'status',
         'payment_status',
         'payment_plan',
+        'contract_mode',
+        'next_billing_date',
+        'billing_day',
+        'deposit_balance',
         'payment_method',
         'notes',
         'cancelled_at',
         'cancellation_reason',
         'confirmed_at',
+        'notice_given_at',
     ];
 
     protected $casts = [
@@ -107,8 +112,13 @@ class Booking extends Model
         'end_date' => 'date',
         'monthly_rent' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'contract_mode' => 'string',
+        'next_billing_date' => 'date',
+        'billing_day' => 'integer',
+        'deposit_balance' => 'decimal:2',
         'cancelled_at' => 'datetime',
         'confirmed_at' => 'datetime',
+        'notice_given_at' => 'datetime',
         'guest_name' => 'string',
     ];
 
@@ -199,6 +209,22 @@ class Booking extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * Relationship: Booking has many Deposit Settlements
+     */
+    public function depositSettlements()
+    {
+        return $this->hasMany(BookingDepositSettlement::class)->orderByDesc('created_at');
+    }
+
+    /**
+     * Relationship: Booking has many Billing Reminder Logs
+     */
+    public function billingReminderLogs()
+    {
+        return $this->hasMany(BillingReminderLog::class)->orderByDesc('sent_at');
     }
 
     /**

@@ -32,6 +32,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       notes: ''
     });
 
+    const getRoomBillingPolicy = (room) => {
+      return String(room?.billing_policy || room?.billingPolicy || room?.contract_mode || 'monthly').toLowerCase();
+    };
+
+    const selectedRoomData = rooms.find((r) => String(r.id) === String(formData.roomId));
+    const selectedRoomBillingPolicy = getRoomBillingPolicy(selectedRoomData);
+    const requiresCheckOut = !selectedRoomData || selectedRoomBillingPolicy === 'daily';
+
     useEffect(() => {
       if (isOpen) {
         loadProperties();
@@ -118,16 +126,22 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     };
 
     const fetchPricing = useCallback(async () => {
-      if (!formData.roomId || !formData.checkIn || !formData.checkOut) return;
+      if (!formData.roomId || !formData.checkIn) return;
+      if (requiresCheckOut && !formData.checkOut) return;
+      if (!formData.checkOut) {
+        setPricingPreview(null);
+        return;
+      }
       
       setLoadingPricing(true);
       try {
+        const params = {
+          start: formData.checkIn,
+          end: formData.checkOut,
+          bed_count: formData.bedCount
+        };
         const res = await api.get(`/rooms/${formData.roomId}/pricing`, {
-          params: {
-            start: formData.checkIn,
-            end: formData.checkOut,
-            bed_count: formData.bedCount
-          }
+          params
         });
         setPricingPreview(res.data);
         setFormData(prev => ({ ...prev, amount: res.data.total }));
@@ -136,7 +150,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       } finally {
         setLoadingPricing(false);
       }
-    }, [formData.roomId, formData.checkIn, formData.checkOut, formData.bedCount]);
+    }, [formData.roomId, formData.checkIn, formData.checkOut, formData.bedCount, requiresCheckOut]);
 
     useEffect(() => {
       fetchPricing();
@@ -150,7 +164,15 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
     const handleRoomChange = (e) => {
         const id = e.target.value;
-        setFormData({ ...formData, roomId: id, bedCount: 1 });
+        const nextRoom = rooms.find((r) => String(r.id) === String(id));
+        const nextPolicy = getRoomBillingPolicy(nextRoom);
+        setFormData((prev) => ({
+          ...prev,
+          roomId: id,
+          bedCount: 1,
+          checkOut: nextPolicy === 'daily' ? prev.checkOut : '',
+        }));
+        setPricingPreview(null);
     };
 
     const handleSubmit = async (e) => {
@@ -158,7 +180,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       setError('');
       setFieldErrors({});
 
-      if ((!selectedGuest && !formData.guestName.trim()) || !formData.roomId || !formData.checkIn || !formData.checkOut) {
+      if ((!selectedGuest && !formData.guestName.trim()) || !formData.roomId || !formData.checkIn || (requiresCheckOut && !formData.checkOut)) {
         setError('Please fill in all required fields.');
         return;
       }
@@ -174,7 +196,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         return;
       }
 
-      if (formData.checkOut <= formData.checkIn) {
+      if (formData.checkOut && formData.checkOut <= formData.checkIn) {
         setError('Check-out date must be after check-in date.');
         return;
       }
@@ -185,7 +207,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
           room_id: formData.roomId,
           bed_count: formData.bedCount,
           start_date: formData.checkIn,
-          end_date: formData.checkOut,
+          end_date: formData.checkOut || null,
           notes: formData.notes,
         };
 
@@ -216,8 +238,6 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       }
     };
 
-    const selectedRoomData = rooms.find(r => String(r.id) === String(formData.roomId));
-
     const normalizeGender = (g) => {
       if (!g) return null;
       const val = g.toLowerCase().trim();
@@ -235,7 +255,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
           <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-700/30">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-600">
@@ -254,7 +274,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
             {error && (
               <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600 flex items-start gap-2">
                 <Info className="w-4 h-4 mt-0.5" />
@@ -324,6 +344,11 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               </div>
               {fieldErrors.guest_name && <p className="text-red-500 text-xs mt-2">{fieldErrors.guest_name[0]}</p>}
               {fieldErrors.tenant_id && <p className="text-red-500 text-xs mt-2">{fieldErrors.tenant_id[0]}</p>}
+              {selectedGuest?.email && (
+                <p className="text-xs text-green-700 dark:text-green-400 mt-2">
+                  Selected tenant email: <span className="font-semibold">{selectedGuest.email}</span>
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -382,7 +407,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Check-out</label>
                 <input
                   type="date"
-                  required
+                  required={requiresCheckOut}
                   min={formData.checkIn || getTodayDate()}
                   onKeyDown={(e) => e.preventDefault()}
                   onClick={(e) => e.target.showPicker?.()}
@@ -393,6 +418,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 {fieldErrors.end_date && <p className="text-red-500 text-xs mt-2">{fieldErrors.end_date[0]}</p>}
               </div>
             </div>
+
+            {selectedRoomData && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+                {requiresCheckOut
+                  ? 'This room uses daily billing. Check-out date is required.'
+                  : 'This room uses monthly billing. Check-out can be left blank for open-ended stays.'}
+              </p>
+            )}
 
             {selectedRoomData && (selectedRoomData.room_type === 'bedSpacer' || selectedRoomData.room_type === 'bedspacer') && (
               <div>
@@ -433,6 +466,12 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                     <p className="italic">{pricingPreview.breakdown?.months > 0 && `${pricingPreview.breakdown.months} month(s)`} {pricingPreview.breakdown?.remaining_days > 0 && `+ ${pricingPreview.breakdown.remaining_days} day(s)`}</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {formData.roomId && formData.checkIn && !formData.checkOut && !requiresCheckOut && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/30 text-xs text-blue-700 dark:text-blue-300">
+                Add a check-out date if you want to preview the total. Monthly bookings can stay open-ended.
               </div>
             )}
 

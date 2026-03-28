@@ -134,6 +134,22 @@ export const tenantService = {
     },
 
     /**
+     * Request move-out for an active stay.
+     */
+    async requestMoveOut(bookingId, moveOutDate, reason = '') {
+        try {
+            const response = await api.patch(`/tenant/bookings/${bookingId}/request-move-out`, {
+                move_out_date: moveOutDate,
+                reason,
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error requesting move-out:', error);
+            throw error;
+        }
+    },
+
+    /**
      * Update Tenant Profile
      * @param {FormData} formData 
      */

@@ -33,6 +33,7 @@ export default function MyBookings() {
   const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
   const [submittingExtension, setSubmittingExtension] = useState(false);
   const [submittingTransfer, setSubmittingTransfer] = useState(false);
+  const [submittingMoveOut, setSubmittingMoveOut] = useState(false);
   const [cancellingBookingId, setCancellingBookingId] = useState(null);
 
   const fetchData = async () => {
@@ -132,10 +133,25 @@ export default function MyBookings() {
     if (!booking?.id || submittingExtension) return;
 
     const submitExtension = async (days) => {
+      const currentEndRaw = booking.endDate || booking.end_date;
+      if (!currentEndRaw) {
+        Alert.alert('Extension Not Needed', 'This stay is open-ended monthly. You can submit a move-out notice anytime instead of extending.');
+        return;
+      }
+
+      const currentEnd = new Date(currentEndRaw);
+      if (Number.isNaN(currentEnd.getTime())) {
+        Alert.alert('Request Failed', 'Could not determine your current move-out date.');
+        return;
+      }
+
+      const requestedEnd = new Date(currentEnd);
+      requestedEnd.setDate(requestedEnd.getDate() + days);
+
       setSubmittingExtension(true);
       const result = await TenantService.requestExtension(booking.id, {
-        duration: days,
-        unit: 'days',
+        extension_type: 'daily',
+        requested_end_date: requestedEnd.toISOString().split('T')[0],
       });
 
       if (result.success) {
@@ -186,6 +202,42 @@ export default function MyBookings() {
             setSubmittingTransfer(false);
           },
         },
+      ]
+    );
+  };
+
+  const handleRequestMoveOut = async (booking) => {
+    if (!booking?.id || submittingMoveOut) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const submitMoveOut = async (daysAhead) => {
+      const moveOutDate = new Date(today);
+      moveOutDate.setDate(moveOutDate.getDate() + daysAhead);
+
+      setSubmittingMoveOut(true);
+      const result = await BookingService.requestMoveOut(booking.id, {
+        move_out_date: moveOutDate.toISOString().split('T')[0],
+        reason: 'Requested via mobile app',
+      });
+
+      if (result.success) {
+        Alert.alert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
+        fetchData();
+      } else {
+        Alert.alert('Request Failed', result.error || 'Failed to request move-out notice.');
+      }
+      setSubmittingMoveOut(false);
+    };
+
+    Alert.alert(
+      'Request Move-out',
+      'Select your planned move-out timeline',
+      [
+        { text: 'In 7 Days', onPress: () => submitMoveOut(7) },
+        { text: 'In 30 Days', onPress: () => submitMoveOut(30) },
+        { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
@@ -265,6 +317,8 @@ export default function MyBookings() {
         endDate: currentData?.end_date,
         monthlyRent: currentData?.monthly_rent,
         unit_price: currentData?.unit_price,
+        contract_mode: currentData?.contract_mode,
+        contractMode: currentData?.contract_mode,
         billing_policy: currentData?.billing_policy,
         status: currentData?.status,
         paymentStatus: currentData?.status,
@@ -280,6 +334,9 @@ export default function MyBookings() {
     if (!display) return null;
 
     const { booking, room, property, landlord, addons } = display;
+    const bookingContractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
+    const hasScheduledEndDate = Boolean(booking.endDate || booking.end_date);
+    const canRequestExtension = !booking.isPending && !(bookingContractMode === 'monthly' && !hasScheduledEndDate) && hasScheduledEndDate;
 
     const translateX = slideAnim.interpolate({
       inputRange: [0, 1],
@@ -407,19 +464,35 @@ export default function MyBookings() {
 
             {!booking.isPending && (
               <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 8 }]}> 
-                <TouchableOpacity
-                  style={[styles.reviewBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : '#2563EB' }]}
-                  disabled={submittingExtension}
-                  onPress={() => handleRequestExtension(booking)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Extend Stay</Text>
-                </TouchableOpacity>
+                {canRequestExtension && (
+                  <TouchableOpacity
+                    style={[styles.reviewBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : '#2563EB' }]}
+                    disabled={submittingExtension}
+                    onPress={() => handleRequestExtension(booking)}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Extend Stay</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={[styles.reviewBtn, { backgroundColor: submittingTransfer ? theme.colors.textTertiary : '#7C3AED' }]}
                   disabled={submittingTransfer}
                   onPress={() => handleRequestTransfer(booking, room)}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold' }}>Transfer Room</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!booking.isPending && (
+              <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 8 }]}> 
+                <TouchableOpacity
+                  style={[styles.reviewBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : '#4F46E5' }]}
+                  disabled={submittingMoveOut}
+                  onPress={() => handleRequestMoveOut(booking)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                    {submittingMoveOut ? 'Submitting...' : 'Request Move-out'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}

@@ -175,7 +175,10 @@ class Room extends Model
             ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
             ->whereNull('tenant_id')
             ->where('start_date', '<=', now())
-            ->where('end_date', '>=', now())
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
             ->sum('bed_count');
 
         $totalOccupied = $occupiedByTenants + $occupiedByWalkins;
@@ -205,7 +208,10 @@ class Room extends Model
             ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
             ->whereNull('tenant_id')
             ->where('start_date', '<=', now())
-            ->where('end_date', '>=', now())
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
             ->pluck('guest_name');
 
         $names = $names->merge($walkins)->filter()->unique();

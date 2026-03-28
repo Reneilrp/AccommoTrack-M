@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Room;
 use App\Models\User;
 use App\Services\BookingService;
+use App\Services\RefundService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -19,10 +20,12 @@ class TenantController extends Controller
     use ResolvesLandlordAccess;
 
     protected $bookingService;
+    protected $refundService;
 
-    public function __construct(BookingService $bookingService)
+    public function __construct(BookingService $bookingService, RefundService $refundService)
     {
         $this->bookingService = $bookingService;
+        $this->refundService = $refundService;
     }
 
     /**
@@ -625,11 +628,40 @@ class TenantController extends Controller
             // Confirm the booking immediately
             $this->bookingService->updateStatus($newBooking, ['status' => 'confirmed']);
 
-            // 3.5. Apply Prorated Rent Adjustment
+            // 3.5. Calculate and Apply Prorated Credit
+            $creditAmount = 0;
+            if ($activeBooking) {
+                $damageCharge = $validated['damage_charge'] ?? 0;
+                $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge);
+                $creditAmount = $creditCalculation['final_credit'];
+                
+                // Record refund in old booking
+                if ($creditAmount > 0) {
+                    $this->refundService->recordRefundInBooking($activeBooking, $creditAmount);
+                }
+            }
+            
+            // Apply credit to new booking's first invoice
+            if ($creditAmount > 0) {
+                $initialInvoice = Invoice::where('booking_id', $newBooking->id)
+                    ->where('status', 'pending')
+                    ->orderBy('id', 'asc')
+                    ->first();
+                
+                if ($initialInvoice) {
+                    $this->refundService->applyCreditToInvoice($initialInvoice, $creditAmount, [
+                        'transfer_from_booking_id' => $activeBooking->id,
+                        'transfer_from_room' => $oldRoom ? $oldRoom->room_number : 'N/A',
+                        'transfer_to_room' => $newRoom->room_number,
+                        'credit_calculation' => $creditCalculation ?? [],
+                    ]);
+                }
+            }
+            
+            // Handle manual prorated adjustment if provided (for room rate differences)
             if (isset($validated['prorated_adjustment']) && round((float)$validated['prorated_adjustment'], 2) !== 0.00) {
                 $adj = round((float)$validated['prorated_adjustment'], 2);
                 if ($adj > 0) {
-                    // It's an extra charge (upgrade). Create an invoice.
                     $reference = 'ADJ-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
                     Invoice::create([
                         'reference' => $reference,
@@ -637,35 +669,13 @@ class TenantController extends Controller
                         'property_id' => $newRoom->property_id,
                         'booking_id' => $newBooking->id,
                         'tenant_id' => $tenant->id,
-                        'description' => 'Prorated rent adjustment charge for transferring to '.$newRoom->room_number,
+                        'description' => 'Room rate difference for transferring to '.$newRoom->room_number,
                         'amount_cents' => (int) round($adj * 100),
                         'currency' => 'PHP',
                         'status' => 'pending',
                         'issued_at' => now(),
                         'due_date' => now()->addDays(3),
                     ]);
-                } else {
-                    // It's a discount (negative adjustment). Let's find the auto-generated initial invoice for the new booking
-                    // and apply the discount.
-                    $initialInvoice = Invoice::where('booking_id', $newBooking->id)
-                        ->where('status', 'pending')
-                        ->orderBy('id', 'asc')
-                        ->first();
-
-                    if ($initialInvoice) {
-                        $discountCents = abs((int) round($adj * 100));
-                        $newAmountCents = max(0, $initialInvoice->amount_cents - $discountCents);
-                        
-                        $initialInvoice->update([
-                            'amount_cents' => $newAmountCents,
-                            'description' => $initialInvoice->description . " (Includes Prorated Discount of ₱" . abs($adj) . " for unused days in previous room)",
-                            'status' => $newAmountCents == 0 ? 'paid' : 'pending',
-                        ]);
-                        
-                        if ($newAmountCents == 0 && $initialInvoice->paid_at == null) {
-                             $initialInvoice->update(['paid_at' => now()]);
-                        }
-                    }
                 }
             }
 

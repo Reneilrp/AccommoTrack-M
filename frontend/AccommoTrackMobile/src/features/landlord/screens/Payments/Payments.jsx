@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -114,7 +114,7 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
   return { maxRefundableCents: Math.min(txRemainingCents, invoiceCapCents), txRemainingCents, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress };
 };
 
-export default function Payments({ navigation }) {
+export default function Payments({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   
@@ -131,6 +131,16 @@ export default function Payments({ navigation }) {
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
   const [refundAmount, setRefundAmount] = useState('');
   const [showRefundConfirm, setShowRefundConfirm] = useState(null);
+  const [pendingFocusInvoiceId, setPendingFocusInvoiceId] = useState(null);
+
+  const openInvoiceModal = useCallback((invoice) => {
+    if (!invoice) return;
+
+    setSelectedInvoice(invoice);
+    const remaining = getRemainingAmount(invoice);
+    setRecordData({ amount: remaining > 0 ? remaining.toString() : '', method: 'cash', reference: '', notes: '' });
+    setShowModal(true);
+  }, []);
 
   const fetchInvoices = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -163,6 +173,41 @@ export default function Payments({ navigation }) {
       fetchInvoices();
     }, [fetchInvoices])
   );
+
+  useEffect(() => {
+    const params = route?.params || {};
+    const requestedFilter = params.filter;
+    const requestedSearch = params.searchQuery;
+    const focusInvoiceId = params.focusInvoiceId;
+
+    if (requestedFilter && STATUS_FILTERS.includes(requestedFilter)) {
+      setActiveFilter(requestedFilter);
+    }
+
+    if (typeof requestedSearch === 'string') {
+      setSearchQuery(requestedSearch);
+    }
+
+    if (focusInvoiceId) {
+      setPendingFocusInvoiceId(String(focusInvoiceId));
+    }
+  }, [route?.params?.filter, route?.params?.searchQuery, route?.params?.focusInvoiceId, route?.params?.drilldownToken]);
+
+  useEffect(() => {
+    if (!pendingFocusInvoiceId || invoices.length === 0) return;
+
+    const targetInvoice = invoices.find((invoice) => String(invoice.id) === String(pendingFocusInvoiceId));
+    if (!targetInvoice) return;
+
+    openInvoiceModal(targetInvoice);
+    setPendingFocusInvoiceId(null);
+
+    if (typeof navigation?.setParams === 'function') {
+      navigation.setParams({
+        focusInvoiceId: undefined,
+      });
+    }
+  }, [invoices, pendingFocusInvoiceId, openInvoiceModal, navigation]);
 
   const handleUpdatePayment = async (status) => {
     if (!selectedInvoice?.booking_id) return;
@@ -374,12 +419,7 @@ export default function Payments({ navigation }) {
           {item.booking_id && (
             <TouchableOpacity 
               style={styles.viewButton}
-              onPress={() => {
-                setSelectedInvoice(item);
-                const remaining = getRemainingAmount(item);
-                setRecordData({ amount: remaining > 0 ? remaining.toString() : '', method: 'cash', reference: '', notes: '' });
-                setShowModal(true);
-              }}
+              onPress={() => openInvoiceModal(item)}
             >
               <Text style={styles.viewButtonText}>{status === 'paid' ? 'Details' : 'Manage'}</Text>
             </TouchableOpacity>

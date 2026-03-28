@@ -61,9 +61,11 @@ const MyBookings = () => {
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [showTransferWarning, setShowTransferWarning] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showMoveOutModal, setShowMoveOutModal] = useState(false);
   const [requestingAddon, setRequestingAddon] = useState(null);
   const [extendingStay, setExtendingStay] = useState(false);
   const [requestingTransfer, setRequestingTransfer] = useState(false);
+  const [requestingMoveOut, setRequestingMoveOut] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
   const [pendingTransferBookingIds, setPendingTransferBookingIds] = useState([]);
   const [pendingTransferRequests, setPendingTransferRequests] = useState([]);
@@ -114,6 +116,22 @@ const MyBookings = () => {
       toast.error(err.response?.data?.message || 'Failed to request transfer');
     } finally {
       setRequestingTransfer(false);
+    }
+  };
+
+  const handleRequestMoveOut = async (payload) => {
+    setRequestingMoveOut(true);
+    try {
+      await tenantService.requestMoveOut(payload.booking_id, payload.move_out_date, payload.reason || '');
+      toast.success('Move-out request submitted');
+      invalidateTenantStayCache();
+      fetchData();
+      setShowMoveOutModal(false);
+    } catch (err) {
+      console.error('Failed to request move-out:', err);
+      toast.error(err.response?.data?.message || 'Failed to request move-out');
+    } finally {
+      setRequestingMoveOut(false);
     }
   };
 
@@ -453,6 +471,7 @@ const MyBookings = () => {
               isCancelling={cancellingBooking}
               onRequestExtension={() => setShowExtensionModal(true)}
               onRequestTransfer={() => setShowTransferWarning(true)}
+              onRequestMoveOut={() => setShowMoveOutModal(true)}
               pendingTransferBookingIds={pendingTransferBookingIds}
               pendingTransferRequests={pendingTransferRequests}
               onCancelTransferRequest={handleCancelTransferRequest}
@@ -518,6 +537,15 @@ const MyBookings = () => {
         />
       )}
 
+      {showMoveOutModal && activeStays[selectedStayIndex] && (
+        <MoveOutModal
+          booking={activeStays[selectedStayIndex].booking}
+          onClose={() => setShowMoveOutModal(false)}
+          onSubmit={handleRequestMoveOut}
+          loading={requestingMoveOut}
+        />
+      )}
+
       {/* Addon Request Modal */}
       {showAddonModal && activeStays[selectedStayIndex] && (
         <AddonModal
@@ -560,7 +588,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, navigate }) => {
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
@@ -682,10 +710,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       {viewMode === 'pending' && (hasPending || (pendingCheckIns && pendingCheckIns.length > 0)) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {pendingCheckIns.map(pc => (
-              <div key={pc.id} className="text-center py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
+              <div key={pc.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4 animate-pulse" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Check-in Overdue</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Action required: finalize your move-in with the landlord.</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Check-in Overdue</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">Action required: finalize your move-in with the landlord.</p>
                 
                 <div className="bg-red-50 dark:bg-red-900/10 text-red-800 dark:text-red-400 p-6 rounded-2xl border border-red-100 dark:border-red-900/20 shadow-sm mb-6">
                   <div className="flex items-center gap-4">
@@ -694,11 +722,39 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                     </div>
                     <div className="text-left flex-1">
                       <p className="font-bold text-base leading-tight">{pc.property}</p>
+                      <p className="text-xs opacity-80 font-medium mt-0.5">Room {pc.room || '—'}</p>
                       <p className="text-xs opacity-80 font-medium mt-0.5">
                         Scheduled start: {formatDate(pc.startDate)}
                       </p>
+                      <p className="text-xs font-bold uppercase mt-1">
+                        {Number(pc.daysOverdue) > 0
+                          ? `${Math.max(0, Math.round(Number(pc.daysOverdue)))} day${Math.round(Number(pc.daysOverdue)) === 1 ? '' : 's'} overdue`
+                          : 'Overdue'}
+                      </p>
                     </div>
                   </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <button
+                    onClick={() => {
+                      const propertyId = pc?.property_id || pc?.propertyId || pc?.property?.id;
+                      if (propertyId) navigate(`/property/${propertyId}`);
+                    }}
+                    disabled={!pc?.property_id && !pc?.propertyId && !pc?.property?.id}
+                    className="bg-white dark:bg-gray-700 text-red-700 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Home className="w-3 h-3" />
+                    Room Details
+                  </button>
+                  <button
+                    onClick={() => onCancelBooking(pc.id)}
+                    disabled={isCancelling === pc.id}
+                    className="bg-white dark:bg-gray-700 text-red-600 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2"
+                  >
+                    {isCancelling === pc.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                    Cancel Booking
+                  </button>
                 </div>
               </div>
           ))}
@@ -707,10 +763,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
             const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
             
             return (
-              <div key={pb.id} className="text-center py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
+              <div key={pb.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
                 <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Booking Pending</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">The landlord is reviewing your request.</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Booking Pending</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">The landlord is reviewing your request.</p>
                 
                                                     <div className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-6">
                                                       <div className="flex items-center gap-4">
@@ -719,6 +775,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                                         </div>
                                                         <div className="text-left flex-1">
                                                           <p className="font-bold text-base leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
+                                                          <p className="text-xs opacity-80 font-medium mt-0.5">Room {pb?.room_number || pb?.room?.room_number || '—'}</p>
                                                           <p className="text-xs opacity-80 font-medium mt-0.5">
                                                             {daysUntil !== null ? `Tentative start: ${formatDate(pb.start_date)}` : 'Awaiting approval'}
                                                           </p>
@@ -741,6 +798,20 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                                           Cancel Request
                                                         </button>
                                                       </div>
+                                                    </div>
+
+                                                    <div className="flex justify-center">
+                                                      <button
+                                                        onClick={() => {
+                                                          const propertyId = pb?.property_id || pb?.property?.id;
+                                                          if (propertyId) navigate(`/property/${propertyId}`);
+                                                        }}
+                                                        disabled={!pb?.property_id && !pb?.property?.id}
+                                                        className="bg-white dark:bg-gray-700 text-amber-700 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-amber-100 dark:border-amber-900/30 hover:bg-amber-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                                                      >
+                                                        <Home className="w-3 h-3" />
+                                                        Room Details
+                                                      </button>
                                                     </div>
                                                   </div>
                                                 );
@@ -859,12 +930,18 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                             <span className="font-bold dark:text-gray-300">Lease:</span> 
-                            {formatDate(booking.startDate)} to {formatDate(booking.endDate)}
-                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-2 rounded text-[10px] font-bold uppercase ml-2">{booking.totalMonths} Months</span>
+                            {formatDate(booking.startDate)} to {booking.endDate ? formatDate(booking.endDate) : 'Open-ended'}
+                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-2 rounded text-[10px] font-bold uppercase ml-2">{booking.totalMonths} {Number(booking.totalMonths) === 1 ? 'month' : 'months'}</span>
                           </p>
                           
                           {/* Show Extend button if expiring soon (e.g. within 30 days) or already expired but still active */}
                           {(() => {
+                            const contractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
+                            const isOpenEndedMonthly = contractMode === 'monthly' && !booking.endDate;
+                            if (isOpenEndedMonthly || !booking.endDate) {
+                              return null;
+                            }
+
                             const end = new Date(booking.endDate);
                             const today = new Date();
                             const diff = end - today;
@@ -949,6 +1026,24 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                   </button>
                                 )}
                               </div>
+                            );
+                          })()}
+                          {(() => {
+                            const bookingStatus = String(booking.status || '').toLowerCase();
+                            const canRequestMoveOut = ['confirmed', 'active'].includes(bookingStatus);
+
+                            if (!canRequestMoveOut) {
+                              return null;
+                            }
+
+                            return (
+                              <button
+                                onClick={() => onRequestMoveOut?.()}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+                              >
+                                <DoorOpen className="w-4 h-4" />
+                                Request Move-out
+                              </button>
                             );
                           })()}
                         </div>
@@ -1581,16 +1676,36 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
     name: '',
     addon_type: 'rental',
     price_type: 'monthly',
-    note: ''
+    note: '',
+    suggested_price: ''
   });
+
+  const normalizeSuggestedPrice = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+
+    const numericValue = Number(raw);
+    if (!Number.isFinite(numericValue) || numericValue < 0) return null;
+
+    return numericValue;
+  };
 
   const handleCustomSubmit = (e) => {
     e.preventDefault();
+
+    const normalizedSuggestedPrice = normalizeSuggestedPrice(customData.suggested_price);
+
     onRequest({
       booking_id: bookingId,
       is_custom: true,
-      ...customData,
-      quantity: 1
+      name: customData.name.trim(),
+      addon_type: customData.addon_type,
+      price_type: customData.price_type,
+      note: (customData.note || '').trim() || null,
+      quantity: 1,
+      ...(normalizedSuggestedPrice !== null
+        ? { suggested_price: normalizedSuggestedPrice }
+        : {})
     });
   };
 
@@ -1716,6 +1831,16 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
               </div>
 
               <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Suggested Price (Optional)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Suggested Price (Optional)"
+                  value={customData.suggested_price}
+                  onChange={e => setCustomData({ ...customData, suggested_price: e.target.value })}
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none mb-4"
+                />
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Notes / Details</label>
                 <textarea 
                   placeholder="Tell the owner more about your request..."
@@ -1761,17 +1886,20 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
   const [notes, setNotes] = useState('');
   const [estimatedPrice, setEstimatedPrice] = useState(0);
 
-  const currentEndDate = new Date(booking.endDate);
+  const currentEndDate = booking.endDate ? new Date(booking.endDate) : null;
+  const hasCurrentEndDate = currentEndDate instanceof Date && !Number.isNaN(currentEndDate.getTime());
   
   // Calculate default dates
-  const nextMonthDate = new Date(currentEndDate);
-  nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
-  const nextMonthStr = nextMonthDate.toISOString().split('T')[0];
+  const nextMonthDate = hasCurrentEndDate ? new Date(currentEndDate) : null;
+  if (nextMonthDate) {
+    nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+  }
+  const nextMonthStr = nextMonthDate ? nextMonthDate.toISOString().split('T')[0] : null;
 
   useEffect(() => {
     if (type === 'monthly') {
       setEstimatedPrice(parseFloat(booking.unit_price || booking.monthlyRent || 0));
-    } else if (customDate) {
+    } else if (customDate && hasCurrentEndDate) {
       const start = new Date(booking.endDate);
       const end = new Date(customDate);
       const diffTime = Math.abs(end - start);
@@ -1786,6 +1914,12 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!hasCurrentEndDate) {
+      toast.error('This stay is open-ended and does not need an extension request.');
+      return;
+    }
+
     const finalEndDate = type === 'monthly' ? nextMonthStr : customDate;
     
     if (!finalEndDate) {
@@ -1816,7 +1950,11 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/50">
             <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2">Current Lease Ends</p>
-            <p className="text-lg font-bold text-blue-900 dark:text-blue-200">{new Date(booking.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <p className="text-lg font-bold text-blue-900 dark:text-blue-200">
+              {hasCurrentEndDate
+                ? new Date(booking.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                : 'Open-ended'}
+            </p>
           </div>
 
           <div className="flex bg-gray-100 dark:bg-gray-900/50 p-2 rounded-xl border border-gray-300 dark:border-gray-700">
@@ -1842,7 +1980,7 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
               <input
                 type="date"
                 required
-                min={new Date(new Date(booking.endDate).getTime() + 86400000).toISOString().split('T')[0]}
+                min={hasCurrentEndDate ? new Date(new Date(booking.endDate).getTime() + 86400000).toISOString().split('T')[0] : undefined}
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
                 className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
@@ -1874,6 +2012,103 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
               {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Send Request'}
             </button>
           </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const MoveOutModal = ({ booking, onClose, onSubmit, loading }) => {
+  const buildTodayDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  };
+
+  const buildDefaultMoveOutDate = () => {
+    const today = buildTodayDate();
+    const currentEndRaw = booking?.endDate || booking?.end_date;
+    if (currentEndRaw) {
+      const currentEndDate = new Date(currentEndRaw);
+      if (!Number.isNaN(currentEndDate.getTime()) && currentEndDate >= today) {
+        return currentEndDate.toISOString().split('T')[0];
+      }
+    }
+
+    const defaultDate = new Date(today);
+    defaultDate.setDate(defaultDate.getDate() + 30);
+    return defaultDate.toISOString().split('T')[0];
+  };
+
+  const [moveOutDate, setMoveOutDate] = useState(buildDefaultMoveOutDate());
+  const [reason, setReason] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!moveOutDate) {
+      toast.error('Please select your move-out date.');
+      return;
+    }
+
+    onSubmit({
+      booking_id: booking.id,
+      move_out_date: moveOutDate,
+      reason,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Request Move-out</h3>
+            <button onClick={onClose} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+              <X className="w-6 h-6 text-gray-500" />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase mb-2">Current Move-out Date</p>
+            <p className="text-base font-bold text-indigo-900 dark:text-indigo-200">
+              {booking?.endDate
+                ? new Date(booking.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                : 'Open-ended (not yet set)'}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Planned Move-out Date *</label>
+            <input
+              type="date"
+              required
+              min={new Date().toISOString().split('T')[0]}
+              value={moveOutDate}
+              onChange={(e) => setMoveOutDate(e.target.value)}
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Reason / Notes</label>
+            <textarea
+              placeholder="Optional context for your landlord"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white outline-none h-20 resize-none text-sm"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Submit Move-out Request'}
+          </button>
         </form>
       </div>
     </div>

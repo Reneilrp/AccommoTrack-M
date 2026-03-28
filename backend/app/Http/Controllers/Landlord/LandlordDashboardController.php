@@ -100,12 +100,15 @@ class LandlordDashboardController extends Controller
                     ];
                 }
                 if ($item instanceof \App\Models\PaymentTransaction) {
+                    $isPending = $item->status === 'pending_offline';
+
                     return [
                         'id' => $item->id, 'type' => 'payment',
-                        'action' => 'Payment Received',
-                        'description' => 'Received ₱'.number_format($item->amount_cents / 100, 2).' via '.ucfirst($item->method).' for Room '.($item->invoice->booking->room->room_number ?? 'N/A'),
+                        'action' => $isPending ? 'Cash Payment Awaiting Verification' : 'Payment Received',
+                        'description' => ($isPending ? 'Recorded ' : 'Received ').'₱'.number_format($item->amount_cents / 100, 2).' via '.ucfirst($item->method).' for Room '.($item->invoice->booking->room->room_number ?? 'N/A'),
                         'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
-                        'status' => 'confirmed', 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'green',
+                        'status' => $isPending ? 'pending' : 'confirmed', 'timestamp' => $item->created_at, 'icon' => 'cash-outline',
+                        'color' => $isPending ? 'yellow' : 'green',
                     ];
                 }
                 if ($item instanceof \App\Models\MaintenanceRequest) {
@@ -160,7 +163,73 @@ class LandlordDashboardController extends Controller
                 ];
             });
 
-            return response()->json(['upcomingCheckouts' => $upcomingCheckouts, 'unpaidBookings' => $unpaidBookings], 200);
+            $vacatingSoon = collect($data['vacatingSoon'] ?? [])->map(function ($booking) {
+                $daysLeft = now()->diffInDays($booking->end_date, false);
+
+                return [
+                    'id' => $booking->id,
+                    'tenantName' => ($booking->tenant->first_name ?? 'Tenant').' '.($booking->tenant->last_name ?? ''),
+                    'propertyTitle' => $booking->property->title ?? 'Property',
+                    'roomNumber' => $booking->room->room_number ?? 'N/A',
+                    'endDate' => optional($booking->end_date)->format('Y-m-d'),
+                    'noticeGivenAt' => optional($booking->notice_given_at)->format('Y-m-d'),
+                    'daysLeft' => (int) $daysLeft,
+                    'urgency' => $daysLeft <= 7 ? 'high' : ($daysLeft <= 21 ? 'medium' : 'low'),
+                ];
+            });
+
+            $dueForBilling = collect($data['billingHealth']['due_for_billing'] ?? [])->map(function ($booking) {
+                return [
+                    'id' => $booking->id,
+                    'tenantName' => ($booking->tenant->first_name ?? 'Tenant').' '.($booking->tenant->last_name ?? ''),
+                    'propertyTitle' => $booking->property->title ?? 'Property',
+                    'roomNumber' => $booking->room->room_number ?? 'N/A',
+                    'nextBillingDate' => optional($booking->next_billing_date)->format('Y-m-d'),
+                    'monthlyRent' => (float) ($booking->monthly_rent ?? 0),
+                ];
+            });
+
+            $overdueInvoices = collect($data['billingHealth']['overdue_invoices'] ?? [])->map(function ($invoice) {
+                return [
+                    'id' => $invoice->id,
+                    'reference' => $invoice->reference,
+                    'tenantName' => ($invoice->tenant->first_name ?? 'Tenant').' '.($invoice->tenant->last_name ?? ''),
+                    'propertyTitle' => $invoice->property->title ?? 'Property',
+                    'roomNumber' => $invoice->booking?->room?->room_number ?? 'N/A',
+                    'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
+                    'amount' => (float) round(($invoice->amount_cents ?? 0) / 100, 2),
+                    'status' => $invoice->status,
+                ];
+            });
+
+            $dueSoonInvoices = collect($data['billingHealth']['due_soon_invoices'] ?? [])->map(function ($invoice) {
+                return [
+                    'id' => $invoice->id,
+                    'reference' => $invoice->reference,
+                    'tenantName' => ($invoice->tenant->first_name ?? 'Tenant').' '.($invoice->tenant->last_name ?? ''),
+                    'propertyTitle' => $invoice->property->title ?? 'Property',
+                    'roomNumber' => $invoice->booking?->room?->room_number ?? 'N/A',
+                    'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
+                    'amount' => (float) round(($invoice->amount_cents ?? 0) / 100, 2),
+                    'status' => $invoice->status,
+                ];
+            });
+
+            return response()->json([
+                'upcomingCheckouts' => $upcomingCheckouts,
+                'unpaidBookings' => $unpaidBookings,
+                'vacatingSoon' => $vacatingSoon,
+                'billingHealth' => [
+                    'dueForBillingCount' => (int) ($data['billingHealth']['due_for_billing_count'] ?? 0),
+                    'dueForBilling' => $dueForBilling,
+                    'overdueInvoicesCount' => (int) ($data['billingHealth']['overdue_invoices_count'] ?? 0),
+                    'overdueInvoicesAmount' => (float) ($data['billingHealth']['overdue_invoices_amount'] ?? 0),
+                    'dueSoonInvoicesCount' => (int) ($data['billingHealth']['due_soon_invoices_count'] ?? 0),
+                    'dueSoonInvoicesAmount' => (float) ($data['billingHealth']['due_soon_invoices_amount'] ?? 0),
+                    'overdueInvoices' => $overdueInvoices,
+                    'dueSoonInvoices' => $dueSoonInvoices,
+                ],
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch upcoming payments', 'error' => $e->getMessage()], 500);
         }

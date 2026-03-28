@@ -116,6 +116,19 @@ class BookingService {
       return { success: false, error: error.response?.data?.message || 'Failed to cancel booking' };
     }
   }
+
+  async requestMoveOut(bookingId, data = {}) {
+    try {
+      const response = await api.patch(
+        `/tenant/bookings/${bookingId}/request-move-out`,
+        data,
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error requesting move-out:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.message || 'Failed to request move-out' };
+    }
+  }
 }
 
 export default new BookingService();

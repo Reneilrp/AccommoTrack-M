@@ -96,6 +96,9 @@ const ExploreProperties = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryItems, setGalleryItems] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [mapSearchStatus, setMapSearchStatus] = useState("idle");
+  const [mapSearchFeedback, setMapSearchFeedback] = useState("");
+  const mapSearchTimerRef = __useRef(null);
 
   const activeFilterCount =
     (advancedFilters.priceMin || advancedFilters.priceMax ? 1 : 0) +
@@ -247,6 +250,52 @@ const ExploreProperties = () => {
           })
           .slice(0, 5)
       : [];
+
+  const flashMapSearchFeedback = (status, message) => {
+    setMapSearchStatus(status);
+    setMapSearchFeedback(message);
+
+    if (mapSearchTimerRef.current) {
+      clearTimeout(mapSearchTimerRef.current);
+    }
+
+    mapSearchTimerRef.current = setTimeout(() => {
+      setMapSearchStatus("idle");
+      setMapSearchFeedback("");
+    }, 1500);
+  };
+
+  const handleMapSearchAction = () => {
+    const term = (search || "").trim().toLowerCase();
+
+    if (!term) {
+      flashMapSearchFeedback("error", "Type a property name or location first.");
+      return;
+    }
+
+    const matchedProperty = mapDisplayProperties.find((property) => {
+      const name = String(property?.name || "").toLowerCase();
+      const type = String(property?.type || "").toLowerCase();
+      const address = String(property?.address || "").toLowerCase();
+      return name.includes(term) || type.includes(term) || address.includes(term);
+    });
+
+    if (!matchedProperty) {
+      flashMapSearchFeedback("error", "No matching property found.");
+      return;
+    }
+
+    onMapMarkerClick(matchedProperty);
+    flashMapSearchFeedback("success", `Showing ${matchedProperty.name}`);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (mapSearchTimerRef.current) {
+        clearTimeout(mapSearchTimerRef.current);
+      }
+    };
+  }, [mapSearchTimerRef]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProperties.length / pageSize);
@@ -654,7 +703,13 @@ const ExploreProperties = () => {
                 <div
                   className={`absolute top-6 left-6 z-[1000] w-[calc(100%-100px)] md:w-[calc(35%-48px)] animate-in slide-in-from-top-4 duration-500 shadow-2xl transition-all ease-in-out ${drawerOpen ? "opacity-0 pointer-events-none -translate-y-4" : "opacity-100 translate-y-0"}`}
                 >
-                  <div className="bg-white dark:bg-gray-800 rounded-full flex items-center p-2.5 border border-gray-100 dark:border-gray-700 transition-all hover:shadow-lg focus-within:shadow-xl">
+                  <div className={`bg-white dark:bg-gray-800 rounded-full flex items-center p-2.5 border transition-all hover:shadow-lg focus-within:shadow-xl ${
+                    mapSearchStatus === "success"
+                      ? "border-green-400 ring-2 ring-green-200 dark:ring-green-800"
+                      : mapSearchStatus === "error"
+                        ? "border-red-400 ring-2 ring-red-200 dark:ring-red-800"
+                        : "border-gray-100 dark:border-gray-700"
+                  }`}>
                     {/* Maps Icon / Menu Trigger */}
                     <div className="p-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full cursor-pointer transition-colors group">
                       <Map className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-white" />
@@ -667,6 +722,12 @@ const ExploreProperties = () => {
                       className="flex-1 ml-2 bg-transparent border-none outline-none text-gray-800 dark:text-white text-sm font-medium h-10 placeholder:text-gray-500 dark:placeholder:text-gray-500"
                       value={search}
                       onChange={handleSearchChange}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleMapSearchAction();
+                        }
+                      }}
                     />
 
                     {/* Search Action / Divider */}
@@ -681,10 +742,26 @@ const ExploreProperties = () => {
                       </button>
                     )}
 
-                    <button className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md hover:shadow-lg transition-all active:scale-95 ml-2">
+                    <button
+                      onClick={handleMapSearchAction}
+                      className={`p-2.5 text-white rounded-full shadow-md hover:shadow-lg transition-all active:scale-95 ml-2 ${
+                        mapSearchStatus === "success"
+                          ? "bg-green-600 hover:bg-green-700"
+                          : mapSearchStatus === "error"
+                            ? "bg-red-600 hover:bg-red-700"
+                            : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                      aria-label="Search and center property"
+                    >
                       <Search className="w-4 h-4" />
                     </button>
                   </div>
+
+                  {mapSearchFeedback && (
+                    <p className={`mt-2 px-3 text-xs font-semibold ${mapSearchStatus === "error" ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                      {mapSearchFeedback}
+                    </p>
+                  )}
 
                   {/* SEARCH SUGGESTIONS DROPDOWN */}
                   {search &&
@@ -696,6 +773,8 @@ const ExploreProperties = () => {
                             key={prop.id}
                             onClick={() => {
                               onMapMarkerClick(prop);
+                              setMapSearchFeedback("");
+                              setMapSearchStatus("idle");
                               updateScreenState("explore", { search: "" });
                             }}
                             className="px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-50 dark:border-gray-700 last:border-0 flex items-center gap-4 transition-colors"

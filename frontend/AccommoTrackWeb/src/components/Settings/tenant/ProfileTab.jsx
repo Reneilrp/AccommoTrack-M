@@ -22,6 +22,7 @@ const ProfileTab = ({ onUserUpdate }) => {
     first_name: '',
     middle_name: '',
     last_name: '',
+    email: '',
     phone: '',
     profile_image: null,
     
@@ -55,6 +56,7 @@ const ProfileTab = ({ onUserUpdate }) => {
       first_name: data.first_name || '',
       middle_name: data.middle_name || '',
       last_name: data.last_name || '',
+      email: data.email || '',
       phone: data.phone || '',
       date_of_birth: data.date_of_birth || '',
       gender: backendGender,
@@ -140,6 +142,11 @@ const ProfileTab = ({ onUserUpdate }) => {
           if (formData[key] instanceof File) {
             data.append(key, formData[key]);
           }
+          return;
+        }
+
+        // Email is display-only in this tab.
+        if (key === 'email') {
           return;
         }
 
@@ -313,6 +320,17 @@ const ProfileTab = ({ onUserUpdate }) => {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
             {nameErrors.phone && <p className="mt-2 text-xs text-red-500">{nameErrors.phone}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Email Address</label>
+            <input
+              type="email"
+              value={formData.email || ''}
+              disabled
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+            />
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Your email is used for account verification and OTP.</p>
           </div>
 
           <div className="md:col-span-2">

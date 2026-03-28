@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
+use App\Models\User;
+use App\Notifications\NewPaymentReceived;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -376,6 +378,12 @@ class InvoiceController extends Controller
             $invoice->status = 'pending_verification';
             $invoice->save();
 
+            // Notify landlord about the cash payment awaiting verification
+            $landlord = User::find($invoice->landlord_id);
+            if ($landlord) {
+                $landlord->notify(new NewPaymentReceived(true));
+            }
+
             DB::commit();
 
             return response()->json(['success' => true, 'transaction' => $tx], 201);
@@ -404,6 +412,8 @@ class InvoiceController extends Controller
             'action' => 'required|in:approve,reject',
         ]);
 
+        $shouldBroadcastInvoiceUpdate = false;
+
         DB::beginTransaction();
         try {
             $pendingTxs = $invoice->transactions()->where('status', 'pending_offline')->get();
@@ -426,12 +436,19 @@ class InvoiceController extends Controller
                     $invoice->booking->save();
                 }
 
-                // Notify tenant
+                // Notify tenant without failing approval when notifier transport is unavailable.
                 if ($invoice->tenant) {
-                    $invoice->tenant->notify(new \App\Notifications\InvoiceVerifiedNotification($invoice, 'approved'));
+                    try {
+                        $invoice->tenant->notify(new \App\Notifications\InvoiceVerifiedNotification($invoice, 'approved'));
+                    } catch (\Throwable $notifyError) {
+                        \Log::warning('verifyCash approved notification failed', [
+                            'invoice_id' => $invoice->id,
+                            'error' => $notifyError->getMessage(),
+                        ]);
+                    }
                 }
 
-                broadcast(new InvoiceUpdated($invoice))->toOthers();
+                $shouldBroadcastInvoiceUpdate = true;
             } else {
                 // Reject: void pending offline transactions
                 foreach ($pendingTxs as $ptx) {
@@ -441,13 +458,31 @@ class InvoiceController extends Controller
                 $invoice->status = 'pending';
                 $invoice->save();
 
-                // Notify tenant of rejection
+                // Notify tenant without failing rejection when notifier transport is unavailable.
                 if ($invoice->tenant) {
-                    $invoice->tenant->notify(new \App\Notifications\InvoiceVerifiedNotification($invoice, 'rejected'));
+                    try {
+                        $invoice->tenant->notify(new \App\Notifications\InvoiceVerifiedNotification($invoice, 'rejected'));
+                    } catch (\Throwable $notifyError) {
+                        \Log::warning('verifyCash rejected notification failed', [
+                            'invoice_id' => $invoice->id,
+                            'error' => $notifyError->getMessage(),
+                        ]);
+                    }
                 }
             }
 
             DB::commit();
+
+            if ($shouldBroadcastInvoiceUpdate) {
+                try {
+                    broadcast(new InvoiceUpdated($invoice))->toOthers();
+                } catch (\Throwable $broadcastError) {
+                    \Log::warning('verifyCash broadcast failed', [
+                        'invoice_id' => $invoice->id,
+                        'error' => $broadcastError->getMessage(),
+                    ]);
+                }
+            }
 
             return response()->json([
                 'success' => true,

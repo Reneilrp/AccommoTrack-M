@@ -67,6 +67,7 @@ class Invoice extends Model
         'reference', 'landlord_id', 'property_id', 'booking_id', 'tenant_id', 'description',
         'amount_cents', 'currency', 'status', 'due_date', 'issued_at', 'paid_at', 'metadata',
         'subtotal_cents', 'tax_cents', 'total_cents', 'tax_percent',
+        'invoice_type', 'billing_period_start', 'billing_period_end', 'billing_period_key',
     ];
 
     protected $casts = [
@@ -74,6 +75,8 @@ class Invoice extends Model
         'issued_at' => 'datetime',
         'paid_at' => 'datetime',
         'due_date' => 'date',
+        'billing_period_start' => 'date',
+        'billing_period_end' => 'date',
     ];
 
     public function transactions()

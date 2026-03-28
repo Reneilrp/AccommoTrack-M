@@ -1104,6 +1104,63 @@ const PropertyService = {
   },
 
   /**
+   * Record deposit settlement for a booking.
+   * Matches: POST /api/bookings/{id}/deposit-settlement
+   */
+  async settleBookingDeposit(bookingId, payload) {
+    try {
+      const response = await api.post(
+        `/bookings/${bookingId}/deposit-settlement`,
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        message: response.data?.message || 'Deposit settlement recorded successfully.',
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error settling booking deposit:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch deposit settlement history for a booking.
+   * Matches: GET /api/bookings/{id}/deposit-settlements
+   */
+  async getBookingDepositSettlements(bookingId) {
+    try {
+      const response = await api.get(`/bookings/${bookingId}/deposit-settlements`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching booking deposit settlements:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
    * Fetch tenant extension requests for landlord
    * Matches: GET /api/landlord/extensions
    */

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, ChevronDown } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export default function TenantCard({ tenant, onTransfer, onEvict, canTransfer = true }) {
+export default function TenantCard({ tenant, onTransfer, onAssign, onUnassign, onEvict, canTransfer = true }) {
   const profile = tenant.tenantProfile;
   const navigate = useNavigate();
   const [showEmergency, setShowEmergency] = useState(false);
@@ -140,11 +140,25 @@ export default function TenantCard({ tenant, onTransfer, onEvict, canTransfer = 
         {showMoreActions && (
           <div className="flex flex-col gap-2 mt-1 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-1 duration-200">
             <button
+              onClick={() => onAssign?.(tenant)}
+              disabled={!canTransfer || !!tenant.room}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              <UserPlus className="w-3.5 h-3.5 text-emerald-500" /> Assign Room
+            </button>
+            <button
               onClick={() => onTransfer?.(tenant)}
               disabled={!canTransfer || !tenant.room}
               className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
             >
               <Shuffle className="w-3.5 h-3.5 text-amber-500" /> Transfer
+            </button>
+            <button
+              onClick={() => onUnassign?.(tenant)}
+              disabled={!canTransfer || !tenant.room}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign
             </button>
             <button
               onClick={() => onEvict?.(tenant)}
