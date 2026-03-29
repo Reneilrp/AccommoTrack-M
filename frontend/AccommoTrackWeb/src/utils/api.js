@@ -118,13 +118,14 @@ api.interceptors.response.use(
     }
 
     // Debug logging for cookie mode failures
-    if (error.response?.status === 409 && error.response?.data?.auth_mode === 'cookie_unavailable') {
-      console.error('[AUTH_DEBUG] Cookie mode auth unavailable (409)', {
-        message: error.response.data.message,
-        debugInfo: error.response.data._debug,
-        requestConfig: {
-          url: error.config?.url,
-          method: error.config?.method,
+     if (error.response?.status === 409) {
+      console.error('[AUTH_DEBUG] ⚠️  409 Conflict Response (Full Response Data):', error.response.data);
+      console.error('[AUTH_DEBUG] ⚠️  Request Details:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: {
+          'X-Client-Platform': error.config?.headers?.[CLIENT_PLATFORM_HEADER],
+          'Authorization': error.config?.headers?.Authorization ? '***set***' : 'not-set',
         },
       });
     }

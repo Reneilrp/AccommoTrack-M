@@ -13,15 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Keep token auth behavior in local/testing unless explicitly enabled.
-        $enableStatefulApi = filter_var(
-            env('AUTH_WEB_COOKIE_MODE', env('APP_ENV') === 'production'),
-            FILTER_VALIDATE_BOOL
-        );
-
-        if ($enableStatefulApi) {
-            $middleware->statefulApi();
-        }
+        // Always register Sanctum stateful API middleware.
+        // This keeps SPA cookie auth functional even when env() values are not
+        // available during bootstrap with cached configuration.
+        $middleware->statefulApi();
 
         $middleware->trustProxies(at: '*');
         $middleware->alias([
