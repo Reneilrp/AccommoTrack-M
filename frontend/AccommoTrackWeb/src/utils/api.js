@@ -7,9 +7,12 @@ const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 const CLIENT_PLATFORM_HEADER = "X-Client-Platform";
 const AUTH_MODE_STORAGE_KEY = "authMode";
 
-// Production defaults to cookie auth. Set VITE_WEB_USE_BEARER_AUTH=true to override.
+// Production defaults to cookie auth.
+// Development defaults to bearer auth unless VITE_WEB_USE_BEARER_AUTH=false.
+const bearerAuthOverride = import.meta.env.VITE_WEB_USE_BEARER_AUTH;
 export const SHOULD_USE_BEARER_AUTH =
-  !import.meta.env.PROD || import.meta.env.VITE_WEB_USE_BEARER_AUTH === "true";
+  bearerAuthOverride === "true" ||
+  (bearerAuthOverride !== "false" && !import.meta.env.PROD);
 
 export const getPersistedAuthMode = () => {
   try {

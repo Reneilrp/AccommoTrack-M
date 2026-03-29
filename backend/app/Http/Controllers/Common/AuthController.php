@@ -26,14 +26,23 @@ class AuthController extends Controller
         $this->authService = $authService;
     }
 
+    protected function webCookieModeAllowedForEnvironment(): bool
+    {
+        if (app()->environment('production')) {
+            return true;
+        }
+
+        return filter_var(env('AUTH_WEB_COOKIE_MODE_ALLOW_NON_PROD', false), FILTER_VALIDATE_BOOL);
+    }
+
     protected function webCookieModeRequested(Request $request): bool
     {
-        if (! app()->environment('production')) {
+        if (! $this->webCookieModeAllowedForEnvironment()) {
             return false;
         }
 
         $cookieModeEnabled = filter_var(
-            env('AUTH_WEB_COOKIE_MODE', env('APP_ENV') === 'production'),
+            env('AUTH_WEB_COOKIE_MODE', app()->environment('production')),
             FILTER_VALIDATE_BOOL
         );
 
