@@ -217,7 +217,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       } else if (landlordVerificationStatus === 'pending') {
         Alert.alert('Registration Pending', 'Your landlord registration is still under review. Please wait for approval before switching.');
       } else {
-        Alert.alert('Register as Landlord', 'Complete landlord registration first by submitting your details, valid ID, and business permit.', [
+        Alert.alert('Register as Landlord', 'Complete landlord registration first by submitting your valid ID and business permit.', [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Proceed', onPress: () => navigation.navigate('VerificationStatus') },
         ]);

@@ -37,11 +37,6 @@ export default function VerificationStatus({ navigation }) {
 
   // Form state
   const [formData, setFormData] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    dob: '',
-    phone: '',
     validIdType: "",
     validIdOther: "",
     validId: null,
@@ -66,14 +61,6 @@ export default function VerificationStatus({ navigation }) {
       if (profileRes.success && profileRes.data) {
         const profile = profileRes.data;
         setUserRole(profile.role || 'landlord');
-        setFormData((prev) => ({
-          ...prev,
-          firstName: prev.firstName || profile.first_name || profile.firstName || '',
-          middleName: prev.middleName || profile.middle_name || profile.middleName || '',
-          lastName: prev.lastName || profile.last_name || profile.lastName || '',
-          dob: prev.dob || profile.date_of_birth || '',
-          phone: prev.phone || profile.phone || '',
-        }));
       }
     } catch (error) {
       console.error("Error fetching verification data:", error);
@@ -123,71 +110,42 @@ export default function VerificationStatus({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!formData.validIdType || !formData.validId || !formData.permit) {
+    if (!formData.validId || !formData.permit) {
       Alert.alert(
         "Validation",
-        "Please select an ID type and upload both documents.",
+        "Please upload both your valid ID and business/accommodation permit.",
       );
       return;
     }
 
-    if (userRole === 'tenant') {
-      if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.dob) {
-        Alert.alert('Validation', 'Please complete your name and date of birth before submitting.');
+    if (userRole !== 'tenant') {
+      if (!formData.validIdType) {
+        Alert.alert("Validation", "Please select an ID type.");
         return;
       }
 
-      const birthDate = new Date(formData.dob);
-      if (Number.isNaN(birthDate.getTime())) {
-        Alert.alert('Validation', 'Please use a valid date format (YYYY-MM-DD).');
+      if (formData.validIdType === "other" && !formData.validIdOther) {
+        Alert.alert("Validation", "Please specify your ID type.");
         return;
       }
-
-      const now = new Date();
-      let age = now.getFullYear() - birthDate.getFullYear();
-      const monthDelta = now.getMonth() - birthDate.getMonth();
-      if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < birthDate.getDate())) {
-        age -= 1;
-      }
-
-      if (age < 21) {
-        Alert.alert('Age Requirement', 'You must be at least 21 years old to register as a landlord.');
-        return;
-      }
-    }
-
-    if (formData.validIdType === "other" && !formData.validIdOther) {
-      Alert.alert("Validation", "Please specify your ID type.");
-      return;
     }
 
     setSubmitting(true);
     try {
       const submitData = new FormData();
-      const idType =
-        formData.validIdType === "other"
-          ? formData.validIdOther
-          : formData.validIdType;
-
-      submitData.append("valid_id_type", idType);
       submitData.append("valid_id", formData.validId);
       submitData.append("permit", formData.permit);
 
       let res;
 
       if (userRole === 'tenant') {
-        submitData.append('first_name', formData.firstName.trim());
-        if (formData.middleName?.trim()) {
-          submitData.append('middle_name', formData.middleName.trim());
-        }
-        submitData.append('last_name', formData.lastName.trim());
-        submitData.append('dob', formData.dob);
-        if (formData.phone?.trim()) {
-          submitData.append('phone', formData.phone.trim());
-        }
-        submitData.append('agree', '1');
         res = await ProfileService.registerAsLandlord(submitData);
       } else {
+        const idType =
+          formData.validIdType === "other"
+            ? formData.validIdOther
+            : formData.validIdType;
+        submitData.append("valid_id_type", idType);
         res = await ProfileService.resubmitVerification(submitData);
       }
 
@@ -200,11 +158,6 @@ export default function VerificationStatus({ navigation }) {
         );
         setShowResubmitForm(false);
         setFormData({
-          firstName: '',
-          middleName: '',
-          lastName: '',
-          dob: '',
-          phone: '',
           validIdType: "",
           validIdOther: "",
           validId: null,
@@ -534,99 +487,37 @@ export default function VerificationStatus({ navigation }) {
               showsVerticalScrollIndicator={false}
             >
               {userRole === 'tenant' && (
-                <>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
-                      First Name <Text style={styles.required}>*</Text>
-                    </Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={formData.firstName}
-                      onChangeText={(val) =>
-                        setFormData((prev) => ({ ...prev, firstName: val }))
-                      }
-                      placeholder="Enter first name"
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Middle Name</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={formData.middleName}
-                      onChangeText={(val) =>
-                        setFormData((prev) => ({ ...prev, middleName: val }))
-                      }
-                      placeholder="Enter middle name (optional)"
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
-                      Last Name <Text style={styles.required}>*</Text>
-                    </Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={formData.lastName}
-                      onChangeText={(val) =>
-                        setFormData((prev) => ({ ...prev, lastName: val }))
-                      }
-                      placeholder="Enter last name"
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
-                      Date of Birth (YYYY-MM-DD) <Text style={styles.required}>*</Text>
-                    </Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={formData.dob}
-                      onChangeText={(val) =>
-                        setFormData((prev) => ({ ...prev, dob: val }))
-                      }
-                      placeholder="YYYY-MM-DD"
-                      autoCapitalize="none"
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Phone</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={formData.phone}
-                      onChangeText={(val) =>
-                        setFormData((prev) => ({ ...prev, phone: val }))
-                      }
-                      placeholder="09XXXXXXXXX"
-                      keyboardType="phone-pad"
-                    />
-                  </View>
-                </>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.modalSubtitle}>
+                    Only documents are required here. Name and date of birth will be taken from your tenant account.
+                  </Text>
+                </View>
               )}
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  Valid ID Type <Text style={styles.required}>*</Text>
-                </Text>
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={formData.validIdType}
-                    onValueChange={(val) =>
-                      setFormData((prev) => ({ ...prev, validIdType: val }))
-                    }
-                    style={styles.picker}
-                  >
-                    <Picker.Item label="Select ID Type" value="" />
-                    {idTypes.map((type) => (
-                      <Picker.Item key={type} label={type} value={type} />
-                    ))}
-                    <Picker.Item label="Other" value="other" />
-                  </Picker>
+              {userRole !== 'tenant' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>
+                    Valid ID Type <Text style={styles.required}>*</Text>
+                  </Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={formData.validIdType}
+                      onValueChange={(val) =>
+                        setFormData((prev) => ({ ...prev, validIdType: val }))
+                      }
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Select ID Type" value="" />
+                      {idTypes.map((type) => (
+                        <Picker.Item key={type} label={type} value={type} />
+                      ))}
+                      <Picker.Item label="Other" value="other" />
+                    </Picker>
+                  </View>
                 </View>
-              </View>
+              )}
 
-              {formData.validIdType === "other" && (
+              {userRole !== 'tenant' && formData.validIdType === "other" && (
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>
                     Specify ID Type <Text style={styles.required}>*</Text>

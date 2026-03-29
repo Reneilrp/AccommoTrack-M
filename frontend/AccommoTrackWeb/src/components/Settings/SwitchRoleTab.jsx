@@ -14,19 +14,9 @@ export default function SwitchRoleTab({ user: userProp }) {
 
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [isSubmittingRegistration, setIsSubmittingRegistration] = useState(false);
-  const [idTypes, setIdTypes] = useState([]);
-  const [idTypesLoading, setIdTypesLoading] = useState(false);
   const [registrationForm, setRegistrationForm] = useState({
-    first_name: user?.first_name || '',
-    middle_name: user?.middle_name || '',
-    last_name: user?.last_name || '',
-    dob: user?.date_of_birth || '',
-    phone: user?.phone || '',
-    valid_id_type: '',
-    valid_id_other: '',
     valid_id: null,
     permit: null,
-    agree: false,
   });
   const [registrationErrors, setRegistrationErrors] = useState({});
 
@@ -55,45 +45,6 @@ export default function SwitchRoleTab({ user: userProp }) {
 
     fetchVerificationStatus();
   }, [currentRole]);
-
-  useEffect(() => {
-    if (!showRegistrationModal || idTypes.length > 0 || idTypesLoading) {
-      return;
-    }
-
-    const loadIdTypes = async () => {
-      try {
-        setIdTypesLoading(true);
-        const res = await api.get('/valid-id-types');
-        const resolved = Array.isArray(res.data) ? res.data : [];
-        setIdTypes(resolved);
-      } catch (err) {
-        console.error('Failed to fetch valid ID types:', err);
-        setIdTypes([
-          'Philippine Passport',
-          "Driver's License",
-          'PhilSys ID (National ID)',
-          'Unified Multi-Purpose ID (UMID)',
-          'Postal ID (Digitized)',
-        ]);
-      } finally {
-        setIdTypesLoading(false);
-      }
-    };
-
-    loadIdTypes();
-  }, [showRegistrationModal, idTypes.length, idTypesLoading]);
-
-  useEffect(() => {
-    setRegistrationForm((prev) => ({
-      ...prev,
-      first_name: user?.first_name || prev.first_name,
-      middle_name: user?.middle_name || prev.middle_name,
-      last_name: user?.last_name || prev.last_name,
-      dob: user?.date_of_birth || prev.dob,
-      phone: user?.phone || prev.phone,
-    }));
-  }, [user?.first_name, user?.middle_name, user?.last_name, user?.date_of_birth, user?.phone]);
 
   const getSwitchButtonLabel = () => {
     if (currentRole === 'landlord') {
@@ -131,7 +82,7 @@ export default function SwitchRoleTab({ user: userProp }) {
       default:
         return {
           icon: <ShieldAlert className="w-5 h-5 text-orange-500" />,
-          text: 'To become a landlord, submit your registration details and verification documents.',
+          text: 'To become a landlord, submit your Valid ID and Business Permit.',
         };
     }
   };
@@ -178,18 +129,8 @@ export default function SwitchRoleTab({ user: userProp }) {
     }
 
     setRegistrationErrors({});
+    setRegistrationForm({ valid_id: null, permit: null });
     setShowRegistrationModal(true);
-  };
-
-  const handleRegistrationChange = (field, value) => {
-    setRegistrationForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-    setRegistrationErrors((prev) => ({
-      ...prev,
-      [field]: '',
-    }));
   };
 
   const handleRegistrationFile = (field, file) => {
@@ -229,55 +170,12 @@ export default function SwitchRoleTab({ user: userProp }) {
   const validateRegistrationForm = () => {
     const errors = {};
 
-    if (!registrationForm.first_name?.trim()) {
-      errors.first_name = 'First name is required.';
-    }
-
-    if (!registrationForm.last_name?.trim()) {
-      errors.last_name = 'Last name is required.';
-    }
-
-    if (!registrationForm.dob) {
-      errors.dob = 'Date of birth is required.';
-    } else {
-      const dob = new Date(registrationForm.dob);
-      const today = new Date();
-      let age = today.getFullYear() - dob.getFullYear();
-      const monthDiff = today.getMonth() - dob.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-        age -= 1;
-      }
-
-      if (age < 21) {
-        errors.dob = 'You must be at least 21 years old to register as a landlord.';
-      }
-    }
-
-    if (registrationForm.phone?.trim()) {
-      const digits = registrationForm.phone.replace(/\D/g, '');
-      if (!(digits.length === 11 && digits.startsWith('09'))) {
-        errors.phone = 'Phone must be 11 digits and start with 09.';
-      }
-    }
-
-    if (!registrationForm.valid_id_type) {
-      errors.valid_id_type = 'Please select a valid ID type.';
-    }
-
-    if (registrationForm.valid_id_type === 'Other' && !registrationForm.valid_id_other?.trim()) {
-      errors.valid_id_other = 'Please specify the type of ID.';
-    }
-
     if (!registrationForm.valid_id) {
       errors.valid_id = 'Please upload your valid ID.';
     }
 
     if (!registrationForm.permit) {
       errors.permit = 'Please upload your business/accommodation permit.';
-    }
-
-    if (!registrationForm.agree) {
-      errors.agree = 'You must agree to the terms and conditions.';
     }
 
     setRegistrationErrors(errors);
@@ -293,22 +191,8 @@ export default function SwitchRoleTab({ user: userProp }) {
       setIsSubmittingRegistration(true);
 
       const formData = new FormData();
-      formData.append('first_name', registrationForm.first_name.trim());
-      if (registrationForm.middle_name?.trim()) {
-        formData.append('middle_name', registrationForm.middle_name.trim());
-      }
-      formData.append('last_name', registrationForm.last_name.trim());
-      formData.append('dob', registrationForm.dob);
-      if (registrationForm.phone?.trim()) {
-        formData.append('phone', registrationForm.phone.trim());
-      }
-      formData.append('valid_id_type', registrationForm.valid_id_type);
-      if (registrationForm.valid_id_type === 'Other') {
-        formData.append('valid_id_other', registrationForm.valid_id_other.trim());
-      }
       formData.append('valid_id', registrationForm.valid_id);
       formData.append('permit', registrationForm.permit);
-      formData.append('agree', registrationForm.agree ? '1' : '0');
 
       const res = await api.post('/tenant/register-landlord', formData, {
         headers: {
@@ -322,23 +206,10 @@ export default function SwitchRoleTab({ user: userProp }) {
     } catch (error) {
       if (error.response?.data?.errors) {
         const mappedErrors = {};
-        const keyMap = {
-          first_name: 'first_name',
-          middle_name: 'middle_name',
-          last_name: 'last_name',
-          dob: 'dob',
-          phone: 'phone',
-          valid_id_type: 'valid_id_type',
-          valid_id_other: 'valid_id_other',
-          valid_id: 'valid_id',
-          permit: 'permit',
-          agree: 'agree',
-        };
 
         Object.keys(error.response.data.errors).forEach((key) => {
-          const localKey = keyMap[key] || key;
           const value = error.response.data.errors[key];
-          mappedErrors[localKey] = Array.isArray(value) ? value[0] : value;
+          mappedErrors[key] = Array.isArray(value) ? value[0] : value;
         });
 
         setRegistrationErrors((prev) => ({
@@ -365,7 +236,7 @@ export default function SwitchRoleTab({ user: userProp }) {
               Role Management
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-              Switch to tenant mode instantly, or complete landlord registration requirements before enabling landlord mode.
+              Switch to tenant mode instantly, or register as landlord by submitting your Valid ID and Business Permit.
             </p>
           </div>
 
@@ -397,7 +268,7 @@ export default function SwitchRoleTab({ user: userProp }) {
 
       {showRegistrationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Register as Landlord</h3>
               <button
@@ -412,96 +283,11 @@ export default function SwitchRoleTab({ user: userProp }) {
 
             <div className="px-6 py-5 space-y-5">
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Fill out this form to register your account as a landlord. Your account will remain in tenant mode until admin approval.
+                Submit your Valid ID and Business Permit. Your name and date of birth will be taken from your existing tenant account.
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name</label>
-                  <input
-                    type="text"
-                    value={registrationForm.first_name}
-                    onChange={(e) => handleRegistrationChange('first_name', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {registrationErrors.first_name && <p className="text-xs text-red-500 mt-1">{registrationErrors.first_name}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Middle Name (optional)</label>
-                  <input
-                    type="text"
-                    value={registrationForm.middle_name}
-                    onChange={(e) => handleRegistrationChange('middle_name', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {registrationErrors.middle_name && <p className="text-xs text-red-500 mt-1">{registrationErrors.middle_name}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    value={registrationForm.last_name}
-                    onChange={(e) => handleRegistrationChange('last_name', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {registrationErrors.last_name && <p className="text-xs text-red-500 mt-1">{registrationErrors.last_name}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date of Birth</label>
-                  <input
-                    type="date"
-                    value={registrationForm.dob}
-                    onChange={(e) => handleRegistrationChange('dob', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {registrationErrors.dob && <p className="text-xs text-red-500 mt-1">{registrationErrors.dob}</p>}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone (optional)</label>
-                  <input
-                    type="text"
-                    value={registrationForm.phone}
-                    onChange={(e) => handleRegistrationChange('phone', e.target.value)}
-                    placeholder="09XXXXXXXXX"
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {registrationErrors.phone && <p className="text-xs text-red-500 mt-1">{registrationErrors.phone}</p>}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valid ID Type</label>
-                  <select
-                    value={registrationForm.valid_id_type}
-                    onChange={(e) => handleRegistrationChange('valid_id_type', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Select ID type</option>
-                    {idTypes.map((idType) => (
-                      <option key={idType} value={idType}>{idType}</option>
-                    ))}
-                    {!idTypesLoading && <option value="Other">Other</option>}
-                  </select>
-                  {registrationErrors.valid_id_type && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_type}</p>}
-                </div>
-
-                {registrationForm.valid_id_type === 'Other' && (
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Specify ID Type</label>
-                    <input
-                      type="text"
-                      value={registrationForm.valid_id_other}
-                      onChange={(e) => handleRegistrationChange('valid_id_other', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                    {registrationErrors.valid_id_other && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_other}</p>}
-                  </div>
-                )}
-
-                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Valid ID</label>
                   <label className="w-full px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
                     <Upload className="w-4 h-4" />
@@ -518,7 +304,7 @@ export default function SwitchRoleTab({ user: userProp }) {
                   {registrationErrors.valid_id && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id}</p>}
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Business/Accommodation Permit</label>
                   <label className="w-full px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
                     <Upload className="w-4 h-4" />
@@ -533,19 +319,6 @@ export default function SwitchRoleTab({ user: userProp }) {
                     />
                   </label>
                   {registrationErrors.permit && <p className="text-xs text-red-500 mt-1">{registrationErrors.permit}</p>}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <input
-                      type="checkbox"
-                      checked={registrationForm.agree}
-                      onChange={(e) => handleRegistrationChange('agree', e.target.checked)}
-                      className="mt-1"
-                    />
-                    <span>I agree to the terms and conditions for landlord registration.</span>
-                  </label>
-                  {registrationErrors.agree && <p className="text-xs text-red-500 mt-1">{registrationErrors.agree}</p>}
                 </div>
               </div>
             </div>

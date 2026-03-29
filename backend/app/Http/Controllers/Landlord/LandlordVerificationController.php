@@ -233,6 +233,7 @@ class LandlordVerificationController extends Controller
     public function registerFromTenant(Request $request)
     {
         $user = Auth::user();
+        $defaultValidIdType = 'Submitted ID Document';
 
         if (! $user || $user->role !== 'tenant') {
             return response()->json([
@@ -241,16 +242,8 @@ class LandlordVerificationController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'dob' => 'required|date',
-            'phone' => 'nullable|string|max:20',
-            'valid_id_type' => 'required|string|max:255',
-            'valid_id_other' => 'nullable|string|max:255',
             'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'agree' => 'accepted',
         ]);
 
         if ($validator->fails()) {
@@ -260,7 +253,21 @@ class LandlordVerificationController extends Controller
             ], 422);
         }
 
-        $birthDate = \Carbon\Carbon::parse($request->dob);
+        if (! $user->date_of_birth) {
+            return response()->json([
+                'message' => 'Date of birth is missing from your tenant account. Please update your profile before registering as landlord.',
+                'errors' => ['dob' => ['Date of birth is required in your profile.']],
+            ], 422);
+        }
+
+        if (! $user->first_name || ! $user->last_name) {
+            return response()->json([
+                'message' => 'Your tenant profile is incomplete. Please update your name before registering as landlord.',
+                'errors' => ['first_name' => ['First and last name are required in your profile.']],
+            ], 422);
+        }
+
+        $birthDate = \Carbon\Carbon::parse($user->date_of_birth);
         if ($birthDate->diffInYears(\Carbon\Carbon::now()) < 21) {
             return response()->json([
                 'message' => 'You must be at least 21 years old to register as a landlord.',
@@ -287,14 +294,6 @@ class LandlordVerificationController extends Controller
         try {
             DB::beginTransaction();
 
-            $user->forceFill([
-                'first_name' => $request->first_name,
-                'middle_name' => $request->middle_name,
-                'last_name' => $request->last_name,
-                'phone' => $request->phone,
-                'date_of_birth' => $request->dob,
-            ])->save();
-
             $validIdPath = $request->file('valid_id')->store('landlord_ids', 'public');
             $permitPath = $request->file('permit')->store('landlord_permits', 'public');
 
@@ -307,11 +306,11 @@ class LandlordVerificationController extends Controller
                 }
 
                 $verification->forceFill([
-                    'first_name' => $request->first_name,
-                    'middle_name' => $request->middle_name,
-                    'last_name' => $request->last_name,
-                    'valid_id_type' => $request->valid_id_type,
-                    'valid_id_other' => $request->valid_id_other,
+                    'first_name' => $user->first_name,
+                    'middle_name' => $user->middle_name,
+                    'last_name' => $user->last_name,
+                    'valid_id_type' => $defaultValidIdType,
+                    'valid_id_other' => null,
                     'valid_id_path' => $validIdPath,
                     'permit_path' => $permitPath,
                     'status' => 'pending',
@@ -322,11 +321,11 @@ class LandlordVerificationController extends Controller
             } else {
                 $verification = LandlordVerification::create([
                     'user_id' => $user->id,
-                    'first_name' => $request->first_name,
-                    'middle_name' => $request->middle_name,
-                    'last_name' => $request->last_name,
-                    'valid_id_type' => $request->valid_id_type,
-                    'valid_id_other' => $request->valid_id_other,
+                    'first_name' => $user->first_name,
+                    'middle_name' => $user->middle_name,
+                    'last_name' => $user->last_name,
+                    'valid_id_type' => $defaultValidIdType,
+                    'valid_id_other' => null,
                     'valid_id_path' => $validIdPath,
                     'permit_path' => $permitPath,
                     'status' => 'pending',
