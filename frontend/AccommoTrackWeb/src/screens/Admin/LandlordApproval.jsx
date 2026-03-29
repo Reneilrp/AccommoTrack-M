@@ -156,14 +156,14 @@ export default function LandlordApproval() {
         <img 
           src={url} 
           alt={label} 
-          className="w-full h-96 rounded object-contain" 
+          className="w-full h-auto rounded object-contain max-h-[420px]" 
         />
       );
     }
 
     if (url) {
       return (
-        <div className="h-96 flex flex-col items-center justify-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
+        <div className="min-h-[280px] flex flex-col items-center justify-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
           <FileText className="w-16 h-16 text-blue-500 mb-4" />
           <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase">
             {ext} Document
@@ -183,7 +183,7 @@ export default function LandlordApproval() {
     
     // Fallback for when no file is provided.
     return (
-      <div className="h-96 flex items-center justify-center text-gray-500 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
+      <div className="min-h-[280px] flex items-center justify-center text-gray-500 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
         No {label} provided
       </div>
     );

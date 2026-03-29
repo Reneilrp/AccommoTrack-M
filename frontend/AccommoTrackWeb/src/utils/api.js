@@ -69,6 +69,54 @@ const isMutationMethod = (method) => {
   return normalized !== "get" && normalized !== "head" && normalized !== "options";
 };
 
+const looksLikeHtmlDocument = (value) => {
+  if (typeof value !== "string") return false;
+  return /^\s*</.test(value) && /<(?:!doctype\s+html|html|head|body)/i.test(value);
+};
+
+const isJsonExpectedResponse = (config) => {
+  const responseType = (config?.responseType || "json").toLowerCase();
+  return responseType === "json";
+};
+
+const shouldAllowHtmlResponse = (config) => {
+  const header =
+    config?.headers?.["X-Allow-HTML-Response"] ||
+    config?.headers?.["x-allow-html-response"] ||
+    config?.headers?.get?.("X-Allow-HTML-Response");
+  return header === "1";
+};
+
+const ensureJsonApiResponse = (response) => {
+  if (!isJsonExpectedResponse(response?.config) || shouldAllowHtmlResponse(response?.config)) {
+    return response;
+  }
+
+  const contentType = (response?.headers?.["content-type"] || "").toLowerCase();
+  const body = response?.data;
+  const isHtmlPayload = contentType.includes("text/html") || looksLikeHtmlDocument(body);
+
+  if (!isHtmlPayload) {
+    return response;
+  }
+
+  const requestUrl = response?.config?.url || "unknown-url";
+  const status = response?.status;
+  const error = new Error(`Expected JSON response but received HTML from ${requestUrl}`);
+  error.name = "HtmlApiResponseError";
+  error.code = "ERR_HTML_RESPONSE";
+  error.response = response;
+  error.config = response?.config;
+
+  console.error("[API_GUARD] HTML payload received on JSON API request", {
+    url: requestUrl,
+    status,
+    contentType,
+  });
+
+  throw error;
+};
+
 // ---------------------------------------------------------------------------
 // Hybrid auth helper
 // ---------------------------------------------------------------------------
@@ -109,6 +157,14 @@ api.interceptors.request.use(
 
     if (!config.headers) {
       config.headers = {};
+    }
+
+    if (!config.headers?.Accept) {
+      config.headers.Accept = "application/json";
+    }
+
+    if (!config.headers?.["X-Requested-With"]) {
+      config.headers["X-Requested-With"] = "XMLHttpRequest";
     }
 
     config.withCredentials = true;
@@ -157,7 +213,7 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => ensureJsonApiResponse(response),
   async (error) => {
     if (error.response?.status === 419 && !error.config?._csrfRetried) {
       try {
@@ -312,3 +368,8 @@ export const rootApi = axios.create({
     [CLIENT_PLATFORM_HEADER]: "web",
   },
 });
+
+rootApi.interceptors.response.use(
+  (response) => ensureJsonApiResponse(response),
+  (error) => Promise.reject(error),
+);

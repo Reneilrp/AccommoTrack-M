@@ -12,7 +12,8 @@ const RequireAdmin = ({ user, children }) => {
     const fetchUser = async () => {
       setLoading(true);
       try {
-        const endpoints = ['/user', '/auth/me', '/me'];
+        // Keep this API-only to avoid probing non-API routes that can return HTML.
+        const endpoints = ['/me'];
         for (const ep of endpoints) {
           try {
             const res = await api.get(ep);

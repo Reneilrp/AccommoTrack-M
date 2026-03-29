@@ -71,7 +71,8 @@ class TenantController extends Controller
                             ->orderBy('created_at', 'desc');
                     },
                     'scheduledEviction' => function ($q) use ($landlordId) {
-                        $q->where('landlord_id', $landlordId);
+                        $q->where('landlord_id', $landlordId)
+                          ->where('status', 'scheduled');
                     },
                     'latestEvictionRecord' => function ($q) use ($landlordId) {
                         $q->where('landlord_id', $landlordId);

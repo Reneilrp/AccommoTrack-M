@@ -880,7 +880,8 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
       // Otherwise, fall back to querying the authenticated user endpoints.
       try {
-        const endpoints = ["/api/me", "/api/auth/me", "/me", "/auth/me"];
+        // Use API-only fallback endpoints so requests never hit frontend HTML routes.
+        const endpoints = ["/api/me"];
         let me = null;
         for (const ep of endpoints) {
           try {
