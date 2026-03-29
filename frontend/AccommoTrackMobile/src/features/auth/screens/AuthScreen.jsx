@@ -324,6 +324,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     firstName: '',
     middleName: '',
     lastName: '',
+    phone: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -349,6 +350,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             firstName: parsed.firstName || '',
             middleName: parsed.middleName || '',
             lastName: parsed.lastName || '',
+            phone: parsed.phone || '',
             email: parsed.email || '',
             dateOfBirth: parsed.dateOfBirth ? new Date(parsed.dateOfBirth) : null,
             gender: parsed.gender || '',
@@ -406,7 +408,15 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     }
     // W8: Save non-password fields to AsyncStorage for persistence
     if (!isLogin && !['password', 'confirmPassword'].includes(field)) {
-      const toSave = { firstName: newFormData.firstName, middleName: newFormData.middleName, lastName: newFormData.lastName, email: newFormData.email, dateOfBirth: newFormData.dateOfBirth, gender: newFormData.gender };
+      const toSave = {
+        firstName: newFormData.firstName,
+        middleName: newFormData.middleName,
+        lastName: newFormData.lastName,
+        phone: newFormData.phone,
+        email: newFormData.email,
+        dateOfBirth: newFormData.dateOfBirth,
+        gender: newFormData.gender,
+      };
       AsyncStorage.setItem('signup_form_draft', JSON.stringify(toSave)).catch(() => {});
     }
   };
@@ -454,6 +464,13 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
 
     if (!agreedToTerms) {
       errors.terms = 'You must agree to the terms and conditions';
+    }
+
+    if (formData.phone && formData.phone.trim() !== '') {
+      const digits = String(formData.phone).replace(/\D/g, '');
+      if (!(digits.length === 11 && digits.startsWith('09'))) {
+        errors.phone = 'Phone must be 11 digits and start with 09';
+      }
     }
 
     setFieldErrors(errors);
@@ -645,6 +662,10 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         payload.middle_name = formData.middleName.trim();
       }
 
+      if (formData.phone?.trim()) {
+        payload.phone = String(formData.phone).replace(/\D/g, '');
+      }
+
       const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: {
@@ -668,6 +689,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           firstName: '',
           middleName: '',
           lastName: '',
+          phone: '',
           email: '',
           password: '',
           confirmPassword: '',
@@ -700,7 +722,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const toggleScreen = () => {
     setIsLogin(!isLogin);
     setSignupStep(1);
-    setFormData({ firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '', role: 'tenant', dateOfBirth: null, gender: '' });
+    setFormData({ firstName: '', middleName: '', lastName: '', phone: '', email: '', password: '', confirmPassword: '', role: 'tenant', dateOfBirth: null, gender: '' });
     setAgreedToTerms(false);
     setError('');
     // Ensure password visibility is reset when switching screens
@@ -998,6 +1020,23 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                     </Text>
                   )}
                   {fieldErrors.email && <Text style={styles.inlineErrorText}>{fieldErrors.email}</Text>}
+
+                  {/* Phone (Optional) */}
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="call-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Phone (Optional)"
+                      placeholderTextColor="#9CA3AF"
+                      value={formData.phone}
+                      onChangeText={(text) => handleInputChange('phone', text)}
+                      keyboardType="phone-pad"
+                      editable={!loading}
+                      maxLength={13}
+                      returnKeyType="next"
+                    />
+                  </View>
+                  {fieldErrors.phone && <Text style={styles.inlineErrorText}>{fieldErrors.phone}</Text>}
 
                   {/* Password */}
                   <View style={styles.inputContainer}>

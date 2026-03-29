@@ -146,26 +146,6 @@ export default function NotificationsScreen({ navigation }) {
 
       <ScrollView
         style={styles.scrollView}
-
-      {(fetchError || actionError) && (
-        <View
-          style={[
-            styles.errorBanner,
-            {
-              borderColor: theme.isDark ? '#7F1D1D' : '#FECACA',
-              backgroundColor: theme.isDark ? 'rgba(127,29,29,0.32)' : '#FEF2F2',
-            },
-          ]}
-        >
-          <Ionicons name="alert-circle-outline" size={18} color={theme.isDark ? '#FCA5A5' : '#B91C1C'} />
-          <Text style={[styles.errorText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}>
-            {actionError || fetchError}
-          </Text>
-          <TouchableOpacity onPress={fetchNotifications}>
-            <Text style={[styles.errorRetryText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -176,6 +156,26 @@ export default function NotificationsScreen({ navigation }) {
           />
         }
       >
+        {(fetchError || actionError) && (
+          <View
+            style={[
+              styles.errorBanner,
+              {
+                borderColor: theme.isDark ? '#7F1D1D' : '#FECACA',
+                backgroundColor: theme.isDark ? 'rgba(127,29,29,0.32)' : '#FEF2F2',
+              },
+            ]}
+          >
+            <Ionicons name="alert-circle-outline" size={18} color={theme.isDark ? '#FCA5A5' : '#B91C1C'} />
+            <Text style={[styles.errorText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}> 
+              {actionError || fetchError}
+            </Text>
+            <TouchableOpacity onPress={fetchNotifications}>
+              <Text style={[styles.errorRetryText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {notifications.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="notifications-off-outline" size={64} color="#9CA3AF" />

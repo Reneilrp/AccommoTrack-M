@@ -23,10 +23,13 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { getStyles } from "../../../../styles/Tenant/PropertyDetailsScreen.js";
 import homeStyles from "../../../../styles/Tenant/HomePage.js";
 import PropertyService from "../../../../services/PropertyService.js";
+import ReviewService from "../../../../services/ReviewService.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import IconWithBadge from '../../../../components/IconWithBadge.jsx';
+
+const REVIEWS_PAGE_SIZE = 5;
 
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
@@ -46,6 +49,10 @@ export default function PropertyDetailsScreen({ route }) {
   const [detailedAccommodation, setDetailedAccommodation] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [videoVisible, setVideoVisible] = useState(false);
+  const [publicReviews, setPublicReviews] = useState([]);
+  const [publicReviewSummary, setPublicReviewSummary] = useState(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewPage, setReviewPage] = useState(1);
   const [notificationCounts, setNotificationCounts] = useState({
     addons: 0,
     maintenance: 0,
@@ -96,6 +103,35 @@ export default function PropertyDetailsScreen({ route }) {
       videoPlayer.pause();
     }
   }, [videoVisible, videoPlayer]);
+
+  const loadReviews = useCallback(async () => {
+    if (!effectiveId || landlordPreview) {
+      setPublicReviews([]);
+      setPublicReviewSummary(null);
+      return;
+    }
+
+    try {
+      setReviewsLoading(true);
+      const result = await ReviewService.getPropertyReviews(effectiveId);
+      if (result.success) {
+        setPublicReviews(Array.isArray(result.data) ? result.data : []);
+        setPublicReviewSummary(result.summary || null);
+        setReviewPage(1);
+      } else {
+        setPublicReviews([]);
+        setPublicReviewSummary(null);
+        setReviewPage(1);
+      }
+    } catch (error) {
+      console.error("Failed to load property reviews:", error);
+      setPublicReviews([]);
+      setPublicReviewSummary(null);
+      setReviewPage(1);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [effectiveId, landlordPreview]);
 
   const loadRooms = useCallback(async () => {
     if (!effectiveId) {
@@ -160,13 +196,14 @@ export default function PropertyDetailsScreen({ route }) {
   useFocusEffect(
     useCallback(() => {
       loadRooms();
-    }, [loadRooms])
+      loadReviews();
+    }, [loadRooms, loadReviews])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await loadRooms();
+      await Promise.all([loadRooms(), loadReviews()]);
     } catch (err) {
       console.error("Refresh failed:", err);
     } finally {
@@ -472,6 +509,36 @@ export default function PropertyDetailsScreen({ route }) {
   };
 
   const active = detailedAccommodation || accommodation;
+
+  const formatReviewDate = (review) => {
+    if (review?.time_ago) return review.time_ago;
+    if (!review?.created_at) return 'Recently';
+    try {
+      return new Date(review.created_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return 'Recently';
+    }
+  };
+
+  const totalReviewPages = Math.max(
+    1,
+    Math.ceil(publicReviews.length / REVIEWS_PAGE_SIZE),
+  );
+  const currentReviewPage = Math.min(reviewPage, totalReviewPages);
+  const reviewStartIndex = (currentReviewPage - 1) * REVIEWS_PAGE_SIZE;
+  const paginatedReviews = publicReviews.slice(
+    reviewStartIndex,
+    reviewStartIndex + REVIEWS_PAGE_SIZE,
+  );
+  const reviewRangeStart = publicReviews.length === 0 ? 0 : reviewStartIndex + 1;
+  const reviewRangeEnd = Math.min(
+    reviewStartIndex + REVIEWS_PAGE_SIZE,
+    publicReviews.length,
+  );
 
   if (!active) {
     return (
@@ -886,7 +953,143 @@ export default function PropertyDetailsScreen({ route }) {
             </Text>
           </TouchableOpacity>
 
+          {!isGuest && !landlordPreview && (
+            <TouchableOpacity
+              style={styles.reportButton}
+              onPress={() =>
+                navigation.navigate('ReportProperty', {
+                  propertyId: active.id,
+                  propertyTitle: active.title || active.name,
+                })
+              }
+            >
+              <Ionicons name="flag-outline" size={18} color="#B91C1C" />
+              <Text style={styles.reportButtonText}>Report Listing</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Report Maintenance removed from Property Details - only available via MyBookings */}
+
+          <View style={styles.section}>
+            <View style={styles.reviewsHeader}>
+              <Text style={styles.sectionTitle}>Guest Reviews</Text>
+              {publicReviewSummary?.average_rating ? (
+                <View style={styles.reviewsSummaryBadge}>
+                  <Ionicons name="star" size={14} color="#D97706" />
+                  <Text style={styles.reviewsSummaryText}>
+                    {publicReviewSummary.average_rating} ({publicReviewSummary.total_reviews || publicReviews.length})
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {reviewsLoading ? (
+              <View style={{ paddingVertical: 16 }}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            ) : publicReviews.length > 0 ? (
+              paginatedReviews.map((review) => {
+                const rating = Number(review.rating || 0);
+                return (
+                  <View key={review.id} style={styles.reviewCard}>
+                    <View style={styles.reviewHeader}>
+                      {review.reviewer_image ? (
+                        <Image source={{ uri: review.reviewer_image }} style={styles.reviewAvatarImage} />
+                      ) : (
+                        <View style={styles.reviewAvatar}>
+                          <Text style={styles.reviewAvatarText}>
+                            {(review.reviewer_name || 'U').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.reviewMeta}>
+                        <Text style={styles.reviewerName}>{review.reviewer_name || 'Anonymous'}</Text>
+                        <Text style={styles.reviewTime}>{formatReviewDate(review)}</Text>
+                      </View>
+                      <View style={styles.reviewStars}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Ionicons
+                            key={star}
+                            name={star <= rating ? 'star' : 'star-outline'}
+                            size={14}
+                            color="#F59E0B"
+                          />
+                        ))}
+                      </View>
+                    </View>
+
+                    {review.comment ? (
+                      <Text style={styles.reviewComment}>"{String(review.comment).trim()}"</Text>
+                    ) : null}
+
+                    {review.landlord_response ? (
+                      <View style={styles.landlordResponseBox}>
+                        <Text style={styles.landlordResponseLabel}>Landlord Response</Text>
+                        <Text style={styles.landlordResponseText}>{review.landlord_response}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={styles.reviewsEmpty}>No reviews yet for this property.</Text>
+            )}
+
+            {!reviewsLoading && publicReviews.length > REVIEWS_PAGE_SIZE && (
+              <View
+                style={{
+                  marginTop: 4,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <TouchableOpacity
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor:
+                      currentReviewPage === 1
+                        ? theme.colors.backgroundSecondary
+                        : theme.colors.surface,
+                    opacity: currentReviewPage === 1 ? 0.6 : 1,
+                  }}
+                  disabled={currentReviewPage === 1}
+                  onPress={() => setReviewPage((prev) => Math.max(1, prev - 1))}
+                >
+                  <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Previous</Text>
+                </TouchableOpacity>
+
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' }}>
+                  Showing {reviewRangeStart}-{reviewRangeEnd} of {publicReviews.length}
+                </Text>
+
+                <TouchableOpacity
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor:
+                      currentReviewPage >= totalReviewPages
+                        ? theme.colors.backgroundSecondary
+                        : theme.colors.surface,
+                    opacity: currentReviewPage >= totalReviewPages ? 0.6 : 1,
+                  }}
+                  disabled={currentReviewPage >= totalReviewPages}
+                  onPress={() =>
+                    setReviewPage((prev) => Math.min(totalReviewPages, prev + 1))
+                  }
+                >
+                  <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Next</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
 
           {/* Embedded Room List */}
           <View style={styles.roomsSection}>

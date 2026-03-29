@@ -132,7 +132,15 @@ const ProfileService = {
    */
   async changePassword(passwordData) {
     try {
-      const response = await api.post('/change-password', passwordData);
+      const response = await api
+        .post('/tenant/change-password', passwordData)
+        .catch(async (error) => {
+          const status = error?.response?.status;
+          if (status === 404 || status === 405) {
+            return api.post('/change-password', passwordData);
+          }
+          throw error;
+        });
       return {
         success: true,
         message: response.data.message || 'Password changed successfully'

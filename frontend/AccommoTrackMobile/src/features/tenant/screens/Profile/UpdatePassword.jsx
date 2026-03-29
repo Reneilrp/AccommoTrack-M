@@ -88,7 +88,7 @@ export default function UpdatePasswordPage() {
     setSaving(true);
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/change-password`, {
+      const requestOptions = {
         method: 'POST',
         headers: {
           ...headers,
@@ -99,9 +99,14 @@ export default function UpdatePasswordPage() {
           new_password: newPassword,
           new_password_confirmation: confirmPassword
         })
-      });
+      };
 
-      const data = await response.json();
+      let response = await fetch(`${API_URL}/tenant/change-password`, requestOptions);
+      if (response.status === 404 || response.status === 405) {
+        response = await fetch(`${API_URL}/change-password`, requestOptions);
+      }
+
+      const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
         Alert.alert('Success', 'Password updated successfully', [

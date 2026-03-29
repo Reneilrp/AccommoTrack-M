@@ -33,14 +33,28 @@ const PropertyService = {
       if (filters.type && filters.type !== "All") {
         params.append("type", filters.type);
       }
+      if (filters.search) {
+        params.append("search", filters.search);
+      }
       if (filters.city) {
         params.append("city", filters.city);
       }
-      if (filters.min_price) {
-        params.append("min_price", filters.min_price);
+      if (filters.min_price || filters.price_min) {
+        params.append("min_price", filters.min_price || filters.price_min);
       }
-      if (filters.max_price) {
-        params.append("max_price", filters.max_price);
+      if (filters.max_price || filters.price_max) {
+        params.append("max_price", filters.max_price || filters.price_max);
+      }
+      if (filters.availability) {
+        params.append("availability", filters.availability);
+      }
+      if (filters.min_rating) {
+        params.append("min_rating", filters.min_rating);
+      }
+      if (Array.isArray(filters.amenities) && filters.amenities.length > 0) {
+        filters.amenities.forEach((amenity) => {
+          params.append("amenities[]", amenity);
+        });
       }
 
       const url = `/public/properties${params.toString() ? "?" + params.toString() : ""}`;

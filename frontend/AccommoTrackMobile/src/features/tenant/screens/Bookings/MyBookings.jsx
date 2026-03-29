@@ -5,6 +5,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getStyles } from '../../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../../services/BookingService.js';
 import TenantService from '../../../../services/TenantService.js';
+import PropertyService from '../../../../services/PropertyService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { BookingCardSkeleton } from '../../../../components/Skeletons/index.jsx';
@@ -34,6 +35,7 @@ export default function MyBookings() {
   const [submittingExtension, setSubmittingExtension] = useState(false);
   const [submittingTransfer, setSubmittingTransfer] = useState(false);
   const [submittingMoveOut, setSubmittingMoveOut] = useState(false);
+  const [openingRoomDetails, setOpeningRoomDetails] = useState(false);
   const [cancellingBookingId, setCancellingBookingId] = useState(null);
   const [pendingTransferRequests, setPendingTransferRequests] = useState([]);
   const [monthlyTransferCount, setMonthlyTransferCount] = useState(0);
@@ -370,6 +372,46 @@ export default function MyBookings() {
     );
   };
 
+  const handleOpenRoomDetails = async (bookingEntry) => {
+    if (openingRoomDetails) return;
+
+    const propertyId = bookingEntry?.property?.id || bookingEntry?.property_id;
+    const roomId = bookingEntry?.room?.id || bookingEntry?.room_id;
+
+    if (!propertyId || !roomId) {
+      Alert.alert('Unavailable', 'Room details are not available for this pending booking yet.');
+      return;
+    }
+
+    setOpeningRoomDetails(true);
+    try {
+      const propertyResult = await PropertyService.getPublicProperty(propertyId);
+      if (!propertyResult.success || !propertyResult.data) {
+        Alert.alert('Unable to Load', propertyResult.error || 'Failed to load property details.');
+        return;
+      }
+
+      const fullProperty = propertyResult.data;
+      const fullRoom = (fullProperty.rooms || []).find((room) => String(room.id) === String(roomId));
+
+      if (!fullRoom) {
+        Alert.alert('Unavailable', 'This room is no longer listed for details.');
+        return;
+      }
+
+      navigation.navigate('RoomDetails', {
+        room: fullRoom,
+        property: fullProperty,
+        hideLayout: true,
+      });
+    } catch (error) {
+      console.error('Error opening room details:', error);
+      Alert.alert('Error', 'Failed to open room details. Please try again.');
+    } finally {
+      setOpeningRoomDetails(false);
+    }
+  };
+
   const getStatusColor = (status) => {
     const s = String(status || '').toLowerCase();
     if (s.includes('overdue')) return '#EF4444';
@@ -677,28 +719,39 @@ export default function MyBookings() {
                    </TouchableOpacity>
                  </>
                ) : (
-                 <TouchableOpacity 
-                  style={[styles.reviewBtn, { backgroundColor: theme.colors.error }]}
-                  onPress={() => {
-                    Alert.alert(
-                      "Cancel Request",
-                      "Are you sure you want to cancel this booking request?",
-                      [
-                        { text: "No", style: "cancel" },
-                        {
-                          text: "Yes, Cancel",
-                          style: "destructive",
-                          onPress: () => handleCancelBooking(booking.id)
-                        }
-                      ]
-                    );
-                  }}
-                  disabled={cancellingBookingId === booking.id}
-                 >
-                   <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                     {cancellingBookingId === booking.id ? 'Cancelling...' : 'Cancel Request'}
-                   </Text>
-                 </TouchableOpacity>
+                 <>
+                   <TouchableOpacity
+                    style={[styles.reviewBtn, { backgroundColor: '#2563EB' }]}
+                    onPress={() => handleOpenRoomDetails(currentData)}
+                    disabled={openingRoomDetails}
+                   >
+                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                       {openingRoomDetails ? 'Opening...' : 'Room Details'}
+                     </Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity 
+                    style={[styles.reviewBtn, { backgroundColor: theme.colors.error }]}
+                    onPress={() => {
+                      Alert.alert(
+                        "Cancel Request",
+                        "Are you sure you want to cancel this booking request?",
+                        [
+                          { text: "No", style: "cancel" },
+                          {
+                            text: "Yes, Cancel",
+                            style: "destructive",
+                            onPress: () => handleCancelBooking(booking.id)
+                          }
+                        ]
+                      );
+                    }}
+                    disabled={cancellingBookingId === booking.id}
+                   >
+                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                       {cancellingBookingId === booking.id ? 'Cancelling...' : 'Cancel Request'}
+                     </Text>
+                   </TouchableOpacity>
+                 </>
                )}
             </View>
           </View>

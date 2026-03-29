@@ -419,22 +419,33 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       const result = await BookingService.createBooking(data);
 
       if (result.success) {
-        // If payment method is online, create payment link
+        const bookingResponse = result.data || {};
+        const bookingObj = bookingResponse.booking || bookingResponse.data?.booking || null;
+        const reservationInvoice = bookingResponse.reservation_invoice || bookingResponse.data?.reservation_invoice || null;
+        const checkoutUrl = reservationInvoice?.checkout_url;
+
         if (bookingData.payment_method === 'online') {
-          const payRes = await PaymentService.createPaymentLink(activeRoom.id);
-          if (payRes.success && payRes.data.checkout_url) {
-            await Linking.openURL(payRes.data.checkout_url);
+          if (checkoutUrl) {
+            await Linking.openURL(checkoutUrl);
           } else {
-            Alert.alert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
+            // Backward-compatible fallback for environments that still use room-level checkout creation.
+            const payRes = await PaymentService.createPaymentLink(activeRoom.id);
+            if (payRes.success && payRes.data.checkout_url) {
+              await Linking.openURL(payRes.data.checkout_url);
+            } else {
+              Alert.alert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
+            }
           }
         } else if (bookingData.payment_method === 'cash') {
-          // If cash, generate a cash invoice
-          await PaymentService.generateCashInvoice(activeRoom.id);
+          // Reservation invoice is created by booking endpoint in web flow; fallback keeps compatibility.
+          if (!reservationInvoice) {
+            await PaymentService.generateCashInvoice(activeRoom.id);
+          }
         }
 
         Alert.alert(
           'Success',
-          `Booking submitted successfully! Reference: ${result.data.booking?.booking_reference || 'N/A'}`,
+          `Booking submitted successfully! Reference: ${bookingObj?.booking_reference || 'N/A'}`,
           [
             {
               text: 'OK',

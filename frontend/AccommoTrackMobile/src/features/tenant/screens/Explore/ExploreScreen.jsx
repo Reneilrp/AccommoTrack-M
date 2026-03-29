@@ -6,6 +6,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Text,
+  TextInput,
   Alert,
   ActivityIndicator,
   RefreshControl,
@@ -13,6 +14,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { WebView } from "react-native-webview";
 import { getStyles } from "../../../../styles/Tenant/HomePage.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 
@@ -24,6 +26,14 @@ import Header from "../../components/Header.jsx";
 
 import PropertyService from "../../../../services/PropertyService.js";
 import { navigate as rootNavigate } from "../../../../navigation/RootNavigation.js";
+
+const DEFAULT_ADVANCED_FILTERS = {
+  minPrice: "",
+  maxPrice: "",
+  availabilityOnly: false,
+  minRating: 0,
+  amenities: [],
+};
 
 export default function TenantHomePage({
   onLogout,
@@ -38,8 +48,15 @@ export default function TenantHomePage({
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [selectedGender, setSelectedGender] = useState("All");
   const [selectedCurfew, setSelectedCurfew] = useState(null);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    ...DEFAULT_ADVANCED_FILTERS,
+  });
+  const [draftAdvancedFilters, setDraftAdvancedFilters] = useState({
+    ...DEFAULT_ADVANCED_FILTERS,
+  });
   const [curfewModalVisible, setCurfewModalVisible] = useState(false);
   const [genderModalVisible, setGenderModalVisible] = useState(false);
+  const [mapModalVisible, setMapModalVisible] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState("Explore");
 
   const { theme } = useTheme();
@@ -69,18 +86,45 @@ export default function TenantHomePage({
 
   useEffect(() => {
     filterProperties();
-  }, [properties, searchQuery, activeTab, selectedCurfew, selectedGender]);
+  }, [
+    properties,
+    searchQuery,
+    activeTab,
+    selectedFilter,
+    selectedCurfew,
+    selectedGender,
+    advancedFilters,
+  ]);
 
-  const loadProperties = useCallback(async () => {
+  const loadProperties = useCallback(async (override = {}) => {
     try {
       if (properties.length === 0) {
         setLoading(true);
       }
       setError(null);
 
+      const effectiveType = override.type ?? selectedFilter;
+      const effectiveAdvancedFilters =
+        override.advancedFilters ?? advancedFilters;
+
       const filters = {};
-      if (selectedFilter !== "All") {
-        filters.type = selectedFilter;
+      if (effectiveType !== "All") {
+        filters.type = effectiveType;
+      }
+      if (effectiveAdvancedFilters.minPrice) {
+        filters.min_price = effectiveAdvancedFilters.minPrice;
+      }
+      if (effectiveAdvancedFilters.maxPrice) {
+        filters.max_price = effectiveAdvancedFilters.maxPrice;
+      }
+      if (effectiveAdvancedFilters.availabilityOnly) {
+        filters.availability = "1";
+      }
+      if (Number(effectiveAdvancedFilters.minRating) > 0) {
+        filters.min_rating = Number(effectiveAdvancedFilters.minRating);
+      }
+      if (Array.isArray(effectiveAdvancedFilters.amenities) && effectiveAdvancedFilters.amenities.length > 0) {
+        filters.amenities = effectiveAdvancedFilters.amenities;
       }
 
       const result = await PropertyService.getPublicProperties(filters);
@@ -102,7 +146,7 @@ export default function TenantHomePage({
     } finally {
       setLoading(false);
     }
-  }, [selectedFilter]);
+  }, [advancedFilters, properties.length, selectedFilter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -150,6 +194,32 @@ export default function TenantHomePage({
           (typeMap[filterType] &&
             typeMap[filterType].some((t) => propType.includes(t)))
         );
+      });
+    }
+
+    const minPrice = Number(advancedFilters.minPrice);
+    if (Number.isFinite(minPrice) && minPrice > 0) {
+      filtered = filtered.filter((prop) => Number(prop.minPrice || 0) >= minPrice);
+    }
+
+    const maxPrice = Number(advancedFilters.maxPrice);
+    if (Number.isFinite(maxPrice) && maxPrice > 0) {
+      filtered = filtered.filter((prop) => Number(prop.minPrice || 0) <= maxPrice);
+    }
+
+    if (advancedFilters.availabilityOnly) {
+      filtered = filtered.filter((prop) => Number(prop.availableRooms || prop.available_rooms || 0) > 0);
+    }
+
+    if (Number(advancedFilters.minRating) > 0) {
+      filtered = filtered.filter((prop) => Number(prop.rating || 0) >= Number(advancedFilters.minRating));
+    }
+
+    if (Array.isArray(advancedFilters.amenities) && advancedFilters.amenities.length > 0) {
+      const selectedAmenities = advancedFilters.amenities.map((amenity) => String(amenity).toLowerCase());
+      filtered = filtered.filter((prop) => {
+        const propertyAmenities = (prop.amenities || []).map((amenity) => String(amenity).toLowerCase());
+        return selectedAmenities.some((amenity) => propertyAmenities.includes(amenity));
       });
     }
 
@@ -247,13 +317,260 @@ export default function TenantHomePage({
 
   const handleFilterSelect = (filterValue) => {
     setSelectedFilter(filterValue);
-    loadProperties();
+    loadProperties({ type: filterValue });
   };
 
   const handleClearFilter = () => {
+    const resetAdvanced = { ...DEFAULT_ADVANCED_FILTERS };
     setSelectedFilter("All");
+    setSelectedGender("All");
+    setSelectedCurfew(null);
     setSearchQuery("");
-    loadProperties();
+    setAdvancedFilters(resetAdvanced);
+    setDraftAdvancedFilters(resetAdvanced);
+    loadProperties({ type: "All", advancedFilters: resetAdvanced });
+  };
+
+  const advancedFilterCount =
+    (advancedFilters.minPrice ? 1 : 0) +
+    (advancedFilters.maxPrice ? 1 : 0) +
+    (advancedFilters.availabilityOnly ? 1 : 0) +
+    (Number(advancedFilters.minRating) > 0 ? 1 : 0) +
+    (advancedFilters.amenities?.length > 0 ? 1 : 0);
+
+  const availableAmenities = Array.from(
+    new Set(
+      properties.flatMap((property) =>
+        Array.isArray(property.amenities)
+          ? property.amenities.map((amenity) => String(amenity).trim()).filter(Boolean)
+          : [],
+      ),
+    ),
+  ).slice(0, 16);
+
+  const openAdvancedFilters = () => {
+    setDraftAdvancedFilters({
+      ...advancedFilters,
+      amenities: [...(advancedFilters.amenities || [])],
+    });
+    setFilterModalVisible(true);
+  };
+
+  const applyAdvancedFilters = () => {
+    const nextFilters = {
+      minPrice: String(draftAdvancedFilters.minPrice || "").replace(/[^0-9]/g, ""),
+      maxPrice: String(draftAdvancedFilters.maxPrice || "").replace(/[^0-9]/g, ""),
+      availabilityOnly: Boolean(draftAdvancedFilters.availabilityOnly),
+      minRating: Number(draftAdvancedFilters.minRating) || 0,
+      amenities: Array.from(
+        new Set(
+          (draftAdvancedFilters.amenities || [])
+            .map((amenity) => String(amenity).trim())
+            .filter(Boolean),
+        ),
+      ),
+    };
+
+    if (
+      Number(nextFilters.minPrice) > 0
+      && Number(nextFilters.maxPrice) > 0
+      && Number(nextFilters.minPrice) > Number(nextFilters.maxPrice)
+    ) {
+      Alert.alert('Invalid Price Range', 'Minimum price cannot be greater than maximum price.');
+      return;
+    }
+
+    setAdvancedFilters(nextFilters);
+    setFilterModalVisible(false);
+    loadProperties({ advancedFilters: nextFilters });
+  };
+
+  const clearAdvancedFilters = () => {
+    const resetAdvanced = { ...DEFAULT_ADVANCED_FILTERS };
+    setDraftAdvancedFilters(resetAdvanced);
+    setAdvancedFilters(resetAdvanced);
+    setFilterModalVisible(false);
+    loadProperties({ advancedFilters: resetAdvanced });
+  };
+
+  const renderFilterControls = () => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.filterButtonsRow}
+      contentContainerStyle={styles.filterButtonsContainer}
+    >
+      {filterOptions.map((filter) => (
+        <TouchableOpacity
+          key={filter.value}
+          style={[
+            styles.filterButton,
+            selectedFilter === filter.value && {
+              backgroundColor: theme.colors.primary,
+            },
+          ]}
+          onPress={() => handleFilterSelect(filter.value)}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              selectedFilter === filter.value && styles.filterButtonTextActive,
+            ]}
+          >
+            {filter.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+
+      <TouchableOpacity
+        style={[
+          styles.filterButton,
+          selectedCurfew && {
+            backgroundColor: theme.colors.primary,
+          },
+        ]}
+        onPress={() => setCurfewModalVisible(true)}
+      >
+        <Text
+          style={[
+            styles.filterButtonText,
+            selectedCurfew && styles.filterButtonTextActive,
+          ]}
+        >
+          {selectedCurfew ? `${selectedCurfew}` : "Curfew"}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.filterButton,
+          selectedGender !== "All" && {
+            backgroundColor: theme.colors.primary,
+          },
+        ]}
+        onPress={() => setGenderModalVisible(true)}
+      >
+        <Text
+          style={[
+            styles.filterButtonText,
+            selectedGender !== "All" && styles.filterButtonTextActive,
+          ]}
+        >
+          {selectedGender !== "All"
+            ? genderOptions.find((o) => o.value === selectedGender)?.label
+            : "Gender"}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.filterButton,
+          advancedFilterCount > 0 && { backgroundColor: theme.colors.primary },
+        ]}
+        onPress={openAdvancedFilters}
+      >
+        <Text
+          style={[
+            styles.filterButtonText,
+            advancedFilterCount > 0 && styles.filterButtonTextActive,
+          ]}
+        >
+          {advancedFilterCount > 0 ? `Advanced (${advancedFilterCount})` : "Advanced"}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.filterButton,
+          mapModalVisible && { backgroundColor: theme.colors.primary },
+        ]}
+        onPress={() => setMapModalVisible(true)}
+      >
+        <Text
+          style={[
+            styles.filterButtonText,
+            mapModalVisible && styles.filterButtonTextActive,
+          ]}
+        >
+          Map View
+        </Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  const mapProperties = filteredProperties
+    .filter(
+      (property) =>
+        Number.isFinite(Number(property.latitude)) &&
+        Number.isFinite(Number(property.longitude)),
+    )
+    .map((property) => ({
+      id: property.id,
+      name: property.name || property.title || "Property",
+      address: property.address || property.location || "",
+      latitude: Number(property.latitude),
+      longitude: Number(property.longitude),
+    }));
+
+  const getExploreMapHTML = () => {
+    if (mapProperties.length === 0) return null;
+    const encodedData = JSON.stringify(mapProperties)
+      .replace(/</g, "\\u003c")
+      .replace(/>/g, "\\u003e");
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+          <style>
+            html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
+            .leaflet-popup-content { font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div id="map"></div>
+          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+          <script>
+            var properties = ${encodedData};
+            var first = properties[0];
+            var map = L.map('map').setView([first.latitude, first.longitude], properties.length > 1 ? 13 : 15);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; OpenStreetMap contributors',
+              maxZoom: 19
+            }).addTo(map);
+
+            var bounds = L.latLngBounds([]);
+            properties.forEach(function(item) {
+              var marker = L.marker([item.latitude, item.longitude]).addTo(map);
+              marker.bindPopup('<strong>' + item.name + '</strong><br />' + (item.address || ''));
+              marker.on('click', function() {
+                if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                  window.ReactNativeWebView.postMessage(String(item.id));
+                }
+              });
+              bounds.extend([item.latitude, item.longitude]);
+            });
+
+            if (properties.length > 1) {
+              map.fitBounds(bounds.pad(0.2));
+            }
+          </script>
+        </body>
+      </html>
+    `;
+  };
+
+  const handleMapMarkerPress = (propertyId) => {
+    const selected = filteredProperties.find(
+      (property) => String(property.id) === String(propertyId),
+    );
+    if (!selected) return;
+
+    setMapModalVisible(false);
+    handleAccommodationPress(selected);
   };
 
   const handleSearch = () => {
@@ -394,76 +711,7 @@ export default function TenantHomePage({
           onSelectProperty={() => {}}
         />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterButtonsRow}
-          contentContainerStyle={styles.filterButtonsContainer}
-        >
-          {filterOptions.map((filter) => (
-            <TouchableOpacity
-              key={filter.value}
-              style={[
-                styles.filterButton,
-                selectedFilter === filter.value && {
-                  backgroundColor: theme.colors.primary,
-                },
-              ]}
-              onPress={() => handleFilterSelect(filter.value)}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  selectedFilter === filter.value &&
-                    styles.filterButtonTextActive,
-                ]}
-              >
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {/* New Curfew Filter Button */}
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              selectedCurfew && {
-                backgroundColor: theme.colors.primary,
-              },
-            ]}
-            onPress={() => setCurfewModalVisible(true)}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                selectedCurfew && styles.filterButtonTextActive,
-              ]}
-            >
-              {selectedCurfew ? `${selectedCurfew}` : "Curfew"}
-            </Text>
-          </TouchableOpacity>
-
-          {/* New Gender Filter Button */}
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              selectedGender !== "All" && {
-                backgroundColor: theme.colors.primary,
-              },
-            ]}
-            onPress={() => setGenderModalVisible(true)}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                selectedGender !== "All" && styles.filterButtonTextActive,
-              ]}
-            >
-              {selectedGender !== "All"
-                ? genderOptions.find((o) => o.value === selectedGender)?.label
-                : "Gender"}
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
+        {renderFilterControls()}
 
         <ScrollView contentContainerStyle={styles.contentContainerPadding}>
           <PropertyCardSkeleton />
@@ -517,6 +765,8 @@ export default function TenantHomePage({
         </View>
       )}
 
+      {renderFilterControls()}
+
       <FlatList
         data={filteredProperties}
         keyExtractor={(item) => String(item.id)}
@@ -557,6 +807,268 @@ export default function TenantHomePage({
         onMenuItemPress={handleMenuItemPress}
         isGuest={isGuest}
       />
+
+      <Modal
+        visible={mapModalVisible}
+        animationType="slide"
+        onRequestClose={() => setMapModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+          <View
+            style={{
+              height: 56,
+              backgroundColor: theme.colors.primary,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 16,
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>
+              Explore on Map
+            </Text>
+            <TouchableOpacity onPress={() => setMapModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {getExploreMapHTML() ? (
+            <WebView
+              originWhitelist={["*"]}
+              source={{ html: getExploreMapHTML() }}
+              onMessage={(event) => handleMapMarkerPress(event.nativeEvent.data)}
+              startInLoadingState
+              renderLoading={() => (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator size="large" color={theme.colors.primary} />
+                </View>
+              )}
+            />
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+              <Ionicons name="map-outline" size={52} color={theme.colors.textTertiary} />
+              <Text style={{ marginTop: 12, color: theme.colors.textSecondary, textAlign: 'center' }}>
+                No mappable properties found for the current filters.
+              </Text>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={filterModalVisible}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.centeredView}
+          activeOpacity={1}
+          onPressOut={() => setFilterModalVisible(false)}
+        >
+          <View
+            style={[styles.modalView, { width: '88%', padding: 20, alignItems: 'stretch' }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={styles.modalText}>Advanced Filters</Text>
+
+            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>
+              Minimum Price
+            </Text>
+            <TextInput
+              value={draftAdvancedFilters.minPrice}
+              onChangeText={(value) =>
+                setDraftAdvancedFilters((prev) => ({
+                  ...prev,
+                  minPrice: value.replace(/[^0-9]/g, ''),
+                }))
+              }
+              keyboardType="numeric"
+              placeholder="e.g. 2500"
+              placeholderTextColor={theme.colors.textTertiary}
+              style={{
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: theme.colors.text,
+                marginBottom: 12,
+                backgroundColor: theme.colors.backgroundSecondary,
+              }}
+            />
+
+            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>
+              Maximum Price
+            </Text>
+            <TextInput
+              value={draftAdvancedFilters.maxPrice}
+              onChangeText={(value) =>
+                setDraftAdvancedFilters((prev) => ({
+                  ...prev,
+                  maxPrice: value.replace(/[^0-9]/g, ''),
+                }))
+              }
+              keyboardType="numeric"
+              placeholder="e.g. 8000"
+              placeholderTextColor={theme.colors.textTertiary}
+              style={{
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: theme.colors.text,
+                marginBottom: 12,
+                backgroundColor: theme.colors.backgroundSecondary,
+              }}
+            />
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                marginBottom: 12,
+                backgroundColor: theme.colors.backgroundSecondary,
+              }}
+              onPress={() =>
+                setDraftAdvancedFilters((prev) => ({
+                  ...prev,
+                  availabilityOnly: !prev.availabilityOnly,
+                }))
+              }
+            >
+              <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Available Rooms Only</Text>
+              <Ionicons
+                name={draftAdvancedFilters.availabilityOnly ? 'checkbox' : 'square-outline'}
+                size={20}
+                color={draftAdvancedFilters.availabilityOnly ? theme.colors.primary : theme.colors.textTertiary}
+              />
+            </TouchableOpacity>
+
+            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
+              Minimum Rating
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+              {[0, 1, 2, 3, 4, 5].map((rating) => (
+                <TouchableOpacity
+                  key={rating}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor:
+                      Number(draftAdvancedFilters.minRating) === rating
+                        ? theme.colors.primary
+                        : theme.colors.backgroundSecondary,
+                    borderWidth: 1,
+                    borderColor:
+                      Number(draftAdvancedFilters.minRating) === rating
+                        ? theme.colors.primary
+                        : theme.colors.border,
+                  }}
+                  onPress={() =>
+                    setDraftAdvancedFilters((prev) => ({
+                      ...prev,
+                      minRating: rating,
+                    }))
+                  }
+                >
+                  <Text
+                    style={{
+                      color:
+                        Number(draftAdvancedFilters.minRating) === rating
+                          ? '#fff'
+                          : theme.colors.textSecondary,
+                      fontWeight: '700',
+                    }}
+                  >
+                    {rating}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {availableAmenities.length > 0 && (
+              <>
+                <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
+                  Amenities
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {availableAmenities.map((amenity) => {
+                    const isSelected = (draftAdvancedFilters.amenities || []).includes(amenity);
+                    return (
+                      <TouchableOpacity
+                        key={amenity}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          borderRadius: 999,
+                          borderWidth: 1,
+                          borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                          backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.backgroundSecondary,
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                        }}
+                        onPress={() => {
+                          setDraftAdvancedFilters((prev) => {
+                            const currentAmenities = prev.amenities || [];
+                            const nextAmenities = currentAmenities.includes(amenity)
+                              ? currentAmenities.filter((item) => item !== amenity)
+                              : [...currentAmenities, amenity];
+                            return { ...prev, amenities: nextAmenities };
+                          });
+                        }}
+                      >
+                        <Ionicons
+                          name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={14}
+                          color={isSelected ? theme.colors.primary : theme.colors.textTertiary}
+                        />
+                        <Text
+                          style={{
+                            color: isSelected ? theme.colors.primary : theme.colors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: isSelected ? '700' : '600',
+                          }}
+                        >
+                          {amenity}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity style={styles.modalButton} onPress={applyAdvancedFilters}>
+              <Text style={styles.modalButtonText}>Apply Filters</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modalButton,
+                {
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  borderWidth: 1,
+                  borderColor: theme.colors.primary,
+                },
+              ]}
+              onPress={clearAdvancedFilters}
+            >
+              <Text style={[styles.modalButtonText, { color: theme.colors.primary }]}>Reset Filters</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         animationType="slide"
