@@ -365,7 +365,7 @@ const TenantDashboard = () => {
 
 
       {/* ── High Priority Action Notification (Unpaid/Overdue Balance) ── */}
-      {!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices ? (
+      {!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices && unpaidBalance > 0 && (
         <div className="bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
           <div className="flex items-start md:items-center gap-4">
             <div className="bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">
@@ -394,7 +394,9 @@ const TenantDashboard = () => {
             </button>
           </div>
         </div>
-      ) : !dismissedNotifications.balanceDue && (
+      )}
+
+      {!dismissedNotifications.balanceDue && unpaidBalance > 0 && !stats?.payments?.hasOverdueInvoices && (
         <div className="bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/15 dark:to-[#1e2332] border border-amber-200 dark:border-amber-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
           <div className="flex items-start md:items-center gap-4">
             <div className="bg-amber-100 dark:bg-amber-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">

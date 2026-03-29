@@ -93,7 +93,7 @@ export const getStyles = (theme) => StyleSheet.create({
         borderBottomColor: theme.colors.border,
     },
     newConversation: {
-        backgroundColor: theme.isDark ? theme.colors.brand900 : '#E0F2F1', 
+        backgroundColor: theme.isDark ? '#4A1F1F' : '#FFEBEE', 
     },
     avatarContainer: {
         marginRight: 16,

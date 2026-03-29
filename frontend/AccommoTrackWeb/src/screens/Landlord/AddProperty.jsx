@@ -779,9 +779,23 @@ export default function AddProperty({ onBack, onSave }) {
 
                   {parseInt(formData.total_floors) > 1 && (
                     <div className="md:col-span-3">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Managed Floors (Select floors you manage)
-                      </label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Managed Floors (Select floors you manage)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const totalFloors = parseInt(formData.total_floors);
+                            const selectedFloors = (formData.floor_level || '').split(',').filter(f => f && !isNaN(f));
+                            const allSelected = selectedFloors.length === totalFloors;
+                            handleInputChange('floor_level', allSelected ? '' : Array.from({ length: totalFloors }, (_, i) => i + 1).join(','));
+                          }}
+                          className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium transition-colors"
+                        >
+                          {((formData.floor_level || '').split(',').filter(f => f && !isNaN(f)).length === parseInt(formData.total_floors)) ? 'Unselect All' : 'Select All'}
+                        </button>
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {Array.from({ length: parseInt(formData.total_floors) }, (_, i) => i + 1).map((floor) => (
                           <label

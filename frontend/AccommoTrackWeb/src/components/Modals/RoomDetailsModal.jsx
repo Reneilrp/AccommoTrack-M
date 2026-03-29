@@ -15,6 +15,7 @@ import {
 import toast from "react-hot-toast";
 import api, { getImageUrl } from "../../utils/api";
 import ImagePlaceholder from "../Shared/ImagePlaceholder";
+import ImageCarousel from "../Shared/ImageCarousel";
 import bookingServiceDefault from "../../services/bookingService";
 
 export default function RoomDetailsModal({
@@ -394,17 +395,13 @@ export default function RoomDetailsModal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* LEFT: Image */}
                   <div>
-                    <div className="aspect-[4/3] bg-gray-200 dark:bg-gray-700 rounded-2xl overflow-hidden relative shadow-sm group">
-                      {getImageUrl(room.images?.[0]) ? (
-                        <img
-                          src={getImageUrl(room.images?.[0])}
-                          alt={`Room ${room.room_number}`}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      ) : (
-                        <ImagePlaceholder className="w-full h-full" />
-                      )}
-                      <div className="absolute top-3 left-3">
+                    <div className="aspect-[4/3] bg-gray-200 dark:bg-gray-700 rounded-2xl overflow-hidden relative shadow-sm">
+                      <ImageCarousel
+                        images={room.images || []}
+                        alt={`Room ${room.room_number}`}
+                        className="w-full h-full"
+                      />
+                      <div className="absolute top-3 left-3 z-10">
                         {room.reserved_by_me ? (
                           <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
                             Reserved by you (Pending)
@@ -421,7 +418,7 @@ export default function RoomDetailsModal({
                         )}
                       </div>
                       {showGenderBadge && (
-                        <div className="absolute top-3 right-3">
+                        <div className="absolute top-3 right-3 z-10">
                           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${genderMeta.className}`}>
                              <Info className="w-3 h-3" />
                              <span>{genderMeta.label}</span>

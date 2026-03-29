@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { navigationRef, navigate as rootNavigate } from '../../../navigation/RootNavigation.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../styles/Tenant/HomePage.js';
@@ -13,6 +14,21 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+
+  // Poll for unread count
+  React.useEffect(() => {
+    const checkUnreadCount = async () => {
+      try {
+        const count = await AsyncStorage.getItem('messages_unread_count');
+        setUnreadCount(parseInt(count || '0', 10));
+      } catch (e) {}
+    };
+    
+    checkUnreadCount();
+    const interval = setInterval(checkUnreadCount, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Determine current route name. Prefer propRouteName (provided by layout),
   // otherwise fall back to navigationRef (safe outside navigator hooks).
@@ -116,11 +132,37 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
                   onPress={() => handleTabPress(tab)}
                   disabled={isNavigating}
                 >
-                  <Ionicons
-                    name={isTabActive ? tab.icon : `${tab.icon}-outline`}
-                    size={24}
-                    color={isTabActive ? theme.colors.primary : theme.colors.textTertiary}
-                  />
+                  <View>
+                    <Ionicons
+                      name={isTabActive ? tab.icon : `${tab.icon}-outline`}
+                      size={24}
+                      color={isTabActive ? theme.colors.primary : theme.colors.textTertiary}
+                    />
+                    {tab.id === 'Messages' && unreadCount > 0 && (
+                      <View style={{
+                        position: 'absolute',
+                        right: -6,
+                        top: -3,
+                        backgroundColor: '#EF4444',
+                        borderRadius: 10,
+                        minWidth: 20,
+                        height: 20,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        paddingHorizontal: 4,
+                        borderWidth: 2,
+                        borderColor: theme.colors.surface,
+                      }}>
+                        <Text style={{
+                          color: '#FFFFFF',
+                          fontSize: 10,
+                          fontWeight: '700',
+                        }}>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text
                     style={[
                       styles.tabLabel,

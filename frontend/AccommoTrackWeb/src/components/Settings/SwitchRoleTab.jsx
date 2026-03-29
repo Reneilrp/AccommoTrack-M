@@ -12,6 +12,9 @@ export default function SwitchRoleTab({ user: userProp }) {
   const [loading, setLoading] = useState(true);
   const [isSwitching, setIsSwitching] = useState(false);
 
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState({ title: '', message: '', targetRole: null });
+  const [hasShownApprovalMessage, setHasShownApprovalMessage] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [isSubmittingRegistration, setIsSubmittingRegistration] = useState(false);
   const [idTypes, setIdTypes] = useState([]);
@@ -142,15 +145,26 @@ export default function SwitchRoleTab({ user: userProp }) {
 
   const handleSwitchRole = async () => {
     if (currentRole === 'landlord') {
-      if (window.confirm('Are you sure you want to switch to Tenant mode?')) {
-        await performRoleSwitch('tenant');
-      }
+      setConfirmModalConfig({
+        title: 'Switch to Tenant Mode',
+        message: 'Are you sure you want to switch to Tenant mode?',
+        targetRole: 'tenant',
+      });
+      setShowConfirmModal(true);
       return;
     }
 
     if (verificationStatus === 'approved') {
-      if (window.confirm('Your landlord registration is approved. Switch to Landlord mode now?')) {
-        await performRoleSwitch('landlord');
+      setConfirmModalConfig({
+        title: 'Switch to Landlord Mode',
+        message: hasShownApprovalMessage 
+          ? 'Are you sure you want to switch to Landlord mode?'
+          : 'Your landlord registration is approved. Switch to Landlord mode now?',
+        targetRole: 'landlord',
+      });
+      setShowConfirmModal(true);
+      if (!hasShownApprovalMessage) {
+        setHasShownApprovalMessage(true);
       }
       return;
     }
@@ -290,6 +304,13 @@ export default function SwitchRoleTab({ user: userProp }) {
 
   const verificationInfo = getVerificationInfo();
 
+  const handleConfirmSwitch = async () => {
+    setShowConfirmModal(false);
+    if (confirmModalConfig.targetRole) {
+      await performRoleSwitch(confirmModalConfig.targetRole);
+    }
+  };
+
   return (
     <>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-all">
@@ -329,6 +350,40 @@ export default function SwitchRoleTab({ user: userProp }) {
           </div>
         </div>
       </div>
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1200]">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full mx-auto mb-4">
+              <ArrowLeftRight className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-2">
+              {confirmModalConfig.title}
+            </h3>
+
+            <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
+              {confirmModalConfig.message}
+            </p>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSwitch}
+                disabled={isSwitching}
+                className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400"
+              >
+                {isSwitching ? 'Switching...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showRegistrationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">

@@ -58,7 +58,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     const alternatePrice = billingPolicy === 'daily' ? monthlyRate : dailyRate;
     
     const roomType = getRoomTypeLabel(room);
-    const displayName = room.room_number ? `${room.room_number} - ${roomType}` : roomType;
+    const displayName = room.room_number ? `${roomType} - ${room.room_number}` : roomType;
 
     return {
       ...room,

@@ -71,6 +71,7 @@ export default function LandlordBottomNavigation({ onLogout }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [user, setUser] = React.useState(null);
+  const [unreadCount, setUnreadCount] = React.useState(0);
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -82,6 +83,20 @@ export default function LandlordBottomNavigation({ onLogout }) {
       } catch (e) {}
     };
     loadUser();
+  }, []);
+
+  // Poll for unread count
+  React.useEffect(() => {
+    const checkUnreadCount = async () => {
+      try {
+        const count = await AsyncStorage.getItem('messages_unread_count');
+        setUnreadCount(parseInt(count || '0', 10));
+      } catch (e) {}
+    };
+    
+    checkUnreadCount();
+    const interval = setInterval(checkUnreadCount, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   const isCaretaker = user?.role === 'caretaker';
@@ -141,7 +156,35 @@ export default function LandlordBottomNavigation({ onLogout }) {
               return <Ionicons name="calendar" size={28} color="#FFFFFF" />;
             }
             const iconName = tabInfo?.icon ? tabInfo.icon(focused) : 'help-outline';
-            return <Ionicons name={iconName} size={size} color={color} />;
+            return (
+              <View>
+                <Ionicons name={iconName} size={size} color={color} />
+                {route.name === 'Messages' && unreadCount > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    right: -6,
+                    top: -3,
+                    backgroundColor: '#EF4444',
+                    borderRadius: 10,
+                    minWidth: 20,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    paddingHorizontal: 4,
+                    borderWidth: 2,
+                    borderColor: theme.colors.surface,
+                  }}>
+                    <Text style={{
+                      color: '#FFFFFF',
+                      fontSize: 10,
+                      fontWeight: '700',
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
           },
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.textTertiary,

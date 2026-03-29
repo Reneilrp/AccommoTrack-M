@@ -18,12 +18,10 @@ const PreferencesTab = () => {
     attitude: "",
     behavior: "",
     lifestyle_notes: "",
-    // Canonical string 'yes'/'no' — matches mobile
-    smoking: "no",
-    pets: "no",
-    quiet: "no",
-    cooking: "no",
+    custom_preferences: [],
   });
+
+  const [newPreference, setNewPreference] = useState("");
 
   useEffect(() => {
     if (cachedProfile) {
@@ -49,16 +47,7 @@ const PreferencesTab = () => {
       attitude: prefs.attitude || "",
       behavior: prefs.behavior || "",
       lifestyle_notes: prefs.lifestyle_notes || prefs.lifestyle || "",
-      // Canonical 'yes'/'no'; fall back from old boolean web keys already in DB
-      smoking:
-        prefs.smoking ||
-        (prefs.no_smoking ? "yes" : prefs.no_smoke ? "yes" : "no"),
-      pets:
-        prefs.pets || (prefs.pet_friendly ? "yes" : prefs.pet ? "yes" : "no"),
-      quiet:
-        prefs.quiet ||
-        (prefs.quiet_environment ? "yes" : prefs.quiet_env ? "yes" : "no"),
-      cooking: prefs.cooking || (prefs.cooking_allowed ? "yes" : "no"),
+      custom_preferences: Array.isArray(prefs.custom_preferences) ? prefs.custom_preferences : [],
     });
   };
 
@@ -82,12 +71,29 @@ const PreferencesTab = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleToggle = (name) => {
+  const addCustomPreference = () => {
+    if (newPreference.trim() && isEditing) {
+      setFormData((prev) => ({
+        ...prev,
+        custom_preferences: [...prev.custom_preferences, newPreference.trim()],
+      }));
+      setNewPreference("");
+    }
+  };
+
+  const removeCustomPreference = (index) => {
     if (!isEditing) return;
     setFormData((prev) => ({
       ...prev,
-      [name]: prev[name] === "yes" ? "no" : "yes",
+      custom_preferences: prev.custom_preferences.filter((_, i) => i !== index),
     }));
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addCustomPreference();
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -102,10 +108,7 @@ const PreferencesTab = () => {
       data.append("preference[attitude]", formData.attitude);
       data.append("preference[behavior]", formData.behavior);
       data.append("preference[lifestyle_notes]", formData.lifestyle_notes);
-      data.append("preference[smoking]", formData.smoking);
-      data.append("preference[pets]", formData.pets);
-      data.append("preference[quiet]", formData.quiet);
-      data.append("preference[cooking]", formData.cooking);
+      data.append("preference[custom_preferences]", JSON.stringify(formData.custom_preferences));
 
       await tenantService.updateProfile(data);
       setMessage({
@@ -259,105 +262,51 @@ const PreferencesTab = () => {
             Lifestyle Preferences
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Choose your living preferences to help landlords match you better.
+            Add your own lifestyle preferences (e.g., "No smoking", "Pet friendly", "Quiet hours after 10pm")
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Quiet Environment */}
-            <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  Quiet Environment
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  I prefer a peaceful place
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleToggle("quiet")}
-                disabled={!isEditing}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${!isEditing ? "cursor-not-allowed opacity-50" : "cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 dark:focus:ring-offset-gray-800"} ${formData.quiet === "yes" ? "bg-green-600" : "bg-gray-200 dark:bg-gray-700"}`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    formData.quiet === "yes" ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newPreference}
+              onChange={(e) => setNewPreference(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={!isEditing}
+              placeholder="Type a preference..."
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+            />
+            <button
+              type="button"
+              onClick={addCustomPreference}
+              disabled={!isEditing || !newPreference.trim()}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
 
-            {/* Pet Friendly */}
-            <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  Pet Friendly
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  I have or plan to have pets
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleToggle("pets")}
-                disabled={!isEditing}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${!isEditing ? "cursor-not-allowed opacity-50" : "cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 dark:focus:ring-offset-gray-800"} ${formData.pets === "yes" ? "bg-green-600" : "bg-gray-200 dark:bg-gray-700"}`}
+          <div className="flex flex-wrap gap-2">
+            {formData.custom_preferences.map((pref, index) => (
+              <div
+                key={index}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-full text-sm text-green-700 dark:text-green-300"
               >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    formData.pets === "yes" ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* No Smoking */}
-            <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  No Smoking
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  I prefer smoke-free areas
-                </p>
+                <span>{pref}</span>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => removeCustomPreference(index)}
+                    className="hover:text-green-900 dark:hover:text-green-100 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => handleToggle("smoking")}
-                disabled={!isEditing}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${!isEditing ? "cursor-not-allowed opacity-50" : "cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 dark:focus:ring-offset-gray-800"} ${formData.smoking === "yes" ? "bg-green-600" : "bg-gray-200 dark:bg-gray-700"}`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    formData.smoking === "yes" ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Cooking Allowed */}
-            <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  Cooking Allowed
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  I like to cook my own meals
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleToggle("cooking")}
-                disabled={!isEditing}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${!isEditing ? "cursor-not-allowed opacity-50" : "cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 dark:focus:ring-offset-gray-800"} ${formData.cooking === "yes" ? "bg-green-600" : "bg-gray-200 dark:bg-gray-700"}`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    formData.cooking === "yes" ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
+            ))}
           </div>
         </div>
 

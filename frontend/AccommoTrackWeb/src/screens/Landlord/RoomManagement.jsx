@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   Loader2,
   RefreshCw,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export default function RoomManagement() {
@@ -79,6 +81,9 @@ export default function RoomManagement() {
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [editPreviewImages, setEditPreviewImages] = useState([]);
+  const [editNewImages, setEditNewImages] = useState([]);
+  const [editImagesToDelete, setEditImagesToDelete] = useState([]);
 
   // Load property-level rules and amenities when edit modal opens
   useEffect(() => {
@@ -243,8 +248,12 @@ export default function RoomManagement() {
       minStayDays: room.min_stay_days || 1,
       require1MonthAdvance: room.require_1month_advance || false,
       amenities: room.amenities || [],
-      rules: room.rules || []
+      rules: room.rules || [],
+      images: room.images || []
     });
+    setEditPreviewImages(room.images || []);
+    setEditNewImages([]);
+    setEditImagesToDelete([]);
     setShowEditModal(true);
     setError(null);
   };
@@ -257,6 +266,60 @@ export default function RoomManagement() {
     if (j === 3 && k !== 13) return "rd";
     return "th";
   }
+
+  const handleEditImageUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+
+    const validatedFiles = [];
+    for (const f of files) {
+      if (!allowedTypes.includes(f.type)) {
+        toast.error(`${f.name}: unsupported file type`);
+        continue;
+      }
+      if (f.size > MAX_SIZE) {
+        toast.error(`${f.name}: file too large (max 10 MB)`);
+        continue;
+      }
+      validatedFiles.push(f);
+    }
+
+    const totalImages = editPreviewImages.length + validatedFiles.length;
+    if (totalImages > 10) {
+      toast.error('Maximum 10 images allowed');
+      return;
+    }
+
+    const newPreviews = validatedFiles.map(f => URL.createObjectURL(f));
+    setEditPreviewImages(prev => [...prev, ...newPreviews]);
+    setEditNewImages(prev => [...prev, ...validatedFiles]);
+  };
+
+  const handleRemoveEditImage = (index) => {
+    const imageToRemove = editPreviewImages[index];
+    
+    // Check if it's an existing image (string URL) or new image (blob URL)
+    if (typeof imageToRemove === 'string' && !imageToRemove.startsWith('blob:')) {
+      // Existing image - mark for deletion
+      setEditImagesToDelete(prev => [...prev, imageToRemove]);
+    } else {
+      // New image - just remove from new images array
+      const blobIndex = editPreviewImages.slice(0, index).filter(img => 
+        typeof img === 'string' && img.startsWith('blob:')
+      ).length;
+      setEditNewImages(prev => prev.filter((_, i) => i !== blobIndex));
+      
+      // Revoke blob URL
+      if (typeof imageToRemove === 'string' && imageToRemove.startsWith('blob:')) {
+        URL.revokeObjectURL(imageToRemove);
+      }
+    }
+    
+    setEditPreviewImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   // Update Room
   const handleUpdateRoom = async () => {
@@ -275,31 +338,57 @@ export default function RoomManagement() {
 
       const floorNumber = parseInt(selectedRoom.floor.match(/\d+/)[0]);
 
-      const updateData = {
-        room_number: selectedRoom.roomNumber,
-        room_type: roomTypeMap[selectedRoom.type] || 'single',
-        gender_restriction: isGenderRestricted ? selectedRoom.genderRestriction : 'mixed',
-        floor: floorNumber,
-        monthly_rate: parseFloat(selectedRoom.price),
-        // include optional short-stay pricing fields
-        daily_rate: selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '' ? parseFloat(selectedRoom.dailyRate) : null,
-        billing_policy: selectedRoom.billingPolicy || null,
-        pricing_model: selectedRoom.pricingModel || 'full_room',
-        require_1month_advance: selectedRoom.require1MonthAdvance ? 1 : 0,
-        min_stay_days: parseInt(selectedRoom.minStayDays) || 1,
-        capacity: parseInt(selectedRoom.capacity),
-        status: selectedRoom.status,
-        description: selectedRoom.description || null,
-        amenities: selectedRoom.amenities || [],
-        rules: selectedRoom.rules || []
-      };
+      const updateData = new FormData();
+      updateData.append('room_number', selectedRoom.roomNumber);
+      updateData.append('room_type', roomTypeMap[selectedRoom.type] || 'single');
+      updateData.append('gender_restriction', isGenderRestricted ? selectedRoom.genderRestriction : 'mixed');
+      updateData.append('floor', floorNumber);
+      updateData.append('monthly_rate', parseFloat(selectedRoom.price));
+      
+      if (selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '') {
+        updateData.append('daily_rate', parseFloat(selectedRoom.dailyRate));
+      }
+      if (selectedRoom.billingPolicy) {
+        updateData.append('billing_policy', selectedRoom.billingPolicy);
+      }
+      updateData.append('pricing_model', selectedRoom.pricingModel || 'full_room');
+      updateData.append('require_1month_advance', selectedRoom.require1MonthAdvance ? 1 : 0);
+      updateData.append('min_stay_days', parseInt(selectedRoom.minStayDays) || 1);
+      updateData.append('capacity', parseInt(selectedRoom.capacity));
+      updateData.append('status', selectedRoom.status);
+      if (selectedRoom.description) {
+        updateData.append('description', selectedRoom.description);
+      }
+      
+      // Append amenities and rules
+      (selectedRoom.amenities || []).forEach((amenity, idx) => {
+        updateData.append(`amenities[${idx}]`, amenity);
+      });
+      (selectedRoom.rules || []).forEach((rule, idx) => {
+        updateData.append(`rules[${idx}]`, rule);
+      });
+      
+      // Append new images
+      editNewImages.forEach(file => {
+        updateData.append('images[]', file);
+      });
+      
+      // Append images to delete
+      editImagesToDelete.forEach(img => {
+        updateData.append('delete_images[]', img);
+      });
 
-      const __response = await api.put(`/landlord/rooms/${selectedRoom.id}`, updateData);
-      // axios throws on non-2xx so no manual ok check needed
+      await api.post(`/landlord/rooms/${selectedRoom.id}`, updateData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: { _method: 'PUT' }
+      });
 
       await fetchRooms();
       setShowEditModal(false);
       setSelectedRoom(null);
+      setEditPreviewImages([]);
+      setEditNewImages([]);
+      setEditImagesToDelete([]);
       toast.success('Room updated successfully');
     } catch (error) {
       console.error('Failed to update room:', error);
@@ -684,7 +773,21 @@ export default function RoomManagement() {
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between bg-gray-50 dark:bg-gray-700/30">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Room {selectedRoom.roomNumber}</h2>
               <button
-                onClick={() => { setShowEditModal(false); setSelectedRoom(null); setError(null); setFieldErrors({}); }}
+                onClick={() => { 
+                  // Clean up blob URLs
+                  editPreviewImages.forEach(img => {
+                    if (typeof img === 'string' && img.startsWith('blob:')) {
+                      URL.revokeObjectURL(img);
+                    }
+                  });
+                  setShowEditModal(false); 
+                  setSelectedRoom(null); 
+                  setError(null); 
+                  setFieldErrors({}); 
+                  setEditPreviewImages([]);
+                  setEditNewImages([]);
+                  setEditImagesToDelete([]);
+                }}
                 className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 aria-label="Close edit"
               >
@@ -957,6 +1060,57 @@ export default function RoomManagement() {
                 </div>
               </div>
 
+              {/* Room Images Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Room Images
+                </label>
+                
+                {/* Image Preview Grid */}
+                {editPreviewImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    {editPreviewImages.map((img, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-600 group">
+                        <img
+                          src={typeof img === 'string' && img.startsWith('blob:') ? img : getImageUrl(img)}
+                          alt={`Room preview ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEditImage(idx)}
+                          className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload Button */}
+                {editPreviewImages.length < 10 && (
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-green-500 dark:hover:border-green-500 transition-colors bg-gray-50 dark:bg-gray-700/30">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        PNG, JPG (max 10MB, {editPreviewImages.length}/10)
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/jpg"
+                      onChange={handleEditImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
               {/* Amenities Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Amenities</label>
@@ -1006,9 +1160,18 @@ export default function RoomManagement() {
               <div className="flex gap-4">
                 <button
                   onClick={() => {
+                    // Clean up blob URLs
+                    editPreviewImages.forEach(img => {
+                      if (typeof img === 'string' && img.startsWith('blob:')) {
+                        URL.revokeObjectURL(img);
+                      }
+                    });
                     setShowEditModal(false);
                     setSelectedRoom(null);
                     setError(null);
+                    setEditPreviewImages([]);
+                    setEditNewImages([]);
+                    setEditImagesToDelete([]);
                   }}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
                 >

@@ -7,9 +7,9 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Switch,
   StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
@@ -23,13 +23,20 @@ const DEFAULT_FORM = {
   attitude: '',
   behavior: '',
   lifestyle_notes: '',
-  smoking: 'no',
-  pets: 'no',
-  quiet: 'no',
-  cooking: 'no',
+  custom_preferences: [],
+  cleanliness_level: 'moderate',
+  noise_tolerance: 'moderate',
+  guest_policy: 'occasional',
+  sleep_schedule: 'regular',
+  work_study_hours: 'flexible',
 };
 
 const ROOM_OPTIONS = ['Solo', 'Shared', 'Any'];
+const CLEANLINESS_OPTIONS = ['Very Clean', 'Moderate', 'Relaxed'];
+const NOISE_OPTIONS = ['Very Quiet', 'Moderate', 'Tolerant'];
+const GUEST_OPTIONS = ['No Guests', 'Occasional', 'Frequent'];
+const SLEEP_OPTIONS = ['Early Bird', 'Regular', 'Night Owl'];
+const WORK_STUDY_OPTIONS = ['Morning', 'Afternoon', 'Evening', 'Flexible'];
 
 const normalizePreference = (rawPreference) => {
   if (!rawPreference) return { ...DEFAULT_FORM };
@@ -49,10 +56,12 @@ const normalizePreference = (rawPreference) => {
     attitude: pref.attitude || '',
     behavior: pref.behavior || '',
     lifestyle_notes: pref.lifestyle_notes || pref.lifestyle || '',
-    smoking: pref.smoking || (pref.no_smoking || pref.no_smoke ? 'yes' : 'no'),
-    pets: pref.pets || (pref.pet_friendly || pref.pet ? 'yes' : 'no'),
-    quiet: pref.quiet || (pref.quiet_environment || pref.quiet_env ? 'yes' : 'no'),
-    cooking: pref.cooking || (pref.cooking_allowed ? 'yes' : 'no'),
+    custom_preferences: Array.isArray(pref.custom_preferences) ? pref.custom_preferences : [],
+    cleanliness_level: pref.cleanliness_level || 'moderate',
+    noise_tolerance: pref.noise_tolerance || 'moderate',
+    guest_policy: pref.guest_policy || 'occasional',
+    sleep_schedule: pref.sleep_schedule || 'regular',
+    work_study_hours: pref.work_study_hours || 'flexible',
   };
 };
 
@@ -64,6 +73,7 @@ export default function PreferencesLifestyle() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ ...DEFAULT_FORM });
+  const [newPreference, setNewPreference] = useState('');
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -92,10 +102,20 @@ export default function PreferencesLifestyle() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const toggleYesNo = (field) => {
+  const addCustomPreference = () => {
+    if (newPreference.trim()) {
+      setForm((prev) => ({
+        ...prev,
+        custom_preferences: [...prev.custom_preferences, newPreference.trim()],
+      }));
+      setNewPreference('');
+    }
+  };
+
+  const removeCustomPreference = (index) => {
     setForm((prev) => ({
       ...prev,
-      [field]: prev[field] === 'yes' ? 'no' : 'yes',
+      custom_preferences: prev.custom_preferences.filter((_, i) => i !== index),
     }));
   };
 
@@ -110,10 +130,12 @@ export default function PreferencesLifestyle() {
           attitude: form.attitude,
           behavior: form.behavior,
           lifestyle_notes: form.lifestyle_notes,
-          smoking: form.smoking,
-          pets: form.pets,
-          quiet: form.quiet,
-          cooking: form.cooking,
+          custom_preferences: form.custom_preferences,
+          cleanliness_level: form.cleanliness_level,
+          noise_tolerance: form.noise_tolerance,
+          guest_policy: form.guest_policy,
+          sleep_schedule: form.sleep_schedule,
+          work_study_hours: form.work_study_hours,
         },
       };
 
@@ -235,23 +257,169 @@ export default function PreferencesLifestyle() {
 
         <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Living Preferences</Text>
+          <Text style={[styles.helperText, { color: theme.colors.textSecondary }]}>
+            Add your own lifestyle preferences (e.g., "No smoking", "Pet friendly", "Quiet hours after 10pm")
+          </Text>
 
-          {[
-            { key: 'smoking', label: 'Smoking allowed' },
-            { key: 'pets', label: 'Pets allowed' },
-            { key: 'quiet', label: 'Prefers quiet environment' },
-            { key: 'cooking', label: 'Cooking allowed' },
-          ].map((item) => (
-            <View key={item.key} style={[styles.switchRow, { borderBottomColor: theme.colors.borderLight }]}> 
-              <Text style={{ color: theme.colors.text, flex: 1 }}>{item.label}</Text>
-              <Switch
-                value={form[item.key] === 'yes'}
-                onValueChange={() => toggleYesNo(item.key)}
-                trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
-                thumbColor={form[item.key] === 'yes' ? theme.colors.primary : '#F3F4F6'}
-              />
-            </View>
-          ))}
+          <View style={styles.addPreferenceRow}>
+            <TextInput
+              value={newPreference}
+              onChangeText={setNewPreference}
+              style={[styles.addInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
+              placeholder="Type a preference..."
+              placeholderTextColor={theme.colors.textTertiary}
+              onSubmitEditing={addCustomPreference}
+            />
+            <TouchableOpacity
+              style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+              onPress={addCustomPreference}
+            >
+              <Ionicons name="add" size={24} color={theme.colors.textInverse} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.preferencesContainer}>
+            {form.custom_preferences.map((pref, index) => (
+              <View
+                key={index}
+                style={[styles.preferenceChip, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+              >
+                <Text style={[styles.preferenceText, { color: theme.colors.text }]}>{pref}</Text>
+                <TouchableOpacity onPress={() => removeCustomPreference(index)}>
+                  <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Lifestyle Habits</Text>
+
+          <Text style={[styles.label, { color: theme.colors.text }]}>Cleanliness Level</Text>
+          <View style={styles.optionRow}>
+            {CLEANLINESS_OPTIONS.map((option) => {
+              const value = option.toLowerCase().replace(' ', '_');
+              const selected = form.cleanliness_level === value;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.optionChip,
+                    {
+                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
+                      borderColor: selected ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setField('cleanliness_level', value)}
+                >
+                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.label, { color: theme.colors.text }]}>Noise Tolerance</Text>
+          <View style={styles.optionRow}>
+            {NOISE_OPTIONS.map((option) => {
+              const value = option.toLowerCase().replace(' ', '_');
+              const selected = form.noise_tolerance === value;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.optionChip,
+                    {
+                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
+                      borderColor: selected ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setField('noise_tolerance', value)}
+                >
+                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.label, { color: theme.colors.text }]}>Guest Policy</Text>
+          <View style={styles.optionRow}>
+            {GUEST_OPTIONS.map((option) => {
+              const value = option.toLowerCase().replace(' ', '_');
+              const selected = form.guest_policy === value;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.optionChip,
+                    {
+                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
+                      borderColor: selected ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setField('guest_policy', value)}
+                >
+                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.label, { color: theme.colors.text }]}>Sleep Schedule</Text>
+          <View style={styles.optionRow}>
+            {SLEEP_OPTIONS.map((option) => {
+              const value = option.toLowerCase().replace(' ', '_');
+              const selected = form.sleep_schedule === value;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.optionChip,
+                    {
+                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
+                      borderColor: selected ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setField('sleep_schedule', value)}
+                >
+                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.label, { color: theme.colors.text }]}>Work/Study Hours</Text>
+          <View style={styles.optionRow}>
+            {WORK_STUDY_OPTIONS.map((option) => {
+              const value = option.toLowerCase();
+              const selected = form.work_study_hours === value;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.optionChip,
+                    {
+                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
+                      borderColor: selected ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setField('work_study_hours', value)}
+                >
+                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         <TouchableOpacity
@@ -326,6 +494,48 @@ const getStyles = () =>
       alignItems: 'center',
       paddingVertical: 16,
       borderBottomWidth: 1,
+    },
+    helperText: {
+      fontSize: 13,
+      marginBottom: 12,
+      lineHeight: 18,
+    },
+    addPreferenceRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 16,
+    },
+    addInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      fontSize: 14,
+    },
+    addButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    preferencesContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    preferenceChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    preferenceText: {
+      fontSize: 14,
     },
     saveButton: {
       borderRadius: 12,

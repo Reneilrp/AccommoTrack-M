@@ -36,6 +36,16 @@ export default function MessagesPage({ navigation, route }) {
         }
     });
 
+    // Calculate total unread count
+    const totalUnreadCount = useMemo(() => {
+        return conversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
+    }, [conversations]);
+
+    // Store unread count in AsyncStorage for bottom navigation
+    useEffect(() => {
+        AsyncStorage.setItem('messages_unread_count', totalUnreadCount.toString());
+    }, [totalUnreadCount]);
+
     // Start conversation mutation
     const startConversationMutation = useMutation({
         mutationFn: (payload) => MessageService.startConversation(payload),
