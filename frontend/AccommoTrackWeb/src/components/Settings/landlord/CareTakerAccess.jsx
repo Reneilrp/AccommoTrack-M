@@ -347,7 +347,7 @@ export default function CareTakerAccess({
       return;
     }
 
-    if (safeSelectedIds.length === 0) {
+    if (safeProperties.length > 0 && safeSelectedIds.length === 0) {
       toast.error("Please assign a property to the caretaker");
       setPropertyError(true);
       return;
@@ -951,7 +951,7 @@ export default function CareTakerAccess({
       {/* Permission Modal */}
       {roomPermissionPrompt && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 text-center space-y-4">
               <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="w-10 h-10 text-amber-600 dark:text-amber-400" />

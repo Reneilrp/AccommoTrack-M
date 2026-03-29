@@ -315,7 +315,7 @@ const LandlordRegister = () => {
       }
       
       if (!form.validId) {
-        errors.validId = 'Please upload a copy of your valid ID';
+        errors.validId = 'Please upload your valid ID';
       }
       if (!form.permit) {
         errors.permit = 'Please upload your accommodation or business permit';

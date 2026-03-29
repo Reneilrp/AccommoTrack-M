@@ -8,6 +8,7 @@ use App\Models\CaretakerAssignment;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -76,6 +77,7 @@ class CaretakerController extends Controller
             'last_name' => 'required|string|max:100',
             'email' => 'required|email|max:255|unique:users,email',
             'phone' => 'nullable|string|max:20',
+            'date_of_birth' => 'nullable|date',
             'password' => 'nullable|string|min:8|confirmed',
             'permissions.can_view_bookings' => 'sometimes|boolean',
             'permissions.can_view_messages' => 'sometimes|boolean',
@@ -92,57 +94,74 @@ class CaretakerController extends Controller
 
         $temporaryPassword = $validated['password'] ?? Str::random(12);
 
-        $caretaker = User::create([
-            'first_name' => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name' => $validated['last_name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-            'password' => Hash::make($temporaryPassword),
-            'role' => 'caretaker',
-            'is_verified' => true,
-            'is_active' => true,
-        ]);
+        $created = DB::transaction(function () use ($validated, $context, $temporaryPassword) {
+            $caretaker = User::create([
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'password' => Hash::make($temporaryPassword),
+                'role' => 'caretaker',
+                'is_verified' => true,
+                'is_active' => true,
+            ]);
 
-        $permissions = [
-            'can_view_bookings' => data_get($validated, 'permissions.can_view_bookings', true),
-            'can_view_messages' => data_get($validated, 'permissions.can_view_messages', true),
-            'can_view_tenants' => data_get($validated, 'permissions.can_view_tenants', true),
-            'can_view_rooms' => data_get($validated, 'permissions.can_view_rooms', false),
-            'can_view_properties' => data_get($validated, 'permissions.can_view_properties', false),
-            'can_manage_maintenance' => data_get($validated, 'permissions.can_manage_maintenance', false),
-            'can_manage_payments' => data_get($validated, 'permissions.can_manage_payments', false),
-        ];
+            $permissions = [
+                'can_view_bookings' => data_get($validated, 'permissions.can_view_bookings', true),
+                'can_view_messages' => data_get($validated, 'permissions.can_view_messages', true),
+                'can_view_tenants' => data_get($validated, 'permissions.can_view_tenants', true),
+                'can_view_rooms' => data_get($validated, 'permissions.can_view_rooms', false),
+                'can_view_properties' => data_get($validated, 'permissions.can_view_properties', false),
+                'can_manage_maintenance' => data_get($validated, 'permissions.can_manage_maintenance', false),
+                'can_manage_payments' => data_get($validated, 'permissions.can_manage_payments', false),
+            ];
 
-        $assignment = CaretakerAssignment::create(array_merge(
-            [
-                'landlord_id' => $context['landlord_id'],
-                'caretaker_id' => $caretaker->id,
-            ],
-            $permissions
-        ));
+            $assignment = CaretakerAssignment::create(array_merge(
+                [
+                    'landlord_id' => $context['landlord_id'],
+                    'caretaker_id' => $caretaker->id,
+                ],
+                $permissions
+            ));
 
-        // Assign properties if provided
-        if (! empty($validated['property_ids'])) {
-            $assignment->syncProperties($validated['property_ids']);
-        }
+            if (! empty($validated['property_ids'])) {
+                $assignment->syncProperties($validated['property_ids']);
+            }
 
-        $assignment->load('properties:id,title');
+            $assignment->load('properties:id,title');
+
+            return [
+                'caretaker' => $caretaker,
+                'assignment' => $assignment,
+                'permissions' => $permissions,
+            ];
+        });
+
+        $caretaker = $created['caretaker'];
+        $assignment = $created['assignment'];
+        $permissions = $created['permissions'];
 
         return response()->json([
             'message' => 'Caretaker access created successfully.',
             'caretaker' => [
                 'assignment_id' => $assignment->id,
+                'id' => $caretaker->id,
                 'first_name' => $caretaker->first_name,
+                'middle_name' => $caretaker->middle_name,
                 'last_name' => $caretaker->last_name,
                 'email' => $caretaker->email,
                 'phone' => $caretaker->phone,
+                'date_of_birth' => $caretaker->date_of_birth,
                 'permissions' => [
                     'bookings' => $permissions['can_view_bookings'],
                     'messages' => $permissions['can_view_messages'],
                     'tenants' => $permissions['can_view_tenants'],
                     'rooms' => $permissions['can_view_rooms'],
                     'properties' => $permissions['can_view_properties'],
+                    'maintenance' => $permissions['can_manage_maintenance'],
+                    'payments' => $permissions['can_manage_payments'],
                 ],
                 'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,

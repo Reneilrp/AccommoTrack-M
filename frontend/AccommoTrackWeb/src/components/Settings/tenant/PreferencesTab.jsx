@@ -273,22 +273,18 @@ const PreferencesTab = () => {
                   I prefer a peaceful place
                 </p>
               </div>
-              <div>
-                <label
-                  className={`relative inline-flex items-center cursor-pointer ${!isEditing ? "opacity-50 pointer-events-none" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={formData.quiet === "yes"}
-                    onChange={() => handleToggle("quiet")}
-                    disabled={!isEditing}
-                  />
-                  <span
-                    className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.quiet === "yes" ? "bg-green-600" : ""}`}
-                  ></span>
-                </label>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleToggle("quiet")}
+                disabled={!isEditing}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${!isEditing ? "cursor-not-allowed opacity-50" : "cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 dark:focus:ring-offset-gray-800"} ${formData.quiet === "yes" ? "bg-green-600" : "bg-gray-200 dark:bg-gray-700"}`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    formData.quiet === "yes" ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
 
             {/* Pet Friendly */}
@@ -301,22 +297,18 @@ const PreferencesTab = () => {
                   I have or plan to have pets
                 </p>
               </div>
-              <div>
-                <label
-                  className={`relative inline-flex items-center cursor-pointer ${!isEditing ? "opacity-50 pointer-events-none" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={formData.pets === "yes"}
-                    onChange={() => handleToggle("pets")}
-                    disabled={!isEditing}
-                  />
-                  <span
-                    className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.pets === "yes" ? "bg-green-600" : ""}`}
-                  ></span>
-                </label>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleToggle("pets")}
+                disabled={!isEditing}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${!isEditing ? "cursor-not-allowed opacity-50" : "cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 dark:focus:ring-offset-gray-800"} ${formData.pets === "yes" ? "bg-green-600" : "bg-gray-200 dark:bg-gray-700"}`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    formData.pets === "yes" ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
 
             {/* No Smoking */}
@@ -329,22 +321,18 @@ const PreferencesTab = () => {
                   I prefer smoke-free areas
                 </p>
               </div>
-              <div>
-                <label
-                  className={`relative inline-flex items-center cursor-pointer ${!isEditing ? "opacity-50 pointer-events-none" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={formData.smoking === "yes"}
-                    onChange={() => handleToggle("smoking")}
-                    disabled={!isEditing}
-                  />
-                  <span
-                    className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.smoking === "yes" ? "bg-green-600" : ""}`}
-                  ></span>
-                </label>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleToggle("smoking")}
+                disabled={!isEditing}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${!isEditing ? "cursor-not-allowed opacity-50" : "cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 dark:focus:ring-offset-gray-800"} ${formData.smoking === "yes" ? "bg-green-600" : "bg-gray-200 dark:bg-gray-700"}`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    formData.smoking === "yes" ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
 
             {/* Cooking Allowed */}
@@ -357,22 +345,18 @@ const PreferencesTab = () => {
                   I like to cook my own meals
                 </p>
               </div>
-              <div>
-                <label
-                  className={`relative inline-flex items-center cursor-pointer ${!isEditing ? "opacity-50 pointer-events-none" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={formData.cooking === "yes"}
-                    onChange={() => handleToggle("cooking")}
-                    disabled={!isEditing}
-                  />
-                  <span
-                    className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.cooking === "yes" ? "bg-green-600" : ""}`}
-                  ></span>
-                </label>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleToggle("cooking")}
+                disabled={!isEditing}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${!isEditing ? "cursor-not-allowed opacity-50" : "cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 dark:focus:ring-offset-gray-800"} ${formData.cooking === "yes" ? "bg-green-600" : "bg-gray-200 dark:bg-gray-700"}`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    formData.cooking === "yes" ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
           </div>
         </div>

@@ -211,15 +211,28 @@ export default function LandlordApproval() {
                     {v.valid_id_type || 'N/A'}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-2 rounded-full text-xs font-semibold ${
-                      v.user?.is_verified || v.status === 'approved'
+                    {(() => {
+                      const verificationStatus = (v.status || 'pending').toLowerCase();
+                      const statusClasses = verificationStatus === 'approved'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : v.status === 'rejected'
+                        : verificationStatus === 'rejected'
                         ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+
+                      const statusLabel = verificationStatus === 'approved'
+                        ? 'Approved'
+                        : verificationStatus === 'rejected'
+                        ? 'Rejected'
+                        : 'Pending Review';
+
+                      return (
+                    <span className={`px-2 py-2 rounded-full text-xs font-semibold ${
+                      statusClasses
                     }`}>
-                      {v.user?.is_verified ? 'Verified' : (v.status === 'rejected' ? 'Rejected' : (v.status || 'Pending'))}
+                      {statusLabel}
                     </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                     {new Date(v.created_at).toLocaleDateString()}
@@ -263,20 +276,10 @@ export default function LandlordApproval() {
               <div className="space-y-4 text-center sm:text-left">
                 <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
                   <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <h4>Valid ID Front ({selectedVerification.valid_id_type})</h4>
+                  <h4>Valid ID ({selectedVerification.valid_id_type})</h4>
                 </div>
                 <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
-                  <FilePreview path={selectedVerification.valid_id_path} label="Valid ID Front" />
-                </div>
-              </div>
-
-              <div className="space-y-4 text-center sm:text-left">
-                <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
-                  <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <h4>Valid ID Back ({selectedVerification.valid_id_type})</h4>
-                </div>
-                <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
-                  <FilePreview path={selectedVerification.valid_id_back_path} label="Valid ID Back" />
+                  <FilePreview path={selectedVerification.valid_id_path} label="Valid ID" />
                 </div>
               </div>
 
@@ -299,7 +302,7 @@ export default function LandlordApproval() {
                 Close
               </button>
               
-              {!selectedVerification.user?.is_verified && selectedVerification.status !== 'approved' && selectedVerification.status !== 'rejected' && (
+              {selectedVerification.status === 'pending' && (
                 <>
                   <button
                     onClick={openRejectModal}

@@ -285,34 +285,12 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_manage_payments: !!caretakerPermissions.payments
       };
 
-      const response = await api.post('/landlord/caretakers', {
+      await api.post('/landlord/caretakers', {
         ...caretakerForm,
         property_ids: selectedPropertyIds,
         permissions: mappedPermissions
       });
-
-      const newCaretakerData = response.data.caretaker;
-      
-      // Transform the response object to match the structure of the existing list
-      const transformedCaretaker = {
-        id: newCaretakerData.assignment_id,
-        caretaker: {
-          id: null, // The user ID is not returned from this endpoint
-          first_name: newCaretakerData.first_name,
-          middle_name: newCaretakerData.middle_name,
-          last_name: newCaretakerData.last_name,
-          email: newCaretakerData.email,
-          phone: newCaretakerData.phone,
-          date_of_birth: newCaretakerData.date_of_birth,
-          is_active: true,
-        },
-        permissions: newCaretakerData.permissions,
-        assigned_properties: newCaretakerData.assigned_properties,
-        assigned_property_ids: newCaretakerData.assigned_properties.map(p => p.id),
-        created_at: new Date().toISOString(), // Set current date for immediate display
-      };
-
-      setCaretakers(prev => [transformedCaretaker, ...prev]);
+      await fetchCaretakers();
       
       toast.success('Caretaker added!');
       setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });

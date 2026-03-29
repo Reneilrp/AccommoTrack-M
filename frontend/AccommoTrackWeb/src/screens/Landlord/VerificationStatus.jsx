@@ -384,16 +384,9 @@ export default function VerificationStatus() {
               <div>
                 <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
                   <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Valid ID Front ({verification.valid_id_type})</span>
+                  <span>Valid ID ({verification.valid_id_type})</span>
                 </div>
-                <DocumentPreview path={verification.valid_id_path} alt="Valid ID Front" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
-                  <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Valid ID Back ({verification.valid_id_type})</span>
-                </div>
-                <DocumentPreview path={verification.valid_id_back_path} alt="Valid ID Back" />
+                <DocumentPreview path={verification.valid_id_path} alt="Valid ID" />
               </div>
               <div>
                 <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
