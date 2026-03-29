@@ -8,6 +8,7 @@ use App\Models\PropertyCredential;
 use App\Models\PropertyImage;
 use App\Models\LandlordVerification;
 use App\Models\Room;
+use App\Models\RoomImage;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -16,6 +17,11 @@ use Illuminate\Support\Facades\Hash;
 class TestLandlordPropertyRoomSeeder extends Seeder
 {
     private const LANDLORD_COUNT = 5;
+
+    // Supported modes via env TEST_PROPERTY_SEED_MODE: pending|pending_review|approved|approved_live
+    private const SEED_MODE_PENDING_REVIEW = 'pending_review';
+
+    private const SEED_MODE_APPROVED_LIVE = 'approved_live';
 
     private const LANDLORD_PROFILES = [
         ['first_name' => 'Mateo', 'middle_name' => 'Santos', 'last_name' => 'Reyes', 'gender' => 'male', 'identified_as' => 'He/Him'],
@@ -55,12 +61,17 @@ class TestLandlordPropertyRoomSeeder extends Seeder
      */
     public function run(): void
     {
+        $seedMode = $this->resolveSeedMode();
+
         $landlordStats = ['created' => 0, 'updated' => 0];
         $propertyStats = ['created' => 0, 'updated' => 0];
         $roomStats = ['created' => 0, 'updated' => 0];
         $imageStats = ['created' => 0, 'updated' => 0];
+        $videoStats = ['created' => 0, 'updated' => 0, 'deleted' => 0];
+        $roomImageStats = ['created' => 0, 'updated' => 0, 'deleted' => 0];
         $credentialStats = ['created' => 0, 'updated' => 0];
         $amenityStats = ['created' => 0, 'updated' => 0, 'detached' => 0];
+        $roomAmenityStats = ['created' => 0, 'updated' => 0, 'detached' => 0];
 
         $amenityIdsByName = $this->seedAmenityCatalog();
         $adminReviewerId = User::query()->where('role', 'admin')->value('id');
@@ -70,19 +81,24 @@ class TestLandlordPropertyRoomSeeder extends Seeder
             $this->upsertLandlordVerification($landlord, $adminReviewerId);
 
             foreach (self::PROPERTY_TYPES as $propertyType) {
-                $property = $this->upsertProperty($landlord, $landlordNumber, $propertyType, $propertyStats);
+                $property = $this->upsertProperty($landlord, $landlordNumber, $propertyType, $seedMode, $propertyStats);
                 $this->upsertRoomsForProperty($property, $propertyType, $roomStats);
-                $this->upsertPropertyAssets($property, $landlordNumber, $propertyType, $amenityIdsByName, $imageStats, $credentialStats, $amenityStats);
+                $this->upsertPropertyAssets($property, $landlordNumber, $propertyType, $amenityIdsByName, $imageStats, $videoStats, $credentialStats, $amenityStats);
+                $this->upsertRoomAssets($property, $propertyType, $amenityIdsByName, $roomImageStats, $roomAmenityStats);
             }
         }
 
         $this->command?->info('TestLandlordPropertyRoomSeeder completed.');
+        $this->command?->line("Seed mode: {$seedMode}");
         $this->command?->line("Landlords - created: {$landlordStats['created']}, updated: {$landlordStats['updated']}");
         $this->command?->line("Properties - created: {$propertyStats['created']}, updated: {$propertyStats['updated']}");
         $this->command?->line("Rooms - created: {$roomStats['created']}, updated: {$roomStats['updated']}");
         $this->command?->line("Property images - created: {$imageStats['created']}, updated: {$imageStats['updated']}");
+        $this->command?->line("Property videos - created: {$videoStats['created']}, updated: {$videoStats['updated']}, deleted: {$videoStats['deleted']}");
+        $this->command?->line("Room images - created: {$roomImageStats['created']}, updated: {$roomImageStats['updated']}, deleted: {$roomImageStats['deleted']}");
         $this->command?->line("Property credentials - created: {$credentialStats['created']}, updated: {$credentialStats['updated']}");
         $this->command?->line("Property amenity links - created: {$amenityStats['created']}, updated: {$amenityStats['updated']}, detached: {$amenityStats['detached']}");
+        $this->command?->line("Room amenity links - created: {$roomAmenityStats['created']}, updated: {$roomAmenityStats['updated']}, detached: {$roomAmenityStats['detached']}");
     }
 
     private function upsertLandlordVerification(User $landlord, ?int $adminReviewerId): void
@@ -150,12 +166,13 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         return $landlord;
     }
 
-    private function upsertProperty(User $landlord, int $landlordNumber, string $propertyType, array &$stats): Property
+    private function upsertProperty(User $landlord, int $landlordNumber, string $propertyType, string $seedMode, array &$stats): Property
     {
         $propertyTitle = "test{$landlordNumber}-{$propertyType}";
         $roomCount = $propertyType === 'apartment' ? 8 : 6;
         $typeProfile = $this->buildPropertyProfile($propertyType);
         $genderRestriction = $this->resolvePropertyGenderRestriction($propertyType, $landlordNumber);
+        $visibility = $this->resolvePropertyVisibility($seedMode);
         $latitude = round(6.900100 + ($landlordNumber * 0.010000) + $typeProfile['lat_offset'], 7);
         $longitude = round(122.073100 + ($landlordNumber * 0.010000) + $typeProfile['lng_offset'], 7);
 
@@ -168,7 +185,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 'description' => ucfirst($propertyType).' property managed by '.$landlord->first_name.' '.$landlord->last_name.'.',
                 'property_type' => $propertyType,
                 'gender_restriction' => $genderRestriction,
-                'current_status' => Property::STATUS_ACTIVE,
+                'current_status' => $visibility['current_status'],
                 'street_address' => "{$landlordNumber}01 Test Street",
                 'city' => 'Zamboanga City',
                 'province' => 'Zamboanga del Sur',
@@ -198,8 +215,8 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 'allow_partial_payments' => $typeProfile['allow_partial_payments'],
                 'require_reservation_fee' => $typeProfile['require_reservation_fee'],
                 'reservation_fee_amount' => $typeProfile['reservation_fee_amount'],
-                'is_published' => true,
-                'is_available' => true,
+                'is_published' => $visibility['is_published'],
+                'is_available' => $visibility['is_available'],
                 'is_eligible' => true,
             ]
         );
@@ -219,6 +236,9 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $roomGenderRestriction = strtolower((string) ($property->gender_restriction ?: 'mixed'));
 
         foreach ($roomTemplates as $roomTemplate) {
+            $roomRules = $this->buildRoomRules($propertyType, $roomTemplate['room_type'], $roomTemplate['billing_policy']);
+            $requireAdvance = $this->resolveRoomAdvanceRequirement($property, $roomTemplate['billing_policy']);
+
             $room = Room::updateOrCreate(
                 [
                     'property_id' => $property->id,
@@ -235,6 +255,8 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                     'capacity' => $roomTemplate['capacity'],
                     'pricing_model' => $roomTemplate['pricing_model'],
                     'status' => 'available',
+                    'require_1month_advance' => $requireAdvance,
+                    'rules' => $roomRules,
                     'description' => "{$property->title} {$roomTemplate['room_number']}",
                 ]
             );
@@ -266,12 +288,53 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         string $propertyType,
         array $amenityIdsByName,
         array &$imageStats,
+        array &$videoStats,
         array &$credentialStats,
         array &$amenityStats
     ): void {
         $this->upsertPropertyImages($property, $landlordNumber, $propertyType, $imageStats);
+        $this->upsertPropertyVideo($property, $landlordNumber, $propertyType, $videoStats);
         $this->upsertPropertyCredentials($property, $propertyType, $credentialStats);
         $this->syncPropertyAmenities($property, $propertyType, $amenityIdsByName, $amenityStats);
+    }
+
+    private function upsertPropertyVideo(Property $property, int $landlordNumber, string $propertyType, array &$stats): void
+    {
+        // Optional seed: only some property types get a video, mirroring realistic landlord uploads.
+        $videoSupported = in_array($propertyType, ['apartment', 'dormitory'], true);
+
+        if (! $videoSupported) {
+            $stats['deleted'] += PropertyImage::query()
+                ->where('property_id', $property->id)
+                ->where('media_type', 'video')
+                ->delete();
+
+            return;
+        }
+
+        $video = PropertyImage::updateOrCreate(
+            [
+                'property_id' => $property->id,
+                'media_type' => 'video',
+            ],
+            [
+                'image_url' => 'test/property-videos/'.$propertyType.'/landlord-'.$landlordNumber.'-tour.mp4',
+                'is_primary' => false,
+                'display_order' => 99,
+            ]
+        );
+
+        $stats['deleted'] += PropertyImage::query()
+            ->where('property_id', $property->id)
+            ->where('media_type', 'video')
+            ->where('id', '!=', $video->id)
+            ->delete();
+
+        if ($video->wasRecentlyCreated) {
+            $stats['created']++;
+        } else {
+            $stats['updated']++;
+        }
     }
 
     private function upsertPropertyImages(Property $property, int $landlordNumber, string $propertyType, array &$stats): void
@@ -337,6 +400,138 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $stats['created'] += count($changes['attached'] ?? []);
         $stats['updated'] += count($changes['updated'] ?? []);
         $stats['detached'] += count($changes['detached'] ?? []);
+    }
+
+    private function upsertRoomAssets(
+        Property $property,
+        string $propertyType,
+        array $amenityIdsByName,
+        array &$roomImageStats,
+        array &$roomAmenityStats
+    ): void {
+        $rooms = $property->rooms()->orderBy('room_number')->get();
+
+        foreach ($rooms as $room) {
+            $this->syncRoomAmenities($room, $propertyType, $amenityIdsByName, $roomAmenityStats);
+            $this->upsertRoomImages($room, $propertyType, $roomImageStats);
+        }
+    }
+
+    private function syncRoomAmenities(Room $room, string $propertyType, array $amenityIdsByName, array &$stats): void
+    {
+        $amenityNames = $this->buildRoomAmenityNames($propertyType, $room->room_type);
+        $amenityIds = array_values(array_filter(array_map(
+            fn (string $amenityName) => $amenityIdsByName[$amenityName] ?? null,
+            $amenityNames
+        )));
+
+        $changes = $room->amenities()->sync($amenityIds);
+        $stats['created'] += count($changes['attached'] ?? []);
+        $stats['updated'] += count($changes['updated'] ?? []);
+        $stats['detached'] += count($changes['detached'] ?? []);
+    }
+
+    private function upsertRoomImages(Room $room, string $propertyType, array &$stats): void
+    {
+        $desiredImageUrls = [
+            'test/room-images/'.$propertyType.'/room-'.$room->room_number.'-a.jpg',
+            'test/room-images/'.$propertyType.'/room-'.$room->room_number.'-b.jpg',
+        ];
+
+        $stats['deleted'] += RoomImage::query()
+            ->where('room_id', $room->id)
+            ->whereNotIn('image_url', $desiredImageUrls)
+            ->delete();
+
+        foreach ($desiredImageUrls as $imageUrl) {
+            $roomImage = RoomImage::updateOrCreate(
+                [
+                    'room_id' => $room->id,
+                    'image_url' => $imageUrl,
+                ],
+                []
+            );
+
+            if ($roomImage->wasRecentlyCreated) {
+                $stats['created']++;
+            } else {
+                $stats['updated']++;
+            }
+        }
+    }
+
+    private function buildRoomAmenityNames(string $propertyType, string $roomType): array
+    {
+        $baseAmenities = self::PROPERTY_AMENITIES[$propertyType] ?? ['WiFi'];
+        $selected = array_slice($baseAmenities, 0, 4);
+
+        if ($roomType === 'bedSpacer') {
+            $selected[] = 'Laundry Area';
+        }
+
+        if ($roomType === 'quad') {
+            $selected[] = 'Study Area';
+        }
+
+        return array_values(array_unique($selected));
+    }
+
+    private function buildRoomRules(string $propertyType, string $roomType, string $billingPolicy): array
+    {
+        $rules = [
+            'Keep room and shared spaces clean daily.',
+            'Observe quiet hours after 10:00 PM.',
+        ];
+
+        if ($propertyType !== 'apartment') {
+            $rules[] = 'Visitors must log in at the reception area.';
+        }
+
+        if ($roomType === 'bedSpacer') {
+            $rules[] = 'Do not occupy another bed without landlord approval.';
+        }
+
+        if ($billingPolicy === 'daily') {
+            $rules[] = 'Daily stay check-in cutoff is 8:00 PM.';
+        }
+
+        return $rules;
+    }
+
+    private function resolveRoomAdvanceRequirement(Property $property, string $billingPolicy): bool
+    {
+        if ($billingPolicy === 'daily') {
+            return false;
+        }
+
+        return (bool) ($property->require_1month_advance ?? false);
+    }
+
+    private function resolveSeedMode(): string
+    {
+        $mode = strtolower((string) env('TEST_PROPERTY_SEED_MODE', self::SEED_MODE_PENDING_REVIEW));
+
+        return match ($mode) {
+            'approved', self::SEED_MODE_APPROVED_LIVE => self::SEED_MODE_APPROVED_LIVE,
+            default => self::SEED_MODE_PENDING_REVIEW,
+        };
+    }
+
+    private function resolvePropertyVisibility(string $seedMode): array
+    {
+        if ($seedMode === self::SEED_MODE_APPROVED_LIVE) {
+            return [
+                'current_status' => Property::STATUS_ACTIVE,
+                'is_published' => true,
+                'is_available' => true,
+            ];
+        }
+
+        return [
+            'current_status' => Property::STATUS_PENDING,
+            'is_published' => false,
+            'is_available' => false,
+        ];
     }
 
     private function seedAmenityCatalog(): array
