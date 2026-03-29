@@ -259,14 +259,24 @@ export default function LandlordApproval() {
               </button>
             </div>
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="space-y-4 text-center sm:text-left">
                 <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
                   <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <h4>Valid ID ({selectedVerification.valid_id_type})</h4>
+                  <h4>Valid ID Front ({selectedVerification.valid_id_type})</h4>
                 </div>
                 <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
-                  <FilePreview path={selectedVerification.valid_id_path} label="Valid ID" />
+                  <FilePreview path={selectedVerification.valid_id_path} label="Valid ID Front" />
+                </div>
+              </div>
+
+              <div className="space-y-4 text-center sm:text-left">
+                <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
+                  <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <h4>Valid ID Back ({selectedVerification.valid_id_type})</h4>
+                </div>
+                <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
+                  <FilePreview path={selectedVerification.valid_id_back_path} label="Valid ID Back" />
                 </div>
               </div>
 

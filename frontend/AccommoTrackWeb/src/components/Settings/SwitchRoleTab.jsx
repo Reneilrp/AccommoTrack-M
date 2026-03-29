@@ -14,8 +14,13 @@ export default function SwitchRoleTab({ user: userProp }) {
 
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [isSubmittingRegistration, setIsSubmittingRegistration] = useState(false);
+  const [idTypes, setIdTypes] = useState([]);
+  const [idTypesLoading, setIdTypesLoading] = useState(false);
   const [registrationForm, setRegistrationForm] = useState({
-    valid_id: null,
+    valid_id_type: '',
+    valid_id_other: '',
+    valid_id_front: null,
+    valid_id_back: null,
     permit: null,
   });
   const [registrationErrors, setRegistrationErrors] = useState({});
@@ -45,6 +50,34 @@ export default function SwitchRoleTab({ user: userProp }) {
 
     fetchVerificationStatus();
   }, [currentRole]);
+
+  useEffect(() => {
+    if (!showRegistrationModal || idTypes.length > 0 || idTypesLoading) {
+      return;
+    }
+
+    const loadIdTypes = async () => {
+      try {
+        setIdTypesLoading(true);
+        const res = await api.get('/valid-id-types');
+        setIdTypes(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error('Failed to fetch valid ID types:', err);
+        setIdTypes([
+          'Philippine Passport',
+          "Driver's License",
+          'PhilSys ID (National ID)',
+          'Unified Multi-Purpose ID (UMID)',
+          'Postal ID (Digitized)',
+          'Other',
+        ]);
+      } finally {
+        setIdTypesLoading(false);
+      }
+    };
+
+    loadIdTypes();
+  }, [showRegistrationModal, idTypes.length, idTypesLoading]);
 
   const getSwitchButtonLabel = () => {
     if (currentRole === 'landlord') {
@@ -82,7 +115,7 @@ export default function SwitchRoleTab({ user: userProp }) {
       default:
         return {
           icon: <ShieldAlert className="w-5 h-5 text-orange-500" />,
-          text: 'To become a landlord, submit your Valid ID and Business Permit.',
+          text: 'To become a landlord, select a valid ID type and submit front/back ID images plus your business permit.',
         };
     }
   };
@@ -129,8 +162,25 @@ export default function SwitchRoleTab({ user: userProp }) {
     }
 
     setRegistrationErrors({});
-    setRegistrationForm({ valid_id: null, permit: null });
+    setRegistrationForm({
+      valid_id_type: '',
+      valid_id_other: '',
+      valid_id_front: null,
+      valid_id_back: null,
+      permit: null,
+    });
     setShowRegistrationModal(true);
+  };
+
+  const handleRegistrationChange = (field, value) => {
+    setRegistrationForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setRegistrationErrors((prev) => ({
+      ...prev,
+      [field]: '',
+    }));
   };
 
   const handleRegistrationFile = (field, file) => {
@@ -138,13 +188,17 @@ export default function SwitchRoleTab({ user: userProp }) {
       return;
     }
 
-    const allowedMime = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    const imageMime = ['image/jpeg', 'image/png', 'image/jpg'];
+    const permitMime = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    const allowedMime = field === 'permit' ? permitMime : imageMime;
     const maxSizeBytes = 5 * 1024 * 1024;
 
     if (!allowedMime.includes(file.type)) {
       setRegistrationErrors((prev) => ({
         ...prev,
-        [field]: 'Invalid file type. Please upload JPG, PNG, or PDF.',
+        [field]: field === 'permit'
+          ? 'Invalid file type. Permit must be JPG, PNG, or PDF.'
+          : 'Invalid file type. Valid ID images must be JPG or PNG.',
       }));
       return;
     }
@@ -170,8 +224,20 @@ export default function SwitchRoleTab({ user: userProp }) {
   const validateRegistrationForm = () => {
     const errors = {};
 
-    if (!registrationForm.valid_id) {
-      errors.valid_id = 'Please upload your valid ID.';
+    if (!registrationForm.valid_id_type) {
+      errors.valid_id_type = 'Please select a valid ID type.';
+    }
+
+    if (registrationForm.valid_id_type === 'Other' && !registrationForm.valid_id_other?.trim()) {
+      errors.valid_id_other = 'Please specify the ID type.';
+    }
+
+    if (!registrationForm.valid_id_front) {
+      errors.valid_id_front = 'Please upload the front image of your valid ID.';
+    }
+
+    if (!registrationForm.valid_id_back) {
+      errors.valid_id_back = 'Please upload the back image of your valid ID.';
     }
 
     if (!registrationForm.permit) {
@@ -191,7 +257,12 @@ export default function SwitchRoleTab({ user: userProp }) {
       setIsSubmittingRegistration(true);
 
       const formData = new FormData();
-      formData.append('valid_id', registrationForm.valid_id);
+      formData.append('valid_id_type', registrationForm.valid_id_type);
+      if (registrationForm.valid_id_type === 'Other') {
+        formData.append('valid_id_other', registrationForm.valid_id_other.trim());
+      }
+      formData.append('valid_id_front', registrationForm.valid_id_front);
+      formData.append('valid_id_back', registrationForm.valid_id_back);
       formData.append('permit', registrationForm.permit);
 
       const res = await api.post('/tenant/register-landlord', formData, {
@@ -236,7 +307,7 @@ export default function SwitchRoleTab({ user: userProp }) {
               Role Management
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-              Switch to tenant mode instantly, or register as landlord by submitting your Valid ID and Business Permit.
+              Switch to tenant mode instantly, or register as landlord by selecting a valid ID type and submitting ID front/back images with your business permit.
             </p>
           </div>
 
@@ -283,25 +354,71 @@ export default function SwitchRoleTab({ user: userProp }) {
 
             <div className="px-6 py-5 space-y-5">
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Submit your Valid ID and Business Permit. Your name and date of birth will be taken from your existing tenant account.
+                Provide your valid ID type, upload front and back ID images, and upload your business permit. Name and date of birth will be taken from your tenant account.
               </p>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Valid ID</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valid ID Type</label>
+                  <select
+                    value={registrationForm.valid_id_type}
+                    onChange={(e) => handleRegistrationChange('valid_id_type', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select ID type</option>
+                    {idTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                    {!idTypes.includes('Other') && <option value="Other">Other</option>}
+                  </select>
+                  {registrationErrors.valid_id_type && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_type}</p>}
+                </div>
+
+                {registrationForm.valid_id_type === 'Other' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Specify ID Type</label>
+                    <input
+                      type="text"
+                      value={registrationForm.valid_id_other}
+                      onChange={(e) => handleRegistrationChange('valid_id_other', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    {registrationErrors.valid_id_other && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_other}</p>}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Valid ID Front Image</label>
                   <label className="w-full px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
                     <Upload className="w-4 h-4" />
                     <span className="text-sm text-gray-600 dark:text-gray-300">
-                      {registrationForm.valid_id ? registrationForm.valid_id.name : 'Choose file (JPG, PNG, PDF, max 5MB)'}
+                      {registrationForm.valid_id_front ? registrationForm.valid_id_front.name : 'Choose image (JPG/PNG, max 5MB)'}
                     </span>
                     <input
                       type="file"
                       className="hidden"
-                      accept=".jpg,.jpeg,.png,.pdf"
-                      onChange={(e) => handleRegistrationFile('valid_id', e.target.files?.[0] || null)}
+                      accept=".jpg,.jpeg,.png,image/*"
+                      onChange={(e) => handleRegistrationFile('valid_id_front', e.target.files?.[0] || null)}
                     />
                   </label>
-                  {registrationErrors.valid_id && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id}</p>}
+                  {registrationErrors.valid_id_front && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_front}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Valid ID Back Image</label>
+                  <label className="w-full px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                    <Upload className="w-4 h-4" />
+                    <span className="text-sm text-gray-600 dark:text-gray-300">
+                      {registrationForm.valid_id_back ? registrationForm.valid_id_back.name : 'Choose image (JPG/PNG, max 5MB)'}
+                    </span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".jpg,.jpeg,.png,image/*"
+                      onChange={(e) => handleRegistrationFile('valid_id_back', e.target.files?.[0] || null)}
+                    />
+                  </label>
+                  {registrationErrors.valid_id_back && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_back}</p>}
                 </div>
 
                 <div>
@@ -314,7 +431,7 @@ export default function SwitchRoleTab({ user: userProp }) {
                     <input
                       type="file"
                       className="hidden"
-                      accept=".jpg,.jpeg,.png,.pdf"
+                      accept=".jpg,.jpeg,.png,.pdf,image/*,application/pdf"
                       onChange={(e) => handleRegistrationFile('permit', e.target.files?.[0] || null)}
                     />
                   </label>

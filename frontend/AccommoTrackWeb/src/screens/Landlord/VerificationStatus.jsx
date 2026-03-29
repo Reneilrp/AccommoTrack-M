@@ -380,13 +380,20 @@ export default function VerificationStatus() {
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
               <h4 className="font-semibold text-gray-800 dark:text-white">Previously Submitted Documents</h4>
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
                   <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Valid ID ({verification.valid_id_type})</span>
+                  <span>Valid ID Front ({verification.valid_id_type})</span>
                 </div>
-                <DocumentPreview path={verification.valid_id_path} alt="Valid ID" />
+                <DocumentPreview path={verification.valid_id_path} alt="Valid ID Front" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
+                  <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Valid ID Back ({verification.valid_id_type})</span>
+                </div>
+                <DocumentPreview path={verification.valid_id_back_path} alt="Valid ID Back" />
               </div>
               <div>
                 <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">

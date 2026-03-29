@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $valid_id_type
  * @property string|null $valid_id_other
  * @property string $valid_id_path
+ * @property string|null $valid_id_back_path
  * @property string $permit_path
  * @property string $status
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -34,6 +35,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LandlordVerification whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LandlordVerification whereValidIdOther($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LandlordVerification whereValidIdPath($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LandlordVerification whereValidIdBackPath($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LandlordVerification whereValidIdType($value)
  *
  * @mixin \Eloquent
@@ -50,6 +52,7 @@ class LandlordVerification extends Model
         'valid_id_type',
         'valid_id_other',
         'valid_id_path',
+        'valid_id_back_path',
         'permit_path',
         'status',
         'rejection_reason',

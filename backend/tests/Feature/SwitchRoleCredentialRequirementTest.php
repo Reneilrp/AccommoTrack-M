@@ -31,15 +31,11 @@ class SwitchRoleCredentialRequirementTest extends TestCase
 
         $response = $this->postJson('/api/switch-role', [
             'role' => 'landlord',
-            'email' => 'tenant@example.com',
-            'password' => 'Password12!',
-            'password_confirmation' => 'Password12!',
-            'agree' => true,
         ]);
 
         $response
             ->assertStatus(403)
-            ->assertJsonPath('message', 'Your landlord verification is not yet approved. Please complete verification first.')
+            ->assertJsonPath('message', 'Your landlord registration is not yet approved. Please complete landlord registration first.')
             ->assertJsonPath('status', 'not_submitted');
 
         $this->assertDatabaseHas('users', [
@@ -48,7 +44,7 @@ class SwitchRoleCredentialRequirementTest extends TestCase
         ]);
     }
 
-    public function test_tenant_to_landlord_requires_credentials_payload(): void
+    public function test_tenant_to_landlord_switch_succeeds_without_credentials_payload_when_approved(): void
     {
         $tenant = $this->createVerifiedTenantWithApprovedLandlordVerification();
 
@@ -59,44 +55,52 @@ class SwitchRoleCredentialRequirementTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['email', 'password', 'password_confirmation', 'agree']);
+            ->assertOk()
+            ->assertJsonPath('message', 'Role switched to landlord')
+            ->assertJsonPath('user.role', 'landlord');
 
         $this->assertDatabaseHas('users', [
             'id' => $tenant->id,
-            'role' => 'tenant',
+            'role' => 'landlord',
         ]);
     }
 
-    public function test_tenant_to_landlord_rejects_non_matching_email_or_invalid_password(): void
+    public function test_tenant_to_landlord_rejects_when_verification_is_pending(): void
     {
-        $tenant = $this->createVerifiedTenantWithApprovedLandlordVerification();
+        $tenant = User::create([
+            'role' => 'tenant',
+            'email' => 'tenant-pending@example.com',
+            'password' => Hash::make('Password12!'),
+            'date_of_birth' => now()->subYears(25)->toDateString(),
+            'is_verified' => true,
+            'is_active' => true,
+            'first_name' => 'Tenant',
+            'middle_name' => null,
+            'last_name' => 'Pending',
+        ]);
+
+        LandlordVerification::create([
+            'user_id' => $tenant->id,
+            'first_name' => $tenant->first_name,
+            'middle_name' => $tenant->middle_name,
+            'last_name' => $tenant->last_name,
+            'valid_id_type' => 'Philippine Passport',
+            'valid_id_other' => null,
+            'valid_id_path' => 'landlord_ids/test-id-front.png',
+            'permit_path' => 'landlord_permits/test-permit.pdf',
+            'status' => 'pending',
+        ]);
 
         Sanctum::actingAs($tenant);
 
-        $wrongEmailResponse = $this->postJson('/api/switch-role', [
+        $response = $this->postJson('/api/switch-role', [
             'role' => 'landlord',
-            'email' => 'other@example.com',
-            'password' => 'Password12!',
-            'password_confirmation' => 'Password12!',
-            'agree' => true,
         ]);
 
-        $wrongEmailResponse
-            ->assertStatus(422)
-            ->assertJsonPath('message', 'The provided email does not match your current account.');
-
-        $wrongPasswordResponse = $this->postJson('/api/switch-role', [
-            'role' => 'landlord',
-            'email' => 'tenant-switch@example.com',
-            'password' => 'WrongPassword12!',
-            'password_confirmation' => 'WrongPassword12!',
-            'agree' => true,
-        ]);
-
-        $wrongPasswordResponse
-            ->assertStatus(422)
-            ->assertJsonPath('message', 'Invalid password. Please try again.');
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('message', 'Your landlord registration is not yet approved. Please complete landlord registration first.')
+            ->assertJsonPath('status', 'pending');
 
         $this->assertDatabaseHas('users', [
             'id' => $tenant->id,
@@ -104,7 +108,7 @@ class SwitchRoleCredentialRequirementTest extends TestCase
         ]);
     }
 
-    public function test_tenant_to_landlord_succeeds_with_approved_verification_and_matching_credentials(): void
+    public function test_tenant_to_landlord_succeeds_with_approved_verification(): void
     {
         $tenant = $this->createVerifiedTenantWithApprovedLandlordVerification();
 
@@ -112,10 +116,6 @@ class SwitchRoleCredentialRequirementTest extends TestCase
 
         $response = $this->postJson('/api/switch-role', [
             'role' => 'landlord',
-            'email' => 'tenant-switch@example.com',
-            'password' => 'Password12!',
-            'password_confirmation' => 'Password12!',
-            'agree' => true,
         ]);
 
         $response

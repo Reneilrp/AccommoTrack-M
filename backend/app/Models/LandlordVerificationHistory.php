@@ -16,6 +16,7 @@ class LandlordVerificationHistory extends Model
         'valid_id_type',
         'valid_id_other',
         'valid_id_path',
+        'valid_id_back_path',
         'permit_path',
         'status',
         'rejection_reason',

@@ -39,7 +39,8 @@ export default function VerificationStatus({ navigation }) {
   const [formData, setFormData] = useState({
     validIdType: "",
     validIdOther: "",
-    validId: null,
+    validIdFront: null,
+    validIdBack: null,
     permit: null,
   });
 
@@ -110,42 +111,39 @@ export default function VerificationStatus({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!formData.validId || !formData.permit) {
+    if (!formData.validIdType || !formData.validIdFront || !formData.validIdBack || !formData.permit) {
       Alert.alert(
         "Validation",
-        "Please upload both your valid ID and business/accommodation permit.",
+        "Please select an ID type and upload valid ID front/back images plus business/accommodation permit.",
       );
       return;
     }
 
-    if (userRole !== 'tenant') {
-      if (!formData.validIdType) {
-        Alert.alert("Validation", "Please select an ID type.");
-        return;
-      }
-
-      if (formData.validIdType === "other" && !formData.validIdOther) {
-        Alert.alert("Validation", "Please specify your ID type.");
-        return;
-      }
+    if (formData.validIdType === "other" && !formData.validIdOther) {
+      Alert.alert("Validation", "Please specify your ID type.");
+      return;
     }
 
     setSubmitting(true);
     try {
       const submitData = new FormData();
-      submitData.append("valid_id", formData.validId);
+      const idType =
+        formData.validIdType === "other"
+          ? formData.validIdOther
+          : formData.validIdType;
+
+      submitData.append('valid_id_type', idType);
       submitData.append("permit", formData.permit);
 
       let res;
 
       if (userRole === 'tenant') {
+        submitData.append('valid_id_front', formData.validIdFront);
+        submitData.append('valid_id_back', formData.validIdBack);
         res = await ProfileService.registerAsLandlord(submitData);
       } else {
-        const idType =
-          formData.validIdType === "other"
-            ? formData.validIdOther
-            : formData.validIdType;
-        submitData.append("valid_id_type", idType);
+        submitData.append('valid_id', formData.validIdFront);
+        submitData.append('valid_id_back', formData.validIdBack);
         res = await ProfileService.resubmitVerification(submitData);
       }
 
@@ -160,7 +158,8 @@ export default function VerificationStatus({ navigation }) {
         setFormData({
           validIdType: "",
           validIdOther: "",
-          validId: null,
+          validIdFront: null,
+          validIdBack: null,
           permit: null,
         });
         fetchData();
@@ -313,12 +312,31 @@ export default function VerificationStatus({ navigation }) {
                 <View style={styles.documentHeader}>
                   <Ionicons name="image-outline" size={18} color="#059669" />
                   <Text style={styles.documentLabel}>
-                    Valid ID ({verification.valid_id_type})
+                    Valid ID Front ({verification.valid_id_type})
                   </Text>
                 </View>
                 {verification.valid_id_path ? (
                   <Image
                     source={{ uri: getImageUrl(verification.valid_id_path) }}
+                    style={styles.previewImage}
+                  />
+                ) : (
+                  <View style={styles.previewPlaceholder}>
+                    <Text>No image</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.documentCard}>
+                <View style={styles.documentHeader}>
+                  <Ionicons name="image-outline" size={18} color="#059669" />
+                  <Text style={styles.documentLabel}>
+                    Valid ID Back ({verification.valid_id_type})
+                  </Text>
+                </View>
+                {verification.valid_id_back_path ? (
+                  <Image
+                    source={{ uri: getImageUrl(verification.valid_id_back_path) }}
                     style={styles.previewImage}
                   />
                 ) : (
@@ -494,30 +512,28 @@ export default function VerificationStatus({ navigation }) {
                 </View>
               )}
 
-              {userRole !== 'tenant' && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>
-                    Valid ID Type <Text style={styles.required}>*</Text>
-                  </Text>
-                  <View style={styles.pickerWrapper}>
-                    <Picker
-                      selectedValue={formData.validIdType}
-                      onValueChange={(val) =>
-                        setFormData((prev) => ({ ...prev, validIdType: val }))
-                      }
-                      style={styles.picker}
-                    >
-                      <Picker.Item label="Select ID Type" value="" />
-                      {idTypes.map((type) => (
-                        <Picker.Item key={type} label={type} value={type} />
-                      ))}
-                      <Picker.Item label="Other" value="other" />
-                    </Picker>
-                  </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Valid ID Type <Text style={styles.required}>*</Text>
+                </Text>
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={formData.validIdType}
+                    onValueChange={(val) =>
+                      setFormData((prev) => ({ ...prev, validIdType: val }))
+                    }
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select ID Type" value="" />
+                    {idTypes.map((type) => (
+                      <Picker.Item key={type} label={type} value={type} />
+                    ))}
+                    <Picker.Item label="Other" value="other" />
+                  </Picker>
                 </View>
-              )}
+              </View>
 
-              {userRole !== 'tenant' && formData.validIdType === "other" && (
+              {formData.validIdType === "other" && (
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>
                     Specify ID Type <Text style={styles.required}>*</Text>
@@ -535,20 +551,40 @@ export default function VerificationStatus({ navigation }) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>
-                  Upload Valid ID <Text style={styles.required}>*</Text>
+                  Upload Valid ID Front <Text style={styles.required}>*</Text>
                 </Text>
                 <TouchableOpacity
                   style={styles.uploadBox}
-                  onPress={() => handlePickDocument("validId")}
+                  onPress={() => handlePickDocument("validIdFront")}
                 >
                   <Ionicons name="camera-outline" size={32} color="#059669" />
                   <Text style={styles.uploadBoxText}>
-                    Capture or Pick ID Image
+                    Capture or Pick Front Image
                   </Text>
                 </TouchableOpacity>
-                {formData.validId && (
+                {formData.validIdFront && (
                   <Text style={styles.selectedFile}>
-                    Selected: {formData.validId.name}
+                    Selected: {formData.validIdFront.name}
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Upload Valid ID Back <Text style={styles.required}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={styles.uploadBox}
+                  onPress={() => handlePickDocument("validIdBack")}
+                >
+                  <Ionicons name="camera-outline" size={32} color="#059669" />
+                  <Text style={styles.uploadBoxText}>
+                    Capture or Pick Back Image
+                  </Text>
+                </TouchableOpacity>
+                {formData.validIdBack && (
+                  <Text style={styles.selectedFile}>
+                    Selected: {formData.validIdBack.name}
                   </Text>
                 )}
               </View>
