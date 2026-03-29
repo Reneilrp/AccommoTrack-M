@@ -23,6 +23,7 @@ import api, {
   isCancel,
   rootApi,
   initCsrfCookie,
+  shouldUseBearerForRequest,
   setPersistedAuthMode,
 } from "../../utils/api";
 import { getDefaultLandingRoute } from "../../utils/userRoutes";
@@ -32,6 +33,16 @@ import BlockedUserModal from "../../components/Shared/BlockedUserModal";
 import ForgotPasswordModal from "../../components/Modals/ForgotPasswordModal";
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from "../../shared/LegalContent";
+
+const ensureCsrfCookieOrFallback = async () => {
+  try {
+    await initCsrfCookie();
+  } catch (error) {
+    if (!shouldUseBearerForRequest()) {
+      throw error;
+    }
+  }
+};
 
 // Resubmit Modal Component
 const ResubmitModal = ({ visible, onClose, __theme }) => {
@@ -315,11 +326,7 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
     setLoading(true);
     setError("");
     try {
-      try {
-        await initCsrfCookie();
-      } catch {
-        // Token mode fallback (local/testing) does not require CSRF cookie.
-      }
+      await ensureCsrfCookieOrFallback();
 
       const response = await api.post("/verify-email-otp", {
         email: email,
@@ -338,11 +345,7 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
     setLoading(true);
     setError("");
     try {
-      try {
-        await initCsrfCookie();
-      } catch {
-        // Token mode fallback (local/testing) does not require CSRF cookie.
-      }
+      await ensureCsrfCookieOrFallback();
 
       await api.post("/resend-email-otp", { email });
       toast.success("A new OTP has been sent to your email.");
@@ -772,15 +775,13 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       // Attempt to initialize the Sanctum SPA session cookie.
       // This works same-origin (prod). Cross-origin (local dev) it will fail due
       // to CORS — that's expected; we fall back to Bearer token below.
-      try {
-        await initCsrfCookie();
-      } catch {
-        // Cross-origin: CSRF cookie unavailable; Bearer token fallback will be used.
-      }
+      await ensureCsrfCookieOrFallback();
 
       console.log('[AUTH_DEBUG] Login POST initiated', {
         email: formData.email,
-        xClientPlatform: api.defaults.headers.common['X-Client-Platform'],
+        xClientPlatform:
+          api.defaults.headers?.["X-Client-Platform"] ||
+          api.defaults.headers?.common?.["X-Client-Platform"],
       });
 
       const result = await api.post("/login", {
@@ -989,11 +990,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
         role: "tenant",
       };
 
-      try {
-        await initCsrfCookie();
-      } catch {
-        // Token mode fallback (local/testing) does not require CSRF cookie.
-      }
+      await ensureCsrfCookieOrFallback();
 
       const result = await api.post("/register", registerPayload);
       

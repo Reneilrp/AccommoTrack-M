@@ -39,6 +39,33 @@ export const shouldUseBearerForRequest = () => {
   return SHOULD_USE_BEARER_AUTH || getPersistedAuthMode() === "token";
 };
 
+const getCookieValue = (name) => {
+  if (typeof document === "undefined") return null;
+
+  const cookies = document.cookie ? document.cookie.split("; ") : [];
+  const prefix = `${name}=`;
+  const match = cookies.find((entry) => entry.startsWith(prefix));
+  if (!match) return null;
+
+  return match.substring(prefix.length);
+};
+
+const getXsrfTokenFromCookie = () => {
+  const raw = getCookieValue("XSRF-TOKEN");
+  if (!raw) return null;
+
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+};
+
+const isMutationMethod = (method) => {
+  const normalized = (method || "get").toLowerCase();
+  return normalized !== "get" && normalized !== "head" && normalized !== "options";
+};
+
 // ---------------------------------------------------------------------------
 // Hybrid auth helper
 // ---------------------------------------------------------------------------
@@ -61,6 +88,9 @@ export const isSameOrigin = () => {
 const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: "XSRF-TOKEN",
+  xsrfHeaderName: "X-XSRF-TOKEN",
   headers: {
     Accept: "application/json",
     [CLIENT_PLATFORM_HEADER]: "web",
@@ -73,7 +103,24 @@ api.interceptors.request.use(
   (config) => {
     const useBearerAuth = shouldUseBearerForRequest();
     const persistedMode = getPersistedAuthMode();
-    
+
+    if (!config.headers) {
+      config.headers = {};
+    }
+
+    config.withCredentials = true;
+
+    if (isMutationMethod(config.method)) {
+      const xsrfToken = getXsrfTokenFromCookie();
+      if (xsrfToken && !config.headers?.["X-XSRF-TOKEN"] && !config.headers?.["x-xsrf-token"]) {
+        config.headers["X-XSRF-TOKEN"] = xsrfToken;
+      }
+
+      if (!config.headers?.["X-Requested-With"]) {
+        config.headers["X-Requested-With"] = "XMLHttpRequest";
+      }
+    }
+
     if (!useBearerAuth) {
       if (config.headers?.Authorization) {
         delete config.headers.Authorization;
@@ -84,6 +131,7 @@ api.interceptors.request.use(
           shouldUseBearerAuth: useBearerAuth,
           persistedAuthMode: persistedMode,
           xClientPlatform: config.headers?.[CLIENT_PLATFORM_HEADER],
+          hasXsrfCookie: !!getXsrfTokenFromCookie(),
         });
       }
       return config;
@@ -107,7 +155,31 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    if (error.response?.status === 419 && !error.config?._csrfRetried) {
+      try {
+        await initCsrfCookie();
+
+        const retryConfig = {
+          ...error.config,
+          _csrfRetried: true,
+        };
+
+        const xsrfToken = getXsrfTokenFromCookie();
+        if (xsrfToken) {
+          retryConfig.headers = {
+            ...(retryConfig.headers || {}),
+            "X-XSRF-TOKEN": xsrfToken,
+            "X-Requested-With": "XMLHttpRequest",
+          };
+        }
+
+        return api.request(retryConfig);
+      } catch {
+        // Let the original 419 flow below handle cleanup.
+      }
+    }
+
     const skipAuthRedirect =
       error.config?.headers?.["X-Skip-Auth-Redirect"] === "1" ||
       error.config?.headers?.["x-skip-auth-redirect"] === "1" ||
@@ -200,11 +272,38 @@ export const ROOT_BASE_URL = BASE_URL;
  * Sets the XSRF-TOKEN cookie (readable by JS) and the httpOnly laravel_session cookie.
  */
 export async function initCsrfCookie() {
-  await rootApi.get("/sanctum/csrf-cookie");
+  const csrfEndpoints = ["/api/sanctum/csrf-cookie", "/sanctum/csrf-cookie"];
+  let lastError = null;
+
+  for (const endpoint of csrfEndpoints) {
+    try {
+      await rootApi.get(endpoint, {
+        withCredentials: true,
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          [CLIENT_PLATFORM_HEADER]: "web",
+        },
+      });
+
+      const token = getXsrfTokenFromCookie();
+      if (token) {
+        return token;
+      }
+
+      lastError = new Error(`XSRF-TOKEN cookie was not set by ${endpoint}`);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Failed to initialize CSRF cookie");
 }
 export const rootApi = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: "XSRF-TOKEN",
+  xsrfHeaderName: "X-XSRF-TOKEN",
   headers: {
     Accept: "application/json",
     [CLIENT_PLATFORM_HEADER]: "web",

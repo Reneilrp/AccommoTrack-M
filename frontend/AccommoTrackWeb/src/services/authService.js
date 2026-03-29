@@ -2,15 +2,22 @@ import api, {
   clearPersistedAuthMode,
   initCsrfCookie,
   setPersistedAuthMode,
+  shouldUseBearerForRequest,
 } from "../utils/api";
+
+const ensureCsrfCookieOrFallback = async () => {
+  try {
+    await initCsrfCookie();
+  } catch (error) {
+    if (!shouldUseBearerForRequest()) {
+      throw error;
+    }
+  }
+};
 
 export const authService = {
   async register(name, email, password, password_confirmation) {
-    try {
-      await initCsrfCookie();
-    } catch {
-      // Token mode fallback (local/testing) does not require CSRF cookie.
-    }
+    await ensureCsrfCookieOrFallback();
 
     const response = await api.post("/register", {
       name,
@@ -37,11 +44,7 @@ export const authService = {
   },
 
   async login(email, password) {
-    try {
-      await initCsrfCookie();
-    } catch {
-      // Token mode fallback (local/testing) does not require CSRF cookie.
-    }
+    await ensureCsrfCookieOrFallback();
 
     const response = await api.post("/login", {
       email: (email || "").trim(),

@@ -33,10 +33,12 @@ use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
 // ====================================
+Route::middleware('web')->get('/sanctum/csrf-cookie', [CsrfCookieController::class, 'show']);
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-attempts');
 Route::post('/verify-email-otp', [AuthController::class, 'verifyEmailOtp'])->middleware('throttle:auth-attempts');
 Route::post('/resend-email-otp', [AuthController::class, 'resendEmailOtp'])->middleware('throttle:auth-attempts');
