@@ -64,6 +64,23 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     localStorage.setItem('tenantViewMode', mode);
   };
 
+  const isRoomBookable = (room) => {
+    if (!room) return false;
+    if (typeof room.is_available === 'boolean') {
+      return room.is_available;
+    }
+
+    return room.status === 'available'
+      && Number(room.available_slots ?? 0) > 0
+      && !room.is_booking_locked;
+  };
+
+  const isEvictionDue = (tenant) => {
+    const scheduledFor = tenant?.pending_eviction?.scheduled_for;
+    if (!scheduledFor) return false;
+    return new Date(scheduledFor).getTime() <= Date.now();
+  };
+
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
   const isFromProperty = Boolean(new URLSearchParams(location.search).get('property'));
@@ -149,7 +166,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
       const res = await api.get(`/rooms/property/${propertyId}`);
       const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
       // Filter for available rooms, excluding current one
-      setAvailableRooms(list.filter(r => r.status === 'available' && r.id !== tenant.room?.id));
+      setAvailableRooms(list.filter(r => isRoomBookable(r) && r.id !== tenant.room?.id));
     } catch {
       setError("Failed to load available rooms for transfer");
     } finally {
@@ -160,6 +177,46 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const handleEvictInitiate = (tenant) => {
     setEvictingTenant(tenant);
     setShowEvictModal(true);
+  };
+
+  const handleEvictionFinalize = async (tenant) => {
+    const confirmed = window.confirm(`Finalize eviction for ${tenant.first_name} ${tenant.last_name}?`);
+    if (!confirmed) return;
+
+    try {
+      await api.post(`/landlord/tenants/${tenant.id}/evictions/finalize`);
+      toast.success(`Eviction finalized for ${tenant.first_name}.`);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to finalize eviction.');
+    }
+  };
+
+  const handleEvictionCancel = async (tenant) => {
+    const confirmed = window.confirm(`Cancel pending eviction schedule for ${tenant.first_name} ${tenant.last_name}?`);
+    if (!confirmed) return;
+
+    try {
+      await api.post(`/landlord/tenants/${tenant.id}/evictions/cancel`);
+      toast.success(`Eviction schedule cancelled for ${tenant.first_name}.`);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to cancel eviction schedule.');
+    }
+  };
+
+  const handleEvictionUndo = async (tenant) => {
+    const note = window.prompt('Optional note for undoing this eviction:', '') || '';
+
+    try {
+      await api.post(`/landlord/tenants/${tenant.id}/evictions/undo`, {
+        reason: note.trim() || undefined,
+      });
+      toast.success(`Eviction undone for ${tenant.first_name}.`);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to undo eviction.');
+    }
   };
 
   const handleAssignInitiate = async (tenant) => {
@@ -177,7 +234,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     try {
       const res = await api.get(`/rooms/property/${propertyId}`);
       const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
-      setAvailableRoomsForAssign(list.filter(r => r.status === 'available'));
+      setAvailableRoomsForAssign(list.filter(r => isRoomBookable(r)));
     } catch {
       setError('Failed to load available rooms for assignment');
     } finally {
@@ -387,7 +444,11 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                     onAssign={handleAssignInitiate}
                     onUnassign={handleUnassignInitiate}
                     onEvict={handleEvictInitiate}
+                    onEvictionFinalize={handleEvictionFinalize}
+                    onEvictionCancel={handleEvictionCancel}
+                    onEvictionUndo={handleEvictionUndo}
                     canTransfer={!isCaretaker}
+                    isEvictionDue={isEvictionDue(tenant)}
                   />
                 </div>
               ))
@@ -403,8 +464,12 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             onAssign={handleAssignInitiate}
             onUnassign={handleUnassignInitiate}
             onEvict={handleEvictInitiate}
+            onEvictionFinalize={handleEvictionFinalize}
+            onEvictionCancel={handleEvictionCancel}
+            onEvictionUndo={handleEvictionUndo}
             canTransfer={!isCaretaker}
             searchQuery={searchQuery}
+            isEvictionDue={isEvictionDue}
           />
         )}
       </div>
@@ -569,18 +634,38 @@ const UnassignModal = ({ tenant, onClose, onConfirm, isSubmitting }) => (
 
 const EvictionModal = ({ tenant, onClose, onConfirm }) => {
   const [reason, setReason] = useState('');
+  const [effectiveAt, setEffectiveAt] = useState(() => {
+    const nextDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    nextDay.setMinutes(0, 0, 0);
+    const year = nextDay.getFullYear();
+    const month = String(nextDay.getMonth() + 1).padStart(2, '0');
+    const day = String(nextDay.getDate()).padStart(2, '0');
+    const hours = String(nextDay.getHours()).padStart(2, '0');
+    const minutes = String(nextDay.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  });
   const [isEvicting, setIsEvicting] = useState(false);
   
   const handleConfirm = async () => {
-    if (!reason) return toast.error("Reason for eviction is required.");
+    if (!reason.trim()) return toast.error("Reason for eviction is required.");
+    if (!effectiveAt) return toast.error("Please set an effective date and time.");
+
+    const parsedEffectiveAt = new Date(effectiveAt);
+    if (Number.isNaN(parsedEffectiveAt.getTime())) {
+      return toast.error('Invalid effective date/time.');
+    }
+
     setIsEvicting(true);
     try {
-      await api.post(`/landlord/tenants/${tenant.id}/evict`, { reason });
-      toast.success(`${tenant.first_name} has been evicted.`);
+      await api.post(`/landlord/tenants/${tenant.id}/evictions/schedule`, {
+        reason: reason.trim(),
+        effective_at: parsedEffectiveAt.toISOString(),
+      });
+      toast.success(`Eviction scheduled for ${tenant.first_name}.`);
       onConfirm(); // Callback to refresh the tenant list
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to evict tenant.");
+      toast.error(err.response?.data?.message || "Failed to schedule eviction.");
     } finally {
       setIsEvicting(false);
     }
@@ -589,13 +674,20 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700 shadow-2xl">
-        <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"><UserX /> Confirm Eviction</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">You are about to evict <strong>{tenant.first_name} {tenant.last_name}</strong>. This will terminate their current booking and mark them as inactive. This action cannot be undone.</p>
+        <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"><UserX /> Schedule Eviction</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">Set a move-out grace period before finalizing eviction for <strong>{tenant.first_name} {tenant.last_name}</strong>. Room booking is locked while eviction is pending.</p>
+        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Effective Date & Time *</label>
+        <input
+          type="datetime-local"
+          value={effectiveAt}
+          onChange={(e) => setEffectiveAt(e.target.value)}
+          className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 mb-3 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white"
+        />
         <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for eviction... (required)" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm" />
         <div className="flex gap-4 mt-4">
           <button onClick={onClose} disabled={isEvicting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
-          <button onClick={handleConfirm} disabled={isEvicting || !reason} className="flex-1 px-4 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-            {isEvicting ? <Loader2 className="w-4 h-4 animate-spin"/> : "Confirm Eviction"}
+          <button onClick={handleConfirm} disabled={isEvicting || !reason.trim() || !effectiveAt} className="flex-1 px-4 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {isEvicting ? <Loader2 className="w-4 h-4 animate-spin"/> : "Schedule Eviction"}
           </button>
         </div>
       </div>
@@ -605,7 +697,22 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
 
 // ─── List View ────────────────────────────────────────────────────────────────
 
-const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTransfer, onAssign, onUnassign, onEvict, canTransfer, searchQuery }) => {
+const TenantListView = ({
+  tenants,
+  selectedTenants,
+  onSelect,
+  onSelectAll,
+  onTransfer,
+  onAssign,
+  onUnassign,
+  onEvict,
+  onEvictionFinalize,
+  onEvictionCancel,
+  onEvictionUndo,
+  canTransfer,
+  searchQuery,
+  isEvictionDue,
+}) => {
   const navigate = useNavigate();
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -680,12 +787,15 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-700/60">
-            {tenants.map((tenant, idx) => {
+            {tenants.map((tenant) => {
               const profile = tenant.tenantProfile;
               const late = isLate(tenant);
               const expiring = isExpiring(tenant);
               const isOpen = openMenuId === tenant.id;
               const showEmergency = expandedEmergency === tenant.id;
+              const hasPendingEviction = Boolean(tenant.pending_eviction);
+              const canUndoEviction = Boolean(tenant.can_undo_eviction);
+              const evictionDue = isEvictionDue ? isEvictionDue(tenant) : false;
 
               return (
                 <React.Fragment key={tenant.id}>
@@ -709,6 +819,11 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
                         {expiring && !late && (
                           <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-orange-200 dark:border-orange-800">
                             <Clock className="w-2.5 h-2.5" /> Expiring
+                          </span>
+                        )}
+                        {hasPendingEviction && (
+                          <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-red-200 dark:border-red-800">
+                            <AlertOctagon className="w-2.5 h-2.5" /> Eviction Scheduled
                           </span>
                         )}
                       </div>
@@ -786,25 +901,43 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
                           <div className="border-t border-gray-100 dark:border-gray-700" />
                           <button
                             onClick={() => { setOpenMenuId(null); onAssign?.(tenant); }}
-                            disabled={!canTransfer || !!tenant.room}
+                            disabled={!canTransfer || !!tenant.room || hasPendingEviction}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <UserPlus className="w-3.5 h-3.5 text-emerald-500" /> Assign Room
                           </button>
                           <button
                             onClick={() => { setOpenMenuId(null); onTransfer?.(tenant); }}
-                            disabled={!canTransfer || !tenant.room}
+                            disabled={!canTransfer || !tenant.room || hasPendingEviction}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Shuffle className="w-3.5 h-3.5 text-amber-500" /> Transfer Room
                           </button>
                           <button
                             onClick={() => { setOpenMenuId(null); onUnassign?.(tenant); }}
-                            disabled={!canTransfer || !tenant.room}
+                            disabled={!canTransfer || !tenant.room || hasPendingEviction}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign Room
                           </button>
+                          {hasPendingEviction && (
+                            <>
+                              <button
+                                onClick={() => { setOpenMenuId(null); onEvictionFinalize?.(tenant); }}
+                                disabled={!canTransfer || !evictionDue}
+                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <UserX className="w-3.5 h-3.5" /> Finalize Eviction
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); onEvictionCancel?.(tenant); }}
+                                disabled={!canTransfer}
+                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" /> Cancel Eviction Schedule
+                              </button>
+                            </>
+                          )}
                           <button
                             onClick={() => { setOpenMenuId(null); setExpandedEmergency(showEmergency ? null : tenant.id); }}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
@@ -812,13 +945,24 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
                             <ShieldAlert className="w-3.5 h-3.5 text-purple-500" /> Emergency Contact
                           </button>
                           <div className="border-t border-gray-100 dark:border-gray-700" />
-                          <button
-                            onClick={() => { setOpenMenuId(null); onEvict?.(tenant); }}
-                            disabled={!canTransfer}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
-                          >
-                            <UserX className="w-3.5 h-3.5" /> Evict Tenant
-                          </button>
+                          {!hasPendingEviction && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onEvict?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <UserX className="w-3.5 h-3.5" /> Schedule Eviction
+                            </button>
+                          )}
+                          {canUndoEviction && !hasPendingEviction && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onEvictionUndo?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" /> Undo Eviction
+                            </button>
+                          )}
                         </div>,
                         document.body
                       )}

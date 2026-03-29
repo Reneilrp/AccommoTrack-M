@@ -108,8 +108,8 @@ export const authService = {
     return response.data;
   },
 
-  async switchRole(role) {
-    const response = await api.post("/switch-role", { role });
+  async switchRole(role, payload = {}) {
+    const response = await api.post("/switch-role", { role, ...payload });
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));
     }

@@ -14,12 +14,14 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
 
   const handleSendCode = async (e) => {
     e.preventDefault();
-    if (!email) return toast.error('Please enter your email');
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) return toast.error('Please enter your email');
     
     setLoading(true);
     try {
-      await authService.forgotPassword(email);
-      toast.success('Reset code sent to your email');
+      const result = await authService.forgotPassword(normalizedEmail);
+      setEmail(normalizedEmail);
+      toast.success(result?.message || 'If your email is registered, a reset code has been sent.');
       setStep(2);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send code');

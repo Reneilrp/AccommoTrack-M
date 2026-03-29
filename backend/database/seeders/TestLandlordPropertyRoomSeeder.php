@@ -155,6 +155,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $propertyTitle = "test{$landlordNumber}-{$propertyType}";
         $roomCount = $propertyType === 'apartment' ? 8 : 6;
         $typeProfile = $this->buildPropertyProfile($propertyType);
+        $genderRestriction = $this->resolvePropertyGenderRestriction($propertyType, $landlordNumber);
         $latitude = round(6.900100 + ($landlordNumber * 0.010000) + $typeProfile['lat_offset'], 7);
         $longitude = round(122.073100 + ($landlordNumber * 0.010000) + $typeProfile['lng_offset'], 7);
 
@@ -166,7 +167,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
             [
                 'description' => ucfirst($propertyType).' property managed by '.$landlord->first_name.' '.$landlord->last_name.'.',
                 'property_type' => $propertyType,
-                'gender_restriction' => 'mixed',
+                'gender_restriction' => $genderRestriction,
                 'current_status' => Property::STATUS_ACTIVE,
                 'street_address' => "{$landlordNumber}01 Test Street",
                 'city' => 'Zamboanga City',
@@ -215,6 +216,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
     private function upsertRoomsForProperty(Property $property, string $propertyType, array &$stats): void
     {
         $roomTemplates = $this->buildRoomTemplates($propertyType);
+        $roomGenderRestriction = strtolower((string) ($property->gender_restriction ?: 'mixed'));
 
         foreach ($roomTemplates as $roomTemplate) {
             $room = Room::updateOrCreate(
@@ -224,7 +226,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 ],
                 [
                     'room_type' => $roomTemplate['room_type'],
-                    'gender_restriction' => 'mixed',
+                    'gender_restriction' => $roomGenderRestriction,
                     'floor' => $roomTemplate['floor'],
                     'monthly_rate' => $roomTemplate['monthly_rate'],
                     'daily_rate' => $roomTemplate['daily_rate'],
@@ -247,6 +249,15 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $property->refresh();
         $property->updateTotalRooms();
         $property->updateAvailableRooms();
+    }
+
+    private function resolvePropertyGenderRestriction(string $propertyType, int $landlordNumber): string
+    {
+        if ($propertyType === 'apartment') {
+            return 'mixed';
+        }
+
+        return $landlordNumber % 2 === 0 ? 'female' : 'male';
     }
 
     private function upsertPropertyAssets(

@@ -94,6 +94,13 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     };
   };
 
+  const shouldShowGenderBadge = (restriction, propertyType) => {
+    const normalized = String(restriction || 'mixed').toLowerCase().trim();
+    const normalizedType = String(propertyType || '').toLowerCase().trim();
+
+    return !(normalizedType === 'apartment' && normalized === 'mixed');
+  };
+
   const formatCurrency = (value) => {
     const amount = Number(value);
     if (!Number.isFinite(amount) || amount <= 0) return 'N/A';
@@ -148,8 +155,8 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           .sort((a, b) => {
             const aStatus = (a.display_status || a.status || 'available').toString().toLowerCase();
             const bStatus = (b.display_status || b.status || 'available').toString().toLowerCase();
-            const aAvailable = aStatus === 'available';
-            const bAvailable = bStatus === 'available';
+            const aAvailable = typeof a.is_available === 'boolean' ? a.is_available : aStatus === 'available';
+            const bAvailable = typeof b.is_available === 'boolean' ? b.is_available : bStatus === 'available';
 
             if (aAvailable && !bAvailable) return -1;
             if (!aAvailable && bAvailable) return 1;
@@ -158,7 +165,14 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           })
           .map((room) => {
             const genderBadge = getGenderBadge(room.genderRestriction);
-            const displayStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
+            const showGenderBadge = shouldShowGenderBadge(
+              room.genderRestriction,
+              property?.property_type,
+            );
+            const rawDisplayStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
+            const displayStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawDisplayStatus === 'available')
+              ? 'reserved'
+              : rawDisplayStatus;
             const isOccupied = displayStatus === 'occupied';
             const hasAlternatePrice =
               Number.isFinite(Number(room.alternatePrice)) && Number(room.alternatePrice) > 0;
@@ -197,11 +211,13 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                 <span className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm max-w-[70%] ${statusBadgeClassName}`}>
                   {statusBadgeText}
                 </span>
-                <span
-                  className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
-                >
-                  {genderBadge.label}
-                </span>
+                {showGenderBadge && (
+                  <span
+                    className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
+                  >
+                    {genderBadge.label}
+                  </span>
+                )}
               </div>
             </div>
 

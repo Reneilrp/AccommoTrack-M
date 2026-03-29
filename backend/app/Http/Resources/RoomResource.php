@@ -15,6 +15,8 @@ class RoomResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $lock = $this->active_eviction_lock;
+
         return [
             'id' => $this->id,
             'room_number' => $this->room_number,
@@ -31,7 +33,14 @@ class RoomResource extends JsonResource
             'occupied' => (int) $this->occupied,
             'occupied_count' => (int) $this->occupied,
             'available_slots' => (int) $this->available_slots,
-            'is_available' => $this->status === 'available' && $this->available_slots > 0,
+            'is_available' => $this->isAvailable(),
+            'is_booking_locked' => (bool) $this->is_booking_locked,
+            'booking_lock' => $lock ? [
+                'id' => $lock->id,
+                'tenant_id' => $lock->tenant_id,
+                'reason' => $lock->reason,
+                'scheduled_for' => optional($lock->scheduled_for)->toISOString(),
+            ] : null,
             'is_gender_compatible' => $this->when(Auth::check(), function () {
                 $tenant = Auth::user();
                 $property = $this->property;

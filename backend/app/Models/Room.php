@@ -162,6 +162,24 @@ class Room extends Model
     }
 
     /**
+     * Relationship: Room has many tenant eviction records.
+     */
+    public function evictionSchedules()
+    {
+        return $this->hasMany(TenantEviction::class, 'room_id');
+    }
+
+    /**
+     * Relationship: Room has one active booking lock caused by pending eviction.
+     */
+    public function activeEvictionLock()
+    {
+        return $this->hasOne(TenantEviction::class, 'room_id')
+            ->where('status', 'scheduled')
+            ->oldestOfMany('scheduled_for');
+    }
+
+    /**
      * Get occupied count (actual number of beds taken)
      */
     public function getOccupiedAttribute()
@@ -274,7 +292,7 @@ class Room extends Model
      */
     public function getAvailableSlotsAttribute()
     {
-        if ($this->status === 'maintenance') {
+        if ($this->status === 'maintenance' || $this->is_booking_locked) {
             return 0;
         }
 
@@ -329,7 +347,32 @@ class Room extends Model
      */
     public function isAvailable($requestedBeds = 1)
     {
-        return $this->status !== 'maintenance' && $this->available_slots >= $requestedBeds;
+        return ! $this->is_booking_locked
+            && $this->status !== 'maintenance'
+            && $this->available_slots >= $requestedBeds;
+    }
+
+    /**
+     * Get active eviction lock details for this room.
+     */
+    public function getActiveEvictionLockAttribute()
+    {
+        if ($this->relationLoaded('activeEvictionLock')) {
+            return $this->getRelation('activeEvictionLock');
+        }
+
+        $lock = $this->activeEvictionLock()->first();
+        $this->setRelation('activeEvictionLock', $lock);
+
+        return $lock;
+    }
+
+    /**
+     * Room booking lock flag.
+     */
+    public function getIsBookingLockedAttribute(): bool
+    {
+        return (bool) $this->active_eviction_lock;
     }
 
     /**
@@ -479,6 +522,9 @@ class Room extends Model
     public function scopeAvailable($query)
     {
         return $query->where('status', 'available')
+            ->whereDoesntHave('evictionSchedules', function ($q) {
+                $q->where('status', 'scheduled');
+            })
             ->where(function ($q) {
                 // Ensure room has slots left after accounting for pending bookings
                 $q->whereRaw('(capacity - (SELECT COUNT(*) FROM room_tenant_assignments rta WHERE rta.room_id = rooms.id AND rta.status = "active") - (SELECT COUNT(*) FROM bookings b WHERE b.room_id = rooms.id AND b.status = "pending")) > 0');

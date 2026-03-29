@@ -357,6 +357,9 @@ export default function RoomDetailsModal({
   };
 
   const genderMeta = getGenderRestrictionMeta(room.gender_restriction);
+  const propertyType = String(property?.property_type || "").toLowerCase().trim();
+  const roomGender = String(room?.gender_restriction || "mixed").toLowerCase().trim();
+  const showGenderBadge = !(propertyType === "apartment" && roomGender === "mixed");
   const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
   
   // Use the API-provided flags if available, otherwise fallback to local logic
@@ -417,12 +420,14 @@ export default function RoomDetailsModal({
                           </span>
                         )}
                       </div>
-                      <div className="absolute top-3 right-3">
-                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${genderMeta.className}`}>
-                           <Info className="w-3 h-3" />
-                           <span>{genderMeta.label}</span>
+                      {showGenderBadge && (
+                        <div className="absolute top-3 right-3">
+                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${genderMeta.className}`}>
+                             <Info className="w-3 h-3" />
+                             <span>{genderMeta.label}</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
 

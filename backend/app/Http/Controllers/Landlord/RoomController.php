@@ -140,7 +140,13 @@ class RoomController extends Controller
                 'total' => Room::where('property_id', $propertyId)->count(),
                 'total_limit' => $property->total_rooms,
                 'occupied' => Room::where('property_id', $propertyId)->where('status', 'occupied')->count(),
-                'available' => Room::where('property_id', $propertyId)->where('status', 'available')->count(),
+                'available' => Room::where('property_id', $propertyId)
+                    ->where('status', 'available')
+                    ->get()
+                    ->filter(function ($room) {
+                        return $room->isAvailable();
+                    })
+                    ->count(),
                 'maintenance' => Room::where('property_id', $propertyId)->where('status', 'maintenance')->count(),
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

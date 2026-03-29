@@ -79,6 +79,10 @@ class BookingService
                 throw new \Exception('Room is currently under maintenance');
             }
 
+            if ($room->is_booking_locked) {
+                throw new \Exception('Room is temporarily locked for new bookings due to a pending eviction process.');
+            }
+
             // Check Gender Compatibility
             $tenant = $tenantId ? User::find($tenantId) : null;
             if ($tenant && $tenant->role === 'tenant') {

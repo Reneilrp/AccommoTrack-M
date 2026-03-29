@@ -1458,6 +1458,22 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
               </div>
             </div>
 
+            {(() => {
+              const bookingStatus = String(booking.status || '').toLowerCase();
+              const cancellationReason = booking.cancellationReason || booking.cancellation_reason;
+
+              if (bookingStatus !== 'cancelled' || !cancellationReason) {
+                return null;
+              }
+
+              return (
+                <div className="mt-4 p-4 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-300 mb-2">Cancellation / Eviction Reason</p>
+                  <p className="text-sm font-medium text-red-800 dark:text-red-200">{cancellationReason}</p>
+                </div>
+              );
+            })()}
+
             {/* Activity Timeline */}
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
               <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Activity Timeline</h5>

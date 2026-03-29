@@ -33,7 +33,8 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
   const codeInputs = useRef([]);
 
   const handleSendCode = async () => {
-    if (!email) {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
       Alert.alert('Error', 'Please enter your email address.');
       return;
     }
@@ -43,13 +44,14 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       const response = await fetch(`${API_URL}/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: normalizedEmail })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'Reset code sent to your email.');
+        setEmail(normalizedEmail);
+        Alert.alert('Success', data.message || 'If your email is registered, a reset code has been sent.');
         setStep(2);
       } else {
         Alert.alert('Error', data.message || 'Failed to send reset code.');

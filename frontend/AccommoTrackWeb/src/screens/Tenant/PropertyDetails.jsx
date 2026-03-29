@@ -135,6 +135,13 @@ export default function PropertyDetails({ propertyId, onBack }) {
     };
   };
 
+  const shouldShowGenderBadge = (restriction, propertyType) => {
+    const normalized = String(restriction || "mixed").toLowerCase().trim();
+    const normalizedType = String(propertyType || "").toLowerCase().trim();
+
+    return !(normalizedType === "apartment" && normalized === "mixed");
+  };
+
   const openFullGallery = (targetItemIndex = 0) => {
     if (!property) return;
 
@@ -402,8 +409,19 @@ export default function PropertyDetails({ propertyId, onBack }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredRooms.map((room) => {
               const genderBadge = getGenderBadge(room.gender_restriction);
+              const showGenderBadge = shouldShowGenderBadge(
+                room.gender_restriction,
+                property?.property_type,
+              );
               const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
-              const canBook = displayStatus === "available" && (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
+              const canBook = typeof room.is_available === "boolean"
+                ? room.is_available
+                : (
+                  displayStatus === "available"
+                  && (room.status || "").toString().toLowerCase() === "available"
+                  && Number(room.available_slots ?? 1) > 0
+                  && !room.is_booking_locked
+                );
               return (
               <div
                 key={room.id}
@@ -439,11 +457,13 @@ export default function PropertyDetails({ propertyId, onBack }) {
                           (room.display_status_label || displayStatus || "").toString().slice(1)}
                       </span>
                     )}
-                    <span
-                      className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
-                    >
-                      {genderBadge.label}
-                    </span>
+                    {showGenderBadge && (
+                      <span
+                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
+                      >
+                        {genderBadge.label}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-6 flex-1 flex flex-col">
@@ -555,7 +575,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
   const renderOverview = () => {
     const CARD = "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-md";
 
+    const propertyType = String(property.property_type || "").toLowerCase().trim();
     const genderRestriction = String(property.gender_restriction || "mixed").toLowerCase().trim();
+    const showPropertyGenderLabel = !(propertyType === "apartment" && genderRestriction === "mixed");
     const genderLabel =
       genderRestriction === "male" || genderRestriction === "boys" || genderRestriction === "boy"
         ? { label: "Boys only", icon: <Mars className="w-3.5 h-3.5" />, cls: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 shadow-sm" }
@@ -616,10 +638,12 @@ export default function PropertyDetails({ propertyId, onBack }) {
           <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-4">
             About this Property
           </p>
-          <span className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-semibold border mb-4 ${genderLabel.cls}`}>
-            {genderLabel.icon}
-            {genderLabel.label}
-          </span>
+          {showPropertyGenderLabel && (
+            <span className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-semibold border mb-4 ${genderLabel.cls}`}>
+              {genderLabel.icon}
+              {genderLabel.label}
+            </span>
+          )}
           <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-line">
             {property.description || "No description provided by the landlord yet."}
           </p>

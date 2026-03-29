@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
+use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Room;
+use App\Models\TenantEviction;
 use App\Models\User;
 use App\Services\BookingService;
 use App\Services\RefundService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -18,6 +22,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 class TenantController extends Controller
 {
     use ResolvesLandlordAccess;
+
+    private const EVICTION_UNDO_WINDOW_HOURS = 24;
 
     protected $bookingService;
     protected $refundService;
@@ -63,6 +69,12 @@ class TenantController extends Controller
                         $q->where('landlord_id', $landlordId)
                             ->with('room.property')
                             ->orderBy('created_at', 'desc');
+                    },
+                    'scheduledEviction' => function ($q) use ($landlordId) {
+                        $q->where('landlord_id', $landlordId);
+                    },
+                    'latestEvictionRecord' => function ($q) use ($landlordId) {
+                        $q->where('landlord_id', $landlordId);
                     },
                 ])
                 ->where(function ($q) use ($landlordId, $allowedPropertyIds) {
@@ -116,6 +128,8 @@ class TenantController extends Controller
                 $bookingRoom = $latestBooking?->room;
                 $room = ($legacyRoom && (! $propertyId || (string) $legacyRoom->property_id === (string) $propertyId))
                     ? $legacyRoom : $bookingRoom;
+                $scheduledEviction = $tenant->scheduledEviction;
+                $latestEviction = $tenant->latestEvictionRecord;
 
                 $hasOverdue = Invoice::where('tenant_id', $tenant->id)->where('status', 'pending')->where('due_date', '<', now())->exists();
 
@@ -136,6 +150,9 @@ class TenantController extends Controller
                     ] : null,
                     'tenantProfile' => $tenant->tenantProfile,
                     'latestBooking' => $latestBooking,
+                    'pending_eviction' => $this->serializeEviction($scheduledEviction),
+                    'latest_eviction' => $this->serializeEviction($latestEviction),
+                    'can_undo_eviction' => $this->canUndoEviction($latestEviction),
                 ];
             });
 
@@ -401,6 +418,12 @@ class TenantController extends Controller
         $tenant = User::where('role', 'tenant')->findOrFail($id);
         $room = Room::with('property')->findOrFail($validated['room_id']);
 
+        if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
+            return response()->json([
+                'error' => 'This tenant has a pending eviction schedule. Cancel it before assigning a room.',
+            ], 422);
+        }
+
         // Verify room belongs to landlord
         if ($room->property->landlord_id !== $context['landlord_id']) {
             return response()->json(['error' => 'Unauthorized'], 403);
@@ -453,6 +476,12 @@ class TenantController extends Controller
         $this->assertNotCaretaker($context);
 
         $tenant = User::where('role', 'tenant')->with('room.property')->findOrFail($id);
+
+        if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
+            return response()->json([
+                'error' => 'This tenant has a pending eviction schedule. Cancel it before unassigning.',
+            ], 422);
+        }
 
         if (! $tenant->room) {
             return response()->json(['error' => 'Tenant is not assigned to any room'], 400);
@@ -519,6 +548,12 @@ class TenantController extends Controller
         ]);
 
         $tenant = User::where('role', 'tenant')->with(['roomAssignments', 'tenantProfile'])->findOrFail($id);
+
+        if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
+            return response()->json([
+                'error' => 'This tenant has a pending eviction schedule. Cancel it before transferring rooms.',
+            ], 422);
+        }
         
         $activeBooking = null;
         if (!empty($validated['booking_id'])) {
@@ -786,69 +821,536 @@ class TenantController extends Controller
     }
 
     /**
-     * Evict a tenant
+     * Schedule an eviction with a grace period.
+     */
+    public function scheduleEviction(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+            $landlordId = (int) $context['landlord_id'];
+
+            $validated = $request->validate([
+                'reason' => 'required|string|max:1000',
+                'effective_at' => 'nullable|date|after:now',
+                'grace_hours' => 'nullable|integer|min:0|max:168',
+            ]);
+
+            $evictionReason = trim((string) $validated['reason']);
+            if ($evictionReason === '') {
+                return response()->json(['message' => 'Reason for eviction is required.'], 422);
+            }
+
+            $effectiveAt = isset($validated['effective_at'])
+                ? Carbon::parse($validated['effective_at'])
+                : now()->addHours((int) ($validated['grace_hours'] ?? 24));
+
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId);
+
+            if ($this->hasScheduledEviction((int) $tenant->id, $landlordId)) {
+                return response()->json([
+                    'message' => 'This tenant already has a pending eviction schedule.',
+                ], 422);
+            }
+
+            if (($tenant->tenantProfile?->status ?? null) === 'evicted') {
+                return response()->json([
+                    'message' => 'Tenant is already marked as evicted.',
+                ], 422);
+            }
+
+            $activeBooking = Booking::where('tenant_id', $tenant->id)
+                ->where('landlord_id', $landlordId)
+                ->whereIn('status', ['confirmed', 'active'])
+                ->latest('id')
+                ->first();
+
+            $roomId = $activeBooking?->room_id ?? $tenant->room?->id;
+            if (! $roomId && ! $activeBooking) {
+                return response()->json([
+                    'message' => 'Tenant must have an active stay before scheduling eviction.',
+                ], 422);
+            }
+
+            if ($roomId) {
+                $room = Room::with('property')->find($roomId);
+                if ($room && (int) optional($room->property)->landlord_id !== $landlordId) {
+                    throw new AccessDeniedHttpException('Unauthorized room access for eviction scheduling.');
+                }
+            }
+
+            $eviction = DB::transaction(function () use ($tenant, $landlordId, $activeBooking, $roomId, $evictionReason, $effectiveAt) {
+                $record = TenantEviction::create([
+                    'landlord_id' => $landlordId,
+                    'tenant_id' => $tenant->id,
+                    'room_id' => $roomId,
+                    'booking_id' => $activeBooking?->id,
+                    'status' => 'scheduled',
+                    'reason' => $evictionReason,
+                    'scheduled_for' => $effectiveAt,
+                ]);
+
+                $this->appendTenantProfileNote(
+                    $tenant,
+                    'EVICTION SCHEDULED for '.$effectiveAt->format('Y-m-d H:i').'. Reason: '.$evictionReason
+                );
+
+                return $record;
+            });
+
+            return response()->json([
+                'message' => 'Eviction scheduled successfully.',
+                'eviction' => $this->serializeEviction($eviction),
+            ], 201);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to schedule eviction', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Cancel a pending eviction schedule.
+     */
+    public function cancelScheduledEviction(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+            $landlordId = (int) $context['landlord_id'];
+
+            $validated = $request->validate([
+                'note' => 'nullable|string|max:1000',
+            ]);
+
+            $eviction = TenantEviction::forLandlord($landlordId)
+                ->where('tenant_id', $id)
+                ->scheduled()
+                ->orderBy('scheduled_for')
+                ->first();
+
+            if (! $eviction) {
+                return response()->json([
+                    'message' => 'No pending eviction schedule found for this tenant.',
+                ], 404);
+            }
+
+            $tenant = User::where('role', 'tenant')->with('tenantProfile')->findOrFail($id);
+            $cancelNote = trim((string) ($validated['note'] ?? ''));
+
+            $updatedEviction = DB::transaction(function () use ($eviction, $tenant, $cancelNote, $context) {
+                $eviction->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                    'cancelled_by' => $context['user']->id,
+                    'cancelled_reason' => $cancelNote !== '' ? $cancelNote : null,
+                ]);
+
+                $note = 'EVICTION SCHEDULE CANCELLED.';
+                if ($cancelNote !== '') {
+                    $note .= ' Note: '.$cancelNote;
+                }
+                $this->appendTenantProfileNote($tenant, $note);
+
+                return $eviction->fresh();
+            });
+
+            return response()->json([
+                'message' => 'Pending eviction schedule cancelled.',
+                'eviction' => $this->serializeEviction($updatedEviction),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to cancel eviction schedule', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Finalize a pending eviction once grace period ends.
+     */
+    public function finalizeScheduledEviction(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+            $landlordId = (int) $context['landlord_id'];
+
+            $validated = $request->validate([
+                'force' => 'nullable|boolean',
+            ]);
+            $force = (bool) ($validated['force'] ?? false);
+
+            $eviction = TenantEviction::forLandlord($landlordId)
+                ->where('tenant_id', $id)
+                ->scheduled()
+                ->orderBy('scheduled_for')
+                ->first();
+
+            if (! $eviction) {
+                return response()->json([
+                    'message' => 'No pending eviction schedule found for this tenant.',
+                ], 404);
+            }
+
+            if (! $force && $eviction->scheduled_for && now()->lt($eviction->scheduled_for)) {
+                return response()->json([
+                    'message' => 'Eviction is still in grace period and cannot be finalized yet.',
+                    'scheduled_for' => optional($eviction->scheduled_for)->toISOString(),
+                ], 422);
+            }
+
+            $tenant = User::where('role', 'tenant')->with(['room.property', 'tenantProfile'])->findOrFail($id);
+
+            $updatedEviction = DB::transaction(function () use ($tenant, $eviction, $landlordId, $context) {
+                $outcome = $this->performFinalEviction($tenant, $landlordId, $eviction->reason);
+
+                $eviction->update([
+                    'status' => 'finalized',
+                    'finalized_at' => now(),
+                    'finalized_by' => $context['user']->id,
+                    'booking_id' => $outcome['booking_id'] ?? $eviction->booking_id,
+                    'room_id' => $outcome['room_id'] ?? $eviction->room_id,
+                ]);
+
+                return $eviction->fresh();
+            });
+
+            return response()->json([
+                'message' => 'Tenant eviction finalized successfully.',
+                'eviction' => $this->serializeEviction($updatedEviction),
+                'tenant' => $tenant->fresh()->load(['tenantProfile', 'room']),
+            ]);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to finalize eviction', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Undo a recently finalized eviction.
+     */
+    public function undoEviction(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+            $landlordId = (int) $context['landlord_id'];
+
+            $validated = $request->validate([
+                'reason' => 'nullable|string|max:1000',
+            ]);
+            $undoReason = trim((string) ($validated['reason'] ?? ''));
+
+            if ($this->hasScheduledEviction((int) $id, $landlordId)) {
+                return response()->json([
+                    'message' => 'Cancel the pending eviction schedule before undoing a finalized eviction.',
+                ], 422);
+            }
+
+            $eviction = TenantEviction::forLandlord($landlordId)
+                ->where('tenant_id', $id)
+                ->finalized()
+                ->orderByDesc('finalized_at')
+                ->orderByDesc('id')
+                ->first();
+
+            if (! $eviction) {
+                return response()->json([
+                    'message' => 'No finalized eviction record found for this tenant.',
+                ], 404);
+            }
+
+            if (! $this->canUndoEviction($eviction)) {
+                return response()->json([
+                    'message' => 'Undo window has expired for this eviction.',
+                ], 422);
+            }
+
+            $tenant = User::where('role', 'tenant')->with('tenantProfile')->findOrFail($id);
+
+            $hasActiveStay = Booking::where('tenant_id', $tenant->id)
+                ->where('landlord_id', $landlordId)
+                ->whereIn('status', ['pending', 'confirmed', 'active'])
+                ->exists();
+
+            if ($hasActiveStay) {
+                return response()->json([
+                    'message' => 'Tenant already has an active or pending stay. Undo is blocked.',
+                ], 422);
+            }
+
+            $payload = DB::transaction(function () use ($tenant, $eviction, $landlordId, $undoReason, $context) {
+                $room = Room::with('property')->lockForUpdate()->find($eviction->room_id);
+                if (! $room) {
+                    throw new \DomainException('Original room is no longer available for undo.');
+                }
+
+                if ((int) optional($room->property)->landlord_id !== $landlordId) {
+                    throw new AccessDeniedHttpException('Unauthorized room access for undo eviction.');
+                }
+
+                if (! $room->isAvailable() || $room->available_slots <= 0) {
+                    throw new \DomainException('Room is no longer available; undo is blocked to avoid reassignment conflicts.');
+                }
+
+                $previousBooking = null;
+                if ($eviction->booking_id) {
+                    $previousBooking = Booking::where('id', $eviction->booking_id)
+                        ->where('tenant_id', $tenant->id)
+                        ->where('landlord_id', $landlordId)
+                        ->first();
+                }
+
+                $restoredBooking = null;
+
+                if ($previousBooking
+                    && $previousBooking->status === 'cancelled'
+                    && (int) $previousBooking->room_id === (int) $room->id) {
+                    $today = Carbon::today();
+                    $previousBooking->status = 'pending';
+                    $previousBooking->cancelled_at = null;
+                    $previousBooking->cancellation_reason = null;
+                    $previousBooking->start_date = $today->toDateString();
+                    if (! $previousBooking->end_date || Carbon::parse($previousBooking->end_date)->lte($today)) {
+                        $previousBooking->end_date = $today->copy()->addMonth()->toDateString();
+                    }
+                    $previousBooking->save();
+
+                    $this->bookingService->updateStatus($previousBooking, ['status' => 'confirmed']);
+                    $restoredBooking = $previousBooking->fresh();
+                } else {
+                    $startDate = Carbon::today();
+                    $endDate = $startDate->copy()->addMonth();
+                    if ($previousBooking?->end_date && Carbon::parse($previousBooking->end_date)->gt($startDate)) {
+                        $endDate = Carbon::parse($previousBooking->end_date);
+                    }
+
+                    $createPayload = [
+                        'room_id' => $room->id,
+                        'start_date' => $startDate->toDateString(),
+                        'end_date' => $endDate->toDateString(),
+                        'notes' => 'Restored after eviction undo',
+                    ];
+
+                    if ((int) ($previousBooking?->bed_count ?? 0) > 0) {
+                        $createPayload['bed_count'] = (int) $previousBooking->bed_count;
+                    }
+
+                    $restoredBooking = $this->bookingService->createBooking($createPayload, $tenant->id);
+                    $this->bookingService->updateStatus($restoredBooking, ['status' => 'confirmed']);
+                    $restoredBooking = $restoredBooking->fresh();
+                }
+
+                $tenant->tenantProfile()->updateOrCreate(
+                    ['user_id' => $tenant->id],
+                    [
+                        'status' => 'active',
+                        'move_out_date' => null,
+                        'booking_id' => $restoredBooking->id,
+                    ]
+                );
+                $tenant->load('tenantProfile');
+
+                $eviction->update([
+                    'status' => 'reverted',
+                    'reverted_at' => now(),
+                    'reverted_by' => $context['user']->id,
+                    'reverted_reason' => $undoReason !== '' ? $undoReason : null,
+                ]);
+
+                $note = 'EVICTION UNDONE. Tenant restored to room '.$room->room_number.'.';
+                if ($undoReason !== '') {
+                    $note .= ' Note: '.$undoReason;
+                }
+                $this->appendTenantProfileNote($tenant, $note);
+
+                return [
+                    'eviction' => $eviction->fresh(),
+                    'booking' => $restoredBooking,
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Eviction has been undone and tenancy was restored.',
+                'eviction' => $this->serializeEviction($payload['eviction']),
+                'booking_id' => $payload['booking']->id,
+                'tenant' => $tenant->fresh()->load(['tenantProfile', 'room']),
+            ]);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to undo eviction', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Legacy immediate eviction endpoint.
      */
     public function evict(Request $request, string $id): JsonResponse
     {
         try {
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
-            $landlordId = $context['landlord_id'];
+            $landlordId = (int) $context['landlord_id'];
 
             $validated = $request->validate([
                 'reason' => 'required|string|max:1000',
             ]);
+            $evictionReason = trim((string) $validated['reason']);
 
-            $tenant = User::where('role', 'tenant')->with(['room', 'tenantProfile'])->findOrFail($id);
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId);
 
-            // Verify the tenant belongs to this landlord
-            $hasValidBooking = $tenant->bookings()->where('landlord_id', $landlordId)->exists();
-            if (! $tenant->room && ! $hasValidBooking) {
-                throw new AccessDeniedHttpException('This tenant is not associated with your properties.');
+            if ($this->hasScheduledEviction((int) $tenant->id, $landlordId)) {
+                return response()->json([
+                    'message' => 'Tenant already has a pending eviction schedule. Finalize or cancel that schedule instead.',
+                ], 422);
             }
 
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            $payload = DB::transaction(function () use ($tenant, $landlordId, $evictionReason, $context) {
+                $outcome = $this->performFinalEviction($tenant, $landlordId, $evictionReason);
 
-            // 1. End current booking
-            $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
-                ->where('landlord_id', $landlordId)
-                ->whereIn('status', ['confirmed', 'active'])
-                ->first();
-
-            if ($activeBooking) {
-                $this->bookingService->updateStatus($activeBooking, ['status' => 'cancelled']);
-            }
-
-            // 2. Unassign from room if assigned
-            if ($tenant->room) {
-                if ($tenant->room->property->landlord_id !== $landlordId) {
-                    throw new AccessDeniedHttpException('Unauthorized room unassignment.');
-                }
-                $tenant->room->removeTenant($tenant->id);
-            }
-
-            // 3. Update tenant profile
-            if ($tenant->tenantProfile) {
-                $currentNotes = $tenant->tenantProfile->notes ?? '';
-                $evictionLog = "\n[".now()->toDateString().'] EVICTED. Reason: '.$validated['reason'];
-                $tenant->tenantProfile->update([
-                    'status' => 'evicted',
-                    'move_out_date' => now()->format('Y-m-d'),
-                    'notes' => $currentNotes.$evictionLog,
+                $eviction = TenantEviction::create([
+                    'landlord_id' => $landlordId,
+                    'tenant_id' => $tenant->id,
+                    'room_id' => $outcome['room_id'] ?? $tenant->room?->id,
+                    'booking_id' => $outcome['booking_id'] ?? null,
+                    'status' => 'finalized',
+                    'reason' => $evictionReason,
+                    'scheduled_for' => now(),
+                    'finalized_at' => now(),
+                    'finalized_by' => $context['user']->id,
                 ]);
-            }
 
-            \Illuminate\Support\Facades\DB::commit();
+                return $eviction;
+            });
 
             return response()->json([
                 'message' => 'Tenant evicted successfully.',
-                'tenant' => $tenant->load(['tenantProfile', 'room']),
+                'eviction' => $this->serializeEviction($payload),
+                'tenant' => $tenant->fresh()->load(['tenantProfile', 'room']),
             ]);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-
             return response()->json(['error' => 'Failed to evict tenant', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    private function resolveTenantForLandlord(int $tenantId, int $landlordId): User
+    {
+        $tenant = User::where('role', 'tenant')->with(['room.property', 'tenantProfile'])->findOrFail($tenantId);
+
+        $hasValidBooking = $tenant->bookings()->where('landlord_id', $landlordId)->exists();
+        if (! $tenant->room && ! $hasValidBooking) {
+            throw new AccessDeniedHttpException('This tenant is not associated with your properties.');
+        }
+
+        return $tenant;
+    }
+
+    private function hasScheduledEviction(int $tenantId, int $landlordId): bool
+    {
+        return TenantEviction::where('tenant_id', $tenantId)
+            ->where('landlord_id', $landlordId)
+            ->where('status', 'scheduled')
+            ->exists();
+    }
+
+    private function serializeEviction(?TenantEviction $eviction): ?array
+    {
+        if (! $eviction) {
+            return null;
+        }
+
+        return [
+            'id' => $eviction->id,
+            'status' => $eviction->status,
+            'reason' => $eviction->reason,
+            'scheduled_for' => optional($eviction->scheduled_for)->toISOString(),
+            'finalized_at' => optional($eviction->finalized_at)->toISOString(),
+            'cancelled_at' => optional($eviction->cancelled_at)->toISOString(),
+            'reverted_at' => optional($eviction->reverted_at)->toISOString(),
+        ];
+    }
+
+    private function canUndoEviction(?TenantEviction $eviction): bool
+    {
+        if (! $eviction || $eviction->status !== 'finalized') {
+            return false;
+        }
+
+        $reference = $eviction->finalized_at ?? $eviction->updated_at;
+        if (! $reference) {
+            return false;
+        }
+
+        return Carbon::parse($reference)->gte(now()->subHours(self::EVICTION_UNDO_WINDOW_HOURS));
+    }
+
+    private function appendTenantProfileNote(User $tenant, string $entry): void
+    {
+        $profile = $tenant->tenantProfile;
+
+        if (! $profile) {
+            $profile = $tenant->tenantProfile()->create([
+                'status' => 'inactive',
+            ]);
+            $tenant->setRelation('tenantProfile', $profile);
+        }
+
+        $currentNotes = trim((string) ($profile->notes ?? ''));
+        $noteLine = '['.now()->toDateString().'] '.$entry;
+
+        $profile->update([
+            'notes' => $currentNotes === '' ? $noteLine : $currentNotes."\n".$noteLine,
+        ]);
+    }
+
+    private function performFinalEviction(User $tenant, int $landlordId, string $evictionReason): array
+    {
+        $activeBooking = Booking::where('tenant_id', $tenant->id)
+            ->where('landlord_id', $landlordId)
+            ->whereIn('status', ['confirmed', 'active'])
+            ->latest('id')
+            ->first();
+
+        if ($activeBooking) {
+            $this->bookingService->updateStatus($activeBooking, [
+                'status' => 'cancelled',
+                'cancellation_reason' => 'Evicted by landlord: '.$evictionReason,
+            ]);
+        }
+
+        $roomId = $activeBooking?->room_id ?? $tenant->room?->id;
+        $room = $roomId ? Room::with('property')->lockForUpdate()->find($roomId) : null;
+
+        if ($room && (int) optional($room->property)->landlord_id !== $landlordId) {
+            throw new AccessDeniedHttpException('Unauthorized room unassignment.');
+        }
+
+        if ($room && $room->tenants()->where('users.id', $tenant->id)->exists()) {
+            $room->removeTenant($tenant->id);
+        }
+
+        $tenant->tenantProfile()->updateOrCreate(
+            ['user_id' => $tenant->id],
+            [
+                'status' => 'evicted',
+                'move_out_date' => now()->format('Y-m-d'),
+            ]
+        );
+        $tenant->load('tenantProfile');
+
+        $this->appendTenantProfileNote($tenant, 'EVICTION FINALIZED. Reason: '.$evictionReason);
+
+        return [
+            'booking_id' => $activeBooking?->id,
+            'room_id' => $room?->id,
+        ];
     }
 
     protected function assertNotCaretaker(array $context): void

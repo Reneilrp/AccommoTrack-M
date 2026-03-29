@@ -260,15 +260,19 @@ const TenantDashboard = () => {
               <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px] ${
                 card.color === 'green' ? 'bg-green-500' : card.color === 'blue' ? 'bg-blue-400' : 'bg-purple-400'
               }`} />
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${
-                card.color === 'green' ? 'bg-green-100 dark:bg-green-500/15' : card.color === 'blue' ? 'bg-blue-100 dark:bg-blue-500/12' : 'bg-purple-100 dark:bg-purple-500/12'
-              }`}>
-                <card.icon className={`w-5 h-5 ${
-                  card.color === 'green' ? 'text-green-600 dark:text-green-400' : card.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'
-                }`} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] text-gray-500 dark:text-slate-400 font-medium tracking-wide">{card.label}</div>
+                  <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 truncate">{card.value}</div>
+                </div>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  card.color === 'green' ? 'bg-green-100 dark:bg-green-500/15' : card.color === 'blue' ? 'bg-blue-100 dark:bg-blue-500/12' : 'bg-purple-100 dark:bg-purple-500/12'
+                }`}>
+                  <card.icon className={`w-5 h-5 ${
+                    card.color === 'green' ? 'text-green-600 dark:text-green-400' : card.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'
+                  }`} />
+                </div>
               </div>
-              <div className="text-[13px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-2">{card.label}</div>
-              <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100">{card.value}</div>
             </div>
           ))}
         </div>
@@ -537,14 +541,16 @@ const TenantDashboard = () => {
               } : undefined}
             >
               <div className={`absolute top-0 left-0 right-0 h-[4px] rounded-t-[16px] ${cm.border}`} />
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${cm.iconBg}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[14px] text-gray-500 dark:text-slate-400 font-medium tracking-wide">{card.label}</div>
+                  <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 font-mono truncate">{card.value}</div>
+                </div>
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${cm.iconBg}`}>
                   <card.icon className={`w-5 h-5 ${cm.iconText}`} />
                 </div>
               </div>
-              <div className="text-[14px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-2.5">{card.label}</div>
-              <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 font-mono">{card.value}</div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-gray-500/75 dark:text-slate-500/75 mt-1">Click to view breakdown</div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-gray-500/75 dark:text-slate-500/75 mt-1.5">Click to view breakdown</div>
             </div>
           );
         })}

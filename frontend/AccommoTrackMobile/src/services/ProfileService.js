@@ -242,9 +242,9 @@ const ProfileService = {
    * Switch user role (Landlord <-> Tenant)
    * @param {string} role - 'landlord' or 'tenant'
    */
-  async switchRole(role) {
+  async switchRole(role, payload = {}) {
     try {
-      const response = await api.post('/switch-role', { role });
+      const response = await api.post('/switch-role', { role, ...payload });
       return {
         success: true,
         data: response.data.user || response.data,

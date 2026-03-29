@@ -626,11 +626,13 @@ export default function RoomManagement() {
                 key={room.id}
                 className="h-full"
                 room={room}
+                propertyType={properties.find((p) => p.id === selectedPropertyId)?.property_type}
                 onEdit={handleEditRoom}
                 onClick={() => { 
                   // Ensure room object has tenants loaded as array for RoomDetails
                   const preparedRoom = {
                     ...room,
+                    property_type: properties.find((p) => p.id === selectedPropertyId)?.property_type,
                     tenants: room.tenants || (room.tenant ? [{ name: room.tenant }] : [])
                   };
                   setSelectedRoomDetails(preparedRoom); 
@@ -1029,6 +1031,7 @@ export default function RoomManagement() {
         room={selectedRoomDetails}
         isOpen={showRoomDetails}
         onClose={() => { setShowRoomDetails(false); setSelectedRoomDetails(null); }}
+        propertyType={properties.find((p) => p.id === selectedPropertyId)?.property_type}
         onExtend={async ({ roomId, days, months, tenant_id }) => {
           if (!roomId) return;
           try {

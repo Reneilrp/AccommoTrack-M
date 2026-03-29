@@ -3,7 +3,7 @@ import { X, Users, List, CreditCard, CalendarDays, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 
-export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
+export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyType }) {
   const [showActivity, setShowActivity] = useState(false);
   const [activity, setActivity] = useState([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
@@ -35,6 +35,9 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
   const tenants = (Array.isArray(room.tenants) && room.tenants.length > 0)
     ? room.tenants
     : (room.tenant ? (typeof room.tenant === 'string' ? [{ name: room.tenant }] : [room.tenant]) : []);
+  const normalizedGender = String(room.gender_restriction || 'mixed').toLowerCase().trim();
+  const normalizedPropertyType = String(propertyType || room.property_type || room.property?.property_type || '').toLowerCase().trim();
+  const showGenderBadge = !(normalizedPropertyType === 'apartment' && normalizedGender === 'mixed');
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
@@ -45,15 +48,17 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                room.gender_restriction === 'male' 
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
-                  : room.gender_restriction === 'female'
-                  ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
-                  : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
-              }`}>
-                {room.gender_restriction === 'male' ? 'Boys' : room.gender_restriction === 'female' ? 'Girls' : 'Mixed'}
-              </span>
+              {showGenderBadge && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                  room.gender_restriction === 'male' 
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
+                    : room.gender_restriction === 'female'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                }`}>
+                  {room.gender_restriction === 'male' ? 'Boys' : room.gender_restriction === 'female' ? 'Girls' : 'Mixed'}
+                </span>
+              )}
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">{room.type_label || room.room_type} {room.floor_label ? `• ${room.floor_label}` : ''}</p>
           </div>

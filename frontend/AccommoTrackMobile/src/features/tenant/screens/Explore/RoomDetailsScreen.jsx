@@ -121,6 +121,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param
   const activeRoom = roomData || room;
+  const roomIsBookable = typeof activeRoom?.is_available === 'boolean'
+    ? activeRoom.is_available
+    : (activeRoom?.status === 'available'
+      && Number(activeRoom?.available_slots ?? 1) > 0
+      && !activeRoom?.is_booking_locked);
 
   // Date picker states
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -740,7 +745,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           )}
 
           {/* Action Buttons */}
-          {activeRoom.status === 'available' && (
+          {roomIsBookable && (
             <TouchableOpacity style={styles.bookButton} onPress={handleBook}>
               <Text style={styles.bookButtonText}>
                 {isGuest ? 'Sign In to Book' : 'Book This Room'}

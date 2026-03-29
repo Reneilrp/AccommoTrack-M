@@ -2,7 +2,7 @@ import React from 'react';
 import { getImageUrl } from '../../utils/api';
 import { Users, Edit } from 'lucide-react';
 
-export default function RoomCard({ room, className = '', onEdit, onClick, onStatusChange }) {
+export default function RoomCard({ room, className = '', onEdit, onClick, onStatusChange, propertyType }) {
   const url = (room.images && room.images.length > 0)
     ? getImageUrl(typeof room.images[0] === 'string' ? room.images[0] : (room.images[0].image_url || room.images[0].url))
     : null;
@@ -23,6 +23,9 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   };
 
   const displayStatus = (room.display_status || room.displayStatus || room.status || 'available').toString().toLowerCase();
+  const normalizedGender = String(room.gender_restriction || 'mixed').toLowerCase().trim();
+  const normalizedPropertyType = String(propertyType || room.property_type || room.property?.property_type || '').toLowerCase().trim();
+  const showGenderBadge = !(normalizedPropertyType === 'apartment' && normalizedGender === 'mixed');
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col ${className}`} onClick={onClick}>
@@ -49,15 +52,17 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
               <span className="px-2 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
                 {room.pricing_model === 'per_bed' ? 'Per Bed' : (room.capacity > 1 ? 'Full Room (split)' : 'Full Room')}
               </span>
-              <span className={`px-2 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                room.gender_restriction === 'male' 
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
-                  : room.gender_restriction === 'female'
-                  ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
-                  : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
-              }`}>
-                {room.gender_restriction === 'male' ? 'Boys Only' : room.gender_restriction === 'female' ? 'Girls Only' : 'Mixed Gender'}
-              </span>
+              {showGenderBadge && (
+                <span className={`px-2 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                  room.gender_restriction === 'male' 
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
+                    : room.gender_restriction === 'female'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                }`}>
+                  {room.gender_restriction === 'male' ? 'Boys Only' : room.gender_restriction === 'female' ? 'Girls Only' : 'Mixed Gender'}
+                </span>
+              )}
             </div>
           </div>
 

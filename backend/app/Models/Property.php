@@ -270,7 +270,13 @@ class Property extends Model
      */
     public function getAvailableRoomsCountAttribute()
     {
-        return $this->rooms()->where('status', 'available')->count();
+        return $this->rooms()
+            ->where('status', 'available')
+            ->get()
+            ->filter(function ($room) {
+                return $room->isAvailable();
+            })
+            ->count();
     }
 
     /**
@@ -490,7 +496,10 @@ class Property extends Model
     public function scopePriceRange($query, ?float $minPrice = null, ?float $maxPrice = null)
     {
         return $query->whereHas('rooms', function ($q) use ($minPrice, $maxPrice) {
-            $q->where('status', 'available');
+            $q->where('status', 'available')
+                ->whereDoesntHave('evictionSchedules', function ($evictionQuery) {
+                    $evictionQuery->where('status', 'scheduled');
+                });
             if ($minPrice !== null) {
                 $q->where('monthly_rate', '>=', $minPrice);
             }

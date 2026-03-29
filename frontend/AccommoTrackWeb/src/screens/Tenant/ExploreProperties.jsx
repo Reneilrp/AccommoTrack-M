@@ -330,6 +330,7 @@ const ExploreProperties = () => {
         property: {
           id: fullProperty.id,
           name: fullProperty.title || fullProperty.name,
+          property_type: fullProperty.property_type,
           location: fullProperty.full_address || fullProperty.city || "",
           description: fullProperty.description || "",
           rating: fullProperty.rating || null,

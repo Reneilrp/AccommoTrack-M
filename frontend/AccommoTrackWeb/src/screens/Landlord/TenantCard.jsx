@@ -1,8 +1,19 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, ChevronDown } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, ChevronDown, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export default function TenantCard({ tenant, onTransfer, onAssign, onUnassign, onEvict, canTransfer = true }) {
+export default function TenantCard({
+  tenant,
+  onTransfer,
+  onAssign,
+  onUnassign,
+  onEvict,
+  onEvictionFinalize,
+  onEvictionCancel,
+  onEvictionUndo,
+  canTransfer = true,
+  isEvictionDue = false,
+}) {
   const profile = tenant.tenantProfile;
   const navigate = useNavigate();
   const [showEmergency, setShowEmergency] = useState(false);
@@ -17,6 +28,8 @@ export default function TenantCard({ tenant, onTransfer, onAssign, onUnassign, o
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays <= 30;
   })();
+  const hasPendingEviction = Boolean(tenant.pending_eviction);
+  const canUndoEviction = Boolean(tenant.can_undo_eviction);
 
   const handleMessageTenant = () => {
     navigate('/messages', { 
@@ -47,6 +60,11 @@ export default function TenantCard({ tenant, onTransfer, onAssign, onUnassign, o
         {!isLate && !isExpiringSoon && profile?.status === 'active' && (
           <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-green-200 dark:border-green-800">
             Good Standing
+          </span>
+        )}
+        {hasPendingEviction && (
+          <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-red-200 dark:border-red-800">
+            Eviction Scheduled
           </span>
         )}
       </div>
@@ -141,32 +159,61 @@ export default function TenantCard({ tenant, onTransfer, onAssign, onUnassign, o
           <div className="flex flex-col gap-2 mt-1 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-1 duration-200">
             <button
               onClick={() => onAssign?.(tenant)}
-              disabled={!canTransfer || !!tenant.room}
+              disabled={!canTransfer || !!tenant.room || hasPendingEviction}
               className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
             >
               <UserPlus className="w-3.5 h-3.5 text-emerald-500" /> Assign Room
             </button>
             <button
               onClick={() => onTransfer?.(tenant)}
-              disabled={!canTransfer || !tenant.room}
+              disabled={!canTransfer || !tenant.room || hasPendingEviction}
               className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
             >
               <Shuffle className="w-3.5 h-3.5 text-amber-500" /> Transfer
             </button>
             <button
               onClick={() => onUnassign?.(tenant)}
-              disabled={!canTransfer || !tenant.room}
+              disabled={!canTransfer || !tenant.room || hasPendingEviction}
               className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
             >
               <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign
             </button>
-            <button
-              onClick={() => onEvict?.(tenant)}
-              disabled={!canTransfer}
-              className="flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
-            >
-              <UserX className="w-3.5 h-3.5" /> Evict
-            </button>
+            {hasPendingEviction && (
+              <>
+                <button
+                  onClick={() => onEvictionFinalize?.(tenant)}
+                  disabled={!canTransfer || !isEvictionDue}
+                  className="flex items-center gap-2 px-3 py-2 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  <UserX className="w-3.5 h-3.5" /> Finalize Eviction
+                </button>
+                <button
+                  onClick={() => onEvictionCancel?.(tenant)}
+                  disabled={!canTransfer}
+                  className="flex items-center gap-2 px-3 py-2 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Cancel Eviction Schedule
+                </button>
+              </>
+            )}
+            {!hasPendingEviction && (
+              <button
+                onClick={() => onEvict?.(tenant)}
+                disabled={!canTransfer}
+                className="flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                <UserX className="w-3.5 h-3.5" /> Schedule Eviction
+              </button>
+            )}
+            {canUndoEviction && !hasPendingEviction && (
+              <button
+                onClick={() => onEvictionUndo?.(tenant)}
+                disabled={!canTransfer}
+                className="flex items-center gap-2 px-3 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Undo Eviction
+              </button>
+            )}
             <button
               onClick={() => setShowEmergency(!showEmergency)}
               className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition-colors

@@ -192,7 +192,10 @@ class PropertyService
         if ($request->has('min_price') || $request->has('max_price')) {
             $query->whereHas('rooms', function ($q) use ($request, $excludeTenantBookedRooms) {
                 $excludeTenantBookedRooms($q);
-                $q->where('status', 'available');
+                $q->where('status', 'available')
+                    ->whereDoesntHave('evictionSchedules', function ($evictionQuery) {
+                        $evictionQuery->where('status', 'scheduled');
+                    });
                 if ($request->has('min_price') && ! empty($request->min_price)) {
                     $q->where('monthly_rate', '>=', $request->min_price);
                 }
@@ -205,7 +208,10 @@ class PropertyService
         if ($request->boolean('availability')) {
             $query->whereHas('rooms', function ($q) use ($excludeTenantBookedRooms) {
                 $excludeTenantBookedRooms($q);
-                $q->where('status', 'available');
+                $q->where('status', 'available')
+                    ->whereDoesntHave('evictionSchedules', function ($evictionQuery) {
+                        $evictionQuery->where('status', 'scheduled');
+                    });
             });
         }
 

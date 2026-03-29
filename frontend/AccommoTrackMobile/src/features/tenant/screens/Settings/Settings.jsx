@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Switch, Alert, StatusBar, RefreshControl, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Switch, Alert, StatusBar, RefreshControl, Linking, Modal, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -28,6 +28,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('tenant');
   const [landlordVerificationStatus, setLandlordVerificationStatus] = useState(null);
+  const [showCredentialModal, setShowCredentialModal] = useState(false);
+  const [switchCredentials, setSwitchCredentials] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    agree: false,
+  });
+  const [switchCredentialErrors, setSwitchCredentialErrors] = useState({});
 
   useEffect(() => {
     let isMounted = true;
@@ -43,6 +51,10 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         if (!guest) {
           const user = JSON.parse(userJson);
           setUserRole(user.role || 'tenant');
+          setSwitchCredentials((prev) => ({
+            ...prev,
+            email: user.email || '',
+          }));
           await loadSettings();
         } else {
           setLoading(false);
@@ -170,41 +182,117 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     }
   };
 
+  const handleCredentialChange = (field, value) => {
+    setSwitchCredentials((prev) => ({ ...prev, [field]: value }));
+    setSwitchCredentialErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const validateSwitchCredentials = () => {
+    const errors = {};
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+    if (!switchCredentials.email?.trim()) {
+      errors.email = 'Email is required.';
+    } else if (!emailRegex.test(switchCredentials.email.trim())) {
+      errors.email = 'Please enter a valid email address.';
+    }
+
+    if (!switchCredentials.password) {
+      errors.password = 'Password is required.';
+    } else if (switchCredentials.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters.';
+    }
+
+    if (!switchCredentials.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password.';
+    } else if (switchCredentials.confirmPassword !== switchCredentials.password) {
+      errors.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (!switchCredentials.agree) {
+      errors.agree = 'You must agree before switching to landlord mode.';
+    }
+
+    setSwitchCredentialErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const openLandlordCredentialModal = async () => {
+    let email = switchCredentials.email;
+
+    if (!email) {
+      try {
+        const userJson = await AsyncStorage.getItem('user');
+        if (userJson) {
+          const user = JSON.parse(userJson);
+          email = user.email || '';
+        }
+      } catch (error) {
+        console.error('Failed to load email for role switch:', error);
+      }
+    }
+
+    setSwitchCredentialErrors({});
+    setSwitchCredentials({
+      email: email || '',
+      password: '',
+      confirmPassword: '',
+      agree: false,
+    });
+    setShowCredentialModal(true);
+  };
+
+  const performRoleSwitch = async (newRole, payload = {}) => {
+    try {
+      setLoading(true);
+      const res = await ProfileService.switchRole(newRole, payload);
+      if (res.success) {
+        const userJson = await AsyncStorage.getItem('user');
+        if (userJson) {
+          const user = JSON.parse(userJson);
+          user.role = newRole;
+          await AsyncStorage.setItem('user', JSON.stringify(user));
+          if (user.id) {
+            await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
+          }
+        }
+        triggerRoleSwitch(newRole);
+        return true;
+      }
+
+      Alert.alert('Error', res.error || 'Failed to switch role');
+      return false;
+    } catch (error) {
+      console.error('Role switch error:', error);
+      Alert.alert('Error', 'An unexpected error occurred while switching roles.');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmLandlordSwitch = async () => {
+    if (!validateSwitchCredentials()) return;
+
+    const switched = await performRoleSwitch('landlord', {
+      email: switchCredentials.email.trim(),
+      password: switchCredentials.password,
+      password_confirmation: switchCredentials.confirmPassword,
+      agree: switchCredentials.agree,
+    });
+
+    if (switched) {
+      setShowCredentialModal(false);
+    }
+  };
+
   const handleSwitchRole = async () => {
     const newRole = userRole === 'landlord' ? 'tenant' : 'landlord';
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
-    const switchFn = async () => {
-      try {
-        setLoading(true);
-        const res = await ProfileService.switchRole(newRole);
-        if (res.success) {
-          const userJson = await AsyncStorage.getItem('user');
-          if (userJson) {
-            const user = JSON.parse(userJson);
-            user.role = newRole;
-            await AsyncStorage.setItem('user', JSON.stringify(user));
-            if (user.id) {
-              await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
-            }
-          }
-          triggerRoleSwitch(newRole);
-        } else {
-          Alert.alert('Error', res.error || 'Failed to switch role');
-        }
-      } catch (error) {
-        console.error('Role switch error:', error);
-        Alert.alert('Error', 'An unexpected error occurred while switching roles.');
-      } finally {
-        setLoading(false);
-      }
-    };
 
     if (userRole === 'tenant' && newRole === 'landlord') {
       if (landlordVerificationStatus === 'approved') {
-        Alert.alert(`Switch to ${roleName}`, `Are you sure you want to switch your account to ${roleName} mode?`, [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Switch', onPress: switchFn },
-        ]);
+        openLandlordCredentialModal();
       } else if (landlordVerificationStatus === 'pending') {
         Alert.alert('Verification Pending', 'Your landlord verification is still under review. Please wait for approval before switching.');
       } else {
@@ -219,7 +307,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     // Landlord switching to Tenant (or any other case)
     Alert.alert(`Switch to ${roleName}`, `Are you sure you want to switch your account to ${roleName} mode?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Switch', onPress: switchFn },
+      { text: 'Switch', onPress: () => performRoleSwitch(newRole) },
     ]);
   };
 
@@ -432,6 +520,131 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           </ScrollView>
         )}
       </View>
+
+      <Modal
+        visible={showCredentialModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCredentialModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: theme.colors.surface, borderRadius: 14, padding: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>Confirm Landlord Credentials</Text>
+              <TouchableOpacity onPress={() => setShowCredentialModal(false)}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginBottom: 12 }}>
+              Enter your account credentials before switching from tenant to landlord mode.
+            </Text>
+
+            <TextInput
+              value={switchCredentials.email}
+              onChangeText={(value) => handleCredentialChange('email', value)}
+              placeholder="Email"
+              placeholderTextColor={theme.colors.textTertiary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={{
+                borderWidth: 1,
+                borderColor: switchCredentialErrors.email ? theme.colors.error : theme.colors.border,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: theme.colors.text,
+                marginBottom: 6,
+              }}
+            />
+            {!!switchCredentialErrors.email && <Text style={{ color: theme.colors.error, fontSize: 12, marginBottom: 8 }}>{switchCredentialErrors.email}</Text>}
+
+            <TextInput
+              value={switchCredentials.password}
+              onChangeText={(value) => handleCredentialChange('password', value)}
+              placeholder="Password"
+              placeholderTextColor={theme.colors.textTertiary}
+              secureTextEntry
+              style={{
+                borderWidth: 1,
+                borderColor: switchCredentialErrors.password ? theme.colors.error : theme.colors.border,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: theme.colors.text,
+                marginBottom: 6,
+              }}
+            />
+            {!!switchCredentialErrors.password && <Text style={{ color: theme.colors.error, fontSize: 12, marginBottom: 8 }}>{switchCredentialErrors.password}</Text>}
+
+            <TextInput
+              value={switchCredentials.confirmPassword}
+              onChangeText={(value) => handleCredentialChange('confirmPassword', value)}
+              placeholder="Confirm Password"
+              placeholderTextColor={theme.colors.textTertiary}
+              secureTextEntry
+              style={{
+                borderWidth: 1,
+                borderColor: switchCredentialErrors.confirmPassword ? theme.colors.error : theme.colors.border,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: theme.colors.text,
+                marginBottom: 6,
+              }}
+            />
+            {!!switchCredentialErrors.confirmPassword && <Text style={{ color: theme.colors.error, fontSize: 12, marginBottom: 8 }}>{switchCredentialErrors.confirmPassword}</Text>}
+
+            <TouchableOpacity
+              onPress={() => handleCredentialChange('agree', !switchCredentials.agree)}
+              style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
+              activeOpacity={0.7}
+            >
+              <View
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 4,
+                  borderWidth: 1,
+                  borderColor: switchCredentialErrors.agree ? theme.colors.error : theme.colors.border,
+                  backgroundColor: switchCredentials.agree ? theme.colors.primary : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 8,
+                }}
+              >
+                {switchCredentials.agree && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+              </View>
+              <Text style={{ color: theme.colors.textSecondary, flex: 1, fontSize: 13 }}>
+                I agree to the terms and conditions for landlord mode.
+              </Text>
+            </TouchableOpacity>
+            {!!switchCredentialErrors.agree && <Text style={{ color: theme.colors.error, fontSize: 12, marginBottom: 8 }}>{switchCredentialErrors.agree}</Text>}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4 }}>
+              <TouchableOpacity
+                onPress={() => setShowCredentialModal(false)}
+                style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border }}
+              >
+                <Text style={{ color: theme.colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleConfirmLandlordSwitch}
+                disabled={loading}
+                style={{
+                  marginLeft: 8,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  backgroundColor: loading ? theme.colors.textTertiary : theme.colors.primary,
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{loading ? 'Switching...' : 'Confirm & Switch'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -44,6 +44,23 @@ const formatCurrency = (value) => {
   return `₱${Number(value).toLocaleString('en-PH')}`;
 };
 
+const isRoomBookable = (room) => {
+  if (!room) return false;
+  if (typeof room.is_available === 'boolean') {
+    return room.is_available;
+  }
+
+  return room.status === 'available'
+    && Number(room.available_slots ?? 0) > 0
+    && !room.is_booking_locked;
+};
+
+const isEvictionDue = (tenant) => {
+  const scheduledFor = tenant?.pending_eviction?.scheduled_for;
+  if (!scheduledFor) return false;
+  return new Date(scheduledFor).getTime() <= Date.now();
+};
+
 export default function TenantsScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -95,6 +112,7 @@ export default function TenantsScreen({ navigation, route }) {
   const [evictionVisible, setEvictionVisible] = useState(false);
   const [evictingTenant, setEvictingTenant] = useState(null);
   const [evictionReason, setEvictionReason] = useState('');
+  const [evictionGraceHours, setEvictionGraceHours] = useState('24');
   const [isEvicting, setIsEvicting] = useState(false);
 
   const [broadcastVisible, setBroadcastVisible] = useState(false);
@@ -210,7 +228,7 @@ export default function TenantsScreen({ navigation, route }) {
 
       const currentRoomId = normalizeId(tenant.room?.id);
       const rooms = (response.data || []).filter((room) => (
-        room.status === 'available' && normalizeId(room.id) !== currentRoomId
+        isRoomBookable(room) && normalizeId(room.id) !== currentRoomId
       ));
       setAvailableRooms(rooms);
     } catch (transferError) {
@@ -276,7 +294,7 @@ export default function TenantsScreen({ navigation, route }) {
         throw new Error(response.error || 'Failed to load rooms');
       }
 
-      const rooms = (response.data || []).filter((room) => room.status === 'available');
+      const rooms = (response.data || []).filter((room) => isRoomBookable(room));
       setAvailableRoomsForAssign(rooms);
     } catch (assignError) {
       Alert.alert('Error', assignError.message || 'Failed to load available rooms.');
@@ -350,6 +368,7 @@ export default function TenantsScreen({ navigation, route }) {
   const handleEvictionInitiate = (tenant) => {
     setEvictingTenant(tenant);
     setEvictionReason('');
+    setEvictionGraceHours('24');
     setEvictionVisible(true);
   };
 
@@ -360,20 +379,68 @@ export default function TenantsScreen({ navigation, route }) {
       return;
     }
 
+    const graceHours = Number(evictionGraceHours || 0);
+    if (Number.isNaN(graceHours) || graceHours < 0 || graceHours > 168) {
+      Alert.alert('Invalid value', 'Grace hours must be between 0 and 168.');
+      return;
+    }
+
     setIsEvicting(true);
     try {
-      const response = await PropertyService.evictTenant(evictingTenant.id, evictionReason.trim());
+      const response = await PropertyService.scheduleTenantEviction(evictingTenant.id, {
+        reason: evictionReason.trim(),
+        grace_hours: graceHours,
+      });
       if (!response.success) {
-        throw new Error(response.error || 'Failed to evict tenant.');
+        throw new Error(response.error || 'Failed to schedule eviction.');
       }
       setEvictionVisible(false);
       setEvictingTenant(null);
       await loadTenants(true);
-      Alert.alert('Success', 'Tenant has been evicted.');
+      Alert.alert('Success', 'Eviction scheduled successfully.');
     } catch (evictionError) {
-      Alert.alert('Error', evictionError.message || 'Failed to evict tenant.');
+      Alert.alert('Error', evictionError.message || 'Failed to schedule eviction.');
     } finally {
       setIsEvicting(false);
+    }
+  };
+
+  const handleFinalizeEviction = async (tenant) => {
+    try {
+      const response = await PropertyService.finalizeTenantEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to finalize eviction.');
+      }
+      await loadTenants(true);
+      Alert.alert('Success', 'Eviction finalized successfully.');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to finalize eviction.');
+    }
+  };
+
+  const handleCancelEviction = async (tenant) => {
+    try {
+      const response = await PropertyService.cancelTenantEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to cancel eviction schedule.');
+      }
+      await loadTenants(true);
+      Alert.alert('Success', 'Eviction schedule cancelled.');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to cancel eviction schedule.');
+    }
+  };
+
+  const handleUndoEviction = async (tenant) => {
+    try {
+      const response = await PropertyService.undoTenantEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to undo eviction.');
+      }
+      await loadTenants(true);
+      Alert.alert('Success', 'Eviction undone and tenancy restored.');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to undo eviction.');
     }
   };
 
@@ -409,6 +476,9 @@ export default function TenantsScreen({ navigation, route }) {
     const initials = (item.first_name?.[0] || '') + (item.last_name?.[0] || '');
 
     const currentRoom = item.room || (item.roomAssignments && item.roomAssignments.length > 0 ? item.roomAssignments[0] : null);
+    const hasPendingEviction = Boolean(item.pending_eviction);
+    const canUndoEviction = Boolean(item.can_undo_eviction);
+    const evictionDue = isEvictionDue(item);
 
     return (
       <View style={styles.tenantCard}>
@@ -435,6 +505,11 @@ export default function TenantsScreen({ navigation, route }) {
               {currentRoom ? `Room ${currentRoom.room_number}` : 'No room assigned'}
             </Text>
           </View>
+          {hasPendingEviction && (
+            <Text style={[styles.helperText, { marginTop: 6, color: '#B91C1C' }]}>
+              Eviction scheduled for {new Date(item.pending_eviction.scheduled_for).toLocaleString()}
+            </Text>
+          )}
           <View style={styles.metaRow}>
             <View>
               <Text style={styles.metaLabel}>Monthly Rent</Text>
@@ -457,29 +532,84 @@ export default function TenantsScreen({ navigation, route }) {
               <Text style={styles.primaryBtnText}>Message</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.successBtn, currentRoom ? styles.actionDisabledBtn : null]}
+              style={[styles.successBtn, (currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null]}
               onPress={() => handleAssignInitiate(item)}
-              disabled={!!currentRoom}
+              disabled={!!currentRoom || hasPendingEviction}
             >
               <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
               <Text style={styles.successBtnText}>Assign</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.warningBtn} onPress={() => handleTransferInitiate(item)}>
+            <TouchableOpacity
+              style={[styles.warningBtn, hasPendingEviction ? styles.actionDisabledBtn : null]}
+              onPress={() => handleTransferInitiate(item)}
+              disabled={hasPendingEviction}
+            >
               <Ionicons name="swap-horizontal-outline" size={16} color="#FFFFFF" />
               <Text style={styles.warningBtnText}>Transfer</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.unassignBtn, !currentRoom ? styles.actionDisabledBtn : null]}
+              style={[styles.unassignBtn, (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null]}
               onPress={() => handleUnassignInitiate(item)}
-              disabled={!currentRoom}
+              disabled={!currentRoom || hasPendingEviction}
             >
               <Ionicons name="person-outline" size={16} color="#FFFFFF" />
               <Text style={styles.unassignBtnText}>Unassign</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.dangerBtn} onPress={() => handleEvictionInitiate(item)}>
-              <Ionicons name="person-remove-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.dangerBtnText}>Evict</Text>
-            </TouchableOpacity>
+            {!hasPendingEviction && (
+              <TouchableOpacity style={styles.dangerBtn} onPress={() => handleEvictionInitiate(item)}>
+                <Ionicons name="person-remove-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.dangerBtnText}>Schedule Eviction</Text>
+              </TouchableOpacity>
+            )}
+            {hasPendingEviction && (
+              <>
+                <TouchableOpacity
+                  style={[styles.dangerBtn, !evictionDue ? styles.actionDisabledBtn : null]}
+                  onPress={() => Alert.alert(
+                    'Finalize eviction',
+                    `Finalize eviction for ${item.first_name} ${item.last_name}?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Finalize', style: 'destructive', onPress: () => handleFinalizeEviction(item) },
+                    ]
+                  )}
+                  disabled={!evictionDue}
+                >
+                  <Ionicons name="checkmark-done-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.dangerBtnText}>Finalize Eviction</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.warningBtn}
+                  onPress={() => Alert.alert(
+                    'Cancel eviction schedule',
+                    `Cancel pending eviction for ${item.first_name} ${item.last_name}?`,
+                    [
+                      { text: 'Keep schedule', style: 'cancel' },
+                      { text: 'Cancel schedule', style: 'destructive', onPress: () => handleCancelEviction(item) },
+                    ]
+                  )}
+                >
+                  <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.warningBtnText}>Cancel Eviction</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {canUndoEviction && !hasPendingEviction && (
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => Alert.alert(
+                  'Undo eviction',
+                  `Restore tenancy for ${item.first_name} ${item.last_name}?`,
+                  [
+                    { text: 'No', style: 'cancel' },
+                    { text: 'Undo', onPress: () => handleUndoEviction(item) },
+                  ]
+                )}
+              >
+                <Ionicons name="refresh-outline" size={16} color="#475569" />
+                <Text style={styles.secondaryBtnText}>Undo Eviction</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -813,12 +943,22 @@ export default function TenantsScreen({ navigation, route }) {
       <Modal visible={evictionVisible} transparent animationType="fade" onRequestClose={() => setEvictionVisible(false)}>
         <View style={styles.overlayContainer}>
           <View style={styles.actionModalCard}>
-            <Text style={[styles.actionModalTitle, { color: '#DC2626' }]}>Confirm Eviction</Text>
+            <Text style={[styles.actionModalTitle, { color: '#DC2626' }]}>Schedule Eviction</Text>
             <Text style={styles.actionModalSubtitle}>
               {evictingTenant
-                ? `You are about to evict ${evictingTenant.first_name} ${evictingTenant.last_name}.`
-                : 'Select a tenant to evict.'}
+                ? `Set grace period before finalizing eviction for ${evictingTenant.first_name} ${evictingTenant.last_name}.`
+                : 'Select a tenant to schedule eviction.'}
             </Text>
+
+            <Text style={styles.actionFieldLabel}>Grace Period (Hours) *</Text>
+            <TextInput
+              value={evictionGraceHours}
+              onChangeText={setEvictionGraceHours}
+              placeholder="24"
+              style={styles.actionInput}
+              keyboardType="numeric"
+            />
+            <Text style={styles.helperText}>Use 0 for immediate finalization eligibility.</Text>
 
             <Text style={styles.actionFieldLabel}>Reason *</Text>
             <TextInput
@@ -838,7 +978,7 @@ export default function TenantsScreen({ navigation, route }) {
                 onPress={handleEvictConfirm}
                 disabled={isEvicting || !evictionReason.trim()}
               >
-                <Text style={styles.modalConfirmText}>{isEvicting ? 'Evicting...' : 'Evict'}</Text>
+                <Text style={styles.modalConfirmText}>{isEvicting ? 'Scheduling...' : 'Schedule'}</Text>
               </TouchableOpacity>
             </View>
           </View>

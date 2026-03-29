@@ -59,12 +59,19 @@ export default function RoomListScreen({ route }) {
       setLoading(true);
       const result = await PropertyService.getPublicProperty(property.id);
       if (result.success && result.data.rooms) {
-        const standardizedRooms = result.data.rooms.map(room => ({
-          ...room,
-          images: room.images || [],
-          monthly_rate: parseFloat(room.monthly_rate) || 0,
-          status: (room.display_status || room.status || 'unknown').toString().toLowerCase()
-        }));
+        const standardizedRooms = result.data.rooms.map((room) => {
+          const rawStatus = (room.display_status || room.status || 'unknown').toString().toLowerCase();
+          const normalizedStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawStatus === 'available')
+            ? 'reserved'
+            : rawStatus;
+
+          return {
+            ...room,
+            images: room.images || [],
+            monthly_rate: parseFloat(room.monthly_rate) || 0,
+            status: normalizedStatus,
+          };
+        });
         setRooms(standardizedRooms);
       } else {
         throw new Error(result.error || 'No rooms data');
@@ -82,7 +89,11 @@ export default function RoomListScreen({ route }) {
     let filtered = [...rooms];
     switch (selectedFilter) {
       case 'available':
-        filtered = filtered.filter(room => room.status === 'available');
+        filtered = filtered.filter((room) => (
+          typeof room.is_available === 'boolean'
+            ? room.is_available
+            : room.status === 'available'
+        ));
         break;
       case 'occupied':
         filtered = filtered.filter(room => room.status === 'occupied');

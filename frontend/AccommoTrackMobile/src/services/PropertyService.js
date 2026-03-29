@@ -798,14 +798,14 @@ const PropertyService = {
   },
 
   /**
-   * Evict tenant from active booking
-   * Matches: POST /api/landlord/tenants/{tenantId}/evict
+   * Schedule tenant eviction
+   * Matches: POST /api/landlord/tenants/{tenantId}/evictions/schedule
    */
-  async evictTenant(tenantId, reason) {
+  async scheduleTenantEviction(tenantId, payload) {
     try {
       const response = await api.post(
-        `/landlord/tenants/${tenantId}/evict`,
-        { reason },
+        `/landlord/tenants/${tenantId}/evictions/schedule`,
+        payload,
         { headers: { "Content-Type": "application/json" } },
       );
       return {
@@ -821,6 +821,92 @@ const PropertyService = {
         error: extractErrorMessage(error),
       };
     }
+  },
+
+  /**
+   * Finalize scheduled eviction
+   * Matches: POST /api/landlord/tenants/{tenantId}/evictions/finalize
+   */
+  async finalizeTenantEviction(tenantId, payload = {}) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/evictions/finalize`,
+        payload,
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error finalizing tenant eviction:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Cancel scheduled eviction
+   * Matches: POST /api/landlord/tenants/{tenantId}/evictions/cancel
+   */
+  async cancelTenantEviction(tenantId, note = "") {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/evictions/cancel`,
+        { note },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error cancelling tenant eviction:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Undo finalized eviction
+   * Matches: POST /api/landlord/tenants/{tenantId}/evictions/undo
+   */
+  async undoTenantEviction(tenantId, reason = "") {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/evictions/undo`,
+        { reason },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error undoing tenant eviction:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Legacy immediate eviction endpoint.
+   * Matches: POST /api/landlord/tenants/{tenantId}/evict
+   */
+  async evictTenant(tenantId, reason) {
+    return this.scheduleTenantEviction(tenantId, { reason, grace_hours: 0 });
   },
 
   /**

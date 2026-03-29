@@ -176,6 +176,32 @@ class User extends Authenticatable
     }
 
     /**
+     * Eviction records where this user is the tenant.
+     */
+    public function tenantEvictions()
+    {
+        return $this->hasMany(TenantEviction::class, 'tenant_id');
+    }
+
+    /**
+     * Latest scheduled eviction for this tenant.
+     */
+    public function scheduledEviction()
+    {
+        return $this->hasOne(TenantEviction::class, 'tenant_id')
+            ->where('status', 'scheduled')
+            ->latestOfMany('scheduled_for');
+    }
+
+    /**
+     * Latest eviction record regardless of status.
+     */
+    public function latestEvictionRecord()
+    {
+        return $this->hasOne(TenantEviction::class, 'tenant_id')->latestOfMany();
+    }
+
+    /**
      * Bookings received by landlord
      */
     public function receivedBookings()

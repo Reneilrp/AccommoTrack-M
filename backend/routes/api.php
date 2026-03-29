@@ -266,6 +266,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Landlord: Transfer requests handling
         Route::post('/broadcast', [TenantController::class, 'broadcast']);
+        Route::post('/tenants/{id}/evictions/schedule', [TenantController::class, 'scheduleEviction']);
+        Route::post('/tenants/{id}/evictions/finalize', [TenantController::class, 'finalizeScheduledEviction']);
+        Route::post('/tenants/{id}/evictions/cancel', [TenantController::class, 'cancelScheduledEviction']);
+        Route::post('/tenants/{id}/evictions/undo', [TenantController::class, 'undoEviction']);
         Route::post('/tenants/{id}/evict', [TenantController::class, 'evict']);
         Route::get('/transfers', [\App\Http\Controllers\Landlord\TransferController::class, 'index']);
         Route::patch('/transfers/{id}/handle', [\App\Http\Controllers\Landlord\TransferController::class, 'handle']);

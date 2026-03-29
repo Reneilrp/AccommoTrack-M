@@ -350,11 +350,33 @@ class AuthController extends Controller
 
             $verification = \App\Models\LandlordVerification::where('user_id', $user->id)->first();
 
-            if (! $user->is_verified && (! $verification || $verification->status !== 'approved')) {
+            if (! $verification || $verification->status !== 'approved') {
                 return response()->json([
                     'message' => 'Your landlord verification is not yet approved. Please complete verification first.',
                     'status' => $verification ? $verification->status : 'not_submitted',
                 ], 403);
+            }
+
+            $credentials = $request->validate([
+                'email' => 'required|email:rfc',
+                'password' => 'required|string|min:8',
+                'password_confirmation' => 'required|string|same:password',
+                'agree' => 'accepted',
+            ], [
+                'agree.accepted' => 'You must agree to the terms and conditions before switching to landlord mode.',
+                'password_confirmation.same' => 'Password confirmation does not match.',
+            ]);
+
+            if (strtolower(trim($credentials['email'])) !== strtolower((string) $user->email)) {
+                return response()->json([
+                    'message' => 'The provided email does not match your current account.',
+                ], 422);
+            }
+
+            if (! Hash::check($credentials['password'], (string) $user->password)) {
+                return response()->json([
+                    'message' => 'Invalid password. Please try again.',
+                ], 422);
             }
         }
 

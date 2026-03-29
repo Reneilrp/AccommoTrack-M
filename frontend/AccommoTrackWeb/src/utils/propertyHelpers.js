@@ -51,6 +51,7 @@ export const mapProperty = (property) => {
   return {
     id: property.id,
     name: property.title || property.name,
+    property_type: property.property_type || property.type || 'apartment',
     location: property.full_address || property.city || '',
     address: property.full_address || property.city || '', // For Map
     latitude: property.latitude,

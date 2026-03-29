@@ -874,6 +874,41 @@ export default function MyBookings() {
                  </View>
               </View>
 
+              {String(booking.status || '').toLowerCase() === 'cancelled' && (booking.cancellation_reason || booking.cancellationReason) && (
+                <View
+                  style={{
+                    marginBottom: 16,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: theme.isDark ? 'rgba(248,113,113,0.35)' : '#FECACA',
+                    backgroundColor: theme.isDark ? 'rgba(127,29,29,0.25)' : '#FEF2F2',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                      color: theme.isDark ? '#FCA5A5' : '#B91C1C',
+                      marginBottom: 4,
+                    }}
+                  >
+                    Cancellation / Eviction Reason
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '600',
+                      color: theme.isDark ? '#FECACA' : '#7F1D1D',
+                    }}
+                  >
+                    {booking.cancellation_reason || booking.cancellationReason}
+                  </Text>
+                </View>
+              )}
+
               {/* Review Button for History */}
               {['completed', 'confirmed'].includes(booking.status?.toLowerCase()) && !booking.has_review && !booking.hasReview && (
                 <TouchableOpacity 

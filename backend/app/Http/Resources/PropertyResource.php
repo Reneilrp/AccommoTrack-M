@@ -15,7 +15,11 @@ class PropertyResource extends JsonResource
     public function toArray(Request $request): array
     {
         // Calculations for price and ratings
-        $availableRooms = $this->whenLoaded('rooms', fn () => $this->rooms->where('status', 'available'), collect());
+        $availableRooms = $this->whenLoaded('rooms', function () {
+            return $this->rooms->filter(function ($room) {
+                return $room->isAvailable();
+            });
+        }, collect());
         $minPrice = $availableRooms->min('monthly_rate');
         $maxPrice = $availableRooms->max('monthly_rate');
         $avgRating = $this->whenLoaded('reviews', fn () => $this->reviews->count() > 0 ? round($this->reviews->avg('rating'), 1) : null);
@@ -59,7 +63,7 @@ class PropertyResource extends JsonResource
             'total_rooms' => $this->rooms_count ?? $this->whenLoaded('rooms', fn () => $this->rooms->count()),
             'available_rooms' => $this->available_rooms_count ?? (
                 $this->relationLoaded('rooms')
-                ? $this->rooms->where('status', 'available')->count()
+                ? $this->rooms->filter(fn ($room) => $room->isAvailable())->count()
                 : 0
             ),
             'minPrice' => $minPrice,
