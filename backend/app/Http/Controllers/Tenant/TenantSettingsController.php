@@ -100,7 +100,7 @@ class TenantSettingsController extends Controller
 
                 // TenantProfile fields
                 'date_of_birth' => ['nullable', 'date', 'before_or_equal:'.now()->subYears(18)->format('Y-m-d')],
-                'gender' => 'nullable|string|max:50',
+                'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
                 'emergency_contact_name' => 'nullable|string|max:255',
                 'emergency_contact_phone' => 'nullable|string|max:20',
                 'emergency_contact_relationship' => 'nullable|string|max:100',
@@ -113,6 +113,10 @@ class TenantSettingsController extends Controller
             ], [
                 'date_of_birth.before_or_equal' => 'Tenants must be at least 18 years old.',
             ]);
+
+            if (array_key_exists('gender', $validated)) {
+                $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
+            }
 
             DB::beginTransaction();
 
@@ -231,6 +235,22 @@ class TenantSettingsController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function normalizeGenderForStorage(?string $gender): ?string
+    {
+        if ($gender === null) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($gender));
+
+        return match ($normalized) {
+            'male' => 'male',
+            'female' => 'female',
+            'rather_not_say', 'prefer_not_to_say', 'other' => 'rather_not_say',
+            default => null,
+        };
     }
 
     public function changePassword(Request $request)

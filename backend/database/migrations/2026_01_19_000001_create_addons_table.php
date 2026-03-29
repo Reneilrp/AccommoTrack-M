@@ -25,6 +25,8 @@ return new class extends Migration
             // 'fee' = tenant brings own item but pays usage fee (e.g., electric appliance fee)
             $table->integer('stock')->nullable(); // For rentals: available quantity. NULL = unlimited
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_custom')->default(false);
+            $table->unsignedBigInteger('request_tenant_id')->nullable();
             $table->timestamps();
 
             $table->index(['property_id', 'is_active']);

@@ -119,6 +119,22 @@ class AuthController extends Controller
         ], $extra));
     }
 
+    private function normalizeGenderForStorage(?string $gender): ?string
+    {
+        if ($gender === null) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($gender));
+
+        return match ($normalized) {
+            'male' => 'male',
+            'female' => 'female',
+            'rather_not_say', 'prefer_not_to_say', 'other' => 'rather_not_say',
+            default => null,
+        };
+    }
+
     // Live email uniqueness check for registration
     public function checkEmail(Request $request)
     {
@@ -156,11 +172,13 @@ class AuthController extends Controller
                 'role' => 'required|in:landlord,tenant',
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'required|date',
-                'gender' => ['required', Rule::in(['male', 'female', 'prefer_not_to_say'])],
+                'gender' => ['required', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
             ], [
                 'email.unique' => 'This email is already taken. Please use a different email address.',
                 'email.email' => 'Email address is not valid or cannot receive mail.',
             ]);
+
+            $validated['gender'] = $this->normalizeGenderForStorage($validated['gender'] ?? null);
 
             // Role-based age validation
             if (isset($validated['date_of_birth'])) {
@@ -402,7 +420,7 @@ class AuthController extends Controller
                 'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'nullable|date',
-                'gender' => ['nullable', Rule::in(['male', 'female', 'prefer_not_to_say'])],
+                'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
                 'identified_as' => 'nullable|string|max:50',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
                 'payment_methods_settings' => 'nullable|array',
@@ -425,6 +443,10 @@ class AuthController extends Controller
             $validated = $request->validate($rules, [
                 'date_of_birth.before_or_equal' => 'User must be at least '.($user->role === 'landlord' ? '20' : '18').' years old.',
             ]);
+
+            if (array_key_exists('gender', $validated)) {
+                $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
+            }
 
             // Handle profile image upload
             if ($request->hasFile('profile_image')) {

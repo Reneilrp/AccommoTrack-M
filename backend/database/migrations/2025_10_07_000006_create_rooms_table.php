@@ -16,19 +16,25 @@ return new class extends Migration
             $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
             $table->string('room_number', 50);
             $table->enum('room_type', ['single', 'double', 'quad', 'bedSpacer']);
+            $table->enum('gender_restriction', ['male', 'female', 'mixed'])->default('mixed');
             $table->integer('floor');
-            $table->decimal('monthly_rate', 10, 2);
+            $table->decimal('monthly_rate', 10, 2)->nullable();
+            $table->decimal('daily_rate', 10, 2)->nullable();
+            $table->enum('billing_policy', ['monthly', 'monthly_with_daily', 'daily'])->default('monthly');
+            $table->integer('min_stay_days')->default(1);
             // capacity first, then pricing_model (avoid using ->after() in CREATE TABLE)
             $table->integer('capacity')->default(1);
             $table->enum('pricing_model', ['full_room', 'per_bed'])->default('full_room');
             $table->enum('status', ['available', 'occupied', 'maintenance'])
                 ->default('available')
                 ->index('idx_status');
+            $table->boolean('require_1month_advance')->default(false);
 
             // This is the correct way when you allow NULL (tenant can be null)
             $table->unsignedBigInteger('current_tenant_id')->nullable()->index();
 
             $table->text('description')->nullable();
+            $table->json('rules')->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
 

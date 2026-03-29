@@ -47,10 +47,7 @@ return new class extends Migration
             $table->text('current_address')->nullable();
 
             // Tenant preferences / behavior notes
-            $table->string('preference')->nullable();
-
-            // Personal info
-            $table->date('date_of_birth')->nullable();
+            $table->json('preference')->nullable();
 
             $table->timestamps();
         });

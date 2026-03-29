@@ -15,13 +15,19 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('landlord_id')->constrained('users')->onDelete('cascade');
+            $table->unsignedBigInteger('booking_id')->nullable();
             $table->foreignId('current_room_id')->constrained('rooms')->onDelete('cascade');
             $table->foreignId('requested_room_id')->constrained('rooms')->onDelete('cascade');
+            $table->date('new_end_date')->nullable();
             $table->text('reason');
             $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending');
             $table->text('landlord_notes')->nullable();
+            $table->decimal('credit_amount', 10, 2)->nullable();
+            $table->json('credit_calculation')->nullable();
             $table->timestamp('handled_at')->nullable();
             $table->timestamps();
+
+            $table->foreign('booking_id')->references('id')->on('bookings')->onDelete('cascade');
         });
     }
 

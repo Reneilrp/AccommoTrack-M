@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('property_id')->constrained()->onDelete('cascade');
             $table->string('image_url');
+            $table->string('media_type')->default('image');
             $table->boolean('is_primary')->default(false);
             $table->integer('display_order')->default(0);
             $table->timestamps();

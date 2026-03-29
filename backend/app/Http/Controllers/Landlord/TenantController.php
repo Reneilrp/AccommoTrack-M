@@ -298,13 +298,17 @@ class TenantController extends Controller
             'phone' => 'nullable|string|max:20',
             'password' => 'required|string|min:8',
             'date_of_birth' => 'nullable|date',
-            'gender' => ['nullable', Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
+            'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:20',
             'emergency_contact_relationship' => 'nullable|string|max:100',
             'current_address' => 'nullable|string',
             'preference' => 'nullable|string',
         ]);
+
+        if (array_key_exists('gender', $validated)) {
+            $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
+        }
 
         $user = User::create([
             'first_name' => $validated['first_name'],
@@ -347,13 +351,17 @@ class TenantController extends Controller
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'phone' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
-            'gender' => ['nullable', Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
+            'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:20',
             'emergency_contact_relationship' => 'nullable|string|max:100',
             'current_address' => 'nullable|string',
             'preference' => 'nullable|string',
         ]);
+
+        if (array_key_exists('gender', $validated)) {
+            $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
+        }
 
         $userFields = array_intersect_key($validated, array_flip(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'date_of_birth', 'gender']));
         if (! empty($userFields)) {
@@ -1351,6 +1359,22 @@ class TenantController extends Controller
             'booking_id' => $activeBooking?->id,
             'room_id' => $room?->id,
         ];
+    }
+
+    private function normalizeGenderForStorage(?string $gender): ?string
+    {
+        if ($gender === null) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($gender));
+
+        return match ($normalized) {
+            'male' => 'male',
+            'female' => 'female',
+            'rather_not_say', 'prefer_not_to_say', 'other' => 'rather_not_say',
+            default => null,
+        };
     }
 
     protected function assertNotCaretaker(array $context): void

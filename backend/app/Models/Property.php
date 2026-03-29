@@ -166,8 +166,6 @@ class Property extends Model
         'max_occupants' => 'integer',
         'total_rooms' => 'integer',
         'available_rooms' => 'integer',
-        'price_per_month' => 'decimal:2',
-        'security_deposit' => 'decimal:2',
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
         'is_published' => 'boolean',

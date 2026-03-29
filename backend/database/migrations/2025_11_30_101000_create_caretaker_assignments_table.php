@@ -15,6 +15,10 @@ return new class extends Migration
             $table->boolean('can_view_bookings')->default(true);
             $table->boolean('can_view_messages')->default(true);
             $table->boolean('can_view_tenants')->default(true);
+            $table->boolean('can_view_rooms')->default(false);
+            $table->boolean('can_view_properties')->default(false);
+            $table->boolean('can_manage_maintenance')->default(false);
+            $table->boolean('can_manage_payments')->default(false);
             $table->timestamps();
 
             $table->unique('caretaker_id');
