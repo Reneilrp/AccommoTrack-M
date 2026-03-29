@@ -23,7 +23,7 @@ import api, {
   isCancel,
   rootApi,
   initCsrfCookie,
-  SHOULD_USE_BEARER_AUTH,
+  setPersistedAuthMode,
 } from "../../utils/api";
 import { getDefaultLandingRoute } from "../../utils/userRoutes";
 import toast, { Toaster } from "react-hot-toast";
@@ -778,6 +778,11 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
         // Cross-origin: CSRF cookie unavailable; Bearer token fallback will be used.
       }
 
+      console.log('[AUTH_DEBUG] Login POST initiated', {
+        email: formData.email,
+        xClientPlatform: api.defaults.headers.common['X-Client-Platform'],
+      });
+
       const result = await api.post("/login", {
         email: (formData.email || "").trim(),
         password: formData.password,
@@ -785,11 +790,23 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
       const data = result.data;
 
-      if (data && data.token && SHOULD_USE_BEARER_AUTH) {
+      console.log('[AUTH_DEBUG] Login response received', {
+        auth_mode: data?.auth_mode,
+        has_token: !!data?.token,
+        has_user: !!data?.user,
+        auth_mode_detail: data?.auth_mode_detail,
+        _debug: data?._debug,
+      });
+
+      const responseAuthMode = data?.auth_mode || (data?.token ? "token" : "cookie");
+      setPersistedAuthMode(responseAuthMode);
+
+      if (responseAuthMode === "token" && data?.token) {
         try {
           localStorage.setItem("authToken", data.token);
           localStorage.setItem("lastLoginAt", Date.now().toString());
           api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+          console.log('[AUTH_DEBUG] Auth token stored, bearer auth enabled');
         } catch (__e) {
           // ignore
         }
@@ -797,6 +814,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
         // Cookie-auth response mode intentionally omits token.
         localStorage.removeItem("authToken");
         delete api.defaults.headers.common["Authorization"];
+        console.log('[AUTH_DEBUG] Cookie mode: bearer auth disabled, relying on session cookie');
       }
 
       // Check if account is pending or rejected verification (EVEN IF LOGIN SUCCEEDED)
@@ -1062,7 +1080,10 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
   const handleOtpVerified = (data) => {
     const me = data.user;
-    if (data?.token && SHOULD_USE_BEARER_AUTH) {
+    const responseAuthMode = data?.auth_mode || (data?.token ? "token" : "cookie");
+    setPersistedAuthMode(responseAuthMode);
+
+    if (responseAuthMode === "token" && data?.token) {
       localStorage.setItem("authToken", data.token);
       api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
     } else {

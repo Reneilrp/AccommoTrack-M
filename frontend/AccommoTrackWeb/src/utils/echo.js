@@ -1,11 +1,8 @@
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
-import api from "./api";
+import api, { shouldUseBearerForRequest } from "./api";
 
 window.Pusher = Pusher;
-
-const SHOULD_USE_BEARER_AUTH =
-  !import.meta.env.PROD || import.meta.env.VITE_WEB_USE_BEARER_AUTH === "true";
 
 const createEcho = () => {
   const REVERB_KEY =
@@ -49,7 +46,7 @@ const createEcho = () => {
   });
 
   // Bearer token is optional (non-production/dev). Cookie-auth mode relies on credentials.
-  const token = SHOULD_USE_BEARER_AUTH
+  const token = shouldUseBearerForRequest()
     ? localStorage.getItem("authToken")
     : null;
   const authHeaders = {

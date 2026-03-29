@@ -64,9 +64,21 @@ class AuthController extends Controller
 
         if ($cookieRequested && (! $hasSanctumStateful || ! $hasSession)) {
             if ($this->shouldEnforceStrictWebCookieMode()) {
+                $debugDetails = [
+                    'cookie_requested' => $cookieRequested,
+                    'has_sanctum_stateful' => $hasSanctumStateful,
+                    'has_session' => $hasSession,
+                    'app_env' => app()->environment(),
+                    'request_origin' => $request->header('Origin'),
+                    'request_referer' => $request->header('Referer'),
+                    'x_client_platform' => $request->header('X-Client-Platform'),
+                    'stateful_domains' => config('sanctum.stateful'),
+                ];
+
                 return response()->json([
-                    'message' => 'Secure web login is not available for this request. Check SANCTUM_STATEFUL_DOMAINS, frontend URL, and session middleware.',
+                    'message' => 'Secure web login failed: stateful session not detected. See debug info.',
                     'auth_mode' => 'cookie_unavailable',
+                    '_debug' => $debugDetails,
                 ], 409);
             }
 

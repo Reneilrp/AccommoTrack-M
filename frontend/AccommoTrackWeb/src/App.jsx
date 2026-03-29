@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import api, { SHOULD_USE_BEARER_AUTH } from "./utils/api";
+import api, {
+  clearPersistedAuthMode,
+  shouldUseBearerForRequest,
+} from "./utils/api";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import WebNavigator from "./Navigation/WebNavigator.jsx";
 import LandingPage from "./screens/Guest/LandingPage.jsx";
@@ -32,11 +35,13 @@ function App() {
       ]);
       const currentPath = window.location.pathname;
 
-      if (!SHOULD_USE_BEARER_AUTH) {
+      if (!shouldUseBearerForRequest()) {
         localStorage.removeItem("authToken");
         delete api.defaults.headers.common["Authorization"];
       } else if (token) {
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      } else {
+        delete api.defaults.headers.common["Authorization"];
       }
 
       if (userData) {
@@ -72,6 +77,7 @@ function App() {
         if (status === 401 || status === 403 || status === 419) {
           localStorage.removeItem("userData");
           localStorage.removeItem("authToken");
+          clearPersistedAuthMode();
           delete api.defaults.headers.common["Authorization"];
           if (isActive) setUser(null);
         }
@@ -103,6 +109,7 @@ function App() {
       setUser(null);
       localStorage.removeItem("userData");
       localStorage.removeItem("authToken");
+      clearPersistedAuthMode();
       delete api.defaults.headers.common["Authorization"];
       navigate("/login", { replace: true });
     };
@@ -119,6 +126,7 @@ function App() {
       localStorage.removeItem("userData");
       localStorage.removeItem("lastLoginAt");
       localStorage.removeItem("authToken");
+      clearPersistedAuthMode();
       delete api.defaults.headers.common["Authorization"];
       toast.error("Your account has been blocked. Please contact support.", {
         duration: 6000,
@@ -134,6 +142,7 @@ function App() {
     localStorage.removeItem("userData");
     localStorage.removeItem("lastLoginAt");
     localStorage.removeItem("authToken");
+    clearPersistedAuthMode();
     delete api.defaults.headers.common["Authorization"];
   };
 

@@ -1,4 +1,8 @@
-import api, { initCsrfCookie, SHOULD_USE_BEARER_AUTH } from "../utils/api";
+import api, {
+  clearPersistedAuthMode,
+  initCsrfCookie,
+  setPersistedAuthMode,
+} from "../utils/api";
 
 export const authService = {
   async register(name, email, password, password_confirmation) {
@@ -17,7 +21,11 @@ export const authService = {
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));
     }
-    if (response.data.token && SHOULD_USE_BEARER_AUTH) {
+    const responseAuthMode =
+      response.data?.auth_mode || (response.data?.token ? "token" : "cookie");
+    setPersistedAuthMode(responseAuthMode);
+
+    if (responseAuthMode === "token" && response.data.token) {
       localStorage.setItem("authToken", response.data.token);
       api.defaults.headers.common["Authorization"] =
         `Bearer ${response.data.token}`;
@@ -42,7 +50,11 @@ export const authService = {
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));
     }
-    if (response.data.token && SHOULD_USE_BEARER_AUTH) {
+    const responseAuthMode =
+      response.data?.auth_mode || (response.data?.token ? "token" : "cookie");
+    setPersistedAuthMode(responseAuthMode);
+
+    if (responseAuthMode === "token" && response.data.token) {
       localStorage.setItem("authToken", response.data.token);
       api.defaults.headers.common["Authorization"] =
         `Bearer ${response.data.token}`;
@@ -59,6 +71,7 @@ export const authService = {
     } finally {
       localStorage.removeItem("userData");
       localStorage.removeItem("authToken");
+      clearPersistedAuthMode();
       delete api.defaults.headers.common["Authorization"];
     }
   },

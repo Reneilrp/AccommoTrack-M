@@ -5,10 +5,39 @@ const BASE_URL = import.meta.env.VITE_APP_URL;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${BASE_URL}/api`;
 const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 const CLIENT_PLATFORM_HEADER = "X-Client-Platform";
+const AUTH_MODE_STORAGE_KEY = "authMode";
 
 // Production defaults to cookie auth. Set VITE_WEB_USE_BEARER_AUTH=true to override.
 export const SHOULD_USE_BEARER_AUTH =
   !import.meta.env.PROD || import.meta.env.VITE_WEB_USE_BEARER_AUTH === "true";
+
+export const getPersistedAuthMode = () => {
+  try {
+    return localStorage.getItem(AUTH_MODE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setPersistedAuthMode = (mode) => {
+  try {
+    if (mode === "token" || mode === "cookie") {
+      localStorage.setItem(AUTH_MODE_STORAGE_KEY, mode);
+      return;
+    }
+    localStorage.removeItem(AUTH_MODE_STORAGE_KEY);
+  } catch {
+    // ignore storage failures
+  }
+};
+
+export const clearPersistedAuthMode = () => {
+  setPersistedAuthMode(null);
+};
+
+export const shouldUseBearerForRequest = () => {
+  return SHOULD_USE_BEARER_AUTH || getPersistedAuthMode() === "token";
+};
 
 // ---------------------------------------------------------------------------
 // Hybrid auth helper
@@ -42,15 +71,34 @@ const api = axios.create({
 // Token is stored in localStorage for persistence across page reloads.
 api.interceptors.request.use(
   (config) => {
-    if (!SHOULD_USE_BEARER_AUTH) {
+    const useBearerAuth = shouldUseBearerForRequest();
+    const persistedMode = getPersistedAuthMode();
+    
+    if (!useBearerAuth) {
       if (config.headers?.Authorization) {
         delete config.headers.Authorization;
+      }
+      if (config.url?.includes('/login') || config.url?.includes('/verify-otp')) {
+        console.log('[AUTH_DEBUG] Request interceptor (auth endpoint)', {
+          url: config.url,
+          shouldUseBearerAuth: useBearerAuth,
+          persistedAuthMode: persistedMode,
+          xClientPlatform: config.headers?.[CLIENT_PLATFORM_HEADER],
+        });
       }
       return config;
     }
 
     const token = localStorage.getItem("authToken");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      if (config.url?.includes('/login') || config.url?.includes('/verify-otp')) {
+        console.log('[AUTH_DEBUG] Request interceptor - Bearer attached', {
+          url: config.url,
+          persistedAuthMode: persistedMode,
+        });
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error),
@@ -69,6 +117,18 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Debug logging for cookie mode failures
+    if (error.response?.status === 409 && error.response?.data?.auth_mode === 'cookie_unavailable') {
+      console.error('[AUTH_DEBUG] Cookie mode auth unavailable (409)', {
+        message: error.response.data.message,
+        debugInfo: error.response.data._debug,
+        requestConfig: {
+          url: error.config?.url,
+          method: error.config?.method,
+        },
+      });
+    }
+
     const isBlocked =
       error.response?.status === 403 &&
       (error.response?.data?.status === "blocked" ||
@@ -78,6 +138,7 @@ api.interceptors.response.use(
       try {
         localStorage.removeItem("userData");
         localStorage.removeItem("authToken");
+        clearPersistedAuthMode();
         delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:blocked"));
       } catch (__e) {
@@ -87,6 +148,7 @@ api.interceptors.response.use(
       try {
         localStorage.removeItem("userData");
         localStorage.removeItem("authToken");
+        clearPersistedAuthMode();
         delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:unauthorized"));
       } catch (__e) {
