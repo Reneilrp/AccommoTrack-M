@@ -19,16 +19,46 @@ export default function LandlordApproval() {
     fetchVerifications();
   }, []);
 
+  const looksLikeHtmlDocument = (value) => {
+    if (typeof value !== 'string') return false;
+    return /^\s*</.test(value) && /<(?:!doctype\s+html|html)/i.test(value);
+  };
+
+  const normalizeVerificationsPayload = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (payload && Array.isArray(payload.data)) return payload.data;
+    if (payload && payload.data && Array.isArray(payload.data.data)) return payload.data.data;
+    if (payload && Array.isArray(payload.verifications)) return payload.verifications;
+    return [];
+  };
+
   const fetchVerifications = async () => {
     try {
       setLoading(true);
       setError('');
       const res = await api.get('/admin/landlord-verifications');
-      const data = res.data.data || res.data || [];
-      setVerifications(data);
+      const responseBody = res?.data;
+
+      if (looksLikeHtmlDocument(responseBody)) {
+        throw new Error('Unexpected HTML response from landlord-verifications endpoint');
+      }
+
+      const normalizedData = normalizeVerificationsPayload(responseBody);
+      setVerifications(normalizedData);
+
+      if (!Array.isArray(responseBody) && normalizedData.length === 0 && responseBody && typeof responseBody === 'object') {
+        console.warn('Unexpected landlord verification payload shape:', responseBody);
+      }
     } catch (err) {
       console.error('Failed to fetch landlord verifications:', err);
-      setError('Failed to load verification requests.');
+      const htmlResponseDetected =
+        typeof err?.message === 'string' && err.message.toLowerCase().includes('html response');
+
+      setError(
+        htmlResponseDetected
+          ? 'Failed to load verification requests: server returned HTML instead of JSON.'
+          : 'Failed to load verification requests.'
+      );
     } finally {
       setLoading(false);
     }
@@ -117,37 +147,44 @@ export default function LandlordApproval() {
   };
 
   const FilePreview = ({ path, label }) => {
-    if (!path) return <div className="h-40 flex items-center justify-center text-gray-500 dark:text-gray-500 italic">No {label} provided</div>;
-  
-    const url = getImageUrl(path);
-    const ext = path.split('.').pop().toLowerCase();
-    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
-  
+    const url = path ? getImageUrl(path) : null;
+    const ext = typeof path === 'string' ? path.split('.').pop().toLowerCase() : '';
+    const isImage = url && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+
     if (isImage) {
       return (
         <img 
           src={url} 
           alt={label} 
-          className="w-full h-auto rounded object-contain max-h-[400px]" 
+          className="w-full h-96 rounded object-contain" 
         />
       );
     }
-  
+
+    if (url) {
+      return (
+        <div className="h-96 flex flex-col items-center justify-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
+          <FileText className="w-16 h-16 text-blue-500 mb-4" />
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase">
+            {ext} Document
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Click below to view or download</p>
+          <a 
+            href={url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm"
+          >
+            <Eye className="w-4 h-4" /> View Document
+          </a>
+        </div>
+      );
+    }
+    
+    // Fallback for when no file is provided.
     return (
-      <div className="flex flex-col items-center justify-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
-        <FileText className="w-16 h-16 text-blue-500 mb-4" />
-        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase">
-          {ext} Document
-        </p>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Click below to view or download</p>
-        <a 
-          href={url} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm"
-        >
-          <Eye className="w-4 h-4" /> View Document
-        </a>
+      <div className="h-96 flex items-center justify-center text-gray-500 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
+        No {label} provided
       </div>
     );
   };
@@ -165,6 +202,9 @@ export default function LandlordApproval() {
     return <div className="text-red-500 bg-red-50 p-4 rounded-lg border border-red-100">{error}</div>;
   }
 
+  const safeVerifications = Array.isArray(verifications) ? verifications : [];
+  const selectedVerificationStatus = (selectedVerification?.status || '').toLowerCase();
+
   return (
     <div className="w-full">
       <ConfirmationModal 
@@ -181,7 +221,7 @@ export default function LandlordApproval() {
         <p className="text-sm text-gray-500 dark:text-gray-400">Review submitted IDs and business permits.</p>
       </div>
 
-      {verifications.length === 0 ? (
+      {safeVerifications.length === 0 ? (
         <div className="text-center py-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg border-dashed">
           <p className="text-gray-500 dark:text-gray-400">No verification requests found.</p>
         </div>
@@ -199,7 +239,7 @@ export default function LandlordApproval() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {verifications.map((v) => (
+              {safeVerifications.map((v) => (
                 <tr key={v.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
@@ -212,7 +252,9 @@ export default function LandlordApproval() {
                   </td>
                   <td className="px-6 py-4">
                     {(() => {
-                      const verificationStatus = (v.status || 'pending').toLowerCase();
+                      const verificationStatus = typeof v.status === 'string'
+                        ? v.status.toLowerCase()
+                        : 'pending';
                       const statusClasses = verificationStatus === 'approved'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                         : verificationStatus === 'rejected'
@@ -235,7 +277,7 @@ export default function LandlordApproval() {
                     })()}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(v.created_at).toLocaleDateString()}
+                    {v.created_at ? new Date(v.created_at).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button
@@ -272,7 +314,7 @@ export default function LandlordApproval() {
               </button>
             </div>
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4 text-center sm:text-left">
                 <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
                   <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -302,7 +344,7 @@ export default function LandlordApproval() {
                 Close
               </button>
               
-              {selectedVerification.status === 'pending' && (
+              {selectedVerificationStatus === 'pending' && (
                 <>
                   <button
                     onClick={openRejectModal}
@@ -323,7 +365,7 @@ export default function LandlordApproval() {
                 </>
               )}
 
-              {selectedVerification.status === 'rejected' && (
+              {selectedVerificationStatus === 'rejected' && (
                 <div className="flex items-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg">
                   <AlertTriangle className="w-4 h-4" />
                   <span className="text-sm font-medium">This application was rejected</span>
