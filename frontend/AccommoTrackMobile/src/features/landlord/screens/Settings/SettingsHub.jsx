@@ -204,6 +204,50 @@ export default function SettingsScreen({ navigation, onLogout }) {
     const newRole = userRole === "landlord" ? "tenant" : "landlord";
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
 
+    if (userRole === 'tenant' && newRole === 'landlord') {
+      if (verificationStatus === 'approved') {
+        Alert.alert('Switch to Landlord', 'Your landlord registration is approved. Switch to landlord mode now?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Switch',
+            onPress: async () => {
+              try {
+                setLoading(true);
+                const res = await ProfileService.switchRole('landlord');
+                if (res.success) {
+                  const userJson = await AsyncStorage.getItem('user');
+                  if (userJson) {
+                    const parsed = JSON.parse(userJson);
+                    parsed.role = 'landlord';
+                    await AsyncStorage.setItem('user', JSON.stringify(parsed));
+                    if (parsed.id) {
+                      await AsyncStorage.setItem(`user_role_${parsed.id}`, 'landlord');
+                    }
+                  }
+                  triggerRoleSwitch('landlord');
+                } else {
+                  Alert.alert('Error', res.error || 'Failed to switch role');
+                }
+              } catch (error) {
+                console.error('Role switch error:', error);
+                Alert.alert('Error', 'An unexpected error occurred while switching roles.');
+              } finally {
+                setLoading(false);
+              }
+            },
+          },
+        ]);
+      } else if (verificationStatus === 'pending') {
+        Alert.alert('Registration Pending', 'Your landlord registration is still under review. Please wait for approval before switching.');
+      } else {
+        Alert.alert('Register as Landlord', 'Complete landlord registration first by submitting your details, valid ID, and business permit.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Proceed', onPress: () => navigation.navigate('VerificationStatus') },
+        ]);
+      }
+      return;
+    }
+
     Alert.alert(
       `Switch to ${roleName}`,
       `Are you sure you want to switch your account to ${roleName} mode?`,
@@ -476,7 +520,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
           },
           {
             id: "switch-role",
-            label: userRole === "landlord" ? "Switch to Tenant" : "Switch to Landlord",
+            label: userRole === 'landlord'
+              ? 'Switch to Tenant'
+              : verificationStatus === 'approved'
+                ? 'Switch to Landlord'
+                : 'Register as Landlord',
             icon: "swap-horizontal-outline",
             type: "action",
             action: () => handleSwitchRole(),

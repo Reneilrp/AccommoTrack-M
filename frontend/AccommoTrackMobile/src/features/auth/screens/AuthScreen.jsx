@@ -579,6 +579,25 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       } else {
         // Check for pending verification (restricted)
         if (response.status === 403 && data.status === 'pending_verification') {
+          if (data.requires_email_otp) {
+            const retryAfterSeconds = Number(data.retry_after_seconds);
+            const initialResendCooldown =
+              Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+                ? Math.floor(retryAfterSeconds)
+                : data.otp_resent
+                  ? 60
+                  : 0;
+
+            navigation.navigate('OtpVerification', {
+              email: formData.email.trim(),
+              initialResendCooldown,
+              noticeMessage: data.otp_resent
+                ? 'A new verification code has been sent to your email.'
+                : data.message,
+            });
+            return;
+          }
+
           setPendingModalData({
             status: data.status,
             title: 'Account Pending Review',

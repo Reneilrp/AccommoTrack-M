@@ -216,7 +216,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
         let age = today.getFullYear() - bd.getFullYear();
         const m = today.getMonth() - bd.getMonth();
         if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
-        if (age < 20) errors.dob = 'You must be at least 20 years old to register as a landlord';
+        if (age < 21) errors.dob = 'You must be at least 21 years old to register as a landlord';
         else if (age > 100) errors.dob = 'Please enter a valid date of birth';
       }
     } else if (step === 2) {

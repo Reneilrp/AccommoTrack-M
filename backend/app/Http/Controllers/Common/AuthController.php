@@ -182,7 +182,7 @@ class AuthController extends Controller
 
             // Role-based age validation
             if (isset($validated['date_of_birth'])) {
-                $minAge = $validated['role'] === 'landlord' ? 20 : 18;
+                $minAge = $validated['role'] === 'landlord' ? 21 : 18;
                 $birthDate = \Carbon\Carbon::parse($validated['date_of_birth']);
                 if ($birthDate->diffInYears(\Carbon\Carbon::now()) < $minAge) {
                     return response()->json([
@@ -297,6 +297,7 @@ class AuthController extends Controller
                 'status' => 'pending_verification',
                 'message' => $e->getMessage(),
                 'otp_resent' => $e->otpResent,
+                'requires_email_otp' => $e->requiresEmailOtp,
             ];
 
             if ($e->retryAfterSeconds !== null && $e->retryAfterSeconds > 0) {
@@ -355,14 +356,14 @@ class AuthController extends Controller
         // Security Check: If switching TO landlord, must be verified/approved
         if ($user->role === 'tenant' && $newRole === 'landlord') {
             if ($user->date_of_birth) {
-                if (\Carbon\Carbon::parse($user->date_of_birth)->age < 20) {
+                if (\Carbon\Carbon::parse($user->date_of_birth)->age < 21) {
                     return response()->json([
-                        'message' => 'You must be at least 20 years old to become a landlord.',
+                        'message' => 'You must be at least 21 years old to become a landlord.',
                     ], 403);
                 }
             } else {
                 return response()->json([
-                    'message' => 'Date of birth is required to become a landlord.',
+                    'message' => 'Date of birth is required to register as a landlord.',
                 ], 403);
             }
 
@@ -370,31 +371,9 @@ class AuthController extends Controller
 
             if (! $verification || $verification->status !== 'approved') {
                 return response()->json([
-                    'message' => 'Your landlord verification is not yet approved. Please complete verification first.',
+                    'message' => 'Your landlord registration is not yet approved. Please complete landlord registration first.',
                     'status' => $verification ? $verification->status : 'not_submitted',
                 ], 403);
-            }
-
-            $credentials = $request->validate([
-                'email' => 'required|email:rfc',
-                'password' => 'required|string|min:8',
-                'password_confirmation' => 'required|string|same:password',
-                'agree' => 'accepted',
-            ], [
-                'agree.accepted' => 'You must agree to the terms and conditions before switching to landlord mode.',
-                'password_confirmation.same' => 'Password confirmation does not match.',
-            ]);
-
-            if (strtolower(trim($credentials['email'])) !== strtolower((string) $user->email)) {
-                return response()->json([
-                    'message' => 'The provided email does not match your current account.',
-                ], 422);
-            }
-
-            if (! Hash::check($credentials['password'], (string) $user->password)) {
-                return response()->json([
-                    'message' => 'Invalid password. Please try again.',
-                ], 422);
             }
         }
 
@@ -432,7 +411,7 @@ class AuthController extends Controller
 
             // Add role-based age validation
             if ($request->filled('date_of_birth')) {
-                $minAge = $user->role === 'landlord' ? 20 : 18;
+                $minAge = $user->role === 'landlord' ? 21 : 18;
                 $rules['date_of_birth'] = [
                     'nullable',
                     'date',
@@ -441,7 +420,7 @@ class AuthController extends Controller
             }
 
             $validated = $request->validate($rules, [
-                'date_of_birth.before_or_equal' => 'User must be at least '.($user->role === 'landlord' ? '20' : '18').' years old.',
+                'date_of_birth.before_or_equal' => 'User must be at least '.($user->role === 'landlord' ? '21' : '18').' years old.',
             ]);
 
             if (array_key_exists('gender', $validated)) {

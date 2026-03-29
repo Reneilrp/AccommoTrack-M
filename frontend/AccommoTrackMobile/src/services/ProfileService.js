@@ -214,6 +214,33 @@ const ProfileService = {
   },
 
   /**
+   * Tenant landlord registration flow (keeps account in tenant mode while pending approval)
+   */
+  async registerAsLandlord(formData) {
+    try {
+      const response = await api.post('/tenant/register-landlord', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return {
+        success: true,
+        data: response.data,
+        message: response.data.message || 'Landlord registration submitted successfully',
+      };
+    } catch (error) {
+      console.error('Tenant landlord registration failed:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to submit landlord registration',
+        errors: error.response?.data?.errors || {},
+        status: error.response?.data?.status || null,
+      };
+    }
+  },
+
+  /**
    * Get PayMongo onboarding URL for landlord
    */
   async getPayMongoOnboardingUrl() {

@@ -172,6 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Tenant: Resubmit verification documents after rejection
         Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
+        Route::post('/register-landlord', [LandlordVerificationController::class, 'registerFromTenant']);
 
         // Tenant: room transfer requests
         Route::get('/transfers', [\App\Http\Controllers\Tenant\TransferController::class, 'index']);

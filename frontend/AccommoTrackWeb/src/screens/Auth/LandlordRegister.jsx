@@ -252,7 +252,7 @@ const LandlordRegister = () => {
         errors.lastName = 'Last name contains invalid characters (letters, spaces, hyphens only)';
       }
     } else if (step === 2) {
-      // DOB required + age >= 20
+      // DOB required + age >= 21
       if (!form.dob) {
         errors.dob = 'Date of birth is required';
       } else {
@@ -265,8 +265,8 @@ const LandlordRegister = () => {
           const m = today.getMonth() - bd.getMonth();
           if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
           
-          if (age < 20) {
-            errors.dob = 'You must be at least 20 years old to register as a landlord';
+          if (age < 21) {
+            errors.dob = 'You must be at least 21 years old to register as a landlord';
           } else if (age > 100) {
             errors.dob = 'Please enter a valid date of birth';
           }

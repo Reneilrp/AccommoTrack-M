@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
-import { showSuccess, showError } from '../../../utils/toast.js';
+import { showSuccess } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
 export default function OtpVerificationScreen({ navigation, route }) {
@@ -20,12 +20,41 @@ export default function OtpVerificationScreen({ navigation, route }) {
   const styles = useMemo(() => getStyles(theme), [theme]);
 
   const email = route?.params?.email || '';
+  const noticeMessage = route?.params?.noticeMessage || '';
+  const initialResendCooldown = useMemo(() => {
+    const value = Number(route?.params?.initialResendCooldown);
+    if (!Number.isFinite(value)) {
+      return 60;
+    }
+
+    return Math.max(0, Math.floor(value));
+  }, [route?.params?.initialResendCooldown]);
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(60); // Start with 60s cooldown since OTP was just sent
+  const [resendCooldown, setResendCooldown] = useState(initialResendCooldown);
   const inputRefs = useRef([]);
+  const lastNoticeKeyRef = useRef('');
+
+  useEffect(() => {
+    setResendCooldown(initialResendCooldown);
+    setOtp(['', '', '', '', '', '']);
+  }, [email, initialResendCooldown]);
+
+  useEffect(() => {
+    if (!noticeMessage) {
+      return;
+    }
+
+    const noticeKey = `${email}:${noticeMessage}`;
+    if (lastNoticeKeyRef.current === noticeKey) {
+      return;
+    }
+
+    lastNoticeKeyRef.current = noticeKey;
+    showSuccess('OTP Required', noticeMessage);
+  }, [email, noticeMessage]);
 
   // Cooldown timer
   useEffect(() => {

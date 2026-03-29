@@ -43,10 +43,10 @@ class LandlordVerificationController extends Controller
 
             // Age validation
             $birthDate = \Carbon\Carbon::parse($request->dob);
-            if ($birthDate->diffInYears(\Carbon\Carbon::now()) < 20) {
+            if ($birthDate->diffInYears(\Carbon\Carbon::now()) < 21) {
                 return response()->json([
-                    'message' => 'Registration failed: You must be at least 20 years old to register as a landlord.',
-                    'errors' => ['dob' => ['Age restriction: Minimum 20 years old required.']],
+                    'message' => 'Registration failed: You must be at least 21 years old to register as a landlord.',
+                    'errors' => ['dob' => ['Age restriction: Minimum 21 years old required.']],
                 ], 422);
             }
 
@@ -142,7 +142,7 @@ class LandlordVerificationController extends Controller
             ->first();
 
         if (! $verification) {
-            if ($user->is_verified) {
+            if ($user->role === 'landlord' && $user->is_verified) {
                 return response()->json([
                     'message' => 'Verification already approved',
                     'status' => 'approved',
@@ -227,6 +227,141 @@ class LandlordVerificationController extends Controller
     }
 
     /**
+     * Tenant landlord registration flow.
+     * Submits or re-submits landlord verification without switching roles immediately.
+     */
+    public function registerFromTenant(Request $request)
+    {
+        $user = Auth::user();
+
+        if (! $user || $user->role !== 'tenant') {
+            return response()->json([
+                'message' => 'Only tenant accounts can register as landlord from this flow.',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'dob' => 'required|date',
+            'phone' => 'nullable|string|max:20',
+            'valid_id_type' => 'required|string|max:255',
+            'valid_id_other' => 'nullable|string|max:255',
+            'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'agree' => 'accepted',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $birthDate = \Carbon\Carbon::parse($request->dob);
+        if ($birthDate->diffInYears(\Carbon\Carbon::now()) < 21) {
+            return response()->json([
+                'message' => 'You must be at least 21 years old to register as a landlord.',
+                'errors' => ['dob' => ['Age restriction: Minimum 21 years old required.']],
+            ], 422);
+        }
+
+        $verification = LandlordVerification::where('user_id', $user->id)->first();
+
+        if ($verification && $verification->status === 'approved') {
+            return response()->json([
+                'message' => 'Your landlord application is already approved. You can switch to landlord mode now.',
+                'status' => 'approved',
+            ], 409);
+        }
+
+        if ($verification && $verification->status === 'pending') {
+            return response()->json([
+                'message' => 'Your landlord application is currently under review.',
+                'status' => 'pending',
+            ], 409);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $user->forceFill([
+                'first_name' => $request->first_name,
+                'middle_name' => $request->middle_name,
+                'last_name' => $request->last_name,
+                'phone' => $request->phone,
+                'date_of_birth' => $request->dob,
+            ])->save();
+
+            $validIdPath = $request->file('valid_id')->store('landlord_ids', 'public');
+            $permitPath = $request->file('permit')->store('landlord_permits', 'public');
+
+            if ($verification) {
+                if ($verification->valid_id_path) {
+                    Storage::disk('public')->delete($verification->valid_id_path);
+                }
+                if ($verification->permit_path) {
+                    Storage::disk('public')->delete($verification->permit_path);
+                }
+
+                $verification->forceFill([
+                    'first_name' => $request->first_name,
+                    'middle_name' => $request->middle_name,
+                    'last_name' => $request->last_name,
+                    'valid_id_type' => $request->valid_id_type,
+                    'valid_id_other' => $request->valid_id_other,
+                    'valid_id_path' => $validIdPath,
+                    'permit_path' => $permitPath,
+                    'status' => 'pending',
+                    'rejection_reason' => null,
+                    'reviewed_at' => null,
+                    'reviewed_by' => null,
+                ])->save();
+            } else {
+                $verification = LandlordVerification::create([
+                    'user_id' => $user->id,
+                    'first_name' => $request->first_name,
+                    'middle_name' => $request->middle_name,
+                    'last_name' => $request->last_name,
+                    'valid_id_type' => $request->valid_id_type,
+                    'valid_id_other' => $request->valid_id_other,
+                    'valid_id_path' => $validIdPath,
+                    'permit_path' => $permitPath,
+                    'status' => 'pending',
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Landlord registration submitted successfully. Please wait for admin review.',
+                'status' => 'pending',
+                'verification' => [
+                    'id' => $verification->id,
+                    'status' => $verification->status,
+                    'valid_id_type' => $verification->valid_id_type,
+                    'updated_at' => $verification->updated_at,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if (isset($validIdPath)) {
+                Storage::disk('public')->delete($validIdPath);
+            }
+            if (isset($permitPath)) {
+                Storage::disk('public')->delete($permitPath);
+            }
+
+            return response()->json([
+                'message' => 'Landlord registration failed: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Resubmit verification documents after rejection
      */
     public function resubmit(Request $request)
@@ -236,9 +371,9 @@ class LandlordVerificationController extends Controller
         // Check age verification
         if ($user->date_of_birth) {
             $age = \Carbon\Carbon::parse($user->date_of_birth)->age;
-            if ($age < 20) {
+            if ($age < 21) {
                 return response()->json([
-                    'message' => 'You must be at least 20 years old to become a landlord.',
+                    'message' => 'You must be at least 21 years old to become a landlord.',
                 ], 403);
             }
         } else {

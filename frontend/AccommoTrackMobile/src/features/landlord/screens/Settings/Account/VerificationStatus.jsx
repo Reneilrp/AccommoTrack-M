@@ -27,6 +27,7 @@ export default function VerificationStatus({ navigation }) {
   const styles = React.useMemo(() => getStyles(theme), [theme]);
 
   const [verification, setVerification] = useState(null);
+  const [userRole, setUserRole] = useState('landlord');
   const [idTypes, setIdTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,6 +37,11 @@ export default function VerificationStatus({ navigation }) {
 
   // Form state
   const [formData, setFormData] = useState({
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    dob: '',
+    phone: '',
     validIdType: "",
     validIdOther: "",
     validId: null,
@@ -47,14 +53,28 @@ export default function VerificationStatus({ navigation }) {
     else setLoading(true);
 
     try {
-      const [statusRes, typesRes] = await Promise.all([
+      const [statusRes, typesRes, profileRes] = await Promise.all([
         ProfileService.getVerificationStatus(),
         ProfileService.getValidIdTypes(),
+        ProfileService.getProfile(),
       ]);
 
       if (statusRes.success) setVerification(statusRes.data);
       if (typesRes.success) setIdTypes(Array.isArray(typesRes.data) ? typesRes.data : []);
       else if (typesRes.data) setIdTypes(Array.isArray(typesRes.data) ? typesRes.data : []); // Fallback data
+
+      if (profileRes.success && profileRes.data) {
+        const profile = profileRes.data;
+        setUserRole(profile.role || 'landlord');
+        setFormData((prev) => ({
+          ...prev,
+          firstName: prev.firstName || profile.first_name || profile.firstName || '',
+          middleName: prev.middleName || profile.middle_name || profile.middleName || '',
+          lastName: prev.lastName || profile.last_name || profile.lastName || '',
+          dob: prev.dob || profile.date_of_birth || '',
+          phone: prev.phone || profile.phone || '',
+        }));
+      }
     } catch (error) {
       console.error("Error fetching verification data:", error);
     } finally {
@@ -111,6 +131,31 @@ export default function VerificationStatus({ navigation }) {
       return;
     }
 
+    if (userRole === 'tenant') {
+      if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.dob) {
+        Alert.alert('Validation', 'Please complete your name and date of birth before submitting.');
+        return;
+      }
+
+      const birthDate = new Date(formData.dob);
+      if (Number.isNaN(birthDate.getTime())) {
+        Alert.alert('Validation', 'Please use a valid date format (YYYY-MM-DD).');
+        return;
+      }
+
+      const now = new Date();
+      let age = now.getFullYear() - birthDate.getFullYear();
+      const monthDelta = now.getMonth() - birthDate.getMonth();
+      if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < birthDate.getDate())) {
+        age -= 1;
+      }
+
+      if (age < 21) {
+        Alert.alert('Age Requirement', 'You must be at least 21 years old to register as a landlord.');
+        return;
+      }
+    }
+
     if (formData.validIdType === "other" && !formData.validIdOther) {
       Alert.alert("Validation", "Please specify your ID type.");
       return;
@@ -128,14 +173,38 @@ export default function VerificationStatus({ navigation }) {
       submitData.append("valid_id", formData.validId);
       submitData.append("permit", formData.permit);
 
-      const res = await ProfileService.resubmitVerification(submitData);
+      let res;
+
+      if (userRole === 'tenant') {
+        submitData.append('first_name', formData.firstName.trim());
+        if (formData.middleName?.trim()) {
+          submitData.append('middle_name', formData.middleName.trim());
+        }
+        submitData.append('last_name', formData.lastName.trim());
+        submitData.append('dob', formData.dob);
+        if (formData.phone?.trim()) {
+          submitData.append('phone', formData.phone.trim());
+        }
+        submitData.append('agree', '1');
+        res = await ProfileService.registerAsLandlord(submitData);
+      } else {
+        res = await ProfileService.resubmitVerification(submitData);
+      }
+
       if (res.success) {
         Alert.alert(
           "Success",
-          "Verification documents submitted! Please wait for admin review.",
+          userRole === 'tenant'
+            ? "Landlord registration submitted! Please wait for admin review."
+            : "Verification documents submitted! Please wait for admin review.",
         );
         setShowResubmitForm(false);
         setFormData({
+          firstName: '',
+          middleName: '',
+          lastName: '',
+          dob: '',
+          phone: '',
           validIdType: "",
           validIdOther: "",
           validId: null,
@@ -432,9 +501,13 @@ export default function VerificationStatus({ navigation }) {
           >
             <Ionicons name="cloud-upload-outline" size={22} color="#FFFFFF" />
             <Text style={styles.resubmitButtonText}>
-              {verification?.status === "rejected"
-                ? "Resubmit Documents"
-                : "Submit Verification"}
+              {userRole === 'tenant'
+                ? verification?.status === 'rejected'
+                  ? 'Update Landlord Registration'
+                  : 'Register as Landlord'
+                : verification?.status === "rejected"
+                  ? "Resubmit Documents"
+                  : "Submit Verification"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -460,6 +533,78 @@ export default function VerificationStatus({ navigation }) {
               style={styles.formContainer}
               showsVerticalScrollIndicator={false}
             >
+              {userRole === 'tenant' && (
+                <>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>
+                      First Name <Text style={styles.required}>*</Text>
+                    </Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={formData.firstName}
+                      onChangeText={(val) =>
+                        setFormData((prev) => ({ ...prev, firstName: val }))
+                      }
+                      placeholder="Enter first name"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Middle Name</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={formData.middleName}
+                      onChangeText={(val) =>
+                        setFormData((prev) => ({ ...prev, middleName: val }))
+                      }
+                      placeholder="Enter middle name (optional)"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>
+                      Last Name <Text style={styles.required}>*</Text>
+                    </Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={formData.lastName}
+                      onChangeText={(val) =>
+                        setFormData((prev) => ({ ...prev, lastName: val }))
+                      }
+                      placeholder="Enter last name"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>
+                      Date of Birth (YYYY-MM-DD) <Text style={styles.required}>*</Text>
+                    </Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={formData.dob}
+                      onChangeText={(val) =>
+                        setFormData((prev) => ({ ...prev, dob: val }))
+                      }
+                      placeholder="YYYY-MM-DD"
+                      autoCapitalize="none"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Phone</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={formData.phone}
+                      onChangeText={(val) =>
+                        setFormData((prev) => ({ ...prev, phone: val }))
+                      }
+                      placeholder="09XXXXXXXXX"
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                </>
+              )}
+
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>
                   Valid ID Type <Text style={styles.required}>*</Text>

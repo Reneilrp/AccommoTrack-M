@@ -96,7 +96,8 @@ class AuthService
             throw new PendingVerificationException(
                 'Please verify your email with the OTP code before logging in.',
                 $otpResent,
-                $retryAfterSeconds
+                $retryAfterSeconds,
+                true
             );
         }
 

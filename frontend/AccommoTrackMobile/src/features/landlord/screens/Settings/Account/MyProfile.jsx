@@ -87,8 +87,8 @@ export default function MyProfileScreen({ navigation }) {
 
     if (event.type === "set" || Platform.OS === "ios") {
       const age = calculateAge(currentDate);
-      if (age < 20) {
-        Alert.alert("Age Restriction", "You must be at least 20 years old.");
+      if (age < 21) {
+        Alert.alert("Age Restriction", "You must be at least 21 years old.");
         return;
       }
 

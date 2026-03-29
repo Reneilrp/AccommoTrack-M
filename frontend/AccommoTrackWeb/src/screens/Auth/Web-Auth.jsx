@@ -303,11 +303,27 @@ const ResubmitModal = ({ visible, onClose, __theme }) => {
 
 // ... (imports)
 
-const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
+const OtpVerificationScreen = ({
+  email,
+  onVerified,
+  onBack,
+  initialResendCooldown = 0,
+}) => {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(
+    Number.isFinite(initialResendCooldown) && initialResendCooldown > 0
+      ? Math.floor(initialResendCooldown)
+      : 0,
+  );
+
+  useEffect(() => {
+    const nextCooldown = Number.isFinite(initialResendCooldown)
+      ? Math.max(0, Math.floor(initialResendCooldown))
+      : 0;
+    setResendCooldown(nextCooldown);
+  }, [email, initialResendCooldown]);
 
   useEffect(() => {
     let timer;
@@ -460,6 +476,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   });
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [otpInitialCooldown, setOtpInitialCooldown] = useState(0);
   const [__isMobileDevice, setIsMobileDevice] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
 
@@ -702,7 +719,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
           age -= 1;
         }
 
-        const minAge = formData.role === "landlord" ? 20 : 18;
+        const minAge = formData.role === "landlord" ? 21 : 18;
         if (!errors.date_of_birth && age < minAge) {
           errors.date_of_birth = `You must be at least ${minAge} years old`;
         }
@@ -913,10 +930,33 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
         err.response?.status === 403 &&
         err.response?.data?.status === "pending_verification"
       ) {
+        const pendingData = err.response?.data || {};
+
+        if (pendingData.requires_email_otp) {
+          const retryAfterSeconds = Number(pendingData.retry_after_seconds);
+          const nextOtpCooldown =
+            Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+              ? Math.floor(retryAfterSeconds)
+              : pendingData.otp_resent
+                ? 60
+                : 0;
+
+          setRegisteredEmail((formData.email || "").trim());
+          setOtpInitialCooldown(nextOtpCooldown);
+          setShowPendingModal(false);
+          setShowOtpVerification(true);
+
+          if (pendingData.otp_resent) {
+            toast.success("A new OTP has been sent to your email.");
+          }
+
+          return;
+        }
+
         setPendingModalData({
           status: "pending_verification",
           title: "Account Pending Review",
-          message: err.response.data.message,
+          message: pendingData.message,
         });
         setShowPendingModal(true);
         return;
@@ -996,6 +1036,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       
       // Store email for OTP screen
       setRegisteredEmail(formData.email);
+      setOtpInitialCooldown(0);
 
       // Show OTP verification screen
       setShowOtpVerification(true);
@@ -1112,9 +1153,11 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       {showOtpVerification ? (
         <OtpVerificationScreen
           email={registeredEmail}
+          initialResendCooldown={otpInitialCooldown}
           onVerified={handleOtpVerified}
           onBack={() => {
             setShowOtpVerification(false);
+            setOtpInitialCooldown(0);
             setIsLogin(true); // Go back to login screen
           }}
         />
