@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle } from 'lucide-react';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -224,6 +224,34 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
       loadTenants();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to undo eviction.');
+    }
+  };
+
+  const handleApproveReservation = async (tenant) => {
+    const bookingId = tenant.latestBooking?.id;
+    if (!bookingId) return;
+    try {
+      if (window.confirm(`Approve reservation for ${tenant.first_name}?`)) {
+        await api.post(`/bookings/${bookingId}/approve-reservation`);
+        toast.success(`Reservation approved for ${tenant.first_name}.`);
+        loadTenants();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve reservation.');
+    }
+  };
+
+  const handleCheckInTenant = async (tenant) => {
+    const bookingId = tenant.latestBooking?.id;
+    if (!bookingId) return;
+    try {
+      if (window.confirm(`Check in ${tenant.first_name} and generate first invoice?`)) {
+        await api.post(`/bookings/${bookingId}/check-in`);
+        toast.success(`${tenant.first_name} checked in successfully.`);
+        loadTenants();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to check in tenant.');
     }
   };
 
@@ -455,6 +483,8 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                     onEvictionFinalize={handleEvictionFinalize}
                     onEvictionCancel={handleEvictionCancel}
                     onEvictionUndo={handleEvictionUndo}
+                    onApproveReservation={handleApproveReservation}
+                    onCheckIn={handleCheckInTenant}
                     canTransfer={!isCaretaker}
                     isEvictionDue={isEvictionDue(tenant)}
                   />
@@ -475,6 +505,8 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             onEvictionFinalize={handleEvictionFinalize}
             onEvictionCancel={handleEvictionCancel}
             onEvictionUndo={handleEvictionUndo}
+            onApproveReservation={handleApproveReservation}
+            onCheckIn={handleCheckInTenant}
             canTransfer={!isCaretaker}
             searchQuery={searchQuery}
             isEvictionDue={isEvictionDue}
@@ -757,6 +789,8 @@ const TenantListView = ({
   onEvictionFinalize,
   onEvictionCancel,
   onEvictionUndo,
+  onApproveReservation,
+  onCheckIn,
   canTransfer,
   searchQuery,
   isEvictionDue,
@@ -947,6 +981,24 @@ const TenantListView = ({
                             <Users className="w-3.5 h-3.5 text-gray-500" /> View Logs
                           </button>
                           <div className="border-t border-gray-100 dark:border-gray-700" />
+                          {tenant.latestBooking?.status === 'pending_reservation' && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onApproveReservation?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" /> Approve Reservation
+                            </button>
+                          )}
+                          {tenant.latestBooking?.status === 'reserved' && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onCheckIn?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" /> Check In Tenant
+                            </button>
+                          )}
                           <button
                             onClick={() => { setOpenMenuId(null); onAssign?.(tenant); }}
                             disabled={!canTransfer || !!tenant.room || hasPendingEviction}

@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { getStyles } from '../../../../styles/Tenant/RoomDetailsScreen.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import BookingService from '../../../../services/BookingService.js';
@@ -61,6 +62,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [roomData, setRoomData] = useState(room || null);
   const [paymentOptions, setPaymentOptions] = useState({ methods: ['cash'], is_paymongo_ready: false });
   const [optionsLoading, setOptionsLoading] = useState(false);
+  const [receiptImage, setReceiptImage] = useState(null);
+
+  const reservationFee = propertyData?.reservation_fee || activeRoom?.property?.reservation_fee || 0;
+  const isReservationRequired = Number(reservationFee) > 0;
+  const gcashName = propertyData?.gcash_name || activeRoom?.property?.gcash_name || '';
+  const gcashNumber = propertyData?.gcash_number || activeRoom?.property?.gcash_number || '';
+  const gcashQrPath = propertyData?.gcash_qr_path || activeRoom?.property?.gcash_qr_path || '';
 
   useEffect(() => {
     // keep roomData in sync when navigation param changes
@@ -339,6 +347,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       payment_method: 'cash', // Reset to default
       payment_plan: 'full',
     });
+    setReceiptImage(null);
 
     setBookingModalVisible(true);
   };
@@ -397,21 +406,51 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     return true;
   };
 
+    const pickReceiptImage = async () => {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setReceiptImage(result.assets[0]);
+      }
+    };
+
   const handleSubmitBooking = async () => {
     try {
       if (!validateDates()) return;
 
+      if (isReservationRequired && !receiptImage) {
+        Alert.alert('Required', 'Please attach your GCash receipt to confirm your reservation.');
+        return;
+      }
+
       setIsSubmitting(true);
 
-      const data = {
-        room_id: activeRoom.id,
-        start_date: bookingData.start_date.toISOString().split('T')[0],
-        end_date: bookingData.end_date ? bookingData.end_date.toISOString().split('T')[0] : null,
-        contract_mode: isDailyContract ? 'daily' : 'monthly',
-        payment_method: bookingData.payment_method || 'cash',
-        payment_plan: isDailyContract ? 'full' : bookingData.payment_plan,
-        notes: bookingData.notes || null
-      };
+      const data = new FormData();
+      data.append('room_id', activeRoom.id);
+      data.append('start_date', bookingData.start_date.toISOString().split('T')[0]);
+      if (bookingData.end_date) data.append('end_date', bookingData.end_date.toISOString().split('T')[0]);
+      data.append('contract_mode', isDailyContract ? 'daily' : 'monthly');
+      data.append('payment_method', bookingData.payment_method || 'cash');
+      data.append('payment_plan', isDailyContract ? 'full' : bookingData.payment_plan);
+      if (bookingData.notes) data.append('notes', bookingData.notes);
+
+      if (isReservationRequired && receiptImage) {
+        const localUri = receiptImage.uri;
+        let filename = localUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        let type = match ? `image/${match[1]}` : `image`;
+        if (type === 'image/jpg') type = 'image/jpeg';
+        
+        data.append('receipt_image', {
+          uri: localUri,
+          name: filename,
+          type
+        });
+      }
 
       console.log('Submitting booking:', data);
 
@@ -992,14 +1031,75 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </View>
                 )}
 
+                {isReservationRequired && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Reservation Fee</Text>
+                    <Text style={styles.summaryValue}>
+                      ₱{Number(reservationFee).toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+
                 <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
                   <Text style={styles.summaryLabelBold}>Total Amount</Text>
                   <Text style={styles.summaryValueBold}>
                     {isPricingLoading ? '...' : `₱${(
-                      (Number(totalPrice) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0)
+                      (Number(totalPrice) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? Number(reservationFee) : 0)
                     ).toLocaleString()}`}
                   </Text>
                 </View>
+
+                {isReservationRequired && (
+                  <View style={{ marginTop: 24, padding: 12, backgroundColor: theme.colors.surface || '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border || '#e2e8f0' }}>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>
+                      <Ionicons name="warning-outline" size={14} /> Reservation Payment Required
+                    </Text>
+                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 16 }}>
+                      This property requires a ₱{Number(reservationFee).toLocaleString()} reservation fee paid manually via GCash.
+                    </Text>
+                    
+                    <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 }}>GCash Account Details:</Text>
+                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text }}>{gcashName || 'Not Provided'}</Text>
+                      <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.primary, marginVertical: 4 }}>{gcashNumber || 'Not Provided'}</Text>
+                      {gcashQrPath ? (
+                        <TouchableOpacity style={{ marginTop: 8 }} onPress={() => Linking.openURL(getRoomImageUrl(gcashQrPath))}>
+                          <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: 'bold' }}>View QR Code</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>Upload Receipt <Text style={{ color: theme.colors.error }}>*</Text></Text>
+                    <TouchableOpacity
+                      style={{
+                        height: 120,
+                        borderWidth: 2,
+                        borderColor: receiptImage ? theme.colors.primary : (theme.colors.border || '#cbd5e1'),
+                        borderStyle: 'dashed',
+                        borderRadius: 12,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: receiptImage ? (theme.colors.primary + '10') : 'transparent'
+                      }}
+                      onPress={pickReceiptImage}
+                    >
+                      {receiptImage ? (
+                        <>
+                          <Image source={{ uri: receiptImage.uri }} style={{ width: '100%', height: '100%', borderRadius: 10, position: 'absolute' }} opacity={0.3} resizeMode="cover" />
+                          <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary} />
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.primary, marginTop: 4 }}>Receipt Attached</Text>
+                          <Text style={{ fontSize: 10, color: theme.colors.primary }}>Tap to change</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Ionicons name="cloud-upload-outline" size={32} color={theme.colors.textTertiary || '#94a3b8'} />
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.textSecondary, marginTop: 8 }}>Tap to upload GCash receipt</Text>
+                          <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 4 }}>PNG, JPG up to 5MB</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
                 
                 <View style={{ marginTop: 8 }}>
                   {pricingBreakdown && pricingBreakdown.months > 0 && (

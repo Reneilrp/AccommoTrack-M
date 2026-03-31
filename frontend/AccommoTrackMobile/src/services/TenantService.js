@@ -585,6 +585,30 @@ class TenantService {
       };
     }
   }
+
+  /**
+   * Report a reservation dispute (fake receipt, landlord scam, or general issue).
+   * Only available for bookings in pending_reservation or reserved status.
+   * @param {number} bookingId
+   * @param {string} reason - Human readable description of the issue
+   * @param {'fake_receipt'|'landlord_scam'|'other'} reportType
+   */
+  async reportDispute(bookingId, reason, reportType = 'other') {
+    try {
+      const response = await api.post('/reservation-disputes', {
+        booking_id: bookingId,
+        reason,
+        report_type: reportType,
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error submitting reservation dispute:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to submit dispute report',
+      };
+    }
+  }
 }
 
 export default new TenantService();

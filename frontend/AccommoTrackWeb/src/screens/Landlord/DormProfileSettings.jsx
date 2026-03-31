@@ -99,6 +99,11 @@ export default function DormProfileSettings({
   const [videoPreview, setVideoPreview] = useState(null);
   const [deleteExistingVideo, setDeleteExistingVideo] = useState(false);
 
+  // GCash QR state
+  const [gcashQrFile, setGcashQrFile] = useState(null);
+  const [gcashQrPreview, setGcashQrPreview] = useState(null);
+  const [deleteExistingGcashQr, setDeleteExistingGcashQr] = useState(false);
+
   // Map tiles based on theme
   const tileUrl =
     effectiveTheme === "dark"
@@ -136,6 +141,10 @@ export default function DormProfileSettings({
       setVideoFile(null);
       setVideoPreview(null);
       setDeleteExistingVideo(false);
+
+      setGcashQrFile(null);
+      setGcashQrPreview(data.gcash_qr_path || null);
+      setDeleteExistingGcashQr(false);
 
       // Parse images - backend returns objects with image_url property that's already a full URL
       // Keep full image objects to preserve id, is_primary, and display_order
@@ -212,6 +221,9 @@ export default function DormProfileSettings({
         allow_partial_payments: data.allow_partial_payments !== undefined ? Boolean(data.allow_partial_payments) : true,
         require_reservation_fee: Boolean(data.require_reservation_fee),
         reservation_fee_amount: data.reservation_fee_amount || '',
+        gcash_name: data.gcash_name || '',
+        gcash_number: data.gcash_number || '',
+        gcash_qr_path: data.gcash_qr_path || '',
         transfer_fee: data.transfer_fee || 0,
         latitude: data.latitude,
         longitude: data.longitude,
@@ -643,6 +655,8 @@ export default function DormProfileSettings({
         allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
         require_reservation_fee: dormData.require_reservation_fee ? 1 : 0,
         reservation_fee_amount: dormData.require_reservation_fee ? dormData.reservation_fee_amount : 0,
+        gcash_name: dormData.require_reservation_fee ? dormData.gcash_name : "",
+        gcash_number: dormData.require_reservation_fee ? dormData.gcash_number : "",
         transfer_fee: parseFloat(dormData.transfer_fee) || 0,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
@@ -657,6 +671,7 @@ export default function DormProfileSettings({
         .filter((c) => c && c.file instanceof File)
         .map((c) => c.file);
       const hasVideoChanges = videoFile || (deleteExistingVideo && videoId);
+      const hasGcashQrChanges = gcashQrFile || deleteExistingGcashQr;
 
       // Get primary image ID (if it's an existing image)
       const primaryImage = (dormData.images || []).find(
@@ -674,7 +689,8 @@ export default function DormProfileSettings({
       if (
         imageFiles.length > 0 ||
         credentialFiles.length > 0 ||
-        hasVideoChanges
+        hasVideoChanges ||
+        hasGcashQrChanges
       ) {
         const fd = new FormData();
 
@@ -708,6 +724,13 @@ export default function DormProfileSettings({
           fd.append("video", videoFile);
         } else if (deleteExistingVideo && videoId) {
           fd.append("delete_video", "1");
+        }
+
+        // Append GCash QR Code changes
+        if (gcashQrFile) {
+          fd.append("gcash_qr_path", gcashQrFile);
+        } else if (deleteExistingGcashQr) {
+          fd.append("delete_gcash_qr", "1");
         }
 
         // Append ids of credentials the user removed so backend can delete them
@@ -765,6 +788,9 @@ export default function DormProfileSettings({
         if (deleteExistingVideo && videoId) {
           payload.delete_video = true;
         }
+        if (deleteExistingGcashQr) {
+          payload.delete_gcash_qr = true;
+        }
         __response = await api.put(`/landlord/properties/${propertyId}`, payload);
       }
 
@@ -775,6 +801,7 @@ export default function DormProfileSettings({
       setDeletedCredentialIds([]);
       setDeletedImageIds([]);
       setDeleteExistingVideo(false);
+      setDeleteExistingGcashQr(false);
       fetchPropertyDetails();
     } catch (err) {
       console.error("Error updating property:", err);
@@ -1267,20 +1294,100 @@ export default function DormProfileSettings({
                              )}
                            </span>
                            {dormData.require_reservation_fee && (
-                              <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                  Reservation Fee Amount (₱)
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  disabled={!isEditing}
-                                  value={dormData.reservation_fee_amount}
-                                  onChange={(e) => handleInputChange('reservation_fee_amount', e.target.value)}
-                                  className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
-                                  placeholder="e.g. 500"
-                                />
+                              <div className="mt-4 space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Reservation Fee Amount (₱)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    disabled={!isEditing}
+                                    value={dormData.reservation_fee_amount}
+                                    onChange={(e) => handleInputChange('reservation_fee_amount', e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                    placeholder="e.g. 500"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                      GCash Account Name
+                                    </label>
+                                    <input
+                                      type="text"
+                                      disabled={!isEditing}
+                                      value={dormData.gcash_name}
+                                      onChange={(e) => handleInputChange('gcash_name', e.target.value)}
+                                      className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                      placeholder="e.g. Juan De La Cruz"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                      GCash Number
+                                    </label>
+                                    <input
+                                      type="text"
+                                      disabled={!isEditing}
+                                      value={dormData.gcash_number}
+                                      onChange={(e) => handleInputChange('gcash_number', e.target.value)}
+                                      className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                      placeholder="e.g. 09123456789"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    GCash QR Code Image
+                                  </label>
+                                  {(gcashQrPreview) ? (
+                                    <div className="relative inline-block border rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800 dark:border-gray-600 p-2">
+                                      <img src={gcashQrPreview} alt="GCash QR" className="max-h-48 w-auto object-contain" />
+                                      {isEditing && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setGcashQrPreview(null);
+                                            setGcashQrFile(null);
+                                            setDeleteExistingGcashQr(true);
+                                          }}
+                                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-sm focus:outline-none"
+                                        >
+                                          <Trash size={14} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <label className={`w-full max-w-sm flex flex-col items-center justify-center px-4 py-6 bg-white border-2 border-dashed rounded-lg dark:bg-gray-800 ${isEditing ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 transition-colors' : 'opacity-60 border-gray-200 dark:border-gray-700 cursor-not-allowed'}`}>
+                                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Click to upload GCash QR Code</span>
+                                      <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">PNG, JPG, JPEG</span>
+                                      {isEditing && (
+                                        <input
+                                          type="file"
+                                          className="hidden"
+                                          accept="image/png, image/jpeg, image/jpg"
+                                          onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                              if (file.size > 5 * 1024 * 1024) {
+                                                toast.error("File size must be less than 5MB");
+                                                return;
+                                              }
+                                              setGcashQrFile(file);
+                                              const reader = new FileReader();
+                                              reader.onloadend = () => setGcashQrPreview(reader.result);
+                                              reader.readAsDataURL(file);
+                                              setDeleteExistingGcashQr(false);
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </label>
+                                  )}
+                                </div>
                               </div>
                            )}
                          </div>

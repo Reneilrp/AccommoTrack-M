@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, ChevronDown, RefreshCw } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, ChevronDown, RefreshCw, CheckCircle, Clock3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TenantCard({
@@ -11,6 +11,8 @@ export default function TenantCard({
   onEvictionFinalize,
   onEvictionCancel,
   onEvictionUndo,
+  onApproveReservation,
+  onCheckIn,
   canTransfer = true,
   isEvictionDue = false,
 }) {
@@ -30,6 +32,9 @@ export default function TenantCard({
   })();
   const hasPendingEviction = Boolean(tenant.pending_eviction);
   const canUndoEviction = Boolean(tenant.can_undo_eviction);
+  const latestBookingStatus = tenant.latestBooking?.status || '';
+  const isPendingReservation = latestBookingStatus === 'pending_reservation';
+  const isReserved = latestBookingStatus === 'reserved';
 
   const handleMessageTenant = () => {
     navigate('/messages', { 
@@ -55,6 +60,16 @@ export default function TenantCard({
         {isExpiringSoon && (
           <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-2 border border-orange-200 dark:border-orange-800">
             <Clock className="w-3 h-3" /> Expiring Soon
+          </span>
+        )}
+        {isPendingReservation && (
+          <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-2 border border-amber-200 dark:border-amber-800">
+            <Clock3 className="w-3 h-3" /> Reservation Req
+          </span>
+        )}
+        {isReserved && (
+          <span className="bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-2 border border-teal-200 dark:border-teal-800">
+            <CheckCircle className="w-3 h-3" /> Reserved
           </span>
         )}
         {!isLate && !isExpiringSoon && profile?.status === 'active' && (
@@ -157,6 +172,24 @@ export default function TenantCard({
 
         {showMoreActions && (
           <div className="flex flex-col gap-2 mt-1 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-1 duration-200">
+            {isPendingReservation && (
+              <button
+                onClick={() => onApproveReservation?.(tenant)}
+                disabled={!canTransfer}
+                className="flex items-center gap-2 px-3 py-2 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                <CheckCircle className="w-3.5 h-3.5" /> Approve Reservation
+              </button>
+            )}
+            {isReserved && (
+              <button
+                onClick={() => onCheckIn?.(tenant)}
+                disabled={!canTransfer}
+                className="flex items-center gap-2 px-3 py-2 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                <CheckCircle className="w-3.5 h-3.5" /> Check In Tenant
+              </button>
+            )}
             <button
               onClick={() => onAssign?.(tenant)}
               disabled={!canTransfer || !!tenant.room || hasPendingEviction}

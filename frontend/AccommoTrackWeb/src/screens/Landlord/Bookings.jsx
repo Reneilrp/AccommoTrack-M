@@ -264,6 +264,41 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     }
   };
 
+  const handleApproveReservation = async (bookingId) => {
+    if (readOnlyGuard()) return;
+    const toastId = toast.loading('Approving reservation...');
+    setProcessing(true);
+    try {
+      await api.post(`/bookings/${bookingId}/approve-reservation`);
+      toast.success('Reservation approved!', { id: toastId });
+      await fetchBookings();
+      await fetchStats();
+      closeDetailModal();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve reservation', { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCheckInTenant = async (bookingId) => {
+    if (readOnlyGuard()) return;
+    const toastId = toast.loading('Checking in tenant...');
+    setProcessing(true);
+    try {
+      await api.post(`/bookings/${bookingId}/check-in`);
+      toast.success('Tenant checked in successfully!', { id: toastId });
+      await fetchBookings();
+      await fetchStats();
+      closeDetailModal();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to check in tenant', { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+
   const handleUpdatePayment = async (bookingId, paymentStatus) => {
     if (readOnlyGuard()) return;
     try {
@@ -464,6 +499,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     switch (s) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'pending_reservation': return 'bg-orange-100 text-orange-800';
+      case 'reserved': return 'bg-teal-100 text-teal-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -563,13 +600,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             )}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
-            {['all', 'confirmed', 'pending', 'completed', 'cancelled', 'extensions', 'transfers'].map((s) => (
+            {['all', 'confirmed', 'pending_reservation', 'reserved', 'pending', 'completed', 'cancelled', 'extensions', 'transfers'].map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 className={`flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${filterStatus === s ? 'bg-green-600 text-white shadow-md shadow-green-500/20' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               >
-                {s === 'extensions' ? 'Extensions' : s === 'transfers' ? 'Transfers' : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === 'extensions' ? 'Extensions' : s === 'transfers' ? 'Transfers' : s === 'pending_reservation' ? 'Pending Res.' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
@@ -702,6 +739,33 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   <p className="font-semibold text-gray-900 dark:text-white">Room {selectedBooking.roomNumber} ({selectedBooking.roomType})</p>
                 </div>
               </div>
+
+              {(selectedBooking.receipt_image_path || selectedBooking.reference_number || selectedBooking.move_in_date) && (
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Reservation Details</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {selectedBooking.move_in_date && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Expected Move-in Date</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{formatDate(selectedBooking.move_in_date)}</p>
+                      </div>
+                    )}
+                    {selectedBooking.reference_number && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Ref Number</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{selectedBooking.reference_number}</p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedBooking.receipt_image_path && (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Receipt</p>
+                      <img src={selectedBooking.receipt_image_path} alt="Receipt" className="max-h-64 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(selectedBooking.receipt_image_path, '_blank')} />
+                      <p className="text-xs text-gray-500 mt-1">Click image to enlarge</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Amount</p>
@@ -981,6 +1045,72 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               <XCircle className="w-5 h-5" />
                               Cancel
                             </button>
+                          </div>
+                        );
+                      }
+
+                      // Pending Reservation
+                      if (status === 'pending_reservation') {
+                        return (
+                          <div className="flex flex-col gap-4 w-full">
+                            <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800 mb-2">
+                              <p className="text-sm text-orange-800 dark:text-orange-300 font-medium">
+                                <strong>Manual Verification Required:</strong> Please verify the uploaded GCash receipt before approving.
+                              </p>
+                            </div>
+                            <div className="flex gap-4">
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to approve this reservation? Verify the receipt amount first.')) {
+                                    handleApproveReservation(selectedBooking.id);
+                                  }
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-teal-500/20 active:scale-[0.98]"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                                Approve Reservation
+                              </button>
+                              <button
+                                onClick={() => handleOpenCancelModal(selectedBooking)}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              >
+                                <XCircle className="w-5 h-5" />
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Reserved - ready for check-in
+                      if (status === 'reserved') {
+                        return (
+                          <div className="flex flex-col gap-4 w-full">
+                            <div className="p-4 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-800 mb-2">
+                              <p className="text-sm text-teal-800 dark:text-teal-300 font-medium">
+                                <strong>Reserved:</strong> Tenant holds this room until {formatDate(selectedBooking.move_in_date || selectedBooking.checkIn)}.
+                              </p>
+                            </div>
+                            <div className="flex gap-4">
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Check in this tenant? This will officially assign them to the room and generate their first month invoice.')) {
+                                    handleCheckInTenant(selectedBooking.id);
+                                  }
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                                Check In Tenant
+                              </button>
+                              <button
+                                onClick={() => handleOpenCancelModal(selectedBooking)}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              >
+                                <XCircle className="w-5 h-5" />
+                                Revoke & Cancel
+                              </button>
+                            </div>
                           </div>
                         );
                       }

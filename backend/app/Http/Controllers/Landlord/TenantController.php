@@ -59,7 +59,7 @@ class TenantController extends Controller
                 }
             }
 
-            $confirmedStatuses = ['confirmed', 'completed', 'partial-completed'];
+            $confirmedStatuses = ['confirmed', 'completed', 'partial-completed', 'reserved', 'pending_reservation'];
 
             $query = User::where('role', 'tenant')
                 ->with([
@@ -78,7 +78,7 @@ class TenantController extends Controller
                         $q->where('landlord_id', $landlordId);
                     },
                 ])
-                ->where(function ($q) use ($landlordId, $allowedPropertyIds) {
+                ->where(function ($q) use ($landlordId, $allowedPropertyIds, $confirmedStatuses) {
                     $q->whereHas('roomAssignments', function ($q2) use ($landlordId, $allowedPropertyIds) {
                         $q2->whereHas('property', function ($q3) use ($landlordId, $allowedPropertyIds) {
                             $q3->where('landlord_id', $landlordId);
@@ -87,8 +87,8 @@ class TenantController extends Controller
                             }
                         });
                     })
-                        ->orWhereHas('bookings', function ($q2) use ($landlordId, $allowedPropertyIds) {
-                            $q2->whereIn('status', ['confirmed', 'partial-completed'])
+                        ->orWhereHas('bookings', function ($q2) use ($landlordId, $allowedPropertyIds, $confirmedStatuses) {
+                            $q2->whereIn('status', $confirmedStatuses)
                                 ->whereHas('room', function ($q3) use ($landlordId, $allowedPropertyIds) {
                                     $q3->whereHas('property', function ($q4) use ($landlordId, $allowedPropertyIds) {
                                         $q4->where('landlord_id', $landlordId);
@@ -102,9 +102,9 @@ class TenantController extends Controller
 
             // Filter by specific property if provided
             if ($propertyId) {
-                $query->where(function ($q) use ($propertyId) {
+                $query->where(function ($q) use ($propertyId, $confirmedStatuses) {
                     $q->whereHas('roomAssignments', fn ($q2) => $q2->where('property_id', $propertyId))
-                        ->orWhereHas('bookings', fn ($q2) => $q2->where('property_id', $propertyId)->whereIn('status', ['confirmed', 'partial-completed']));
+                        ->orWhereHas('bookings', fn ($q2) => $q2->where('property_id', $propertyId)->whereIn('status', $confirmedStatuses));
                 });
             }
 

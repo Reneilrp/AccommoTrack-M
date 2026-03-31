@@ -110,8 +110,8 @@ export default function MyBookings() {
 
       if (bookingsRes.success) {
         const all = bookingsRes.data || [];
-        // Pending: status is pending
-        setPendingBookings(all.filter(b => b.status?.toLowerCase() === 'pending'));
+        // Pending: status is pending, pending_reservation, or reserved
+        setPendingBookings(all.filter(b => ['pending', 'pending_reservation', 'reserved'].includes(b.status?.toLowerCase())));
         // History: finished, rejected, or confirmed (if they are past stays)
         setHistoryData(all.filter(b => ['completed', 'confirmed', 'cancelled', 'rejected'].includes(b.status?.toLowerCase())));
       }
@@ -442,9 +442,18 @@ export default function MyBookings() {
     const s = String(status || '').toLowerCase();
     if (s.includes('overdue')) return '#EF4444';
     if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.primary;
+    if (s === 'reserved') return '#0D9488'; // teal — room reserved, awaiting check-in
+    if (s === 'pending_reservation') return '#EA580C'; // orange — receipt under review
     if (s.includes('pending') || s.includes('partial')) return '#F59E0B';
     if (s.includes('cancel') || s.includes('reject')) return '#EF4444';
     return '#6B7280';
+  };
+
+  const getStatusLabel = (status) => {
+    const s = String(status || '').toLowerCase();
+    if (s === 'pending_reservation') return 'Awaiting Verification';
+    if (s === 'reserved') return 'Reserved';
+    return s.charAt(0).toUpperCase() + s.slice(1);
   };
 
   // ==================== Sub-components for Tabs ====================
@@ -639,7 +648,7 @@ export default function MyBookings() {
               <Text style={styles.bookingName}>{property.title}</Text>
               <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
                 <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status) }]}>
-                  {booking.isOverdue || booking.is_overdue ? 'Overdue' : booking.status}
+                  {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
                 </Text>
               </View>
             </View>
@@ -727,21 +736,101 @@ export default function MyBookings() {
               </View>
             )}
 
-            <View style={[styles.reviewBtnContainer, { gap: 16 }]}> 
+            {/* Reservation Status Banners (GCash flow) */}
+            {booking.isPending && booking.status === 'pending_reservation' && (
+              <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FED7AA' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                  <Ionicons name="hourglass-outline" size={18} color="#EA580C" />
+                  <Text style={{ color: '#EA580C', fontWeight: '700', fontSize: 13 }}>Receipt Verification Pending</Text>
+                </View>
+                <Text style={{ color: '#7C2D12', fontSize: 12, lineHeight: 18 }}>
+                  Your GCash receipt was submitted. The landlord will verify your payment and confirm your reservation shortly.
+                </Text>
+                {currentData?.reference_number && (
+                  <View style={{ marginTop: 10, backgroundColor: '#FFEDD5', borderRadius: 8, padding: 8 }}>
+                    <Text style={{ color: '#9A3412', fontSize: 11, fontWeight: '600' }}>Reference #: {currentData.reference_number}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {booking.isPending && booking.status === 'reserved' && (
+              <View style={{ backgroundColor: '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#99F6E4' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#0D9488" />
+                  <Text style={{ color: '#0D9488', fontWeight: '700', fontSize: 13 }}>Room Reserved!</Text>
+                </View>
+                <Text style={{ color: '#134E4A', fontSize: 12, lineHeight: 18 }}>
+                  Your reservation is confirmed. The landlord will check you in on your move-in date.
+                </Text>
+                {(currentData?.move_in_date || currentData?.start_date) && (
+                  <Text style={{ color: '#0F766E', fontSize: 12, fontWeight: '600', marginTop: 6 }}>
+                    Move-in: {new Date(currentData.move_in_date || currentData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            <View style={[styles.reviewBtnContainer, { gap: 16 }]}>
                {!booking.isPending ? (
                  <>
-                   <TouchableOpacity 
+                   <TouchableOpacity
                     style={[styles.reviewBtn, { backgroundColor: (!booking.hasReview && !booking.has_review) ? theme.colors.primary : theme.colors.backgroundTertiary }]}
                     disabled={booking.hasReview || booking.has_review}
                     onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: property.id })}
                    >
                      <Text style={{ color: (!booking.hasReview && !booking.has_review) ? '#fff' : theme.colors.textTertiary, fontWeight: 'bold' }}>Review</Text>
                    </TouchableOpacity>
-                   <TouchableOpacity 
+                   <TouchableOpacity
                     style={[styles.reviewBtn, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
                     onPress={() => navigation.navigate('ReportProperty', { propertyId: property.id, propertyTitle: property.title })}
                    >
                      <Text style={{ color: '#991B1B', fontWeight: 'bold' }}>Report</Text>
+                   </TouchableOpacity>
+                 </>
+               ) : (booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
+                 <>
+                   <TouchableOpacity
+                    style={[styles.reviewBtn, { backgroundColor: '#2563EB' }]}
+                    onPress={() => handleOpenRoomDetails(currentData)}
+                    disabled={openingRoomDetails}
+                   >
+                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                       {openingRoomDetails ? 'Opening...' : 'Room Details'}
+                     </Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity
+                    style={[styles.reviewBtn, { backgroundColor: '#DC2626' }]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Report an Issue',
+                        'What issue are you experiencing?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Fake / Incorrect Receipt',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                await TenantService.reportDispute(booking.id, 'Tenant reported a fake or incorrect receipt.', 'fake_receipt');
+                                Alert.alert('Report Submitted', 'Our admin team will review your report.');
+                              } catch { Alert.alert('Error', 'Failed to submit report.'); }
+                            }
+                          },
+                          {
+                            text: 'Other Problem',
+                            onPress: async () => {
+                              try {
+                                await TenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.', 'other');
+                                Alert.alert('Report Submitted', 'Our admin team will review your report.');
+                              } catch { Alert.alert('Error', 'Failed to submit report.'); }
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                   >
+                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>Report Issue</Text>
                    </TouchableOpacity>
                  </>
                ) : (
@@ -755,7 +844,7 @@ export default function MyBookings() {
                        {openingRoomDetails ? 'Opening...' : 'Room Details'}
                      </Text>
                    </TouchableOpacity>
-                   <TouchableOpacity 
+                   <TouchableOpacity
                     style={[styles.reviewBtn, { backgroundColor: theme.colors.error }]}
                     onPress={() => {
                       Alert.alert(
@@ -763,11 +852,7 @@ export default function MyBookings() {
                         "Are you sure you want to cancel this booking request?",
                         [
                           { text: "No", style: "cancel" },
-                          {
-                            text: "Yes, Cancel",
-                            style: "destructive",
-                            onPress: () => handleCancelBooking(booking.id)
-                          }
+                          { text: "Yes, Cancel", style: "destructive", onPress: () => handleCancelBooking(booking.id) }
                         ]
                       );
                     }}

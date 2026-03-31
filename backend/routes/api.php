@@ -15,6 +15,7 @@ use App\Http\Controllers\Common\PaymongoWebhookController;
 use App\Http\Controllers\Common\ReportController;
 use App\Http\Controllers\Common\ReviewController;
 use App\Http\Controllers\Common\TransactionController;
+use App\Http\Controllers\ReservationDisputeController;
 use App\Http\Controllers\Landlord\AddonController;
 use App\Http\Controllers\Landlord\AnalyticsController;
 use App\Http\Controllers\Landlord\CaretakerController;
@@ -283,6 +284,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews', [ReviewController::class, 'store']);
     // Allow authenticated users (tenants) to submit reports
     Route::post('/reports', [ReportController::class, 'store']);
+    Route::post('/reservation-disputes', [ReservationDisputeController::class, 'store']);
+
 
     Route::get('/bookings', [LandlordBookingController::class, 'index']);
     Route::post('/bookings', [LandlordBookingController::class, 'store'])->middleware('throttle:5,1');
@@ -292,6 +295,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/bookings/{id}/payment', [LandlordBookingController::class, 'updatePaymentStatus']);
     Route::post('/bookings/{id}/deposit-settlement', [LandlordBookingController::class, 'settleDeposit']);
     Route::get('/bookings/{id}/deposit-settlements', [LandlordBookingController::class, 'getDepositSettlements']);
+    Route::post('/bookings/{id}/approve-reservation', [LandlordBookingController::class, 'approveReservation']);
+    Route::post('/bookings/{id}/check-in', [LandlordBookingController::class, 'checkInTenant']);
 
     // ===== PAYMENTS / INVOICES =====
     Route::get('/invoices', [InvoiceController::class, 'index']);

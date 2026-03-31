@@ -29,9 +29,13 @@ class BookingService {
   async createBooking(bookingData) {
     try {
       console.log('Sending booking data:', bookingData);
+      const isFormData = bookingData instanceof FormData;
       const response = await api.post(
         `/bookings`,
         bookingData,
+        {
+          headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
+        }
       );
       console.log('Booking response:', response.data);
       return {

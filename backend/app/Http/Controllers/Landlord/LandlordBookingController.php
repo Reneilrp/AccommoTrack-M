@@ -433,4 +433,71 @@ class LandlordBookingController extends Controller
             ], 404);
         }
     }
+
+    public function approveReservation(Request $request, $id)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
+                ->forLandlord($context['landlord_id'])
+                ->findOrFail($id);
+
+            $this->checkPropertyAccess($context, $booking->property_id);
+
+            // Validation: Only allow pending_reservation to be approved
+            if ($booking->status !== 'pending_reservation') {
+                return response()->json(['message' => 'Only pending reservations can be approved.'], 422);
+            }
+
+            $booking = $this->bookingService->approveReservation($booking);
+
+            return response()->json([
+                'message' => 'Reservation approved successfully.',
+                'booking' => (new BookingResource($booking))->resolve()
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to approve reservation', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to approve reservation',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function checkInTenant(Request $request, $id)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
+                ->forLandlord($context['landlord_id'])
+                ->findOrFail($id);
+
+            $this->checkPropertyAccess($context, $booking->property_id);
+
+            if ($booking->status !== 'reserved') {
+                return response()->json(['message' => 'Only reserved bookings can be checked in.'], 422);
+            }
+
+            $result = $this->bookingService->checkInTenant($booking);
+
+            return response()->json([
+                'message' => 'Tenant checked in successfully.',
+                'booking' => (new BookingResource($result['booking']))->resolve()
+            ], 200);
+
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to check in tenant', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to check in tenant',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

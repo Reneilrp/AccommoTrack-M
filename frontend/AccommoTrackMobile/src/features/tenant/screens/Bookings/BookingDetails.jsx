@@ -223,9 +223,18 @@ export default function BookingDetails() {
         const s = (status || '').toLowerCase();
         if (s === 'overdue') return { color: '#B91C1C', bg: '#FEE2E2' };
         if (s === 'confirmed' || s === 'completed' || s === 'paid') return { color: '#059669', bg: '#DCFCE7' };
+        if (s === 'reserved') return { color: '#0D9488', bg: '#F0FDFA' };
+        if (s === 'pending_reservation') return { color: '#EA580C', bg: '#FFF7ED' };
         if (s === 'pending') return { color: '#F59E0B', bg: '#FEF3C7' };
         if (s === 'cancelled' || s === 'canceled' || s === 'failed' || s === 'unpaid') return { color: '#EF4444', bg: '#FEE2E2' };
         return { color: '#6B7280', bg: '#F3F4F6' };
+    };
+
+    const getStatusDisplayLabel = (status) => {
+        const s = (status || '').toLowerCase();
+        if (s === 'pending_reservation') return 'AWAITING VERIFICATION';
+        if (s === 'reserved') return 'RESERVED';
+        return status?.toUpperCase();
     };
 
     const bookingStatus = (booking.isOverdue || booking.is_overdue) ? 'overdue' : booking.status;
@@ -309,7 +318,7 @@ export default function BookingDetails() {
                     <View style={styles.heroGradient} />
                     <View style={styles.heroContent}>
                         <View style={[styles.heroBadge, { backgroundColor: statusStyle.bg }]}>
-                            <Text style={[styles.heroBadgeText, { color: statusStyle.color }]}>{bookingStatus?.toUpperCase()}</Text>
+                            <Text style={[styles.heroBadgeText, { color: statusStyle.color }]}>{getStatusDisplayLabel(bookingStatus)}</Text>
                         </View>
                         <Text style={styles.heroTitle}>{property.title || 'Accommodation'}</Text>
                         <View style={styles.heroLocation}>
@@ -352,6 +361,40 @@ export default function BookingDetails() {
                     </View>
 
                     {booking.room && <RoomDetails room={booking.room} theme={theme} styles={styles} />}
+
+                    {/* Reservation Info Card (GCash flow) */}
+                    {(booking.status === 'pending_reservation' || booking.status === 'reserved') && (
+                        <>
+                            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Reservation Status</Text>
+                            <View style={[styles.sectionCard, { backgroundColor: booking.status === 'reserved' ? '#F0FDFA' : '#FFF7ED', borderWidth: 1, borderColor: booking.status === 'reserved' ? '#99F6E4' : '#FED7AA' }]}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                    <Ionicons
+                                        name={booking.status === 'reserved' ? 'checkmark-circle' : 'hourglass-outline'}
+                                        size={20}
+                                        color={booking.status === 'reserved' ? '#0D9488' : '#EA580C'}
+                                    />
+                                    <Text style={{ fontWeight: '700', fontSize: 14, color: booking.status === 'reserved' ? '#0D9488' : '#EA580C' }}>
+                                        {booking.status === 'reserved' ? 'Room Reserved — Awaiting Check-in' : 'Receipt Under Review'}
+                                    </Text>
+                                </View>
+                                <Text style={{ fontSize: 13, color: booking.status === 'reserved' ? '#134E4A' : '#7C2D12', lineHeight: 20 }}>
+                                    {booking.status === 'reserved'
+                                        ? 'Your GCash payment was verified. The landlord will check you in on your move-in date.'
+                                        : 'Your GCash receipt was submitted and is being reviewed. You will be notified once confirmed.'}
+                                </Text>
+                                {booking.reference_number && (
+                                    <View style={{ marginTop: 10, backgroundColor: booking.status === 'reserved' ? '#CCFBF1' : '#FFEDD5', borderRadius: 8, padding: 8 }}>
+                                        <Text style={{ color: booking.status === 'reserved' ? '#0F766E' : '#9A3412', fontSize: 12, fontWeight: '600' }}>GCash Ref #: {booking.reference_number}</Text>
+                                    </View>
+                                )}
+                                {booking.move_in_date && (
+                                    <Text style={{ color: booking.status === 'reserved' ? '#0F766E' : '#9A3412', fontSize: 12, fontWeight: '600', marginTop: 8 }}>
+                                        Move-in Date: {new Date(booking.move_in_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                    </Text>
+                                )}
+                            </View>
+                        </>
+                    )}
 
                     {/* Landlord Information */}
                     <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Landlord Information</Text>
@@ -469,30 +512,73 @@ export default function BookingDetails() {
             />
 
             {/* Bottom Action Footer */}
-            <SafeAreaView edges={['bottom']} style={[styles.footer, { 
-                backgroundColor: theme.colors.surface, 
+            <SafeAreaView edges={['bottom']} style={[styles.footer, {
+                backgroundColor: theme.colors.surface,
                 borderTopColor: theme.colors.border,
                 borderTopWidth: 1,
                 paddingTop: 16
             }]}>
                 <View style={styles.actionRow}>
-                    <TouchableOpacity 
-                        onPress={() => setMaintenanceModalVisible(true)}
-                        style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
-                    >
-                        <Ionicons name="build-outline" size={18} color={theme.colors.primary} />
-                        <Text style={[styles.secondaryActionText, { color: theme.colors.primary }]}>Request Maintenance</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        onPress={() => setAddonModalVisible(true)}
-                        style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
-                    >
-                        <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
-                        <Text style={[styles.secondaryActionText, { color: theme.colors.primary }]}>Request Addon</Text>
-                    </TouchableOpacity>
+                    {(booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
+                        <TouchableOpacity
+                            onPress={() => {
+                                Alert.alert(
+                                    'Report an Issue',
+                                    'What issue are you experiencing with this reservation?',
+                                    [
+                                        { text: 'Dismiss', style: 'cancel' },
+                                        {
+                                            text: 'Fake / Incorrect Receipt',
+                                            style: 'destructive',
+                                            onPress: async () => {
+                                                try {
+                                                    await tenantService.reportDispute(booking.id, 'Tenant reported a fake or incorrect receipt.', 'fake_receipt');
+                                                    showSuccess('Report submitted. Our admin team will review it.');
+                                                } catch {
+                                                    showError('Error', 'Failed to submit report.');
+                                                }
+                                            }
+                                        },
+                                        {
+                                            text: 'Other Problem',
+                                            onPress: async () => {
+                                                try {
+                                                    await tenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.', 'other');
+                                                    showSuccess('Report submitted. Our admin team will review it.');
+                                                } catch {
+                                                    showError('Error', 'Failed to submit report.');
+                                                }
+                                            }
+                                        }
+                                    ]
+                                );
+                            }}
+                            style={[styles.secondaryActionBtn, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
+                        >
+                            <Ionicons name="flag-outline" size={18} color="#DC2626" />
+                            <Text style={[styles.secondaryActionText, { color: '#DC2626' }]}>Report Issue</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <>
+                            <TouchableOpacity
+                                onPress={() => setMaintenanceModalVisible(true)}
+                                style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
+                            >
+                                <Ionicons name="build-outline" size={18} color={theme.colors.primary} />
+                                <Text style={[styles.secondaryActionText, { color: theme.colors.primary }]}>Request Maintenance</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => setAddonModalVisible(true)}
+                                style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
+                            >
+                                <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
+                                <Text style={[styles.secondaryActionText, { color: theme.colors.primary }]}>Request Addon</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                     onPress={() => navigation.navigate('Messages', {
                         startConversation: true,
                         recipient: landlord,

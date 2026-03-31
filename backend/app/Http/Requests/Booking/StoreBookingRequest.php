@@ -68,9 +68,11 @@ class StoreBookingRequest extends FormRequest
             'bed_count' => 'nullable|integer|min:1',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => $endDateRules,
+            'move_in_date' => 'nullable|date|after_or_equal:start_date',
             'notes' => 'nullable|string|max:1000',
             'payment_plan' => 'nullable|string|in:full,monthly',
             'contract_mode' => ['nullable', 'string', 'in:daily,monthly'],
+            'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
         ];
 
         if ($normalizedBillingPolicy === 'daily') {

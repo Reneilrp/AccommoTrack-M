@@ -188,6 +188,20 @@ class BookingService
 
             $bookingReference = 'BK-'.strtoupper(Str::random(8));
 
+            $status = 'pending';
+            $receiptImagePath = null;
+            $reservationRef = null;
+
+            if (isset($data['receipt_image'])) {
+                $status = 'pending_reservation';
+                // Store image in public disk
+                $receiptImagePath = $data['receipt_image']->store('receipts', 'public');
+                $reservationRef = 'RES-'.strtoupper(Str::random(8));
+            } elseif ($room->property->require_reservation_fee && $room->property->reservation_fee > 0) {
+               // If property requires reservation but no image was provided 
+               // (handled loosely here, can depend on UI strictness)
+            }
+
             $booking = Booking::create([
                 'property_id' => $room->property_id,
                 'tenant_id' => $tenantId,
@@ -198,18 +212,21 @@ class BookingService
                 'booking_reference' => $bookingReference,
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate?->format('Y-m-d'),
+                'move_in_date' => isset($data['move_in_date']) ? Carbon::parse($data['move_in_date'])->format('Y-m-d') : null,
                 'total_months' => max(1, $totalMonths),
                 'monthly_rent' => $room->monthly_rate ?? 0.00,
                 'total_amount' => $totalAmount,
-                'status' => 'pending',
+                'status' => $status,
                 'payment_status' => 'unpaid',
                 'payment_plan' => $requestedPaymentPlan,
                 'contract_mode' => $contractMode,
                 'notes' => $data['notes'] ?? null,
+                'receipt_image_path' => $receiptImagePath,
+                'reference_number' => $reservationRef,
             ]);
 
             // GENERATE RESERVATION FEE INVOICE IF REQUIRED
-            if ($room->property->require_reservation_fee && $room->property->reservation_fee_amount > 0) {
+            if ($room->property->require_reservation_fee && $room->property->reservation_fee > 0) {
                 $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
 
                 \App\Models\Invoice::create([
@@ -220,7 +237,7 @@ class BookingService
                     'tenant_id' => $tenantId,
                     'description' => 'Reservation Fee for booking '.$bookingReference,
                     'invoice_type' => 'reservation_fee',
-                    'amount_cents' => (int) round($room->property->reservation_fee_amount * 100),
+                    'amount_cents' => (int) round($room->property->reservation_fee * 100),
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),
@@ -301,6 +318,66 @@ class BookingService
         }
     }
 
+    public function approveReservation(Booking $booking): Booking
+    {
+        DB::beginTransaction();
+        try {
+            $booking->status = 'reserved';
+            $booking->payment_status = 'paid';
+            $booking->save();
+
+            // Find reservation invoice and mark as paid
+            $invoice = \App\Models\Invoice::where('booking_id', $booking->id)
+                ->where('invoice_type', 'reservation_fee')
+                ->where('status', 'pending')
+                ->first();
+                
+            if ($invoice) {
+                $invoice->status = 'paid';
+                $invoice->paid_at = now();
+                $invoice->save();
+            }
+
+            DB::commit();
+
+            return $booking;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    public function checkInTenant(Booking $booking): array
+    {
+        DB::beginTransaction();
+        try {
+            $booking->status = 'confirmed';
+            $booking->save();
+            
+            // This will assign tenant and generate rent invoice 
+            $this->handleConfirmation($booking);
+
+            DB::commit();
+
+            $booking->load(['property', 'tenant.tenantProfile', 'room.currentTenant']);
+
+            $tenantName = $booking->guest_name;
+            if (! $tenantName && $booking->tenant) {
+                $tenantName = $booking->tenant->first_name.' '.$booking->tenant->last_name;
+            }
+
+            return [
+                'booking' => $booking,
+                'room_updated' => true,
+                'tenant_name' => $tenantName ?: 'Guest',
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to check in tenant', ['error' => $e->getMessage(), 'booking_id' => $booking->id]);
+            throw $e;
+        }
+    }
+
     /**
      * Handle booking confirmation
      */
@@ -333,7 +410,11 @@ class BookingService
         }
 
         // Auto-generate initial invoice if it doesn't exist
-        $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)->first();
+        $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)
+            ->where(function ($query) {
+                $query->whereNull('invoice_type')->orWhere('invoice_type', 'rent');
+            })
+            ->first();
         if (! $existingInvoice) {
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
 

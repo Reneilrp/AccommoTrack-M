@@ -154,7 +154,10 @@ class Property extends Model
         'require_1month_advance',
         'allow_partial_payments',
         'require_reservation_fee',
-        'reservation_fee_amount',
+        'reservation_fee',
+        'gcash_name',
+        'gcash_number',
+        'gcash_qr_path',
     ];
 
     protected $casts = [
@@ -174,7 +177,7 @@ class Property extends Model
         'require_1month_advance' => 'boolean',
         'allow_partial_payments' => 'boolean',
         'require_reservation_fee' => 'boolean',
-        'reservation_fee_amount' => 'decimal:2',
+        'reservation_fee' => 'decimal:2',
         'property_rules' => 'array',
         'accepted_payments' => 'array',
     ];
