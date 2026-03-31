@@ -290,8 +290,11 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
     overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   guestBannerContent: {
+    flex: 1,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',

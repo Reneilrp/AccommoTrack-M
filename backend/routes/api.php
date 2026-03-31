@@ -177,6 +177,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tenant: room transfer requests
         Route::get('/transfers', [\App\Http\Controllers\Tenant\TransferController::class, 'index']);
         Route::get('/transfers/options', [\App\Http\Controllers\Tenant\TransferController::class, 'options']);
+        Route::get('/transfers/preview', [\App\Http\Controllers\Tenant\TransferController::class, 'preview']);
         Route::post('/transfers', [\App\Http\Controllers\Tenant\TransferController::class, 'store']);
         Route::patch('/transfers/{id}/cancel', [\App\Http\Controllers\Tenant\TransferController::class, 'cancel']);
     });

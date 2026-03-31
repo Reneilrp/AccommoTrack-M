@@ -212,6 +212,7 @@ export default function DormProfileSettings({
         allow_partial_payments: data.allow_partial_payments !== undefined ? Boolean(data.allow_partial_payments) : true,
         require_reservation_fee: Boolean(data.require_reservation_fee),
         reservation_fee_amount: data.reservation_fee_amount || '',
+        transfer_fee: data.transfer_fee || 0,
         latitude: data.latitude,
         longitude: data.longitude,
         images: images,
@@ -642,6 +643,7 @@ export default function DormProfileSettings({
         allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
         require_reservation_fee: dormData.require_reservation_fee ? 1 : 0,
         reservation_fee_amount: dormData.require_reservation_fee ? dormData.reservation_fee_amount : 0,
+        transfer_fee: parseFloat(dormData.transfer_fee) || 0,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
         current_status: dormData.status,
@@ -1303,6 +1305,28 @@ export default function DormProfileSettings({
                            </span>
                          </div>
                        </label>
+
+                       <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                            Room Transfer Processing Fee (₱)
+                          </label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                            The fee quoted to tenants during a transfer request. You can discount or waive this during approval, but you cannot increase it above this quoted amount.
+                          </p>
+                          <div className="relative max-w-[200px]">
+                            <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400">₱</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              disabled={!isEditing}
+                              value={dormData.transfer_fee}
+                              onChange={(e) => handleInputChange('transfer_fee', e.target.value)}
+                              className="w-full pl-7 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200"
+                              placeholder="0.00"
+                            />
+                          </div>
+                       </div>
                     </div>
                   </div>
                 </div>

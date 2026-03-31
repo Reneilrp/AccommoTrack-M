@@ -246,7 +246,9 @@ export default function RoomManagement() {
       billingPolicy: room.billing_policy || 'monthly',
       pricingModel: room.pricing_model || 'full_room',
       minStayDays: room.min_stay_days || 1,
-      require1MonthAdvance: room.require_1month_advance || false,
+      require1MonthAdvance: room.require_1month_advance === null || room.require_1month_advance === undefined
+        ? null
+        : !!room.require_1month_advance,
       amenities: room.amenities || [],
       rules: room.rules || [],
       images: room.images || []
@@ -352,7 +354,9 @@ export default function RoomManagement() {
         updateData.append('billing_policy', selectedRoom.billingPolicy);
       }
       updateData.append('pricing_model', selectedRoom.pricingModel || 'full_room');
-      updateData.append('require_1month_advance', selectedRoom.require1MonthAdvance ? 1 : 0);
+      if (selectedRoom.require1MonthAdvance !== null) {
+        updateData.append('require_1month_advance', selectedRoom.require1MonthAdvance ? 1 : 0);
+      }
       updateData.append('min_stay_days', parseInt(selectedRoom.minStayDays) || 1);
       updateData.append('capacity', parseInt(selectedRoom.capacity));
       updateData.append('status', selectedRoom.status);

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Booking\RequestMoveOutNoticeRequest;
+use App\Notifications\MoveOutRequestedNotification;
+use Illuminate\Support\Facades\Notification;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Room;
@@ -265,6 +267,10 @@ class TenantBookingController extends Controller
 
             $booking->save();
             DB::commit();
+
+            if ($booking->landlord) {
+                Notification::send($booking->landlord, new MoveOutRequestedNotification($booking));
+            }
 
             return response()->json([
                 'success' => true,

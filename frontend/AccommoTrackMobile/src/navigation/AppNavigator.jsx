@@ -147,7 +147,7 @@ export default function AppNavigator() {
 
   // If user is logged in as tenant or running as guest, render TenantNavigator
   if (userRole === 'tenant' || userRole === 'guest') {
-    console.log(' Rendering TenantLayout (isGuest =', userRole === 'guest', ')');
+    console.log('🏠 Rendering TenantLayout (isGuest =', userRole === 'guest', ')');
     return (
       <TenantLayout
         onLogout={handleLogout}

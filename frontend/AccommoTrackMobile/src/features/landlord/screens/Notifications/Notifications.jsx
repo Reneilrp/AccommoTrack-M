@@ -43,6 +43,7 @@ export default function NotificationsScreen({ navigation }) {
     message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
     maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
     alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
+    move_out_notice: { icon: 'log-out-outline', color: '#EF4444', bg: '#FEE2E2' },
     'App\\Notifications\\LandlordApprovedNotification': { icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
     'App\\Notifications\\LandlordRejectedNotification': { icon: 'close-circle', color: '#EF4444', bg: '#FEE2E2' },
     default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
@@ -192,6 +193,7 @@ export default function NotificationsScreen({ navigation }) {
             else if (notification.type.toLowerCase().includes('payment')) simpleType = 'payment';
             else if (notification.type.toLowerCase().includes('message')) simpleType = 'message';
             else if (notification.type.toLowerCase().includes('maintenance')) simpleType = 'maintenance';
+            else if (notification.type.toLowerCase().includes('move_out_notice')) simpleType = 'move_out_notice';
             
             const typeConfig = notificationTypeMap[simpleType] || notificationTypeMap[notification.type] || notificationTypeMap.default;
             

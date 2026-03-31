@@ -77,9 +77,21 @@ class TransferController extends Controller
             'action' => 'required|in:approve,reject',
             'damage_charge' => 'nullable|numeric|min:0',
             'damage_description' => 'nullable|string|required_if:damage_charge,>0',
+            'transfer_fee' => 'nullable|numeric|min:0',
             'landlord_notes' => 'nullable|string|max:500',
             'prorated_adjustment' => 'nullable|numeric',
         ]);
+
+        if ($validated['action'] === 'approve') {
+            $quotedFee = (float) ($transferReq->quoted_transfer_fee ?? 0);
+            $submittedFee = (float) ($validated['transfer_fee'] ?? 0);
+
+            if ($submittedFee > $quotedFee) {
+                return response()->json([
+                    'message' => "You cannot charge more than the ₱" . number_format($quotedFee, 2) . " fee quoted to the tenant at the time of request."
+                ], 422);
+            }
+        }
 
         if ($validated['action'] === 'reject') {
             $transferReq->update([
@@ -112,7 +124,8 @@ class TransferController extends Controller
             $creditAmount = 0;
             if ($activeBooking) {
                 $damageCharge = $validated['damage_charge'] ?? 0;
-                $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge);
+                $transferFee = $validated['transfer_fee'] ?? 0;
+                $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge, $transferFee);
                 $creditAmount = $creditCalculation['final_credit'];
             }
 
@@ -121,8 +134,10 @@ class TransferController extends Controller
                 'booking_id' => $transferReq->booking_id,
                 'new_room_id' => $transferReq->requested_room_id,
                 'reason' => $transferReq->reason,
+                'transfer_reason' => 'Tenant Request',
                 'damage_charge' => $validated['damage_charge'] ?? 0,
                 'damage_description' => $validated['damage_description'] ?? null,
+                'transfer_fee' => $validated['transfer_fee'] ?? 0,
                 'new_end_date' => $transferReq->new_end_date ? $transferReq->new_end_date : null,
                 'prorated_adjustment' => $validated['prorated_adjustment'] ?? 0,
             ]);
@@ -187,7 +202,8 @@ class TransferController extends Controller
 
         // Calculate prorated credit using RefundService
         $damageCharge = $request->input('damage_charge', 0);
-        $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge);
+        $transferFee = $request->input('transfer_fee', $transferReq->quoted_transfer_fee ?? 0);
+        $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge, $transferFee);
         
         // Calculate new room cost for remaining days
         $newRoom = $transferReq->requestedRoom;
@@ -209,6 +225,7 @@ class TransferController extends Controller
             'credit_available' => $creditCalculation['final_credit'],
             'paid_amount' => $creditCalculation['paid_amount'],
             'damage_charge' => $creditCalculation['damage_charge'],
+            'transfer_fee' => $creditCalculation['transfer_fee'],
             'penalty' => $creditCalculation['penalty'],
         ]);
     }

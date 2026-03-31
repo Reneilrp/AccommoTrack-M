@@ -82,7 +82,7 @@ const parseList = (value) => {
 const formatCurrency = (value) => {
   if (!value && value !== 0) return "₱0";
   const number = Number(value) || 0;
-  return `₱${number.toLocaleString("en-PH")}`;
+  return `₱${number.toLocaleString("en-US")}`;
 };
 
 const statusTokens = {
@@ -411,7 +411,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       pricingModel: initialPM,
       description: "",
       status: "available",
-      require1MonthAdvance: false,
+      require1MonthAdvance: null,
       amenities: [],
       rules: [],
     });
@@ -437,7 +437,9 @@ export default function RoomManagementScreen({ navigation, route }) {
       status: room.status || "available",
       amenities: parseList(room.amenities),
       rules: parseList(room.rules),
-      require1MonthAdvance: !!room.require_1month_advance,
+      require1MonthAdvance: room.require_1month_advance === null || room.require_1month_advance === undefined
+        ? null
+        : !!room.require_1month_advance,
       occupied: room.occupied || 0,
     });
     setSelectedImages([]);
@@ -531,7 +533,10 @@ export default function RoomManagementScreen({ navigation, route }) {
       payload.append("min_stay_days", formData.minStayDays);
       payload.append("description", formData.description || "");
       payload.append("status", formData.status);
-      payload.append("require_1month_advance", formData.require1MonthAdvance ? "1" : "0");
+      // Only send if explicitly set; null means inherit from property
+      if (formData.require1MonthAdvance !== null) {
+        payload.append("require_1month_advance", formData.require1MonthAdvance ? "1" : "0");
+      }
 
       if (formData.monthlyRate)
         payload.append("monthly_rate", formData.monthlyRate);
@@ -1072,18 +1077,40 @@ export default function RoomManagementScreen({ navigation, route }) {
             </View>
 
             <Text style={styles.sectionTitle}>Lease Advance</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.label}>Require 1-Month Advance</Text>
-                <Text style={styles.helperText}>If enabled, tenants must pay an extra month upfront. This overrides property defaults.</Text>
+                {formData.require1MonthAdvance === null && selectedProperty?.require_1month_advance ? (
+                  <Text style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>
+                    ✦ Inherited from property — toggle to override
+                  </Text>
+                ) : formData.require1MonthAdvance === null ? (
+                  <Text style={styles.helperText}>If enabled, tenants must pay an extra month upfront.</Text>
+                ) : (
+                  <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                    {formData.require1MonthAdvance
+                      ? 'Override: advance enabled for this room.'
+                      : 'Override: advance disabled for this room.'}
+                  </Text>
+                )}
               </View>
               <Switch
-                value={formData.require1MonthAdvance}
+                value={formData.require1MonthAdvance ?? (selectedProperty?.require_1month_advance ?? false)}
                 onValueChange={(v) => handleInputChange("require1MonthAdvance", v)}
                 trackColor={{ true: "#059669", false: "#CBD5E1" }}
                 thumbColor="#FFFFFF"
               />
             </View>
+            {formData.require1MonthAdvance !== null && (
+              <TouchableOpacity
+                onPress={() => handleInputChange("require1MonthAdvance", null)}
+                style={{ marginBottom: 16 }}
+              >
+                <Text style={{ fontSize: 11, color: '#3B82F6', textDecorationLine: 'underline' }}>
+                  Reset to inherit from property
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <Text style={styles.sectionTitle}>Description (Optional)</Text>
             <TextInput

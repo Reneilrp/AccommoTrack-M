@@ -7,11 +7,19 @@ use App\Http\Resources\RoomResource;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\TransferRequest;
+use App\Services\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TransferController extends Controller
 {
+    protected $refundService;
+
+    public function __construct(RefundService $refundService)
+    {
+        $this->refundService = $refundService;
+    }
+
     public function options(Request $request)
     {
         $tenant = Auth::user();
@@ -177,6 +185,7 @@ class TransferController extends Controller
             'new_end_date' => $validated['new_end_date'] ?? null,
             'reason' => $validated['reason'],
             'status' => 'pending',
+            'quoted_transfer_fee' => $property->transfer_fee ?? 0,
         ]);
 
         return response()->json($transferRequest, 201);
@@ -247,6 +256,81 @@ class TransferController extends Controller
         }
 
         return $roomRestriction === $tenantGender;
+    }
+
+    /**
+     * Preview financial impact of a room transfer before submitting.
+     * Returns rate comparison, prorated credit, and suggested adjustment.
+     * GET /tenant/transfers/preview?booking_id=X&requested_room_id=Y
+     */
+    public function preview(Request $request)
+    {
+        $tenant = Auth::user();
+        $tenantId = $tenant?->id;
+
+        if (!$tenantId) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
+        }
+
+        $validated = $request->validate([
+            'booking_id'        => 'required|integer|exists:bookings,id',
+            'requested_room_id' => 'required|integer|exists:rooms,id',
+        ]);
+
+        $activeBooking = Booking::where('id', $validated['booking_id'])
+            ->where('tenant_id', $tenantId)
+            ->whereIn('status', ['confirmed', 'active'])
+            ->with('room')
+            ->first();
+
+        if (!$activeBooking) {
+            return response()->json(['success' => false, 'message' => 'No active booking found.'], 422);
+        }
+
+        $newRoom = Room::find($validated['requested_room_id']);
+        if (!$newRoom) {
+            return response()->json(['success' => false, 'message' => 'Requested room not found.'], 422);
+        }
+
+        $property = $activeBooking->property;
+        $transferFee = (float) ($property->transfer_fee ?? 0);
+
+        // Proration credit from current booking
+        $creditCalc = $this->refundService->calculateProratedCredit($activeBooking, 0, $transferFee);
+
+        $remainingDays      = (int) ($creditCalc['remaining_days'] ?? 0);
+        $paidAmount         = (float) ($creditCalc['paid_amount'] ?? 0);
+        $creditAvailable    = (float) ($creditCalc['final_credit'] ?? 0);
+        $unusedValue        = (float) ($creditCalc['unused_value'] ?? 0);
+        $nextBillingDate    = $creditCalc['next_billing_date'] ?? null;
+
+        $currentRoomRate    = (float) ($activeBooking->monthly_rent ?? 0);
+        $newRoomRate        = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
+
+        $newRoomCostCents       = (int) round(($newRoomRate * 100 * $remainingDays) / 30);
+        $unusedValueCents       = (int) round($unusedValue * 100);
+        $suggestedAdjustmentCents = $newRoomCostCents - $unusedValueCents;
+        $suggestedAdjustment    = round($suggestedAdjustmentCents / 100, 2);
+        $newRoomCost            = round($newRoomCostCents / 100, 2);
+
+        $hasPaymentThisPeriod   = $paidAmount > 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'current_room_rate'        => $currentRoomRate,
+                'new_room_rate'            => $newRoomRate,
+                'remaining_days'           => $remainingDays,
+                'next_billing_date'        => $nextBillingDate,
+                'old_room_unused_value'    => $unusedValue,
+                'paid_amount'              => $paidAmount,
+                'credit_available'         => $creditAvailable,
+                'transfer_fee'             => $transferFee,
+                'new_room_cost'            => $newRoomCost,
+                'suggested_adjustment'     => $suggestedAdjustment,
+                'has_payment_this_period'  => $hasPaymentThisPeriod,
+            ],
+        ]);
     }
 
     public function index()

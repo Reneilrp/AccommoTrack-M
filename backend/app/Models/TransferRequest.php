@@ -22,12 +22,14 @@ class TransferRequest extends Model
         'handled_at',
         'credit_amount',
         'credit_calculation',
+        'quoted_transfer_fee',
     ];
 
     protected $casts = [
         'handled_at' => 'datetime',
         'credit_calculation' => 'array',
         'credit_amount' => 'decimal:2',
+        'quoted_transfer_fee' => 'decimal:2',
     ];
 
     public function tenant()

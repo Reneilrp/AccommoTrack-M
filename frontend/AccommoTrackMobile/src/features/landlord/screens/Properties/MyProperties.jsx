@@ -153,7 +153,7 @@ export default function MyPropertiesScreen({ navigation }) {
         <TouchableOpacity
           style={styles.propertyCard}
           onPress={() =>
-            navigation.navigate("DormProfile", { propertyId: item.id })
+            navigation.navigate("PropertySummary", { propertyId: item.id })
           }
         >
           <View style={styles.cardHeader}>
@@ -405,7 +405,7 @@ export default function MyPropertiesScreen({ navigation }) {
         onSelectProperty={(data) => {
           if (data.action === "open_property" && data.property) {
             setMapOpen(false);
-            navigation.navigate("DormProfile", {
+            navigation.navigate("PropertySummary", {
               propertyId: data.property.id,
             });
           }

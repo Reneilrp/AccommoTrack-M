@@ -144,6 +144,7 @@ const NotificationDropdown = () => {
     if (notification.data?.type === 'booking') navigate('/bookings');
     else if (notification.data?.type === 'payment') navigate('/wallet');
     else if (notification.data?.type === 'message') navigate('/messages');
+    else if (notification.data?.type === 'move_out_notice') navigate('/');
   };
 
   const renderItem = (item, key) => {

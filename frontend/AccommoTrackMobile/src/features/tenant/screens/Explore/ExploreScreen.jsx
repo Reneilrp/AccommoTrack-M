@@ -15,6 +15,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { WebView } from "react-native-webview";
+import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from "../../../../styles/Tenant/HomePage.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 
@@ -58,6 +59,7 @@ export default function TenantHomePage({
   const [genderModalVisible, setGenderModalVisible] = useState(false);
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState("Explore");
+  const [showGuestBanner, setShowGuestBanner] = useState(true);
 
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -156,6 +158,7 @@ export default function TenantHomePage({
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setShowGuestBanner(true); // Show banner again on refresh
     await loadProperties();
     setRefreshing(false);
   };
@@ -742,18 +745,28 @@ export default function TenantHomePage({
         onSelectProperty={handleAccommodationPress}
       />
 
-      {isGuest && (
-        <TouchableOpacity
-          style={styles.guestBanner}
-          onPress={() => onAuthRequired && onAuthRequired()}
-        >
-          <View style={styles.guestBannerContent}>
+      {isGuest && showGuestBanner && (
+        <View style={styles.guestBanner}>
+          <TouchableOpacity
+            style={styles.guestBannerContent}
+            onPress={() => onAuthRequired && onAuthRequired()}
+          >
             <Text style={styles.guestBannerText}>
               👋 Browse properties as a guest or{" "}
               <Text style={styles.guestBannerLink}>Sign In</Text> to book
             </Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowGuestBanner(false)}
+            style={{
+              padding: 8,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       )}
 
       {error && (

@@ -13,7 +13,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import api, { getImageUrl } from "../../utils/api";
+import api from "../../utils/api";
 import ImagePlaceholder from "../Shared/ImagePlaceholder";
 import ImageCarousel from "../Shared/ImageCarousel";
 import bookingServiceDefault from "../../services/bookingService";

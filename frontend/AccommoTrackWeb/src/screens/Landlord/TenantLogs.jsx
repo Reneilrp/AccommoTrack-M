@@ -60,6 +60,7 @@ export default function TenantLogs() {
         ...(prev[transferId] || {
           damage_charge: '',
           damage_description: '',
+          transfer_fee: '',
           landlord_notes: '',
           prorated_adjustment: '',
           prorationDetails: null,
@@ -74,6 +75,7 @@ export default function TenantLogs() {
     return transferForms[transferId] || {
       damage_charge: '',
       damage_description: '',
+      transfer_fee: '',
       landlord_notes: '',
       prorated_adjustment: '',
       prorationDetails: null,
@@ -90,9 +92,11 @@ export default function TenantLogs() {
       updateTransferForm(transferId, {
         prorationDetails: details,
         prorated_adjustment: details?.suggested_adjustment ?? '',
+        transfer_fee: details?.quoted_transfer_fee ?? details?.transfer_fee ?? 0,
         loadingProration: false
       });
     } catch (err) {
+      console.error(err);
       updateTransferForm(transferId, { loadingProration: false });
     }
   };
@@ -111,6 +115,7 @@ export default function TenantLogs() {
       landlord_notes: String(form.landlord_notes || '').trim() || undefined,
       damage_charge: damageCharge > 0 ? damageCharge : undefined,
       damage_description: damageCharge > 0 ? String(form.damage_description || '').trim() : undefined,
+      transfer_fee: form.transfer_fee !== '' ? Number(form.transfer_fee) : undefined,
       prorated_adjustment: form.prorated_adjustment !== '' ? Number(form.prorated_adjustment) : undefined,
     };
 
@@ -642,11 +647,23 @@ export default function TenantLogs() {
                                   ) : getTransferForm(req.id).prorationDetails ? (
                                     <>
                                       <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600 dark:text-gray-400">Unused Days (Old Room):</span>
-                                        <span className="font-bold">{Math.max(0, Math.round(Number(getTransferForm(req.id).prorationDetails.remaining_days || 0)))}</span>
+                                        <span className="text-gray-600 dark:text-gray-400">Transfer Processing Fee:</span>
+                                        <span className="font-semibold text-red-600 dark:text-red-400">
+                                          -₱{Number(getTransferForm(req.id).transfer_fee || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between text-sm pt-2 border-t dark:border-gray-700">
+                                        <span className="font-bold text-gray-700 dark:text-gray-300">Net Credit Available:</span>
+                                        <span className="font-black text-green-600 dark:text-green-400">
+                                          ₱{Number((getTransferForm(req.id).prorationDetails.credit_available || 0) - (Number(getTransferForm(req.id).transfer_fee) || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
                                       </div>
                                       <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600 dark:text-gray-400">Suggested Final Adjustment:</span>
+                                        <span className="text-gray-600 dark:text-gray-400">New Room Cost:</span>
+                                        <span className="font-bold">₱{Number(getTransferForm(req.id).prorationDetails.new_room_cost || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                      <div className="flex justify-between text-sm pt-2 border-t dark:border-gray-700">
+                                        <span className="text-gray-600 dark:text-gray-400">Suggested Adjustment:</span>
                                         <span className={`font-black ${getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'}`}>
                                           {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? '+' : ''}₱{Number(getTransferForm(req.id).prorationDetails.suggested_adjustment || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
@@ -656,16 +673,46 @@ export default function TenantLogs() {
                                     <p className="text-xs text-red-500">Failed to calculate proration.</p>
                                   )}
                                   
-                                  <div className="mt-3">
-                                    <label className="block text-[10px] font-bold text-gray-500 uppercase mt-2 mb-1">Final Override Adjustment (₱)</label>
-                                    <input 
-                                      type="number" 
-                                      step="0.01"
-                                      value={getTransferForm(req.id).prorated_adjustment}
-                                      onChange={e => updateTransferForm(req.id, { prorated_adjustment: e.target.value })}
-                                      className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-                                    />
+                                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                                        Transfer Fee (₱)
+                                        <span className="text-amber-600 normal-case font-normal ml-1">
+                                          (Max: ₱{Number(getTransferForm(req.id).prorationDetails?.quoted_transfer_fee || 0).toLocaleString('en-PH')})
+                                        </span>
+                                      </label>
+                                      <input 
+                                        type="number" 
+                                        step="0.01"
+                                        max={getTransferForm(req.id).prorationDetails?.quoted_transfer_fee}
+                                        value={getTransferForm(req.id).transfer_fee}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          const max = getTransferForm(req.id).prorationDetails?.quoted_transfer_fee || 0;
+                                          if (Number(val) > max) {
+                                            toast.error(`You cannot charge more than the quoted fee of ₱${max}`);
+                                            return;
+                                          }
+                                          updateTransferForm(req.id, { transfer_fee: val });
+                                        }}
+                                        className="w-full text-sm font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Room Rate Adjustment (₱)</label>
+                                      <input 
+                                        type="number" 
+                                        step="0.01"
+                                        value={getTransferForm(req.id).prorated_adjustment}
+                                        onChange={e => updateTransferForm(req.id, { prorated_adjustment: e.target.value })}
+                                        placeholder="0.00"
+                                        className="w-full text-sm font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                      />
+                                    </div>
                                   </div>
+                                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 italic text-center">
+                                    * All proration is based on a standard 30-day month calculation.
+                                  </p>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

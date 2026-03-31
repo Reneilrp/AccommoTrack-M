@@ -293,7 +293,7 @@ export default function PaymentsScreen() {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PH', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'PHP',
     }).format(amount || 0);

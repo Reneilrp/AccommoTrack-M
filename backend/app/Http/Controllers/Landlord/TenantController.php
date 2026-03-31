@@ -550,8 +550,10 @@ class TenantController extends Controller
             'booking_id' => 'nullable|integer|exists:bookings,id',
             'new_room_id' => 'required|exists:rooms,id',
             'reason' => 'required|string',
+            'transfer_reason' => 'nullable|string', // e.g. "Tenant Request", "Maintenance Issue"
             'damage_charge' => 'nullable|numeric|min:0',
             'damage_description' => 'nullable|string|required_if:damage_charge,>0',
+            'transfer_fee' => 'nullable|numeric|min:0',
             'new_end_date' => 'nullable|date',
             'prorated_adjustment' => 'nullable|numeric',
         ]);
@@ -676,7 +678,8 @@ class TenantController extends Controller
             $creditAmount = 0;
             if ($activeBooking) {
                 $damageCharge = $validated['damage_charge'] ?? 0;
-                $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge);
+                $transferFee = $validated['transfer_fee'] ?? 0;
+                $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge, $transferFee);
                 $creditAmount = $creditCalculation['final_credit'];
                 
                 // Record refund in old booking
@@ -726,7 +729,8 @@ class TenantController extends Controller
             // 4. Update tenant profile notes
             if ($tenant->tenantProfile) {
                 $currentNotes = $tenant->tenantProfile->notes ?? '';
-                $transferLog = "\n[".now()->toDateString().'] Room Transfer: '.($oldRoom ? $oldRoom->room_number : 'N/A').' -> '.$newRoom->room_number.'. Reason: '.$validated['reason'];
+                $tReason = $validated['transfer_reason'] ?? 'Tenant Request';
+                $transferLog = "\n[".now()->toDateString()."] Room Transfer: ".($oldRoom ? $oldRoom->room_number : 'N/A')." -> ".$newRoom->room_number.". Type: ".$tReason.". Reason: ".$validated['reason'];
                 $tenant->tenantProfile->update([
                     'notes' => $currentNotes.$transferLog,
                 ]);

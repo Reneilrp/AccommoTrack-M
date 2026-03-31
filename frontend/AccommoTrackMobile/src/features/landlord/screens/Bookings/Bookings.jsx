@@ -39,7 +39,7 @@ const PAYMENT_BADGES = {
 
 const DEFAULT_STATS = { total: 0, confirmed: 0, pending: 0, completed: 0 };
 
-const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString('en-PH')}`;
+const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString('en-US')}`;
 
 const formatDate = (value) => {
   if (!value) return '—';

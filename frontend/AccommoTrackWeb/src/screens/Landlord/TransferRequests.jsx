@@ -102,6 +102,7 @@ export default function TransferRequests() {
         ...(prev[transferId] || {
           damage_charge: '',
           damage_description: '',
+          transfer_fee: '',
           landlord_notes: '',
           prorated_adjustment: '',
           prorationDetails: null,
@@ -116,6 +117,7 @@ export default function TransferRequests() {
     return transferForms[transferId] || {
       damage_charge: '',
       damage_description: '',
+      transfer_fee: '',
       landlord_notes: '',
       prorated_adjustment: '',
       prorationDetails: null,
@@ -132,6 +134,7 @@ export default function TransferRequests() {
       updateTransferForm(transferId, {
         prorationDetails: details,
         prorated_adjustment: details?.suggested_adjustment ?? '',
+        transfer_fee: details?.quoted_transfer_fee ?? details?.transfer_fee ?? 0,
         loadingProration: false,
       });
     } catch (_err) {
@@ -249,6 +252,7 @@ export default function TransferRequests() {
         landlord_notes: landlordNotes,
         damage_charge: damageCharge > 0 ? damageCharge : undefined,
         damage_description: damageCharge > 0 ? String(form.damage_description || '').trim() : undefined,
+        transfer_fee: form.transfer_fee !== '' ? Number(form.transfer_fee) : undefined,
         prorated_adjustment: form.prorated_adjustment !== '' ? Number(form.prorated_adjustment) : undefined,
       };
 
@@ -523,11 +527,17 @@ export default function TransferRequests() {
                                       </span>
                                     </div>
                                   )}
+                                  <div className="flex justify-between text-xs">
+                                    <span className="text-gray-600 dark:text-gray-400">Transfer Processing Fee:</span>
+                                    <span className="font-semibold text-red-600 dark:text-red-400">
+                                      -₱{Number(getTransferForm(selectedRequest.id).transfer_fee || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
                                   <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
                                     <div className="flex justify-between text-sm">
-                                      <span className="font-bold text-gray-700 dark:text-gray-300">Credit Available:</span>
+                                      <span className="font-bold text-gray-700 dark:text-gray-300">Net Credit Available:</span>
                                       <span className="font-black text-green-600 dark:text-green-400">
-                                        ₱{Number(getTransferForm(selectedRequest.id).prorationDetails.credit_available || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        ₱{Number((getTransferForm(selectedRequest.id).prorationDetails.credit_available || 0) - (Number(getTransferForm(selectedRequest.id).transfer_fee) || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </span>
                                     </div>
                                   </div>
@@ -559,23 +569,48 @@ export default function TransferRequests() {
                               <p className="text-xs text-red-500">Failed to calculate proration.</p>
                             )}
 
-                            <div className="mt-3">
-                              <label className="block text-[10px] font-bold text-gray-500 uppercase mt-2 mb-1">
-                                Room Rate Adjustment Override (₱)
-                                <span className="text-gray-400 normal-case font-normal ml-1">(optional)</span>
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={getTransferForm(selectedRequest.id).prorated_adjustment}
-                                onChange={(e) => updateTransferForm(selectedRequest.id, { prorated_adjustment: e.target.value })}
-                                placeholder="Leave empty to use credit only"
-                                className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-                              />
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                                Credit of ₱{Number(getTransferForm(selectedRequest.id).prorationDetails?.credit_available || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })} will be automatically applied to new booking
-                              </p>
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                                  Transfer Processing Fee (₱)
+                                  <span className="text-amber-600 font-normal ml-1">
+                                    (Max: ₱{Number(getTransferForm(selectedRequest.id).prorationDetails?.quoted_transfer_fee || 0).toLocaleString('en-PH')})
+                                  </span>
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  max={getTransferForm(selectedRequest.id).prorationDetails?.quoted_transfer_fee}
+                                  value={getTransferForm(selectedRequest.id).transfer_fee}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const max = getTransferForm(selectedRequest.id).prorationDetails?.quoted_transfer_fee || 0;
+                                    if (Number(val) > max) {
+                                      toast.error(`You cannot charge more than the quoted fee of ₱${max}`);
+                                      return;
+                                    }
+                                    updateTransferForm(selectedRequest.id, { transfer_fee: val });
+                                  }}
+                                  className="w-full text-sm font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                                  Room Rate Adjustment (₱)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={getTransferForm(selectedRequest.id).prorated_adjustment}
+                                  onChange={(e) => updateTransferForm(selectedRequest.id, { prorated_adjustment: e.target.value })}
+                                  placeholder="Leave empty to use credit only"
+                                  className="w-full text-sm font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                />
+                              </div>
                             </div>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 italic text-center">
+                              * All proration is based on a standard 30-day month calculation.
+                            </p>
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

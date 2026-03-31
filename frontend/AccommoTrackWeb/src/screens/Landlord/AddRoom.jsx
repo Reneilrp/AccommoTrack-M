@@ -71,6 +71,7 @@ export default function AddRoomModal({
   const [totalFloors, setTotalFloors] = useState(1);
   const [managedFloors, setManagedFloors] = useState([]);
   const [propertyGender, setPropertyGender] = useState("mixed");
+  const [propertyRequireAdvance, setPropertyRequireAdvance] = useState(false);
 
   // Sync amenities list when prop changes (e.g. parent refreshes after onAmenityAdded)
   useEffect(() => {
@@ -105,6 +106,7 @@ export default function AddRoomModal({
 
           const pGender = p.gender_restriction || "mixed";
           setPropertyGender(pGender);
+          setPropertyRequireAdvance(!!p.require_advance);
 
           // Managed floors parsing
           const floorStr = String(p.floor_level || "");
@@ -154,7 +156,7 @@ export default function AddRoomModal({
         minStayDays: "1",
         capacity: isBedSpacerProperty ? "1" : "1",
         pricingModel: initialPricingModel,
-        require1MonthAdvance: false,
+        require1MonthAdvance: null,
         description: "",
         rules: [],
         amenities: [],
@@ -542,7 +544,10 @@ export default function AddRoomModal({
         if (Number.isFinite(v)) payload.append("min_stay_days", v);
       }
       payload.append("pricing_model", formData.pricingModel);
-      payload.append("require_1month_advance", formData.require1MonthAdvance ? 1 : 0);
+      // Require 1 month advance: only send if explicitly set (null = inherit from property)
+      if (formData.require1MonthAdvance !== null) {
+        payload.append("require_1month_advance", formData.require1MonthAdvance ? 1 : 0);
+      }
       payload.append("description", formData.description || "");
       payload.append("status", "available");
       formData.amenities.forEach((amenity, idx) => {
@@ -571,7 +576,7 @@ export default function AddRoomModal({
         minStayDays: "1",
         capacity: "1",
         pricingModel: "full_room",
-        require1MonthAdvance: false,
+        require1MonthAdvance: null,
         description: "",
         rules: [],
         amenities: [],
@@ -823,7 +828,7 @@ export default function AddRoomModal({
                   <div className="flex items-center h-5 mt-0.5">
                     <input
                       type="checkbox"
-                      checked={formData.require1MonthAdvance}
+                      checked={formData.require1MonthAdvance ?? (propertyRequireAdvance || false)}
                       onChange={(e) => handleInputChange('require1MonthAdvance', e.target.checked)}
                       className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
                     />
@@ -832,9 +837,30 @@ export default function AddRoomModal({
                     <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
                       Require 1-Month Advance
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      Tenants will be billed for their first month's rent + an additional month as advance payment upon confirmation.
-                    </span>
+                    {formData.require1MonthAdvance === null && propertyRequireAdvance ? (
+                      <span className="text-xs text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                        ✦ Inherited from property — toggle to override per room
+                      </span>
+                    ) : formData.require1MonthAdvance === null ? (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Tenants will be billed for their first month's rent + an additional month as advance payment upon confirmation.
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        {formData.require1MonthAdvance
+                          ? 'Overriding property setting — advance required for this room.'
+                          : 'Overriding property setting — advance disabled for this room.'}
+                      </span>
+                    )}
+                    {formData.require1MonthAdvance !== null && (
+                      <button
+                        type="button"
+                        onClick={() => handleInputChange('require1MonthAdvance', null)}
+                        className="text-xs text-blue-500 dark:text-blue-400 mt-1 text-left underline hover:no-underline w-fit"
+                      >
+                        Reset to inherit from property
+                      </button>
+                    )}
                   </div>
                 </label>
               </div>

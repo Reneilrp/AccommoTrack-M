@@ -40,10 +40,13 @@ const MainStack = createNativeStackNavigator();
 function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
   const { theme } = useTheme();
 
+  // Ensure guests always start at TenantHome
+  const initialRouteName = isGuest ? 'TenantHome' : 'TenantHome';
+
   return (
     <View style={{ flex: 1 }}>
       <MainStack.Navigator
-        initialRouteName="TenantHome"
+        initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: false,
           animation: 'none',

@@ -41,7 +41,7 @@ const normalizeId = (value) => {
 
 const formatCurrency = (value) => {
   if (!value && value !== 0) return '₱0';
-  return `₱${Number(value).toLocaleString('en-PH')}`;
+  return `₱${Number(value).toLocaleString('en-US')}`;
 };
 
 const isRoomBookable = (room) => {

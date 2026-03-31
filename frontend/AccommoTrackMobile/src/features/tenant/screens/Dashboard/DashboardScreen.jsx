@@ -23,7 +23,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const currencyFormatter = new Intl.NumberFormat('en-PH', {
+const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'PHP',
   maximumFractionDigits: 0,
@@ -79,6 +79,26 @@ const DashboardScreen = () => {
   const [userName, setUserName] = useState('');
   const [expandedPanel, setExpandedPanel] = useState(null);
 
+  // Guard: Check if user is authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const isGuest = await AsyncStorage.getItem('isGuest');
+        const userString = await AsyncStorage.getItem('user');
+        
+        if (isGuest === 'true' || !userString) {
+          navigation.replace('TenantHome');
+          return;
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        navigation.replace('TenantHome');
+      }
+    };
+    
+    checkAuth();
+  }, [navigation]);
+
   useEffect(() => {
     const loadUserName = async () => {
       try {
@@ -104,7 +124,13 @@ const DashboardScreen = () => {
       }
       return response.data;
     },
-    onError: (error) => showError('Failed to load current stay', error.message),
+    retry: false,
+    onError: (error) => {
+      console.error('Current stay error:', error);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        navigation.replace('TenantHome');
+      }
+    },
   });
 
   const statsQuery = useQuery({
@@ -116,6 +142,8 @@ const DashboardScreen = () => {
       }
       return response.data;
     },
+    retry: false,
+    enabled: !currentStayQuery.isError,
   });
 
   const activitiesQuery = useQuery({
@@ -128,6 +156,8 @@ const DashboardScreen = () => {
       return safeArray(response.data);
     },
     staleTime: 30 * 1000,
+    retry: false,
+    enabled: !currentStayQuery.isError,
   });
 
   const upcomingQuery = useQuery({
@@ -140,6 +170,8 @@ const DashboardScreen = () => {
       return response.data || {};
     },
     staleTime: 30 * 1000,
+    retry: false,
+    enabled: !currentStayQuery.isError,
   });
 
   const breakdownQuery = useQuery({
@@ -152,6 +184,8 @@ const DashboardScreen = () => {
       return response.data || { upcoming_months: [] };
     },
     staleTime: 60 * 1000,
+    retry: false,
+    enabled: !currentStayQuery.isError,
   });
 
   const onRefresh = async () => {

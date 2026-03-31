@@ -56,7 +56,7 @@ export default function LandlordLayout({ onLogout }) {
 
   // Configure which screens should hide the global header
   // Usually screens that have their own custom header logic or full-screen views
-  const hideHeaderRoutes = new Set(['MyProfile', 'Settings', 'AddProperty', 'DormProfile', 'Chat', 'DevTeam']);
+  const hideHeaderRoutes = new Set(['MyProfile', 'Settings', 'AddProperty', 'PropertySummary', 'Chat', 'DevTeam']);
   
   const showHeader = !hideHeaderRoutes.has(activeRouteName);
 

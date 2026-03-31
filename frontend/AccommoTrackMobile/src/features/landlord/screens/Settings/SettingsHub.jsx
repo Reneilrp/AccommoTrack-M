@@ -633,7 +633,6 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ))}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Danger Zone</Text>
           <TouchableOpacity style={styles.dangerButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
             <Text style={styles.dangerButtonText}>Logout</Text>

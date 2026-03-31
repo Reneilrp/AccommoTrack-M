@@ -47,6 +47,30 @@ export default function MyBookings() {
   const [transferReason, setTransferReason] = useState('');
   const [transferOptionsMessage, setTransferOptionsMessage] = useState('');
   const [transferContext, setTransferContext] = useState(null);
+  const [transferPreview, setTransferPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  // Auto-fetch financial preview whenever the selected transfer room changes
+  React.useEffect(() => {
+    if (!selectedTransferRoomId || !transferContext?.bookingId) {
+      setTransferPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchPreview = async () => {
+      setLoadingPreview(true);
+      const result = await TenantService.getTransferPreview(
+        transferContext.bookingId,
+        selectedTransferRoomId,
+      );
+      if (!cancelled) {
+        setTransferPreview(result.success ? result.data : null);
+        setLoadingPreview(false);
+      }
+    };
+    fetchPreview();
+    return () => { cancelled = true; };
+  }, [selectedTransferRoomId, transferContext]);
 
   const getDaysUntilTransferReset = () => {
     const now = new Date();
@@ -61,6 +85,8 @@ export default function MyBookings() {
     setTransferReason('');
     setTransferOptionsMessage('');
     setTransferContext(null);
+    setTransferPreview(null);
+    setLoadingPreview(false);
   };
 
   const fetchData = async () => {
@@ -158,7 +184,7 @@ export default function MyBookings() {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PH', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'PHP',
     }).format(amount || 0);
@@ -1083,6 +1109,7 @@ export default function MyBookings() {
                   const selected = Number(selectedTransferRoomId) === Number(roomOption.id);
                   const roomNumber = roomOption.room_number || roomOption.roomNumber || roomOption.id;
                   const roomType = roomOption.type_label || roomOption.room_type || 'Room';
+                  const roomPrice = roomOption.monthly_rate ?? roomOption.price ?? null;
 
                   return (
                     <TouchableOpacity
@@ -1097,15 +1124,201 @@ export default function MyBookings() {
                         paddingVertical: 10,
                       }}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
-                        Room {roomNumber}
-                      </Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
+                          Room {roomNumber}
+                        </Text>
+                        {roomPrice != null && (
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.primary }}>
+                            {formatCurrency(roomPrice)}/mo
+                          </Text>
+                        )}
+                      </View>
                       <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
                         {roomType}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+
+              {/* Financial Impact Preview */}
+              <View style={{ marginTop: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary }}>
+                    💰 Financial Impact Preview
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => Alert.alert(
+                      'Proration Rule', 
+                      'Rent is prorated based on a standard 30-day month: (Monthly Rent ÷ 30) × remaining days. Any transfer processing fee is deducted from your unused credit.'
+                    )}
+                    style={{ marginLeft: 6, paddingHorizontal: 4 }}
+                  >
+                    <Ionicons name="information-circle-outline" size={14} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                </View>
+                {loadingPreview ? (
+                  <View style={{
+                    padding: 12, borderRadius: 10,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.textTertiary }}>Calculating...</Text>
+                  </View>
+                ) : transferPreview ? (
+                  <View style={{
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    overflow: 'hidden',
+                    borderColor: transferPreview.suggested_adjustment > 0
+                      ? '#F59E0B'
+                      : transferPreview.suggested_adjustment < 0
+                        ? '#10B981'
+                        : theme.colors.border,
+                  }}>
+                    {/* Rate Comparison Row */}
+                    <View style={{
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      padding: 10,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                    }}>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 10, color: theme.colors.textTertiary, textTransform: 'uppercase' }}>Current</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
+                          {formatCurrency(transferPreview.current_room_rate)}/mo
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 18, color: theme.colors.textTertiary, alignSelf: 'center', paddingHorizontal: 8 }}>→</Text>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 10, color: theme.colors.textTertiary, textTransform: 'uppercase' }}>New</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.primary }}>
+                          {formatCurrency(transferPreview.new_room_rate)}/mo
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Breakdown */}
+                    <View style={{ padding: 12, gap: 6 }}>
+                      {!transferPreview.has_payment_this_period ? (
+                        <View style={{
+                          padding: 10, borderRadius: 8,
+                          backgroundColor: theme.isDark ? 'rgba(59,130,246,0.15)' : '#EFF6FF',
+                        }}>
+                          <Text style={{ fontSize: 12, color: '#2563EB', fontWeight: '600' }}>
+                            ℹ️ No payment found for the current billing period.
+                          </Text>
+                          <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 4 }}>
+                            Your next invoice will simply reflect the new room rate. No immediate charge.
+                          </Text>
+                        </View>
+                      ) : (
+                        <>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                              Remaining days this cycle
+                            </Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
+                              {transferPreview.remaining_days} days
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                              Old room unused value
+                            </Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
+                              {formatCurrency(transferPreview.old_room_unused_value)}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                              New room cost (remaining days)
+                            </Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
+                              {formatCurrency(transferPreview.new_room_cost)}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                              Transfer Processing Fee
+                            </Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.danger }}>
+                              - {formatCurrency(transferPreview.transfer_fee)}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: '#10B981', fontWeight: '700' }}>
+                              Net Credit
+                            </Text>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>
+                              {formatCurrency(transferPreview.credit_available)}
+                            </Text>
+                          </View>
+                          <View style={{
+                            marginTop: 4,
+                            paddingTop: 8,
+                            borderTopWidth: 1,
+                            borderTopColor: theme.colors.border,
+                          }}>
+                            {transferPreview.suggested_adjustment > 0 ? (
+                              <View style={{
+                                padding: 10, borderRadius: 8,
+                                backgroundColor: theme.isDark ? 'rgba(245,158,11,0.12)' : '#FFFBEB',
+                              }}>
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#D97706' }}>
+                                  ⚠️ Estimated Adjustment: +{formatCurrency(transferPreview.suggested_adjustment)}
+                                </Text>
+                                <Text style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>
+                                  The new room is more expensive or your fees exceed your credit. This amount will be added to your next invoice.
+                                </Text>
+                              </View>
+                            ) : transferPreview.suggested_adjustment < 0 ? (
+                              <View style={{
+                                padding: 10, borderRadius: 8,
+                                backgroundColor: theme.isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5',
+                              }}>
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>
+                                  ✅ Estimated Credit: {formatCurrency(Math.abs(transferPreview.suggested_adjustment))}
+                                </Text>
+                                <Text style={{ fontSize: 11, color: '#047857', marginTop: 2 }}>
+                                  Great! Your unused credit covers the new room cost and fees. The remainder will be applied to your future invoices.
+                                </Text>
+                              </View>
+                            ) : (
+                              <View style={{
+                                padding: 10, borderRadius: 8,
+                                backgroundColor: theme.isDark ? 'rgba(99,102,241,0.12)' : '#EEF2FF',
+                              }}>
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#4F46E5' }}>
+                                  ✨ No immediate payment change
+                                </Text>
+                                <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 4 }}>
+                                  Your credit fully covers the new room for the remaining days. No extra charge.
+                                </Text>
+                              </View>
+                            )}
+                            <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 10, textAlign: 'center', fontStyle: 'italic' }}>
+                              *Calculated based on a standard 30-day billing cycle.*
+                            </Text>
+                          </View>
+                        </>
+                      )}
+                      <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 4 }}>
+                        * Final adjustments are applied when the landlord approves the transfer.
+                      </Text>
+                    </View>
+                  </View>
+                ) : selectedTransferRoomId ? (
+                  <View style={{
+                    padding: 10, borderRadius: 10,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                  }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.textTertiary }}>
+                      Select a room above to see the financial impact.
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
               <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginTop: 16, marginBottom: 8 }}>

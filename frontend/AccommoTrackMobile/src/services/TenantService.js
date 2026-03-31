@@ -241,6 +241,32 @@ class TenantService {
   }
 
   /**
+   * Preview financial impact of a room transfer before submitting.
+   * Returns rate comparison, proration credit, and suggested adjustment.
+   */
+  async getTransferPreview(bookingId, requestedRoomId) {
+    try {
+      const response = await api.get(`/tenant/transfers/preview`, {
+        params: {
+          booking_id: bookingId,
+          requested_room_id: requestedRoomId,
+        },
+      });
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+      };
+    } catch (error) {
+      console.error('Error fetching transfer preview:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch transfer preview',
+        data: null,
+      };
+    }
+  }
+
+  /**
    * Cancel a pending transfer request
    */
   async cancelTransferRequest(transferRequestId) {

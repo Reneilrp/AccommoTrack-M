@@ -97,18 +97,32 @@ class Room extends Model
         'daily_rate' => 'decimal:2',
         'min_stay_days' => 'integer',
         'capacity' => 'integer',
-        'require_1month_advance' => 'boolean',
+        // Note: require_1month_advance is intentionally NOT cast to boolean here.
+        // It is a nullable column: null = inherit from property, true/false = explicit override.
+        // We check for null explicitly in requiresAdvance() before casting.
         'current_tenant_id' => 'integer',
         'rules' => 'array',
     ];
 
     /**
-     * Resolve if this specific room or its parent property requires 1 month advance.
-     * Room setting takes precedence if true, otherwise fallback to property.
+     * Resolve whether this room requires 1 month advance payment.
+     *
+     * Three-state logic:
+     *   null  → inherit from parent property (default for new rooms)
+     *   true  → explicitly enabled on this room (overrides property)
+     *   false → explicitly disabled on this room (overrides property even if property=true)
      */
-    public function requiresAdvance()
+    public function requiresAdvance(): bool
     {
-        return $this->require_1month_advance || ($this->property?->require_1month_advance ?? false);
+        $roomFlag = $this->getRawOriginal('require_1month_advance') ?? $this->attributes['require_1month_advance'] ?? null;
+
+        // Null means inherit from parent property
+        if ($roomFlag === null) {
+            return (bool) ($this->property?->require_1month_advance ?? false);
+        }
+
+        // Explicit room-level override (true or false)
+        return (bool) $roomFlag;
     }
 
     /**

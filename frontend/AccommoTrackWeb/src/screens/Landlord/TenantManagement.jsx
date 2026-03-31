@@ -38,7 +38,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRoomsForTransfer, setLoadingRoomsForTransfer] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
-  const [transferData, setTransferData] = useState({ new_room_id: '', reason: '', damage_charge: '', damage_description: '' });
+  const [transferData, setTransferData] = useState({ new_room_id: '', reason: '', transfer_reason: 'Tenant Request', transfer_fee: '', damage_charge: '', damage_description: '' });
   const [assigningTenant, setAssigningTenant] = useState(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [availableRoomsForAssign, setAvailableRoomsForAssign] = useState([]);
@@ -155,8 +155,16 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   }, [searchQuery, filter, selectedPropertyId]);
 
   const handleTransferInitiate = async (tenant) => {
+    const defaultFee = tenant?.room?.property?.transfer_fee ?? 0;
     setTransferringTenant(tenant);
-    setTransferData({ new_room_id: '', reason: '', damage_charge: '', damage_description: '' });
+    setTransferData({ 
+      new_room_id: '', 
+      reason: '', 
+      transfer_reason: 'Tenant Request', 
+      transfer_fee: defaultFee,
+      damage_charge: '', 
+      damage_description: '' 
+    });
     setShowTransferModal(true);
     setLoadingRoomsForTransfer(true);
     try {
@@ -588,21 +596,61 @@ const TransferModal = ({ tenant, availableRooms, loading, isSubmitting, data, se
           {availableRooms.length === 0 && !loading && <p className="text-[10px] text-red-500 mt-2 font-bold italic">No other available rooms in this property.</p>}
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason for Transfer *</label>
-          <textarea required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none" value={data.reason} onChange={e => setData({ ...data, reason: e.target.value })} placeholder="e.g., Room maintenance required, tenant requested a larger room..." />
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Transfer Reason *</label>
+          <select 
+            required 
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+            value={data.transfer_reason}
+            onChange={(e) => {
+              const val = e.target.value;
+              const updates = { transfer_reason: val };
+              if (val === 'Maintenance Issue') {
+                updates.transfer_fee = 0;
+              } else if (data.transfer_reason === 'Maintenance Issue' && val !== 'Maintenance Issue') {
+                // Revert to original property default if they switch back from maintenance
+                updates.transfer_fee = tenant?.room?.property?.transfer_fee ?? 0;
+              }
+              setData({ ...data, ...updates });
+            }}
+          >
+            <option value="Tenant Request">Tenant Request</option>
+            <option value="Room Upgrade">Room Upgrade</option>
+            <option value="Maintenance Issue">Maintenance Issue (₱0 Fee)</option>
+            <option value="Other">Other</option>
+          </select>
         </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Internal Note / Detailed Reason *</label>
+          <textarea required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none" value={data.reason} onChange={e => setData({ ...data, reason: e.target.value })} placeholder="e.g., Tenant requested a larger room, or specific maintenance details..." />
+        </div>
+        
         <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
-          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Damage Charges (Optional)</p>
-          <div className="grid grid-cols-1 gap-4">
+          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Financial Adjustments</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Charge Amount (₱)</label>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Transfer Fee (₱)</label>
+              <input 
+                type="number" 
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white" 
+                value={data.transfer_fee} 
+                onChange={e => setData({ ...data, transfer_fee: e.target.value })} 
+                placeholder="0.00" 
+                min="0" 
+                disabled={data.transfer_reason === 'Maintenance Issue'}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Damage Charge (₱)</label>
               <input type="number" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white" value={data.damage_charge} onChange={e => setData({ ...data, damage_charge: e.target.value })} placeholder="0.00" min="0" />
             </div>
-            {parseFloat(data.damage_charge) > 0 && (<div className="animate-in slide-in-from-top-1">
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Charge Description *</label>
+          </div>
+          {parseFloat(data.damage_charge) > 0 && (<div className="animate-in slide-in-from-top-1 mt-3">
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Damage Description *</label>
               <input type="text" required={parseFloat(data.damage_charge) > 0} className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white" value={data.damage_description} onChange={e => setData({ ...data, damage_description: e.target.value })} placeholder="e.g., Broken window blind, wall scratches..." />
             </div>)}
-          </div>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-4 italic text-center">
+              * All proration is based on a standard 30-day month calculation.
+            </p>
         </div>
         <div className="flex gap-4 pt-4">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>

@@ -11,7 +11,7 @@ class RefundService
     /**
      * Calculate prorated credit for unused days in current booking
      */
-    public function calculateProratedCredit(Booking $booking, ?float $damageCharge = 0): array
+    public function calculateProratedCredit(Booking $booking, ?float $damageCharge = 0, ?float $transferFee = 0): array
     {
         $today = Carbon::today();
         $startDate = Carbon::parse($booking->start_date)->startOfDay();
@@ -21,26 +21,27 @@ class RefundService
         while ($nextBillingDate->lte($today)) {
             $nextBillingDate->addMonthNoOverflow()->startOfDay();
         }
-
+ 
         // Carbon 3 diffInDays can return signed fractional values. Use whole calendar days only.
         $remainingDays = max(0, (int) $today->diffInDays($nextBillingDate, false));
-
+ 
         $monthlyRentCents = (int) round(((float) ($booking->monthly_rent ?? 0)) * 100);
         $dailyRateCents = $monthlyRentCents / 30;
         $unusedValueCents = (int) round(($monthlyRentCents * $remainingDays) / 30);
         
         // Calculate paid amount for current period
         $paidAmountCents = $this->calculatePaidAmountForCurrentPeriod($booking, $today, $nextBillingDate);
-
+ 
         // Refundable amount is the lesser of unused value or paid amount
         $refundableAmountCents = max(0, min($unusedValueCents, $paidAmountCents));
         
         // Apply fixed penalty from config
         $penaltyCents = (int) config('refunds.fixed_penalty_cents', 0);
         $damageChargeCents = (int) round(max(0, (float) $damageCharge) * 100);
-
-        // Deduct damage charge and penalty
-        $finalCreditCents = max(0, $refundableAmountCents - $damageChargeCents - $penaltyCents);
+        $transferFeeCents = (int) round(max(0, (float) $transferFee) * 100);
+ 
+        // Deduct damage charge, transfer fee, and penalty
+        $finalCreditCents = max(0, $refundableAmountCents - $damageChargeCents - $transferFeeCents - $penaltyCents);
         
         return [
             'remaining_days' => $remainingDays,
@@ -49,6 +50,7 @@ class RefundService
             'paid_amount' => round($paidAmountCents / 100, 2),
             'refundable_amount' => round($refundableAmountCents / 100, 2),
             'damage_charge' => round($damageChargeCents / 100, 2),
+            'transfer_fee' => round($transferFeeCents / 100, 2),
             'penalty' => round($penaltyCents / 100, 2),
             'final_credit' => round($finalCreditCents / 100, 2),
             'daily_rate_cents' => (int) round($dailyRateCents),
@@ -56,6 +58,7 @@ class RefundService
             'paid_amount_cents' => $paidAmountCents,
             'refundable_amount_cents' => $refundableAmountCents,
             'damage_charge_cents' => $damageChargeCents,
+            'transfer_fee_cents' => $transferFeeCents,
             'penalty_cents' => $penaltyCents,
             'final_credit_cents' => $finalCreditCents,
             'next_billing_date' => $nextBillingDate->format('Y-m-d'),

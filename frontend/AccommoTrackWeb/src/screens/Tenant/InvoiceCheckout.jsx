@@ -449,7 +449,9 @@ export default function InvoiceCheckout() {
                   <PriceRow amount={invoice.booking.monthly_rent} />
                 </span>
               </div>
-              {(invoice.booking.room?.require_1month_advance || invoice.description?.toLowerCase().includes('1 month advance')) && (
+              {(invoice.booking.room?.require_1month_advance || 
+                invoice.booking.property?.require_1month_advance ||
+                invoice.description?.toLowerCase().includes('1 month advance')) && (
                 <div className="pt-4 mt-4 border-t border-dashed border-gray-200 dark:border-gray-700 flex justify-between items-start">
                   <span className="text-gray-600 dark:text-gray-400 text-xs font-medium">
                     1-Month Advance Applied
