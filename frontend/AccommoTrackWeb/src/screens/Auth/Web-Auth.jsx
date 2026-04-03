@@ -1029,6 +1029,10 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       const registerPayload = {
         ...formData,
         role: "tenant",
+        agree_to_terms: !!formData.agree_to_terms,
+        terms_version: UNIFIED_TERMS_AND_CONDITIONS.version || "v2.0",
+        privacy_version: UNIFIED_TERMS_AND_CONDITIONS.version || "v2.0",
+        consent_platform: "web",
       };
 
       await ensureCsrfCookieOrFallback();

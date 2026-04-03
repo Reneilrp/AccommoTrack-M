@@ -7,11 +7,15 @@ use App\Exceptions\PendingVerificationException;
 use App\Http\Controllers\Controller;
 use App\Mail\EmailOtpMail;
 use App\Models\User;
+use App\Services\AuditLogService;
 use App\Services\AuthService;
+use App\Services\LegalConsentService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -20,10 +24,18 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     protected AuthService $authService;
+    protected LegalConsentService $legalConsentService;
+    protected AuditLogService $auditLogService;
 
-    public function __construct(AuthService $authService)
+    public function __construct(
+        AuthService $authService,
+        LegalConsentService $legalConsentService,
+        AuditLogService $auditLogService
+    )
     {
         $this->authService = $authService;
+        $this->legalConsentService = $legalConsentService;
+        $this->auditLogService = $auditLogService;
     }
 
     protected function webCookieModeAllowedForEnvironment(): bool
@@ -173,9 +185,14 @@ class AuthController extends Controller
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'required|date',
                 'gender' => ['required', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
+                'agree_to_terms' => 'accepted',
+                'terms_version' => 'nullable|string|max:40',
+                'privacy_version' => 'nullable|string|max:40',
+                'consent_platform' => 'nullable|in:web,mobile',
             ], [
                 'email.unique' => 'This email is already taken. Please use a different email address.',
                 'email.email' => 'Email address is not valid or cannot receive mail.',
+                'agree_to_terms.accepted' => 'You must agree to the Terms and Privacy Policy to register.',
             ]);
 
             $validated['gender'] = $this->normalizeGenderForStorage($validated['gender'] ?? null);
@@ -192,15 +209,64 @@ class AuthController extends Controller
                 }
             }
 
-            $result = $this->authService->register($validated);
-            $user = $result['user'];
-            $otp = $result['otp'];
+            $otpDeliveryFailed = false;
+            $user = null;
+            $otp = null;
 
-            // Send OTP email
-            Mail::to($user->email)->send(new EmailOtpMail($otp));
+            DB::beginTransaction();
+            try {
+                $result = $this->authService->register($validated);
+                $user = $result['user'];
+                $otp = $result['otp'];
+
+                $consent = $this->legalConsentService->capture($user, [
+                    'consent_type' => 'signup',
+                    'terms_version' => $validated['terms_version'] ?? null,
+                    'privacy_version' => $validated['privacy_version'] ?? null,
+                    'platform' => $validated['consent_platform'] ?? null,
+                    'metadata' => [
+                        'agree_to_terms' => true,
+                    ],
+                ]);
+
+                $this->auditLogService->legalEvent('consent.accepted', [
+                    'actor' => $user,
+                    'subject_type' => 'user',
+                    'subject_id' => $user->id,
+                    'tenant_id' => $user->role === 'tenant' ? $user->id : null,
+                    'landlord_id' => $user->role === 'landlord' ? $user->id : null,
+                    'summary' => 'User accepted Terms and Privacy during signup.',
+                    'metadata' => [
+                        'consent_id' => $consent->id,
+                        'consent_type' => $consent->consent_type,
+                        'terms_version' => $consent->terms_version,
+                        'privacy_version' => $consent->privacy_version,
+                        'platform' => $consent->platform,
+                    ],
+                ]);
+
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+            try {
+                Mail::to($user->email)->send(new EmailOtpMail($otp));
+            } catch (\Throwable $mailException) {
+                $otpDeliveryFailed = true;
+                Log::warning('OTP delivery failed right after successful registration', [
+                    'user_id' => $user?->id,
+                    'email' => $user?->email,
+                    'error' => $mailException->getMessage(),
+                ]);
+            }
 
             return response()->json([
-                'message' => 'Registration successful. An OTP has been sent to your email address for verification.',
+                'message' => $otpDeliveryFailed
+                    ? 'Registration successful. We could not send the OTP email automatically. Please tap resend OTP.'
+                    : 'Registration successful. An OTP has been sent to your email address for verification.',
+                'otp_delivery' => $otpDeliveryFailed ? 'failed' : 'sent',
             ], 201);
         } catch (ValidationException $e) {
             throw $e;
@@ -274,7 +340,39 @@ class AuthController extends Controller
         try {
             $user = $this->authService->login($credentials);
 
+            if (! $this->legalConsentService->hasAnyConsent($user)) {
+                $consent = $this->legalConsentService->capture($user, [
+                    'consent_type' => 'first_login_implied',
+                    'metadata' => [
+                        'source' => 'legacy_backfill',
+                    ],
+                ]);
+
+                $this->auditLogService->legalEvent('consent.accepted', [
+                    'actor' => $user,
+                    'subject_type' => 'user',
+                    'subject_id' => $user->id,
+                    'tenant_id' => $user->role === 'tenant' ? $user->id : null,
+                    'landlord_id' => $user->role === 'landlord' ? $user->id : null,
+                    'summary' => 'Legal consent backfilled on first login.',
+                    'metadata' => [
+                        'consent_id' => $consent->id,
+                        'consent_type' => $consent->consent_type,
+                        'terms_version' => $consent->terms_version,
+                        'privacy_version' => $consent->privacy_version,
+                        'platform' => $consent->platform,
+                    ],
+                ]);
+            }
+
             $responseData = [];
+
+            $requireReconsentOnMajor = (bool) config('legal.require_reconsent_on_major_update', true);
+            $responseData['requires_legal_reconsent'] = $requireReconsentOnMajor
+                ? ! $this->legalConsentService->hasAcceptedCurrentVersions($user)
+                : false;
+            $responseData['current_terms_version'] = (string) config('legal.terms_version', 'v1.0');
+            $responseData['current_privacy_version'] = (string) config('legal.privacy_version', 'v1.0');
 
             // Add verification info for landlords on successful login
             if ($user->role === 'landlord') {

@@ -3,7 +3,62 @@ import { cacheManager } from '../utils/cache';
 
 const CACHE_KEYS = {
     PROPERTIES_PREFIX: 'properties_',
-    SINGLE_PROPERTY_PREFIX: 'property_'
+    SINGLE_PROPERTY_PREFIX: 'property_',
+    PROPERTY_TYPES: 'property_types'
+};
+
+const FALLBACK_PROPERTY_TYPES = [
+    { value: 'dormitory', label: 'Dormitory', count: 0 },
+    { value: 'apartment', label: 'Apartment', count: 0 },
+    { value: 'boardingHouse', label: 'Boarding House', count: 0 },
+    { value: 'bedSpacer', label: 'Bed Spacer', count: 0 }
+];
+
+const normalizeTypeToken = (value) =>
+    String(value || '')
+        .toLowerCase()
+        .replace(/[\s_-]/g, '');
+
+const formatTypeLabel = (value) => {
+    const normalized = normalizeTypeToken(value);
+    if (normalized === 'dormitory') return 'Dormitory';
+    if (normalized === 'apartment') return 'Apartment';
+    if (normalized === 'boardinghouse') return 'Boarding House';
+    if (normalized === 'bedspacer') return 'Bed Spacer';
+
+    const spaced = String(value || '')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    return spaced
+        ? spaced.replace(/\b\w/g, (char) => char.toUpperCase())
+        : 'Other';
+};
+
+const normalizeTypeOption = (item) => {
+    if (typeof item === 'string') {
+        const value = item.trim();
+        if (!value) return null;
+        return { value, label: formatTypeLabel(value), count: 0 };
+    }
+
+    if (!item || typeof item !== 'object') {
+        return null;
+    }
+
+    const value = String(item.value ?? item.property_type ?? item.type ?? '').trim();
+    if (!value) return null;
+
+    const label = String(item.label ?? '').trim() || formatTypeLabel(value);
+    const count = Number(item.count ?? item.total ?? 0);
+
+    return {
+        value,
+        label,
+        count: Number.isFinite(count) ? count : 0
+    };
 };
 
 export const propertyService = {
@@ -72,7 +127,38 @@ export const propertyService = {
 
     // Get property types for filtering
     async getPropertyTypes() {
-        return ['Dormitory', 'Apartment', 'Boarding House', 'Bed Spacer'];
+        try {
+            const cached = cacheManager.get(CACHE_KEYS.PROPERTY_TYPES);
+            if (Array.isArray(cached) && cached.length > 0) {
+                return cached;
+            }
+
+            const response = await api.get('/public/property-types');
+            const payload = response?.data;
+            const rawTypes = Array.isArray(payload)
+                ? payload
+                : (Array.isArray(payload?.data) ? payload.data : []);
+
+            const normalized = rawTypes
+                .map(normalizeTypeOption)
+                .filter(Boolean);
+
+            const seen = new Set();
+            const unique = normalized.filter((typeOption) => {
+                const key = normalizeTypeToken(typeOption.value);
+                if (!key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            const result = unique.length > 0 ? unique : FALLBACK_PROPERTY_TYPES;
+            cacheManager.set(CACHE_KEYS.PROPERTY_TYPES, result);
+
+            return result;
+        } catch (error) {
+            console.error('Error fetching property types:', error);
+            return FALLBACK_PROPERTY_TYPES;
+        }
     },
 
     /**
@@ -81,7 +167,8 @@ export const propertyService = {
     invalidateAll() {
         Object.keys(localStorage).forEach(key => {
             if (key.includes(`cache_${CACHE_KEYS.PROPERTIES_PREFIX}`) || 
-                key.includes(`cache_${CACHE_KEYS.SINGLE_PROPERTY_PREFIX}`)) {
+                key.includes(`cache_${CACHE_KEYS.SINGLE_PROPERTY_PREFIX}`) ||
+                key.includes(`cache_${CACHE_KEYS.PROPERTY_TYPES}`)) {
                 localStorage.removeItem(key);
             }
         });

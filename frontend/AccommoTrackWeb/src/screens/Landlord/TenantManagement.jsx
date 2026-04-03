@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle } from 'lucide-react';
-import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUIState } from '../../contexts/UIStateContext';
@@ -9,6 +8,9 @@ import { cacheManager } from '../../utils/cache';
 import TenantCard from './TenantCard';
 import { Skeleton, SkeletonTableRow } from '../../components/Shared/Skeleton';
 import toast from 'react-hot-toast';
+import landlordService from '../../services/landlordService';
+import bookingService from '../../services/bookingService';
+import roomService from '../../services/roomService';
 
 export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const { uiState, updateData } = useUIState();
@@ -97,7 +99,10 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     const load = async () => {
       try {
         if (!cachedProps) setLoading(true);
-        const { data } = await api.get('/properties/accessible');
+        const response = await landlordService.getAccessibleProperties();
+        const data = response.success
+          ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+          : [];
         setProperties(data);
         updateData('accessible_properties', data);
         cacheManager.set('accessible_properties', data);
@@ -123,9 +128,11 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
       if (!currentCached) setLoading(true);
       setError('');
       
-      const res = await api.get(`/landlord/tenants?property_id=${selectedPropertyId}&t=${Date.now()}`);
-      const data = res.data;
-      
+      const response = await landlordService.getTenants({ property_id: selectedPropertyId, t: Date.now() });
+      const data = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
+
       const list = Array.isArray(data) ? data : [];
       setTenants(list);
       
@@ -170,9 +177,11 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     try {
       const propertyId = tenant.room?.property_id;
       if (!propertyId) throw new Error("Tenant has no assigned property");
-      
-      const res = await api.get(`/rooms/property/${propertyId}`);
-      const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+
+      const response = await roomService.getRoomsByProperty(propertyId);
+      const list = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
       // Filter for available rooms, excluding current one
       setAvailableRooms(list.filter(r => isRoomBookable(r) && r.id !== tenant.room?.id));
     } catch {
@@ -192,11 +201,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     if (!confirmed) return;
 
     try {
-      await api.post(`/landlord/tenants/${tenant.id}/evictions/finalize`);
+      const response = await landlordService.finalizeEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to finalize eviction.');
+      }
       toast.success(`Eviction finalized for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to finalize eviction.');
+      toast.error(err.message || err.response?.data?.message || 'Failed to finalize eviction.');
     }
   };
 
@@ -205,11 +217,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     if (!confirmed) return;
 
     try {
-      await api.post(`/landlord/tenants/${tenant.id}/evictions/cancel`);
+      const response = await landlordService.cancelEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to cancel eviction schedule.');
+      }
       toast.success(`Eviction schedule cancelled for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to cancel eviction schedule.');
+      toast.error(err.message || err.response?.data?.message || 'Failed to cancel eviction schedule.');
     }
   };
 
@@ -217,13 +232,16 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     const note = window.prompt('Optional note for undoing this eviction:', '') || '';
 
     try {
-      await api.post(`/landlord/tenants/${tenant.id}/evictions/undo`, {
+      const response = await landlordService.undoEviction(tenant.id, {
         reason: note.trim() || undefined,
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to undo eviction.');
+      }
       toast.success(`Eviction undone for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to undo eviction.');
+      toast.error(err.message || err.response?.data?.message || 'Failed to undo eviction.');
     }
   };
 
@@ -232,12 +250,15 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     if (!bookingId) return;
     try {
       if (window.confirm(`Approve reservation for ${tenant.first_name}?`)) {
-        await api.post(`/bookings/${bookingId}/approve-reservation`);
+        const response = await bookingService.approveReservation(bookingId);
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to approve reservation.');
+        }
         toast.success(`Reservation approved for ${tenant.first_name}.`);
         loadTenants();
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to approve reservation.');
+      toast.error(err.message || err.response?.data?.message || 'Failed to approve reservation.');
     }
   };
 
@@ -246,12 +267,15 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     if (!bookingId) return;
     try {
       if (window.confirm(`Check in ${tenant.first_name} and generate first invoice?`)) {
-        await api.post(`/bookings/${bookingId}/check-in`);
+        const response = await bookingService.checkIn(bookingId);
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to check in tenant.');
+        }
         toast.success(`${tenant.first_name} checked in successfully.`);
         loadTenants();
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to check in tenant.');
+      toast.error(err.message || err.response?.data?.message || 'Failed to check in tenant.');
     }
   };
 
@@ -268,8 +292,10 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     setShowAssignModal(true);
     setLoadingRoomsForAssign(true);
     try {
-      const res = await api.get(`/rooms/property/${propertyId}`);
-      const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+      const response = await roomService.getRoomsByProperty(propertyId);
+      const list = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
       setAvailableRoomsForAssign(list.filter(r => isRoomBookable(r)));
     } catch {
       setError('Failed to load available rooms for assignment');
@@ -293,12 +319,15 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
       if (assignData.end_date) payload.end_date = assignData.end_date;
       if (assignData.notes?.trim()) payload.notes = assignData.notes.trim();
 
-      await api.post(`/landlord/tenants/${assigningTenant.id}/assign-room`, payload);
+      const response = await landlordService.assignRoom(assigningTenant.id, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to assign room');
+      }
       toast.success('Room assignment completed successfully');
       setShowAssignModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to assign room');
+      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || 'Failed to assign room');
     } finally {
       setIsAssigning(false);
     }
@@ -314,12 +343,15 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
     setIsUnassigning(true);
     try {
-      await api.delete(`/landlord/tenants/${unassigningTenant.id}/unassign-room`);
+      const response = await landlordService.unassignRoom(unassigningTenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to unassign tenant');
+      }
       toast.success('Tenant unassigned successfully');
       setShowUnassignModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to unassign tenant');
+      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || 'Failed to unassign tenant');
     } finally {
       setIsUnassigning(false);
     }
@@ -334,12 +366,15 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
     setIsTransferring(true);
     try {
-      await api.post(`/landlord/tenants/${transferringTenant.id}/transfer-room`, transferData);
+      const response = await landlordService.transferRoom(transferringTenant.id, transferData);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to transfer room');
+      }
       toast.success("Room transfer completed successfully");
       setShowTransferModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || "Failed to transfer room");
+      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || "Failed to transfer room");
     } finally {
       setIsTransferring(false);
     }
@@ -737,15 +772,18 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
 
     setIsEvicting(true);
     try {
-      await api.post(`/landlord/tenants/${tenant.id}/evictions/schedule`, {
+      const response = await landlordService.scheduleEviction(tenant.id, {
         reason: reason.trim(),
         effective_at: parsedEffectiveAt.toISOString(),
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to schedule eviction.');
+      }
       toast.success(`Eviction scheduled for ${tenant.first_name}.`);
       onConfirm(); // Callback to refresh the tenant list
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to schedule eviction.");
+      toast.error(err.message || err.response?.data?.message || "Failed to schedule eviction.");
     } finally {
       setIsEvicting(false);
     }

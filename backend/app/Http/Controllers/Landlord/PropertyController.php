@@ -85,6 +85,26 @@ class PropertyController extends Controller
         }
     }
 
+    public function getPublicPropertyTypes()
+    {
+        try {
+            $types = $this->propertyService->getPublicPropertyTypes();
+
+            return response()->json([
+                'success' => true,
+                'data' => $types,
+                'message' => 'Property types fetched successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'data' => [],
+                'message' => 'Failed to fetch property types.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getPropertyDetails($id)
     {
         try {

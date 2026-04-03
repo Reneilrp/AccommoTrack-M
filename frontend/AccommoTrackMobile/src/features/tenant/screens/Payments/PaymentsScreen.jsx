@@ -27,6 +27,12 @@ import { getStyles } from '../../../../styles/Tenant/WalletStyles.js';
 import createEcho from '../../../../services/echo.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
+import {
+  refetchTenantQueries,
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 const { width } = Dimensions.get('window');
 
@@ -37,26 +43,81 @@ export default function PaymentsScreen() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('1m');
   const [refreshing, setRefreshing] = useState(false);
-  const [userId, setUserId] = useState(null);
 
-  useEffect(() => {
-    const getUserId = async () => {
+  const currentUserIdQuery = useQuery({
+    queryKey: tenantQueryKeys.paymentsCurrentUserId(),
+    queryFn: async () => {
       try {
         const userJson = await AsyncStorage.getItem('user');
         if (userJson) {
           const user = JSON.parse(userJson);
-          if (user.id) setUserId(user.id);
+          if (user?.id || user?.id === 0) {
+            return String(user.id);
+          }
         }
-        if (!userId) {
-          const storedId = await AsyncStorage.getItem('user_id');
-          if (storedId) setUserId(storedId);
-        }
+
+        const storedId = await AsyncStorage.getItem('user_id');
+        return storedId ? String(storedId) : null;
       } catch (e) {
-        // ignore
+        return null;
       }
-    };
-    getUserId();
-  }, []);
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+  const userId = currentUserIdQuery.data || null;
+
+  const paymentsQuery = useQuery({
+    queryKey: tenantQueryKeys.payments(statusFilter),
+    queryFn: async () => {
+      const response = await PaymentService.getPayments(statusFilter);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load payments');
+      }
+      return response.data || [];
+    },
+    onError: (error) => {
+      showError('Failed to load payments', error.message);
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const statsQuery = useQuery({
+    queryKey: tenantQueryKeys.paymentStats(),
+    queryFn: async () => {
+      const response = await PaymentService.getStats();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load stats');
+      }
+      return response.data || {};
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const payments = paymentsQuery.data || [];
+  const stats = statsQuery.data || {};
+  const paymentsLoading = paymentsQuery.isLoading;
+  const statsLoading = statsQuery.isLoading;
+  const refetchPayments = paymentsQuery.refetch;
+  const refetchStats = statsQuery.refetch;
+
+  const paymentRefetchers = React.useMemo(
+    () => [refetchPayments, refetchStats],
+    [refetchPayments, refetchStats],
+  );
+
+  const triggerPaymentDataRefresh = React.useCallback(
+    () => refetchTenantQueries(paymentRefetchers),
+    [paymentRefetchers],
+  );
+
+  useTenantFocusRefetch({ refetchers: paymentRefetchers });
+
+  const onRefresh = useTenantRefreshHandler({
+    setRefreshing,
+    refetchers: paymentRefetchers,
+  });
 
   // Real-time updates
   useEffect(() => {
@@ -72,7 +133,7 @@ export default function PaymentsScreen() {
       channel = echoInstance.private(`user.${userId}`)
         .listen('.invoice.updated', (e) => {
           console.log('[PaymentsScreen] Real-time update:', e);
-          onRefresh();
+          triggerPaymentDataRefresh();
           Toast.show({
             type: 'success',
             text1: 'Payment Updated',
@@ -92,40 +153,7 @@ export default function PaymentsScreen() {
         echoInstance.disconnect();
       }
     };
-  }, [userId]);
-
-  // Fetch payments
-  const { data: payments = [], isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({
-    queryKey: ['payments', statusFilter],
-    queryFn: async () => {
-      const response = await PaymentService.getPayments(statusFilter);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load payments');
-      }
-      return response.data || [];
-    },
-    onError: (error) => {
-      showError('Failed to load payments', error.message);
-    },
-  });
-
-  // Fetch stats
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
-    queryKey: ['paymentStats'],
-    queryFn: async () => {
-      const response = await PaymentService.getStats();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load stats');
-      }
-      return response.data || {};
-    },
-  });
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([refetchPayments(), refetchStats()]);
-    setRefreshing(false);
-  };
+  }, [userId, triggerPaymentDataRefresh]);
 
   // --- Payment / Checkout flow (merged from Payments.jsx) ---
   const paymentMethods = [
@@ -239,6 +267,7 @@ export default function PaymentsScreen() {
     } finally {
       setProcessingPayment(false);
       setCheckoutVisible(false);
+      await triggerPaymentDataRefresh();
     }
   };
 

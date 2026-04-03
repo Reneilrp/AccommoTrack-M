@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import api from '../../../../services/api.js';
 import { getStyles } from '../../../../styles/Landlord/DormProfile.js';
@@ -34,25 +40,79 @@ const formatDisplayDate = (value) => {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const EMPTY_DASH_DATA = {
+  pendingBookings: [],
+  overdueInvoices: [],
+  pendingAddonRequests: [],
+  maintenanceRequests: [],
+  transferRequests: [],
+  recentReviews: [],
+};
+
 export default function PropertySummaryScreen({ route, navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const propertyId = route.params?.propertyId || route.params?.property?.id;
-  
-  const [property, setProperty] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
 
-  const [dashData, setDashData] = useState({
-    pendingBookings: [],
-    overdueInvoices: [],
-    pendingAddonRequests: [],
-    maintenanceRequests: [],
-    transferRequests: [],
-    recentReviews: [],
+  const [refreshing, setRefreshing] = useState(false);
+  const propertyQuery = useQuery({
+    queryKey: landlordQueryKeys.propertySummary(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const response = await PropertyService.getProperty(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load property');
+      }
+
+      return response.data;
+    },
+    placeholderData: (previousData) => previousData,
   });
-  const [dashLoading, setDashLoading] = useState(true);
+
+  const activityQuery = useQuery({
+    queryKey: landlordQueryKeys.propertySummaryActivity(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const [bookingsRes, invoicesRes, addonRequestsRes, maintenanceRes, transfersRes, reviewsRes] = await Promise.allSettled([
+        api.get(`/bookings?property_id=${propertyId}&status=pending`),
+        api.get(`/invoices?property_id=${propertyId}&status=overdue`),
+        api.get(`/landlord/properties/${propertyId}/addons/pending`),
+        api.get(`/landlord/maintenance-requests?property_id=${propertyId}&status=pending`),
+        api.get(`/landlord/transfers?property_id=${propertyId}&status=pending`),
+        api.get(`/landlord/reviews?property_id=${propertyId}&limit=3`),
+      ]);
+
+      const getResData = (res) => {
+        if (res.status !== 'fulfilled') return [];
+        const payload = res.value?.data;
+        if (Array.isArray(payload?.data)) return payload.data;
+        if (Array.isArray(payload)) return payload;
+        return [];
+      };
+
+      return {
+        pendingBookings: getResData(bookingsRes),
+        overdueInvoices: (invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.data : []) || [],
+        pendingAddonRequests: addonRequestsRes.status === 'fulfilled' ? (addonRequestsRes.value?.data?.pendingRequests || []) : [],
+        maintenanceRequests: (maintenanceRes.status === 'fulfilled' ? maintenanceRes.value?.data?.data : []) || [],
+        transferRequests: getResData(transfersRes),
+        recentReviews: getResData(reviewsRes),
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const property = propertyQuery.data || null;
+  const loading = propertyQuery.isPending && !property;
+  const error = propertyQuery.error?.message || '';
+  const dashData = activityQuery.data || EMPTY_DASH_DATA;
+  const dashLoading = activityQuery.isPending && !activityQuery.data;
+  const refetchProperty = propertyQuery.refetch;
+  const refetchActivity = activityQuery.refetch;
+  const summaryRefetchers = useMemo(
+    () => [refetchProperty, refetchActivity],
+    [refetchProperty, refetchActivity],
+  );
 
   const occupancy = useMemo(() => {
     if (!property) return { total: 0, available: 0, occupied: 0, percentage: 0 };
@@ -63,77 +123,13 @@ export default function PropertySummaryScreen({ route, navigation }) {
     return { total, available, occupied, percentage };
   }, [property]);
 
-  const loadProperty = useCallback(
-    async (fromRefresh = false) => {
-      if (!propertyId) {
-        setError('Missing property identifier.');
-        setLoading(false);
-        setDashLoading(false);
-        return;
-      }
+  useLandlordFocusRefetch({ enabled: Boolean(propertyId), refetchers: summaryRefetchers });
 
-      fromRefresh ? setRefreshing(true) : setLoading(true);
-      setDashLoading(true);
-
-      try {
-        setError('');
-        
-        // Fetch property info
-        const response = await PropertyService.getProperty(propertyId);
-        if (!response.success) {
-          throw new Error(response.error || 'Failed to load property');
-        }
-        setProperty(response.data);
-
-        // Fetch dashboard data
-        const [bookingsRes, invoicesRes, addonRequestsRes, maintenanceRes, transfersRes, reviewsRes] = await Promise.allSettled([
-          api.get(`/bookings?property_id=${propertyId}&status=pending`),
-          api.get(`/invoices?property_id=${propertyId}&status=overdue`),
-          api.get(`/landlord/properties/${propertyId}/addons/pending`),
-          api.get(`/landlord/maintenance-requests?property_id=${propertyId}&status=pending`),
-          api.get(`/landlord/transfers?property_id=${propertyId}&status=pending`),
-          api.get(`/landlord/reviews?property_id=${propertyId}&limit=3`),
-        ]);
-
-        const getResData = (res) => {
-          if (res.status !== 'fulfilled') return [];
-          const payload = res.value?.data;
-          if (Array.isArray(payload?.data)) return payload.data;
-          if (Array.isArray(payload)) return payload;
-          return [];
-        };
-
-        setDashData({
-          pendingBookings: getResData(bookingsRes),
-          overdueInvoices: (invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.data : []) || [],
-          pendingAddonRequests: addonRequestsRes.status === 'fulfilled' ? (addonRequestsRes.value?.data?.pendingRequests || []) : [],
-          maintenanceRequests: (maintenanceRes.status === 'fulfilled' ? maintenanceRes.value?.data?.data : []) || [],
-          transferRequests: getResData(transfersRes),
-          recentReviews: getResData(reviewsRes),
-        });
-
-      } catch (err) {
-        console.error('Failed to load property or activity', err);
-        setError(err.message || 'Unable to load property details.');
-      } finally {
-        fromRefresh ? setRefreshing(false) : setLoading(false);
-        setDashLoading(false);
-      }
-    },
-    [propertyId]
-  );
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadProperty(false);
-    });
-    return unsubscribe;
-  }, [navigation, loadProperty]);
-
-  const handleRefresh = useCallback(() => {
-    if (!propertyId) return;
-    loadProperty(true);
-  }, [loadProperty, propertyId]);
+  const handleRefresh = useLandlordRefreshHandler({
+    enabled: Boolean(propertyId),
+    setRefreshing,
+    refetchers: summaryRefetchers,
+  });
 
   const activityItems = useMemo(() => {
     const readName = (entity, fallback = 'Tenant') => {

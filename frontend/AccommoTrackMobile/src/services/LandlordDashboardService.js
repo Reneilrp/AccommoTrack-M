@@ -91,9 +91,18 @@ const LandlordDashboardService = {
     async fetchUnreadNotificationsCount() {
         try {
             const response = await api.get('/notifications/unread-count?role=landlord');
+            const payload = response?.data;
+            const rawCount =
+                payload?.count ??
+                payload?.data?.count ??
+                payload?.unread_count ??
+                payload?.data?.unread_count ??
+                (typeof payload === 'number' ? payload : 0);
+            const normalizedCount = Number(rawCount);
+
             return {
                 success: true,
-                data: response.data.count ?? response.data
+                data: Number.isFinite(normalizedCount) ? normalizedCount : 0,
             };
         } catch (error) {
             console.error('Failed to fetch unread notification count:', error);

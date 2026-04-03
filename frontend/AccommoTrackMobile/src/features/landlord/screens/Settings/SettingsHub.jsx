@@ -1,21 +1,29 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  ActivityIndicator,
   ScrollView,
+  RefreshControl,
   StatusBar,
   Switch,
   Text,
   TouchableOpacity,
   View,
-  Linking,
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import { getStyles } from "../../../../styles/Landlord/Settings.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { triggerForcedLogout, triggerRoleSwitch } from "../../../../navigation/RootNavigation.js";
+import { useAuthStore } from "../../../../stores/auth/authStore.js";
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from "../../hooks/useLandlordQueryHelpers.js";
 
 import ProfileService from "../../../../services/ProfileService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
@@ -128,10 +136,13 @@ const SettingRow = ({ item, onPress, onToggle, theme, styles }) => {
 export default function SettingsScreen({ navigation, onLogout }) {
   const { theme, isDarkMode, toggleTheme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const clearAuthSession = useAuthStore((state) => state.clearAuthSession);
+  const setActiveRole = useAuthStore((state) => state.setActiveRole);
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState("landlord");
   const [verificationStatus, setVerificationStatus] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState({
     payments: true,
     messages: true,
@@ -139,44 +150,78 @@ export default function SettingsScreen({ navigation, onLogout }) {
     push: true,
     email: true,
   });
+  const [fetchError, setFetchError] = useState("");
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      setLoading(true);
+  const settingsQuery = useQuery({
+    queryKey: landlordQueryKeys.settingsHub(),
+    queryFn: async () => {
       const [profileRes, verificationRes] = await Promise.all([
         ProfileService.getProfile(),
-        ProfileService.getVerificationStatus()
+        ProfileService.getVerificationStatus(),
       ]);
 
-      if (profileRes.success && profileRes.data) {
-        setUser(profileRes.data);
-        setUserRole(profileRes.data.role || "landlord");
-        const prefs = profileRes.data.notification_preferences;
-        if (prefs) {
-          const parsed = typeof prefs === "string" ? JSON.parse(prefs) : prefs;
-          setNotificationPrefs({
-            payments: parsed.payments ?? true,
-            messages: parsed.messages ?? true,
-            maintenance: parsed.maintenance ?? false,
-            push: parsed.push ?? true,
-            email: parsed.email ?? true,
-          });
-        }
+      if (!profileRes.success || !profileRes.data) {
+        throw new Error(profileRes.error || "Failed to load settings");
       }
 
-      if (verificationRes.success) {
-        setVerificationStatus(verificationRes.data.status || 'not_submitted');
-      }
-    } catch (error) {
-      console.error("Failed to load user info:", error.message);
-    } finally {
-      setLoading(false);
+      return {
+        profile: profileRes.data,
+        verificationStatus: verificationRes.success
+          ? (verificationRes.data?.status || "not_submitted")
+          : null,
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const loading = settingsQuery.isPending && !settingsQuery.data;
+  const refetchSettings = settingsQuery.refetch;
+  const settingsRefetchers = useMemo(() => [refetchSettings], [refetchSettings]);
+
+  useLandlordFocusRefetch({ refetchers: settingsRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: settingsRefetchers,
+  });
+
+  useEffect(() => {
+    if (!settingsQuery.data?.profile) return;
+
+    const profile = settingsQuery.data.profile;
+    const role = profile.role || "landlord";
+    setUser(profile);
+    setUserRole(role);
+    setActiveRole(role);
+
+    const prefs = profile.notification_preferences;
+    if (prefs) {
+      const parsed = typeof prefs === "string" ? JSON.parse(prefs) : prefs;
+      setNotificationPrefs({
+        payments: parsed.payments ?? true,
+        messages: parsed.messages ?? true,
+        maintenance: parsed.maintenance ?? false,
+        push: parsed.push ?? true,
+        email: parsed.email ?? true,
+      });
     }
-  };
+
+    if (settingsQuery.data.verificationStatus !== null) {
+      setVerificationStatus(settingsQuery.data.verificationStatus);
+    }
+  }, [settingsQuery.data, setActiveRole]);
+
+  useEffect(() => {
+    if (!settingsQuery.error) {
+      setFetchError("");
+      return;
+    }
+
+    setFetchError(
+      settingsQuery.error?.message ||
+      "Unable to load settings right now. Pull to refresh or retry.",
+    );
+  }, [settingsQuery.error]);
 
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -190,6 +235,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                         await onLogout();
                       } else {
                         // Clear only auth-related data
+                        clearAuthSession();
                         await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
                         triggerForcedLogout();
                       }          } catch (error) {
@@ -200,7 +246,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
     ]);
   };
 
-  const handleSwitchRole = async () => {
+  const handleSwitchRole = useCallback(async () => {
     const newRole = userRole === "landlord" ? "tenant" : "landlord";
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
 
@@ -212,7 +258,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
             text: 'Switch',
             onPress: async () => {
               try {
-                setLoading(true);
+                setActionLoading(true);
                 const res = await ProfileService.switchRole('landlord');
                 if (res.success) {
                   const userJson = await AsyncStorage.getItem('user');
@@ -224,6 +270,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                       await AsyncStorage.setItem(`user_role_${parsed.id}`, 'landlord');
                     }
                   }
+                  setActiveRole('landlord');
                   triggerRoleSwitch('landlord');
                 } else {
                   Alert.alert('Error', res.error || 'Failed to switch role');
@@ -232,7 +279,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                 console.error('Role switch error:', error);
                 Alert.alert('Error', 'An unexpected error occurred while switching roles.');
               } finally {
-                setLoading(false);
+                setActionLoading(false);
               }
             },
           },
@@ -257,7 +304,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
           text: "Switch",
           onPress: async () => {
             try {
-              setLoading(true);
+              setActionLoading(true);
               const res = await ProfileService.switchRole(newRole);
               if (res.success) {
                 // Update local storage
@@ -271,6 +318,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                     await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
                   }
                 }
+                setActiveRole(newRole);
                 // Trigger navigation refresh
                 triggerRoleSwitch(newRole);
               } else {
@@ -283,13 +331,13 @@ export default function SettingsScreen({ navigation, onLogout }) {
                 "An unexpected error occurred while switching roles.",
               );
             } finally {
-              setLoading(false);
+              setActionLoading(false);
             }
           },
         },
       ],
     );
-  };
+  }, [navigation, setActiveRole, userRole, verificationStatus]);
 
   const handleUnavailable = (label) => {
     Alert.alert(label, "This option will be available soon.");
@@ -555,7 +603,14 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ),
       }))
       .filter((section) => section.items.length > 0);
-  }, [notificationPrefs, userRole, isDarkMode, user]);
+  }, [
+    notificationPrefs,
+    userRole,
+    verificationStatus,
+    isDarkMode,
+    user,
+    handleSwitchRole,
+  ]);
 
   const initials = () => {
     const first = user?.first_name || user?.firstName || "";
@@ -563,6 +618,21 @@ export default function SettingsScreen({ navigation, onLogout }) {
     if (!first && !last) return "LL";
     return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={theme.colors.primary}
+        />
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ marginTop: 12, color: theme.colors.textSecondary }}>Loading settings...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -573,7 +643,57 @@ export default function SettingsScreen({ navigation, onLogout }) {
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
       >
+        {fetchError ? (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 12,
+              borderWidth: 1,
+              borderColor: theme.isDark ? '#7F1D1D' : '#FECACA',
+              backgroundColor: theme.isDark ? 'rgba(127,29,29,0.32)' : '#FEF2F2',
+              borderRadius: 10,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            <Ionicons name="alert-circle-outline" size={18} color={theme.isDark ? '#FCA5A5' : '#B91C1C'} />
+            <Text
+              style={{
+                flex: 1,
+                marginLeft: 8,
+                fontSize: 12,
+                fontWeight: "500",
+                color: theme.isDark ? '#FCA5A5' : '#B91C1C',
+              }}
+            >
+              {fetchError}
+            </Text>
+            <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  marginLeft: 10,
+                  color: theme.isDark ? '#FCA5A5' : '#B91C1C',
+                }}
+              >
+                Retry
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Settings</Text>
           <Text style={styles.headerSubtitle}>
@@ -633,7 +753,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ))}
 
         <View style={styles.section}>
-          <TouchableOpacity style={styles.dangerButton} onPress={handleLogout}>
+          <TouchableOpacity
+            style={[styles.dangerButton, actionLoading && { opacity: 0.7 }]}
+            onPress={handleLogout}
+            disabled={actionLoading}
+          >
             <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
             <Text style={styles.dangerButtonText}>Logout</Text>
           </TouchableOpacity>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,20 +14,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import BookingService from '../../../../services/BookingService.js';
 import { getStyles } from '../../../../styles/Landlord/AddBooking.js';
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+} from '../../hooks/useLandlordQueryHelpers.js';
+
+const EMPTY_PROPERTIES = [];
+const EMPTY_ROOMS = [];
 
 export default function AddBooking({ navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  
-  const [properties, setProperties] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
+
   const [submitting, setSubmitting] = useState(false);
-  const [loadingRooms, setLoadingRooms] = useState(false);
 
   const [formData, setFormData] = useState({
     guestName: '',
@@ -38,7 +42,6 @@ export default function AddBooking({ navigation }) {
     checkIn: new Date(),
     checkOut: new Date(new Date().setMonth(new Date().getMonth() + 1)),
     amount: '',
-    paymentStatus: 'unpaid',
     paymentPlan: 'full',
   });
 
@@ -49,9 +52,93 @@ export default function AddBooking({ navigation }) {
   const [selectedGuest, setSelectedGuest] = useState(null);
   const [isSearchingGuests, setIsSearchingGuests] = useState(false);
 
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
+    queryFn: async () => {
+      const response = await PropertyService.getMyProperties();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load properties');
+      }
+
+      return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const roomsQuery = useQuery({
+    queryKey: landlordQueryKeys.roomsByProperty(formData.propertyId),
+    enabled: Boolean(formData.propertyId),
+    queryFn: async () => {
+      const response = await PropertyService.getRooms(formData.propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load rooms');
+      }
+
+      const data = response.data;
+      const roomList = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.data) ? data.data : EMPTY_ROOMS);
+      return roomList.filter((room) => room.status === 'available');
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const rooms = roomsQuery.data || EMPTY_ROOMS;
+  const loading = propertiesQuery.isPending && properties.length === 0;
+  const loadingRooms = Boolean(formData.propertyId) && roomsQuery.isFetching;
+  const fetchError = propertiesQuery.error?.message || roomsQuery.error?.message || '';
+
+  const refetchProperties = propertiesQuery.refetch;
+  const refetchRooms = roomsQuery.refetch;
+  const addBookingRefetchers = useMemo(
+    () => (formData.propertyId ? [refetchProperties, refetchRooms] : [refetchProperties]),
+    [formData.propertyId, refetchProperties, refetchRooms],
+  );
+  useLandlordFocusRefetch({ refetchers: addBookingRefetchers });
+
   useEffect(() => {
-    fetchProperties();
-  }, []);
+    if (formData.propertyId || properties.length === 0) return;
+    setFormData((prev) => ({ ...prev, propertyId: properties[0].id }));
+  }, [formData.propertyId, properties]);
+
+  useEffect(() => {
+    if (!formData.propertyId) {
+      setFormData((prev) =>
+        prev.roomId || prev.amount
+          ? { ...prev, roomId: '', amount: '' }
+          : prev,
+      );
+      return;
+    }
+
+    if (rooms.length === 0) {
+      setFormData((prev) =>
+        prev.roomId || prev.amount
+          ? { ...prev, roomId: '', amount: '' }
+          : prev,
+      );
+      return;
+    }
+
+    setFormData((prev) => {
+      const selectedRoom = rooms.find((room) => String(room.id) === String(prev.roomId));
+      const fallbackRoom = rooms[0];
+      const activeRoom = selectedRoom || fallbackRoom;
+      const nextRoomId = activeRoom?.id ?? '';
+      const nextAmount = activeRoom?.monthly_rate?.toString() || '';
+
+      if (String(prev.roomId) === String(nextRoomId) && prev.amount === nextAmount) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        roomId: nextRoomId,
+        amount: nextAmount,
+      };
+    });
+  }, [formData.propertyId, rooms]);
 
   useEffect(() => {
     if (!guestSearch || guestSearch.trim().length < 2 || selectedGuest) {
@@ -64,7 +151,7 @@ export default function AddBooking({ navigation }) {
       try {
         const res = await BookingService.searchGuests(guestSearch.trim());
         setGuestResults(res.success ? res.data : []);
-      } catch (error) {
+      } catch (_error) {
         setGuestResults([]);
       } finally {
         setIsSearchingGuests(false);
@@ -74,51 +161,17 @@ export default function AddBooking({ navigation }) {
     return () => clearTimeout(timer);
   }, [guestSearch, selectedGuest]);
 
-  const fetchProperties = async () => {
-    try {
-      const res = await PropertyService.getMyProperties();
-      if (res.success) {
-        const props = Array.isArray(res.data) ? res.data : [];
-        setProperties(props);
-        if (props.length > 0) {
-          handlePropertyChange(props[0].id);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching properties:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRooms = async (propId) => {
-    setLoadingRooms(true);
-    try {
-      const res = await PropertyService.getRooms(propId);
-      if (res.success) {
-        const availableRooms = (Array.isArray(res.data) ? res.data : [])
-          .filter(room => room.status === 'available');
-        setRooms(availableRooms);
-        if (availableRooms.length > 0) {
-          setFormData(prev => ({ ...prev, roomId: availableRooms[0].id, amount: availableRooms[0].monthly_rate?.toString() || '' }));
-        } else {
-          setFormData(prev => ({ ...prev, roomId: '', amount: '' }));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching rooms:', error);
-    } finally {
-      setLoadingRooms(false);
-    }
-  };
-
   const handlePropertyChange = (propId) => {
-    setFormData(prev => ({ ...prev, propertyId: propId }));
-    fetchRooms(propId);
+    setFormData((prev) => ({
+      ...prev,
+      propertyId: propId,
+      roomId: '',
+      amount: '',
+    }));
   };
 
   const handleRoomChange = (roomId) => {
-    const selectedRoom = rooms.find(r => r.id === roomId);
+    const selectedRoom = rooms.find((room) => String(room.id) === String(roomId));
     setFormData(prev => ({ 
       ...prev, 
       roomId: roomId, 
@@ -141,7 +194,7 @@ export default function AddBooking({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if ((!selectedGuest && !formData.guestName) || !formData.propertyId || !formData.roomId || !formData.amount) {
+    if ((!selectedGuest && !formData.guestName) || !formData.propertyId || !formData.roomId) {
       Alert.alert('Validation', 'Please fill in all required fields.');
       return;
     }
@@ -158,17 +211,13 @@ export default function AddBooking({ navigation }) {
         room_id: formData.roomId,
         start_date: formData.checkIn.toISOString().split('T')[0],
         end_date: formData.checkOut.toISOString().split('T')[0],
-        amount: parseFloat(formData.amount),
-        payment_status: formData.paymentStatus,
         payment_plan: formData.paymentPlan,
       };
 
       if (selectedGuest) {
-        payload.guest_id = selectedGuest.id;
+        payload.tenant_id = selectedGuest.id;
       } else {
-        payload.guest_name = formData.guestName;
-        payload.email = formData.email;
-        payload.phone = formData.phone;
+        payload.guest_name = formData.guestName.trim();
       }
 
       const res = await BookingService.createBooking(payload);
@@ -179,7 +228,7 @@ export default function AddBooking({ navigation }) {
       } else {
         Alert.alert('Error', res.error || 'Failed to create booking');
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setSubmitting(false);
@@ -209,6 +258,24 @@ export default function AddBooking({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {fetchError ? (
+          <View
+            style={{
+              marginBottom: 12,
+              borderWidth: 1,
+              borderColor: theme.isDark ? '#7F1D1D' : '#FECACA',
+              backgroundColor: theme.isDark ? 'rgba(127,29,29,0.32)' : '#FEF2F2',
+              borderRadius: 10,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+            }}
+          >
+            <Text style={{ color: theme.isDark ? '#FCA5A5' : '#B91C1C', fontSize: 12, fontWeight: '600' }}>
+              {fetchError}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Guest Information */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Guest Information</Text>
@@ -371,29 +438,14 @@ export default function AddBooking({ navigation }) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Booking Amount (₱) <Text style={styles.requiredAsterisk}>*</Text></Text>
+            <Text style={styles.label}>Estimated Amount (₱)</Text>
             <TextInput
               style={styles.input}
               value={formData.amount}
-              onChangeText={(text) => setFormData({ ...formData, amount: text.replace(/[^0-9.]/g, '') })}
-              placeholder="0.00"
+              placeholder="Auto-calculated from room rate"
               keyboardType="numeric"
+              editable={false}
             />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Payment Status</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={formData.paymentStatus}
-                onValueChange={(value) => setFormData({ ...formData, paymentStatus: value })}
-                style={styles.picker}
-              >
-                <Picker.Item label="Unpaid" value="unpaid" />
-                <Picker.Item label="Partial" value="partial" />
-                <Picker.Item label="Paid" value="paid" />
-              </Picker>
-            </View>
           </View>
 
           <View style={styles.inputGroup}>

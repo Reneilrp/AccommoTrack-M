@@ -82,11 +82,13 @@ class Booking extends Model
     protected $fillable = [
         'property_id',
         'tenant_id',
+        'booking_mode',
         'landlord_id',
         'guest_name',
         'room_id',
         'bed_count',
         'booking_reference',
+        'booking_group_reference',
         'start_date',
         'end_date',
         'move_in_date',
@@ -108,6 +110,8 @@ class Booking extends Model
         'cancellation_reason',
         'confirmed_at',
         'notice_given_at',
+        'refund_amount',
+        'refund_processed_at',
     ];
 
     protected $casts = [
@@ -115,13 +119,17 @@ class Booking extends Model
         'end_date' => 'date',
         'monthly_rent' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'booking_mode' => 'string',
+        'booking_group_reference' => 'string',
         'contract_mode' => 'string',
         'next_billing_date' => 'date',
         'billing_day' => 'integer',
         'deposit_balance' => 'decimal:2',
+        'refund_amount' => 'decimal:2',
         'cancelled_at' => 'datetime',
         'confirmed_at' => 'datetime',
         'notice_given_at' => 'datetime',
+        'refund_processed_at' => 'datetime',
         'guest_name' => 'string',
     ];
 
@@ -155,6 +163,14 @@ class Booking extends Model
     public function room()
     {
         return $this->belongsTo(Room::class);
+    }
+
+    /**
+     * Relationship: Booking has many proxy occupants.
+     */
+    public function occupants()
+    {
+        return $this->hasMany(BookingOccupant::class);
     }
 
     /**

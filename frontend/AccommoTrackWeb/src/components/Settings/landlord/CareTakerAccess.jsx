@@ -37,7 +37,7 @@ export default function CareTakerAccess({
   resetCaretakerPermissions,
   handlePermissionToggle
 }) {
-  const [roomPermissionPrompt, setRoomPermissionPrompt] = useState(false);
+  const [permissionPrompt, setPermissionPrompt] = useState({ open: false, key: null, target: 'create' });
   const [showPasswords, setShowPasswords] = useState(false);
   const [selectedCaretaker, setSelectedCaretaker] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -124,6 +124,23 @@ export default function CareTakerAccess({
       icon: <Users className="w-4 h-4" />,
     },
   ];
+  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments']);
+  const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
+    rooms: 'Enabling this allows caretakers to modify room availability and tenant placements.',
+    properties: 'Enabling this allows caretakers to edit core property details and settings.',
+    maintenance: 'Enabling this allows caretakers to process and update maintenance workflows.',
+    payments: 'Enabling this allows caretakers to manage sensitive billing and payment operations.',
+  };
+
+  const isLandlordLevelPermission = (key) => LANDLORD_LEVEL_PERMISSION_KEYS.has(key);
+
+  const closePermissionPrompt = () => {
+    setPermissionPrompt({ open: false, key: null, target: 'create' });
+  };
+
+  const requestPermissionPrompt = (key, target) => {
+    setPermissionPrompt({ open: true, key, target });
+  };
   const resetCreationForm = () => {
     if (setCaretakerForm) setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
     if (resetCaretakerPermissions) resetCaretakerPermissions();
@@ -176,6 +193,12 @@ export default function CareTakerAccess({
   };
 
   const toggleEditPermission = (key) => {
+    const isEnabling = !editFormData.permissions[key];
+    if (isEnabling && isLandlordLevelPermission(key)) {
+      requestPermissionPrompt(key, 'edit');
+      return;
+    }
+
     setEditFormData(prev => ({
       ...prev,
       permissions: { ...prev.permissions, [key]: !prev.permissions[key] }
@@ -308,19 +331,40 @@ export default function CareTakerAccess({
   };
 
   const handlePermissionFieldToggle = (key) => {
-    if (key === 'rooms' && !caretakerPermissions.rooms) {
-      setRoomPermissionPrompt(true);
-    } else {
-      if (typeof handlePermissionToggle === 'function') {
-        handlePermissionToggle(key);
-      }
+    const isEnabling = !safePermissions[key];
+    if (isEnabling && isLandlordLevelPermission(key)) {
+      requestPermissionPrompt(key, 'create');
+      return;
+    }
+
+    if (typeof handlePermissionToggle === 'function') {
+      handlePermissionToggle(key);
     }
   };
 
-  const confirmRoomPermission = () => {
-    setRoomPermissionPrompt(false);
-    handlePermissionToggle('rooms');
+  const confirmPermissionGrant = () => {
+    const { key, target } = permissionPrompt;
+    if (!key) {
+      closePermissionPrompt();
+      return;
+    }
+
+    if (target === 'edit') {
+      setEditFormData(prev => ({
+        ...prev,
+        permissions: { ...prev.permissions, [key]: true }
+      }));
+    } else if (typeof handlePermissionToggle === 'function') {
+      handlePermissionToggle(key);
+    }
+
+    closePermissionPrompt();
   };
+
+  const promptedPermission = CARETAKER_PERMISSION_FIELDS.find((field) => field.key === permissionPrompt.key);
+  const promptedPermissionLabel = promptedPermission?.label || 'this module';
+  const promptedPermissionMessage = LANDLORD_LEVEL_PERMISSION_MESSAGES[permissionPrompt.key]
+    || 'Enabling this grants landlord-level access. Please confirm before proceeding.';
 
   const handleRegister = async (ev) => {
     if (ev && ev.preventDefault) ev.preventDefault();
@@ -949,26 +993,27 @@ export default function CareTakerAccess({
       )}
 
       {/* Permission Modal */}
-      {roomPermissionPrompt && (
+      {permissionPrompt.open && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 text-center space-y-4">
               <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="w-10 h-10 text-amber-600 dark:text-amber-400" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Security Alert</h3>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Landlord-Level Access</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Enabling <span className="font-bold text-gray-900 dark:text-white">Room Management</span> allows caretakers to modify availability and tenant placements. Are you sure?
+                Enabling <span className="font-bold text-gray-900 dark:text-white">{promptedPermissionLabel}</span> grants elevated landlord-level permissions.<br />
+                {promptedPermissionMessage}
               </p>
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <button
-                  onClick={() => setRoomPermissionPrompt(false)}
+                  onClick={closePermissionPrompt}
                   className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={confirmRoomPermission}
+                  onClick={confirmPermissionGrant}
                   className="py-4 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none"
                 >
                   Grant Access

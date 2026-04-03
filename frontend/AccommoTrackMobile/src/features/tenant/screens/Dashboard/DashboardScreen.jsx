@@ -18,6 +18,11 @@ import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { DashboardStatSkeleton } from '../../../../components/Skeletons/index.jsx';
 import { showError } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/DashboardScreen.js';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -116,7 +121,7 @@ const DashboardScreen = () => {
   }, []);
 
   const currentStayQuery = useQuery({
-    queryKey: ['currentStay'],
+    queryKey: tenantQueryKeys.dashboardCurrentStay(),
     queryFn: async () => {
       const response = await tenantService.getCurrentStay();
       if (!response.success) {
@@ -134,7 +139,7 @@ const DashboardScreen = () => {
   });
 
   const statsQuery = useQuery({
-    queryKey: ['dashboardStats'],
+    queryKey: tenantQueryKeys.dashboardStats(),
     queryFn: async () => {
       const response = await tenantService.getDashboardStats();
       if (!response.success) {
@@ -147,7 +152,7 @@ const DashboardScreen = () => {
   });
 
   const activitiesQuery = useQuery({
-    queryKey: ['tenantDashboardActivities'],
+    queryKey: tenantQueryKeys.dashboardActivities(),
     queryFn: async () => {
       const response = await tenantService.getDashboardActivities();
       if (!response.success) {
@@ -161,7 +166,7 @@ const DashboardScreen = () => {
   });
 
   const upcomingQuery = useQuery({
-    queryKey: ['tenantDashboardUpcoming'],
+    queryKey: tenantQueryKeys.dashboardUpcoming(),
     queryFn: async () => {
       const response = await tenantService.getDashboardUpcoming();
       if (!response.success) {
@@ -175,7 +180,7 @@ const DashboardScreen = () => {
   });
 
   const breakdownQuery = useQuery({
-    queryKey: ['tenantPaymentBreakdown'],
+    queryKey: tenantQueryKeys.dashboardPaymentBreakdown(6),
     queryFn: async () => {
       const response = await tenantService.getPaymentBreakdown(6);
       if (!response.success) {
@@ -188,17 +193,29 @@ const DashboardScreen = () => {
     enabled: !currentStayQuery.isError,
   });
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([
-      currentStayQuery.refetch(),
-      statsQuery.refetch(),
-      activitiesQuery.refetch(),
-      upcomingQuery.refetch(),
-      breakdownQuery.refetch(),
-    ]);
-    setRefreshing(false);
-  };
+  const dashboardRefetchers = useMemo(
+    () => [
+      currentStayQuery.refetch,
+      statsQuery.refetch,
+      activitiesQuery.refetch,
+      upcomingQuery.refetch,
+      breakdownQuery.refetch,
+    ],
+    [
+      currentStayQuery.refetch,
+      statsQuery.refetch,
+      activitiesQuery.refetch,
+      upcomingQuery.refetch,
+      breakdownQuery.refetch,
+    ],
+  );
+
+  useTenantFocusRefetch({ refetchers: dashboardRefetchers });
+
+  const onRefresh = useTenantRefreshHandler({
+    setRefreshing,
+    refetchers: dashboardRefetchers,
+  });
 
   const loading = currentStayQuery.isLoading || statsQuery.isLoading;
   const stayData = currentStayQuery.data || {};

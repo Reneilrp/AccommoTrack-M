@@ -1,39 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import tenantService from '../../../../services/TenantService.js';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../../styles/Tenant/ReviewStyles.js';
+import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
 
 export default function MyReviews() {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const navigation = useNavigation();
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
 
-  useEffect(() => { load(); }, []);
-
-  const load = async () => {
-    setLoading(true);
-    try {
+  const myReviewsQuery = useQuery({
+    queryKey: tenantQueryKeys.myReviews(),
+    queryFn: async () => {
       const res = await tenantService.getTenantReviews();
-      if (res.success) {
-        // backend returns array
-        setReviews(Array.isArray(res.data) ? res.data : res.data.reviews || []);
-      } else {
-        Alert.alert('Error', res.error || 'Failed to load your reviews');
+      if (!res?.success) {
+        throw new Error(res?.error || 'Failed to load your reviews');
       }
-    } catch (err) {
-      console.error('Load reviews error', err);
-      Alert.alert('Error', 'Failed to load your reviews');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      const data = Array.isArray(res.data) ? res.data : res.data?.reviews || [];
+      return Array.isArray(data) ? data : [];
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const reviews = myReviewsQuery.data || [];
+  const loading = myReviewsQuery.isLoading;
+  const refetchMyReviews = myReviewsQuery.refetch;
+  const myReviewsRefetchers = React.useMemo(
+    () => [refetchMyReviews],
+    [refetchMyReviews],
+  );
+
+  useTenantFocusRefetch({ refetchers: myReviewsRefetchers });
+
+  useEffect(() => {
+    if (!myReviewsQuery.error) return;
+    Alert.alert('Error', myReviewsQuery.error.message || 'Failed to load your reviews');
+  }, [myReviewsQuery.error]);
 
   const confirmDelete = (id) => {
     Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
@@ -48,7 +58,10 @@ export default function MyReviews() {
       const res = await tenantService.deleteReview(id);
       if (res.success) {
         Alert.alert('Deleted', 'Review deleted');
-        setReviews(prev => prev.filter(r => r.id !== id));
+        queryClient.setQueryData(tenantQueryKeys.myReviews(), (prev) => {
+          if (!Array.isArray(prev)) return [];
+          return prev.filter((review) => review.id !== id);
+        });
       } else {
         Alert.alert('Error', res.error || 'Failed to delete review');
       }

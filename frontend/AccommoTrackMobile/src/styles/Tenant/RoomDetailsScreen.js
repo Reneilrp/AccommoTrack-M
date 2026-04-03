@@ -268,6 +268,10 @@ amenityText: {
     borderRadius: 16,
     width: '100%',
     maxWidth: 400,
+    maxHeight: '90%',
+  },
+  modalScrollContent: {
+    paddingBottom: 8,
   },
   modalTitle: {
     fontSize: 20,

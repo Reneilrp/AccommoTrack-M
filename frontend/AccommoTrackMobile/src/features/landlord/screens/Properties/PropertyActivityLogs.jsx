@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,43 +11,60 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import LandlordDashboardService from '../../../../services/LandlordDashboardService.js';
 import { getStyles } from '../../../../styles/Landlord/PropertyActivityLogs.js';
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 
 const FILTERS = ['All', 'Dorm Settings', 'Room Management', 'Payments', 'Due'];
+const EMPTY_LOGS = [];
 
 export default function PropertyActivityLogs({ route, navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { propertyId, propertyTitle } = route.params || {};
 
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All');
 
-  const fetchLogs = useCallback(async (isRefresh = false) => {
-    if (!propertyId) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-
-    try {
-      const res = await LandlordDashboardService.fetchPropertyActivities(propertyId);
-      if (res.success) {
-        setLogs(res.data || []);
+  const logsQuery = useQuery({
+    queryKey: landlordQueryKeys.propertyActivityLogs(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const response = await LandlordDashboardService.fetchPropertyActivities(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch activities');
       }
-    } catch (error) {
-      console.error('Error fetching activities:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [propertyId]);
 
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+      return Array.isArray(response.data) ? response.data : [];
+    },
+  });
+
+  const logs = useMemo(
+    () => (Array.isArray(logsQuery.data) ? logsQuery.data : EMPTY_LOGS),
+    [logsQuery.data],
+  );
+  const refetchLogs = logsQuery.refetch;
+  const activityLogsRefetchers = React.useMemo(
+    () => [refetchLogs],
+    [refetchLogs],
+  );
+
+  useLandlordFocusRefetch({
+    enabled: Boolean(propertyId),
+    refetchers: activityLogsRefetchers,
+  });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    enabled: Boolean(propertyId),
+    setRefreshing,
+    refetchers: activityLogsRefetchers,
+  });
 
   const filteredLogs = useMemo(() => {
     let list = [...logs];
@@ -153,16 +170,23 @@ export default function PropertyActivityLogs({ route, navigation }) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => fetchLogs(true)}
+            onRefresh={handleRefresh}
             colors={['#059669']}
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="list-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No activity found</Text>
-            <Text style={styles.emptySubtitle}>There are no logs matching the selected filter for this property.</Text>
-          </View>
+          logsQuery.isPending ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size="large" color="#059669" />
+              <Text style={styles.emptySubtitle}>Loading activity logs...</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="list-outline" size={64} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>No activity found</Text>
+              <Text style={styles.emptySubtitle}>There are no logs matching the selected filter for this property.</Text>
+            </View>
+          )
         }
       />
     </SafeAreaView>

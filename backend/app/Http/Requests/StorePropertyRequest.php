@@ -6,6 +6,23 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StorePropertyRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $input = [];
+
+        if ($this->has('propertyType') && ! $this->has('property_type')) {
+            $input['property_type'] = $this->input('propertyType');
+        }
+
+        if ($this->has('property_type')) {
+            $input['property_type'] = trim((string) $this->input('property_type'));
+        }
+
+        if (! empty($input)) {
+            $this->merge($input);
+        }
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      *

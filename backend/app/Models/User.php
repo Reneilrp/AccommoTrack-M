@@ -168,6 +168,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Legal consent records accepted by this user.
+     */
+    public function legalConsents()
+    {
+        return $this->hasMany(UserLegalConsent::class, 'user_id');
+    }
+
+    /**
      * Bookings made by tenant
      */
     public function bookings()

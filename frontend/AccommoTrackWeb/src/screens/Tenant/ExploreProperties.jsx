@@ -33,6 +33,81 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
+const FALLBACK_TYPE_OPTIONS = [
+  { value: "All", label: "All", count: null },
+  { value: "dormitory", label: "Dormitory", count: 0 },
+  { value: "apartment", label: "Apartment", count: 0 },
+  { value: "boardingHouse", label: "Boarding House", count: 0 },
+  { value: "bedSpacer", label: "Bed Spacer", count: 0 },
+];
+
+const normalizeTypeToken = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+
+const toTypeOption = (item) => {
+  if (typeof item === "string") {
+    const value = item.trim();
+    return value ? { value, label: value, count: 0 } : null;
+  }
+
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const value = String(item.value ?? item.property_type ?? item.type ?? "").trim();
+  if (!value) {
+    return null;
+  }
+
+  const label = String(item.label ?? "").trim() || value;
+  const count = Number(item.count ?? item.total ?? 0);
+
+  return {
+    value,
+    label,
+    count: Number.isFinite(count) ? count : 0,
+  };
+};
+
+const normalizeTypeOptions = (items) => {
+  const list = Array.isArray(items)
+    ? items.map(toTypeOption).filter(Boolean)
+    : [];
+  const base = list.length > 0 ? list : FALLBACK_TYPE_OPTIONS.slice(1);
+  const seen = new Set();
+  const unique = base.filter((option) => {
+    const key = normalizeTypeToken(option.value);
+    if (!key || key === "all" || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+
+  return [FALLBACK_TYPE_OPTIONS[0], ...unique];
+};
+
+const resolveSelectedTypeMeta = (selectedType, options) => {
+  const selected = String(selectedType || "").trim();
+  if (!selected || normalizeTypeToken(selected) === "all") {
+    return { value: "All", label: "All" };
+  }
+
+  const selectedKey = normalizeTypeToken(selected);
+  const match = options.find(
+    (option) =>
+      normalizeTypeToken(option.value) === selectedKey ||
+      normalizeTypeToken(option.label) === selectedKey,
+  );
+
+  return match
+    ? { value: match.value, label: match.label }
+    : { value: "All", label: "All" };
+};
+
 const ExploreProperties = () => {
   const navigate = useNavigate();
   const { uiState, updateScreenState } = useUIState();
@@ -56,16 +131,18 @@ const ExploreProperties = () => {
     amenities: [],
     rating: 0,
   });
+  const [propertyTypeOptions, setPropertyTypeOptions] = useState(
+    FALLBACK_TYPE_OPTIONS,
+  );
+
+  const selectedTypeMeta = resolveSelectedTypeMeta(
+    selectedType,
+    propertyTypeOptions,
+  );
+  const normalizedSelectedType = selectedTypeMeta.value;
 
   // Search & Pagination helpers
   const pageSize = 5;
-  const PROPERTY_TYPES = [
-    "All",
-    "Dormitory",
-    "Bed Spacer",
-    "Boarding House",
-    "Apartment",
-  ];
 
   // Modal State
   const [selectedRoomData, setSelectedRoomData] = useState(null);
@@ -101,6 +178,7 @@ const ExploreProperties = () => {
   const mapSearchTimerRef = __useRef(null);
 
   const activeFilterCount =
+    (normalizedSelectedType !== "All" ? 1 : 0) +
     (advancedFilters.priceMin || advancedFilters.priceMax ? 1 : 0) +
     (advancedFilters.availabilityOnly ? 1 : 0) +
     (advancedFilters.rating > 0 ? 1 : 0) +
@@ -193,6 +271,41 @@ const ExploreProperties = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPropertyTypes = async () => {
+      try {
+        const typeOptions = await propertyService.getPropertyTypes();
+        if (!isMounted) {
+          return;
+        }
+
+        setPropertyTypeOptions(normalizeTypeOptions(typeOptions));
+      } catch (err) {
+        console.error("Error fetching property types:", err?.response?.data || err);
+        if (isMounted) {
+          setPropertyTypeOptions(FALLBACK_TYPE_OPTIONS);
+        }
+      }
+    };
+
+    fetchPropertyTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedType !== normalizedSelectedType) {
+      updateScreenState("explore", {
+        selectedType: normalizedSelectedType,
+        currentPage: 1,
+      });
+    }
+  }, [selectedType, normalizedSelectedType, updateScreenState]);
+
   // Fetch properties from backend
   useEffect(() => {
     const fetchProperties = async () => {
@@ -200,7 +313,7 @@ const ExploreProperties = () => {
       try {
         const params = {
           search: debouncedSearch,
-          type: selectedType === "All" ? "" : selectedType,
+          type: normalizedSelectedType === "All" ? "" : normalizedSelectedType,
           price_min: advancedFilters.priceMin || undefined,
           price_max: advancedFilters.priceMax || undefined,
           availability: advancedFilters.availabilityOnly ? "1" : undefined,
@@ -219,7 +332,7 @@ const ExploreProperties = () => {
     };
 
     fetchProperties();
-  }, [debouncedSearch, selectedType, advancedFilters]);
+  }, [debouncedSearch, normalizedSelectedType, advancedFilters]);
 
   const safeProperties = Array.isArray(properties) ? properties : [];
 
@@ -481,31 +594,43 @@ const ExploreProperties = () => {
               </button>
             </div>
 
-            {/* Filters Row */}
-            <div className="w-full overflow-x-auto no-scrollbar">
-              <div className="flex items-center justify-start md:justify-center gap-2 px-2">
-                {PROPERTY_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() =>
-                      updateScreenState("explore", {
-                        selectedType: type,
-                        currentPage: 1,
-                      })
-                    }
-                    className={`
-                              px-4 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all border
-                              ${
-                                selectedType === type
-                                  ? "bg-green-600 text-white border-green-600 shadow-md shadow-green-600/20"
-                                  : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm"
-                              }
-                          `}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
+            {/* Active Filters Summary */}
+            <div className="w-full flex flex-wrap items-center gap-2 min-h-[1.75rem]">
+              {normalizedSelectedType !== "All" && (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-700">
+                  Type: {selectedTypeMeta.label}
+                </span>
+              )}
+
+              {(advancedFilters.priceMin || advancedFilters.priceMax) && (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700">
+                  Price: P{advancedFilters.priceMin || "0"} - P{advancedFilters.priceMax || "Any"}
+                </span>
+              )}
+
+              {advancedFilters.availabilityOnly && (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700">
+                  Available Only
+                </span>
+              )}
+
+              {advancedFilters.rating > 0 && (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700">
+                  {advancedFilters.rating}+ Stars
+                </span>
+              )}
+
+              {advancedFilters.amenities.length > 0 && (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-700">
+                  {advancedFilters.amenities.length} Amenities
+                </span>
+              )}
+
+              {activeFilterCount === 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  Use the filter button to set property type, price range, availability, rating, and amenities.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -528,8 +653,8 @@ const ExploreProperties = () => {
               updateScreenState("explore", { currentPage: 1 });
             }}
             onClose={() => setIsFilterOpen(false)}
-            propertyTypes={PROPERTY_TYPES}
-            selectedType={selectedType}
+            propertyTypes={propertyTypeOptions}
+            selectedType={normalizedSelectedType}
             onSelectType={(type) =>
               updateScreenState("explore", { selectedType: type, currentPage: 1 })
             }
@@ -1445,10 +1570,63 @@ const FilterSidebar = ({
   onSelectType,
 }) => {
   const [localFilters, setLocalFilters] = useState(filters);
+  const [propertyTypeSearch, setPropertyTypeSearch] = useState("");
 
   useEffect(() => {
     setLocalFilters(filters);
   }, [filters]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPropertyTypeSearch("");
+    }
+  }, [isOpen]);
+
+  const getTypeValue = (typeOption) =>
+    typeof typeOption === "string"
+      ? typeOption
+      : String(
+          typeOption?.value ??
+            typeOption?.property_type ??
+            typeOption?.type ??
+            "",
+        ).trim();
+
+  const getTypeLabel = (typeOption) =>
+    typeof typeOption === "string"
+      ? typeOption
+      : String(typeOption?.label ?? "").trim() || getTypeValue(typeOption);
+
+  const getTypeCount = (typeOption) => {
+    if (!typeOption || typeof typeOption !== "object") {
+      return null;
+    }
+
+    const count = Number(typeOption.count ?? typeOption.total);
+    return Number.isFinite(count) && count > 0 ? count : null;
+  };
+
+  const filteredPropertyTypes = propertyTypes.filter((typeOption) => {
+    const value = getTypeValue(typeOption);
+    const label = getTypeLabel(typeOption);
+    if (!value) {
+      return false;
+    }
+
+    if (normalizeTypeToken(value) === "all") {
+      return true;
+    }
+
+    const term = normalizeTypeToken(propertyTypeSearch);
+    if (!term) {
+      return true;
+    }
+
+    return (
+      normalizeTypeToken(value).includes(term) ||
+      normalizeTypeToken(label).includes(term)
+    );
+  });
 
   const fallbackAmenities = [
     "WiFi",
@@ -1535,20 +1713,46 @@ const FilterSidebar = ({
                   <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                     Property Type
                   </h3>
-                  <div className="space-y-1">
-                    {propertyTypes.map((type) => (
+                  <input
+                    type="text"
+                    value={propertyTypeSearch}
+                    onChange={(e) => setPropertyTypeSearch(e.target.value)}
+                    placeholder="Search property type"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white mb-2"
+                  />
+                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    {filteredPropertyTypes.map((typeOption) => {
+                      const typeValue = getTypeValue(typeOption);
+                      const typeLabel = getTypeLabel(typeOption);
+                      const typeCount = getTypeCount(typeOption);
+
+                      return (
                       <button
-                        key={type}
-                        onClick={() => onSelectType && onSelectType(type)}
+                        key={typeValue}
+                        onClick={() => onSelectType && onSelectType(typeValue)}
                         className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                          selectedType === type
+                          selectedType === typeValue
                             ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
                             : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                       >
-                        {type}
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate">{typeLabel}</span>
+                          {typeCount !== null && typeValue !== "All" && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                              {typeCount}
+                            </span>
+                          )}
+                        </span>
                       </button>
-                    ))}
+                    );
+                    })}
+
+                    {filteredPropertyTypes.length === 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 px-1 py-2">
+                        No property type matches your search.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="border-t border-gray-200 dark:border-gray-700"></div>

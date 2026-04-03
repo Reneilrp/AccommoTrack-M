@@ -1,12 +1,17 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import api from "../../utils/api";
 import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, FileDown, Filter, ShieldCheck, ShieldX } from "lucide-react";
 import toast from "react-hot-toast";
 import PriceRow from "../../components/Shared/PriceRow";
 import { SkeletonStatCard } from "../../components/Shared/Skeleton";
 import { useUIState } from "../../contexts/UIStateContext";
-import { cacheManager } from "../../utils/cache";
+import {
+  LANDLORD_MUTATION_FRESHNESS,
+  refreshAfterMutation,
+} from "../../utils/mutationFreshness";
+import invoiceService from "../../services/invoiceService";
+import bookingService from "../../services/bookingService";
+import roomService from "../../services/roomService";
 
 const REFUND_FIXED_PENALTY_CENTS = Number(
   import.meta.env.VITE_REFUND_FIXED_PENALTY_CENTS || 0,
@@ -144,7 +149,7 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
 
 export default function Payments() {
   const location = useLocation();
-  const { uiState, updateData } = useUIState();
+  const { uiState, updateData, invalidateData } = useUIState();
   const cachedData = uiState.data?.landlord_payments;
 
   const [invoices, setInvoices] = useState(cachedData?.invoices || []);
@@ -153,6 +158,8 @@ export default function Payments() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [statsRange, setStatsRange] = useState("month");
+  const [summary, setSummary] = useState(cachedData?.summary || null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [refundConfirmTx, setRefundConfirmTx] = useState(null);
@@ -251,7 +258,32 @@ export default function Payments() {
     return invStatus || "pending";
   }, []);
 
-  const stats = useMemo(() => {
+  const getInvoiceStatsDate = useCallback((inv) => {
+    const raw = inv?.issued_at || inv?.created_at || inv?.due_date || null;
+    if (!raw) return null;
+
+    const date = new Date(raw);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }, []);
+
+  const statsSourceInvoices = useMemo(() => {
+    if (statsRange === "all") {
+      return invoices;
+    }
+
+    const now = new Date();
+    return invoices.filter((inv) => {
+      const date = getInvoiceStatsDate(inv);
+      if (!date) return false;
+
+      return (
+        date.getFullYear() === now.getFullYear() &&
+        date.getMonth() === now.getMonth()
+      );
+    });
+  }, [invoices, statsRange, getInvoiceStatsDate]);
+
+  const fallbackStats = useMemo(() => {
     const s = {
       totalPaid: 0,
       totalBalance: 0,
@@ -262,7 +294,7 @@ export default function Payments() {
       pendingVerifCount: 0,
     };
 
-    invoices.forEach((inv) => {
+    statsSourceInvoices.forEach((inv) => {
       const status = getInvoiceStatus(inv);
       const total = inv.amount_cents
         ? inv.amount_cents / 100
@@ -290,7 +322,39 @@ export default function Payments() {
     });
 
     return s;
-  }, [invoices, getInvoiceStatus]);
+  }, [statsSourceInvoices, getInvoiceStatus]);
+
+  const stats = useMemo(() => {
+    const totals = summary?.totals;
+    if (!totals) {
+      return fallbackStats;
+    }
+
+    const totalPaid = Number(
+      totals.total_paid ??
+        ((Number.isFinite(Number(totals.total_paid_cents))
+          ? Number(totals.total_paid_cents)
+          : 0) /
+          100),
+    );
+    const totalBalance = Number(
+      totals.total_balance ??
+        ((Number.isFinite(Number(totals.total_balance_cents))
+          ? Number(totals.total_balance_cents)
+          : 0) /
+          100),
+    );
+
+    return {
+      totalPaid,
+      totalBalance,
+      paidCount: Number(totals.paid_count || 0),
+      unpaidCount: Number(totals.unpaid_count || 0),
+      overdueCount: Number(totals.overdue_count || 0),
+      pendingCount: Number(totals.pending_count || 0),
+      pendingVerifCount: Number(totals.pending_verification_count || 0),
+    };
+  }, [summary, fallbackStats]);
 
   const selectedBooking = useMemo(() => {
     if (!selectedInvoice) return null;
@@ -304,20 +368,58 @@ export default function Payments() {
     return getStayProgress(selectedBooking);
   }, [selectedBooking]);
 
-  const invalidateAnalyticsCache = useCallback(() => {
-    // Clear both global state and persistent local cache for analytics
-    updateData("landlord_analytics", null);
-    cacheManager.invalidate("landlord_analytics");
-  }, [updateData]);
+  const refreshLandlordMutationViews = useCallback(() => {
+    refreshAfterMutation({
+      invalidateData,
+      ...LANDLORD_MUTATION_FRESHNESS,
+    });
+  }, [invalidateData]);
+
+  const loadSummary = async (range = statsRange, silent = false) => {
+    try {
+      const summaryRange = range === "month" ? "month" : "all";
+      const response = await invoiceService.getSummary({
+        range: summaryRange,
+        t: Date.now(),
+      });
+
+      if (!response.success) {
+        if (!silent) {
+          console.error("Failed to load invoice summary", response.error);
+        }
+        return;
+      }
+
+      const data = response.data || null;
+      setSummary(data);
+      updateData("landlord_payments", {
+        ...(uiState.data?.landlord_payments || {}),
+        summary: data,
+      });
+    } catch (err) {
+      if (!silent) {
+        console.error("Failed to load invoice summary", err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadSummary(statsRange, true);
+    // statsRange is the only intended trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statsRange]);
 
   const loadInvoices = async () => {
     try {
       if (!cachedData) setLoading(true);
       setError(null);
-      const res = await api.get(`/invoices?t=${Date.now()}`);
-      const list = Array.isArray(res.data)
-        ? res.data
-        : res.data?.data || res.data || [];
+      const response = await invoiceService.getInvoices({ t: Date.now() });
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load invoices");
+      }
+      const list = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.data || response.data || []);
 
       let finalBookingsMap = { ...bookingsMap };
       const bookingIds = Array.from(
@@ -332,9 +434,12 @@ export default function Payments() {
 
       // Update global context
       updateData("landlord_payments", {
+        ...(uiState.data?.landlord_payments || {}),
         invoices: list,
         bookingsMap: finalBookingsMap,
       });
+
+      await loadSummary(statsRange, true);
     } catch (e) {
       console.error("Failed to load invoices", e);
       // If error is 404 or network, treat as no invoices yet
@@ -363,23 +468,26 @@ export default function Payments() {
 
     setIsRecording(true);
     try {
-      await api.post(`/invoices/${selectedInvoice.id}/record`, {
+      const response = await invoiceService.recordPayment(selectedInvoice.id, {
         amount_cents: Math.round(parseFloat(recordData.amount) * 100),
         method: recordData.method,
         reference: recordData.reference,
         notes: recordData.notes,
         received_at: new Date().toISOString(),
       });
+      if (!response.success) {
+        throw new Error(response.error || "Failed to record payment");
+      }
 
       // Cash payments recorded by landlord go to pending_verification; others are confirmed
       const isCash = recordData.method === 'cash';
       toast.success(isCash ? "Cash payment recorded. Marked as pending verification." : "Payment recorded successfully");
       setShowInvoiceModal(false);
-      invalidateAnalyticsCache();
+      refreshLandlordMutationViews();
       await loadInvoices();
     } catch (e) {
       console.error("Failed to record payment", e);
-      toast.error(e.response?.data?.message || "Failed to record payment");
+      toast.error(e.message || e.response?.data?.message || "Failed to record payment");
     } finally {
       setIsRecording(false);
     }
@@ -392,16 +500,57 @@ export default function Payments() {
       return;
     }
 
+    let payload = { action };
+    if (action === 'reject') {
+      const allowedReasonCodes = [
+        'invalid_proof',
+        'wrong_amount',
+        'unclear_image',
+        'mismatched_reference',
+        'duplicate_submission',
+        'other',
+      ];
+
+      const reasonCodeInput = window.prompt(
+        'Enter denial reason code:\ninvalid_proof, wrong_amount, unclear_image, mismatched_reference, duplicate_submission, other',
+        'unclear_image',
+      );
+      if (reasonCodeInput === null) {
+        return;
+      }
+
+      const normalizedReasonCode = reasonCodeInput.trim().toLowerCase().replace(/\s+/g, '_');
+      if (!allowedReasonCodes.includes(normalizedReasonCode)) {
+        toast.error('Invalid denial reason code.');
+        return;
+      }
+
+      const reason = window.prompt('Provide denial reason details for the tenant:', '');
+      if (reason === null || !reason.trim()) {
+        toast.error('Denial reason is required.');
+        return;
+      }
+
+      payload = {
+        action: 'reject',
+        reason_code: normalizedReasonCode,
+        reason: reason.trim(),
+      };
+    }
+
     setVerifyingAction(action);
     try {
-      await api.post(`/invoices/${invoiceId}/verify-cash`, { action });
+      const response = await invoiceService.verifyCash(invoiceId, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to verify payment');
+      }
       toast.success(action === 'approve' ? 'Cash payment approved — invoice marked as Paid.' : 'Cash payment rejected — tenant will be notified.');
       setShowInvoiceModal(false);
-      invalidateAnalyticsCache();
+      refreshLandlordMutationViews();
       await loadInvoices();
     } catch (e) {
       console.error('Failed to verify cash payment', e);
-      toast.error(e.response?.data?.message || 'Failed to verify payment');
+      toast.error(e.message || e.response?.data?.message || 'Failed to verify payment');
     } finally {
       setVerifyingAction(null);
     }
@@ -411,9 +560,12 @@ export default function Payments() {
     if (!tx) return;
     setIsRefunding(tx.id);
     try {
-      await api.post(`/transactions/${tx.id}/refund`, {
+      const response = await invoiceService.refundTransaction(tx.id, {
         amount_cents: amountCents,
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to process refund');
+      }
       if (selectedInvoice.booking_id) {
         await updateBookingPayment(selectedInvoice.booking_id, "refunded");
       }
@@ -421,11 +573,11 @@ export default function Payments() {
         `Refund of ₱${(amountCents / 100).toLocaleString()} processed successfully`,
       );
       setShowInvoiceModal(false);
-      invalidateAnalyticsCache();
+      refreshLandlordMutationViews();
       await loadInvoices();
     } catch (e) {
       console.error("Failed to process refund", e);
-      toast.error(e.response?.data?.message || "Failed to process refund");
+      toast.error(e.message || e.response?.data?.message || "Failed to process refund");
     } finally {
       setIsRefunding(null);
       setRefundAmount("");
@@ -446,8 +598,9 @@ export default function Payments() {
       await Promise.all(
         bookingIds.map(async (id) => {
           try {
-            const res = await api.get(`/bookings/${id}`);
-            const booking = res.data?.data || res.data || null;
+            const response = await bookingService.getBooking(id);
+            if (!response.success) return;
+            const booking = response.data || null;
             if (booking) {
               // derive simple display fields so Payments can render quickly
               const tenant_name = booking.tenant?.first_name
@@ -501,25 +654,31 @@ export default function Payments() {
 
   const updateBookingPayment = async (bookingId, paymentStatus) => {
     try {
-      await api.patch(`/bookings/${bookingId}/payment`, {
+      const response = await bookingService.recordPayment(bookingId, {
         payment_status: paymentStatus,
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update payment status');
+      }
       // Refresh invoices and list
-      invalidateAnalyticsCache();
+      refreshLandlordMutationViews();
       await loadInvoices();
       toast.success("Payment status updated");
     } catch (e) {
       console.error("Failed to update booking payment", e);
-      toast.error("Failed to update payment status");
+      toast.error(e.message || "Failed to update payment status");
     }
   };
 
   const updateBookingStatus = async (bookingId, status) => {
     try {
-      await api.patch(`/bookings/${bookingId}/status`, { status });
+      const response = await bookingService.updateStatus(bookingId, status);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update booking status');
+      }
     } catch (e) {
       console.error("Failed to update booking status", e);
-      toast.error("Failed to update booking status");
+      toast.error(e.message || "Failed to update booking status");
     }
   };
 
@@ -876,11 +1035,30 @@ export default function Payments() {
         )}
 
         {/* Stats Cards */}
+        <div className="flex items-center justify-end gap-2 mb-3">
+          {[
+            { value: "month", label: "This Month" },
+            { value: "all", label: "All Time" },
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setStatsRange(option.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                statsRange === option.value
+                  ? "bg-green-600 text-white shadow-sm shadow-green-500/20"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Paid</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{statsRange === "month" ? "Collected This Month" : "Total Collected"}</p>
                 <p className="text-2xl font-bold text-green-600 mt-2">
                   <PriceRow amount={stats.totalPaid} />
                 </p>
@@ -894,7 +1072,7 @@ export default function Payments() {
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Unpaid</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{statsRange === "month" ? "Outstanding This Month" : "Total Outstanding"}</p>
                 <p className="text-2xl font-bold text-red-600 mt-2">
                   <PriceRow amount={stats.totalBalance} />
                 </p>
@@ -908,7 +1086,7 @@ export default function Payments() {
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Paid</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{statsRange === "month" ? "Paid Invoices (Month)" : "Paid Invoices"}</p>
                 <p className="text-2xl font-bold text-blue-600 mt-2">{stats.paidCount}</p>
               </div>
               <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
@@ -920,7 +1098,7 @@ export default function Payments() {
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Pending</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{statsRange === "month" ? "Pending Invoices (Month)" : "Pending Invoices"}</p>
                 <p className="text-2xl font-bold text-yellow-600 mt-2">{stats.pendingCount}</p>
               </div>
               <div className="w-10 h-10 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
@@ -932,7 +1110,7 @@ export default function Payments() {
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Overdue</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{statsRange === "month" ? "Overdue Invoices (Month)" : "Overdue Invoices"}</p>
                 <p className="text-2xl font-bold text-orange-600 mt-2">{stats.overdueCount}</p>
               </div>
               <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
@@ -947,7 +1125,7 @@ export default function Payments() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Cash Verification</p>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{statsRange === "month" ? "Cash Verify (Month)" : "Cash Verification"}</p>
                   <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-2">{stats.pendingVerifCount}</p>
                 </div>
                 <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
@@ -1646,10 +1824,10 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
     setRoomsError('');
 
     try {
-      const res = await api.get(`/rooms/property/${propertyId}`);
-      const list = Array.isArray(res.data?.data)
-        ? res.data.data
-        : (Array.isArray(res.data) ? res.data : []);
+      const response = await roomService.getRoomsByProperty(propertyId);
+      const list = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
       setRooms(list);
     } catch (__err) {
       setRooms([]);

@@ -1,4 +1,237 @@
-import api from './api';
+import api from '../utils/api';
+
+const EMPTY_PAGINATION = {
+  currentPage: 1,
+  lastPage: 1,
+  perPage: 0,
+  total: 0,
+  from: null,
+  to: null,
+  hasMorePages: false,
+};
+
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const toNullableInt = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const toInt = (value, fallback = 0) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const toStringOrNull = (value) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return String(value);
+};
+
+const toBoolean = (value, fallback = false) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (value === 1 || value === '1' || value === 'true') {
+    return true;
+  }
+
+  if (value === 0 || value === '0' || value === 'false') {
+    return false;
+  }
+
+  return fallback;
+};
+
+const toStringArray = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item) => item !== null && item !== undefined)
+    .map((item) => String(item).trim())
+    .filter((item) => item.length > 0);
+};
+
+const normalizeEnvelope = (payload) => {
+  if (isPlainObject(payload) && Object.prototype.hasOwnProperty.call(payload, 'success')) {
+    return {
+      success: Boolean(payload.success),
+      data: payload.data ?? null,
+      message: typeof payload.message === 'string' ? payload.message : '',
+    };
+  }
+
+  return {
+    success: true,
+    data: payload ?? null,
+    message: '',
+  };
+};
+
+const normalizeRequestError = (error) => ({
+  success: false,
+  status: error?.response?.status,
+  error: error?.response?.data?.message || error?.message || 'Request failed',
+});
+
+const normalizeQueryValue = (value) => {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => normalizeQueryValue(entry))
+      .filter((entry) => entry !== null && entry !== undefined && entry !== '');
+  }
+
+  return value;
+};
+
+const buildQueryParams = (params = {}) => {
+  if (!isPlainObject(params)) {
+    return {};
+  }
+
+  return Object.entries(params).reduce((accumulator, [key, rawValue]) => {
+    const value = normalizeQueryValue(rawValue);
+    if (value === null || value === undefined || value === '') {
+      return accumulator;
+    }
+
+    if (Array.isArray(value) && value.length === 0) {
+      return accumulator;
+    }
+
+    accumulator[key] = value;
+    return accumulator;
+  }, {});
+};
+
+const normalizePagination = (payload) => {
+  if (!isPlainObject(payload)) {
+    return { ...EMPTY_PAGINATION };
+  }
+
+  const currentPage = toInt(payload.current_page ?? payload.currentPage, 1);
+  const lastPage = toInt(payload.last_page ?? payload.lastPage, 1);
+  const perPage = toInt(payload.per_page ?? payload.perPage, 0);
+  const total = toInt(payload.total, 0);
+
+  return {
+    currentPage,
+    lastPage,
+    perPage,
+    total,
+    from: toNullableInt(payload.from),
+    to: toNullableInt(payload.to),
+    hasMorePages: toBoolean(payload.has_more_pages ?? payload.hasMorePages, currentPage < lastPage),
+  };
+};
+
+const getPaginatedItems = (payload) => {
+  if (isPlainObject(payload) && Array.isArray(payload.data)) {
+    return payload.data;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  return [];
+};
+
+const normalizeManualMethod = (method) => {
+  if (typeof method !== 'string') {
+    return null;
+  }
+
+  return method.trim().toLowerCase().replace(/[-\s]+/g, '_');
+};
+
+const parseMetadata = (metadata) => {
+  if (isPlainObject(metadata)) {
+    return metadata;
+  }
+
+  if (typeof metadata === 'string' && metadata.trim() !== '') {
+    try {
+      const parsed = JSON.parse(metadata);
+      return isPlainObject(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+};
+
+const normalizeOversightRecord = (record) => {
+  const item = isPlainObject(record) ? record : {};
+
+  return {
+    id: toNullableInt(item.id),
+    invoiceId: toNullableInt(item.invoice_id ?? item.invoiceId),
+    invoiceReference: toStringOrNull(item.invoice_reference ?? item.invoiceReference),
+    bookingId: toNullableInt(item.booking_id ?? item.bookingId),
+    bookingReference: toStringOrNull(item.booking_reference ?? item.bookingReference),
+    roomNumber: toStringOrNull(item.room_number ?? item.roomNumber),
+    propertyId: toNullableInt(item.property_id ?? item.propertyId),
+    propertyTitle: toStringOrNull(item.property_title ?? item.propertyTitle),
+    landlordId: toNullableInt(item.landlord_id ?? item.landlordId),
+    tenantId: toNullableInt(item.tenant_id ?? item.tenantId),
+    tenantName: toStringOrNull(item.tenant_name ?? item.tenantName),
+    amountCents: toInt(item.amount_cents ?? item.amountCents, 0),
+    method: normalizeManualMethod(item.method),
+    reference: toStringOrNull(item.reference),
+    proofImageUrl: toStringOrNull(item.proof_image_url ?? item.proofImageUrl),
+    proofImagePath: toStringOrNull(item.proof_image_path ?? item.proofImagePath),
+    status: toStringOrNull(item.status),
+    transactionStatus: toStringOrNull(item.transaction_status ?? item.transactionStatus),
+    denialReasonCode: toStringOrNull(item.denial_reason_code ?? item.denialReasonCode),
+    denialReason: toStringOrNull(item.denial_reason ?? item.denialReason),
+    riskFlags: toStringArray(item.risk_flags ?? item.riskFlags),
+    submittedAt: toStringOrNull(item.submitted_at ?? item.submittedAt),
+    updatedAt: toStringOrNull(item.updated_at ?? item.updatedAt),
+  };
+};
+
+const normalizeAuditLogRecord = (record) => {
+  const item = isPlainObject(record) ? record : {};
+
+  return {
+    id: toNullableInt(item.id),
+    domain: toStringOrNull(item.domain),
+    event: toStringOrNull(item.event),
+    severity: toStringOrNull(item.severity),
+    summary: toStringOrNull(item.summary),
+    actorId: toNullableInt(item.actor_id ?? item.actorId),
+    subjectType: toStringOrNull(item.subject_type ?? item.subjectType),
+    subjectId: toNullableInt(item.subject_id ?? item.subjectId),
+    bookingId: toNullableInt(item.booking_id ?? item.bookingId),
+    invoiceId: toNullableInt(item.invoice_id ?? item.invoiceId),
+    paymentTransactionId: toNullableInt(item.payment_transaction_id ?? item.paymentTransactionId),
+    tenantId: toNullableInt(item.tenant_id ?? item.tenantId),
+    landlordId: toNullableInt(item.landlord_id ?? item.landlordId),
+    propertyId: toNullableInt(item.property_id ?? item.propertyId),
+    metadata: parseMetadata(item.metadata),
+    createdAt: toStringOrNull(item.created_at ?? item.createdAt),
+    updatedAt: toStringOrNull(item.updated_at ?? item.updatedAt),
+  };
+};
 
 const adminService = {
   /**
@@ -121,6 +354,118 @@ const adminService = {
    */
   async getRecentActivities() {
     return await api.get('/admin/dashboard/recent-activities');
+  },
+
+  /**
+   * Get payment oversight queue (manual payments)
+   * @param {Object} params
+   */
+  async getPaymentOversightQueue(params = {}) {
+    try {
+      const response = await api.get('/admin/payments/oversight', {
+        params: buildQueryParams(params),
+      });
+
+      const envelope = normalizeEnvelope(response?.data);
+      const payload = envelope.data;
+
+      return {
+        success: envelope.success,
+        data: {
+          items: getPaginatedItems(payload).map(normalizeOversightRecord),
+          pagination: normalizePagination(payload),
+        },
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Override approve a denied manual payment
+   * @param {number|string} invoiceId
+   * @param {{note: string}|string} payload
+   */
+  async overrideApprovePayment(invoiceId, payload = {}) {
+    const noteValue = typeof payload === 'string' ? payload : payload?.note;
+    const note = typeof noteValue === 'string' ? noteValue.trim() : '';
+
+    if (!note) {
+      return {
+        success: false,
+        status: 422,
+        error: 'Override note is required.',
+      };
+    }
+
+    try {
+      const response = await api.post(`/admin/payments/${invoiceId}/override-approve`, { note });
+      const envelope = normalizeEnvelope(response?.data);
+      const payloadData = isPlainObject(envelope.data) ? envelope.data : {};
+
+      return {
+        success: envelope.success,
+        data: {
+          invoice: isPlainObject(payloadData.invoice) ? payloadData.invoice : null,
+        },
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Get admin audit logs
+   * @param {Object} params
+   */
+  async getAuditLogs(params = {}) {
+    try {
+      const response = await api.get('/admin/audit-logs', {
+        params: buildQueryParams(params),
+      });
+
+      const envelope = normalizeEnvelope(response?.data);
+      const payload = envelope.data;
+
+      return {
+        success: envelope.success,
+        data: {
+          items: getPaginatedItems(payload).map(normalizeAuditLogRecord),
+          pagination: normalizePagination(payload),
+        },
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Get audit timeline for an entity
+   * @param {Object} params
+   */
+  async getAuditTimeline(params = {}) {
+    try {
+      const response = await api.get('/admin/audit-logs/timeline', {
+        params: buildQueryParams(params),
+      });
+
+      const envelope = normalizeEnvelope(response?.data);
+      const payload = envelope.data;
+      const timeline = Array.isArray(payload)
+        ? payload
+        : (isPlainObject(payload) && Array.isArray(payload.data) ? payload.data : []);
+
+      return {
+        success: envelope.success,
+        data: timeline.map(normalizeAuditLogRecord),
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
   }
 };
 

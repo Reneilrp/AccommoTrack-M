@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Landlord/AllActivities.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import LandlordDashboardService from '../../../../services/LandlordDashboardService.js';
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
+
+const EMPTY_LIST = [];
 
 const activityColorMap = {
   green: { bg: '#DCFCE7', fg: '#166534' },
@@ -56,12 +64,40 @@ const formatRelativeTime = (timestamp) => {
 export default function AllActivities({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const [activities, setActivities] = useState(route.params?.activities || []);
-  const [filteredActivities, setFilteredActivities] = useState([]);
+  const routeActivities = Array.isArray(route.params?.activities) ? route.params.activities : EMPTY_LIST;
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
+
+  const dashboardQuery = useQuery({
+    queryKey: landlordQueryKeys.dashboardBundle(),
+    queryFn: async () => {
+      const response = await LandlordDashboardService.fetchDashboard();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load activities');
+      }
+
+      return response.data || {};
+    },
+    placeholderData: (previousData) => previousData ?? { activities: routeActivities },
+  });
+
+  const activities = Array.isArray(dashboardQuery.data?.activities)
+    ? dashboardQuery.data.activities
+    : routeActivities;
+  const loading = dashboardQuery.isPending && activities.length === 0;
+  const refetchActivities = dashboardQuery.refetch;
+  const activityRefetchers = React.useMemo(
+    () => [refetchActivities],
+    [refetchActivities],
+  );
+
+  useLandlordFocusRefetch({ refetchers: activityRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: activityRefetchers,
+  });
 
   const filters = [
     { id: 'all', label: 'All' },
@@ -70,8 +106,7 @@ export default function AllActivities({ navigation, route }) {
     { id: 'payment', label: 'Payments' }
   ];
 
-  // Filter activities based on search and type filter
-  useEffect(() => {
+  const filteredActivities = useMemo(() => {
     let result = activities;
 
     // Apply type filter
@@ -89,26 +124,8 @@ export default function AllActivities({ navigation, route }) {
       );
     }
 
-    setFilteredActivities(result);
+    return result;
   }, [activities, searchQuery, activeFilter]);
-
-  // Fetch fresh activities
-  const fetchActivities = useCallback(async () => {
-    try {
-      const response = await LandlordDashboardService.fetchDashboard();
-      if (response.success) {
-        setActivities(response.data.activities || []);
-      }
-    } catch (error) {
-      console.error('Error fetching activities:', error);
-    }
-  }, []);
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchActivities();
-    setRefreshing(false);
-  }, [fetchActivities]);
 
   const clearSearch = () => {
     setSearchQuery('');

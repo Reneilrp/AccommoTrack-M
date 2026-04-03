@@ -16,8 +16,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { getStyles } from '../../../../styles/Landlord/Payments.js';
 
@@ -25,6 +31,7 @@ const STATUS_FILTERS = ['all', 'pending', 'paid', 'unpaid', 'partial', 'overdue'
 
 const REFUND_FIXED_PENALTY_CENTS = 0;
 const REFUND_ELIGIBLE_STATUSES = ['succeeded', 'paid', 'partially_refunded', 'refunded'];
+const EMPTY_INVOICES = [];
 
 const getInvoiceTotal = (invoice) => parseFloat(invoice?.amount || ((invoice?.amount_cents ?? 0) / 100));
 
@@ -59,6 +66,14 @@ const getInvoiceStatus = (invoice) => {
 };
 
 const getRemainingAmount = (invoice) => Math.max(0, getInvoiceTotal(invoice) - getSettledAmount(invoice));
+
+const getInvoiceStatsDate = (invoice) => {
+  const raw = invoice?.issued_at || invoice?.created_at || invoice?.due_date || null;
+  if (!raw) return null;
+
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
 const toDateOnly = (value) => {
   if (!value) return null;
@@ -117,21 +132,64 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
 export default function Payments({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
+
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [statsRange, setStatsRange] = useState('month');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [recording, setRecording] = useState(false);
   const [refundingTxId, setRefundingTxId] = useState(null);
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
-  const [refundAmount, setRefundAmount] = useState('');
-  const [showRefundConfirm, setShowRefundConfirm] = useState(null);
   const [pendingFocusInvoiceId, setPendingFocusInvoiceId] = useState(null);
+
+  const invoicesQuery = useQuery({
+    queryKey: landlordQueryKeys.invoices(),
+    queryFn: async () => {
+      const response = await PaymentService.getInvoices({ _t: Date.now() });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch invoices');
+      }
+
+      let data = response.data;
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        data = data.invoices || data.data || [];
+      }
+
+      return Array.isArray(data) ? data : EMPTY_INVOICES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const invoices = invoicesQuery.data || EMPTY_INVOICES;
+  const loading = invoicesQuery.isPending && invoices.length === 0;
+  const refetchInvoices = invoicesQuery.refetch;
+
+  const invoiceSummaryQuery = useQuery({
+    queryKey: landlordQueryKeys.invoiceSummary(statsRange),
+    queryFn: async () => {
+      const response = await PaymentService.getInvoiceSummary({
+        range: statsRange === 'month' ? 'month' : 'all',
+        _t: Date.now(),
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch invoice summary');
+      }
+
+      return response.data || null;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const invoiceSummary = invoiceSummaryQuery.data || null;
+  const refetchInvoiceSummary = invoiceSummaryQuery.refetch;
+  const invoiceRefetchers = useMemo(
+    () => [refetchInvoices, refetchInvoiceSummary],
+    [refetchInvoices, refetchInvoiceSummary],
+  );
 
   const openInvoiceModal = useCallback((invoice) => {
     if (!invoice) return;
@@ -142,43 +200,17 @@ export default function Payments({ navigation, route }) {
     setShowModal(true);
   }, []);
 
-  const fetchInvoices = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else if (invoices.length === 0) setLoading(true);
+  useLandlordFocusRefetch({ refetchers: invoiceRefetchers });
 
-    try {
-      const res = await PaymentService.getInvoices({ _t: Date.now() });
-      if (res.success) {
-        // Ensure we have an array
-        let data = res.data;
-        if (data && typeof data === 'object' && !Array.isArray(data)) {
-          data = data.invoices || data.data || [];
-        }
-        setInvoices(Array.isArray(data) ? data : []);
-      } else {
-        console.error('Failed to fetch invoices:', res.error);
-        setInvoices([]);
-      }
-    } catch (error) {
-      console.error('Error in fetchInvoices:', error);
-      setInvoices([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [invoices.length]);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchInvoices();
-    }, [fetchInvoices])
-  );
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: invoiceRefetchers,
+  });
 
   useEffect(() => {
-    const params = route?.params || {};
-    const requestedFilter = params.filter;
-    const requestedSearch = params.searchQuery;
-    const focusInvoiceId = params.focusInvoiceId;
+    const requestedFilter = route?.params?.filter;
+    const requestedSearch = route?.params?.searchQuery;
+    const focusInvoiceId = route?.params?.focusInvoiceId;
 
     if (requestedFilter && STATUS_FILTERS.includes(requestedFilter)) {
       setActiveFilter(requestedFilter);
@@ -216,7 +248,7 @@ export default function Payments({ navigation, route }) {
       const res = await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: status });
       if (res.success) {
         setShowModal(false);
-        fetchInvoices(true);
+        await refetchLandlordQueries(invoiceRefetchers);
         Alert.alert('Success', 'Payment status updated');
       } else {
         Alert.alert('Error', res.error || 'Failed to update status');
@@ -258,7 +290,7 @@ export default function Payments({ navigation, route }) {
 
         setShowModal(false);
         setRecordData({ amount: '', method: 'cash', reference: '', notes: '' });
-        await fetchInvoices(true);
+        await refetchLandlordQueries(invoiceRefetchers);
         Alert.alert('Success', 'Payment recorded successfully.');
       } else {
         Alert.alert('Error', res.error || 'Failed to record payment');
@@ -305,7 +337,7 @@ export default function Payments({ navigation, route }) {
                   await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
                 }
                 Alert.alert('Success', `Refunded ₱${(maxRefund / 100).toLocaleString()} successfully`);
-                fetchInvoices(true);
+                await refetchLandlordQueries(invoiceRefetchers);
                 setShowModal(false);
               } else {
                 Alert.alert('Error', res.error || 'Failed to refund transaction');
@@ -342,10 +374,24 @@ export default function Payments({ navigation, route }) {
     });
   }, [invoices, activeFilter, searchQuery]);
 
+  const statsSourceInvoices = useMemo(() => {
+    if (statsRange === 'all') {
+      return invoices;
+    }
+
+    const now = new Date();
+    return invoices.filter((inv) => {
+      const date = getInvoiceStatsDate(inv);
+      if (!date) return false;
+
+      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    });
+  }, [invoices, statsRange]);
+
   // ──── Payment Stats (W4) ────
-  const stats = useMemo(() => {
+  const fallbackStats = useMemo(() => {
     const s = { totalPaid: 0, totalBalance: 0, paidCount: 0, pendingCount: 0, overdueCount: 0 };
-    invoices.forEach(inv => {
+    statsSourceInvoices.forEach(inv => {
       const status = getInvoiceStatus(inv);
       const total = inv.amount_cents ? inv.amount_cents / 100 : Number(inv.amount || 0);
       const paid = (inv.transactions || []).filter(tx => ['succeeded', 'paid', 'partially_refunded'].includes(tx.status)).reduce((sum, tx) => {
@@ -360,7 +406,37 @@ export default function Payments({ navigation, route }) {
       else if (status === 'overdue') s.overdueCount++;
     });
     return s;
-  }, [invoices]);
+  }, [statsSourceInvoices]);
+
+  const stats = useMemo(() => {
+    const totals = invoiceSummary?.totals;
+    if (!totals) {
+      return fallbackStats;
+    }
+
+    const totalPaid = Number(
+      totals.total_paid ??
+        ((Number.isFinite(Number(totals.total_paid_cents))
+          ? Number(totals.total_paid_cents)
+          : 0) /
+          100),
+    );
+    const totalBalance = Number(
+      totals.total_balance ??
+        ((Number.isFinite(Number(totals.total_balance_cents))
+          ? Number(totals.total_balance_cents)
+          : 0) /
+          100),
+    );
+
+    return {
+      totalPaid,
+      totalBalance,
+      paidCount: Number(totals.paid_count || 0),
+      pendingCount: Number(totals.pending_count || 0),
+      overdueCount: Number(totals.overdue_count || 0),
+    };
+  }, [invoiceSummary, fallbackStats]);
 
   const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
@@ -494,21 +570,48 @@ export default function Payments({ navigation, route }) {
 
       {/* ── Stats Summary Cards (W4) ── */}
       {invoices.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
-          {[
-            { label: 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
-            { label: 'Outstanding', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
-            { label: 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#059669', bg: '#DCFCE7' },
-            { label: 'Pending', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
-            { label: 'Overdue', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
-          ].map((card, i) => (
-            <View key={i} style={{ backgroundColor: theme.isDark ? theme.colors.surface : card.bg, borderRadius: 12, padding: 14, minWidth: 110, borderWidth: 1, borderColor: theme.isDark ? theme.colors.border : 'transparent' }}>
-              <Ionicons name={card.icon} size={20} color={theme.isDark ? theme.colors.textSecondary : card.color} />
-              <Text style={{ fontSize: 18, fontWeight: '800', color: theme.isDark ? theme.colors.text : card.color, marginTop: 6 }}>{card.value}</Text>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: theme.isDark ? theme.colors.textSecondary : card.color, opacity: 0.8, marginTop: 2 }}>{card.label}</Text>
-            </View>
-          ))}
-        </ScrollView>
+        <>
+          <View style={styles.statsRangeContainer}>
+            {[
+              { value: 'month', label: 'This Month' },
+              { value: 'all', label: 'All Time' },
+            ].map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.statsRangeChip,
+                  statsRange === option.value && styles.statsRangeChipActive,
+                ]}
+                onPress={() => setStatsRange(option.value)}
+              >
+                <Text
+                  style={[
+                    styles.statsRangeChipText,
+                    statsRange === option.value && styles.statsRangeChipTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
+            {[
+              { label: statsRange === 'month' ? 'Collected (Month)' : 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
+              { label: statsRange === 'month' ? 'Outstanding (Month)' : 'Outstanding', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
+              { label: statsRange === 'month' ? 'Paid (Month)' : 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#059669', bg: '#DCFCE7' },
+              { label: statsRange === 'month' ? 'Pending (Month)' : 'Pending', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
+              { label: statsRange === 'month' ? 'Overdue (Month)' : 'Overdue', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
+            ].map((card, i) => (
+              <View key={i} style={{ backgroundColor: theme.isDark ? theme.colors.surface : card.bg, borderRadius: 12, padding: 14, minWidth: 110, borderWidth: 1, borderColor: theme.isDark ? theme.colors.border : 'transparent' }}>
+                <Ionicons name={card.icon} size={20} color={theme.isDark ? theme.colors.textSecondary : card.color} />
+                <Text style={{ fontSize: 18, fontWeight: '800', color: theme.isDark ? theme.colors.text : card.color, marginTop: 6 }}>{card.value}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: theme.isDark ? theme.colors.textSecondary : card.color, opacity: 0.8, marginTop: 2 }}>{card.label}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </>
       )}
 
       <FlatList
@@ -519,7 +622,7 @@ export default function Payments({ navigation, route }) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => fetchInvoices(true)}
+            onRefresh={handleRefresh}
             colors={['#059669']}
             tintColor="#059669"
           />

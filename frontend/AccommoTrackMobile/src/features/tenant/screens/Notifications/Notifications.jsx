@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQuery } from "@tanstack/react-query";
 import {
   loadPrefsMobile,
   DEFAULT_PREFS,
@@ -21,6 +22,11 @@ import BookingService from "../../../../services/BookingService.js";
 import PaymentService from "../../../../services/PaymentService.js";
 import api from "../../../../services/api.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from "../../hooks/useTenantQueryHelpers.js";
 
 const getNotificationTypeMap = (theme) => ({
   booking: {
@@ -207,111 +213,133 @@ export default function TenantNotifications({ navigation }) {
   const styles = React.useMemo(() => getStyles(theme), [theme]);
 
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterType, setFilterType] = useState("all");
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS });
-  const [fetchError, setFetchError] = useState("");
   const [actionError, setActionError] = useState("");
 
-  const fetchNotifications = useCallback(async () => {
-    setLoading(true);
-    setFetchError("");
+  const notificationsFeedQuery = useQuery({
+    queryKey: tenantQueryKeys.notificationsFeed(),
+    queryFn: async () => {
+      try {
+        const [backendResult, bookingsResult, paymentsResult] =
+          await Promise.allSettled([
+            api.get("/notifications?role=tenant"),
+            BookingService.getMyBookings(),
+            PaymentService.getPayments(),
+          ]);
 
-    try {
-      const [backendResult, bookingsResult, paymentsResult] =
-        await Promise.allSettled([
-          api.get("/notifications?role=tenant"),
-          BookingService.getMyBookings(),
-          PaymentService.getPayments(),
-        ]);
+        const items = [];
+        let failedSources = 0;
 
-      const items = [];
-      let failedSources = 0;
+        if (backendResult.status === "fulfilled") {
+          const backendPayload =
+            backendResult.value?.data?.data || backendResult.value?.data || [];
+          const backendNotifs = Array.isArray(backendPayload)
+            ? backendPayload
+            : [];
 
-      if (backendResult.status === "fulfilled") {
-        const backendPayload =
-          backendResult.value?.data?.data || backendResult.value?.data || [];
-        const backendNotifs = Array.isArray(backendPayload) ? backendPayload : [];
-
-        backendNotifs.forEach((n) => {
-          items.push({
-            id: `n-${n.id}`,
-            type: n.data?.type || "default",
-            title: n.data?.title || "Notification",
-            message: n.data?.message || "",
-            timestamp: n.created_at || new Date().toISOString(),
-            read: !!n.read_at,
-            raw: n,
-          });
-        });
-      } else {
-        failedSources += 1;
-      }
-
-      if (bookingsResult.status === "fulfilled") {
-        const bookingsRes = bookingsResult.value;
-        if (bookingsRes?.success && Array.isArray(bookingsRes.data)) {
-          bookingsRes.data.forEach((b) => {
+          backendNotifs.forEach((n) => {
             items.push({
-              id: `b-${b.id}`,
-              type: "booking",
-              title: `Booking ${b.reference || b.id}`,
-              message: `Status: ${b.status}`,
-              timestamp: b.updated_at || b.created_at || new Date().toISOString(),
-              read: b.status === "confirmed" || b.status === "cancelled",
-              raw: b,
+              id: `n-${n.id}`,
+              type: n.data?.type || "default",
+              title: n.data?.title || "Notification",
+              message: n.data?.message || "",
+              timestamp: n.created_at || new Date().toISOString(),
+              read: !!n.read_at,
+              raw: n,
             });
           });
         } else {
           failedSources += 1;
         }
-      } else {
-        failedSources += 1;
-      }
 
-      if (paymentsResult.status === "fulfilled") {
-        const paymentsRes = paymentsResult.value;
-        if (paymentsRes?.success && Array.isArray(paymentsRes.data)) {
-          paymentsRes.data.forEach((p) => {
-            items.push({
-              id: `p-${p.id}`,
-              type: "payment",
-              title: `Invoice ${p.invoice_reference || p.id}`,
-              message: `Payment status: ${p.status}`,
-              timestamp: p.updated_at || p.created_at || new Date().toISOString(),
-              read: p.status === "paid",
-              raw: p,
+        if (bookingsResult.status === "fulfilled") {
+          const bookingsRes = bookingsResult.value;
+          if (bookingsRes?.success && Array.isArray(bookingsRes.data)) {
+            bookingsRes.data.forEach((b) => {
+              items.push({
+                id: `b-${b.id}`,
+                type: "booking",
+                title: `Booking ${b.reference || b.id}`,
+                message: `Status: ${b.status}`,
+                timestamp:
+                  b.updated_at || b.created_at || new Date().toISOString(),
+                read: b.status === "confirmed" || b.status === "cancelled",
+                raw: b,
+              });
             });
-          });
+          } else {
+            failedSources += 1;
+          }
         } else {
           failedSources += 1;
         }
-      } else {
-        failedSources += 1;
-      }
 
-      if (failedSources > 0) {
-        setFetchError(
-          failedSources === 3
-            ? "Unable to load notifications right now. Pull to refresh."
-            : "Some notification data could not be loaded. Pull to refresh.",
-        );
-      }
+        if (paymentsResult.status === "fulfilled") {
+          const paymentsRes = paymentsResult.value;
+          if (paymentsRes?.success && Array.isArray(paymentsRes.data)) {
+            paymentsRes.data.forEach((p) => {
+              items.push({
+                id: `p-${p.id}`,
+                type: "payment",
+                title: `Invoice ${p.invoice_reference || p.id}`,
+                message: `Payment status: ${p.status}`,
+                timestamp:
+                  p.updated_at || p.created_at || new Date().toISOString(),
+                read: p.status === "paid",
+                raw: p,
+              });
+            });
+          } else {
+            failedSources += 1;
+          }
+        } else {
+          failedSources += 1;
+        }
 
-      items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      setNotifications(items);
-    } catch (err) {
-      console.warn("Error fetching tenant notifications", err);
-      setFetchError("Unable to load notifications right now. Pull to refresh.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        return {
+          items,
+          fetchError:
+            failedSources === 0
+              ? ""
+              : failedSources === 3
+                ? "Unable to load notifications right now. Pull to refresh."
+                : "Some notification data could not be loaded. Pull to refresh.",
+        };
+      } catch (err) {
+        console.warn("Error fetching tenant notifications", err);
+        return {
+          items: [],
+          fetchError: "Unable to load notifications right now. Pull to refresh.",
+        };
+      }
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const loading = notificationsFeedQuery.isLoading;
+  const fetchError = notificationsFeedQuery.data?.fetchError || "";
+  const refetchNotificationsFeed = notificationsFeedQuery.refetch;
+  const notificationsRefetchers = React.useMemo(
+    () => [refetchNotificationsFeed],
+    [refetchNotificationsFeed],
+  );
+
+  useTenantFocusRefetch({ refetchers: notificationsRefetchers });
+
+  const handleRefresh = useTenantRefreshHandler({
+    setRefreshing,
+    refetchers: notificationsRefetchers,
+  });
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    const incomingItems = notificationsFeedQuery.data?.items;
+    if (!Array.isArray(incomingItems)) return;
+    setNotifications(incomingItems);
+  }, [notificationsFeedQuery.data]);
 
   useEffect(() => {
     (async () => {
@@ -332,12 +360,6 @@ export default function TenantNotifications({ navigation }) {
     if (n.type === "message" && prefs.push_messages === false) return false;
     return true;
   });
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchNotifications();
-    setRefreshing(false);
-  };
 
   const markAsRead = async (id) => {
     const previousState = notifications;
@@ -540,7 +562,7 @@ export default function TenantNotifications({ navigation }) {
           >
             {actionError || fetchError}
           </Text>
-          <TouchableOpacity onPress={fetchNotifications}>
+          <TouchableOpacity onPress={refetchNotificationsFeed}>
             <Text
               style={[
                 styles.errorRetryText,

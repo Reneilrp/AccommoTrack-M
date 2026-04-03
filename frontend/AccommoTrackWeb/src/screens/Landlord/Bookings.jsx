@@ -4,13 +4,14 @@ import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, E
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
-import api from '../../utils/api';
+import bookingService from '../../services/bookingService';
 import { SkeletonStatCard, SkeletonTableRow } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
+import { LANDLORD_MUTATION_FRESHNESS, refreshAfterMutation } from '../../utils/mutationFreshness';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const location = useLocation();
-  const { uiState, updateData } = useUIState();
+  const { uiState, updateData, invalidateData } = useUIState();
   const cachedData = uiState.data?.landlord_bookings;
 
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -66,6 +67,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     setShowDetailModal(false);
     setSelectedBooking(null);
     resetDepositSettlementState();
+  };
+
+  const refreshLandlordMutationViews = () => {
+    refreshAfterMutation({
+      invalidateData,
+      ...LANDLORD_MUTATION_FRESHNESS,
+    });
   };
 
   const readOnlyGuard = () => {
@@ -145,9 +153,21 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const fetchBookings = async () => {
     try {
       if (!cachedData) setLoading(true);
-      const response = await api.get('/bookings');
-      setBookings(response.data);
-      updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, bookings: response.data });
+      const response = await bookingService.getBookings();
+      if (response.success) {
+        const list = Array.isArray(response.data)
+          ? response.data
+          : (Array.isArray(response.data?.data) ? response.data.data : []);
+        setBookings(list);
+        updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, bookings: list });
+        setError(null);
+      } else if (response.status === 404 || response.status === 204) {
+        setBookings([]);
+        setError(null);
+      } else {
+        setBookings([]);
+        setError(response.error || 'Failed to fetch bookings');
+      }
     } catch (err) {
       if (err.response?.status === 404 || err.response?.status === 204) setBookings([]);
       else setError(err.response?.data?.message || 'Failed to fetch bookings');
@@ -156,17 +176,27 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get('/bookings/stats');
-      setStats(response.data);
-      updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, stats: response.data });
+      const response = await bookingService.getStats();
+      if (response.success) {
+        const data = response.data || { total: 0, confirmed: 0, pending: 0, completed: 0 };
+        setStats(data);
+        updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, stats: data });
+      }
     } catch (err) { console.error('Error fetching stats:', err); }
   };
 
   const fetchExtensions = async () => {
     try {
       setLoadingExtensions(true);
-      const response = await api.get('/landlord/extensions');
-      setExtensionRequests(response.data);
+      const response = await bookingService.getExtensions();
+      if (response.success) {
+        const list = Array.isArray(response.data)
+          ? response.data
+          : (Array.isArray(response.data?.data) ? response.data.data : []);
+        setExtensionRequests(list);
+      } else {
+        setExtensionRequests([]);
+      }
     } catch (err) {
       console.error('Error fetching extensions:', err);
     } finally {
@@ -177,11 +207,15 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const fetchTransfers = async () => {
     try {
       setLoadingTransfers(true);
-      const response = await api.get('/landlord/transfers');
-      const list = Array.isArray(response?.data?.data)
-        ? response.data.data
-        : (Array.isArray(response?.data) ? response.data : []);
-      setTransferRequests(list);
+      const response = await bookingService.getTransfers();
+      if (response.success) {
+        const list = Array.isArray(response.data)
+          ? response.data
+          : (Array.isArray(response.data?.data) ? response.data.data : []);
+        setTransferRequests(list);
+      } else {
+        setTransferRequests([]);
+      }
     } catch (err) {
       console.error('Error fetching transfers:', err);
     } finally {
@@ -193,11 +227,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     if (readOnlyGuard()) return;
     const toastId = toast.loading(`${action === 'modify' ? 'Modifying' : 'Updating'} request...`);
     try {
-      await api.patch(`/landlord/extensions/${id}/handle`, {
-        action,
-        ...modifyData
-      });
+      const response = await bookingService.handleExtension(id, action, modifyData || {});
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to handle request');
+      }
       toast.success(`Request ${action === 'modify' ? 'modified' : action} successfully!`, { id: toastId });
+      refreshLandlordMutationViews();
       fetchExtensions();
       fetchBookings(); // Refresh bookings to reflect new dates
     } catch (err) {
@@ -210,11 +245,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     if (readOnlyGuard()) return;
     const toastId = toast.loading(`${action === 'approve' ? 'Approving' : 'Rejecting'} transfer...`);
     try {
-      await api.patch(`/landlord/transfers/${id}/handle`, {
-        action,
-        ...transferData
-      });
+      const response = await bookingService.handleTransfer(id, action, transferData || {});
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to handle transfer');
+      }
       toast.success(`Transfer ${action}d successfully!`, { id: toastId });
+      refreshLandlordMutationViews();
       fetchTransfers();
       fetchBookings(); // Refresh bookings to reflect new room
     } catch (err) {
@@ -243,13 +279,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     const toastId = toast.loading(`${newStatus === 'cancelled' ? 'Cancelling' : 'Updating'} booking...`);
     setProcessing(true);
     try {
-      await api.patch(`/bookings/${bookingId}/status`, {
-        status: newStatus,
+      const response = await bookingService.updateStatus(bookingId, newStatus, {
         cancellation_reason: cancellationReason,
         refund_amount: refundData?.refundAmount || 0,
-        should_refund: refundData?.shouldRefund || false
+        should_refund: refundData?.shouldRefund || false,
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update booking status');
+      }
 
+      refreshLandlordMutationViews();
       await fetchBookings();
       await fetchStats();
       closeDetailModal();
@@ -258,7 +297,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       toast.success(`Booking ${newStatus} successfully!`, { id: toastId });
     } catch (err) {
       console.error('Error updating status:', err);
-      toast.error(err.response?.data?.message || 'Failed to update booking status', { id: toastId });
+      toast.error(err.message || err.response?.data?.message || 'Failed to update booking status', { id: toastId });
     } finally {
       setProcessing(false);
     }
@@ -269,13 +308,17 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     const toastId = toast.loading('Approving reservation...');
     setProcessing(true);
     try {
-      await api.post(`/bookings/${bookingId}/approve-reservation`);
+      const response = await bookingService.approveReservation(bookingId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to approve reservation');
+      }
+      refreshLandlordMutationViews();
       toast.success('Reservation approved!', { id: toastId });
       await fetchBookings();
       await fetchStats();
       closeDetailModal();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to approve reservation', { id: toastId });
+      toast.error(err.message || err.response?.data?.message || 'Failed to approve reservation', { id: toastId });
     } finally {
       setProcessing(false);
     }
@@ -286,13 +329,17 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     const toastId = toast.loading('Checking in tenant...');
     setProcessing(true);
     try {
-      await api.post(`/bookings/${bookingId}/check-in`);
+      const response = await bookingService.checkIn(bookingId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to check in tenant');
+      }
+      refreshLandlordMutationViews();
       toast.success('Tenant checked in successfully!', { id: toastId });
       await fetchBookings();
       await fetchStats();
       closeDetailModal();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to check in tenant', { id: toastId });
+      toast.error(err.message || err.response?.data?.message || 'Failed to check in tenant', { id: toastId });
     } finally {
       setProcessing(false);
     }
@@ -302,11 +349,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const handleUpdatePayment = async (bookingId, paymentStatus) => {
     if (readOnlyGuard()) return;
     try {
-      const response = await api.patch(`/bookings/${bookingId}/payment`, {
+      const response = await bookingService.recordPayment(bookingId, {
         payment_status: paymentStatus
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update payment status');
+      }
       
-      const result = response.data;
+      const result = response.data || {};
+
+      refreshLandlordMutationViews();
 
       // Refresh bookings list
       await fetchBookings();
@@ -330,7 +382,32 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       }
     } catch (err) {
       console.error('Error updating payment:', err);
-      toast.error(err.response?.data?.message || 'Failed to update payment status');
+      toast.error(err.message || err.response?.data?.message || 'Failed to update payment status');
+    }
+  };
+
+  const handleFinalizeCheckout = async (bookingId, payload = {}) => {
+    if (readOnlyGuard()) return;
+
+    const toastId = toast.loading('Finalizing checkout...');
+    setProcessing(true);
+    try {
+      const response = await bookingService.finalizeCheckout(bookingId, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to finalize checkout');
+      }
+
+      refreshLandlordMutationViews();
+      await fetchBookings();
+      await fetchStats();
+      closeDetailModal();
+
+      toast.success(response.message || 'Checkout finalized successfully.', { id: toastId });
+    } catch (err) {
+      console.error('Error finalizing checkout:', err);
+      toast.error(err.message || err.response?.data?.message || 'Failed to finalize checkout', { id: toastId });
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -348,8 +425,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const fetchDepositSettlementHistory = async (bookingId, showError = true) => {
     try {
       setLoadingDepositSettlementHistory(true);
-      const response = await api.get(`/bookings/${bookingId}/deposit-settlements`);
-      const payload = response?.data?.data || {};
+      const response = await bookingService.getDepositSettlements(bookingId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch deposit settlement history');
+      }
+      const payload = response.data || {};
       const settlements = Array.isArray(payload.settlements) ? payload.settlements : [];
       const latestBalance = Number(payload.deposit_balance || 0);
 
@@ -366,7 +446,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       )));
     } catch (err) {
       if (showError) {
-        toast.error(err.response?.data?.message || 'Failed to fetch deposit settlement history');
+        toast.error(err.message || err.response?.data?.message || 'Failed to fetch deposit settlement history');
       }
     } finally {
       setLoadingDepositSettlementHistory(false);
@@ -411,7 +491,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
     try {
       setSubmittingDepositSettlement(true);
-      const response = await api.post(`/bookings/${selectedBooking.id}/deposit-settlement`, {
+      const response = await bookingService.createDepositSettlement(selectedBooking.id, {
         damage_fee: damageFee,
         cleaning_fee: cleaningFee,
         other_fee: otherFee,
@@ -422,8 +502,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           : null,
         note: depositSettlementForm.note.trim() || null
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to settle deposit');
+      }
 
-      const payload = response?.data?.data || {};
+      const payload = response.data || {};
       const updatedBalance = Number(payload.deposit_balance || 0);
       const latestSettlement = payload.settlement || null;
 
@@ -454,9 +537,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         note: ''
       });
 
-      toast.success(response?.data?.message || 'Deposit settlement recorded successfully.');
+      refreshLandlordMutationViews();
+      toast.success('Deposit settlement recorded successfully.');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to settle deposit.');
+      toast.error(err.message || err.response?.data?.message || 'Failed to settle deposit.');
     } finally {
       setSubmittingDepositSettlement(false);
     }
@@ -528,7 +612,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         <AddBookingModal
           isOpen={showAddBookingModal}
           onClose={() => setShowAddBookingModal(false)}
-          onBookingAdded={() => { setShowAddBookingModal(false); fetchBookings(); fetchStats(); }}
+          onBookingAdded={() => {
+            setShowAddBookingModal(false);
+            refreshLandlordMutationViews();
+            fetchBookings();
+            fetchStats();
+          }}
         />
 
         {/* Stats */}
@@ -1122,18 +1211,18 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                             <div className="flex gap-4 w-full">
                               <button
                                 onClick={() => {
-                                  if (window.confirm('Mark this booking as completed?')) {
-                                    if (Number(selectedBooking.deposit_balance || 0) > 0) {
-                                      toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+                                  if (window.confirm('Finalize checkout for this tenant now?')) {
+                                    if (Number(selectedBooking.deposit_balance || 0) > 0 && paymentStatus === 'paid') {
+                                      toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before finalizing as completed.`);
                                       return;
                                     }
-                                    handleUpdateStatus(selectedBooking.id, 'completed');
+                                    handleFinalizeCheckout(selectedBooking.id);
                                   }
                                 }}
                                 className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                               >
                                 <CheckCircle className="w-5 h-5" />
-                                Complete
+                                Finalize Checkout
                               </button>
                               <button
                                 onClick={() => handleOpenCancelModal(selectedBooking)}
@@ -1147,41 +1236,31 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         } else if (paymentStatus === 'partial') {
                           return (
                             <div className="flex flex-col gap-4 w-full">
+                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                                <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
+                                  <strong>Outstanding Balance:</strong> Finalizing checkout will close the stay as partial-completed.
+                                </p>
+                              </div>
                               <div className="flex gap-4">
                                 <button
                                   onClick={() => {
-                                    if (window.confirm('Mark as completed with full payment received?')) {
-                                      if (Number(selectedBooking.deposit_balance || 0) > 0) {
-                                        toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
-                                        return;
-                                      }
-                                      handleUpdateStatus(selectedBooking.id, 'completed');
+                                    if (window.confirm('Finalize checkout now?')) {
+                                      handleFinalizeCheckout(selectedBooking.id);
                                     }
                                   }}
                                   className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                                 >
                                   <CheckCircle className="w-5 h-5" />
-                                  Complete
+                                  Finalize Checkout
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm('Mark as completed with partial payment? Remaining balance should be tracked separately.')) {
-                                      handleUpdateStatus(selectedBooking.id, 'partial-completed');
-                                    }
-                                  }}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-yellow-500/20 active:scale-[0.98]"
+                                  onClick={() => handleOpenCancelModal(selectedBooking)}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                                 >
-                                  <CheckCircle className="w-5 h-5" />
-                                  Partial
+                                  <XCircle className="w-5 h-5" />
+                                  Cancel & Refund
                                 </button>
                               </div>
-                              <button
-                                onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                              >
-                                <XCircle className="w-5 h-5" />
-                                Cancel & Refund
-                              </button>
                             </div>
                           );
                         } else {
@@ -1189,16 +1268,29 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                             <div className="w-full">
                               <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
                                 <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
-                                  <strong>Note:</strong> Payment is required before completion. Only cancellation is available.
+                                  <strong>Unpaid Stay:</strong> You can finalize checkout, but booking will be marked partial-completed until balances are settled.
                                 </p>
                               </div>
-                              <button
-                                onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                              >
-                                <XCircle className="w-5 h-5" />
-                                Cancel
-                              </button>
+                              <div className="flex gap-4">
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Finalize checkout now?')) {
+                                      handleFinalizeCheckout(selectedBooking.id);
+                                    }
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                >
+                                  <CheckCircle className="w-5 h-5" />
+                                  Finalize Checkout
+                                </button>
+                                <button
+                                  onClick={() => handleOpenCancelModal(selectedBooking)}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                >
+                                  <XCircle className="w-5 h-5" />
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
                           );
                         }
@@ -1478,7 +1570,7 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
 // ==================== Transfer Requests List ====================
 const TransferRequestsList = ({ requests, loading, onHandle }) => {
   const [approving, setApproving] = useState(null); // id of request being approved (to show form)
-  const [approvalData, setApprovalData] = useState({ damage_charge: '', damage_description: '', landlord_notes: '', prorated_adjustment: '' });
+  const [approvalData, setApprovalData] = useState({ transfer_fee: '', damage_charge: '', damage_description: '', landlord_notes: '', prorated_adjustment: '' });
   const [prorationDetails, setProrationDetails] = useState(null);
   const [loadingProration, setLoadingProration] = useState(false);
 
@@ -1519,15 +1611,33 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
 
   const startApprove = async (req) => {
     setApproving(req.id);
-    setApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '', prorated_adjustment: '' });
+    setApprovalData({
+      transfer_fee: req?.quoted_transfer_fee != null ? String(req.quoted_transfer_fee) : '',
+      damage_charge: '',
+      damage_description: '',
+      landlord_notes: '',
+      prorated_adjustment: '',
+    });
     
     setLoadingProration(true);
     setProrationDetails(null);
     try {
-      const res = await api.get(`/landlord/transfers/${req.id}/proration`);
-      const details = res?.data?.data || res?.data || null;
+      const response = await bookingService.getTransferProration(req.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load proration details');
+      }
+      const details = response.data || null;
       setProrationDetails(details);
-      setApprovalData(prev => ({ ...prev, prorated_adjustment: details?.suggested_adjustment ?? '' }));
+      setApprovalData(prev => ({
+        ...prev,
+        transfer_fee:
+          details?.quoted_transfer_fee != null
+            ? String(details.quoted_transfer_fee)
+            : details?.transfer_fee != null
+              ? String(details.transfer_fee)
+              : prev.transfer_fee,
+        prorated_adjustment: details?.suggested_adjustment ?? '',
+      }));
     } catch (err) {
       console.error("Failed to load proration details", err);
     } finally {
@@ -1634,6 +1744,20 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                       <p className="text-xs text-red-500 py-4">Could not calculate proration automatically.</p>
                     )}
                     
+                    <div className="pt-2">
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mt-2 mb-2">Transfer Fee (₱)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={approvalData.transfer_fee}
+                        onChange={e => setApprovalData({...approvalData, transfer_fee: e.target.value})}
+                        className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all text-gray-900 dark:text-white"
+                      />
+                      <p className="text-[10px] text-gray-500 font-medium mt-2">Cannot exceed the quoted fee from transfer request.</p>
+                    </div>
+
                     <div className="pt-2">
                       <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mt-2 mb-2">Final Override Adjustment (₱)</label>
                       <input 

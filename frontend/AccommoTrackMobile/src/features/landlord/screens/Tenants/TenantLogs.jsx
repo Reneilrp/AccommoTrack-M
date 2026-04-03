@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,57 +6,75 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
-  FlatList,
   RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 import TenantService from '../../../../services/TenantService.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { getStyles } from '../../../../styles/Landlord/TenantLogs.js';
+
+const EMPTY_PAYMENTS = [];
 
 export default function TenantLogs({ route, navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { tenantId, tenantName: initialName } = route.params || {};
 
-  const [tenant, setTenant] = useState(null);
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('Payments'); // 'Payments', 'Bookings', 'Maintenance', 'Add-ons', 'Transfers'
   const [paymentFilter, setPaymentFilter] = useState('all'); // 'all', 'paid', 'due'
 
-  const fetchData = useCallback(async (isRefresh = false) => {
-    if (!tenantId) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-
-    try {
-      const [tenantRes, paymentsRes] = await Promise.all([
-        TenantService.getTenantDetails(tenantId),
-        PaymentService.getInvoicesByTenant(tenantId)
-      ]);
-
-      if (tenantRes.success) {
-        setTenant(tenantRes.data);
-      }
-      if (paymentsRes.success) {
-        setPayments(paymentsRes.data || []);
+  const tenantQuery = useQuery({
+    queryKey: landlordQueryKeys.tenantDetails(tenantId),
+    enabled: Boolean(tenantId),
+    queryFn: async () => {
+      const response = await TenantService.getTenantDetails(tenantId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load tenant details.');
       }
 
-    } catch (error) {
-      console.error('Error fetching tenant logs:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [tenantId]);
+      return response.data || null;
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const paymentsQuery = useQuery({
+    queryKey: landlordQueryKeys.tenantInvoices(tenantId),
+    enabled: Boolean(tenantId),
+    queryFn: async () => {
+      const response = await PaymentService.getInvoicesByTenant(tenantId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load tenant payments.');
+      }
+
+      return Array.isArray(response.data) ? response.data : EMPTY_PAYMENTS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const tenant = tenantQuery.data || null;
+  const payments = paymentsQuery.data || EMPTY_PAYMENTS;
+  const loading = (tenantQuery.isPending && !tenant) || (paymentsQuery.isPending && payments.length === 0);
+  const error = tenantQuery.error?.message || paymentsQuery.error?.message || '';
+  const refetchTenant = tenantQuery.refetch;
+  const refetchPayments = paymentsQuery.refetch;
+  const tenantRefetchers = useMemo(
+    () => [refetchTenant, refetchPayments],
+    [refetchTenant, refetchPayments],
+  );
+
+  const handleRefresh = useLandlordRefreshHandler({
+    enabled: Boolean(tenantId),
+    setRefreshing,
+    refetchers: tenantRefetchers,
+  });
 
   const filteredPayments = useMemo(() => {
     if (paymentFilter === 'all') return payments;
@@ -406,9 +424,16 @@ export default function TenantLogs({ route, navigation }) {
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={['#059669']} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#059669']} />
         }
       >
+        {error ? (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={16} color="#B91C1C" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarCircle}>

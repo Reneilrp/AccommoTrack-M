@@ -18,7 +18,8 @@ import {
   LogOut,
   Bell,
   Package,
-  Star
+  Star,
+  HelpCircle
 } from 'lucide-react';
 
 export default function TenantLayout({ user, onLogout, children }) {
@@ -52,6 +53,11 @@ export default function TenantLayout({ user, onLogout, children }) {
       path: '/messages',
       label: 'Messages',
       icon: <MessageSquare className="w-5 h-5" />
+    },
+    {
+      path: '/support',
+      label: 'Help & Support',
+      icon: <HelpCircle className="w-5 h-5" />
     },
     {
       path: '/settings',

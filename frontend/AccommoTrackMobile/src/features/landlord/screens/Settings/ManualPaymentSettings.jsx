@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  RefreshControl,
   ScrollView,
   StatusBar,
   Text,
@@ -14,50 +15,77 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 
 export default function ManualPaymentSettings({ navigation }) {
   const { theme } = useTheme();
-  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [gcashInfo, setGcashInfo] = useState('');
   const [bankInfo, setBankInfo] = useState('');
   const [otherInfo, setOtherInfo] = useState('');
+  const queryClient = useQueryClient();
+
+  const manualPaymentSettingsQuery = useQuery({
+    queryKey: landlordQueryKeys.manualPaymentSettings(),
+    queryFn: async () => {
+      const res = await ProfileService.getProfile();
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to load payment settings');
+      }
+
+      return res.data || null;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const profileData = manualPaymentSettingsQuery.data;
+  const loading = manualPaymentSettingsQuery.isPending && !profileData;
+  const fetchError = manualPaymentSettingsQuery.error?.message || '';
+  const refetchManualPaymentSettings = manualPaymentSettingsQuery.refetch;
+  const manualPaymentRefetchers = useMemo(
+    () => [refetchManualPaymentSettings],
+    [refetchManualPaymentSettings],
+  );
+
+  useLandlordFocusRefetch({ refetchers: manualPaymentRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: manualPaymentRefetchers,
+  });
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (!profileData) return;
 
-  const loadSettings = async () => {
-    try {
-      setLoading(true);
-      const res = await ProfileService.getProfile();
-      if (res.success && res.data) {
-        const settings = res.data.payment_methods_settings || {};
-        const details = settings.details || {};
-        setGcashInfo(details.gcash_info || '');
-        setBankInfo(details.bank_info || '');
-        setOtherInfo(details.other_info || '');
-      }
-    } catch (error) {
-      console.error('Failed to load payment settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const settings = profileData.payment_methods_settings || {};
+    const details = settings.details || {};
+    setGcashInfo(details.gcash_info || '');
+    setBankInfo(details.bank_info || '');
+    setOtherInfo(details.other_info || '');
+  }, [profileData]);
+
+  useEffect(() => {
+    if (!fetchError) return;
+    console.error('Failed to load payment settings:', fetchError);
+    Alert.alert('Error', fetchError);
+  }, [fetchError]);
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      
-      // Get current profile to merge settings
-      const currentProfileRes = await ProfileService.getProfile();
-      if (!currentProfileRes.success) throw new Error('Could not fetch current settings');
-      
-      const currentSettings = currentProfileRes.data.payment_methods_settings || {};
+
+      const currentSettings = profileData?.payment_methods_settings || {};
       const currentAllowed = currentSettings.allowed || ['cash'];
-      
+
       const payload = {
         payment_methods_settings: {
           allowed: currentAllowed,
@@ -71,6 +99,14 @@ export default function ManualPaymentSettings({ navigation }) {
 
       const res = await ProfileService.updateProfile(payload);
       if (res.success) {
+        queryClient.setQueryData(
+          landlordQueryKeys.manualPaymentSettings(),
+          (current = {}) => ({
+            ...current,
+            payment_methods_settings: payload.payment_methods_settings,
+          }),
+        );
+
         // Update local storage
         const userString = await AsyncStorage.getItem('user');
         if (userString) {
@@ -78,6 +114,8 @@ export default function ManualPaymentSettings({ navigation }) {
           user.payment_methods_settings = payload.payment_methods_settings;
           await AsyncStorage.setItem('user', JSON.stringify(user));
         }
+
+        await refetchLandlordQueries([refetchManualPaymentSettings]);
         
         Alert.alert('Success', 'Payment settings updated successfully');
         navigation.goBack();
@@ -123,7 +161,17 @@ export default function ManualPaymentSettings({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
+        >
           <View style={styles.infoBox}>
             <Ionicons name="information-circle-outline" size={20} color={theme.colors.primary} />
             <Text style={styles.infoText}>

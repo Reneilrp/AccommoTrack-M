@@ -24,11 +24,12 @@ class UpdateRoomRequest extends FormRequest
     public function rules(): array
     {
         $room = \App\Models\Room::find($this->route('room') ?? $this->route('id'));
-        $isApartment = $room && $room->property && $room->property->property_type === 'apartment';
+        $normalizedPropertyType = $this->normalizePropertyTypeToken($room?->property?->property_type);
+        $isApartment = $normalizedPropertyType === 'apartment';
 
         $propertyGender = ($room && $room->property) ? strtolower($room->property->gender_restriction) : 'mixed';
         $allowedGenders = ['male', 'female'];
-        if ($room && $room->property && ! in_array($room->property->property_type, ['dormitory', 'boardingHouse', 'bedSpacer'])) {
+        if (! in_array($normalizedPropertyType, ['dormitory', 'boardinghouse', 'bedspacer'], true)) {
             $allowedGenders[] = 'mixed';
         }
 
@@ -119,5 +120,10 @@ class UpdateRoomRequest extends FormRequest
         return [
             'gender_restriction.in' => $message,
         ];
+    }
+
+    private function normalizePropertyTypeToken(?string $propertyType): string
+    {
+        return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
     }
 }

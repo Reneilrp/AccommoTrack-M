@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,16 +10,21 @@ import {
   RefreshControl,
   Switch,
   Modal,
+  Image,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/DormProfile.js';
+import {
+  landlordQueryKeys,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 
 const GENDER_OPTIONS = [
   { label: 'Mixed (Any Gender)', value: 'mixed' },
@@ -104,7 +109,7 @@ const normalizeSettings = (data) => {
     parsedRules = typeof data?.property_rules === 'string' 
       ? JSON.parse(data.property_rules) 
       : (data?.property_rules || []);
-  } catch (e) { parsedRules = []; }
+  } catch (_e) { parsedRules = []; }
 
   // Normalize images
   const images = (data?.images || []).map(img => ({
@@ -161,10 +166,9 @@ const normalizeSettings = (data) => {
 
 export default function DormProfileSettings({ route, navigation }) {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const propertyId = route.params?.propertyId;
   const [form, setForm] = useState(buildEmptyForm);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newRule, setNewRule] = useState('');
@@ -172,30 +176,44 @@ export default function DormProfileSettings({ route, navigation }) {
   const [password, setPassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const loadSettings = useCallback(async (fromRefresh = false) => {
-    if (!propertyId) return;
-    fromRefresh ? setRefreshing(true) : setLoading(true);
-
-    try {
+  const settingsQuery = useQuery({
+    queryKey: landlordQueryKeys.propertySettings(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
       const response = await PropertyService.getProperty(propertyId);
-      if (response.success) {
-        setForm(normalizeSettings(response.data));
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load property settings');
       }
-    } catch (err) {
-      console.error('Failed to load settings', err);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to load property settings.'
-      });
-    } finally {
-      fromRefresh ? setRefreshing(false) : setLoading(false);
-    }
-  }, [propertyId]);
+
+      return response.data || null;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const loading = settingsQuery.isPending && !settingsQuery.data;
+  const fetchError = settingsQuery.error?.message || '';
+  const refetchSettings = settingsQuery.refetch;
+  const settingsRefetchers = useMemo(() => [refetchSettings], [refetchSettings]);
+
+  const handleRefresh = useLandlordRefreshHandler({
+    enabled: Boolean(propertyId),
+    setRefreshing,
+    refetchers: settingsRefetchers,
+  });
 
   useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
+    if (!settingsQuery.data) return;
+    setForm(normalizeSettings(settingsQuery.data));
+  }, [settingsQuery.data]);
+
+  useEffect(() => {
+    if (!fetchError) return;
+    Toast.show({
+      type: 'error',
+      text1: 'Error',
+      text2: fetchError,
+    });
+  }, [fetchError]);
 
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -469,7 +487,7 @@ export default function DormProfileSettings({ route, navigation }) {
 
       <ScrollView 
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadSettings(true)} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Basic Information</Text>

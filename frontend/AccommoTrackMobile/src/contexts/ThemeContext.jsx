@@ -1,6 +1,8 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appearance } from 'react-native';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 const ThemeContext = createContext();
 
@@ -137,60 +139,80 @@ export const darkTheme = {
   },
 };
 
+const THEME_STORAGE_KEY = 'theme_store';
+const LEGACY_THEME_STORAGE_KEY = 'theme';
+
+const getSystemDarkPreference = () => Appearance.getColorScheme() === 'dark';
+
+export const useThemeStore = create(
+  persist(
+    (set) => ({
+      isDarkMode: getSystemDarkPreference(),
+      hasHydrated: false,
+
+      setHydrated: (value) => set({ hasHydrated: Boolean(value) }),
+      toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
+      setTheme: (themeMode) => set({ isDarkMode: themeMode === 'dark' }),
+    }),
+    {
+      name: THEME_STORAGE_KEY,
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ isDarkMode: state.isDarkMode }),
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error('Error loading theme preference:', error);
+        }
+
+        state?.setHydrated(true);
+      },
+    },
+  ),
+);
+
 export const ThemeProvider = ({ children }) => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  const hasHydrated = useThemeStore((state) => state.hasHydrated);
+  const toggleTheme = useThemeStore((state) => state.toggleTheme);
+  const setTheme = useThemeStore((state) => state.setTheme);
 
   useEffect(() => {
-    loadThemePreference();
-  }, []);
+    if (!hasHydrated) return;
 
-  const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem('theme');
-      if (savedTheme !== null) {
-        setIsDarkMode(savedTheme === 'dark');
-      } else {
-        // Use system preference
-        const colorScheme = Appearance.getColorScheme();
-        setIsDarkMode(colorScheme === 'dark');
+    const migrateLegacyThemePreference = async () => {
+      try {
+        const currentThemeStoreValue = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (currentThemeStoreValue) {
+          return;
+        }
+
+        const legacyTheme = await AsyncStorage.getItem(LEGACY_THEME_STORAGE_KEY);
+        if (legacyTheme === 'dark' || legacyTheme === 'light') {
+          setTheme(legacyTheme);
+        }
+
+        if (legacyTheme !== null) {
+          await AsyncStorage.removeItem(LEGACY_THEME_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.error('Error migrating legacy theme preference:', error);
       }
-    } catch (error) {
-      console.error('Error loading theme preference:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  const toggleTheme = async () => {
-    try {
-      const newTheme = !isDarkMode;
-      setIsDarkMode(newTheme);
-      await AsyncStorage.setItem('theme', newTheme ? 'dark' : 'light');
-    } catch (error) {
-      console.error('Error saving theme preference:', error);
-    }
-  };
-
-  const setTheme = async (theme) => {
-    try {
-      const newIsDark = theme === 'dark';
-      setIsDarkMode(newIsDark);
-      await AsyncStorage.setItem('theme', theme);
-    } catch (error) {
-      console.error('Error saving theme preference:', error);
-    }
-  };
+    migrateLegacyThemePreference();
+  }, [hasHydrated, setTheme]);
 
   const theme = isDarkMode ? darkTheme : lightTheme;
 
-  const value = {
-    theme,
-    isDarkMode,
-    toggleTheme,
-    setTheme,
-    isLoading,
-  };
+  const value = useMemo(
+    () => ({
+      theme,
+      isDarkMode,
+      toggleTheme,
+      setTheme,
+      isLoading: !hasHydrated,
+    }),
+    [theme, isDarkMode, toggleTheme, setTheme, hasHydrated],
+  );
 
   return (
     <ThemeContext.Provider value={value}>

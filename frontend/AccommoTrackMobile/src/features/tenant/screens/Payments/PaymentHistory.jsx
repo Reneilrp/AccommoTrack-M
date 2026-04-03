@@ -1,48 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 export default function PaymentHistory() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchPayments = async () => {
-    try {
-      setLoading(true);
-      const paymentsResult = await PaymentService.getPayments();
-      if (paymentsResult.success && paymentsResult.data) {
-        setPayments(paymentsResult.data);
-      } else {
-        setPayments([]);
+  const paymentHistoryQuery = useQuery({
+    queryKey: tenantQueryKeys.paymentHistory(),
+    queryFn: async () => {
+      try {
+        const paymentsResult = await PaymentService.getPayments();
+        if (paymentsResult?.success && paymentsResult?.data) {
+          return Array.isArray(paymentsResult.data) ? paymentsResult.data : [];
+        }
+        return [];
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+        return [];
       }
-    } catch (error) {
-      console.error('Error fetching payments:', error);
-      setPayments([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchPayments();
-    }, [])
+  const payments = paymentHistoryQuery.data || [];
+  const loading = paymentHistoryQuery.isLoading;
+  const refetchPaymentHistory = paymentHistoryQuery.refetch;
+  const paymentHistoryRefetchers = React.useMemo(
+    () => [refetchPaymentHistory],
+    [refetchPaymentHistory],
   );
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchPayments();
-  };
+  useTenantFocusRefetch({ refetchers: paymentHistoryRefetchers });
+
+  const onRefresh = useTenantRefreshHandler({
+    setRefreshing,
+    refetchers: paymentHistoryRefetchers,
+  });
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

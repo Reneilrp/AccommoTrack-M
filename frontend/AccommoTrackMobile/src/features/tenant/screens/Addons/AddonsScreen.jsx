@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 
 import tenantService from '../../../../services/TenantService.js';
@@ -19,6 +20,7 @@ import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { showSuccess, showError } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/AddonsStyles.js';
 import Header from '../../components/Header.jsx';
+import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
 
 export default function AddonsScreen({ hideHeader = false }) {
   const { theme } = useTheme();
@@ -28,14 +30,10 @@ export default function AddonsScreen({ hideHeader = false }) {
   const insets = useSafeAreaInsets();
   const { bookingId = null, propertyId = null } = route.params || {};
 
-  const [addons, setAddons] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [qtys, setQtys] = useState({});
   const [notes, setNotes] = useState({});
   const [submittingId, setSubmittingId] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
-  const [noBooking, setNoBooking] = useState(false);
   
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customData, setCustomData] = useState({
@@ -45,10 +43,6 @@ export default function AddonsScreen({ hideHeader = false }) {
     note: '',
     suggested_price: ''
   });
-
-  useEffect(() => {
-    loadAddons();
-  }, []);
 
   const normalizeNote = (value) => {
     const trimmed = String(value || '').trim();
@@ -65,37 +59,71 @@ export default function AddonsScreen({ hideHeader = false }) {
     return numericValue;
   };
 
-  const loadAddons = async () => {
-    setLoading(true);
-    try {
+  const addonsBundleQuery = useQuery({
+    queryKey: tenantQueryKeys.addonsBundle({ bookingId, propertyId }),
+    queryFn: async () => {
       const [res, reqRes] = await Promise.all([
         tenantService.getAvailableAddons(),
-        tenantService.getAddonRequests()
+        tenantService.getAddonRequests(),
       ]);
-      
-      if (res.success && res.data) {
+
+      const pending = reqRes?.success && reqRes?.data ? reqRes.data.pending || [] : [];
+      const active = reqRes?.success && reqRes?.data ? reqRes.data.active || [] : [];
+
+      if (res?.success && res?.data) {
         const addonList = res.data.available || res.data;
-        setAddons(addonList);
-        const initial = {};
-        (addonList || []).forEach(a => { initial[a.id] = 1; });
-        setQtys(initial);
-      } else if (res.status === 404) {
-        setNoBooking(true);
-      } else {
-        showError('Error', res.error || 'Failed to load available addons');
+        return {
+          addons: Array.isArray(addonList) ? addonList : [],
+          requests: [...pending, ...active],
+          noBooking: false,
+        };
       }
 
-      if (reqRes && reqRes.success && reqRes.data) {
-        const pending = reqRes.data.pending || [];
-        const active = reqRes.data.active || [];
-        setRequests([...pending, ...active]);
+      if (res?.status === 404) {
+        return {
+          addons: [],
+          requests: [],
+          noBooking: true,
+        };
       }
-    } catch (err) {
-      console.error('Load addons error', err);
-    } finally {
-      setLoading(false);
-    }
+
+      throw new Error(res?.error || 'Failed to load available addons');
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const addonsBundle = addonsBundleQuery.data || {
+    addons: [],
+    requests: [],
+    noBooking: false,
   };
+  const addons = addonsBundle.addons || [];
+  const requests = addonsBundle.requests || [];
+  const noBooking = addonsBundle.noBooking || false;
+  const loading = addonsBundleQuery.isLoading;
+  const refetchAddonsBundle = addonsBundleQuery.refetch;
+  const addonsBundleRefetchers = React.useMemo(
+    () => [refetchAddonsBundle],
+    [refetchAddonsBundle],
+  );
+
+  useTenantFocusRefetch({ refetchers: addonsBundleRefetchers });
+
+  useEffect(() => {
+    if (!addonsBundleQuery.error) return;
+    showError('Error', addonsBundleQuery.error.message || 'Failed to load available addons');
+  }, [addonsBundleQuery.error]);
+
+  useEffect(() => {
+    if (!addons.length) return;
+    setQtys((prev) => {
+      const next = { ...prev };
+      addons.forEach((addon) => {
+        if (!next[addon.id]) next[addon.id] = 1;
+      });
+      return next;
+    });
+  }, [addons]);
 
   const onRequest = async (addon, isCustom = false) => {
     const normalizedSuggestedPrice = normalizeSuggestedPrice(customData.suggested_price);
@@ -127,7 +155,7 @@ export default function AddonsScreen({ hideHeader = false }) {
         showSuccess('Add-on request submitted');
         setShowCustomForm(false);
         setCustomData({ name: '', addon_type: 'rental', price_type: 'monthly', note: '', suggested_price: '' });
-        await loadAddons();
+        await refetchAddonsBundle();
       } else {
         showError('Error', res.error || 'Failed to request addon');
       }
@@ -153,7 +181,7 @@ export default function AddonsScreen({ hideHeader = false }) {
                     const res = await tenantService.cancelAddonRequest(id);
                     if (res.success) {
                         showSuccess('Request cancelled');
-                        await loadAddons();
+                    await refetchAddonsBundle();
                     } else {
                         showError('Error', res.error || 'Failed to cancel');
                     }

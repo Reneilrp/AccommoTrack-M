@@ -10,30 +10,45 @@ import MessageService from '../../../../services/MessageService.js';
 import { showSuccess, showError } from '../../../../utils/toast.js';
 import MessagesList from './MessagesList.jsx';
 import { navigate as rootNavigate } from '../../../../navigation/RootNavigation.js';
+import {
+    tenantQueryKeys,
+    useTenantFocusRefetch,
+    useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
     const queryClient = useQueryClient();
-    const [currentUserId, setCurrentUserId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPropertyId, setSelectedPropertyId] = useState(null);
     const [newConversationId, setNewConversationId] = useState(null);
     const [menuModalVisible, setMenuModalVisible] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // Fetch conversations using React Query
-    const { 
-        data: conversations = [], 
-        isLoading, 
-        isRefetching, 
-        refetch 
-    } = useQuery({
-        queryKey: ['conversations'],
+    const conversationsQuery = useQuery({
+        queryKey: tenantQueryKeys.messagesConversations(),
         queryFn: async () => {
             const result = await MessageService.getConversations();
             if (!result.success) throw new Error(result.error);
             return result.data;
-        }
+        },
+        placeholderData: (previousData) => previousData,
+    });
+
+    const conversations = conversationsQuery.data || [];
+    const isLoading = conversationsQuery.isLoading;
+    const refetchConversations = conversationsQuery.refetch;
+    const conversationRefetchers = React.useMemo(
+        () => [refetchConversations],
+        [refetchConversations],
+    );
+
+    useTenantFocusRefetch({ refetchers: conversationRefetchers });
+
+    const onRefresh = useTenantRefreshHandler({
+        setRefreshing,
+        refetchers: conversationRefetchers,
     });
 
     // Calculate total unread count
@@ -57,7 +72,7 @@ export default function MessagesPage({ navigation, route }) {
                 
                 if (conv?.id) {
                     // Invalidate and refetch conversations
-                    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+                    queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
                     // Navigate to the dedicated Chat screen
                     navigation.navigate('Chat', { conversation: conv });
                 }
@@ -70,30 +85,6 @@ export default function MessagesPage({ navigation, route }) {
         }
     });
 
-    // Get current user ID on mount
-    useEffect(() => {
-        const getUserId = async () => {
-            const stored = await AsyncStorage.getItem('user_id');
-            if (!stored) {
-                setCurrentUserId(null);
-                return;
-            }
-            try {
-                const parsed = JSON.parse(stored);
-                if (parsed && (parsed.id || parsed.id === 0)) {
-                    setCurrentUserId(parsed.id);
-                    return;
-                }
-            } catch (e) {
-                // not JSON
-            }
-            const maybeId = parseInt(stored, 10);
-            setCurrentUserId(Number.isNaN(maybeId) ? null : maybeId);
-        };
-
-        getUserId();
-    }, []);
-
     useFocusEffect(
         React.useCallback(() => {
             if (route.params?.startConversation && route.params?.recipient) {
@@ -105,10 +96,6 @@ export default function MessagesPage({ navigation, route }) {
             }
         }, [route.params])
     );
-
-    const onRefresh = () => {
-        refetch();
-    };
 
     const handleMenuItemPress = async (itemTitle) => {
         setMenuModalVisible(false);
@@ -193,7 +180,7 @@ export default function MessagesPage({ navigation, route }) {
                 filteredConversations={filteredConversations}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                refreshing={isRefetching}
+                refreshing={refreshing}
                 onRefresh={onRefresh}
                 newConversationId={newConversationId}
                 setNewConversationId={setNewConversationId}

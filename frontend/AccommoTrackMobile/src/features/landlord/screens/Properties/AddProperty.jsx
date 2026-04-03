@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Dimensions,
   Modal,
 } from "react-native";
 import {
@@ -20,14 +19,16 @@ import { WebView } from "react-native-webview";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import PropertyService from "../../../../services/PropertyService.js";
 import ProfileService from "../../../../services/ProfileService.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getStyles } from "../../../../styles/Landlord/AddProperty.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
-import { getImageUrl } from "../../../../utils/imageUtils.js";
-
-const { width } = Dimensions.get("window");
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+} from "../../hooks/useLandlordQueryHelpers.js";
 
 const PROPERTY_TYPES = [
   { label: "Dormitory", value: "dormitory" },
@@ -108,8 +109,6 @@ export default function AddProperty({ navigation }) {
   const [saving, setSaving] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [error, setError] = useState("");
-  const [isVerified, setIsVerified] = useState(null); // null = loading
-  const [isPayMongoVerified, setIsPayMongoVerified] = useState(false);
   const [successModal, setSuccessModal] = useState({
     visible: false,
     isDraft: false,
@@ -117,28 +116,53 @@ export default function AddProperty({ navigation }) {
   const webviewRef = useRef(null);
   const scrollRef = useRef(null);
 
-  useEffect(() => {
-    checkVerification();
-  }, []);
+  const addPropertyVerificationQuery = useQuery({
+    queryKey: landlordQueryKeys.addPropertyVerification(),
+    queryFn: async () => {
+      let isVerified = false;
+      let isPayMongoVerified = false;
 
-  const checkVerification = async () => {
-    try {
-      const res = await ProfileService.getVerificationStatus();
-      setIsVerified(
-        res.data?.status === "approved" || res.data?.user?.is_verified === true,
-      );
-      // Also load PayMongo status from stored user
-      const userString = await AsyncStorage.getItem("user");
-      if (userString) {
-        const user = JSON.parse(userString);
-        setIsPayMongoVerified(
-          user?.paymongo_verification_status === "verified",
-        );
+      try {
+        const [verificationRes, userString] = await Promise.all([
+          ProfileService.getVerificationStatus(),
+          AsyncStorage.getItem("user"),
+        ]);
+
+        if (verificationRes?.success) {
+          isVerified =
+            verificationRes.data?.status === "approved" ||
+            verificationRes.data?.user?.is_verified === true;
+        }
+
+        if (userString) {
+          try {
+            const user = JSON.parse(userString);
+            isPayMongoVerified =
+              user?.paymongo_verification_status === "verified";
+          } catch (_parseError) {
+            isPayMongoVerified = false;
+          }
+        }
+      } catch (_error) {
+        isVerified = false;
       }
-    } catch (err) {
-      setIsVerified(false);
-    }
-  };
+
+      return { isVerified, isPayMongoVerified };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const isVerified = addPropertyVerificationQuery.data?.isVerified ?? null;
+  const isPayMongoVerified =
+    addPropertyVerificationQuery.data?.isPayMongoVerified ?? false;
+  const canSubmitForApproval = isVerified === true;
+  const refetchAddPropertyVerification = addPropertyVerificationQuery.refetch;
+  const addPropertyVerificationRefetchers = useMemo(
+    () => [refetchAddPropertyVerification],
+    [refetchAddPropertyVerification],
+  );
+
+  useLandlordFocusRefetch({ refetchers: addPropertyVerificationRefetchers });
 
   const leafletHTML = useMemo(
     () => `
@@ -532,6 +556,18 @@ export default function AddProperty({ navigation }) {
 
   const handleSubmit = async (isDraft = false) => {
     if (!isDraft) {
+      if (isVerified === null) {
+        setError("Checking verification status. Please try again in a moment.");
+        return;
+      }
+
+      if (!canSubmitForApproval) {
+        setError(
+          "Account verification is required before submitting for approval. You can still save as draft.",
+        );
+        return;
+      }
+
       const errorMsg = validateStep(4);
       if (errorMsg) {
         setError(errorMsg);
@@ -1408,10 +1444,10 @@ export default function AddProperty({ navigation }) {
           <TouchableOpacity
             style={[
               styles.nextButton,
-              !isVerified && !form.isEligible && { opacity: 0.7 },
+              (saving || !canSubmitForApproval) && { opacity: 0.7 },
             ]}
             onPress={() => handleSubmit(false)}
-            disabled={saving}
+            disabled={saving || !canSubmitForApproval}
           >
             {saving ? (
               <ActivityIndicator size="small" color="#FFFFFF" />

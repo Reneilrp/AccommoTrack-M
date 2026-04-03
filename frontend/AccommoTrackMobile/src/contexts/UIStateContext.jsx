@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 const UIStateContext = createContext();
 
@@ -42,109 +44,134 @@ const INITIAL_STATE = {
   }
 };
 
-export const UIStateProvider = ({ children }) => {
-  const [uiState, setUIState] = useState(INITIAL_STATE);
-  const [isLoaded, setIsLoaded] = useState(false);
+const mergeUIState = (persistedUIState = {}) => ({
+  ...INITIAL_STATE,
+  ...persistedUIState,
+  data: {
+    ...INITIAL_STATE.data,
+    ...(persistedUIState.data || {}),
+  },
+});
 
-  // Load state from AsyncStorage on mount
-  useEffect(() => {
-    const loadState = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setUIState({
-            ...INITIAL_STATE,
-            ...parsed,
+const cloneStateSlice = (value) => {
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return { ...value };
+};
+
+export const useUIStateStore = create(
+  persist(
+    (set) => ({
+      uiState: INITIAL_STATE,
+      hasHydrated: false,
+
+      setHydrated: (value) => set({ hasHydrated: Boolean(value) }),
+
+      updateScreenState: (screen, newState) =>
+        set((state) => ({
+          uiState: {
+            ...state.uiState,
+            [screen]: {
+              ...state.uiState[screen],
+              ...newState,
+            },
+          },
+        })),
+
+      updateData: (bucket, data) =>
+        set((state) => ({
+          uiState: {
+            ...state.uiState,
             data: {
-              ...INITIAL_STATE.data,
-              ...(parsed.data || {})
+              ...state.uiState.data,
+              [bucket]: data,
+            },
+          },
+        })),
+
+      invalidateData: (buckets) =>
+        set((state) => {
+          const bucketList = Array.isArray(buckets) ? buckets : [buckets];
+          const nextData = { ...state.uiState.data };
+
+          bucketList.forEach((bucket) => {
+            if (Object.prototype.hasOwnProperty.call(nextData, bucket)) {
+              nextData[bucket] = null;
             }
           });
+
+          return {
+            uiState: {
+              ...state.uiState,
+              data: nextData,
+            },
+          };
+        }),
+
+      resetScreenState: (screen) =>
+        set((state) => {
+          if (!Object.prototype.hasOwnProperty.call(INITIAL_STATE, screen)) {
+            return state;
+          }
+
+          return {
+            uiState: {
+              ...state.uiState,
+              [screen]: cloneStateSlice(INITIAL_STATE[screen]),
+            },
+          };
+        }),
+    }),
+    {
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ uiState: state.uiState }),
+      merge: (persistedState, currentState) => {
+        const persistedUIState =
+          persistedState && typeof persistedState === 'object'
+            ? persistedState.uiState
+            : null;
+
+        return {
+          ...currentState,
+          uiState: mergeUIState(persistedUIState || {}),
+        };
+      },
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.warn('Failed to load UI state:', error);
         }
-      } catch (e) {
-        console.warn('Failed to load UI state:', e);
-      } finally {
-        setIsLoaded(true);
-      }
-    };
 
-    loadState();
-  }, []);
+        state?.setHydrated(true);
+      },
+    },
+  ),
+);
 
-  // Persist state to AsyncStorage whenever it changes
-  useEffect(() => {
-    if (isLoaded) {
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(uiState)).catch(e => {
-        console.warn('Failed to save UI state:', e);
-      });
-    }
-  }, [uiState, isLoaded]);
+export const UIStateProvider = ({ children }) => {
+  const uiState = useUIStateStore((state) => state.uiState);
+  const hasHydrated = useUIStateStore((state) => state.hasHydrated);
+  const updateScreenState = useUIStateStore((state) => state.updateScreenState);
+  const updateData = useUIStateStore((state) => state.updateData);
+  const invalidateData = useUIStateStore((state) => state.invalidateData);
+  const resetScreenState = useUIStateStore((state) => state.resetScreenState);
 
-  /**
-   * Update state for a specific screen
-   * @param {string} screen - e.g., 'explore', 'bookings'
-   * @param {object} newState - partial state to merge
-   */
-  const updateScreenState = useCallback((screen, newState) => {
-    setUIState(prev => ({
-      ...prev,
-      [screen]: {
-        ...prev[screen],
-        ...newState
-      }
-    }));
-  }, []);
-
-  /**
-   * Update data for a specific bucket
-   * @param {string} bucket 
-   * @param {any} data 
-   */
-  const updateData = useCallback((bucket, data) => {
-    setUIState(prev => ({
-      ...prev,
-      data: {
-        ...prev.data,
-        [bucket]: data
-      }
-    }));
-  }, []);
-
-  /**
-   * Invalidate one or more cached data buckets.
-   * @param {string|string[]} buckets
-   */
-  const invalidateData = useCallback((buckets) => {
-    const bucketList = Array.isArray(buckets) ? buckets : [buckets];
-    setUIState(prev => {
-      const nextData = { ...prev.data };
-      bucketList.forEach((bucket) => {
-        if (Object.prototype.hasOwnProperty.call(nextData, bucket)) {
-          nextData[bucket] = null;
-        }
-      });
-
-      return {
-        ...prev,
-        data: nextData
-      };
-    });
-  }, []);
-
-  /**
-   * Reset a specific screen's UI state to initial values
-   * @param {string} screen 
-   */
-  const resetScreenState = useCallback((screen) => {
-    setUIState(prev => ({
-      ...prev,
-      [screen]: INITIAL_STATE[screen]
-    }));
-  }, []);
+  const value = useMemo(
+    () => ({
+      uiState,
+      isLoaded: hasHydrated,
+      updateScreenState,
+      updateData,
+      invalidateData,
+      resetScreenState,
+    }),
+    [uiState, hasHydrated, updateScreenState, updateData, invalidateData, resetScreenState],
+  );
 
   return (
-    <UIStateContext.Provider value={{ uiState, isLoaded, updateScreenState, updateData, invalidateData, resetScreenState }}>
+    <UIStateContext.Provider value={value}>
       {children}
     </UIStateContext.Provider>
   );

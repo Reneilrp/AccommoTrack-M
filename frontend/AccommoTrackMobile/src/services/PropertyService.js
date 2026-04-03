@@ -1204,6 +1204,38 @@ const PropertyService = {
   },
 
   /**
+   * Finalize checkout for an active booking.
+   * Matches: POST /api/bookings/{id}/finalize-checkout
+   */
+  async finalizeBookingCheckout(bookingId, payload = {}) {
+    try {
+      const response = await api.post(
+        `/bookings/${bookingId}/finalize-checkout`,
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        message: response.data?.message || 'Checkout finalized successfully.',
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error finalizing booking checkout:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
    * Record deposit settlement for a booking.
    * Matches: POST /api/bookings/{id}/deposit-settlement
    */
@@ -1356,6 +1388,31 @@ const PropertyService = {
     } catch (error) {
       console.error(
         "Error handling transfer request:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch transfer proration details
+   * Matches: GET /api/landlord/transfers/{id}/proration
+   */
+  async getTransferProration(requestId) {
+    try {
+      const response = await api.get(`/landlord/transfers/${requestId}/proration`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching transfer proration:",
         error.response?.data || error.message,
       );
       return {

@@ -42,11 +42,13 @@ class PropertyService
                 default => 'mixed',
             };
 
+            $propertyType = $this->normalizePropertyTypeValue($validated['property_type'] ?? '');
+
             $property = Property::create([
                 'landlord_id' => $user->id,
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
-                'property_type' => $validated['property_type'],
+                'property_type' => $propertyType,
                 'gender_restriction' => $genderRestriction,
                 'current_status' => $currentStatus,
                 'street_address' => $validated['street_address'],
@@ -128,6 +130,10 @@ class PropertyService
                 };
             }
 
+            if (isset($validated['property_type'])) {
+                $validated['property_type'] = $this->normalizePropertyTypeValue($validated['property_type']);
+            }
+
             $property->update($validated);
 
             if ($request->has('is_eligible')) {
@@ -175,18 +181,16 @@ class PropertyService
         }
 
         if ($request->has('type') && ! empty($request->type) && $request->type !== 'All') {
-            $type = $request->type;
-            $allowed = ['dormitory', 'apartment', 'boardingHouse', 'bedSpacer', 'others'];
-            if (! in_array($type, $allowed)) {
-                $normalized = strtolower(str_replace([' ', '_'], '', $type));
-                foreach ($allowed as $a) {
-                    if (strtolower($a) === $normalized) {
-                        $type = $a;
-                        break;
-                    }
-                }
-            }
-            $query->where('property_type', $type);
+            $type = trim((string) $request->type);
+            $normalizedType = strtolower(preg_replace('/[\s_-]+/', '', $type) ?? $type);
+
+            $query->where(function ($q) use ($type, $normalizedType) {
+                $q->where('property_type', $type)
+                    ->orWhereRaw(
+                        "LOWER(REPLACE(REPLACE(REPLACE(property_type, ' ', ''), '_', ''), '-', '')) = ?",
+                        [$normalizedType]
+                    );
+            });
         }
 
         if ($request->has('min_price') || $request->has('max_price')) {
@@ -245,6 +249,78 @@ class PropertyService
         ])
             ->orderBy('created_at', 'desc')
             ->get();
+    }
+
+    public function getPublicPropertyTypes(): array
+    {
+        $types = Property::query()
+            ->where('is_published', true)
+            ->where('is_available', true)
+            ->whereNotNull('property_type')
+            ->where('property_type', '!=', '')
+            ->select('property_type', DB::raw('count(*) as total'))
+            ->groupBy('property_type')
+            ->orderBy('property_type')
+            ->get();
+
+        $grouped = [];
+        foreach ($types as $row) {
+            $rawValue = trim((string) $row->property_type);
+            if ($rawValue === '') {
+                continue;
+            }
+
+            $normalizedKey = strtolower(str_replace([' ', '_', '-'], '', $rawValue));
+            $canonicalValue = $this->normalizePropertyTypeValue($rawValue);
+            $count = (int) $row->total;
+
+            if (! isset($grouped[$normalizedKey])) {
+                $grouped[$normalizedKey] = [
+                    'value' => $canonicalValue,
+                    'label' => $this->formatPropertyTypeLabel($canonicalValue),
+                    'count' => 0,
+                ];
+            }
+
+            $grouped[$normalizedKey]['count'] += $count;
+        }
+
+        return array_values($grouped);
+    }
+
+    private function formatPropertyTypeLabel(string $value): string
+    {
+        $normalized = strtolower(str_replace([' ', '_', '-'], '', $value));
+
+        return match ($normalized) {
+            'dormitory' => 'Dormitory',
+            'apartment' => 'Apartment',
+            'boardinghouse' => 'Boarding House',
+            'bedspacer' => 'Bed Spacer',
+            default => (function () use ($value) {
+                $spacedByCase = preg_replace('/(?<!^)[A-Z]/', ' $0', $value);
+                $spacedByCase = $spacedByCase ?? $value;
+                $spaced = str_replace(['_', '-'], ' ', $spacedByCase);
+                $spaced = preg_replace('/\s+/', ' ', $spaced);
+                $spaced = $spaced ?? $value;
+
+                return ucwords(strtolower(trim($spaced)));
+            })(),
+        };
+    }
+
+    private function normalizePropertyTypeValue(string $value): string
+    {
+        $trimmed = trim($value);
+        $normalized = strtolower(str_replace([' ', '_', '-'], '', $trimmed));
+
+        return match ($normalized) {
+            'dormitory' => 'dormitory',
+            'apartment' => 'apartment',
+            'boardinghouse' => 'boardingHouse',
+            'bedspacer' => 'bedSpacer',
+            default => $trimmed,
+        };
     }
 
     public function deleteProperty(Property $property): void

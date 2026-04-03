@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,68 +14,96 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Landlord/MaintenanceRequests.js';
 import MaintenanceService from '../../../../services/MaintenanceService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
+
+const EMPTY_REQUESTS = [];
 
 export default function MaintenanceRequests() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const queryClient = useQueryClient();
   
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
-  const [updating, setUpdating] = useState(false);
+  const requestsQuery = useQuery({
+    queryKey: landlordQueryKeys.maintenanceRequests(statusFilter),
+    queryFn: async () => {
+      const res = await MaintenanceService.getLandlordRequests({ status: statusFilter });
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to load maintenance requests');
+      }
+
+      return res.data || [];
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }) => MaintenanceService.updateStatus(id, status),
+  });
+
+  const requests = requestsQuery.data || EMPTY_REQUESTS;
+  const loading = requestsQuery.isPending;
+  const updating = updateStatusMutation.isPending;
+  const refetchRequests = requestsQuery.refetch;
+  const maintenanceRefetchers = React.useMemo(
+    () => [refetchRequests],
+    [refetchRequests],
+  );
+
+  useLandlordFocusRefetch({ refetchers: maintenanceRefetchers });
+
+  const onRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: maintenanceRefetchers,
+  });
 
   useEffect(() => {
-    fetchRequests();
-  }, [statusFilter]);
+    if (requestsQuery.error) {
+      Alert.alert('Error', requestsQuery.error.message || 'Failed to load maintenance requests');
+    }
+  }, [requestsQuery.error]);
 
-  const fetchRequests = async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
+  useEffect(() => {
+    if (!selectedRequest?.id) {
+      return;
     }
 
-    const res = await MaintenanceService.getLandlordRequests({ status: statusFilter });
-    if (res.success) {
-      setRequests(res.data || []);
-      if (selectedRequest?.id) {
-        const nextSelected = (res.data || []).find(item => item.id === selectedRequest.id);
-        if (nextSelected) {
-          setSelectedRequest(nextSelected);
-        }
-      }
-    } else {
-      Alert.alert('Error', res.error || 'Failed to load maintenance requests');
+    const nextSelected = requests.find((item) => item.id === selectedRequest.id);
+    if (nextSelected) {
+      setSelectedRequest(nextSelected);
     }
-    setLoading(false);
-    setRefreshing(false);
-  };
+  }, [requests, selectedRequest?.id]);
 
   const handleUpdateStatus = async (id, newStatus) => {
-    setUpdating(true);
-    const res = await MaintenanceService.updateStatus(id, newStatus);
-    setUpdating(false);
-    
-    if (res.success) {
-      Alert.alert('Success', `Request marked as ${newStatus.replace('_', ' ')}`);
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
-      if (selectedRequest?.id === id) {
-        setSelectedRequest(prev => ({ ...prev, status: newStatus }));
-      }
+    try {
+      const res = await updateStatusMutation.mutateAsync({ id, status: newStatus });
 
-      if (statusFilter !== 'all') {
-        fetchRequests(true);
+      if (res.success) {
+        Alert.alert('Success', `Request marked as ${newStatus.replace('_', ' ')}`);
+
+        if (selectedRequest?.id === id) {
+          setSelectedRequest(prev => ({ ...prev, status: newStatus }));
+        }
+
+        await queryClient.invalidateQueries({ queryKey: landlordQueryKeys.maintenanceRequestsRoot() });
+      } else {
+        Alert.alert('Error', res.error || 'Failed to update status');
       }
-    } else {
-      Alert.alert('Error', res.error);
+    } catch {
+      Alert.alert('Error', 'Failed to update status');
     }
   };
 
@@ -186,7 +214,7 @@ export default function MaintenanceRequests() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => fetchRequests(true)}
+              onRefresh={onRefresh}
               colors={[theme.colors.primary]}
               tintColor={theme.colors.primary}
             />

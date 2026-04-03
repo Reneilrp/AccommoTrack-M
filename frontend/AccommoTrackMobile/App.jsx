@@ -7,8 +7,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import AppNavigator from './src/navigation/AppNavigator.jsx';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext.jsx';
-import { UIStateProvider } from './src/contexts/UIStateContext.jsx';
+import { UIStateProvider, useUIState } from './src/contexts/UIStateContext.jsx';
 import { queryClient } from './src/config/queryClient.js';
+import { useAuthStore } from './src/stores/auth/authStore.js';
 
 import { getToastConfig } from './src/config/toastConfig.jsx';
 
@@ -29,10 +30,12 @@ const MyDarkTheme = {
 };
 
 function AppContent() {
-  const { theme, isDarkMode, isLoading } = useTheme();
+  const { theme, isDarkMode, isLoading: isThemeLoading } = useTheme();
+  const { isLoaded: isUIStateLoaded } = useUIState();
+  const isAuthHydrated = useAuthStore((state) => state.hasHydrated);
   const toastConfig = React.useMemo(() => getToastConfig(theme), [theme]);
 
-  if (isLoading) {
+  if (isThemeLoading || !isUIStateLoaded || !isAuthHydrated) {
     return null; // Or a splash screen component
   }
 

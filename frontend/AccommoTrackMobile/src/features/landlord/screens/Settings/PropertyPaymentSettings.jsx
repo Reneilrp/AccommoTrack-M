@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,59 +13,104 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import api from '../../../../services/api.js';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
+
+const EMPTY_PROPERTIES = [];
 
 export default function PropertyPaymentSettings({ navigation }) {
   const { theme } = useTheme();
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(null); // propertyId being saved
-  const [isPayMongoVerified, setIsPayMongoVerified] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const queryClient = useQueryClient();
 
-  const loadData = useCallback(async (fromRefresh = false) => {
-    try {
-      fromRefresh ? setRefreshing(true) : setLoading(true);
-      setError('');
-
-      // Load user from storage to check PayMongo verification status
+  const paymentSettingsQuery = useQuery({
+    queryKey: landlordQueryKeys.propertyPaymentSettings(),
+    queryFn: async () => {
+      let isPayMongoVerified = false;
       const userString = await AsyncStorage.getItem('user');
       if (userString) {
-        const user = JSON.parse(userString);
-        setIsPayMongoVerified(user?.paymongo_verification_status === 'verified');
+        try {
+          const user = JSON.parse(userString);
+          isPayMongoVerified = user?.paymongo_verification_status === 'verified';
+        } catch (_error) {
+          isPayMongoVerified = false;
+        }
       }
 
-      // Load all properties
       const result = await PropertyService.getMyProperties();
-      if (!result.success) throw new Error(result.error || 'Failed to load properties');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load properties');
+      }
 
       const raw = result.data?.data || result.data || [];
-      const list = Array.isArray(raw) ? raw : [];
-      setProperties(
-        list.map((p) => ({
-          id: p.id,
-          title: p.title || 'Untitled Property',
-          city: p.city || '',
-          acceptedPayments: Array.isArray(p.accepted_payments)
-            ? p.accepted_payments
+      const list = Array.isArray(raw) ? raw : EMPTY_PROPERTIES;
+
+      return {
+        isPayMongoVerified,
+        properties: list.map((property) => ({
+          id: property.id,
+          title: property.title || 'Untitled Property',
+          city: property.city || '',
+          acceptedPayments: Array.isArray(property.accepted_payments)
+            ? property.accepted_payments
             : ['cash'],
-        }))
+        })),
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = paymentSettingsQuery.data?.properties || EMPTY_PROPERTIES;
+  const isPayMongoVerified = paymentSettingsQuery.data?.isPayMongoVerified || false;
+  const loading = paymentSettingsQuery.isPending && properties.length === 0;
+  const fetchError = paymentSettingsQuery.error?.message || '';
+  const error = actionError || fetchError;
+
+  const refetchPaymentSettings = paymentSettingsQuery.refetch;
+  const paymentSettingsRefetchers = useMemo(
+    () => [refetchPaymentSettings],
+    [refetchPaymentSettings],
+  );
+
+  useLandlordFocusRefetch({ refetchers: paymentSettingsRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: paymentSettingsRefetchers,
+  });
+
+  const updatePropertiesCache = useCallback(
+    (updater) => {
+      queryClient.setQueryData(
+        landlordQueryKeys.propertyPaymentSettings(),
+        (current) => {
+          if (!current) return current;
+
+          const currentProperties = Array.isArray(current.properties)
+            ? current.properties
+            : EMPTY_PROPERTIES;
+
+          return {
+            ...current,
+            properties: updater(currentProperties),
+          };
+        },
       );
-    } catch (err) {
-      setError(err.message || 'Failed to load data');
-    } finally {
-      fromRefresh ? setRefreshing(false) : setLoading(false);
-    }
-  }, []);
+    },
+    [queryClient],
+  );
 
-  useEffect(() => {
-    loadData(false);
-  }, [loadData]);
-
-  const toggleMethod = async (propertyId, method) => {
+  const toggleMethod = useCallback(async (propertyId, method) => {
     const property = properties.find((p) => p.id === propertyId);
     if (!property) return;
 
@@ -92,7 +137,7 @@ export default function PropertyPaymentSettings({ navigation }) {
     }
 
     // Optimistically update UI
-    setProperties((prev) =>
+    updatePropertiesCache((prev) =>
       prev.map((p) =>
         p.id === propertyId ? { ...p, acceptedPayments: updated } : p
       )
@@ -100,6 +145,7 @@ export default function PropertyPaymentSettings({ navigation }) {
 
     try {
       setSaving(propertyId);
+      setActionError('');
       const response = await api.post(`/landlord/properties/${propertyId}`, {
         _method: 'PUT',
         accepted_payments: updated,
@@ -108,18 +154,27 @@ export default function PropertyPaymentSettings({ navigation }) {
       if (response.status < 200 || response.status >= 300) {
         throw new Error('Failed to save');
       }
+
+      await refetchLandlordQueries([refetchPaymentSettings]);
     } catch (err) {
       // Revert on error
-      setProperties((prev) =>
+      updatePropertiesCache((prev) =>
         prev.map((p) =>
           p.id === propertyId ? { ...p, acceptedPayments: current } : p
         )
       );
-      Alert.alert('Error', err.response?.data?.message || 'Failed to update payment methods');
+      const message = err.response?.data?.message || err.message || 'Failed to update payment methods';
+      setActionError(message);
+      Alert.alert('Error', message);
     } finally {
       setSaving(null);
     }
-  };
+  }, [
+    isPayMongoVerified,
+    properties,
+    refetchPaymentSettings,
+    updatePropertiesCache,
+  ]);
 
   const styles = getStyles(theme);
 
@@ -148,7 +203,7 @@ export default function PropertyPaymentSettings({ navigation }) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => loadData(true)}
+            onRefresh={handleRefresh}
             tintColor={theme.colors.primary}
           />
         }

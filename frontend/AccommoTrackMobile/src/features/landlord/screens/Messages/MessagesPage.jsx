@@ -7,29 +7,44 @@ import { getStyles } from '../../../../styles/Landlord/Messages.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import MessageService from '../../../../services/MessageService.js';
 import MessagesList from './MessagesList.jsx';
+import {
+    landlordQueryKeys,
+    useLandlordFocusRefetch,
+    useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
     const queryClient = useQueryClient();
-    const [currentUserId, setCurrentUserId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPropertyId, setSelectedPropertyId] = useState(null);
     const [newConversationId, setNewConversationId] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // Fetch conversations using React Query
-    const { 
-        data: conversations = [], 
-        isLoading, 
-        isRefetching, 
-        refetch 
-    } = useQuery({
-        queryKey: ['conversations'],
+    const conversationsQuery = useQuery({
+        queryKey: landlordQueryKeys.messagesConversations(),
         queryFn: async () => {
             const result = await MessageService.getConversations();
             if (!result.success) throw new Error(result.error);
             return result.data;
-        }
+        },
+        placeholderData: (previousData) => previousData,
+    });
+
+    const conversations = conversationsQuery.data || [];
+    const isLoading = conversationsQuery.isLoading;
+    const refetchConversations = conversationsQuery.refetch;
+    const conversationRefetchers = React.useMemo(
+        () => [refetchConversations],
+        [refetchConversations],
+    );
+
+    useLandlordFocusRefetch({ refetchers: conversationRefetchers });
+
+    const onRefresh = useLandlordRefreshHandler({
+        setRefreshing,
+        refetchers: conversationRefetchers,
     });
 
     // Calculate total unread count
@@ -52,7 +67,7 @@ export default function MessagesPage({ navigation, route }) {
                 navigation.setParams({ startConversation: false, tenant: null, propertyId: null });
                 
                 if (conv?.id) {
-                    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+                    queryClient.invalidateQueries({ queryKey: landlordQueryKeys.messagesConversations() });
                     navigation.navigate('Chat', { conversation: conv });
                 }
             } else {
@@ -63,22 +78,6 @@ export default function MessagesPage({ navigation, route }) {
             Alert.alert('Error', err.message || 'Failed to start conversation');
         }
     });
-
-    // Get current user ID on mount
-    useEffect(() => {
-        const getUserId = async () => {
-            const stored = await AsyncStorage.getItem('user');
-            if (!stored) return;
-            try {
-                const parsed = JSON.parse(stored);
-                const userId = parsed?.id || parsed?.user_id || parsed?.user?.id;
-                setCurrentUserId(userId || null);
-            } catch (e) {
-                console.warn('Failed to parse user for ID', e);
-            }
-        };
-        getUserId();
-    }, []);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -96,10 +95,6 @@ export default function MessagesPage({ navigation, route }) {
             }
         }, [route.params])
     );
-
-    const onRefresh = () => {
-        refetch();
-    };
 
     // Extract unique properties for filtering
     const properties = useMemo(() => {
@@ -145,7 +140,7 @@ export default function MessagesPage({ navigation, route }) {
                 filteredConversations={filteredConversations}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                refreshing={isRefetching}
+                refreshing={refreshing}
                 onRefresh={onRefresh}
                 newConversationId={newConversationId}
                 setNewConversationId={setNewConversationId}

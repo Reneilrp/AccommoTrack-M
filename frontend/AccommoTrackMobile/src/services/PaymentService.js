@@ -171,6 +171,36 @@ class PaymentService {
   }
 
   /**
+   * LANDLORD: Get summarized invoice totals/counts for dashboard cards
+   */
+  async getInvoiceSummary(params = {}) {
+    try {
+      const response = await api.get('/invoices/summary', { params });
+      const payload = response.data;
+
+      if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'success')) {
+        return {
+          success: Boolean(payload.success),
+          data: payload.data ?? null,
+          message: payload.message || '',
+          error: payload.success ? null : (payload.message || 'Failed to fetch invoice summary'),
+        };
+      }
+
+      return { success: true, data: payload?.data || payload };
+    } catch (error) {
+      console.error('Error fetching invoice summary:', error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          'Failed to fetch invoice summary',
+      };
+    }
+  }
+
+  /**
    * LANDLORD: Get invoices for a specific tenant
    */
   async getInvoicesByTenant(tenantId) {

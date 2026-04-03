@@ -2,6 +2,10 @@ import api from '../utils/api';
 
 const bookingService = {
 
+  // =====================
+  // Tenant-facing methods
+  // =====================
+
   async createBooking(payload) {
     try {
       const res = await api.post('/bookings', payload);
@@ -50,7 +54,211 @@ const bookingService = {
       console.error('requestMoveOut error:', err?.response?.data || err);
       throw err;
     }
-  }
+  },
+
+  // ======================
+  // Landlord-facing methods
+  // ======================
+
+  /**
+   * Fetch all landlord bookings with optional filters
+   * GET /bookings
+   */
+  async getBookings(params = {}) {
+    try {
+      const res = await api.get('/bookings', { params });
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 404 || status === 204) {
+        return { success: true, data: [] };
+      }
+      return { success: false, status, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Fetch a single booking by ID
+   * GET /bookings/:id
+   */
+  async getBooking(bookingId) {
+    try {
+      const res = await api.get(`/bookings/${bookingId}`);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Fetch aggregated booking stats
+   * GET /bookings/stats
+   */
+  async getStats() {
+    try {
+      const res = await api.get('/bookings/stats');
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Fetch all extension requests
+   * GET /landlord/extensions
+   */
+  async getExtensions() {
+    try {
+      const res = await api.get('/landlord/extensions');
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Fetch all transfer requests (with optional property filter)
+   * GET /landlord/transfers
+   */
+  async getTransfers(params = {}) {
+    try {
+      const res = await api.get('/landlord/transfers', { params });
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Approve or reject an extension request
+   * PATCH /landlord/extensions/:id/handle
+   */
+  async handleExtension(id, action, data = {}) {
+    try {
+      const res = await api.patch(`/landlord/extensions/${id}/handle`, { action, ...data });
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Approve or reject a transfer request
+   * PATCH /landlord/transfers/:id/handle
+   */
+  async handleTransfer(id, action, data = {}) {
+    try {
+      const res = await api.patch(`/landlord/transfers/${id}/handle`, { action, ...data });
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Get a transfer request's proration details
+   * GET /landlord/transfers/:id/proration
+   */
+  async getTransferProration(id) {
+    try {
+      const res = await api.get(`/landlord/transfers/${id}/proration`);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Update the status of a booking
+   * PATCH /bookings/:id/status
+   */
+  async updateStatus(bookingId, status, data = {}) {
+    try {
+      const res = await api.patch(`/bookings/${bookingId}/status`, { status, ...data });
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Approve a GCash reservation proof-of-payment
+   * POST /bookings/:id/approve-reservation
+   */
+  async approveReservation(bookingId) {
+    try {
+      const res = await api.post(`/bookings/${bookingId}/approve-reservation`);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Check-in a tenant for a booking
+   * POST /bookings/:id/check-in
+   */
+  async checkIn(bookingId) {
+    try {
+      const res = await api.post(`/bookings/${bookingId}/check-in`);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Record a manual payment against a booking
+   * PATCH /bookings/:id/payment
+   */
+  async recordPayment(bookingId, data) {
+    try {
+      const res = await api.patch(`/bookings/${bookingId}/payment`, data);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Finalize checkout for an active booking
+   * POST /bookings/:id/finalize-checkout
+   */
+  async finalizeCheckout(bookingId, data = {}) {
+    try {
+      const res = await api.post(`/bookings/${bookingId}/finalize-checkout`, data);
+      return { success: true, data: res.data?.data || res.data, message: res.data?.message };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Fetch deposit settlement details for a booking
+   * GET /bookings/:id/deposit-settlements
+   */
+  async getDepositSettlements(bookingId) {
+    try {
+      const res = await api.get(`/bookings/${bookingId}/deposit-settlements`);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Create a deposit settlement for a booking
+   * POST /bookings/:id/deposit-settlement
+   */
+  async createDepositSettlement(bookingId, data) {
+    try {
+      const res = await api.post(`/bookings/${bookingId}/deposit-settlement`, data);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
 };
 
 export default bookingService;
+

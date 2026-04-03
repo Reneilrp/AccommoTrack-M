@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,57 +14,70 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from 'expo-image-picker';
 import { getStyles } from '../../../../../styles/Landlord/MyProfile.js';
-import Button from '../../../components/Button.jsx';
 import ProfileService from '../../../../../services/ProfileService.js';
 import { BASE_URL } from '../../../../../config/index.js';
 import { useTheme } from '../../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../../hooks/useLandlordQueryHelpers.js';
 
 export default function MyProfileScreen({ navigation }) {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [tempUser, setTempUser] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const queryClient = useQueryClient();
 
-  const fetchProfile = useCallback(async () => {
-    try {
+  const profileQuery = useQuery({
+    queryKey: landlordQueryKeys.myProfile(),
+    queryFn: async () => {
       const response = await ProfileService.getProfile();
-      if (response.success) {
-        setUser(response.data);
-        setTempUser(response.data);
-        setSelectedImage(null);
-      } else {
-        Alert.alert('Error', response.error || 'Failed to load profile');
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load profile');
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      Alert.alert('Error', 'Failed to load profile');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchProfile();
-    }, [fetchProfile])
-  );
+      return response.data || null;
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchProfile();
-  }, [fetchProfile]);
+  const loading = profileQuery.isPending && !profileQuery.data;
+  const fetchError = profileQuery.error?.message || '';
+  const refetchProfile = profileQuery.refetch;
+  const profileRefetchers = useMemo(() => [refetchProfile], [refetchProfile]);
+
+  useLandlordFocusRefetch({ refetchers: profileRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: profileRefetchers,
+  });
+
+  useEffect(() => {
+    if (!profileQuery.data) return;
+    setUser(profileQuery.data);
+    setTempUser(profileQuery.data);
+    setSelectedImage(null);
+  }, [profileQuery.data]);
+
+  useEffect(() => {
+    if (!fetchError) return;
+    console.error('Error fetching profile:', fetchError);
+    Alert.alert('Error', fetchError);
+  }, [fetchError]);
 
   const calculateAge = (dob) => {
     const today = new Date();
@@ -144,6 +157,8 @@ export default function MyProfileScreen({ navigation }) {
       if (response.success) {
         const updatedUser = response.data || tempUser;
         setUser(updatedUser);
+        setTempUser(updatedUser);
+        queryClient.setQueryData(landlordQueryKeys.myProfile(), updatedUser);
         
         // Persist updated user data to AsyncStorage
         try {
@@ -159,11 +174,12 @@ export default function MyProfileScreen({ navigation }) {
 
         setSelectedImage(null);
         setIsEditing(false);
+        await refetchLandlordQueries([refetchProfile]);
         Alert.alert('Success', 'Your profile has been updated!');
       } else {
         Alert.alert('Error', response.error || 'Failed to update profile');
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'Failed to update profile');
     } finally {
       setSaving(false);

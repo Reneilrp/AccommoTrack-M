@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,9 +14,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Tenants.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 
 const FILTERS = [
   { label: 'All Tenants', value: 'all' },
@@ -32,6 +39,9 @@ const PAYMENT_BADGES = {
   unpaid: { bg: '#FEE2E2', color: '#B91C1C', label: 'Unpaid' },
   overdue: { bg: '#FEE2E2', color: '#B91C1C', label: 'Overdue' }
 };
+
+const EMPTY_PROPERTIES = [];
+const EMPTY_TENANTS = [];
 
 const normalizeId = (value) => {
   if (value === null || value === undefined) return null;
@@ -66,15 +76,11 @@ export default function TenantsScreen({ navigation, route }) {
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
 
-  const [properties, setProperties] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState(preselectedPropertyId || null);
-  const [tenants, setTenants] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all');
-  const [loadingProperties, setLoadingProperties] = useState(true);
-  const [loadingTenants, setLoadingTenants] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const [detailTenant, setDetailTenant] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -119,10 +125,57 @@ export default function TenantsScreen({ navigation, route }) {
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
-  const selectedProperty = useMemo(
-    () => properties.find((property) => normalizeId(property.id) === normalizeId(selectedPropertyId)) || null,
-    [properties, selectedPropertyId]
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
+    queryFn: async () => {
+      const response = await PropertyService.getMyProperties();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load properties');
+      }
+
+      return Array.isArray(response.data) ? response.data : [];
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const tenantsQuery = useQuery({
+    queryKey: landlordQueryKeys.tenantsByProperty(selectedPropertyId),
+    enabled: Boolean(selectedPropertyId),
+    queryFn: async () => {
+      const response = await PropertyService.getTenants({ property_id: selectedPropertyId });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load tenants');
+      }
+
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      return [];
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const tenants = tenantsQuery.data || EMPTY_TENANTS;
+  const loadingProperties = propertiesQuery.isPending && properties.length === 0;
+  const loadingTenants = tenantsQuery.isPending && tenants.length === 0;
+  const loading = loadingProperties || loadingTenants;
+  const fetchError = tenantsQuery.error?.message || propertiesQuery.error?.message || '';
+  const refetchProperties = propertiesQuery.refetch;
+  const refetchTenants = tenantsQuery.refetch;
+  const tenantManagementRefetchers = useMemo(
+    () => [refetchProperties, refetchTenants],
+    [refetchProperties, refetchTenants],
   );
+  const tenantListRefetchers = useMemo(() => [refetchTenants], [refetchTenants]);
+
+  useLandlordFocusRefetch({ refetchers: tenantManagementRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    enabled: Boolean(selectedPropertyId),
+    setRefreshing,
+    refetchers: tenantManagementRefetchers,
+  });
 
   const stats = useMemo(() => {
     return {
@@ -158,38 +211,11 @@ export default function TenantsScreen({ navigation, route }) {
     setSelectedTenants([]);
   }, [searchQuery, filter, selectedPropertyId]);
 
-  const loadProperties = useCallback(async () => {
-    try {
-      setLoadingProperties(true);
-      const response = await PropertyService.getMyProperties();
-      if (response.success) {
-        const data = response.data || [];
-        setProperties(data);
-        if (!selectedPropertyId && data.length > 0) {
-          setSelectedPropertyId(normalizeId(data[0].id));
-        }
-      }
-    } finally {
-      setLoadingProperties(false);
+  useEffect(() => {
+    if (!selectedPropertyId && properties.length > 0) {
+      setSelectedPropertyId(normalizeId(properties[0].id));
     }
-  }, [selectedPropertyId]);
-
-  const loadTenants = useCallback(async (fromRefresh = false) => {
-    if (!selectedPropertyId) return;
-    try {
-      fromRefresh ? setRefreshing(true) : setLoadingTenants(true);
-      const response = await PropertyService.getTenants({ property_id: selectedPropertyId });
-      if (response.success) {
-        setTenants(Array.isArray(response.data) ? response.data : response.data?.data || []);
-      }
-    } finally {
-      setLoadingTenants(false);
-      setRefreshing(false);
-    }
-  }, [selectedPropertyId]);
-
-  useEffect(() => { loadProperties(); }, [loadProperties]);
-  useEffect(() => { if (selectedPropertyId) loadTenants(); }, [selectedPropertyId, loadTenants]);
+  }, [selectedPropertyId, properties]);
 
   const handleSelectTenant = (tenantId) => {
     setSelectedTenants((current) => (
@@ -263,9 +289,11 @@ export default function TenantsScreen({ navigation, route }) {
       }
       setTransferVisible(false);
       setTransferringTenant(null);
-      await loadTenants(true);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Room transfer completed successfully.');
     } catch (transferError) {
+      setActionError(transferError.message || 'Failed to transfer room.');
       Alert.alert('Error', transferError.message || 'Failed to transfer room.');
     } finally {
       setIsTransferring(false);
@@ -326,9 +354,11 @@ export default function TenantsScreen({ navigation, route }) {
 
       setAssignVisible(false);
       setAssigningTenant(null);
-      await loadTenants(true);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Room assignment completed successfully.');
     } catch (assignError) {
+      setActionError(assignError.message || 'Failed to assign room.');
       Alert.alert('Error', assignError.message || 'Failed to assign room.');
     } finally {
       setIsAssigning(false);
@@ -356,9 +386,11 @@ export default function TenantsScreen({ navigation, route }) {
 
       setUnassignVisible(false);
       setUnassigningTenant(null);
-      await loadTenants(true);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Tenant unassigned successfully.');
     } catch (unassignError) {
+      setActionError(unassignError.message || 'Failed to unassign tenant.');
       Alert.alert('Error', unassignError.message || 'Failed to unassign tenant.');
     } finally {
       setIsUnassigning(false);
@@ -396,9 +428,11 @@ export default function TenantsScreen({ navigation, route }) {
       }
       setEvictionVisible(false);
       setEvictingTenant(null);
-      await loadTenants(true);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Eviction scheduled successfully.');
     } catch (evictionError) {
+      setActionError(evictionError.message || 'Failed to schedule eviction.');
       Alert.alert('Error', evictionError.message || 'Failed to schedule eviction.');
     } finally {
       setIsEvicting(false);
@@ -411,9 +445,11 @@ export default function TenantsScreen({ navigation, route }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to finalize eviction.');
       }
-      await loadTenants(true);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Eviction finalized successfully.');
     } catch (error) {
+      setActionError(error.message || 'Failed to finalize eviction.');
       Alert.alert('Error', error.message || 'Failed to finalize eviction.');
     }
   };
@@ -424,9 +460,11 @@ export default function TenantsScreen({ navigation, route }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to cancel eviction schedule.');
       }
-      await loadTenants(true);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Eviction schedule cancelled.');
     } catch (error) {
+      setActionError(error.message || 'Failed to cancel eviction schedule.');
       Alert.alert('Error', error.message || 'Failed to cancel eviction schedule.');
     }
   };
@@ -437,9 +475,11 @@ export default function TenantsScreen({ navigation, route }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to undo eviction.');
       }
-      await loadTenants(true);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Eviction undone and tenancy restored.');
     } catch (error) {
+      setActionError(error.message || 'Failed to undo eviction.');
       Alert.alert('Error', error.message || 'Failed to undo eviction.');
     }
   };
@@ -462,8 +502,10 @@ export default function TenantsScreen({ navigation, route }) {
       }
       setBroadcastVisible(false);
       setBroadcastMessage('');
+      setActionError('');
       Alert.alert('Success', `Message sent to ${selectedTenants.length} tenant(s).`);
     } catch (broadcastError) {
+      setActionError(broadcastError.message || 'Failed to send broadcast.');
       Alert.alert('Error', broadcastError.message || 'Failed to send broadcast.');
     } finally {
       setIsBroadcasting(false);
@@ -616,6 +658,18 @@ export default function TenantsScreen({ navigation, route }) {
     );
   };
 
+  if (loading && !refreshing && tenants.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color="#059669" />
+          <Text style={styles.emptyTitle}>Loading tenant data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#059669" />
@@ -624,7 +678,7 @@ export default function TenantsScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tenant Management</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={() => loadTenants(true)}>
+        <TouchableOpacity style={styles.iconButton} onPress={handleRefresh}>
           <Ionicons name="refresh" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -635,6 +689,48 @@ export default function TenantsScreen({ navigation, route }) {
         renderItem={renderTenantCard}
         ListHeaderComponent={(
           <View>
+            {(fetchError || actionError) ? (
+              <View
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: theme.isDark ? '#7F1D1D' : '#FECACA',
+                  backgroundColor: theme.isDark ? 'rgba(127,29,29,0.32)' : '#FEF2F2',
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <Ionicons name="alert-circle-outline" size={18} color={theme.isDark ? '#FCA5A5' : '#B91C1C'} />
+                <Text
+                  style={{
+                    flex: 1,
+                    marginLeft: 8,
+                    fontSize: 12,
+                    fontWeight: '500',
+                    color: theme.isDark ? '#FCA5A5' : '#B91C1C',
+                  }}
+                >
+                  {actionError || fetchError}
+                </Text>
+                <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      marginLeft: 10,
+                      color: theme.isDark ? '#FCA5A5' : '#B91C1C',
+                    }}
+                  >
+                    Retry
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             <View style={styles.propertySelector}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propertyScroll}>
                 {properties.map(p => (
@@ -695,7 +791,7 @@ export default function TenantsScreen({ navigation, route }) {
           </View>
         )}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTenants(true)} tintColor="#059669" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#059669" />}
         ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#059669" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
       />
 

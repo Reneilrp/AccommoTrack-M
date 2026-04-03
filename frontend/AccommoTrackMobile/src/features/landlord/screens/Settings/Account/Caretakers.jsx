@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   FlatList,
+  RefreshControl,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -17,27 +18,41 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../../styles/Landlord/Caretakers.js';
 import CaretakerService from '../../../../../services/CaretakerService.js';
 import { useTheme } from '../../../../../contexts/ThemeContext.jsx';
 import { ListItemSkeleton } from '../../../../../components/Skeletons/index.jsx';
 import { showSuccess, showError } from '../../../../../utils/toast.js';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../../hooks/useLandlordQueryHelpers.js';
+
+const EMPTY_CARETAKERS = [];
+const EMPTY_PROPERTIES = [];
 
 export default function Caretakers() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = getStyles(theme);
   
-  const [caretakers, setCaretakers] = useState([]);
-  const [landlordProperties, setLandlordProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [roomPermissionPrompt, setRoomPermissionPrompt] = useState(false);
+  const [permissionPrompt, setPermissionPrompt] = useState({ visible: false, key: null });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
+
+  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties']);
+  const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
+    rooms: 'Enabling Room Management allows caretakers to modify availability and tenant placements.',
+    properties: 'Enabling Properties allows caretakers to update core property details and settings.',
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -62,21 +77,48 @@ export default function Caretakers() {
 
   const [fieldErrors, setFieldErrors] = useState({});
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const caretakerBundleQuery = useQuery({
+    queryKey: landlordQueryKeys.caretakersBundle(),
+    queryFn: async () => {
+      const response = await CaretakerService.getCaretakers();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch caretakers');
+      }
 
-  const fetchData = async () => {
-    setLoading(true);
-    const res = await CaretakerService.getCaretakers();
-    if (res.success) {
-      setCaretakers(res.data.caretakers || []);
-      setLandlordProperties(res.data.landlord_properties || []);
-    } else {
-      showError('Error', res.error);
-    }
-    setLoading(false);
-  };
+      return {
+        caretakers: Array.isArray(response.data?.caretakers)
+          ? response.data.caretakers
+          : EMPTY_CARETAKERS,
+        landlordProperties: Array.isArray(response.data?.landlord_properties)
+          ? response.data.landlord_properties
+          : EMPTY_PROPERTIES,
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const caretakers = caretakerBundleQuery.data?.caretakers || EMPTY_CARETAKERS;
+  const landlordProperties = caretakerBundleQuery.data?.landlordProperties || EMPTY_PROPERTIES;
+  const loading = caretakerBundleQuery.isPending && caretakers.length === 0;
+  const fetchError = caretakerBundleQuery.error?.message || '';
+
+  const refetchCaretakerBundle = caretakerBundleQuery.refetch;
+  const caretakerRefetchers = useMemo(
+    () => [refetchCaretakerBundle],
+    [refetchCaretakerBundle],
+  );
+
+  useLandlordFocusRefetch({ refetchers: caretakerRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: caretakerRefetchers,
+  });
+
+  useEffect(() => {
+    if (!fetchError) return;
+    showError('Error', fetchError);
+  }, [fetchError]);
 
   const resetForm = () => {
     setFormData({
@@ -196,85 +238,58 @@ export default function Caretakers() {
 
     setSubmitting(true);
 
-    const payload = {
-      property_ids: formData.propertyIds,
-      permissions: {
-        can_view_bookings: formData.permissions.bookings,
-        can_view_messages: formData.permissions.messages,
-        can_view_tenants: formData.permissions.tenants,
-        can_view_rooms: formData.permissions.rooms,
-        can_view_properties: formData.permissions.properties,
-      }
-    };
+    try {
+      const payload = {
+        property_ids: formData.propertyIds,
+        permissions: {
+          can_view_bookings: formData.permissions.bookings,
+          can_view_messages: formData.permissions.messages,
+          can_view_tenants: formData.permissions.tenants,
+          can_view_rooms: formData.permissions.rooms,
+          can_view_properties: formData.permissions.properties,
+        }
+      };
 
-    if (!isEditing) {
-      // Create
-      payload.first_name = formData.firstName;
-      payload.middle_name = formData.middleName;
-      payload.last_name = formData.lastName;
-      payload.email = formData.email;
-      payload.phone = formData.phone;
-      payload.date_of_birth = formData.dateOfBirth;
-      payload.password = formData.password;
-      payload.password_confirmation = formData.passwordConfirmation;
-      
-      const res = await CaretakerService.createCaretaker(payload);
-      if (res.success) {
-        const newData = res.data.caretaker;
-        const transformed = {
-          id: newData.assignment_id,
-          caretaker: {
-            first_name: newData.first_name,
-            middle_name: newData.middle_name,
-            last_name: newData.last_name,
-            email: newData.email,
-            phone: newData.phone,
-            date_of_birth: newData.date_of_birth,
-          },
-          permissions: newData.permissions,
-          assigned_properties: newData.assigned_properties,
-          assigned_property_ids: newData.assigned_properties.map(p => p.id),
-        };
-        setCaretakers(prev => [transformed, ...prev]);
-        showSuccess('Success', `Caretaker created! Temp password: ${res.data.temporary_password || formData.password}`);
-        setModalVisible(false);
-      } else {
-        showError('Error', res.error);
-      }
-    } else {
-      // Update
-      payload.first_name = formData.firstName;
-      payload.middle_name = formData.middleName;
-      payload.last_name = formData.lastName;
-      payload.email = formData.email;
-      payload.phone = formData.phone;
-      payload.date_of_birth = formData.dateOfBirth;
+      if (!isEditing) {
+        // Create
+        payload.first_name = formData.firstName;
+        payload.middle_name = formData.middleName;
+        payload.last_name = formData.lastName;
+        payload.email = formData.email;
+        payload.phone = formData.phone;
+        payload.date_of_birth = formData.dateOfBirth;
+        payload.password = formData.password;
+        payload.password_confirmation = formData.passwordConfirmation;
 
-      const res = await CaretakerService.updateCaretaker(formData.assignmentId, payload);
-      if (res.success) {
-        const newData = res.data.caretaker;
-        const transformed = {
-          id: newData.assignment_id,
-          caretaker: {
-            first_name: newData.first_name,
-            middle_name: newData.middle_name,
-            last_name: newData.last_name,
-            email: newData.email,
-            phone: newData.phone,
-            date_of_birth: newData.date_of_birth,
-          },
-          permissions: newData.permissions,
-          assigned_properties: newData.assigned_properties,
-          assigned_property_ids: newData.assigned_properties.map(p => p.id),
-        };
-        setCaretakers(prev => prev.map(c => c.id === formData.assignmentId ? transformed : c));
-        showSuccess('Success', 'Caretaker updated');
-        setModalVisible(false);
+        const res = await CaretakerService.createCaretaker(payload);
+        if (res.success) {
+          await refetchLandlordQueries(caretakerRefetchers);
+          showSuccess('Success', `Caretaker created! Temp password: ${res.data.temporary_password || formData.password}`);
+          setModalVisible(false);
+        } else {
+          showError('Error', res.error);
+        }
       } else {
-        showError('Error', res.error);
+        // Update
+        payload.first_name = formData.firstName;
+        payload.middle_name = formData.middleName;
+        payload.last_name = formData.lastName;
+        payload.email = formData.email;
+        payload.phone = formData.phone;
+        payload.date_of_birth = formData.dateOfBirth;
+
+        const res = await CaretakerService.updateCaretaker(formData.assignmentId, payload);
+        if (res.success) {
+          await refetchLandlordQueries(caretakerRefetchers);
+          showSuccess('Success', 'Caretaker updated');
+          setModalVisible(false);
+        } else {
+          showError('Error', res.error);
+        }
       }
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const handleRevokeConfirm = async () => {
@@ -288,33 +303,48 @@ export default function Caretakers() {
       if (res.success) {
         showSuccess('Success', 'Access revoked successfully');
         setRevocationModal({ show: false, caretaker: null, reason: '' });
-        fetchData();
+        await refetchLandlordQueries(caretakerRefetchers);
       } else {
         showError('Error', res.error);
       }
-    } catch (err) {
+    } catch (_err) {
       showError('Error', 'Failed to revoke access');
     }
   };
 
   const togglePermission = (key) => {
-    if (key === 'rooms' && !formData.permissions.rooms) {
-      setRoomPermissionPrompt(true);
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        permissions: { ...prev.permissions, [key]: !prev.permissions[key] }
-      }));
+    const isEnabling = !formData.permissions[key];
+    if (isEnabling && LANDLORD_LEVEL_PERMISSION_KEYS.has(key)) {
+      setPermissionPrompt({ visible: true, key });
+      return;
     }
-  };
 
-  const confirmRoomPermission = () => {
-    setRoomPermissionPrompt(false);
     setFormData(prev => ({
       ...prev,
-      permissions: { ...prev.permissions, rooms: true }
+      permissions: { ...prev.permissions, [key]: !prev.permissions[key] }
     }));
   };
+
+  const confirmPermissionGrant = () => {
+    const key = permissionPrompt.key;
+    if (!key) {
+      setPermissionPrompt({ visible: false, key: null });
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      permissions: { ...prev.permissions, [key]: true }
+    }));
+
+    setPermissionPrompt({ visible: false, key: null });
+  };
+
+  const promptedPermissionLabel = permissionPrompt.key
+    ? permissionPrompt.key.charAt(0).toUpperCase() + permissionPrompt.key.slice(1)
+    : 'Permission';
+  const promptedPermissionMessage = LANDLORD_LEVEL_PERMISSION_MESSAGES[permissionPrompt.key]
+    || 'Enabling this grants landlord-level access. Please confirm before proceeding.';
 
   const toggleProperty = (id) => {
     setFormData(prev => {
@@ -415,6 +445,14 @@ export default function Caretakers() {
           renderItem={renderItem}
           keyExtractor={item => String(item.id)}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="people-outline" size={48} color={theme.colors.textTertiary} />
@@ -581,7 +619,7 @@ export default function Caretakers() {
                   <Text style={[styles.checkLabel, { color: theme.colors.text }]}>{prop.name}</Text>
                 </TouchableOpacity>
               )) : (
-                <Text style={{ color: theme.colors.error, fontSize: 12, marginLeft: 8 }}>Still didn't assign a property</Text>
+                <Text style={{ color: theme.colors.error, fontSize: 12, marginLeft: 8 }}>Still did not assign a property</Text>
               )}
 
               <View style={{ height: 40 }} />
@@ -596,22 +634,23 @@ export default function Caretakers() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Security Alert Modal for Room Management */}
-      <Modal visible={roomPermissionPrompt} transparent animationType="fade">
+      {/* Security Alert Modal for Landlord-Level Permissions */}
+      <Modal visible={permissionPrompt.visible} transparent animationType="fade">
         <View style={styles.alertOverlay}>
           <View style={[styles.alertBox, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.alertIconContainer}>
               <Ionicons name="alert-circle" size={48} color="#D97706" />
             </View>
-            <Text style={[styles.alertTitle, { color: theme.colors.text }]}>Security Alert</Text>
+            <Text style={[styles.alertTitle, { color: theme.colors.text }]}>Landlord-Level Access</Text>
             <Text style={[styles.alertMsg, { color: theme.colors.textSecondary }]}>
-              Enabling <Text style={{ fontWeight: 'bold' }}>Room Management</Text> allows caretakers to modify availability and tenant placements. Are you sure?
+              Enabling <Text style={{ fontWeight: 'bold' }}>{promptedPermissionLabel}</Text> grants elevated permissions.
+              {'\n'}{promptedPermissionMessage}
             </Text>
             <View style={styles.alertActions}>
-              <TouchableOpacity style={styles.alertCancel} onPress={() => setRoomPermissionPrompt(false)}>
+              <TouchableOpacity style={styles.alertCancel} onPress={() => setPermissionPrompt({ visible: false, key: null })}>
                 <Text style={styles.alertCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.alertConfirm, { backgroundColor: '#DC2626' }]} onPress={confirmRoomPermission}>
+              <TouchableOpacity style={[styles.alertConfirm, { backgroundColor: '#DC2626' }]} onPress={confirmPermissionGrant}>
                 <Text style={styles.alertConfirmText}>Grant Access</Text>
               </TouchableOpacity>
             </View>

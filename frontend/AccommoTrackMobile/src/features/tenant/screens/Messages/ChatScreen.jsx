@@ -12,6 +12,11 @@ import { showError } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/MessagesPage.js';
 import { API_BASE_URL, BASE_URL } from '../../../../config/index.js';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
+import {
+    tenantQueryKeys,
+    useTenantFocusRefetch,
+    useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 export default function ChatScreen({ navigation, route }) {
     const { theme } = useTheme();
@@ -20,19 +25,41 @@ export default function ChatScreen({ navigation, route }) {
     const conv = route.params?.conversation || null;
     const [messageText, setMessageText] = useState('');
     const [selectedImage, setSelectedImage] = useState(null);
-    const [currentUserId, setCurrentUserId] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
 
     const scrollViewRef = useRef(null);
     const echoRef = useRef(null);
+    const messagesQueryKey = React.useMemo(
+        () => tenantQueryKeys.messagesConversation(conv?.id),
+        [conv?.id],
+    );
 
-    // Fetch messages using React Query
-    const { 
-        data: messages = [], 
-        isLoading, 
-        isRefetching, 
-        refetch 
-    } = useQuery({
-        queryKey: ['messages', conv?.id],
+    const currentUserIdQuery = useQuery({
+        queryKey: tenantQueryKeys.messagesCurrentUserId(),
+        queryFn: async () => {
+            try {
+                const stored = await AsyncStorage.getItem('user');
+                if (!stored) return null;
+
+                const parsed = JSON.parse(stored);
+                if (parsed?.id || parsed?.id === 0) {
+                    return String(parsed.id);
+                }
+
+                return null;
+            } catch (e) {
+                console.error('Failed to load user for chat:', e);
+                return null;
+            }
+        },
+        staleTime: Infinity,
+        gcTime: Infinity,
+    });
+
+    const currentUserId = currentUserIdQuery.data || null;
+
+    const messagesQuery = useQuery({
+        queryKey: messagesQueryKey,
         queryFn: async () => {
             if (!conv?.id) return [];
             const result = await MessageService.getConversationMessages(conv.id);
@@ -40,6 +67,26 @@ export default function ChatScreen({ navigation, route }) {
             return result.data;
         },
         enabled: !!conv?.id,
+        placeholderData: (previousData) => previousData,
+    });
+
+    const messages = messagesQuery.data || [];
+    const isLoading = messagesQuery.isLoading;
+    const refetchMessages = messagesQuery.refetch;
+    const messageRefetchers = React.useMemo(
+        () => [refetchMessages],
+        [refetchMessages],
+    );
+
+    useTenantFocusRefetch({
+        enabled: Boolean(conv?.id),
+        refetchers: messageRefetchers,
+    });
+
+    const onRefresh = useTenantRefreshHandler({
+        enabled: Boolean(conv?.id),
+        setRefreshing,
+        refetchers: messageRefetchers,
     });
 
     // Send message mutation
@@ -50,11 +97,12 @@ export default function ChatScreen({ navigation, route }) {
                 setMessageText('');
                 setSelectedImage(null);
                 // Optimistically update
-                queryClient.setQueryData(['messages', conv.id], (old) => {
+                queryClient.setQueryData(messagesQueryKey, (old) => {
                     const messages = old || [];
                     if (messages.some(m => String(m.id) === String(result.data.id))) return old;
                     return [...messages, result.data];
                 });
+                queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
                 scrollToBottom();
             } else {
                 showError('Failed to send message', result.error);
@@ -64,22 +112,6 @@ export default function ChatScreen({ navigation, route }) {
             showError('Error', err.message);
         }
     });
-
-    useEffect(() => {
-        const loadUserId = async () => {
-            try {
-                const stored = await AsyncStorage.getItem('user');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    // Use id if available, matching what backend considers 'owner'
-                    setCurrentUserId(parsed.id);
-                }
-            } catch (e) {
-                console.error('Failed to load user for chat:', e);
-            }
-        };
-        loadUserId();
-    }, []);
 
     useEffect(() => {
         if (!conv) return;
@@ -97,7 +129,7 @@ export default function ChatScreen({ navigation, route }) {
             echoRef.current.private(`conversation.${conv.id}`).listen('.message.sent', (e) => {
                 const incomingMessage = e.message;
                 
-                queryClient.setQueryData(['messages', conv.id], (old) => {
+                queryClient.setQueryData(messagesQueryKey, (old) => {
                     const messages = old || [];
                     // Avoid duplicates by checking ID (convert to string for safe comparison)
                     if (messages.some(m => String(m.id) === String(incomingMessage.id))) {
@@ -105,6 +137,7 @@ export default function ChatScreen({ navigation, route }) {
                     }
                     return [...messages, incomingMessage];
                 });
+                queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
                 scrollToBottom();
             });
         } catch (err) {
@@ -255,7 +288,7 @@ export default function ChatScreen({ navigation, route }) {
                     contentContainerStyle={styles.messagesContent}
                     showsVerticalScrollIndicator={false}
                     onContentSizeChange={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100)}
-                    refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
                 >
                     {conv?.property && (
                         <View style={[styles.propertyCard, { backgroundColor: theme.colors.surface }]}>

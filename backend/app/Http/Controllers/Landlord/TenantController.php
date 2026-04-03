@@ -639,11 +639,14 @@ class TenantController extends Controller
                             'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Cancelled due to room transfer)')"),
                         ]);
 
+                    // End the physical stay first, then close the old booking lifecycle.
+                    $oldRoom->removeTenant($tenant->id);
+
                     // Use a valid booking enum status when ending a booking due to transfer.
                     $this->bookingService->updateStatus($activeBooking, ['status' => 'partial-completed']);
+                } else {
+                    $oldRoom->removeTenant($tenant->id);
                 }
-
-                $oldRoom->removeTenant($tenant->id);
             }
 
             // 3. Start new booking for the new room
@@ -702,6 +705,13 @@ class TenantController extends Controller
                         'transfer_to_room' => $newRoom->room_number,
                         'credit_calculation' => $creditCalculation ?? [],
                     ]);
+
+                    $newBooking->payment_status = match ($initialInvoice->status) {
+                        'paid' => 'paid',
+                        'partial' => 'partial',
+                        default => 'unpaid',
+                    };
+                    $newBooking->save();
                 }
             }
             

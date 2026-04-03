@@ -7,6 +7,7 @@ use App\Models\Room;
 use App\Models\TenantProfile;
 use App\Models\User;
 use App\Notifications\NewBookingNotification;
+use App\Services\AuditLogService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +15,18 @@ use Illuminate\Support\Str;
 
 class BookingService
 {
+    public function __construct(protected AuditLogService $auditLogService)
+    {
+    }
+
+    private const BOOKING_LIMIT_STATUSES = [
+        'pending',
+        'pending_reservation',
+        'reserved',
+        'confirmed',
+        'active',
+    ];
+
     /**
      * Create a new booking
      */
@@ -21,37 +34,48 @@ class BookingService
     {
         return DB::transaction(function () use ($data, $tenantId) {
             $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
+            $bookingMode = $this->resolveBookingMode($data['booking_mode'] ?? null);
 
             if ($tenantId) {
                 // 1. High-Priority Fix: Overdue Invoice Check
                 $hasOverdue = \App\Models\Invoice::where('tenant_id', $tenantId)
-                    ->where('status', 'overdue')
+                      ->where(function ($query) {
+                          $query->where('status', 'overdue')
+                              ->orWhere(function ($partialQuery) {
+                                  $partialQuery->where('status', 'partial')
+                                      ->whereDate('due_date', '<', now()->toDateString());
+                              });
+                      })
                     ->exists();
 
                 if ($hasOverdue) {
-                    throw new \Exception('You cannot create a new booking while you have overdue invoices. Please settle your outstanding balance first.');
+                    throw new \DomainException('You cannot create a new booking while you have overdue invoices. Please settle your outstanding balance first.');
                 }
 
                 // 2. High-Priority Fix: Unconditional Double-Booking Guard
                 // Check for any booking for this room by this tenant that isn't cancelled or completed
                 $hasExistingBooking = Booking::where('room_id', $room->id)
                     ->where('tenant_id', $tenantId)
-                    ->whereIn('status', ['pending', 'confirmed', 'active'])
+                    ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
                     ->exists();
 
                 if ($hasExistingBooking) {
-                    throw new \Exception('You already have an active or pending booking for this room.');
+                    throw new \DomainException('You already have an active or pending booking for this room.');
                 }
 
-                // Also prevent booking multiple rooms in the same property if not allowed (default: restricted)
-                // This can be expanded later into a property setting
-                $hasStayInProperty = Booking::where('property_id', $room->property_id)
+                $samePropertyBookingCount = Booking::where('property_id', $room->property_id)
                     ->where('tenant_id', $tenantId)
-                    ->whereIn('status', ['pending', 'confirmed', 'active'])
-                    ->exists();
+                    ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
+                    ->count();
 
-                if ($hasStayInProperty) {
-                    throw new \Exception('You already have an active or pending booking in this property.');
+                $samePropertyLimit = $bookingMode === 'proxy' ? 3 : 1;
+
+                if ($samePropertyBookingCount >= $samePropertyLimit) {
+                    if ($bookingMode === 'proxy') {
+                        throw new \DomainException('Proxy booking limit reached. Only up to 3 active or pending bookings are allowed in this property.');
+                    }
+
+                    throw new \DomainException('Normal booking allows only 1 active or pending booking in this property.');
                 }
             }
 
@@ -63,34 +87,42 @@ class BookingService
                 $requestedBeds = $room->capacity;
             }
 
+            $occupantsPayload = $this->normalizeOccupants($data['occupants'] ?? []);
+
+            if ($bookingMode === 'proxy' && count($occupantsPayload) === 0) {
+                throw new \DomainException('Proxy booking requires at least one occupant entry.');
+            }
+
+            if (count($occupantsPayload) > $requestedBeds) {
+                throw new \DomainException('Occupant count cannot exceed requested bed slots for this booking.');
+            }
+
             // Calculate effective occupancy (confirmed beds + pending beds)
             $pendingBeds = (int) Booking::where('room_id', $room->id)
-                ->where('status', 'pending')
+                ->whereIn('status', ['pending', 'pending_reservation', 'reserved'])
                 ->sum('bed_count');
 
             $effectiveOccupancy = $room->occupied + $pendingBeds;
 
             // Check if room has available slots
             if ($effectiveOccupancy + $requestedBeds > $room->capacity) {
-                throw new \Exception('Room does not have enough available beds for this request.');
+                throw new \DomainException('Room does not have enough available beds for this request.');
             }
 
             if ($room->status === 'maintenance') {
-                throw new \Exception('Room is currently under maintenance');
+                throw new \DomainException('Room is currently under maintenance');
             }
 
             if ($room->is_booking_locked) {
-                throw new \Exception('Room is temporarily locked for new bookings due to a pending eviction process.');
+                throw new \DomainException('Room is temporarily locked for new bookings due to a pending eviction process.');
             }
 
             // Check Gender Compatibility
             $tenant = $tenantId ? User::find($tenantId) : null;
             if ($tenant && $tenant->role === 'tenant') {
                 $property = $room->property;
-                // Normalize property type: lowercase + remove spaces for robust comparison
-                // DB may store camelCase ('boardingHouse', 'bedSpacer') or lowercase ('dormitory')
-                $rawPropertyType = $property->property_type ?? '';
-                $propertyType = strtolower(str_replace([' ', '_'], '', $rawPropertyType));
+                // Normalize property type token so legacy/camelCase variants compare consistently.
+                $propertyType = $this->normalizePropertyTypeToken($property->property_type ?? '');
                 $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
 
                 // Only enforce for specific property types
@@ -100,10 +132,10 @@ class BookingService
 
                     if ($roomRestriction !== 'mixed') {
                         if (! $tenantGender) {
-                            throw new \Exception('Please complete your profile gender (male/female) before booking this room type.');
+                            throw new \DomainException('Please complete your profile gender (male/female) before booking this room type.');
                         }
                         if ($roomRestriction !== $tenantGender) {
-                            throw new \Exception("Sorry, this room is only for specifically {$roomRestriction} only");
+                            throw new \DomainException("Sorry, this room is only for specifically {$roomRestriction} only");
                         }
                     }
                 }
@@ -127,22 +159,22 @@ class BookingService
             $today = Carbon::today();
 
             if ($startDate->lessThan($today)) {
-                throw new \Exception('Check-in date cannot be in the past.');
+                throw new \DomainException('Check-in date cannot be in the past.');
             }
 
             if ($contractMode === 'daily' && ! $endDate) {
-                throw new \Exception('Check-out date is required for daily bookings.');
+                throw new \DomainException('Check-out date is required for daily bookings.');
             }
 
             if ($endDate && $endDate->lessThanOrEqualTo($startDate)) {
-                throw new \Exception('Check-out date must be after check-in date.');
+                throw new \DomainException('Check-out date must be after check-in date.');
             }
 
             $days = $endDate ? max(1, $startDate->diffInDays($endDate)) : 30;
 
             // Prevent bookings more than 3 months in advance
             if ($startDate->greaterThan(now()->addMonths(3))) {
-                throw new \Exception('You cannot book a room more than 3 months in advance.');
+                throw new \DomainException('You cannot book a room more than 3 months in advance.');
             }
 
             // Enforce minimum stay if configured
@@ -154,7 +186,7 @@ class BookingService
             }
 
             if ($minStay && $endDate && $days < $minStay) {
-                throw new \Exception("Minimum stay for this room is {$minStay} days.");
+                throw new \DomainException("Minimum stay for this room is {$minStay} days.");
             }
 
             // Calculate pricing (use calendar-period-aware calculation when a move-out date exists).
@@ -205,11 +237,13 @@ class BookingService
             $booking = Booking::create([
                 'property_id' => $room->property_id,
                 'tenant_id' => $tenantId,
+                'booking_mode' => $bookingMode,
                 'landlord_id' => $room->property->landlord_id,
                 'guest_name' => $data['guest_name'] ?? null,
                 'room_id' => $room->id,
                 'bed_count' => $requestedBeds,
                 'booking_reference' => $bookingReference,
+                'booking_group_reference' => $data['booking_group_reference'] ?? null,
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate?->format('Y-m-d'),
                 'move_in_date' => isset($data['move_in_date']) ? Carbon::parse($data['move_in_date'])->format('Y-m-d') : null,
@@ -225,11 +259,33 @@ class BookingService
                 'reference_number' => $reservationRef,
             ]);
 
+            $this->auditLogService->bookingEvent('booking.created', [
+                'subject_type' => 'booking',
+                'subject_id' => $booking->id,
+                'booking_id' => $booking->id,
+                'property_id' => $booking->property_id,
+                'tenant_id' => $booking->tenant_id,
+                'landlord_id' => $booking->landlord_id,
+                'status_before' => null,
+                'status_after' => $booking->status,
+                'summary' => 'Booking created.',
+                'metadata' => [
+                    'booking_reference' => $booking->booking_reference,
+                    'booking_mode' => $booking->booking_mode,
+                    'contract_mode' => $booking->contract_mode,
+                    'payment_plan' => $booking->payment_plan,
+                ],
+            ]);
+
+            if (! empty($occupantsPayload)) {
+                $booking->occupants()->createMany($occupantsPayload);
+            }
+
             // GENERATE RESERVATION FEE INVOICE IF REQUIRED
             if ($room->property->require_reservation_fee && $room->property->reservation_fee > 0) {
                 $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
 
-                \App\Models\Invoice::create([
+                $reservationInvoice = \App\Models\Invoice::create([
                     'reference' => $reference,
                     'landlord_id' => $room->property->landlord_id,
                     'property_id' => $room->property->id,
@@ -242,6 +298,23 @@ class BookingService
                     'status' => 'pending',
                     'issued_at' => now(),
                     'due_date' => now()->addHours(24), // Pay within 24 hours
+                ]);
+
+                $this->auditLogService->invoiceEvent('invoice.created', [
+                    'subject_type' => 'invoice',
+                    'subject_id' => $reservationInvoice->id,
+                    'booking_id' => $booking->id,
+                    'invoice_id' => $reservationInvoice->id,
+                    'property_id' => $booking->property_id,
+                    'tenant_id' => $booking->tenant_id,
+                    'landlord_id' => $booking->landlord_id,
+                    'status_before' => null,
+                    'status_after' => $reservationInvoice->status,
+                    'summary' => 'Reservation fee invoice generated.',
+                    'metadata' => [
+                        'invoice_type' => $reservationInvoice->invoice_type,
+                        'amount_cents' => $reservationInvoice->amount_cents,
+                    ],
                 ]);
             }
 
@@ -263,6 +336,44 @@ class BookingService
         });
     }
 
+    private function resolveBookingMode(mixed $value): string
+    {
+        $mode = strtolower((string) $value);
+
+        return in_array($mode, ['normal', 'proxy'], true) ? $mode : 'normal';
+    }
+
+    private function normalizePropertyTypeToken(?string $propertyType): string
+    {
+        return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeOccupants(mixed $occupants): array
+    {
+        if (! is_array($occupants)) {
+            return [];
+        }
+
+        return collect($occupants)
+            ->filter(fn ($occupant) => is_array($occupant) && filled($occupant['full_name'] ?? null))
+            ->map(function (array $occupant): array {
+                return [
+                    'full_name' => trim((string) ($occupant['full_name'] ?? '')),
+                    'date_of_birth' => $occupant['date_of_birth'] ?? null,
+                    'gender' => isset($occupant['gender']) ? strtolower((string) $occupant['gender']) : null,
+                    'relationship_to_booker' => $occupant['relationship_to_booker'] ?? null,
+                    'phone' => $occupant['phone'] ?? null,
+                    'email' => $occupant['email'] ?? null,
+                    'notes' => $occupant['notes'] ?? null,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     /**
      * Update booking status with all business logic
      *
@@ -274,6 +385,7 @@ class BookingService
 
         try {
             $newStatus = $data['status'];
+            $oldStatus = $booking->status;
             $booking->status = $newStatus;
 
             switch ($newStatus) {
@@ -292,6 +404,26 @@ class BookingService
             }
 
             $booking->save();
+
+            $eventName = match ($newStatus) {
+                'confirmed' => 'booking.confirmed',
+                'cancelled' => 'booking.cancelled',
+                'completed', 'partial-completed' => 'booking.completed',
+                default => 'booking.status_updated',
+            };
+
+            $this->auditLogService->bookingEvent($eventName, [
+                'subject_type' => 'booking',
+                'subject_id' => $booking->id,
+                'booking_id' => $booking->id,
+                'property_id' => $booking->property_id,
+                'tenant_id' => $booking->tenant_id,
+                'landlord_id' => $booking->landlord_id,
+                'status_before' => $oldStatus,
+                'status_after' => $newStatus,
+                'summary' => 'Booking status updated.',
+            ]);
+
             DB::commit();
 
             // Load fresh data with tenant name for room card
@@ -351,11 +483,25 @@ class BookingService
     {
         DB::beginTransaction();
         try {
+            $oldStatus = $booking->status;
+
             $booking->status = 'confirmed';
             $booking->save();
             
             // This will assign tenant and generate rent invoice 
             $this->handleConfirmation($booking);
+
+            $this->auditLogService->bookingEvent('booking.confirmed', [
+                'subject_type' => 'booking',
+                'subject_id' => $booking->id,
+                'booking_id' => $booking->id,
+                'property_id' => $booking->property_id,
+                'tenant_id' => $booking->tenant_id,
+                'landlord_id' => $booking->landlord_id,
+                'status_before' => $oldStatus,
+                'status_after' => $booking->status,
+                'summary' => 'Booking confirmed through check-in flow.',
+            ]);
 
             DB::commit();
 
@@ -374,6 +520,105 @@ class BookingService
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to check in tenant', ['error' => $e->getMessage(), 'booking_id' => $booking->id]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Finalize checkout for an active stay.
+     *
+     * @return array{booking: Booking, room_updated: bool, tenant_name: string, resolved_status: string}
+     */
+    public function finalizeCheckout(Booking $booking, ?string $moveOutDate = null, ?string $note = null): array
+    {
+        DB::beginTransaction();
+
+        try {
+            $oldStatus = $booking->status;
+
+            if (in_array($booking->status, ['cancelled', 'completed'], true)) {
+                throw new \DomainException('Checkout is only allowed for active stays.');
+            }
+
+            if (! in_array($booking->status, ['confirmed', 'active', 'partial-completed'], true)) {
+                throw new \DomainException('Booking must be checked in before checkout can be finalized.');
+            }
+
+            $checkoutDate = $moveOutDate
+                ? Carbon::parse($moveOutDate)->startOfDay()
+                : Carbon::today();
+
+            if ($booking->start_date && $checkoutDate->lt(Carbon::parse($booking->start_date)->startOfDay())) {
+                throw new \DomainException('Move-out date cannot be earlier than check-in date.');
+            }
+
+            $booking->end_date = $checkoutDate->toDateString();
+            $booking->notice_given_at = $booking->notice_given_at ?: now();
+
+            if ($booking->next_billing_date && Carbon::parse($booking->next_billing_date)->gt($checkoutDate)) {
+                $booking->next_billing_date = null;
+            }
+
+            $normalizedNote = trim((string) $note);
+            if ($normalizedNote !== '') {
+                $existingNotes = trim((string) ($booking->notes ?? ''));
+                $line = 'Checkout finalized: '.$normalizedNote;
+                $booking->notes = $existingNotes === ''
+                    ? $line
+                    : $existingNotes."\n".$line;
+            }
+
+            if ($booking->tenant_id) {
+                $booking->room->removeTenant($booking->tenant_id, $checkoutDate->toDateString());
+            }
+
+            $hasOutstandingDeposit = (float) ($booking->deposit_balance ?? 0) > 0;
+            $resolvedStatus = $booking->payment_status === 'paid' && ! $hasOutstandingDeposit
+                ? 'completed'
+                : 'partial-completed';
+
+            $booking->status = $resolvedStatus;
+            $this->handleCompletion($booking, $resolvedStatus);
+
+            $booking->save();
+
+            $this->auditLogService->bookingEvent('booking.completed', [
+                'subject_type' => 'booking',
+                'subject_id' => $booking->id,
+                'booking_id' => $booking->id,
+                'property_id' => $booking->property_id,
+                'tenant_id' => $booking->tenant_id,
+                'landlord_id' => $booking->landlord_id,
+                'status_before' => $oldStatus,
+                'status_after' => $resolvedStatus,
+                'summary' => 'Booking finalized through checkout flow.',
+                'metadata' => [
+                    'move_out_date' => $booking->end_date,
+                    'has_outstanding_deposit' => $hasOutstandingDeposit,
+                ],
+            ]);
+
+            DB::commit();
+
+            $booking->load(['property', 'tenant.tenantProfile', 'room.currentTenant']);
+
+            $tenantName = $booking->guest_name;
+            if (! $tenantName && $booking->tenant) {
+                $tenantName = $booking->tenant->first_name.' '.$booking->tenant->last_name;
+            }
+
+            return [
+                'booking' => $booking,
+                'room_updated' => true,
+                'tenant_name' => $tenantName ?: 'Guest',
+                'resolved_status' => $resolvedStatus,
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to finalize booking checkout', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
             throw $e;
         }
     }
@@ -448,7 +693,7 @@ class BookingService
                 $description .= ' (includes 1 month advance)';
             }
 
-            \App\Models\Invoice::create([
+            $generatedInvoice = \App\Models\Invoice::create([
                 'reference' => $reference,
                 'landlord_id' => $booking->landlord_id,
                 'property_id' => $booking->property_id,
@@ -461,6 +706,23 @@ class BookingService
                 'status' => 'pending',
                 'issued_at' => now(),
                 'due_date' => Carbon::parse($booking->start_date)->addDays(3), // Due shortly after move-in
+            ]);
+
+            $this->auditLogService->invoiceEvent('invoice.created', [
+                'subject_type' => 'invoice',
+                'subject_id' => $generatedInvoice->id,
+                'booking_id' => $booking->id,
+                'invoice_id' => $generatedInvoice->id,
+                'property_id' => $booking->property_id,
+                'tenant_id' => $booking->tenant_id,
+                'landlord_id' => $booking->landlord_id,
+                'status_before' => null,
+                'status_after' => $generatedInvoice->status,
+                'summary' => 'Rent invoice generated during booking confirmation.',
+                'metadata' => [
+                    'invoice_type' => $generatedInvoice->invoice_type,
+                    'amount_cents' => $generatedInvoice->amount_cents,
+                ],
             ]);
 
             Log::info('Auto-generated invoice for confirmed booking', [
@@ -507,19 +769,36 @@ class BookingService
             throw new \DomainException('Deposit balance must be settled before marking this booking as completed.');
         }
 
+        $hasActiveAssignment = $booking->tenant_id
+            ? $booking->room->tenants()->where('tenant_id', $booking->tenant_id)->exists()
+            : false;
+
+        if ($hasActiveAssignment) {
+            throw new \DomainException('Cannot complete booking while tenant is still checked in. Finalize checkout first.');
+        }
+
+        if (! $booking->end_date) {
+            $booking->end_date = now()->toDateString();
+        }
+
+        if ($booking->tenant_id) {
+            $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($tenantProfile) {
+                $tenantProfile->update([
+                    'status' => 'inactive',
+                    'move_out_date' => Carbon::parse($booking->end_date)->format('Y-m-d'),
+                ]);
+            }
+        }
+
         Log::info('Booking marked as completed', [
             'booking_id' => $booking->id,
             'status' => $status,
-            'room_still_occupied' => true,
+            'room_still_occupied' => false,
         ]);
-
-        // If the landlord skipped "confirmed" and jumped straight to "completed" or "partial-completed",
-        // we MUST still execute the underlying assignment logic to place the tenant securely
-        // into the room so its occupancy status correctly flips to 'occupied'.
-        if (empty($booking->confirmed_at)) {
-            Log::info('Completed booking lacked confirmation. Firing handleConfirmation.', ['booking_id' => $booking->id]);
-            $this->handleConfirmation($booking);
-        }
     }
 
     /**
@@ -568,36 +847,15 @@ class BookingService
     }
 
     /**
-     * Update payment status with auto-upgrade logic
+     * Update payment status only.
      *
-     * @return array{booking: Booking, status_upgraded: bool}
+     * @return array{booking: Booking, status_upgraded: bool, completion_blocked: bool}
      */
     public function updatePaymentStatus(Booking $booking, string $paymentStatus): array
     {
         $statusUpgraded = false;
         $completionBlocked = false;
         $booking->payment_status = $paymentStatus;
-
-        // Auto-upgrade: If booking is 'partial-completed' and payment becomes 'paid', upgrade to 'completed'
-        if ($booking->status === 'partial-completed' && $paymentStatus === 'paid') {
-            if ((float) ($booking->deposit_balance ?? 0) > 0) {
-                $completionBlocked = true;
-            } else {
-                $booking->status = 'completed';
-                $statusUpgraded = true;
-
-                Log::info('Booking auto-upgraded from partial-completed to completed', [
-                    'booking_id' => $booking->id,
-                ]);
-            }
-        }
-
-        if ($completionBlocked) {
-            Log::info('Booking completion blocked due to unsettled deposit', [
-                'booking_id' => $booking->id,
-                'deposit_balance' => $booking->deposit_balance,
-            ]);
-        }
 
         $booking->save();
 

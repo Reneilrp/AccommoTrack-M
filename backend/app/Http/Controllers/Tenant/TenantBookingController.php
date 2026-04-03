@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Booking\RequestMoveOutNoticeRequest;
 use App\Notifications\MoveOutRequestedNotification;
+use App\Services\AuditLogService;
 use Illuminate\Support\Facades\Notification;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
@@ -56,6 +57,8 @@ class TenantBookingController extends Controller
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 
+            $oldStatus = $booking->status;
+
             // Only allow cancellation for non-completed bookings
             if (in_array($booking->status, ['completed', 'partial-completed', 'cancelled'])) {
                 return response()->json(['message' => 'Cannot cancel this booking'], 422);
@@ -92,6 +95,22 @@ class TenantBookingController extends Controller
             }
 
             $booking->save();
+
+            app(AuditLogService::class)->bookingEvent('booking.cancelled', [
+                'subject_type' => 'booking',
+                'subject_id' => $booking->id,
+                'booking_id' => $booking->id,
+                'property_id' => $booking->property_id,
+                'tenant_id' => $booking->tenant_id,
+                'landlord_id' => $booking->landlord_id,
+                'status_before' => $oldStatus,
+                'status_after' => $booking->status,
+                'summary' => 'Booking cancelled by tenant.',
+                'metadata' => [
+                    'cancellation_reason' => $booking->cancellation_reason,
+                ],
+            ]);
+
             DB::commit();
 
             return response()->json(['message' => 'Booking cancelled', 'booking' => $booking], 200);

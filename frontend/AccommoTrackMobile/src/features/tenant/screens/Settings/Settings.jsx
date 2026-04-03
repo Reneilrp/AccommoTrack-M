@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Switch, Alert, StatusBar, RefreshControl, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Switch, Alert, StatusBar, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Menu/Settings.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
@@ -10,19 +11,54 @@ import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
 import { WEB_BASE_URL } from '../../../../config/index.js';
 import { navigate as rootNavigate, triggerForcedLogout, triggerRoleSwitch } from '../../../../navigation/RootNavigation.js';
+import { useAuthStore } from '../../../../stores/auth/authStore.js';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
+
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  notifications: true,
+  emailNotifications: true,
+  pushNotifications: true,
+  locationServices: true,
+};
+
+const normalizeNotificationSettings = (input) => {
+  if (!input) return { ...DEFAULT_NOTIFICATION_SETTINGS };
+
+  let parsed = input;
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return { ...DEFAULT_NOTIFICATION_SETTINGS };
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return { ...DEFAULT_NOTIFICATION_SETTINGS };
+  }
+
+  return {
+    notifications: parsed.notifications ?? true,
+    emailNotifications: parsed.emailNotifications ?? true,
+    pushNotifications: parsed.pushNotifications ?? true,
+    locationServices: parsed.locationServices ?? true,
+  };
+};
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
   const { theme, isDarkMode, toggleTheme } = useTheme();
+  const queryClient = useQueryClient();
+  const clearAuthSession = useAuthStore((state) => state.clearAuthSession);
+  const setActiveRole = useAuthStore((state) => state.setActiveRole);
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const themedHomeStyles = React.useMemo(() => homeStyles(theme), [theme]);
   
-  const [notificationSettings, setNotificationSettings] = useState({
-    notifications: true,
-    emailNotifications: true,
-    pushNotifications: true,
-    locationServices: true
-  });
+  const [notificationSettings, setNotificationSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
   const [refreshing, setRefreshing] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(isGuest ?? true);
   const [loading, setLoading] = useState(true);
@@ -43,12 +79,10 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         if (!guest) {
           const user = JSON.parse(userJson);
           setUserRole(user.role || 'tenant');
-          setSwitchCredentials((prev) => ({
-            ...prev,
-            email: user.email || '',
-          }));
-          await loadSettings();
+          setActiveRole(user.role || 'tenant');
+          setLoading(false);
         } else {
+          clearAuthSession();
           setLoading(false);
         }
       } catch (error) {
@@ -59,43 +93,63 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
     checkState();
     return () => { isMounted = false; };
-  }, [isGuest]);
+  }, [isGuest, clearAuthSession, setActiveRole]);
 
-  const loadSettings = async () => {
-    try {
+  const settingsBundleQuery = useQuery({
+    queryKey: tenantQueryKeys.settingsBundle(),
+    queryFn: async () => {
       const [profileRes, verificationRes] = await Promise.all([
         ProfileService.getProfile(),
-        ProfileService.getVerificationStatus()
+        ProfileService.getVerificationStatus(),
       ]);
-      
-      if (profileRes.success && profileRes.data) {
-        const prefs = profileRes.data.notification_preferences;
-        if (prefs) {
-          const parsed = typeof prefs === 'string' ? JSON.parse(prefs) : prefs;
-          setNotificationSettings({
-            notifications: parsed.notifications ?? true,
-            emailNotifications: parsed.emailNotifications ?? true,
-            pushNotifications: parsed.pushNotifications ?? true,
-            locationServices: parsed.locationServices ?? true
-          });
-        }
-      }
 
-      if (verificationRes.success) {
-        setLandlordVerificationStatus(verificationRes.data.status);
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        notificationSettings: normalizeNotificationSettings(profileRes?.data?.notification_preferences),
+        landlordVerificationStatus: verificationRes?.success ? verificationRes?.data?.status : null,
+      };
+    },
+    enabled: !isGuestMode,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const refetchSettingsBundle = settingsBundleQuery.refetch;
+  const settingsRefetchers = React.useMemo(
+    () => [refetchSettingsBundle],
+    [refetchSettingsBundle],
+  );
+
+  useTenantFocusRefetch({
+    enabled: !isGuestMode,
+    refetchers: settingsRefetchers,
+  });
+
+  const onRefresh = useTenantRefreshHandler({
+    enabled: !isGuestMode,
+    setRefreshing,
+    refetchers: settingsRefetchers,
+  });
+
+  useEffect(() => {
+    if (!settingsBundleQuery.data) return;
+    setNotificationSettings(settingsBundleQuery.data.notificationSettings || DEFAULT_NOTIFICATION_SETTINGS);
+    setLandlordVerificationStatus(settingsBundleQuery.data.landlordVerificationStatus || null);
+  }, [settingsBundleQuery.data]);
+
+  useEffect(() => {
+    if (!settingsBundleQuery.error) return;
+    console.error('Error loading settings:', settingsBundleQuery.error);
+  }, [settingsBundleQuery.error]);
 
   const updateSetting = async (key, value) => {
     if (isGuestMode) return;
     
+    const previousSettings = notificationSettings;
     const newSettings = { ...notificationSettings, [key]: value };
     setNotificationSettings(newSettings);
+    queryClient.setQueryData(tenantQueryKeys.settingsBundle(), (previousBundle) => ({
+      ...(previousBundle || {}),
+      notificationSettings: newSettings,
+    }));
     
     try {
       await ProfileService.updateSettings({
@@ -111,19 +165,11 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       }
     } catch (error) {
       console.error('Error updating setting:', error);
-    }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      if (!isGuestMode) {
-        await loadSettings();
-      }
-    } catch (error) {
-      console.error('Refresh error:', error);
-    } finally {
-      setRefreshing(false);
+      setNotificationSettings(previousSettings);
+      queryClient.setQueryData(tenantQueryKeys.settingsBundle(), (previousBundle) => ({
+        ...(previousBundle || {}),
+        notificationSettings: previousSettings,
+      }));
     }
   };
 
@@ -189,6 +235,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
           }
         }
+        setActiveRole(newRole);
         triggerRoleSwitch(newRole);
         return true;
       }
@@ -247,6 +294,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
                 await onLogout();
               } else {
                 // Clear only auth-related data
+                clearAuthSession();
                 await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
                 triggerForcedLogout();
               }
@@ -352,13 +400,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   };
 
   const settingSections = getSettingSections();
+  const isScreenLoading = loading || (!isGuestMode && settingsBundleQuery.isLoading && !settingsBundleQuery.data);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" />
       {/* Content Area */}
       <View style={{flex: 1}}>
-        {loading ? (
+        {isScreenLoading ? (
           <ScrollView style={themedHomeStyles.contentContainerPadding} showsVerticalScrollIndicator={false}>
             <ListItemSkeleton />
             <ListItemSkeleton />

@@ -322,7 +322,7 @@ class Room extends Model
     public function getPendingBedsAttribute()
     {
         return (int) Booking::where('room_id', $this->id)
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'pending_reservation', 'reserved'])
             ->sum('bed_count');
     }
 
@@ -490,13 +490,15 @@ class Room extends Model
     /**
      * Remove tenant from room
      */
-    public function removeTenant($tenantId = null)
+    public function removeTenant($tenantId = null, ?string $endDate = null)
     {
+        $effectiveEndDate = $endDate ?: now()->format('Y-m-d');
+
         if ($tenantId) {
             // Remove specific tenant
             $this->tenants()->updateExistingPivot($tenantId, [
                 'status' => 'ended',
-                'end_date' => now()->format('Y-m-d'),
+                'end_date' => $effectiveEndDate,
                 'updated_at' => now(),
             ]);
 
@@ -511,7 +513,7 @@ class Room extends Model
             // Remove all tenants (legacy behavior)
             $this->tenants()->updateExistingPivot($this->tenants()->pluck('id')->toArray(), [
                 'status' => 'ended',
-                'end_date' => now()->format('Y-m-d'),
+                'end_date' => $effectiveEndDate,
                 'updated_at' => now(),
             ]);
 

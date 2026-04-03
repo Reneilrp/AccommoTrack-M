@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -16,20 +16,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "../../../../../contexts/ThemeContext.jsx";
 import ProfileService from "../../../../../services/ProfileService.js";
 import { getImageUrl } from "../../../../../utils/imageUtils.js";
 import { getStyles } from "../../../../../styles/Landlord/VerificationStatus.js";
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from "../../../hooks/useLandlordQueryHelpers.js";
+
+const EMPTY_ID_TYPES = [];
 
 export default function VerificationStatus({ navigation }) {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = useMemo(() => getStyles(theme), [theme]);
 
-  const [verification, setVerification] = useState(null);
-  const [userRole, setUserRole] = useState('landlord');
-  const [idTypes, setIdTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showResubmitForm, setShowResubmitForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -44,38 +48,49 @@ export default function VerificationStatus({ navigation }) {
     permit: null,
   });
 
-  const fetchData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-
-    try {
+  const verificationBundleQuery = useQuery({
+    queryKey: landlordQueryKeys.verificationStatusBundle(),
+    queryFn: async () => {
       const [statusRes, typesRes, profileRes] = await Promise.all([
         ProfileService.getVerificationStatus(),
         ProfileService.getValidIdTypes(),
         ProfileService.getProfile(),
       ]);
 
-      if (statusRes.success) setVerification(statusRes.data);
-      if (typesRes.success) setIdTypes(Array.isArray(typesRes.data) ? typesRes.data : []);
-      else if (typesRes.data) setIdTypes(Array.isArray(typesRes.data) ? typesRes.data : []); // Fallback data
+      return {
+        verification: statusRes?.success ? statusRes.data : null,
+        idTypes: Array.isArray(typesRes?.data) ? typesRes.data : EMPTY_ID_TYPES,
+        userRole:
+          profileRes?.success && profileRes.data
+            ? profileRes.data.role || "landlord"
+            : "landlord",
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-      if (profileRes.success && profileRes.data) {
-        const profile = profileRes.data;
-        setUserRole(profile.role || 'landlord');
-      }
-    } catch (error) {
-      console.error("Error fetching verification data:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [fetchData]),
+  const verification = verificationBundleQuery.data?.verification || null;
+  const idTypes = verificationBundleQuery.data?.idTypes || EMPTY_ID_TYPES;
+  const userRole = verificationBundleQuery.data?.userRole || "landlord";
+  const loading = verificationBundleQuery.isPending && !verificationBundleQuery.data;
+  const fetchError = verificationBundleQuery.error?.message || "";
+  const refetchVerificationBundle = verificationBundleQuery.refetch;
+  const verificationRefetchers = useMemo(
+    () => [refetchVerificationBundle],
+    [refetchVerificationBundle],
   );
+
+  useLandlordFocusRefetch({ refetchers: verificationRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: verificationRefetchers,
+  });
+
+  useEffect(() => {
+    if (!fetchError) return;
+    console.error("Error fetching verification data:", fetchError);
+  }, [fetchError]);
 
   const handlePickDocument = async (field) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -162,11 +177,11 @@ export default function VerificationStatus({ navigation }) {
           validIdBack: null,
           permit: null,
         });
-        fetchData();
+        await refetchLandlordQueries(verificationRefetchers);
       } else {
         Alert.alert("Error", res.error || "Failed to submit documents");
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert("Error", "An unexpected error occurred");
     } finally {
       setSubmitting(false);
@@ -251,7 +266,7 @@ export default function VerificationStatus({ navigation }) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => fetchData(true)}
+            onRefresh={handleRefresh}
             colors={["#059669"]}
           />
         }

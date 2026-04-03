@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   FlatList,
   Modal,
@@ -14,35 +13,56 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { getStyles } from '../../../../styles/Landlord/Reviews.js';
 import ReviewService from '../../../../services/ReviewService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
+
+const EMPTY_REVIEWS = [];
 
 export default function Reviews() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   const [replyVisible, setReplyVisible] = useState(false);
   const [responseText, setResponseText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchReviews();
-  }, []);
+  const reviewsQuery = useQuery({
+    queryKey: landlordQueryKeys.reviews(),
+    queryFn: async () => {
+      const response = await ReviewService.getLandlordReviews();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch reviews');
+      }
 
-  const fetchReviews = async () => {
-    setLoading(true);
-    const res = await ReviewService.getLandlordReviews();
-    if (res.success) {
-      setReviews(res.data || []);
-    }
-    setLoading(false);
-  };
+      return Array.isArray(response.data) ? response.data : EMPTY_REVIEWS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const reviews = reviewsQuery.data || EMPTY_REVIEWS;
+  const loading = reviewsQuery.isPending && reviews.length === 0;
+  const errorMessage = reviewsQuery.error?.message || '';
+  const refetchReviews = reviewsQuery.refetch;
+  const reviewRefetchers = useMemo(() => [refetchReviews], [refetchReviews]);
+
+  useLandlordFocusRefetch({ refetchers: reviewRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: reviewRefetchers,
+  });
 
   const handleReply = async () => {
     if (!responseText.trim()) {
@@ -56,7 +76,7 @@ export default function Reviews() {
 
     if (res.success) {
       Alert.alert('Success', 'Response submitted successfully');
-      setReviews(prev => prev.map(r => r.id === selectedReview.id ? { ...r, landlord_response: responseText } : r));
+      await refetchLandlordQueries(reviewRefetchers);
       setReplyVisible(false);
       setResponseText('');
       setSelectedReview(null);
@@ -144,7 +164,16 @@ export default function Reviews() {
           data={reviews}
           renderItem={renderItem}
           keyExtractor={item => String(item.id)}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            errorMessage ? (
+              <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5' }}>
+                <Text style={{ color: '#991B1B', fontSize: 13, fontWeight: '600' }}>{errorMessage}</Text>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="star-outline" size={48} color={theme.colors.textTertiary} />

@@ -14,9 +14,15 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Bookings.js';
 
@@ -38,6 +44,8 @@ const PAYMENT_BADGES = {
 };
 
 const DEFAULT_STATS = { total: 0, confirmed: 0, pending: 0, completed: 0 };
+const EMPTY_BOOKINGS = [];
+const EMPTY_REQUESTS = [];
 
 const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString('en-US')}`;
 
@@ -50,22 +58,16 @@ const formatDate = (value) => {
 export default function BookingsScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const [bookings, setBookings] = useState([]);
-  const [stats, setStats] = useState(DEFAULT_STATS);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [cancelVisible, setCancelVisible] = useState(false);
   const [cancelForm, setCancelForm] = useState({ reason: '', shouldRefund: false, refundAmount: '' });
   const [actionLoading, setActionLoading] = useState(false);
-  const [extensionRequests, setExtensionRequests] = useState([]);
-  const [transferRequests, setTransferRequests] = useState([]);
-  const [loadingExtensions, setLoadingExtensions] = useState(false);
-  const [loadingTransfers, setLoadingTransfers] = useState(false);
   const [requestActionLoading, setRequestActionLoading] = useState(false);
   const [approvingTransferRequestId, setApprovingTransferRequestId] = useState(null);
   const [rejectingTransferRequestId, setRejectingTransferRequestId] = useState(null);
@@ -89,6 +91,91 @@ export default function BookingsScreen({ navigation, route }) {
     note: ''
   });
 
+  const bookingsQuery = useQuery({
+    queryKey: landlordQueryKeys.bookings(),
+    queryFn: async () => {
+      const response = await PropertyService.getBookings();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load bookings');
+      }
+
+      const list = response.data;
+      if (Array.isArray(list)) return list;
+      if (Array.isArray(list?.data)) return list.data;
+      return EMPTY_BOOKINGS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const statsQuery = useQuery({
+    queryKey: landlordQueryKeys.bookingStats(),
+    queryFn: async () => {
+      const response = await PropertyService.getBookingStats();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load booking stats');
+      }
+
+      return {
+        total: response.data?.total ?? 0,
+        confirmed: response.data?.confirmed ?? 0,
+        pending: response.data?.pending ?? 0,
+        completed: response.data?.completed ?? 0,
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const extensionRequestsQuery = useQuery({
+    queryKey: landlordQueryKeys.extensionRequests(),
+    queryFn: async () => {
+      const response = await PropertyService.getExtensionRequests();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load extension requests');
+      }
+
+      return Array.isArray(response.data) ? response.data : EMPTY_REQUESTS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const transferRequestsQuery = useQuery({
+    queryKey: landlordQueryKeys.transferRequests(),
+    queryFn: async () => {
+      const response = await PropertyService.getTransferRequests();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load transfer requests');
+      }
+
+      return Array.isArray(response.data) ? response.data : EMPTY_REQUESTS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const bookings = bookingsQuery.data || EMPTY_BOOKINGS;
+  const stats = statsQuery.data || DEFAULT_STATS;
+  const extensionRequests = extensionRequestsQuery.data || EMPTY_REQUESTS;
+  const transferRequests = transferRequestsQuery.data || EMPTY_REQUESTS;
+  const loading = bookingsQuery.isPending && bookings.length === 0;
+  const loadingExtensions = extensionRequestsQuery.isPending && extensionRequests.length === 0;
+  const loadingTransfers = transferRequestsQuery.isPending && transferRequests.length === 0;
+  const error = bookingsQuery.error?.message || statsQuery.error?.message || '';
+
+  const refetchBookings = bookingsQuery.refetch;
+  const refetchStats = statsQuery.refetch;
+  const refetchExtensionRequests = extensionRequestsQuery.refetch;
+  const refetchTransferRequests = transferRequestsQuery.refetch;
+  const bookingRefetchers = useMemo(
+    () => [refetchBookings, refetchStats, refetchExtensionRequests, refetchTransferRequests],
+    [refetchBookings, refetchStats, refetchExtensionRequests, refetchTransferRequests],
+  );
+
+  useLandlordFocusRefetch({ refetchers: bookingRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: bookingRefetchers,
+  });
+
   const resetSettlementState = () => {
     setSettlementHistory([]);
     setSettlementHistoryLoading(false);
@@ -104,80 +191,10 @@ export default function BookingsScreen({ navigation, route }) {
     });
   };
 
-  const loadStats = useCallback(async () => {
-    try {
-      const response = await PropertyService.getBookingStats();
-      if (!response.success) throw new Error(response.error || 'Failed to load stats');
-      setStats({
-        total: response.data?.total ?? 0,
-        confirmed: response.data?.confirmed ?? 0,
-        pending: response.data?.pending ?? 0,
-        completed: response.data?.completed ?? 0
-      });
-    } catch (err) {
-      console.warn('stats error', err.message);
-    }
-  }, []);
-
-  const loadBookings = useCallback(
-    async (fromRefresh = false) => {
-      try {
-        fromRefresh ? setRefreshing(true) : setLoading(true);
-        setError('');
-        const response = await PropertyService.getBookings();
-        if (!response.success) throw new Error(response.error || 'Failed to load bookings');
-        const list = Array.isArray(response.data) ? response.data : response.data?.data || [];
-        setBookings(list);
-      } catch (err) {
-        setError(err.message || 'Unable to load bookings');
-        setBookings([]);
-      } finally {
-        fromRefresh ? setRefreshing(false) : setLoading(false);
-      }
-    },
-    []
-  );
-
-  const loadExtensionRequests = useCallback(async () => {
-    try {
-      setLoadingExtensions(true);
-      const response = await PropertyService.getExtensionRequests();
-      if (!response.success) throw new Error(response.error || 'Failed to load extension requests');
-      setExtensionRequests(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
-      setExtensionRequests([]);
-    } finally {
-      setLoadingExtensions(false);
-    }
-  }, []);
-
-  const loadTransferRequests = useCallback(async () => {
-    try {
-      setLoadingTransfers(true);
-      const response = await PropertyService.getTransferRequests();
-      if (!response.success) throw new Error(response.error || 'Failed to load transfer requests');
-      setTransferRequests(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
-      setTransferRequests([]);
-    } finally {
-      setLoadingTransfers(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadBookings();
-      loadStats();
-      loadExtensionRequests();
-      loadTransferRequests();
-    }, [loadBookings, loadStats, loadExtensionRequests, loadTransferRequests])
-  );
-
   useEffect(() => {
-    const params = route?.params || {};
-    const requestedFilter = params.filter;
-    const requestedSearch = params.searchQuery;
-    const focusBookingId = params.focusBookingId;
+    const requestedFilter = route?.params?.filter;
+    const requestedSearch = route?.params?.searchQuery;
+    const focusBookingId = route?.params?.focusBookingId;
 
     if (requestedFilter && FILTERS.includes(requestedFilter)) {
       setFilter(requestedFilter);
@@ -192,37 +209,26 @@ export default function BookingsScreen({ navigation, route }) {
     }
   }, [route?.params?.filter, route?.params?.searchQuery, route?.params?.focusBookingId, route?.params?.drilldownToken]);
 
-  useEffect(() => {
-    if (!pendingFocusBookingId || bookings.length === 0) return;
-
-    const targetBooking = bookings.find((booking) => String(booking.id) === String(pendingFocusBookingId));
-    if (!targetBooking) return;
-
-    openDetailModal(targetBooking);
-    setPendingFocusBookingId(null);
-
-    if (typeof navigation?.setParams === 'function') {
-      navigation.setParams({
-        focusBookingId: undefined,
+  const updateBookingsCache = useCallback(
+    (updater) => {
+      queryClient.setQueryData(landlordQueryKeys.bookings(), (current = EMPTY_BOOKINGS) => {
+        const list = Array.isArray(current) ? current : EMPTY_BOOKINGS;
+        return updater(list);
       });
-    }
-  }, [bookings, pendingFocusBookingId, navigation]);
-
-  const handleRefresh = () => {
-    loadBookings(true);
-    loadStats();
-    loadExtensionRequests();
-    loadTransferRequests();
-  };
+    },
+    [queryClient],
+  );
 
   const handleExtensionRequestAction = async (requestId, action) => {
     try {
       setRequestActionLoading(true);
       const response = await PropertyService.handleExtensionRequest(requestId, { action });
       if (!response.success) throw new Error(response.error || 'Unable to update extension request');
-      await loadExtensionRequests();
+      setActionError('');
+      await refetchLandlordQueries([refetchExtensionRequests]);
       Alert.alert('Extension Request', `Request ${action}d successfully.`);
     } catch (err) {
+      setActionError(err.message || 'Unable to process extension request');
       Alert.alert('Extension Request', err.message || 'Unable to process extension request');
     } finally {
       setRequestActionLoading(false);
@@ -237,7 +243,8 @@ export default function BookingsScreen({ navigation, route }) {
         ...transferData
       });
       if (!response.success) throw new Error(response.error || 'Unable to update transfer request');
-      await loadTransferRequests();
+      setActionError('');
+      await refetchLandlordQueries([refetchTransferRequests]);
       if (action === 'approve') {
         setApprovingTransferRequestId(null);
         setTransferApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
@@ -248,6 +255,7 @@ export default function BookingsScreen({ navigation, route }) {
       }
       Alert.alert('Transfer Request', `Request ${action}d successfully.`);
     } catch (err) {
+      setActionError(err.message || 'Unable to process transfer request');
       Alert.alert('Transfer Request', err.message || 'Unable to process transfer request');
     } finally {
       setRequestActionLoading(false);
@@ -471,7 +479,7 @@ export default function BookingsScreen({ navigation, route }) {
       const history = Array.isArray(payload.settlements) ? payload.settlements : [];
 
       setSettlementHistory(history);
-      setBookings((prev) => prev.map((booking) => (
+      updateBookingsCache((prev) => prev.map((booking) => (
         booking.id === bookingId ? { ...booking, deposit_balance: nextBalance } : booking
       )));
       setSelectedBooking((prev) => (
@@ -484,7 +492,26 @@ export default function BookingsScreen({ navigation, route }) {
     } finally {
       setSettlementHistoryLoading(false);
     }
-  }, []);
+  }, [updateBookingsCache]);
+
+  useEffect(() => {
+    if (!pendingFocusBookingId || bookings.length === 0) return;
+
+    const targetBooking = bookings.find((booking) => String(booking.id) === String(pendingFocusBookingId));
+    if (!targetBooking) return;
+
+    setSelectedBooking(targetBooking);
+    setDetailVisible(true);
+    resetSettlementState();
+    fetchSettlementHistory(targetBooking.id, false);
+    setPendingFocusBookingId(null);
+
+    if (typeof navigation?.setParams === 'function') {
+      navigation.setParams({
+        focusBookingId: undefined,
+      });
+    }
+  }, [bookings, pendingFocusBookingId, navigation, fetchSettlementHistory]);
 
   const openDetailModal = (booking) => {
     setSelectedBooking(booking);
@@ -511,7 +538,7 @@ export default function BookingsScreen({ navigation, route }) {
   };
 
   const updateSelectedBooking = (updated) => {
-    setBookings((prev) => prev.map((booking) => (booking.id === updated.id ? { ...booking, ...updated } : booking)));
+    updateBookingsCache((prev) => prev.map((booking) => (booking.id === updated.id ? { ...booking, ...updated } : booking)));
     setSelectedBooking((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
   };
 
@@ -530,11 +557,12 @@ export default function BookingsScreen({ navigation, route }) {
       setActionLoading(true);
       const response = await PropertyService.updateBookingStatus(selectedBooking.id, { status, ...extra });
       if (!response.success) throw new Error(response.error || 'Unable to update status');
-      await loadBookings();
-      await loadStats();
+      setActionError('');
+      await refetchLandlordQueries([refetchBookings, refetchStats]);
       updateSelectedBooking({ status, ...response.data?.booking });
       if (status === 'cancelled') closeDetailModal();
     } catch (err) {
+      setActionError(err.message || 'Unable to update booking');
       Alert.alert('Booking', err.message || 'Unable to update booking');
     } finally {
       setActionLoading(false);
@@ -547,15 +575,70 @@ export default function BookingsScreen({ navigation, route }) {
       setActionLoading(true);
       const response = await PropertyService.updateBookingPayment(selectedBooking.id, { payment_status: paymentStatus });
       if (!response.success) throw new Error(response.error || 'Unable to update payment');
-      await loadBookings();
-      await loadStats();
+      setActionError('');
+      await refetchLandlordQueries([refetchBookings, refetchStats]);
       updateSelectedBooking({ paymentStatus, ...response.data?.booking });
 
       if (response.data?.completion_blocked) {
         Alert.alert('Payment Updated', response.data?.message || 'Payment updated, but booking cannot be completed until deposit is settled.');
       }
+
+      return true;
     } catch (err) {
+      setActionError(err.message || 'Unable to update payment');
       Alert.alert('Payment', err.message || 'Unable to update payment');
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResolvePartialCompleted = async () => {
+    if (!selectedBooking) return;
+
+    if (Number(selectedBooking.deposit_balance || 0) > 0) {
+      Alert.alert(
+        'Deposit Settlement Required',
+        `Settle the deposit balance of ${formatCurrency(selectedBooking.deposit_balance)} before completing this booking.`
+      );
+      return;
+    }
+
+    if (selectedBooking.paymentStatus !== 'paid') {
+      const paymentUpdated = await handlePaymentChange('paid');
+      if (!paymentUpdated) return;
+    }
+
+    await handleBookingStatus('completed');
+  };
+
+  const confirmResolvePartialCompleted = () => {
+    Alert.alert(
+      'Mark Fully Paid & Completed',
+      'Mark this booking as fully completed and paid?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Confirm', onPress: () => { handleResolvePartialCompleted(); } }
+      ]
+    );
+  };
+
+  const handleFinalizeCheckout = async (booking, options = {}) => {
+    if (!booking?.id) return;
+
+    try {
+      setActionLoading(true);
+      const response = await PropertyService.finalizeBookingCheckout(booking.id, options);
+      if (!response.success) throw new Error(response.error || 'Unable to finalize checkout');
+
+      setActionError('');
+      await refetchLandlordQueries([refetchBookings, refetchStats]);
+      closeDetailModal();
+
+      Alert.alert('Checkout Finalized', response.message || 'Checkout finalized successfully.');
+    } catch (err) {
+      setActionError(err.message || 'Unable to finalize checkout.');
+      Alert.alert('Checkout', err.message || 'Unable to finalize checkout.');
     } finally {
       setActionLoading(false);
     }
@@ -600,7 +683,7 @@ export default function BookingsScreen({ navigation, route }) {
       const nextBalance = Number(payload.deposit_balance || 0);
       const latestSettlement = payload.settlement || null;
 
-      setBookings((prev) => prev.map((booking) => (
+      updateBookingsCache((prev) => prev.map((booking) => (
         booking.id === selectedBooking.id ? { ...booking, deposit_balance: nextBalance } : booking
       )));
       setSelectedBooking((prev) => (
@@ -621,8 +704,10 @@ export default function BookingsScreen({ navigation, route }) {
         note: ''
       });
 
+      setActionError('');
       Alert.alert('Deposit Settlement', response.message || 'Deposit settlement recorded successfully.');
     } catch (err) {
+      setActionError(err.message || 'Unable to settle deposit.');
       Alert.alert('Deposit Settlement', err.message || 'Unable to settle deposit.');
     } finally {
       setSubmittingSettlement(false);
@@ -794,9 +879,9 @@ export default function BookingsScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {error ? (
+      {(error || actionError) ? (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{actionError || error}</Text>
         </View>
       ) : null}
 
@@ -1063,13 +1148,27 @@ export default function BookingsScreen({ navigation, route }) {
                   )}
                   {selectedBooking.status === 'confirmed' && (
                     <>
-                      <TouchableOpacity style={styles.completeBtnFull} onPress={() => handleBookingStatus('completed')} disabled={actionLoading}>
-                        {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.completeBtnText}>Complete</Text>}
+                      <TouchableOpacity style={styles.completeBtnFull} onPress={() => handleFinalizeCheckout(selectedBooking)} disabled={actionLoading}>
+                        {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.completeBtnText}>Finalize Checkout</Text>}
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.cancelRefundBtnFull} onPress={() => openCancelModal(selectedBooking)}>
                         <Text style={styles.cancelRefundBtnText}>Cancel & Refund</Text>
                       </TouchableOpacity>
                     </>
+                  )}
+                  {selectedBooking.status === 'partial-completed' && (
+                    <View style={styles.cancelledNote}>
+                      <Text style={styles.cancelledNoteText}>
+                        Partial Complete: Mark as fully completed once all balances are settled.
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.completeBtnFull, { marginTop: 12 }]}
+                        onPress={confirmResolvePartialCompleted}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.completeBtnText}>Mark Fully Paid & Completed</Text>}
+                      </TouchableOpacity>
+                    </View>
                   )}
                   {selectedBooking.status === 'completed' && (
                     <TouchableOpacity style={styles.cancelRefundBtnFull} onPress={() => openCancelModal(selectedBooking)}>

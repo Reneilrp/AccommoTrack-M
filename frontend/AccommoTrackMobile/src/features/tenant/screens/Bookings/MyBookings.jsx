@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Dimensions, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../../services/BookingService.js';
 import TenantService from '../../../../services/TenantService.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import { BookingCardSkeleton } from '../../../../components/Skeletons/index.jsx';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 const TABS = [
   { id: 'current', label: 'My Stay', icon: 'home-outline' },
@@ -19,17 +26,21 @@ export default function MyBookings() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const { uiState, updateData, invalidateData } = useUIState();
+  const BUCKET = 'bookings';
   
-  const [activeTab, setActiveTab] = useState('current');
+  const [activeTab, setActiveTab] = useState(
+    uiState.bookings?.activeTab ?? 'current'
+  );
   const [viewMode, setViewMode] = useState('active'); // 'active' or 'pending'
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const [loading, setLoading] = useState(true);
+  const cachedBookings = uiState.data?.[BUCKET];
   const [refreshing, setRefreshing] = useState(false);
   
-  // Data states
-  const [stayData, setStayData] = useState(null);
-  const [historyData, setHistoryData] = useState([]);
-  const [pendingBookings, setPendingBookings] = useState([]);
+  // Data states — seed from cache if available
+  const [stayData, setStayData] = useState(cachedBookings?.stayData ?? null);
+  const [historyData, setHistoryData] = useState(cachedBookings?.historyData ?? []);
+  const [pendingBookings, setPendingBookings] = useState(cachedBookings?.pendingBookings ?? []);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
   const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
   const [submittingExtension, setSubmittingExtension] = useState(false);
@@ -89,64 +100,129 @@ export default function MyBookings() {
     setLoadingPreview(false);
   };
 
-  const fetchData = async () => {
-    try {
-      if (!refreshing) setLoading(true);
-      
-      const [stayRes, bookingsRes, transferRes] = await Promise.all([
-        TenantService.getCurrentStay(),
-        BookingService.getMyBookings(),
-        TenantService.getTransferRequests(),
-      ]);
-
-      if (stayRes.success) {
-        setStayData(stayRes.data);
-        if (stayRes.data.stays && stayRes.data.stays.length > 0) {
-          setViewMode('active');
-        } else {
-          setViewMode('pending');
-        }
+  const cachedBundle = cachedBookings
+    ? {
+        stayData: cachedBookings.stayData ?? null,
+        pendingBookings: cachedBookings.pendingBookings ?? [],
+        historyData: cachedBookings.historyData ?? [],
+        pendingTransferRequests: [],
+        monthlyTransferCount: 0,
       }
+    : undefined;
 
-      if (bookingsRes.success) {
-        const all = bookingsRes.data || [];
-        // Pending: status is pending, pending_reservation, or reserved
-        setPendingBookings(all.filter(b => ['pending', 'pending_reservation', 'reserved'].includes(b.status?.toLowerCase())));
-        // History: finished, rejected, or confirmed (if they are past stays)
-        setHistoryData(all.filter(b => ['completed', 'confirmed', 'cancelled', 'rejected'].includes(b.status?.toLowerCase())));
-      }
+  const myBookingsBundleQuery = useQuery({
+    queryKey: tenantQueryKeys.myBookingsBundle(),
+    queryFn: async () => {
+      try {
+        const [stayRes, bookingsRes, transferRes] = await Promise.all([
+          TenantService.getCurrentStay(),
+          BookingService.getMyBookings(),
+          TenantService.getTransferRequests(),
+        ]);
 
-      if (transferRes.success) {
-        const transferList = Array.isArray(transferRes.data) ? transferRes.data : [];
-        const pendingRequests = transferList.filter(
-          (item) => String(item?.status || '').toLowerCase() === 'pending',
+        const stayDataNext = stayRes.success ? stayRes.data : null;
+        const allBookings = bookingsRes.success ? bookingsRes.data || [] : [];
+        const pendingBookingsNext = allBookings.filter((bookingItem) =>
+          ['pending', 'pending_reservation', 'reserved'].includes(
+            bookingItem.status?.toLowerCase(),
+          ),
         );
-        const currentMonthStart = new Date();
-        currentMonthStart.setDate(1);
-        currentMonthStart.setHours(0, 0, 0, 0);
+        const historyDataNext = allBookings.filter((bookingItem) =>
+          ['completed', 'confirmed', 'cancelled', 'rejected'].includes(
+            bookingItem.status?.toLowerCase(),
+          ),
+        );
 
-        const transferCountThisMonth = transferList.filter((item) => {
-          const status = String(item?.status || '').toLowerCase();
-          if (!['pending', 'approved'].includes(status)) return false;
+        let pendingTransferRequestsNext = [];
+        let monthlyTransferCountNext = 0;
 
-          if (!item?.created_at) return false;
-          const createdAt = new Date(item.created_at);
-          return createdAt >= currentMonthStart;
-        }).length;
+        if (transferRes.success) {
+          const transferList = Array.isArray(transferRes.data)
+            ? transferRes.data
+            : [];
+          pendingTransferRequestsNext = transferList.filter(
+            (item) => String(item?.status || '').toLowerCase() === 'pending',
+          );
 
-        setPendingTransferRequests(pendingRequests);
-        setMonthlyTransferCount(transferCountThisMonth);
-      } else {
-        setPendingTransferRequests([]);
-        setMonthlyTransferCount(0);
+          const currentMonthStart = new Date();
+          currentMonthStart.setDate(1);
+          currentMonthStart.setHours(0, 0, 0, 0);
+
+          monthlyTransferCountNext = transferList.filter((item) => {
+            const status = String(item?.status || '').toLowerCase();
+            if (!['pending', 'approved'].includes(status)) return false;
+
+            if (!item?.created_at) return false;
+            const createdAt = new Date(item.created_at);
+            return createdAt >= currentMonthStart;
+          }).length;
+        }
+
+        return {
+          stayData: stayDataNext,
+          pendingBookings: pendingBookingsNext,
+          historyData: historyDataNext,
+          pendingTransferRequests: pendingTransferRequestsNext,
+          monthlyTransferCount: monthlyTransferCountNext,
+        };
+      } catch (error) {
+        console.error('Error fetching bookings data:', error);
+        return (
+          cachedBundle || {
+            stayData: null,
+            pendingBookings: [],
+            historyData: [],
+            pendingTransferRequests: [],
+            monthlyTransferCount: 0,
+          }
+        );
       }
-    } catch (error) {
-      console.error('Error fetching bookings data:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    },
+    placeholderData: (previousData) => previousData || cachedBundle,
+  });
+
+  const refetchMyBookingsBundle = myBookingsBundleQuery.refetch;
+  const myBookingsRefetchers = React.useMemo(
+    () => [refetchMyBookingsBundle],
+    [refetchMyBookingsBundle],
+  );
+
+  useTenantFocusRefetch({ refetchers: myBookingsRefetchers });
+
+  const refreshMyBookings = useTenantRefreshHandler({
+    setRefreshing,
+    refetchers: myBookingsRefetchers,
+  });
+
+  const onRefresh = React.useCallback(async () => {
+    invalidateData(BUCKET);
+    await refreshMyBookings();
+  }, [invalidateData, refreshMyBookings]);
+
+  useEffect(() => {
+    const nextBundle = myBookingsBundleQuery.data;
+    if (!nextBundle) return;
+
+    setStayData(nextBundle.stayData ?? null);
+    setPendingBookings(nextBundle.pendingBookings ?? []);
+    setHistoryData(nextBundle.historyData ?? []);
+    setPendingTransferRequests(nextBundle.pendingTransferRequests ?? []);
+    setMonthlyTransferCount(nextBundle.monthlyTransferCount ?? 0);
+
+    if (nextBundle.stayData?.stays?.length > 0) {
+      setViewMode('active');
+    } else {
+      setViewMode('pending');
     }
-  };
+
+    updateData(BUCKET, {
+      stayData: nextBundle.stayData ?? null,
+      pendingBookings: nextBundle.pendingBookings ?? [],
+      historyData: nextBundle.historyData ?? [],
+    });
+  }, [myBookingsBundleQuery.data, updateData]);
+
+  const loading = myBookingsBundleQuery.isLoading && !myBookingsBundleQuery.data;
 
   useEffect(() => {
     Animated.timing(slideAnim, {
@@ -155,17 +231,6 @@ export default function MyBookings() {
       useNativeDriver: false,
     }).start();
   }, [viewMode]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchData();
-    }, [])
-  );
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchData();
-  };
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return { uri: 'https://via.placeholder.com/800x400?text=No+Image' };
@@ -200,7 +265,7 @@ export default function MyBookings() {
 
     if (result.success) {
       Alert.alert('Cancelled', 'Your booking request has been cancelled.');
-      fetchData();
+      await refetchMyBookingsBundle();
     } else {
       Alert.alert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
     }
@@ -235,7 +300,7 @@ export default function MyBookings() {
 
       if (result.success) {
         Alert.alert('Extension Requested', 'Your extension request was sent to your landlord.');
-        fetchData();
+        await refetchMyBookingsBundle();
       } else {
         Alert.alert('Request Failed', result.error || 'Failed to request extension.');
       }
@@ -339,7 +404,7 @@ export default function MyBookings() {
     if (result.success) {
       Alert.alert('Transfer Requested', 'Your transfer request was sent to your landlord.');
       closeTransferModal();
-      fetchData();
+      await refetchMyBookingsBundle();
     } else {
       Alert.alert('Request Failed', result.error || 'Failed to request transfer.');
     }
@@ -354,7 +419,7 @@ export default function MyBookings() {
 
     if (result.success) {
       Alert.alert('Cancelled', result.message || 'Transfer request cancelled successfully.');
-      fetchData();
+      await refetchMyBookingsBundle();
     } else {
       Alert.alert('Unable to Cancel', result.error || 'Failed to cancel transfer request.');
     }
@@ -380,7 +445,7 @@ export default function MyBookings() {
 
       if (result.success) {
         Alert.alert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
-        fetchData();
+        await refetchMyBookingsBundle();
       } else {
         Alert.alert('Request Failed', result.error || 'Failed to request move-out notice.');
       }

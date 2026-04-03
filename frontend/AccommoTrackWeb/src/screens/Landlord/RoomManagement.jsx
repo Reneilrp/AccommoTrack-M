@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
+import roomService from '../../services/roomService';
+import landlordService from '../../services/landlordService';
 import toast from 'react-hot-toast';
 import AddRoomModal from './AddRoom';
 import RoomCard from '../../components/Rooms/RoomCard';
@@ -162,8 +164,10 @@ export default function RoomManagement() {
     const loadInitialData = async () => {
       try {
         if (!cachedProps) setLoadingProperties(true);
-        const res = await api.get('/properties/accessible');
-        const data = res.data || [];
+        const response = await landlordService.getAccessibleProperties();
+        const data = response.success
+          ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+          : [];
         setProperties(data);
         updateData('accessible_properties', data);
         cacheManager.set('accessible_properties', data);
@@ -199,12 +203,16 @@ export default function RoomManagement() {
       setError(null);
 
       const [roomsRes, statsRes] = await Promise.all([
-        api.get(`/rooms/property/${selectedPropertyId}?t=${Date.now()}`),
-        api.get(`/rooms/property/${selectedPropertyId}/stats?t=${Date.now()}`)
+        roomService.getRoomsByProperty(selectedPropertyId, { t: Date.now() }),
+        roomService.getRoomStats(selectedPropertyId)
       ]);
 
-      const roomsData = roomsRes.data?.data || roomsRes.data || [];
-      const statsData = statsRes.data;
+      const roomsData = roomsRes.success
+        ? (Array.isArray(roomsRes.data) ? roomsRes.data : (Array.isArray(roomsRes.data?.data) ? roomsRes.data.data : []))
+        : [];
+      const statsData = statsRes.success
+        ? (statsRes.data || { total: 0, occupied: 0, available: 0, maintenance: 0 })
+        : { total: 0, occupied: 0, available: 0, maintenance: 0 };
       setRooms(roomsData);
       setStats(statsData);
 
@@ -225,8 +233,10 @@ export default function RoomManagement() {
   const handleAmenityAdded = async () => {
     // Refresh the property data to get updated amenities
     try {
-      const res = await api.get('/properties/accessible');
-      const data = res.data;
+      const response = await landlordService.getAccessibleProperties();
+      const data = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
       setProperties(data);
     } catch (err) {
       console.error('Failed to refresh properties:', err);
@@ -381,11 +391,12 @@ export default function RoomManagement() {
       editImagesToDelete.forEach(img => {
         updateData.append('delete_images[]', img);
       });
+      updateData.append('_method', 'PUT');
 
-      await api.post(`/landlord/rooms/${selectedRoom.id}`, updateData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        params: { _method: 'PUT' }
-      });
+      const updateResponse = await roomService.updateRoom(selectedRoom.id, updateData);
+      if (!updateResponse.success) {
+        throw new Error(updateResponse.error || 'Failed to update room');
+      }
 
       await fetchRooms();
       setShowEditModal(false);
@@ -411,7 +422,10 @@ export default function RoomManagement() {
     try {
       setDeleting(true);
       setError(null);
-      await api.delete(`/landlord/rooms/${roomId}`);
+      const response = await roomService.deleteRoom(roomId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete room');
+      }
       await fetchRooms();
       setDeleteConfirmModal({ show: false, room: null });
       setShowEditModal(false);
@@ -446,8 +460,11 @@ export default function RoomManagement() {
   // Status Room
   const handleStatusChange = async (roomId, newStatus) => {
     try {
-      const res = await api.patch(`/rooms/${roomId}/status`, { status: newStatus });
-      const updatedRoom = res.data;
+      const response = await roomService.updateStatus(roomId, newStatus);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update room status.');
+      }
+      const updatedRoom = response.data || {};
 
       // Update the room in state
       setRooms(prev => prev.map(r =>
@@ -1207,16 +1224,20 @@ export default function RoomManagement() {
             if (days) payload.days = days;
             if (months) payload.months = months;
             if (tenant_id) payload.tenant_id = tenant_id;
-            // call backend API - endpoint should be implemented server-side
-            await api.post(`/rooms/${roomId}/extend`, payload);
+            const extendResponse = await roomService.extendStay(roomId, payload);
+            if (!extendResponse.success) {
+              throw new Error(extendResponse.error || 'Failed to extend stay');
+            }
 
             // refresh rooms list
             await fetchRooms();
 
             // fetch the updated room details so the modal reflects new stays immediately
             try {
-              const res = await api.get(`/rooms/${roomId}`);
-              setSelectedRoomDetails(res.data);
+              const roomResponse = await roomService.getRoom(roomId);
+              if (roomResponse.success) {
+                setSelectedRoomDetails(roomResponse.data || null);
+              }
             } catch (fetchErr) {
               // Non-fatal: if fetching details fails, we still refreshed rooms above
               console.warn('Failed to fetch updated room details', fetchErr);

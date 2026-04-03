@@ -3,11 +3,16 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL } from '../../../../config/index.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 export default function PaymentDetail() {
   const route = useRoute();
@@ -16,41 +21,73 @@ export default function PaymentDetail() {
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { invoiceId } = route.params || {};
 
-  const [loading, setLoading] = useState(true);
-  const [invoice, setInvoice] = useState(null);
+  const [isPaying, setIsPaying] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [remainingBalance, setRemainingBalance] = useState(0);
-
-  const fetchInvoice = async () => {
-    try {
-      setLoading(true);
+  const paymentDetailQuery = useQuery({
+    queryKey: tenantQueryKeys.paymentDetail(invoiceId),
+    queryFn: async () => {
       const res = await PaymentService.getPaymentDetails(invoiceId);
-      if (res.success && res.data) {
-        const invData = res.data;
-        setInvoice(invData);
-        
-        const totalAmount = invData.amount_cents ? invData.amount_cents / 100 : Number(invData.amount || 0);
-        const paidAmount = invData.transactions
-          ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
-          .reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)), 0) || 0;
-          
-        const balance = Math.max(0, totalAmount - paidAmount);
-        setRemainingBalance(balance);
-        setPaymentAmount(balance.toString());
-      } else {
-        Alert.alert('Error', res.error || 'Failed to load invoice');
+      if (!res?.success || !res?.data) {
+        throw new Error(res?.error || 'Failed to load invoice');
       }
-    } catch (e) {
-      console.error('Error fetching invoice:', e);
-      Alert.alert('Error', 'Failed to load invoice');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return res.data;
+    },
+    enabled: Boolean(invoiceId),
+    placeholderData: (previousData) => previousData,
+  });
+
+  const invoice = paymentDetailQuery.data || null;
+  const refetchPaymentDetail = paymentDetailQuery.refetch;
+  const paymentDetailRefetchers = React.useMemo(
+    () => [refetchPaymentDetail],
+    [refetchPaymentDetail],
+  );
+
+  useTenantFocusRefetch({
+    enabled: Boolean(invoiceId),
+    refetchers: paymentDetailRefetchers,
+  });
 
   useEffect(() => {
-    fetchInvoice();
-  }, [invoiceId]);
+    if (!paymentDetailQuery.error) return;
+    console.error('Error fetching invoice:', paymentDetailQuery.error);
+    Alert.alert('Error', paymentDetailQuery.error.message || 'Failed to load invoice');
+  }, [paymentDetailQuery.error]);
+
+  const remainingBalance = React.useMemo(() => {
+    if (!invoice) return 0;
+
+    const totalAmount = invoice.amount_cents
+      ? invoice.amount_cents / 100
+      : Number(invoice.amount || 0);
+
+    const paidAmount =
+      invoice.transactions
+        ?.filter((tx) => tx.status === 'succeeded' || tx.status === 'paid')
+        .reduce(
+          (sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)),
+          0,
+        ) || 0;
+
+    return Math.max(0, totalAmount - paidAmount);
+  }, [invoice]);
+
+  useEffect(() => {
+    if (!invoice) return;
+    setPaymentAmount((previousAmount) => {
+      if (!previousAmount) return remainingBalance.toString();
+
+      const numericAmount = Number(previousAmount);
+      if (!Number.isFinite(numericAmount) || numericAmount > remainingBalance) {
+        return remainingBalance.toString();
+      }
+
+      return previousAmount;
+    });
+  }, [invoice?.id, remainingBalance]);
+
+  const loading = paymentDetailQuery.isLoading || isPaying;
 
   const handleGCashPay = async () => {
     if (!invoice) return;
@@ -63,7 +100,7 @@ export default function PaymentDetail() {
     }
 
     try {
-      setLoading(true);
+      setIsPaying(true);
       const res = await PaymentService.createPaymongoSource(invoice.id, 'gcash', null, amountToPay);
       if (!res.success) return Alert.alert('Payment Error', res.error || 'Failed to create source');
 
@@ -78,7 +115,7 @@ export default function PaymentDetail() {
       console.error('GCash pay error', e);
       Alert.alert('Payment Error', 'Failed to initiate GCash payment');
     } finally {
-      setLoading(false);
+      setIsPaying(false);
     }
   };
 

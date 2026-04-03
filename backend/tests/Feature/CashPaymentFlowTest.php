@@ -109,6 +109,8 @@ class CashPaymentFlowTest extends TestCase
         Sanctum::actingAs($landlord);
         $response = $this->postJson("/api/invoices/{$invoice->id}/verify-cash", [
             'action' => 'reject',
+            'reason_code' => 'unclear_image',
+            'reason' => 'Receipt image is unreadable.',
         ]);
 
         $response

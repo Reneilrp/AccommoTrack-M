@@ -7,16 +7,23 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  Image
+  Image,
+  RefreshControl,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Tenant/RoomListScreen.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {
@@ -41,51 +48,66 @@ export default function RoomListScreen({ route }) {
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { property } = route.params;
 
-  const [rooms, setRooms] = useState([]);
-  const [filteredRooms, setFilteredRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  useEffect(() => {
-    loadRooms();
-  }, []);
-
-  useEffect(() => {
-    filterRooms();
-  }, [rooms, selectedFilter]);
-
-  const loadRooms = async () => {
-    try {
-      setLoading(true);
+  const roomListQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertyRooms(property?.id),
+    enabled: Boolean(property?.id),
+    queryFn: async () => {
       const result = await PropertyService.getPublicProperty(property.id);
-      if (result.success && result.data.rooms) {
-        const standardizedRooms = result.data.rooms.map((room) => {
-          const rawStatus = (room.display_status || room.status || 'unknown').toString().toLowerCase();
-          const normalizedStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawStatus === 'available')
+      if (!result?.success || !Array.isArray(result?.data?.rooms)) {
+        throw new Error(result?.error || 'No rooms data');
+      }
+
+      return result.data.rooms.map((room) => {
+        const rawStatus = (room.display_status || room.status || 'unknown')
+          .toString()
+          .toLowerCase();
+        const normalizedStatus =
+          typeof room.is_available === 'boolean' &&
+          !room.is_available &&
+          rawStatus === 'available'
             ? 'reserved'
             : rawStatus;
 
-          return {
-            ...room,
-            images: room.images || [],
-            monthly_rate: parseFloat(room.monthly_rate) || 0,
-            status: normalizedStatus,
-          };
-        });
-        setRooms(standardizedRooms);
-      } else {
-        throw new Error(result.error || 'No rooms data');
-      }
-    } catch (error) {
-      console.error('Error loading rooms:', error);
-      Alert.alert('Error', 'Failed to load rooms. Please try again.');
-      setRooms([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        return {
+          ...room,
+          images: room.images || [],
+          monthly_rate: parseFloat(room.monthly_rate) || 0,
+          status: normalizedStatus,
+        };
+      });
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  const filterRooms = () => {
+  const rooms = roomListQuery.data || [];
+  const loading = roomListQuery.isLoading;
+  const refetchRoomList = roomListQuery.refetch;
+  const roomListRefetchers = React.useMemo(
+    () => [refetchRoomList],
+    [refetchRoomList],
+  );
+
+  useTenantFocusRefetch({
+    enabled: Boolean(property?.id),
+    refetchers: roomListRefetchers,
+  });
+
+  const onRefresh = useTenantRefreshHandler({
+    enabled: Boolean(property?.id),
+    setRefreshing,
+    refetchers: roomListRefetchers,
+  });
+
+  useEffect(() => {
+    if (!roomListQuery.error) return;
+    console.error('Error loading rooms:', roomListQuery.error);
+    Alert.alert('Error', roomListQuery.error.message || 'Failed to load rooms. Please try again.');
+  }, [roomListQuery.error]);
+
+  const filteredRooms = React.useMemo(() => {
     let filtered = [...rooms];
     switch (selectedFilter) {
       case 'available':
@@ -105,8 +127,8 @@ export default function RoomListScreen({ route }) {
       default:
         break;
     }
-    setFilteredRooms(filtered);
-  };
+    return filtered;
+  }, [rooms, selectedFilter]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -184,7 +206,18 @@ export default function RoomListScreen({ route }) {
       </ScrollView>
 
       {/* Room Cards Container */}
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
+      >
         {filteredRooms.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="bed-outline" size={64} color={theme.colors.textTertiary} />

@@ -11,11 +11,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
 import Header from '../../components/Header.jsx';
 import { showError, showSuccess } from '../../../../utils/toast.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 const DEFAULT_FORM = {
   room_preference: '',
@@ -68,35 +73,47 @@ const normalizePreference = (rawPreference) => {
 export default function PreferencesLifestyle() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const queryClient = useQueryClient();
   const styles = useMemo(() => getStyles(theme), [theme]);
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ ...DEFAULT_FORM });
   const [newPreference, setNewPreference] = useState('');
 
-  useEffect(() => {
-    const loadPreferences = async () => {
-      try {
-        setLoading(true);
-        const res = await ProfileService.getProfile();
-
-        if (res.success) {
-          const pref = normalizePreference(res.data?.tenant_profile?.preference);
-          setForm(pref);
-        } else {
-          showError('Error', res.error || 'Failed to load preferences');
-        }
-      } catch (error) {
-        console.error('Load tenant preferences error:', error);
-        showError('Error', 'Failed to load preferences');
-      } finally {
-        setLoading(false);
+  const lifestylePreferencesQuery = useQuery({
+    queryKey: tenantQueryKeys.lifestylePreferences(),
+    queryFn: async () => {
+      const res = await ProfileService.getProfile();
+      if (!res?.success) {
+        throw new Error(res?.error || 'Failed to load preferences');
       }
-    };
 
-    loadPreferences();
-  }, []);
+      return res.data?.tenant_profile?.preference || null;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const refetchLifestylePreferences = lifestylePreferencesQuery.refetch;
+  const lifestylePreferencesRefetchers = useMemo(
+    () => [refetchLifestylePreferences],
+    [refetchLifestylePreferences],
+  );
+
+  useTenantFocusRefetch({ refetchers: lifestylePreferencesRefetchers });
+
+  useEffect(() => {
+    if (!lifestylePreferencesQuery.data && lifestylePreferencesQuery.data !== null) return;
+    const pref = normalizePreference(lifestylePreferencesQuery.data);
+    setForm(pref);
+  }, [lifestylePreferencesQuery.data]);
+
+  useEffect(() => {
+    if (!lifestylePreferencesQuery.error) return;
+    console.error('Load tenant preferences error:', lifestylePreferencesQuery.error);
+    showError('Error', lifestylePreferencesQuery.error.message || 'Failed to load preferences');
+  }, [lifestylePreferencesQuery.error]);
+
+  const loading = lifestylePreferencesQuery.isLoading;
 
   const setField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -142,6 +159,7 @@ export default function PreferencesLifestyle() {
       const res = await ProfileService.updateProfile(payload);
 
       if (res.success) {
+        queryClient.setQueryData(tenantQueryKeys.lifestylePreferences(), payload.preference);
         showSuccess('Preferences updated successfully');
         navigation.goBack();
       } else {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RoomResource;
 use App\Models\Booking;
+use App\Models\Invoice;
 use App\Models\Room;
 use App\Models\TransferRequest;
 use App\Services\RefundService;
@@ -53,10 +54,7 @@ class TransferController extends Controller
             ], 422);
         }
 
-        // Check for overdue invoices
-        $hasOverdue = \App\Models\Invoice::where('tenant_id', $tenantId)
-            ->where('status', 'overdue')
-            ->exists();
+        $hasOverdue = $this->hasBlockingOverdueInvoices($tenantId);
 
         if ($hasOverdue) {
             return response()->json([
@@ -122,10 +120,7 @@ class TransferController extends Controller
             return response()->json(['message' => 'No active booking found for the selected property.'], 422);
         }
 
-        // Check for overdue invoices
-        $hasOverdue = \App\Models\Invoice::where('tenant_id', $tenantId)
-            ->where('status', 'overdue')
-            ->exists();
+        $hasOverdue = $this->hasBlockingOverdueInvoices($tenantId);
 
         if ($hasOverdue) {
             return response()->json(['message' => 'You cannot request a transfer while you have overdue invoices. Please settle your balance first.'], 422);
@@ -191,13 +186,26 @@ class TransferController extends Controller
         return response()->json($transferRequest, 201);
     }
 
+    private function hasBlockingOverdueInvoices(int $tenantId): bool
+    {
+        return Invoice::where('tenant_id', $tenantId)
+            ->where(function ($query) {
+                $query->where('status', 'overdue')
+                    ->orWhere(function ($partialQuery) {
+                        $partialQuery->where('status', 'partial')
+                            ->whereDate('due_date', '<', now()->toDateString());
+                    });
+            })
+            ->exists();
+    }
+
     private function hasTransferEligibleGender($tenant, \App\Models\Property $property): bool
     {
-        $propertyType = strtolower($property->property_type ?? '');
-        $targetTypes = ['dormitory', 'boarding house', 'bedspacer'];
+        $propertyType = $this->normalizePropertyTypeToken($property->property_type ?? '');
+        $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
 
         // If it's an Apartment or not one of the target types, gender profile completion is not mandatory for transfer
-        if ($propertyType === 'apartment' || ! in_array($propertyType, $targetTypes)) {
+        if ($propertyType === 'apartment' || ! in_array($propertyType, $targetTypes, true)) {
             return true;
         }
 
@@ -225,7 +233,7 @@ class TransferController extends Controller
     private function isRoomGenderCompatible(Room $room, $tenant): bool
     {
         $property = $room->property;
-        $propertyType = strtolower($property->property_type ?? '');
+        $propertyType = $this->normalizePropertyTypeToken($property->property_type ?? '');
 
         // 1. Apartment type properties are excluded from gender restrictions
         if ($propertyType === 'apartment') {
@@ -233,8 +241,8 @@ class TransferController extends Controller
         }
 
         // 2. Gender constraints only apply to Dormitory, Boarding house, and bedSpacer
-        $targetTypes = ['dormitory', 'boarding house', 'bedspacer'];
-        if (! in_array($propertyType, $targetTypes)) {
+        $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
+        if (! in_array($propertyType, $targetTypes, true)) {
             // If it's not one of the target types and not an apartment,
             // we default to allowing it unless explicitly restricted by something else.
             // But based on requirements, only these three have the restriction.
@@ -256,6 +264,11 @@ class TransferController extends Controller
         }
 
         return $roomRestriction === $tenantGender;
+    }
+
+    private function normalizePropertyTypeToken(?string $propertyType): string
+    {
+        return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
     }
 
     /**

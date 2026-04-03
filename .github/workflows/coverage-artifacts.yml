@@ -1,0 +1,156 @@
+name: Coverage Artifacts
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-artifacts-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-coverage:
+    name: Backend Coverage
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: accommotrack_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: accommotrack_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: pcov
+          extensions: mbstring, pdo_mysql, bcmath
+          ini-values: pcov.enabled=1
+
+      - name: Install Composer Dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare App Key
+        run: |
+          cp -n .env.example .env || true
+          php artisan key:generate --ansi --force
+
+      - name: Run Pest With Coverage
+        run: |
+          mkdir -p coverage
+          php -d pcov.enabled=1 vendor/bin/pest \
+            --coverage-clover=coverage/clover.xml \
+            --coverage-text
+
+      - name: Upload Backend Coverage Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-backend
+          path: backend/coverage
+          if-no-files-found: warn
+          retention-days: 7
+
+  web-coverage:
+    name: Web Coverage
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend/AccommoTrackWeb
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/AccommoTrackWeb/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run Jest With Coverage
+        run: |
+          npm test -- --runInBand --coverage \
+            --coverageReporters=text-summary \
+            --coverageReporters=lcov \
+            --coverageReporters=json-summary
+
+      - name: Upload Web Coverage Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-web
+          path: frontend/AccommoTrackWeb/coverage
+          if-no-files-found: warn
+          retention-days: 7
+
+  mobile-coverage:
+    name: Mobile Coverage
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend/AccommoTrackMobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/AccommoTrackMobile/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Jest With Coverage
+        run: |
+          npm test -- --runInBand --coverage \
+            --coverageReporters=text-summary \
+            --coverageReporters=lcov \
+            --coverageReporters=json-summary
+
+      - name: Upload Mobile Coverage Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-mobile
+          path: frontend/AccommoTrackMobile/coverage
+          if-no-files-found: warn
+          retention-days: 7

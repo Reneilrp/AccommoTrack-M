@@ -4,7 +4,6 @@ import {
   X,
   Calendar,
   Check,
-  Info,
   Users,
   BedDouble,
   DollarSign,
@@ -50,6 +49,17 @@ export default function RoomDetailsModal({
   const [agreedToRules, setAgreedToRules] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
   const [autoNavTimer, setAutoNavTimer] = useState(null);
+  const [bookingMode, setBookingMode] = useState("normal");
+  const [proxyOccupants, setProxyOccupants] = useState([]);
+
+  const createEmptyOccupant = () => ({
+    full_name: "",
+    date_of_birth: "",
+    gender: "",
+    relationship_to_booker: "",
+    phone: "",
+    email: "",
+  });
 
   const toMoneyNumber = (value, fallback = 0) => {
     if (typeof value === "number") {
@@ -63,16 +73,60 @@ export default function RoomDetailsModal({
     return fallback;
   };
 
+  const toWholeNumber = (value, fallback = 0) => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? Math.floor(value) : fallback;
+    }
+
+    if (typeof value === "string") {
+      const match = value.match(/\d+/);
+      return match ? parseInt(match[0], 10) : fallback;
+    }
+
+    return fallback;
+  };
+
   const formatMoney = (value) => {
     const amount = toMoneyNumber(value, 0);
     return `₱${amount.toLocaleString()}`;
   };
 
   const billingPolicy = String(room?.billing_policy || "monthly").toLowerCase();
+  const pricingModel = String(room?.pricing_model || "full_room").toLowerCase();
   const supportsContractModeSwitch = billingPolicy === "monthly_with_daily";
   const isDailyContract =
     billingPolicy === "daily" ||
     (supportsContractModeSwitch && contractMode === "daily");
+  const resolvedCapacity = Math.max(
+    1,
+    toWholeNumber(room?.raw_capacity ?? room?.capacity, 1),
+  );
+  const resolvedAvailableSlots = toWholeNumber(
+    room?.available_slots ?? room?.availableSlots,
+    -1,
+  );
+  const resolvedOccupiedCount = Math.min(
+    resolvedCapacity,
+    Math.max(
+      0,
+      toWholeNumber(
+        room?.occupied_count ?? room?.occupied,
+        resolvedAvailableSlots >= 0
+          ? Math.max(0, resolvedCapacity - resolvedAvailableSlots)
+          : 0,
+      ),
+    ),
+  );
+  const normalizedRoomType = String(
+    room?.room_type || room?.type_label || room?.name || "",
+  )
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+  const isBedSpacerRoom = normalizedRoomType === "bedspacer";
+  const occupantLimit =
+    pricingModel === "per_bed"
+      ? Math.max(1, bedCount)
+      : resolvedCapacity;
   const monthlyRate = toMoneyNumber(
     room?.monthly_rate ?? room?.monthlyRate ?? room?.price,
     0,
@@ -99,6 +153,8 @@ export default function RoomDetailsModal({
     const today = new Date();
 
     setStartDate(today.toISOString().split("T")[0]);
+    setBookingMode("normal");
+    setProxyOccupants([]);
     if (isDailyContract) {
       const defaultEnd = new Date(today);
       defaultEnd.setDate(defaultEnd.getDate() + 1);
@@ -165,6 +221,17 @@ export default function RoomDetailsModal({
     };
   }, [autoNavTimer]);
 
+  useEffect(() => {
+    if (bookingMode !== "proxy") {
+      return;
+    }
+
+    setProxyOccupants((prev) => {
+      const base = prev.length > 0 ? prev : [createEmptyOccupant()];
+      return base.slice(0, occupantLimit);
+    });
+  }, [bookingMode, occupantLimit]);
+
   if (!room) return null;
 
   const handleStartDateChange = (e) => {
@@ -182,6 +249,28 @@ export default function RoomDetailsModal({
     if (endDate && new Date(endDate) <= new Date(newStart)) {
       setEndDate("");
     }
+  };
+
+  const handleAddProxyOccupant = () => {
+    setProxyOccupants((prev) => {
+      if (prev.length >= occupantLimit) return prev;
+      return [...prev, createEmptyOccupant()];
+    });
+  };
+
+  const handleRemoveProxyOccupant = (index) => {
+    setProxyOccupants((prev) => {
+      const next = prev.filter((_, idx) => idx !== index);
+      return next.length > 0 ? next : [createEmptyOccupant()];
+    });
+  };
+
+  const handleProxyOccupantChange = (index, field, value) => {
+    setProxyOccupants((prev) =>
+      prev.map((occupant, idx) =>
+        idx === index ? { ...occupant, [field]: value } : occupant,
+      ),
+    );
   };
 
   const handleSubmit = async () => {
@@ -244,6 +333,50 @@ export default function RoomDetailsModal({
       return;
     }
 
+    const normalizedOccupants = proxyOccupants
+      .map((occupant) => ({
+        full_name: String(occupant.full_name || "").trim(),
+        date_of_birth: String(occupant.date_of_birth || "").trim(),
+        gender: String(occupant.gender || "").trim().toLowerCase(),
+        relationship_to_booker: String(
+          occupant.relationship_to_booker || "",
+        ).trim(),
+        phone: String(occupant.phone || "").trim(),
+        email: String(occupant.email || "").trim(),
+      }))
+      .filter((occupant) =>
+        Object.values(occupant).some((fieldValue) => Boolean(fieldValue)),
+      );
+
+    if (bookingMode === "proxy") {
+      if (normalizedOccupants.length === 0) {
+        toast.error("Proxy booking requires at least one occupant.");
+        return;
+      }
+
+      if (normalizedOccupants.length > occupantLimit) {
+        toast.error(
+          `This booking can only hold up to ${occupantLimit} occupant${occupantLimit > 1 ? "s" : ""}.`,
+        );
+        return;
+      }
+
+      for (let i = 0; i < normalizedOccupants.length; i += 1) {
+        const occupant = normalizedOccupants[i];
+        if (
+          !occupant.full_name ||
+          !occupant.date_of_birth ||
+          !occupant.gender ||
+          !occupant.relationship_to_booker
+        ) {
+          toast.error(
+            `Occupant ${i + 1} is missing required information (name, birth date, gender, relationship).`,
+          );
+          return;
+        }
+      }
+    }
+
     // Check if selector should be shown
     const isMonthlyBilling = !isDailyContract;
     const showSelector = isMonthlyBilling && hasCheckout && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
@@ -257,6 +390,7 @@ export default function RoomDetailsModal({
     try {
       const payload = {
         room_id: room.id,
+        booking_mode: bookingMode,
         bed_count: bedCount,
         start_date: startDate,
         end_date: hasCheckout ? endDate : null,
@@ -264,6 +398,10 @@ export default function RoomDetailsModal({
         payment_plan: finalPaymentPlan,
         contract_mode: isDailyContract ? 'daily' : 'monthly',
       };
+
+      if (bookingMode === "proxy") {
+        payload.occupants = normalizedOccupants;
+      }
 
       const svc = bookingService || bookingServiceDefault;
       // bookingService.createBooking throws on error; returns data on success
@@ -315,6 +453,19 @@ export default function RoomDetailsModal({
 
   const getRoomTypeLabel = (room) => {
     if (room.type_label) return room.type_label;
+
+    if (room.name) {
+      const normalizedName = String(room.name).toLowerCase().trim();
+      const mappedLabel = {
+        single: "Single Room",
+        double: "Double Room",
+        quad: "Quad Room",
+        bedspacer: "Bed Spacer",
+        "bed spacer": "Bed Spacer",
+      }[normalizedName];
+
+      if (mappedLabel) return mappedLabel;
+    }
     
     const typeMap = {
       'single': 'Single Room',
@@ -335,6 +486,7 @@ export default function RoomDetailsModal({
         label: "Boys Only",
         className:
           "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800",
+        accentClassName: "text-blue-700 dark:text-blue-400",
       };
     }
 
@@ -347,6 +499,7 @@ export default function RoomDetailsModal({
         label: "Girls Only",
         className:
           "bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-800",
+        accentClassName: "text-rose-700 dark:text-rose-400",
       };
     }
 
@@ -354,6 +507,7 @@ export default function RoomDetailsModal({
       label: "Mixed",
       className:
         "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600",
+      accentClassName: "text-gray-700 dark:text-gray-300",
     };
   };
 
@@ -401,30 +555,23 @@ export default function RoomDetailsModal({
                         alt={`Room ${room.room_number}`}
                         className="w-full h-full"
                       />
-                      <div className="absolute top-3 left-3 z-10">
+                      <div className="absolute top-3 left-3 z-20 flex flex-col items-start gap-2 pr-20 max-w-[85%]">
                         {room.reserved_by_me ? (
-                          <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
+                          <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200 max-w-full truncate">
                             Reserved by you (Pending)
                           </span>
                         ) : (
                           <span
                             className={`
-                            px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
+                            px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm max-w-full truncate
                             ${displayStatus === "available" ? "bg-green-100 text-green-700" : displayStatus === "reserved" ? "bg-amber-100 text-amber-800" : displayStatus === "maintenance" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}
                           `}
                           >
                             {(room.display_status_label || displayStatus || "").toString()}
                           </span>
                         )}
+
                       </div>
-                      {showGenderBadge && (
-                        <div className="absolute top-3 right-3 z-10">
-                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${genderMeta.className}`}>
-                             <Info className="w-3 h-3" />
-                             <span>{genderMeta.label}</span>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -443,11 +590,19 @@ export default function RoomDetailsModal({
                       <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
                         <Users className="w-4 h-4 text-gray-500 dark:text-gray-500" />
                         <span>
-                          {room.room_type === 'bedSpacer' || room.room_type === 'bedspacer' 
-                            ? `${room.occupied_count || 0} / ${room.capacity} Beds taken` 
-                            : `${room.capacity} Pax`
+                          {isBedSpacerRoom
+                            ? `${resolvedOccupiedCount} / ${resolvedCapacity} Beds taken`
+                            : `${resolvedCapacity} Pax`
                           }
                         </span>
+                        {showGenderBadge && (
+                          <>
+                            <span className="text-gray-300 dark:text-gray-500">•</span>
+                            <span className={`font-semibold text-xs ${genderMeta.accentClassName}`}>
+                              {genderMeta.label}
+                            </span>
+                          </>
+                        )}
                       </div>
                       {room.floor && (
                         <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
@@ -668,6 +823,31 @@ export default function RoomDetailsModal({
                 </div>
               ) : (
                 <div className="max-w-xl mx-auto space-y-6">
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                      Booking Type
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBookingMode("normal")}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${bookingMode === "normal" ? "bg-green-600 text-white border-green-600" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"}`}
+                      >
+                        Normal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBookingMode("proxy")}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${bookingMode === "proxy" ? "bg-green-600 text-white border-green-600" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"}`}
+                      >
+                        Proxy
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Normal allows 1 active/pending booking per property. Proxy allows up to 3 and requires occupant details.
+                    </p>
+                  </div>
+
                   {/* Price Card Summary */}
                   <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800">
                     <div className="flex justify-between items-end">
@@ -705,7 +885,7 @@ export default function RoomDetailsModal({
 
                   {/* Date Selection */}
                   <div className="space-y-4">
-                    {(room.room_type === 'bedSpacer' || room.room_type === 'bedspacer') && (
+                    {isBedSpacerRoom && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Number of Beds
@@ -722,7 +902,7 @@ export default function RoomDetailsModal({
                           ))}
                         </select>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                          Occupied: {room.capacity - (room.available_slots || 0)} / {room.capacity}
+                          Occupied: {resolvedOccupiedCount} / {resolvedCapacity}
                         </p>
                       </div>
                     )}
@@ -793,6 +973,113 @@ export default function RoomDetailsModal({
                       )}
                     </div>
                   </div>
+
+                  {bookingMode === "proxy" && (
+                    <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-bold text-gray-900 dark:text-white">
+                          Occupants ({proxyOccupants.length}/{occupantLimit})
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleAddProxyOccupant}
+                          disabled={proxyOccupants.length >= occupantLimit}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${proxyOccupants.length >= occupantLimit ? "text-gray-400 border-gray-300 dark:border-gray-600 cursor-not-allowed" : "text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"}`}
+                        >
+                          Add Occupant
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Provide details of the people who will actually stay in this room.
+                      </p>
+
+                      {proxyOccupants.map((occupant, index) => (
+                        <div
+                          key={`proxy-occupant-${index}`}
+                          className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                              Occupant {index + 1}
+                            </p>
+                            {proxyOccupants.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveProxyOccupant(index)}
+                                className="text-xs text-red-600 dark:text-red-400 font-semibold"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={occupant.full_name}
+                              onChange={(e) =>
+                                handleProxyOccupantChange(index, "full_name", e.target.value)
+                              }
+                              placeholder="Full name*"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <input
+                              type="date"
+                              value={occupant.date_of_birth}
+                              onChange={(e) =>
+                                handleProxyOccupantChange(index, "date_of_birth", e.target.value)
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <select
+                              value={occupant.gender}
+                              onChange={(e) =>
+                                handleProxyOccupantChange(index, "gender", e.target.value)
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                              <option value="">Gender*</option>
+                              <option value="male">Male</option>
+                              <option value="female">Female</option>
+                              <option value="other">Other</option>
+                              <option value="prefer_not_to_say">Prefer not to say</option>
+                            </select>
+                            <input
+                              type="text"
+                              value={occupant.relationship_to_booker}
+                              onChange={(e) =>
+                                handleProxyOccupantChange(
+                                  index,
+                                  "relationship_to_booker",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Relationship to booker*"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <input
+                              type="text"
+                              value={occupant.phone}
+                              onChange={(e) =>
+                                handleProxyOccupantChange(index, "phone", e.target.value)
+                              }
+                              placeholder="Phone (optional)"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <input
+                              type="email"
+                              value={occupant.email}
+                              onChange={(e) =>
+                                handleProxyOccupantChange(index, "email", e.target.value)
+                              }
+                              placeholder="Email (optional)"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Duration Summary */}
                   {duration && (

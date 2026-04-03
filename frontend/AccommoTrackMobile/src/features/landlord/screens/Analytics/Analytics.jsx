@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -12,15 +12,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../../styles/Landlord/Analytics.js';
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 import analyticsService from '../../../../services/AnalyticsService.js';
 
+const EMPTY_PROPERTIES = [];
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const MONTH_MAP = {
+  '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
+  '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec',
+};
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return '₱0';
@@ -47,53 +58,58 @@ export default function Analytics({ navigation }) {
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [timeRange, setTimeRange] = useState('month');
   const [selectedProperty, setSelectedProperty] = useState('all');
-  const [properties, setProperties] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const loadProperties = useCallback(async () => {
-    const response = await analyticsService.getProperties();
-    if (response.success) {
-      setProperties(response.data || []);
-    }
-  }, []);
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.analyticsProperties(),
+    queryFn: async () => {
+      const response = await analyticsService.getProperties();
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to load properties');
+      }
 
-  const loadAnalytics = useCallback(async (isManual = false) => {
-    setErrorMessage('');
-    if (!refreshing && isManual) setLoading(true);
-    try {
+      return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const analyticsQuery = useQuery({
+    queryKey: landlordQueryKeys.analyticsDashboard({ propertyId: selectedProperty, timeRange }),
+    queryFn: async () => {
       const response = await analyticsService.getDashboardAnalytics({
         timeRange,
         propertyId: selectedProperty,
-        _t: Date.now()
+        _t: Date.now(),
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to load analytics');
+      }
 
-      if (!response.success) throw new Error(response.error);
-      setAnalytics(response.data);
-    } catch (err) {
-      setErrorMessage(err.message || 'Unable to load analytics');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [selectedProperty, timeRange, refreshing]);
+      return response.data || null;
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  useEffect(() => { loadProperties(); }, [loadProperties]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadAnalytics();
-    }, [loadAnalytics])
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const analytics = analyticsQuery.data || null;
+  const loading = analyticsQuery.isPending && !analytics;
+  const isAnalyticsFetching = analyticsQuery.isFetching;
+  const errorMessage = analyticsQuery.error?.message || propertiesQuery.error?.message || '';
+  const refetchProperties = propertiesQuery.refetch;
+  const refetchAnalytics = analyticsQuery.refetch;
+  const analyticsRefetchers = useMemo(
+    () => [refetchProperties, refetchAnalytics],
+    [refetchProperties, refetchAnalytics],
   );
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadAnalytics();
-  };
+  useLandlordFocusRefetch({ refetchers: analyticsRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: analyticsRefetchers,
+  });
 
   const handleExport = async () => {
     if (!analytics) return;
@@ -119,7 +135,7 @@ export default function Analytics({ navigation }) {
         ['AccommoTrack Analytics Report'],
         ['Generated:', new Date().toLocaleString()],
         ['Time Range:', timeRange.toUpperCase()],
-        ['Property:', selectedProperty === 'all' ? 'All' : properties.find(p=>p.id==selectedProperty)?.title],
+        ['Property:', selectedProperty === 'all' ? 'All' : properties.find((p) => String(p.id) === String(selectedProperty))?.title],
         [''],
         ['Metric', 'Value'],
         ['Total Revenue', analytics.overview.total_revenue],
@@ -131,7 +147,7 @@ export default function Analytics({ navigation }) {
       const fileUri = `${FileSystem.documentDirectory}Analytics_${Date.now()}.csv`;
       await FileSystem.writeAsStringAsync(fileUri, csv);
       await Sharing.shareAsync(fileUri);
-    } catch (err) {
+    } catch (_err) {
       Alert.alert('Error', 'Failed to export report');
     } finally {
       setExporting(false);
@@ -144,11 +160,6 @@ export default function Analytics({ navigation }) {
   ], [properties]);
 
   const selectedPropertyName = propertyOptions.find(p => p.id === selectedProperty)?.name || 'All Properties';
-
-  const MONTH_MAP = {
-    '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
-    '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
-  };
 
   const revenueTrend = useMemo(() => analytics?.revenue?.monthly_trend || [], [analytics]);
   
@@ -408,10 +419,10 @@ export default function Analytics({ navigation }) {
         <View style={{ flexDirection: 'row' }}>
           <TouchableOpacity 
             style={[styles.iconButton, { marginRight: 8 }]} 
-            onPress={() => loadAnalytics(true)} 
-            disabled={loading}
+            onPress={handleRefresh}
+            disabled={isAnalyticsFetching}
           >
-            {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="refresh-outline" size={24} color="#FFFFFF" />}
+            {isAnalyticsFetching ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="refresh-outline" size={24} color="#FFFFFF" />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={handleExport} disabled={exporting || !analytics}>
             {exporting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={24} color="#FFFFFF" />}
@@ -459,7 +470,7 @@ export default function Analytics({ navigation }) {
 
       <ScrollView
         style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#059669" />}
         showsVerticalScrollIndicator={false}
       >
         {errorMessage ? (

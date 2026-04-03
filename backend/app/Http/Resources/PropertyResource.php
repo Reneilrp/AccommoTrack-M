@@ -39,8 +39,12 @@ class PropertyResource extends JsonResource
             'description' => $this->description,
             'property_type' => $this->property_type,
             'gender_restriction' => $this->gender_restriction,
-            'type' => ucwords(str_replace('_', ' ', $this->property_type)),
-            'has_bedspacer_room' => $availableRooms->contains('room_type', 'bedSpacer'),
+            'type' => $this->formatPropertyTypeLabel($this->property_type),
+            'has_bedspacer_room' => $availableRooms->contains(function ($room) {
+                $roomType = strtolower(str_replace([' ', '_', '-'], '', (string) ($room->room_type ?? '')));
+
+                return $roomType === 'bedspacer';
+            }),
             'full_address' => $this->full_address,
             'street_address' => $this->street_address,
             'city' => $this->city,
@@ -108,5 +112,31 @@ class PropertyResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    private function formatPropertyTypeLabel(?string $value): string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return 'Property';
+        }
+
+        $normalized = strtolower(str_replace([' ', '_', '-'], '', $raw));
+
+        return match ($normalized) {
+            'dormitory' => 'Dormitory',
+            'apartment' => 'Apartment',
+            'boardinghouse' => 'Boarding House',
+            'bedspacer' => 'Bed Spacer',
+            default => (function () use ($raw) {
+                $spacedByCase = preg_replace('/(?<!^)[A-Z]/', ' $0', $raw);
+                $spacedByCase = $spacedByCase ?? $raw;
+                $spaced = str_replace(['_', '-'], ' ', $spacedByCase);
+                $spaced = preg_replace('/\s+/', ' ', $spaced);
+                $spaced = $spaced ?? $raw;
+
+                return ucwords(strtolower(trim($spaced)));
+            })(),
+        };
     }
 }

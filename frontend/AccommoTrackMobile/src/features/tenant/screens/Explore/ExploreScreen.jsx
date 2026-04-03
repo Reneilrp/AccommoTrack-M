@@ -13,20 +13,26 @@ import {
   Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { WebView } from "react-native-webview";
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from "../../../../styles/Tenant/HomePage.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import { useUIState } from "../../../../contexts/UIStateContext.jsx";
 
 import MenuDrawer from "../../components/MenuDrawer.jsx";
 import SearchBar from "../../components/SearchBar.jsx";
 import PropertyCard from "../../components/PropertyCard.jsx";
 import { PropertyCardSkeleton } from "../../../../components/Skeletons/index.jsx";
-import Header from "../../components/Header.jsx";
 
 import PropertyService from "../../../../services/PropertyService.js";
 import { navigate as rootNavigate } from "../../../../navigation/RootNavigation.js";
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from "../../hooks/useTenantQueryHelpers.js";
 
 const DEFAULT_ADVANCED_FILTERS = {
   minPrice: "",
@@ -36,12 +42,49 @@ const DEFAULT_ADVANCED_FILTERS = {
   amenities: [],
 };
 
+const hasActiveAdvancedFilters = (filters = {}) =>
+  Boolean(
+    filters.minPrice
+      || filters.maxPrice
+      || filters.availabilityOnly
+      || Number(filters.minRating) > 0
+      || (Array.isArray(filters.amenities) && filters.amenities.length > 0),
+  );
+
+const buildExploreApiFilters = (type, advancedFilters) => {
+  const filters = {};
+
+  if (type !== "All") {
+    filters.type = type;
+  }
+  if (advancedFilters.minPrice) {
+    filters.min_price = advancedFilters.minPrice;
+  }
+  if (advancedFilters.maxPrice) {
+    filters.max_price = advancedFilters.maxPrice;
+  }
+  if (advancedFilters.availabilityOnly) {
+    filters.availability = "1";
+  }
+  if (Number(advancedFilters.minRating) > 0) {
+    filters.min_rating = Number(advancedFilters.minRating);
+  }
+  if (Array.isArray(advancedFilters.amenities) && advancedFilters.amenities.length > 0) {
+    filters.amenities = advancedFilters.amenities;
+  }
+
+  return filters;
+};
+
 export default function TenantHomePage({
   onLogout,
   isGuest = false,
   onAuthRequired,
 }) {
   const navigation = useNavigation();
+  const { uiState, updateData, invalidateData } = useUIState();
+  const BUCKET = 'explore_properties';
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("featured");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -64,11 +107,10 @@ export default function TenantHomePage({
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
 
-  const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cachedExplore = uiState.data?.[BUCKET];
+  const [properties, setProperties] = useState(cachedExplore || []);
+  const [filteredProperties, setFilteredProperties] = useState(cachedExplore || []);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
 
   // Filter options matching your screenshot and backend types
   const filterOptions = [
@@ -86,6 +128,67 @@ export default function TenantHomePage({
     { label: "Girls Only", value: "female" },
   ];
 
+  const hasServerFilters = React.useMemo(
+    () => selectedFilter !== "All" || hasActiveAdvancedFilters(advancedFilters),
+    [selectedFilter, advancedFilters],
+  );
+
+  const explorePropertiesQuery = useQuery({
+    queryKey: tenantQueryKeys.exploreProperties({
+      type: selectedFilter,
+      advancedFilters,
+    }),
+    queryFn: async () => {
+      const filters = buildExploreApiFilters(selectedFilter, advancedFilters);
+      const result = await PropertyService.getPublicProperties(filters);
+
+      if (!result?.success || !Array.isArray(result?.data)) {
+        throw new Error(result?.error || "Failed to load properties");
+      }
+
+      return result.data.map((property) =>
+        PropertyService.transformPropertyToAccommodation(property),
+      );
+    },
+    placeholderData: (previousData) =>
+      previousData || (!hasServerFilters ? cachedExplore : undefined),
+  });
+
+  const refetchExploreProperties = explorePropertiesQuery.refetch;
+  const exploreRefetchers = React.useMemo(
+    () => [refetchExploreProperties],
+    [refetchExploreProperties],
+  );
+
+  useTenantFocusRefetch({ refetchers: exploreRefetchers });
+
+  const refreshExploreProperties = useTenantRefreshHandler({
+    setRefreshing,
+    refetchers: exploreRefetchers,
+  });
+
+  const loading = explorePropertiesQuery.isLoading && properties.length === 0;
+  const error = explorePropertiesQuery.error?.message || null;
+
+  useEffect(() => {
+    if (!explorePropertiesQuery.data) return;
+
+    setProperties(explorePropertiesQuery.data);
+    if (!hasServerFilters) {
+      updateData(BUCKET, explorePropertiesQuery.data);
+    }
+  }, [explorePropertiesQuery.data, hasServerFilters, updateData]);
+
+  useEffect(() => {
+    if (!explorePropertiesQuery.error) return;
+
+    console.error("Error loading properties:", explorePropertiesQuery.error);
+    Alert.alert(
+      "Error",
+      explorePropertiesQuery.error.message || "Failed to load properties. Please try again.",
+    );
+  }, [explorePropertiesQuery.error]);
+
   useEffect(() => {
     filterProperties();
   }, [
@@ -98,70 +201,11 @@ export default function TenantHomePage({
     advancedFilters,
   ]);
 
-  const loadProperties = useCallback(async (override = {}) => {
-    try {
-      if (properties.length === 0) {
-        setLoading(true);
-      }
-      setError(null);
-
-      const effectiveType = override.type ?? selectedFilter;
-      const effectiveAdvancedFilters =
-        override.advancedFilters ?? advancedFilters;
-
-      const filters = {};
-      if (effectiveType !== "All") {
-        filters.type = effectiveType;
-      }
-      if (effectiveAdvancedFilters.minPrice) {
-        filters.min_price = effectiveAdvancedFilters.minPrice;
-      }
-      if (effectiveAdvancedFilters.maxPrice) {
-        filters.max_price = effectiveAdvancedFilters.maxPrice;
-      }
-      if (effectiveAdvancedFilters.availabilityOnly) {
-        filters.availability = "1";
-      }
-      if (Number(effectiveAdvancedFilters.minRating) > 0) {
-        filters.min_rating = Number(effectiveAdvancedFilters.minRating);
-      }
-      if (Array.isArray(effectiveAdvancedFilters.amenities) && effectiveAdvancedFilters.amenities.length > 0) {
-        filters.amenities = effectiveAdvancedFilters.amenities;
-      }
-
-      const result = await PropertyService.getPublicProperties(filters);
-
-      if (result.success) {
-        const transformedProperties = result.data.map((property) =>
-          PropertyService.transformPropertyToAccommodation(property),
-        );
-
-        setProperties(transformedProperties);
-      } else {
-        setError(result.error || "Failed to load properties");
-        Alert.alert("Error", "Failed to load properties. Please try again.");
-      }
-    } catch (err) {
-      console.error("Error loading properties:", err);
-      setError(err.message);
-      Alert.alert("Error", "An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
-  }, [advancedFilters, properties.length, selectedFilter]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadProperties();
-    }, [loadProperties])
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    setShowGuestBanner(true); // Show banner again on refresh
-    await loadProperties();
-    setRefreshing(false);
-  };
+  const onRefresh = useCallback(async () => {
+    setShowGuestBanner(true);
+    invalidateData(BUCKET);
+    await refreshExploreProperties();
+  }, [invalidateData, refreshExploreProperties]);
 
   const filterProperties = () => {
     let filtered = [...properties];
@@ -320,7 +364,6 @@ export default function TenantHomePage({
 
   const handleFilterSelect = (filterValue) => {
     setSelectedFilter(filterValue);
-    loadProperties({ type: filterValue });
   };
 
   const handleClearFilter = () => {
@@ -331,7 +374,6 @@ export default function TenantHomePage({
     setSearchQuery("");
     setAdvancedFilters(resetAdvanced);
     setDraftAdvancedFilters(resetAdvanced);
-    loadProperties({ type: "All", advancedFilters: resetAdvanced });
   };
 
   const advancedFilterCount =
@@ -385,7 +427,6 @@ export default function TenantHomePage({
 
     setAdvancedFilters(nextFilters);
     setFilterModalVisible(false);
-    loadProperties({ advancedFilters: nextFilters });
   };
 
   const clearAdvancedFilters = () => {
@@ -393,7 +434,6 @@ export default function TenantHomePage({
     setDraftAdvancedFilters(resetAdvanced);
     setAdvancedFilters(resetAdvanced);
     setFilterModalVisible(false);
-    loadProperties({ advancedFilters: resetAdvanced });
   };
 
   const renderFilterControls = () => (
@@ -772,7 +812,7 @@ export default function TenantHomePage({
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={loadProperties} style={styles.retryButton}>
+          <TouchableOpacity onPress={refetchExploreProperties} style={styles.retryButton}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>

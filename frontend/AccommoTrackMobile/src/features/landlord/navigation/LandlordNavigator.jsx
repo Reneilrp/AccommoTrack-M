@@ -26,6 +26,7 @@ import Payments from '../screens/Payments/Payments.jsx';
 import VerificationStatus from '../screens/Settings/Account/VerificationStatus.jsx';
 import PropertyActivityLogs from '../screens/Properties/PropertyActivityLogs.jsx';
 import TenantLogs from '../screens/Tenants/TenantLogs.jsx';
+import TransferRequests from '../screens/Tenants/TransferRequests.jsx';
 import PropertyDetailsScreen from '../../tenant/screens/Explore/PropertyDetailsScreen.jsx';
 import MaintenanceRequests from '../screens/Maintenance/MaintenanceRequests.jsx';
 import Reviews from '../screens/Reviews/Reviews.jsx';
@@ -134,6 +135,9 @@ export default function LandlordNavigator({ onLogout }) {
       )}
       {canAccessTenants && (
         <Stack.Screen name="TenantLogs" component={TenantLogs} options={{ animation: 'none' }} />
+      )}
+      {canAccessTenants && (
+        <Stack.Screen name="TransferRequests" component={TransferRequests} options={{ animation: 'none' }} />
       )}
       {canAccessRooms && (
         <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />

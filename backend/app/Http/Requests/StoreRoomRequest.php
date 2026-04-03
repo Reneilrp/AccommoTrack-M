@@ -30,11 +30,12 @@ class StoreRoomRequest extends FormRequest
     {
         $propertyId = $this->input('property_id');
         $property = Property::find($propertyId);
-        $isApartment = $property && $property->property_type === 'apartment';
+        $normalizedPropertyType = $this->normalizePropertyTypeToken($property?->property_type);
+        $isApartment = $normalizedPropertyType === 'apartment';
 
         $propertyGender = $property ? strtolower($property->gender_restriction) : 'mixed';
         $allowedGenders = ['male', 'female'];
-        if ($property && ! in_array($property->property_type, ['dormitory', 'boardingHouse', 'bedSpacer'])) {
+        if (! in_array($normalizedPropertyType, ['dormitory', 'boardinghouse', 'bedspacer'], true)) {
             $allowedGenders[] = 'mixed';
         }
 
@@ -125,5 +126,10 @@ class StoreRoomRequest extends FormRequest
         return [
             'gender_restriction.in' => $message,
         ];
+    }
+
+    private function normalizePropertyTypeToken(?string $propertyType): string
+    {
+        return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
     }
 }

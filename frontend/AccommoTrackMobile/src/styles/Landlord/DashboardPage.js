@@ -247,7 +247,25 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOpacity: theme.isDark ? 0.4 : 0.15,
     shadowRadius: 6,
     borderWidth: 1,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    position: 'relative',
+  },
+  actionBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EF4444',
+  },
+  actionBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   actionIcon: {
     width: 28,

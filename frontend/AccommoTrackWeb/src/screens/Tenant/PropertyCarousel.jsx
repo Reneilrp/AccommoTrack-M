@@ -19,8 +19,27 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       return fallback;
     };
 
+    const toWholeNumber = (value, fallback = null) => {
+      if (typeof value === 'number') {
+        return Number.isFinite(value) ? Math.floor(value) : fallback;
+      }
+
+      if (typeof value === 'string') {
+        const match = value.match(/\d+/);
+        return match ? parseInt(match[0], 10) : fallback;
+      }
+
+      return fallback;
+    };
+
     const getRoomTypeLabel = (r) => {
       if (r.type_label) return r.type_label;
+
+      const rawType = String(
+        r.room_type || r.roomType || r.type || r.name || '',
+      ).trim();
+      const normalizedType = rawType.toLowerCase().replace(/[\s_-]/g, '');
+
       const typeMap = {
         'single': 'Single Room',
         'double': 'Double Room',
@@ -28,8 +47,16 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
         'bedSpacer': 'Bed Spacer',
         'bedspacer': 'Bed Spacer'
       };
-      const roomType = r.room_type || '';
-      return typeMap[roomType] || (roomType ? roomType.charAt(0).toUpperCase() + roomType.slice(1) : 'Room');
+
+      if (typeMap[rawType]) return typeMap[rawType];
+      if (typeMap[normalizedType]) return typeMap[normalizedType];
+
+      return rawType
+        ? rawType
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .replace(/\b\w/g, (char) => char.toUpperCase())
+        : 'Room';
     };
 
     const monthlyRate = toMoneyNumber(
@@ -58,7 +85,32 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     const alternatePrice = billingPolicy === 'daily' ? monthlyRate : dailyRate;
     
     const roomType = getRoomTypeLabel(room);
-    const displayName = room.room_number ? `${roomType} - ${room.room_number}` : roomType;
+    const displayName = room.room_number ? `Room ${room.room_number}` : roomType;
+    const roomCapacity = Math.max(
+      1,
+      toWholeNumber(room?.raw_capacity ?? room?.capacity, 1),
+    );
+    const availableSlots = toWholeNumber(
+      room?.available_slots ?? room?.availableSlots,
+      null,
+    );
+    const explicitOccupied = toWholeNumber(
+      room?.occupied_count ?? room?.occupied,
+      null,
+    );
+    const hasOccupancyData = explicitOccupied !== null || availableSlots !== null;
+    const occupiedCount = Math.min(
+      roomCapacity,
+      Math.max(
+        0,
+        explicitOccupied !== null
+          ? explicitOccupied
+          : (availableSlots !== null ? roomCapacity - availableSlots : 0),
+      ),
+    );
+    const occupancyLabel = hasOccupancyData && roomCapacity > 1
+      ? `${occupiedCount}/${roomCapacity} Pax`
+      : `${roomCapacity} Pax`;
 
     return {
       ...room,
@@ -69,6 +121,8 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       primaryLabel: billingPolicy === 'daily' ? 'Price per day' : 'Price per month',
       alternateLabel: billingPolicy === 'daily' ? 'Monthly option' : 'Daily option',
       displayName: displayName,
+      roomTypeLabel: roomType,
+      occupancyLabel,
       imageSource: room?.image || room?.images?.[0] || null,
     };
   };
@@ -230,6 +284,15 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                 >
                   {room.displayName}
                 </h4>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="inline-flex items-center px-2.5 py-2 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                  {room.roomTypeLabel}
+                </span>
+                <span className="inline-flex items-center px-2.5 py-2 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                  {room.occupancyLabel}
+                </span>
               </div>
 
               <div className="flex items-end justify-between mt-auto pt-4">

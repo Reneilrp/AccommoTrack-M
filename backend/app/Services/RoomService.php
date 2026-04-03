@@ -255,9 +255,16 @@ class RoomService
 
     private function validateRoomTypeForProperty(Property $property, ?string $roomType): void
     {
-        if ($roomType === 'bedSpacer' && str_contains(strtolower($property->property_type ?? ''), 'apartment')) {
+        $propertyType = $this->normalizePropertyTypeToken($property->property_type ?? '');
+
+        if ($roomType === 'bedSpacer' && $propertyType === 'apartment') {
             throw ValidationException::withMessages(['room_type' => 'Apartment properties cannot have Bed Spacer room type.']);
         }
+    }
+
+    private function normalizePropertyTypeToken(?string $propertyType): string
+    {
+        return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
     }
 
     private function isRoomNumberDuplicate(string $roomNumber, int $propertyId, ?int $excludeRoomId = null): bool

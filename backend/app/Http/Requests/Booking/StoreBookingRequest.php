@@ -9,6 +9,15 @@ use Illuminate\Validation\Rule;
 
 class StoreBookingRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('booking_mode')) {
+            $this->merge([
+                'booking_mode' => strtolower((string) $this->input('booking_mode')),
+            ]);
+        }
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -65,6 +74,8 @@ class StoreBookingRequest extends FormRequest
 
         $rules = [
             'room_id' => 'required|exists:rooms,id',
+            'booking_mode' => ['nullable', 'string', Rule::in(['normal', 'proxy'])],
+            'booking_group_reference' => 'nullable|string|max:64',
             'bed_count' => 'nullable|integer|min:1',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => $endDateRules,
@@ -73,6 +84,13 @@ class StoreBookingRequest extends FormRequest
             'payment_plan' => 'nullable|string|in:full,monthly',
             'contract_mode' => ['nullable', 'string', 'in:daily,monthly'],
             'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'occupants' => 'required_if:booking_mode,proxy|array|min:1',
+            'occupants.*.full_name' => 'required_with:occupants|string|max:255',
+            'occupants.*.date_of_birth' => 'required_with:occupants|date|before:today',
+            'occupants.*.gender' => 'required_with:occupants|string|in:male,female,other,prefer_not_to_say|max:32',
+            'occupants.*.relationship_to_booker' => 'required_with:occupants|string|max:64',
+            'occupants.*.phone' => 'nullable|string|max:32',
+            'occupants.*.email' => 'nullable|email|max:255',
         ];
 
         if ($normalizedBillingPolicy === 'daily') {
@@ -112,9 +130,18 @@ class StoreBookingRequest extends FormRequest
         return [
             'room_id.required' => 'Please select a room to book.',
             'room_id.exists' => 'The selected room does not exist.',
+            'booking_mode.in' => 'Invalid booking mode. Allowed modes are normal or proxy.',
             'tenant_id.required_without' => 'Please select an existing tenant or enter a guest name.',
             'tenant_id.exists' => 'The selected tenant is invalid.',
             'guest_name.required_without' => 'Please enter a guest name when no tenant is selected.',
+            'occupants.required_if' => 'Proxy booking requires at least one occupant entry.',
+            'occupants.array' => 'Occupants payload must be a valid list.',
+            'occupants.min' => 'Proxy booking requires at least one occupant.',
+            'occupants.*.full_name.required_with' => 'Each occupant must include a full name.',
+            'occupants.*.date_of_birth.required_with' => 'Each occupant must include a date of birth.',
+            'occupants.*.gender.required_with' => 'Each occupant must include a gender.',
+            'occupants.*.gender.in' => 'Each occupant gender must be one of: male, female, other, prefer_not_to_say.',
+            'occupants.*.relationship_to_booker.required_with' => 'Each occupant must include relationship to booker.',
             'start_date.required' => 'Please select a check-in date.',
             'start_date.after_or_equal' => 'Check-in date must be today or later.',
             'end_date.required' => 'Please select a check-out date for daily bookings.',

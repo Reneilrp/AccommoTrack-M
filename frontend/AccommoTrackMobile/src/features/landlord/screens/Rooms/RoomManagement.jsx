@@ -1,9 +1,7 @@
 import React, {
-  useCallback,
   useEffect,
   useMemo,
   useState,
-  useRef,
 } from "react";
 import {
   ActivityIndicator,
@@ -18,17 +16,23 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Dimensions,
   Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import PropertyService from "../../../../services/PropertyService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 import { getStyles } from "../../../../styles/Landlord/RoomManagement.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from "../../hooks/useLandlordQueryHelpers.js";
 
 const FILTERS = [
   { label: "All Rooms", value: "all" },
@@ -38,6 +42,15 @@ const FILTERS = [
 ];
 
 const DEFAULT_STATS = { total: 0, occupied: 0, available: 0, maintenance: 0 };
+const EMPTY_PROPERTIES = [];
+const EMPTY_ROOMS = [];
+const EMPTY_TENANTS = [];
+const ALL_ROOM_TYPES = [
+  { value: "single", label: "Single Room" },
+  { value: "double", label: "Double Room" },
+  { value: "quad", label: "Quad Room" },
+  { value: "bedSpacer", label: "Bed Spacer" },
+];
 
 const normalizeId = (value) => {
   if (value === null || value === undefined) return null;
@@ -70,7 +83,7 @@ const parseList = (value) => {
     try {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) return parsed.filter(Boolean);
-    } catch (err) {}
+    } catch (_err) {}
     return value
       .split(/[\n,]/)
       .map((item) => item.trim())
@@ -97,17 +110,12 @@ export default function RoomManagementScreen({ navigation, route }) {
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
   const initialFilter = route?.params?.filter || "all";
 
-  const [properties, setProperties] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState(
     preselectedPropertyId || null,
   );
-  const [rooms, setRooms] = useState([]);
-  const [stats, setStats] = useState(DEFAULT_STATS);
   const [filter, setFilter] = useState(initialFilter);
-  const [loadingProperties, setLoadingProperties] = useState(true);
-  const [loadingRooms, setLoadingRooms] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -145,25 +153,131 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [extendValue, setExtendValue] = useState('1');
   const [extending, setExtending] = useState(false);
 
-  const [allTenants, setAllTenants] = useState([]);
   const [tenantModalVisible, setTenantModalVisible] = useState(false);
   const [assignTargetRoom, setAssignTargetRoom] = useState(null);
   const [assigningTenant, setAssigningTenant] = useState(false);
 
-  const loadTenants = useCallback(async () => {
-    try {
-      const res = await PropertyService.getTenants();
-      if (res.success) {
-        setAllTenants(res.data);
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
+    queryFn: async () => {
+      const response = await PropertyService.getMyProperties();
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load properties");
       }
-    } catch (err) {
-      console.error("Failed to load tenants:", err);
-    }
-  }, []);
 
-  useEffect(() => {
-    loadTenants();
-  }, [loadTenants]);
+      return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const roomsQuery = useQuery({
+    queryKey: landlordQueryKeys.roomsByProperty(selectedPropertyId),
+    enabled: Boolean(selectedPropertyId),
+    queryFn: async () => {
+      const response = await PropertyService.getRooms(selectedPropertyId);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load rooms");
+      }
+
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      return EMPTY_ROOMS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const roomStatsQuery = useQuery({
+    queryKey: landlordQueryKeys.roomStatsByProperty(selectedPropertyId),
+    enabled: Boolean(selectedPropertyId),
+    queryFn: async () => {
+      const response = await PropertyService.getRoomStats(selectedPropertyId);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load room stats");
+      }
+
+      const source = response.data?.data || response.data || {};
+      return {
+        total: Number(source.total ?? 0),
+        occupied: Number(source.occupied ?? 0),
+        available: Number(source.available ?? 0),
+        maintenance: Number(source.maintenance ?? 0),
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const allTenantsQuery = useQuery({
+    queryKey: landlordQueryKeys.tenants(),
+    queryFn: async () => {
+      const response = await PropertyService.getTenants();
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load tenants");
+      }
+
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      return EMPTY_TENANTS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const rooms = roomsQuery.data || EMPTY_ROOMS;
+  const stats = roomStatsQuery.data || DEFAULT_STATS;
+  const allTenants = allTenantsQuery.data || EMPTY_TENANTS;
+  const loadingProperties = propertiesQuery.isPending && properties.length === 0;
+  const loadingRooms =
+    Boolean(selectedPropertyId) && roomsQuery.isPending && rooms.length === 0;
+  const loading = loadingProperties || loadingRooms;
+  const fetchError =
+    propertiesQuery.error?.message ||
+    roomsQuery.error?.message ||
+    roomStatsQuery.error?.message ||
+    allTenantsQuery.error?.message ||
+    "";
+
+  const refetchProperties = propertiesQuery.refetch;
+  const refetchRooms = roomsQuery.refetch;
+  const refetchRoomStats = roomStatsQuery.refetch;
+  const refetchAllTenants = allTenantsQuery.refetch;
+  const propertyAndTenantRefetchers = useMemo(
+    () => [refetchProperties, refetchAllTenants],
+    [refetchProperties, refetchAllTenants],
+  );
+  const roomRefetchers = useMemo(
+    () => [refetchRooms, refetchRoomStats],
+    [refetchRooms, refetchRoomStats],
+  );
+  const roomAndTenantRefetchers = useMemo(
+    () => [refetchRooms, refetchRoomStats, refetchAllTenants],
+    [refetchRooms, refetchRoomStats, refetchAllTenants],
+  );
+  const fullRefreshRefetchers = useMemo(
+    () =>
+      selectedPropertyId
+        ? [refetchProperties, refetchAllTenants, refetchRooms, refetchRoomStats]
+        : [refetchProperties, refetchAllTenants],
+    [
+      selectedPropertyId,
+      refetchProperties,
+      refetchAllTenants,
+      refetchRooms,
+      refetchRoomStats,
+    ],
+  );
+
+  useLandlordFocusRefetch({ refetchers: propertyAndTenantRefetchers });
+  useLandlordFocusRefetch({
+    enabled: Boolean(selectedPropertyId),
+    refetchers: roomRefetchers,
+  });
+
+  const handleRoomsRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: fullRefreshRefetchers,
+  });
 
   const selectedProperty = useMemo(
     () =>
@@ -182,23 +296,16 @@ export default function RoomManagementScreen({ navigation, route }) {
     normalizedType.includes("bedspacer") ||
     normalizedType.includes("bed spacer");
 
-  const allRoomTypes = [
-    { value: "single", label: "Single Room" },
-    { value: "double", label: "Double Room" },
-    { value: "quad", label: "Quad Room" },
-    { value: "bedSpacer", label: "Bed Spacer" },
-  ];
-
   const roomTypes = useMemo(() => {
     if (isApartment)
-      return allRoomTypes.filter((rt) => rt.value !== "bedSpacer");
+      return ALL_ROOM_TYPES.filter((rt) => rt.value !== "bedSpacer");
     if (isBedSpacerProperty)
-      return allRoomTypes.filter((rt) => rt.value === "bedSpacer");
+      return ALL_ROOM_TYPES.filter((rt) => rt.value === "bedSpacer");
     if (isDormitory || isBoarding)
-      return allRoomTypes.filter(
+      return ALL_ROOM_TYPES.filter(
         (rt) => rt.value === "single" || rt.value === "bedSpacer",
       );
-    return allRoomTypes.filter((rt) => rt.value !== "bedSpacer");
+    return ALL_ROOM_TYPES.filter((rt) => rt.value !== "bedSpacer");
   }, [isApartment, isBedSpacerProperty, isDormitory, isBoarding]);
 
   const propertyAmenities = useMemo(
@@ -219,61 +326,24 @@ export default function RoomManagementScreen({ navigation, route }) {
     return rooms.filter((room) => room.status === filter);
   }, [rooms, filter]);
 
-  const loadProperties = useCallback(async () => {
-    try {
-      setLoadingProperties(true);
-      const res = await PropertyService.getMyProperties();
-      if (res.success) {
-        const data = res.data || [];
-        setProperties(data);
-        if (!selectedPropertyId && data.length > 0) {
-          setSelectedPropertyId(normalizeId(data[0].id));
-        }
-      }
-    } catch (err) {
-      setError("Failed to load properties");
-    } finally {
-      setLoadingProperties(false);
+  useEffect(() => {
+    if (properties.length === 0) return;
+
+    if (!selectedPropertyId) {
+      setSelectedPropertyId(
+        normalizeId(preselectedPropertyId ?? properties[0].id),
+      );
+      return;
     }
-  }, [selectedPropertyId]);
 
-  const loadRooms = useCallback(
-    async (fromRefresh = false) => {
-      if (!selectedPropertyId) return;
-      try {
-        fromRefresh ? setRefreshing(true) : setLoadingRooms(true);
-        const [roomsRes, statsRes] = await Promise.all([
-          PropertyService.getRooms(selectedPropertyId),
-          PropertyService.getRoomStats(selectedPropertyId),
-        ]);
-
-        if (roomsRes.success) setRooms(roomsRes.data || []);
-        if (statsRes.success) {
-          const s = statsRes.data?.data || statsRes.data || {};
-          setStats({
-            total: Number(s.total ?? 0),
-            occupied: Number(s.occupied ?? 0),
-            available: Number(s.available ?? 0),
-            maintenance: Number(s.maintenance ?? 0),
-          });
-        }
-      } catch (err) {
-        setError("Failed to load room data");
-      } finally {
-        fromRefresh ? setRefreshing(false) : setLoadingRooms(false);
-      }
-    },
-    [selectedPropertyId],
-  );
-
-  useEffect(() => {
-    loadProperties();
-  }, [loadProperties]);
-  useEffect(() => {
-    if (selectedPropertyId) loadRooms();
-  }, [selectedPropertyId, loadRooms]);
-
-  const handleRoomsRefresh = () => loadRooms(true);
+    const hasSelectedProperty = properties.some(
+      (property) =>
+        normalizeId(property.id) === normalizeId(selectedPropertyId),
+    );
+    if (!hasSelectedProperty) {
+      setSelectedPropertyId(normalizeId(properties[0].id));
+    }
+  }, [preselectedPropertyId, properties, selectedPropertyId]);
 
   const handleRemoveTenant = (room) => {
     Alert.alert(
@@ -287,9 +357,11 @@ export default function RoomManagementScreen({ navigation, route }) {
           onPress: async () => {
             const res = await PropertyService.removeTenantFromRoom(room.id);
             if (res.success) {
+              setActionError("");
               Alert.alert("Success", "Tenant removed successfully");
-              loadRooms();
+              await refetchLandlordQueries(roomAndTenantRefetchers);
             } else {
+              setActionError(res.error || "Failed to remove tenant");
               Alert.alert("Error", res.error || "Failed to remove tenant");
             }
           },
@@ -303,15 +375,17 @@ export default function RoomManagementScreen({ navigation, route }) {
     setAssigningTenant(true);
     try {
       const res = await PropertyService.assignTenantToRoom(
-        assignTargetRoom.id,
         tenantId,
+        { room_id: assignTargetRoom.id }
       );
       if (res.success) {
+        setActionError("");
         Alert.alert("Success", "Tenant assigned successfully");
         setTenantModalVisible(false);
         setAssignTargetRoom(null);
-        loadRooms();
+        await refetchLandlordQueries(roomAndTenantRefetchers);
       } else {
+        setActionError(res.error || "Failed to assign tenant");
         Alert.alert("Error", res.error || "Failed to assign tenant");
       }
     } finally {
@@ -472,12 +546,15 @@ export default function RoomManagementScreen({ navigation, route }) {
       newAmenity.trim(),
     );
     if (res.success) {
+      setActionError("");
       setFormData((prev) => ({
         ...prev,
         amenities: [...prev.amenities, newAmenity.trim()],
       }));
       setNewAmenity("");
-      loadProperties();
+      await refetchLandlordQueries([refetchProperties]);
+    } else {
+      setActionError(res.error || "Failed to add amenity");
     }
   };
 
@@ -488,12 +565,15 @@ export default function RoomManagementScreen({ navigation, route }) {
       newRule.trim(),
     );
     if (res.success) {
+      setActionError("");
       setFormData((prev) => ({
         ...prev,
         rules: [...prev.rules, newRule.trim()],
       }));
       setNewRule("");
-      loadProperties();
+      await refetchLandlordQueries([refetchProperties]);
+    } else {
+      setActionError(res.error || "Failed to add property rule");
     }
   };
 
@@ -554,10 +634,12 @@ export default function RoomManagementScreen({ navigation, route }) {
           : await PropertyService.updateRoom(formData.id, payload);
 
       if (res.success) {
+        setActionError("");
         Alert.alert("Success", modalMode === "add" ? "Room added successfully" : "Room updated successfully");
         setModalVisible(false);
-        loadRooms();
+        await refetchLandlordQueries(roomRefetchers);
       } else {
+        setActionError(res.error || "Failed to save room");
         Alert.alert("Error", res.error || "Failed to save room");
       }
     } finally {
@@ -682,6 +764,21 @@ export default function RoomManagementScreen({ navigation, route }) {
     );
   };
 
+  if (loading && !refreshing && rooms.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={theme.colors.primary}
+        />
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.emptyTitle}>Loading room data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar
@@ -709,6 +806,12 @@ export default function RoomManagementScreen({ navigation, route }) {
         renderItem={renderRoomCard}
         ListHeaderComponent={
           <View>
+            {(fetchError || actionError) ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{actionError || fetchError}</Text>
+              </View>
+            ) : null}
+
             {!preselectedPropertyId && (
               <ScrollView
                 horizontal
@@ -1309,8 +1412,11 @@ export default function RoomManagementScreen({ navigation, route }) {
                     s,
                   );
                   if (res.success) {
+                    setActionError("");
                     setStatusModalVisible(false);
-                    loadRooms();
+                    await refetchLandlordQueries(roomRefetchers);
+                  } else {
+                    setActionError(res.error || "Failed to update room status");
                   }
                 }}
               >
@@ -1394,13 +1500,16 @@ export default function RoomManagementScreen({ navigation, route }) {
                     };
                     const res = await PropertyService.extendStay(extendTarget.id, payload);
                     if (res.success) {
+                      setActionError("");
                       setExtendModalVisible(false);
-                      loadRooms();
+                      await refetchLandlordQueries(roomRefetchers);
                       Alert.alert('Success', 'Stay extended successfully.');
                     } else {
+                      setActionError(res.error || 'Failed to extend stay.');
                       Alert.alert('Error', res.error || 'Failed to extend stay.');
                     }
-                  } catch (err) {
+                  } catch (_err) {
+                    setActionError('An unexpected error occurred.');
                     Alert.alert('Error', 'An unexpected error occurred.');
                   } finally {
                     setExtending(false);

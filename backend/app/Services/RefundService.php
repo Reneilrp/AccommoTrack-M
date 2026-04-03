@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\Invoice;
+use App\Models\PaymentTransaction;
 use Carbon\Carbon;
 
 class RefundService
@@ -71,15 +72,25 @@ class RefundService
     private function calculatePaidAmountForCurrentPeriod(Booking $booking, Carbon $today, Carbon $nextBillingDate): int
     {
         $previousBillingDate = $nextBillingDate->copy()->subMonth();
-        
-        // Get paid invoices for this period
-        $paidInvoices = Invoice::where('booking_id', $booking->id)
-            ->where('status', 'paid')
-            ->where('due_date', '>=', $previousBillingDate)
-            ->where('due_date', '<', $nextBillingDate)
-            ->sum('amount_cents');
 
-        return (int) $paidInvoices;
+        // Use only rent invoices for this period to avoid counting standalone add-on invoices.
+        $periodRentInvoiceIds = Invoice::where('booking_id', $booking->id)
+            ->where('invoice_type', 'rent')
+            ->whereDate('due_date', '>=', $previousBillingDate->toDateString())
+            ->whereDate('due_date', '<', $nextBillingDate->toDateString())
+            ->pluck('id');
+
+        if ($periodRentInvoiceIds->isEmpty()) {
+            return 0;
+        }
+
+        $netPaidCents = PaymentTransaction::whereIn('invoice_id', $periodRentInvoiceIds)
+            ->where('amount_cents', '>', 0)
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+            ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
+            ->value('net_cents');
+
+        return max(0, (int) ($netPaidCents ?? 0));
     }
     
     /**

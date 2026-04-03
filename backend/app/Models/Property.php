@@ -488,7 +488,21 @@ class Property extends Model
      */
     public function scopeOfType($query, string $type)
     {
-        return $query->where('property_type', $type);
+        $rawType = trim($type);
+
+        if ($rawType === '') {
+            return $query;
+        }
+
+        $normalizedType = strtolower(preg_replace('/[\s_-]+/', '', $rawType) ?? $rawType);
+
+        return $query->where(function ($q) use ($rawType, $normalizedType) {
+            $q->where('property_type', $rawType)
+                ->orWhereRaw(
+                    "LOWER(REPLACE(REPLACE(REPLACE(property_type, ' ', ''), '_', ''), '-', '')) = ?",
+                    [$normalizedType]
+                );
+        });
     }
 
     /**

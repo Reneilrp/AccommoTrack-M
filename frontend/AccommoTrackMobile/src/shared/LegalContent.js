@@ -1,5 +1,6 @@
 export const UNIFIED_TERMS_AND_CONDITIONS = {
-  lastUpdated: "March 2026",
+  version: "v2.0",
+  lastUpdated: "April 2026",
   sections: [
     {
       title: "1. General Agreement",
@@ -38,6 +39,8 @@ export const UNIFIED_TERMS_AND_CONDITIONS = {
       title: "5. Bookings & Financial Policies",
       content: [
         "All bookings and payments found through AccommoTrack should be recorded via the platform to ensure transparency and security.",
+        "Manual payment methods (such as GCash and bank transfer) require proof submission and landlord verification.",
+        "If a manual payment is denied, a denial reason is recorded and shown to the tenant for re-submission or escalation.",
         "Cancellation and refund policies are determined by the Landlord and must be clearly stated in the property listing.",
         "AccommoTrack facilitates payment tracking but is not a financial institution; users are responsible for their own tax obligations.",
         "Disputes regarding payments should first be resolved between Landlord and Tenant through the platform."
@@ -54,7 +57,12 @@ export const UNIFIED_TERMS_AND_CONDITIONS = {
     },
     {
       title: "7. Privacy & Data",
-      content: "Your personal information is handled in accordance with our Privacy Policy. Users agree not to misuse the contact information of other users for purposes outside of the intended rental agreement."
+      content: [
+        "Your personal information is handled in accordance with our Privacy Policy.",
+        "To improve security and accountability, AccommoTrack stores audit trail records for key actions such as payment submission, approval/denial, booking status changes, and invoice updates.",
+        "Consent to Terms and Privacy is recorded with policy version, timestamp, platform, and security metadata.",
+        "Users agree not to misuse the contact information of other users for purposes outside of the intended rental agreement."
+      ]
     }
   ]
 };

@@ -1,0 +1,96 @@
+workstream: G
+date: 2026-04-02
+status: pass
+
+uat_scenarios:
+  - id: 1
+    name: denied_payment_visible_in_oversight_queue
+    status: pass
+    evidence:
+      - backend_test: test_oversight_queue_applies_status_property_and_tenant_filters
+      - frontend_test: PaymentOversight.test.jsx
+  - id: 2
+    name: admin_override_updates_status_and_queue
+    status: pass
+    evidence:
+      - backend_test: test_override_approve_updates_statuses_and_creates_audit_log
+      - frontend_test: PaymentOversight.test.jsx
+  - id: 3
+    name: audit_contains_payment_admin_overridden_with_note
+    status: pass
+    evidence:
+      - backend_test: test_override_approve_updates_statuses_and_creates_audit_log
+  - id: 4
+    name: timeline_contains_override_event
+    status: pass
+    evidence:
+      - backend_test: test_override_approve_updates_statuses_and_creates_audit_log
+      - frontend_test: AuditExplorer.test.jsx
+  - id: 5
+    name: non_admin_forbidden_on_admin_routes
+    status: pass
+    evidence:
+      - backend_test: test_non_admin_user_cannot_access_admin_oversight_or_audit_endpoints
+
+release_checklist:
+  migrations_up_to_date:
+    status: pass
+    command: cd backend && php artisan migrate:status
+  cache_cycle_validated:
+    status: pass
+    commands:
+      - cd backend && php artisan optimize:clear
+      - cd backend && php artisan config:cache
+      - cd backend && php artisan route:cache
+  route_presence_verified:
+    status: pass
+    commands:
+      - cd backend && php artisan route:list --path=admin/payments
+      - cd backend && php artisan route:list --path=admin/audit-logs
+  monitoring_queries_prepared:
+    status: pass
+    queries:
+      - payment.admin_overridden
+      - payment.denied
+      - Failed to override payment
+      - Forbidden. Admins only.
+  rollback_plan_documented:
+    status: pass
+    steps:
+      - Remove admin sidebar links in frontend/AccommoTrackWeb/src/components/Layout/AdminLayout.jsx
+      - Remove admin routes in frontend/AccommoTrackWeb/src/Navigation/AdminNavigator.jsx
+      - Remove backend admin oversight/audit routes in backend/routes/api.php
+      - Rebuild backend cache cycle (optimize:clear, config:cache, route:cache)
+      - Verify removed routes and hidden UI discoverability
+
+validation_runs:
+  - name: backend_uat_critical
+    command: cd backend && php artisan test --filter=AdminPaymentOversightAuditTest
+    result: pass
+    details: 8 tests, 52 assertions
+  - name: frontend_uat_critical
+    command: cd frontend/AccommoTrackWeb && npm test -- --runInBand src/screens/Admin/__tests__/PaymentOversight.test.jsx src/screens/Admin/__tests__/AuditExplorer.test.jsx
+    result: pass
+    details: 2 suites, 5 tests
+  - name: web_production_build
+    command: cd frontend/AccommoTrackWeb && npm run build
+    result: pass
+    details: chunk-size warning only (non-blocking)
+
+broader_pre_release_sweep:
+  - gate: backend_full_test_suite
+    command: cd backend && composer test:pest
+    result: pass
+    details: 49 tests, 245 assertions
+  - gate: web_full_jest
+    command: cd frontend/AccommoTrackWeb && npm test -- --runInBand
+    result: pass
+    details: 8 suites, 28 tests
+  - gate: web_lint
+    command: cd frontend/AccommoTrackWeb && npm run lint
+    result: pass_with_warnings
+    details: 32 react-hooks/exhaustive-deps warnings, 0 errors
+  - gate: web_build
+    command: cd frontend/AccommoTrackWeb && npm run build
+    result: pass
+    details: chunk-size warning only (non-blocking)

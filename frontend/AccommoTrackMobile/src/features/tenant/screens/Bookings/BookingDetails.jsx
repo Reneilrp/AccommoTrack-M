@@ -13,7 +13,8 @@ import {
     Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
 import BookingService from '../../../../services/BookingService.js';
@@ -23,6 +24,11 @@ import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import { showSuccess, showError } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/BookingDetailsStyles.js';
 import Header from '../../components/Header.jsx';
+import {
+    tenantQueryKeys,
+    useTenantFocusRefetch,
+    useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -140,46 +146,47 @@ export default function BookingDetails() {
     const insets = useSafeAreaInsets();
     const { bookingId } = route.params || {};
 
-    const [booking, setBooking] = useState(null);
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [isCanceling, setIsCanceling] = useState(false);
     const [cancelingAddonId, setCancelingAddonId] = useState(null);
     const [maintenanceModalVisible, setMaintenanceModalVisible] = useState(false);
     const [addonModalVisible, setAddonModalVisible] = useState(false);
 
-    const fetchBooking = async (silent = false) => {
-        if (!silent) setLoading(true);
-        try {
+    const bookingDetailsQuery = useQuery({
+        queryKey: tenantQueryKeys.bookingDetails(bookingId),
+        enabled: Boolean(bookingId),
+        queryFn: async () => {
             const res = await BookingService.getBookingDetails(bookingId);
-            if (res.success && res.data) {
-                setBooking(res.data);
-            } else {
-                showError('Error', res.error || 'Failed to load booking details');
-            }
-        } catch (err) {
-            console.error('Failed to load booking details', err);
-            showError('Error', 'Failed to load booking details');
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
+            if (res?.success && res?.data) return res.data;
+            throw new Error(res?.error || 'Failed to load booking details');
+        },
+        placeholderData: (previousData) => previousData,
+    });
 
-    useEffect(() => {
-        if (bookingId) fetchBooking();
-    }, [bookingId]);
-
-    useFocusEffect(
-        React.useCallback(() => {
-            if (bookingId) fetchBooking(true);
-        }, [bookingId])
+    const booking = bookingDetailsQuery.data || null;
+    const loading = bookingDetailsQuery.isLoading;
+    const refetchBookingDetails = bookingDetailsQuery.refetch;
+    const bookingDetailsRefetchers = React.useMemo(
+        () => [refetchBookingDetails],
+        [refetchBookingDetails],
     );
 
-    const onRefresh = () => {
-        setRefreshing(true);
-        fetchBooking(true);
-    };
+    useTenantFocusRefetch({
+        enabled: Boolean(bookingId),
+        refetchers: bookingDetailsRefetchers,
+    });
+
+    const onRefresh = useTenantRefreshHandler({
+        enabled: Boolean(bookingId),
+        setRefreshing,
+        refetchers: bookingDetailsRefetchers,
+    });
+
+    useEffect(() => {
+        if (!bookingDetailsQuery.error) return;
+        console.error('Failed to load booking details', bookingDetailsQuery.error);
+        showError('Error', bookingDetailsQuery.error.message || 'Failed to load booking details');
+    }, [bookingDetailsQuery.error]);
 
     if (loading && !booking) {
         return (
@@ -256,7 +263,7 @@ export default function BookingDetails() {
                         const res = await tenantService.cancelAddonRequest(reqId);
                         if (res.success) {
                             showSuccess('Add-on request cancelled');
-                            fetchBooking(true);
+                            await refetchBookingDetails();
                         } else {
                             showError('Error', res.error || 'Failed to cancel');
                         }
@@ -282,7 +289,7 @@ export default function BookingDetails() {
                         const res = await BookingService.cancelBooking(booking.id);
                         if (res.success) {
                             showSuccess('Booking cancelled');
-                            fetchBooking(true);
+                            await refetchBookingDetails();
                         } else {
                             showError('Failed to cancel', res.error);
                         }

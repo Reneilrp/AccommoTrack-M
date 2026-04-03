@@ -44,8 +44,7 @@ class RoomResource extends JsonResource
             'is_gender_compatible' => $this->when(Auth::check(), function () {
                 $tenant = Auth::user();
                 $property = $this->property;
-                $rawPropertyType = $property->property_type ?? '';
-                $propertyType = strtolower(str_replace([' ', '_'], '', $rawPropertyType));
+                $propertyType = $this->normalizePropertyTypeToken($property?->property_type);
                 $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
 
                 if ($propertyType === 'apartment' || ! in_array($propertyType, $targetTypes)) {
@@ -131,5 +130,10 @@ class RoomResource extends JsonResource
             'quad' => 'Quad Room',
             'bedSpacer' => 'Bed Spacer',
         ][$roomType] ?? ucfirst($roomType);
+    }
+
+    private function normalizePropertyTypeToken(?string $propertyType): string
+    {
+        return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
     }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,18 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 import api from '../../../../services/api.js';
 
 const formatRelativeTime = (timestamp) => {
@@ -29,73 +36,86 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
+const mapNotification = (notification) => ({
+  id: notification.id,
+  type: String(notification.type || 'default'),
+  title: notification.data?.title || 'Notification',
+  message: notification.data?.message || notification.data?.description || '',
+  timestamp: notification.created_at,
+  read: Boolean(notification.read_at),
+});
+
+const notificationTypeMap = {
+  booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
+  payment: { icon: 'cash-outline', color: '#059669', bg: '#DCFCE7' },
+  message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
+  maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
+  alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
+  move_out_notice: { icon: 'log-out-outline', color: '#EF4444', bg: '#FEE2E2' },
+  'App\\Notifications\\LandlordApprovedNotification': { icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
+  'App\\Notifications\\LandlordRejectedNotification': { icon: 'close-circle', color: '#EF4444', bg: '#FEE2E2' },
+  default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
+};
+
 export default function NotificationsScreen({ navigation }) {
   const { theme } = useTheme();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
-  const [fetchError, setFetchError] = useState('');
   const [actionError, setActionError] = useState('');
 
-  const notificationTypeMap = {
-    booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
-    payment: { icon: 'cash-outline', color: '#059669', bg: '#DCFCE7' },
-    message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
-    maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
-    alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
-    move_out_notice: { icon: 'log-out-outline', color: '#EF4444', bg: '#FEE2E2' },
-    'App\\Notifications\\LandlordApprovedNotification': { icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
-    'App\\Notifications\\LandlordRejectedNotification': { icon: 'close-circle', color: '#EF4444', bg: '#FEE2E2' },
-    default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
-  };
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      setLoading(true);
-      setFetchError('');
+  const notificationsQuery = useQuery({
+    queryKey: landlordQueryKeys.notifications(),
+    queryFn: async () => {
       const response = await api.get('/notifications?role=landlord');
-      const data = response.data;
-      const list = data.data || data || [];
-      setNotifications(list.map(n => ({
-        id: n.id,
-        type: n.type,
-        title: n.data?.title || 'Notification',
-        message: n.data?.message || n.data?.description || '',
-        timestamp: n.created_at,
-        read: !!n.read_at,
-      })));
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      setFetchError('Unable to load notifications right now. Pull to refresh or retry.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      const payload = response.data;
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : (Array.isArray(payload) ? payload : []);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+      return list.map(mapNotification);
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchNotifications();
-    setRefreshing(false);
-  }, [fetchNotifications]);
+  const notifications = notificationsQuery.data || [];
+  const loading = notificationsQuery.isPending && notifications.length === 0;
+  const fetchError = notificationsQuery.error?.message || '';
+  const refetchNotifications = notificationsQuery.refetch;
+  const notificationRefetchers = useMemo(
+    () => [refetchNotifications],
+    [refetchNotifications],
+  );
+
+  useLandlordFocusRefetch({ refetchers: notificationRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: notificationRefetchers,
+  });
+
+  const syncNotificationDerivedQueries = async () => {
+    await Promise.all([
+      refetchLandlordQueries(notificationRefetchers),
+      queryClient.invalidateQueries({ queryKey: landlordQueryKeys.unreadNotificationCount() }),
+      queryClient.invalidateQueries({ queryKey: landlordQueryKeys.dashboardBundle() }),
+    ]);
+  };
 
   const markAsRead = async (id) => {
     const previousState = notifications;
 
     // Optimistic update
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    queryClient.setQueryData(landlordQueryKeys.notifications(), (previousNotifications = []) =>
+      previousNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
 
     try {
       await api.patch(`/notifications/${id}/read`);
       setActionError('');
+      await syncNotificationDerivedQueries();
     } catch (error) {
       console.error('Error marking as read:', error);
-      setNotifications(previousState);
+      queryClient.setQueryData(landlordQueryKeys.notifications(), previousState);
       setActionError('Could not mark that notification as read. Please try again.');
     }
   };
@@ -104,14 +124,17 @@ export default function NotificationsScreen({ navigation }) {
     const previousState = notifications;
 
     // Optimistic update
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    queryClient.setQueryData(landlordQueryKeys.notifications(), (previousNotifications = []) =>
+      previousNotifications.map((n) => ({ ...n, read: true }))
+    );
 
     try {
       await api.patch('/notifications/read-all?role=landlord');
       setActionError('');
+      await syncNotificationDerivedQueries();
     } catch (error) {
       console.error('Error marking all as read:', error);
-      setNotifications(previousState);
+      queryClient.setQueryData(landlordQueryKeys.notifications(), previousState);
       setActionError('Could not mark all notifications as read. Please try again.');
     }
   };
@@ -171,7 +194,7 @@ export default function NotificationsScreen({ navigation }) {
             <Text style={[styles.errorText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}> 
               {actionError || fetchError}
             </Text>
-            <TouchableOpacity onPress={fetchNotifications}>
+            <TouchableOpacity onPress={handleRefresh}>
               <Text style={[styles.errorRetryText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}>Retry</Text>
             </TouchableOpacity>
           </View>

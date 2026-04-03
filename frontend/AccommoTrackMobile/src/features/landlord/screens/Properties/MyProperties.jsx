@@ -12,13 +12,18 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import PropertyService from "../../../../services/PropertyService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 import { getStyles } from "../../../../styles/Landlord/MyProperties.js";
 import MapModal from "../../../tenant/components/MapModal.jsx";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import {
+  landlordQueryKeys,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from "../../hooks/useLandlordQueryHelpers.js";
 
 const STATUS_TABS = [
   { key: "all", label: "All" },
@@ -37,56 +42,45 @@ const STATUS_COLORS = {
   default: { bg: "#E5E7EB", fg: "#6B7280" },
 };
 
+const EMPTY_PROPERTIES = [];
 const emptyMetrics = { active: 0, inactive: 0, pending: 0, draft: 0, totalRooms: 0 };
 
 export default function MyPropertiesScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [mapOpen, setMapOpen] = useState(false);
 
-  const fetchProperties = useCallback(async () => {
-    try {
-      const res = await PropertyService.getMyProperties();
-      if (res.success) {
-        setProperties(Array.isArray(res.data) ? res.data : []);
-        setError("");
-      } else {
-        setProperties([]);
-        setError(res.error || "Unable to fetch properties");
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
+    queryFn: async () => {
+      const response = await PropertyService.getMyProperties();
+      if (!response.success) {
+        throw new Error(response.error || "Unable to fetch properties");
       }
-    } catch (err) {
-      setProperties([]);
-      setError(err.message || "Unable to fetch properties");
-    }
-  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      let isActive = true;
-      (async () => {
-        setLoading(true);
-        await fetchProperties();
-        if (isActive) {
-          setLoading(false);
-        }
-      })();
-      return () => {
-        isActive = false;
-      };
-    }, [fetchProperties]),
+      return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const loading = propertiesQuery.isPending && properties.length === 0;
+  const error = propertiesQuery.error?.message || "";
+  const refetchProperties = propertiesQuery.refetch;
+  const propertiesRefetchers = useMemo(
+    () => [refetchProperties],
+    [refetchProperties],
   );
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchProperties();
-    setRefreshing(false);
-  }, [fetchProperties]);
+  useLandlordFocusRefetch({ refetchers: propertiesRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: propertiesRefetchers,
+  });
 
   const stats = useMemo(() => {
     if (!properties.length) return emptyMetrics;

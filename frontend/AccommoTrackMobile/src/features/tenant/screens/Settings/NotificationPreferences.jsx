@@ -2,50 +2,83 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Switch, StatusBar, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getStyles as getSettingsStyles } from '../../../../styles/Menu/Settings.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import Header from '../../components/Header.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+} from '../../hooks/useTenantQueryHelpers.js';
+
+const DEFAULT_PREFS = {
+  email_booking_updates: true,
+  email_payment_reminders: true,
+  email_maintenance: false,
+  push_messages: true,
+  push_booking_updates: true,
+};
+
+const normalizePrefs = (input) => {
+  const parsedInput = typeof input === 'string' ? JSON.parse(input) : input;
+  const parsed = parsedInput && typeof parsedInput === 'object' ? parsedInput : {};
+  const normalized = { ...DEFAULT_PREFS };
+
+  Object.keys(parsed).forEach((key) => {
+    const value = parsed[key];
+    normalized[key] = value === true || value === 1 || value === '1';
+  });
+
+  return normalized;
+};
 
 export default function NotificationPreferences() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const queryClient = useQueryClient();
   const settingsStyles = React.useMemo(() => getSettingsStyles(theme), [theme]);
 
-  const [prefs, setPrefs] = useState({
-    email_booking_updates: true,
-    email_payment_reminders: true,
-    email_maintenance: false,
-    push_messages: true,
-    push_booking_updates: true,
-  });
+  const [prefs, setPrefs] = useState(DEFAULT_PREFS);
 
-  useEffect(() => {
-    (async () => {
+  const notificationPreferencesQuery = useQuery({
+    queryKey: tenantQueryKeys.notificationPreferences(),
+    queryFn: async () => {
       try {
         const res = await ProfileService.getProfile();
-        if (res.success && res.data && res.data.notification_preferences) {
-          const backendPrefs = res.data.notification_preferences;
-          const parsed = typeof backendPrefs === 'string' ? JSON.parse(backendPrefs) : backendPrefs;
-          
-          const normalized = {};
-           Object.keys(parsed).forEach(k => {
-             const v = parsed[k];
-             normalized[k] = v === true || v === 1 || v === '1';
-           });
-           
-          setPrefs(prev => ({ ...prev, ...normalized }));
+        if (!res?.success) {
+          return DEFAULT_PREFS;
         }
-      } catch (e) {
-        console.warn('Load prefs error', e);
+
+        return normalizePrefs(res.data?.notification_preferences);
+      } catch (error) {
+        console.warn('Load prefs error', error);
+        return DEFAULT_PREFS;
       }
-    })();
-  }, []);
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const refetchNotificationPreferences = notificationPreferencesQuery.refetch;
+  const notificationPreferenceRefetchers = React.useMemo(
+    () => [refetchNotificationPreferences],
+    [refetchNotificationPreferences],
+  );
+
+  useTenantFocusRefetch({ refetchers: notificationPreferenceRefetchers });
+
+  useEffect(() => {
+    if (!notificationPreferencesQuery.data) return;
+    setPrefs(notificationPreferencesQuery.data);
+  }, [notificationPreferencesQuery.data]);
 
   const toggle = async (key) => {
+    const previousPrefs = prefs;
     const next = { ...prefs, [key]: !prefs[key] };
     setPrefs(next);
+    queryClient.setQueryData(tenantQueryKeys.notificationPreferences(), next);
+
     try {
       await ProfileService.updateProfile({ notification_preferences: next });
       // update local
@@ -59,7 +92,8 @@ export default function NotificationPreferences() {
       console.warn('Save pref error', e);
       Alert.alert("Error", "Failed to save preferences to the server.");
       // Rollback on fail
-      setPrefs(prefs);
+      setPrefs(previousPrefs);
+      queryClient.setQueryData(tenantQueryKeys.notificationPreferences(), previousPrefs);
     }
   };
 

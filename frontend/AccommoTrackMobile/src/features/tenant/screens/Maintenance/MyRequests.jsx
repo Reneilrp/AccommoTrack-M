@@ -1,41 +1,53 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import tenantService from '../../../../services/TenantService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../../styles/Tenant/MaintenanceStyles.js';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 export default function MyRequests({ hideHeader = false }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await tenantService.getMyMaintenanceRequests();
-      if (res.success && res.data) {
-          // data is paginated usually
-          const data = res.data.data || res.data || [];
-          setRequests(data);
+  const maintenanceRequestsQuery = useQuery({
+    queryKey: tenantQueryKeys.maintenanceRequests(),
+    queryFn: async () => {
+      try {
+        const res = await tenantService.getMyMaintenanceRequests();
+        if (!res?.success || !res?.data) return [];
+
+        const data = res.data?.data || res.data || [];
+        return Array.isArray(data) ? data : [];
+      } catch (err) {
+        console.error('Load maintenance requests', err);
+        return [];
       }
-    } catch (err) {
-      console.error('Load maintenance requests', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  useEffect(() => { load(); }, []);
+  const requests = maintenanceRequestsQuery.data || [];
+  const loading = maintenanceRequestsQuery.isLoading;
+  const refetchMaintenanceRequests = maintenanceRequestsQuery.refetch;
+  const maintenanceRequestsRefetchers = React.useMemo(
+    () => [refetchMaintenanceRequests],
+    [refetchMaintenanceRequests],
+  );
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
+  useTenantFocusRefetch({ refetchers: maintenanceRequestsRefetchers });
+
+  const onRefresh = useTenantRefreshHandler({
+    setRefreshing,
+    refetchers: maintenanceRequestsRefetchers,
+  });
 
   if (loading) return (
     <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>

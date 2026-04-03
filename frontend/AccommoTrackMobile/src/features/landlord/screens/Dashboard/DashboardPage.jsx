@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,20 +7,27 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert,
-  Dimensions
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Landlord/DashboardPage.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
 import Button from '../../components/Button.jsx';
 import MenuDrawer from '../../components/MenuDrawer.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import ProfileService from '../../../../services/ProfileService.js';
 import LandlordDashboardService from '../../../../services/LandlordDashboardService.js';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 
 
 const activityColorMap = {
@@ -53,6 +60,14 @@ const urgencyColorMap = {
   low: { bg: '#DCFCE7', border: '#86EFAC', fg: '#166534' }
 };
 
+const EMPTY_LIST = [];
+const EMPTY_DASHBOARD = {
+  stats: null,
+  activities: EMPTY_LIST,
+  upcomingPayments: { upcomingCheckouts: EMPTY_LIST, unpaidBookings: EMPTY_LIST },
+  propertyPerformance: EMPTY_LIST
+};
+
 const formatRelativeTime = (timestamp) => {
   if (!timestamp) return '';
   const date = new Date(timestamp);
@@ -70,32 +85,100 @@ const formatRelativeTime = (timestamp) => {
 
 export default function LandlordDashboard({ navigation, user: initialUser, onLogout }) {
   const [user, setUser] = useState(initialUser);
-  const [dashboardData, setDashboardData] = useState({
-    stats: null,
-    activities: [],
-    upcomingPayments: { upcomingCheckouts: [], unpaidBookings: [] },
-    propertyPerformance: []
-  });
-  const [dashboardLoading, setDashboardLoading] = useState(true);
-  const [dashboardError, setDashboardError] = useState('');
+  const { uiState, updateData, invalidateData } = useUIState();
+  const BUCKET = 'landlord_dashboard';
+
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState(null);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-
-  const [firstProperty, setFirstProperty] = useState(null);
-  const [loadingProperty, setLoadingProperty] = useState(true);
-  const isMountedRef = useRef(true);
 
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const cachedDashboard = uiState.data?.[BUCKET];
+
+  const dashboardQuery = useQuery({
+    queryKey: landlordQueryKeys.dashboardBundle(),
+    queryFn: async () => {
+      const response = await LandlordDashboardService.fetchDashboard();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load dashboard');
+      }
+
+      return response.data || EMPTY_DASHBOARD;
+    },
+    placeholderData: cachedDashboard || undefined,
+  });
+
+  const verificationQuery = useQuery({
+    queryKey: landlordQueryKeys.verificationStatusBundle(),
+    queryFn: async () => {
+      const response = await ProfileService.getVerificationStatus();
+      return response.success ? response.data : null;
+    },
+  });
+
+  const unreadCountQuery = useQuery({
+    queryKey: landlordQueryKeys.unreadNotificationCount(),
+    queryFn: async () => {
+      const response = await LandlordDashboardService.fetchUnreadNotificationsCount();
+      if (!response.success) return 0;
+
+      const rawCount =
+        typeof response.data === 'object'
+          ? response.data?.count ?? response.data?.data?.count
+          : response.data;
+      const count = Number(rawCount);
+      return Number.isFinite(count) ? count : 0;
+    },
+  });
+
+  const pendingTransfersQuery = useQuery({
+    queryKey: landlordQueryKeys.pendingTransferCount(),
+    queryFn: async () => {
+      const response = await PropertyService.getTransferRequests();
+      if (!response.success || !Array.isArray(response.data)) {
+        return 0;
+      }
+
+      return response.data.filter(
+        (item) => String(item.status || '').toLowerCase() === 'pending',
+      ).length;
+    },
+  });
+
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
+    queryFn: async () => {
+      const response = await PropertyService.getMyProperties();
+      if (!response.success || !Array.isArray(response.data)) {
+        return EMPTY_LIST;
+      }
+
+      return response.data;
+    },
+  });
+
+  const dashboardData = dashboardQuery.data ?? cachedDashboard ?? EMPTY_DASHBOARD;
+  const hasDashboardData = Boolean(
+    dashboardData?.stats
+    || (dashboardData?.activities || EMPTY_LIST).length > 0
+    || (dashboardData?.propertyPerformance || EMPTY_LIST).length > 0,
+  );
+  const dashboardLoading = dashboardQuery.isPending && !hasDashboardData;
+  const dashboardError = !hasDashboardData && dashboardQuery.error
+    ? dashboardQuery.error.message || 'Failed to load dashboard'
+    : '';
+  const verificationStatus = verificationQuery.data || null;
+  const unreadNotificationCount = unreadCountQuery.data ?? 0;
+  const pendingTransferCount = pendingTransfersQuery.data ?? 0;
+  const firstProperty = propertiesQuery.data?.[0] || null;
+  const loadingProperty = propertiesQuery.isPending;
 
   const isCaretaker = user?.role === 'caretaker';
-  const caretakerPermissions = user?.caretaker_permissions || {};
   const hasPermission = useCallback((key) => {
     if (!isCaretaker) return true;
-    return Boolean(caretakerPermissions?.[key] || caretakerPermissions?.[`can_view_${key}`]);
-  }, [isCaretaker, caretakerPermissions]);
+    const permissions = user?.caretaker_permissions;
+    return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
+  }, [isCaretaker, user?.caretaker_permissions]);
 
   const quickActions = [
     { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties', show: !isCaretaker || hasPermission('properties') || hasPermission('rooms') || hasPermission('tenants') },
@@ -104,10 +187,17 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings', show: !isCaretaker || hasPermission('bookings') },
     { id: 5, title: 'Payments', icon: 'cash', color: '#059669', screen: 'Payments', show: !isCaretaker },
     { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics', show: !isCaretaker },
-    { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages', show: !isCaretaker || hasPermission('messages') },
-    { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests', show: !isCaretaker || hasPermission('rooms') },
-    { id: 9, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews', show: !isCaretaker }
+    { id: 7, title: 'Transfers', icon: 'swap-horizontal', color: '#F43F5E', screen: 'TransferRequests', show: !isCaretaker || hasPermission('tenants'), badgeCount: pendingTransferCount },
+    { id: 8, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages', show: !isCaretaker || hasPermission('messages') },
+    { id: 9, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests', show: !isCaretaker || hasPermission('rooms') },
+    { id: 10, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews', show: !isCaretaker }
   ];
+
+  useEffect(() => {
+    if (dashboardQuery.data) {
+      updateData(BUCKET, dashboardQuery.data);
+    }
+  }, [dashboardQuery.data, updateData]);
 
   // Load user if not provided via props (happens in BottomTabNavigator)
   useEffect(() => {
@@ -118,125 +208,50 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           if (userString) {
             setUser(JSON.parse(userString));
           }
-        } catch (e) {}
+        } catch (_error) {}
       }
     };
     loadUser();
-  }, []);
+  }, [user]);
 
-  // Reset mounted ref on each mount
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  const refetchDashboard = dashboardQuery.refetch;
+  const refetchProperties = propertiesQuery.refetch;
+  const refetchVerification = verificationQuery.refetch;
+  const refetchUnreadCount = unreadCountQuery.refetch;
+  const refetchPendingTransfers = pendingTransfersQuery.refetch;
 
-  const fetchDashboard = useCallback(async () => {
-    try {
-      const response = await LandlordDashboardService.fetchDashboard();
-      if (!isMountedRef.current) {
-        return response.success;
-      }
+  const dashboardRefetchers = React.useMemo(
+    () => [
+      refetchDashboard,
+      refetchProperties,
+      refetchVerification,
+      refetchUnreadCount,
+      refetchPendingTransfers,
+    ],
+    [
+      refetchDashboard,
+      refetchProperties,
+      refetchVerification,
+      refetchUnreadCount,
+      refetchPendingTransfers,
+    ],
+  );
 
-      if (response.success) {
-        setDashboardData(response.data);
-        setDashboardError('');
-      } else {
-        setDashboardError(response.error || 'Failed to load dashboard');
-      }
-      return response.success;
-    } catch (error) {
-      if (isMountedRef.current) {
-        setDashboardError(error.message || 'An unexpected error occurred');
-      }
-      return false;
-    }
-  }, []);
+  useLandlordFocusRefetch({ refetchers: dashboardRefetchers });
 
-  const fetchVerification = useCallback(async () => {
-    try {
-      const response = await ProfileService.getVerificationStatus();
-      if (isMountedRef.current && response.success) {
-        setVerificationStatus(response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching verification status:', error);
-    }
-  }, []);
-
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const response = await LandlordDashboardService.fetchUnreadNotificationsCount();
-      if (isMountedRef.current && response.success) {
-        const count = typeof response.data === 'object' ? response.data.count : response.data;
-        setUnreadNotificationCount(Number(count) || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
-    }
-  }, []);
-
-  const initializeDashboard = useCallback(async () => {
-    if (!isMountedRef.current) return;
-    
-    setDashboardLoading(true);
-    setDashboardError('');
-    
-    try {
-      await Promise.all([fetchDashboard(), fetchVerification(), fetchUnreadCount()]);
-    } catch (error) {
-      if (isMountedRef.current) {
-        setDashboardError(error.message || 'Failed to initialize dashboard');
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setDashboardLoading(false);
-      }
-    }
-  }, [fetchDashboard, fetchVerification, fetchUnreadCount]);
-
-  useEffect(() => {
-    initializeDashboard();
-  }, [initializeDashboard]);
-
-  const fetchFirstProperty = useCallback(async () => {
-    if (isMountedRef.current) {
-      setLoadingProperty(true);
-    }
-    try {
-      const res = await PropertyService.getMyProperties();
-      if (!isMountedRef.current) return;
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        setFirstProperty(res.data[0]);
-      } else {
-        setFirstProperty(null);
-      }
-    } catch (error) {
-      if (isMountedRef.current) {
-        setFirstProperty(null);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setLoadingProperty(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchFirstProperty();
-  }, [fetchFirstProperty]);
+  const refreshDashboardQueries = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: dashboardRefetchers,
+  });
 
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([fetchDashboard(), fetchFirstProperty(), fetchVerification(), fetchUnreadCount()]);
-    setRefreshing(false);
-  }, [fetchDashboard, fetchFirstProperty, fetchVerification, fetchUnreadCount]);
+    invalidateData(BUCKET);
+    await refreshDashboardQueries();
+  }, [invalidateData, refreshDashboardQueries]);
 
-  const handleRetry = () => {
-    initializeDashboard();
-    fetchFirstProperty();
-  };
+  const handleRetry = useCallback(() => {
+    refetchLandlordQueries(dashboardRefetchers);
+  }, [dashboardRefetchers]);
 
   const handleMenuItemPress = (screen) => {
     navigation.navigate(screen);
@@ -318,11 +333,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     : `${derivedOccupancyPercent}% Full`;
   const tenantCount = occupiedRooms ?? 0;
   
-  // Calculate total pending notifications (Bookings + Maintenance + Addons)
-  const pendingNotifications = (stats?.bookings?.pending ?? 0) + 
-                               (stats?.requests?.maintenance ?? 0) + 
-                               (stats?.requests?.addons ?? 0);
-
   const renderVerificationBanner = () => {
     if (!verificationStatus || verificationStatus.status === 'approved') return null;
 
@@ -528,6 +538,11 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                 onPress={() => navigation.navigate(action.screen)}
                 type="transparent"
               >
+                {action.badgeCount > 0 && (
+                  <View style={styles.actionBadge}>
+                    <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                  </View>
+                )}
                 <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
                   <Ionicons name={action.icon} size={20} color={action.color} />
                 </View>

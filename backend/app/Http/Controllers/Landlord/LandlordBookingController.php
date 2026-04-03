@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
+use App\Http\Requests\Booking\FinalizeCheckoutRequest;
 use App\Http\Requests\Booking\SettleDepositRequest;
 use App\Http\Requests\Booking\StoreBookingRequest;
 use App\Http\Requests\Booking\UpdatePaymentStatusRequest;
@@ -113,6 +114,11 @@ class LandlordBookingController extends Controller
                 'message' => 'Validation failed',
                 'errors' => $e->errors(),
             ], 422);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
+            ], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Room not found', ['error' => $e->getMessage()]);
 
@@ -179,8 +185,7 @@ class LandlordBookingController extends Controller
     }
 
     /**
-     * Update payment status
-     * AUTO-UPGRADE: partial-completed → completed when payment becomes 'paid'
+     * Update payment status only.
      */
     public function updatePaymentStatus(UpdatePaymentStatusRequest $request, $id)
     {
@@ -197,11 +202,7 @@ class LandlordBookingController extends Controller
             );
 
             return response()->json([
-                'message' => $result['completion_blocked']
-                    ? 'Payment updated, but booking cannot be completed until deposit is fully settled.'
-                    : ($result['status_upgraded']
-                    ? 'Payment updated and booking upgraded to completed!'
-                    : 'Payment status updated successfully'),
+                'message' => 'Payment status updated successfully.',
                 'booking' => (new BookingResource($result['booking']))->resolve(),
                 'status_upgraded' => $result['status_upgraded'],
                 'completion_blocked' => $result['completion_blocked'],
@@ -210,6 +211,57 @@ class LandlordBookingController extends Controller
             return response()->json([
                 'message' => 'Failed to update payment status',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Finalize tenant checkout for an active stay.
+     */
+    public function finalizeCheckout(FinalizeCheckoutRequest $request, $id)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
+                ->forLandlord($context['landlord_id'])
+                ->findOrFail($id);
+
+            $this->checkPropertyAccess($context, $booking->property_id);
+
+            $result = $this->bookingService->finalizeCheckout(
+                $booking,
+                $request->validated()['move_out_date'] ?? null,
+                $request->validated()['note'] ?? null
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'booking' => (new BookingResource($result['booking']))->resolve(),
+                    'room_updated' => $result['room_updated'],
+                    'tenant_name' => $result['tenant_name'],
+                    'resolved_status' => $result['resolved_status'],
+                ],
+                'message' => 'Checkout finalized successfully.',
+            ], 200);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to finalize booking checkout', [
+                'booking_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Failed to finalize checkout.',
             ], 500);
         }
     }

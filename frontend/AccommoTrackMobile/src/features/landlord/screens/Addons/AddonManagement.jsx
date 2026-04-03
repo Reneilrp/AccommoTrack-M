@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,19 +14,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
 import AddonService from '../../../../services/AddonService.js';
 import { getStyles } from '../../../../styles/Landlord/AddonManagement.js';
+
+const EMPTY_ADDONS = [];
+const EMPTY_PENDING_REQUESTS = [];
+const EMPTY_ACTIVE_ADDONS_DATA = { activeAddons: [], summary: {} };
 
 export default function AddonManagement({ route, navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { propertyId, propertyTitle } = route.params || {};
 
-  const [addons, setAddons] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [activeAddonsData, setActiveAddonsData] = useState({ activeAddons: [], summary: {} });
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('manage'); // 'manage', 'requests', 'active'
   const [showModal, setShowModal] = useState(false);
@@ -46,33 +53,82 @@ export default function AddonManagement({ route, navigation }) {
     is_active: true
   });
 
-  const fetchData = useCallback(async (isRefresh = false) => {
-    if (!propertyId) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  const addonsQuery = useQuery({
+    queryKey: landlordQueryKeys.propertyAddons(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const response = await AddonService.getPropertyAddons(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load add-ons');
+      }
 
-    try {
-      const [addonsRes, pendingRes, activeRes] = await Promise.all([
-        AddonService.getPropertyAddons(propertyId),
-        AddonService.getPendingRequests(propertyId),
-        AddonService.getActiveAddons(propertyId)
-      ]);
+      return Array.isArray(response.data?.addons) ? response.data.addons : EMPTY_ADDONS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-      if (addonsRes.success) setAddons(addonsRes.data?.addons || []);
-      if (pendingRes.success) setPendingRequests(pendingRes.data?.pendingRequests || []);
-      if (activeRes.success) setActiveAddonsData(activeRes.data || { activeAddons: [], summary: {} });
+  const pendingRequestsQuery = useQuery({
+    queryKey: landlordQueryKeys.addonPendingRequests(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const response = await AddonService.getPendingRequests(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load pending add-on requests');
+      }
 
-    } catch (error) {
-      console.error('Error fetching addon data:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [propertyId]);
+      return Array.isArray(response.data?.pendingRequests)
+        ? response.data.pendingRequests
+        : EMPTY_PENDING_REQUESTS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const activeAddonsQuery = useQuery({
+    queryKey: landlordQueryKeys.addonActiveAddons(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const response = await AddonService.getActiveAddons(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load active add-ons');
+      }
+
+      const payload = response.data || EMPTY_ACTIVE_ADDONS_DATA;
+      return {
+        activeAddons: Array.isArray(payload.activeAddons) ? payload.activeAddons : EMPTY_ACTIVE_ADDONS_DATA.activeAddons,
+        summary: payload.summary || EMPTY_ACTIVE_ADDONS_DATA.summary,
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const addons = addonsQuery.data || EMPTY_ADDONS;
+  const pendingRequests = pendingRequestsQuery.data || EMPTY_PENDING_REQUESTS;
+  const activeAddonsData = activeAddonsQuery.data || EMPTY_ACTIVE_ADDONS_DATA;
+  const loading =
+    (addonsQuery.isPending && addons.length === 0)
+    || (pendingRequestsQuery.isPending && pendingRequests.length === 0)
+    || (activeAddonsQuery.isPending && !activeAddonsQuery.data);
+  const errorMessage =
+    addonsQuery.error?.message
+    || pendingRequestsQuery.error?.message
+    || activeAddonsQuery.error?.message
+    || '';
+
+  const refetchAddons = addonsQuery.refetch;
+  const refetchPendingRequests = pendingRequestsQuery.refetch;
+  const refetchActiveAddons = activeAddonsQuery.refetch;
+  const addonRefetchers = React.useMemo(
+    () => [refetchAddons, refetchPendingRequests, refetchActiveAddons],
+    [refetchAddons, refetchPendingRequests, refetchActiveAddons],
+  );
+
+  useLandlordFocusRefetch({ enabled: Boolean(propertyId), refetchers: addonRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    enabled: Boolean(propertyId),
+    setRefreshing,
+    refetchers: addonRefetchers,
+  });
 
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.price) {
@@ -98,11 +154,11 @@ export default function AddonManagement({ route, navigation }) {
       if (res.success) {
         setShowModal(false);
         resetForm();
-        fetchData();
+        await refetchLandlordQueries(addonRefetchers);
       } else {
         Alert.alert('Error', res.error || 'Failed to save addon');
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setSubmitting(false);
@@ -121,7 +177,7 @@ export default function AddonManagement({ route, navigation }) {
           onPress: async () => {
             const res = await AddonService.deleteAddon(propertyId, addonId);
             if (res.success) {
-              fetchData();
+              await refetchLandlordQueries(addonRefetchers);
             } else {
               Alert.alert('Error', res.error || 'Failed to delete addon');
             }
@@ -163,7 +219,7 @@ export default function AddonManagement({ route, navigation }) {
   const processRequestAction = async (bookingId, addonId, action, note = null) => {
     const res = await AddonService.handleAddonRequest(bookingId, addonId, action, note);
     if (res.success) {
-      fetchData();
+      await refetchLandlordQueries(addonRefetchers);
     } else {
       Alert.alert('Error', res.error || `Failed to ${action} request`);
     }
@@ -449,12 +505,19 @@ export default function AddonManagement({ route, navigation }) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => fetchData(true)}
+            onRefresh={handleRefresh}
             colors={['#059669']}
             tintColor="#059669"
           />
         }
       >
+        {errorMessage ? (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={16} color="#B91C1C" />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : null}
+
         {activeTab === 'manage' && renderManageTab()}
         {activeTab === 'requests' && renderRequestsTab()}
         {activeTab === 'active' && renderActiveTab()}

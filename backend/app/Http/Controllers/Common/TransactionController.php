@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
+use App\Models\Invoice;
 use App\Models\PaymentTransaction;
+use App\Services\AuditLogService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +14,10 @@ use Illuminate\Support\Facades\DB;
 class TransactionController extends Controller
 {
     use ResolvesLandlordAccess;
+
+    public function __construct(protected AuditLogService $auditLogService)
+    {
+    }
 
     public function show(Request $request, $id)
     {
@@ -88,6 +94,8 @@ class TransactionController extends Controller
 
         DB::beginTransaction();
         try {
+            $invoiceStatusBefore = $invoice?->status;
+
             // Create a refund transaction record (in a real integration we'd call gateway)
             $refund = PaymentTransaction::create([
                 'invoice_id' => $tx->invoice_id,
@@ -109,15 +117,29 @@ class TransactionController extends Controller
             }
             $tx->save();
 
-            // Update invoice status if fully refunded
+            // Recompute invoice and booking payment state from net paid values.
             if ($invoice) {
-                $totalRefunded = $invoice->transactions()->where('status', 'refunded')->sum('amount_cents');
-                // Note: $refund->amount_cents is negative, so we take absolute value or use the sum
-                // Let's use the sum of negative values and compare with -1 * invoice amount
-                if (abs($totalRefunded) >= $invoice->amount_cents) {
-                    $invoice->status = 'refunded';
-                    $invoice->save();
-                }
+                $this->recomputeInvoiceAndBookingStatus($invoice);
+
+                $this->auditLogService->invoiceEvent('invoice.refunded', [
+                    'subject_type' => 'invoice',
+                    'subject_id' => $invoice->id,
+                    'booking_id' => $invoice->booking_id,
+                    'invoice_id' => $invoice->id,
+                    'payment_transaction_id' => $refund->id,
+                    'property_id' => $invoice->property_id,
+                    'tenant_id' => $invoice->tenant_id,
+                    'landlord_id' => $invoice->landlord_id,
+                    'status_before' => $invoiceStatusBefore,
+                    'status_after' => $invoice->status,
+                    'summary' => 'Invoice refund processed.',
+                    'metadata' => [
+                        'source_transaction_id' => $tx->id,
+                        'refund_transaction_id' => $refund->id,
+                        'refund_amount_cents' => $refundAmount,
+                        'reason' => $validated['reason'] ?? null,
+                    ],
+                ]);
             }
 
             DB::commit();
@@ -140,6 +162,82 @@ class TransactionController extends Controller
                 'message' => 'Refund failed: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    private function recomputeInvoiceAndBookingStatus(Invoice $invoice): void
+    {
+        $netPaidCents = $this->calculateInvoiceNetPaidCents($invoice);
+        $resolvedStatus = $this->resolveInvoiceStatus($invoice, $netPaidCents);
+
+        $invoice->status = $resolvedStatus;
+        if ($resolvedStatus === 'paid') {
+            $invoice->paid_at = $invoice->paid_at ?? now();
+        } else {
+            $invoice->paid_at = null;
+        }
+        $invoice->save();
+
+        if ($invoice->booking) {
+            $invoice->booking->payment_status = $this->mapInvoiceStatusToBookingPaymentStatus($resolvedStatus);
+            $invoice->booking->save();
+        }
+    }
+
+    private function calculateInvoiceNetPaidCents(Invoice $invoice): int
+    {
+        $netPaidCents = $invoice->transactions()
+            ->where('amount_cents', '>', 0)
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+            ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
+            ->value('net_cents');
+
+        return max(0, (int) ($netPaidCents ?? 0));
+    }
+
+    private function resolveInvoiceStatus(Invoice $invoice, int $netPaidCents): string
+    {
+        $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
+
+        if ($invoiceTotalCents > 0 && $netPaidCents >= $invoiceTotalCents) {
+            return 'paid';
+        }
+
+        if ($netPaidCents > 0) {
+            return 'partial';
+        }
+
+        if ($this->hasRefundActivity($invoice)) {
+            return 'refunded';
+        }
+
+        $dueDate = $invoice->due_date ? Carbon::parse($invoice->due_date)->startOfDay() : null;
+        if ($dueDate && $dueDate->lt(now()->startOfDay())) {
+            return 'overdue';
+        }
+
+        return 'pending';
+    }
+
+    private function hasRefundActivity(Invoice $invoice): bool
+    {
+        return $invoice->transactions()
+            ->where(function ($query) {
+                $query->where(function ($nested) {
+                    $nested->where('amount_cents', '<', 0)
+                        ->where('status', 'refunded');
+                })->orWhere('refunded_amount_cents', '>', 0);
+            })
+            ->exists();
+    }
+
+    private function mapInvoiceStatusToBookingPaymentStatus(string $invoiceStatus): string
+    {
+        return match ($invoiceStatus) {
+            'paid' => 'paid',
+            'partial' => 'partial',
+            'refunded' => 'refunded',
+            default => 'unpaid',
+        };
     }
 
     private function computeMaxRefundForTransaction($invoice, PaymentTransaction $tx, int $remainingForTx): int

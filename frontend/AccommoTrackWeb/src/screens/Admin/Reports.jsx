@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   ShieldAlert, 
   CheckCircle2, 
@@ -85,6 +86,20 @@ export default function Reports() {
             Report Management
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">Review and resolve property flags from tenants.</p>
+        </div>
+        <div className="hidden md:flex items-center gap-2">
+          <Link
+            to="/admin/payments-oversight"
+            className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
+          >
+            Payment Oversight
+          </Link>
+          <Link
+            to="/admin/audit-logs"
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            Audit Explorer
+          </Link>
         </div>
       </div>
 

@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,6 +30,10 @@ import PropertyService from '../../../../services/PropertyService.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  tenantQueryKeys,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
 
 const { width } = Dimensions.get('window');
 
@@ -60,9 +65,53 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [refreshing, setRefreshing] = useState(false);
   const [propertyData, setPropertyData] = useState(property || null);
   const [roomData, setRoomData] = useState(room || null);
-  const [paymentOptions, setPaymentOptions] = useState({ methods: ['cash'], is_paymongo_ready: false });
-  const [optionsLoading, setOptionsLoading] = useState(false);
   const [receiptImage, setReceiptImage] = useState(null);
+  const [bookingMode, setBookingMode] = useState('normal');
+  const createEmptyOccupant = () => ({
+    full_name: '',
+    date_of_birth: '',
+    gender: '',
+    relationship_to_booker: '',
+    phone: '',
+    email: '',
+  });
+  const [proxyOccupants, setProxyOccupants] = useState([createEmptyOccupant()]);
+
+  // Prefer the freshest room object (roomData updated on refresh), fallback to route param
+  const activeRoom = roomData || room;
+  const activeRoomId = activeRoom?.id;
+  const activePropertyId = propertyData?.id || property?.id;
+
+  const roomPaymentOptionsQuery = useQuery({
+    queryKey: tenantQueryKeys.exploreRoomPaymentOptions(activeRoomId),
+    enabled: Boolean(activeRoomId),
+    queryFn: async () => {
+      const res = await PropertyService.getRoomPaymentOptions(activeRoomId);
+      if (!res?.success || !res?.data) {
+        return { methods: ['cash'], is_paymongo_ready: false };
+      }
+      return res.data;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const paymentOptions = roomPaymentOptionsQuery.data || {
+    methods: ['cash'],
+    is_paymongo_ready: false,
+  };
+
+  const propertySnapshotQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertySnapshot(activePropertyId),
+    enabled: false,
+    queryFn: async () => {
+      const res = await PropertyService.getPublicProperty(activePropertyId);
+      if (!res?.success || !res?.data) {
+        throw new Error(res?.error || 'Failed to refresh room details');
+      }
+      return res.data;
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
   const reservationFee = propertyData?.reservation_fee || activeRoom?.property?.reservation_fee || 0;
   const isReservationRequired = Number(reservationFee) > 0;
@@ -74,22 +123,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     // keep roomData in sync when navigation param changes
     setRoomData(room);
     setPropertyData(property);
-    if (room?.id) fetchPaymentOptions(room.id);
   }, [room, property]);
-
-  const fetchPaymentOptions = async (roomId) => {
-    try {
-      setOptionsLoading(true);
-      const res = await PropertyService.getRoomPaymentOptions(roomId);
-      if (res.success && res.data) {
-        setPaymentOptions(res.data);
-      }
-    } catch (error) {
-      console.error('Error fetching payment options:', error);
-    } finally {
-      setOptionsLoading(false);
-    }
-  };
 
   // Hide parent tab bar and mark route to hide layout (TenantLayout)
   useEffect(() => {
@@ -127,8 +161,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     };
   }, [roomData, room, propertyData, property, navigation]);
 
-  // Prefer the freshest room object (roomData updated on refresh), fallback to route param
-  const activeRoom = roomData || room;
   const roomIsBookable = typeof activeRoom?.is_available === 'boolean'
     ? activeRoom.is_available
     : (activeRoom?.status === 'available'
@@ -148,61 +180,82 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     payment_plan: 'full',
   });
 
-  const [totalPrice, setTotalPrice] = useState(0);
-  const [isPricingLoading, setIsPricingLoading] = useState(false);
-  const [pricingBreakdown, setPricingBreakdown] = useState(null);
-
   const roomBillingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
+  const roomPricingModel = String(activeRoom?.pricing_model || 'full_room').toLowerCase();
+  const occupantLimit = Math.max(1, Number(activeRoom?.available_slots ?? activeRoom?.capacity ?? 1));
   const supportsContractModeSwitch = roomBillingPolicy === 'monthly_with_daily';
   const isDailyContract = roomBillingPolicy === 'daily' || (supportsContractModeSwitch && bookingData.contract_mode === 'daily');
 
-  // Fetch price from backend instead of local calculation
   useEffect(() => {
-    const fetchPrice = async () => {
-      if (!bookingData.start_date) {
-        setTotalPrice(0);
-        setPricingBreakdown(null);
-        return;
+    if (bookingMode !== 'proxy') return;
+
+    setProxyOccupants((prev) => {
+      const next = prev.length > 0 ? prev : [createEmptyOccupant()];
+      return next.slice(0, occupantLimit);
+    });
+  }, [bookingMode, occupantLimit]);
+
+  const pricingStartDate = bookingData.start_date
+    ? bookingData.start_date.toISOString().split('T')[0]
+    : null;
+  const pricingEndDate = React.useMemo(() => {
+    if (!bookingData.start_date) return null;
+
+    const effectiveEndDate = bookingData.end_date
+      ? new Date(bookingData.end_date)
+      : (!isDailyContract
+          ? new Date(new Date(bookingData.start_date).setDate(new Date(bookingData.start_date).getDate() + 30))
+          : null);
+
+    return effectiveEndDate ? effectiveEndDate.toISOString().split('T')[0] : null;
+  }, [bookingData.start_date, bookingData.end_date, isDailyContract]);
+
+  const shouldFetchPricing = Boolean(
+    activeRoomId
+      && pricingStartDate
+      && pricingEndDate
+      && new Date(pricingEndDate) > new Date(pricingStartDate),
+  );
+
+  const roomPricingQuery = useQuery({
+    queryKey: tenantQueryKeys.exploreRoomPricing({
+      roomId: activeRoomId,
+      startDate: pricingStartDate,
+      endDate: pricingEndDate,
+      contractMode: bookingData.contract_mode,
+    }),
+    enabled: shouldFetchPricing,
+    queryFn: async () => {
+      const res = await PropertyService.getRoomPricing(activeRoomId, pricingStartDate, pricingEndDate);
+      if (!res?.success || !res?.data) {
+        throw new Error(res?.error || 'Pricing calculation failed');
       }
 
-      setIsPricingLoading(true);
-      try {
-        const effectiveEndDate = bookingData.end_date
-          ? new Date(bookingData.end_date)
-          : (!isDailyContract
-              ? new Date(new Date(bookingData.start_date).setDate(new Date(bookingData.start_date).getDate() + 30))
-              : null);
+      return {
+        total: Number(res.data.total || 0),
+        breakdown: res.data.breakdown || null,
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-        if (!effectiveEndDate) {
-          setTotalPrice(0);
-          setPricingBreakdown(null);
-          return;
-        }
+  const totalPrice = shouldFetchPricing
+    ? Number(roomPricingQuery.data?.total || 0)
+    : 0;
+  const pricingBreakdown = shouldFetchPricing
+    ? (roomPricingQuery.data?.breakdown || null)
+    : null;
+  const isPricingLoading = shouldFetchPricing && roomPricingQuery.isFetching;
 
-        const startStr = bookingData.start_date.toISOString().split('T')[0];
-        const endStr = effectiveEndDate.toISOString().split('T')[0];
-        
-        // Ensure end date is actually after start date
-        if (new Date(endStr) <= new Date(startStr)) {
-          setTotalPrice(0);
-          return;
-        }
+  useEffect(() => {
+    if (!roomPaymentOptionsQuery.error) return;
+    console.error('Error fetching payment options:', roomPaymentOptionsQuery.error);
+  }, [roomPaymentOptionsQuery.error]);
 
-        const res = await PropertyService.getRoomPricing(activeRoom.id, startStr, endStr);
-        if (res.success) {
-          setTotalPrice(res.data.total);
-          setPricingBreakdown(res.data.breakdown);
-        }
-      } catch (err) {
-        console.error('Pricing calculation failed', err);
-      } finally {
-        setIsPricingLoading(false);
-      }
-    };
-
-    const timer = setTimeout(fetchPrice, 300); // Debounce
-    return () => clearTimeout(timer);
-  }, [bookingData.start_date, bookingData.end_date, activeRoom.id, isDailyContract]);
+  useEffect(() => {
+    if (!roomPricingQuery.error) return;
+    console.error('Pricing calculation failed', roomPricingQuery.error);
+  }, [roomPricingQuery.error]);
 
   // Get allowed methods from landlord settings, default to cash only if not set
   const allowedMethods = activeRoom?.landlord?.payment_methods_settings?.allowed || ['cash'];
@@ -347,28 +400,41 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       payment_method: 'cash', // Reset to default
       payment_plan: 'full',
     });
+    setBookingMode('normal');
+    setProxyOccupants([createEmptyOccupant()]);
     setReceiptImage(null);
 
     setBookingModalVisible(true);
   };
 
-  const onRefresh = async () => {
-    if (!propertyData?.id) return;
-    setRefreshing(true);
-    try {
-      const res = await PropertyService.getPublicProperty(propertyData.id);
-      if (res.success && res.data) {
-        setPropertyData(res.data);
-        // find the room in returned data
-        const updatedRoom = (res.data.rooms || []).find(r => String(r.id) === String(roomData?.id));
-        if (updatedRoom) setRoomData(updatedRoom);
-      }
-    } catch (err) {
-      console.error('Failed to refresh room/property:', err);
-    } finally {
-      setRefreshing(false);
+  const refetchRoomPaymentOptions = roomPaymentOptionsQuery.refetch;
+  const refetchPropertySnapshotQuery = propertySnapshotQuery.refetch;
+  const refetchPropertySnapshot = React.useCallback(async () => {
+    if (!activePropertyId) return;
+
+    const result = await refetchPropertySnapshotQuery();
+    const refreshedProperty = result?.data;
+    if (!refreshedProperty) return;
+
+    setPropertyData(refreshedProperty);
+    const updatedRoom = (refreshedProperty.rooms || []).find(
+      (item) => String(item.id) === String(activeRoomId),
+    );
+    if (updatedRoom) {
+      setRoomData(updatedRoom);
     }
-  };
+  }, [activePropertyId, activeRoomId, refetchPropertySnapshotQuery]);
+
+  const roomDetailsRefreshRefetchers = React.useMemo(
+    () => [refetchPropertySnapshot, refetchRoomPaymentOptions],
+    [refetchPropertySnapshot, refetchRoomPaymentOptions],
+  );
+
+  const onRefresh = useTenantRefreshHandler({
+    enabled: Boolean(activePropertyId),
+    setRefreshing,
+    refetchers: roomDetailsRefreshRefetchers,
+  });
 
   const validateDates = () => {
     if (!bookingData.start_date) {
@@ -406,6 +472,26 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     return true;
   };
 
+  const handleAddProxyOccupant = () => {
+    setProxyOccupants((prev) => {
+      if (prev.length >= occupantLimit) return prev;
+      return [...prev, createEmptyOccupant()];
+    });
+  };
+
+  const handleRemoveProxyOccupant = (index) => {
+    setProxyOccupants((prev) => {
+      const next = prev.filter((_, idx) => idx !== index);
+      return next.length > 0 ? next : [createEmptyOccupant()];
+    });
+  };
+
+  const handleProxyOccupantChange = (index, field, value) => {
+    setProxyOccupants((prev) => prev.map((occupant, idx) => (
+      idx === index ? { ...occupant, [field]: value } : occupant
+    )));
+  };
+
     const pickReceiptImage = async () => {
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -422,6 +508,37 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     try {
       if (!validateDates()) return;
 
+      const normalizedOccupants = proxyOccupants
+        .map((occupant) => ({
+          full_name: String(occupant.full_name || '').trim(),
+          date_of_birth: String(occupant.date_of_birth || '').trim(),
+          gender: String(occupant.gender || '').trim().toLowerCase(),
+          relationship_to_booker: String(occupant.relationship_to_booker || '').trim(),
+          phone: String(occupant.phone || '').trim(),
+          email: String(occupant.email || '').trim(),
+        }))
+        .filter((occupant) => Object.values(occupant).some((fieldValue) => Boolean(fieldValue)));
+
+      if (bookingMode === 'proxy') {
+        if (normalizedOccupants.length === 0) {
+          Alert.alert('Missing Information', 'Proxy booking requires at least one occupant.');
+          return;
+        }
+
+        if (normalizedOccupants.length > occupantLimit) {
+          Alert.alert('Occupant Limit', `This booking can only hold up to ${occupantLimit} occupant${occupantLimit > 1 ? 's' : ''}.`);
+          return;
+        }
+
+        for (let i = 0; i < normalizedOccupants.length; i += 1) {
+          const occupant = normalizedOccupants[i];
+          if (!occupant.full_name || !occupant.date_of_birth || !occupant.gender || !occupant.relationship_to_booker) {
+            Alert.alert('Missing Information', `Occupant ${i + 1} is missing required information.`);
+            return;
+          }
+        }
+      }
+
       if (isReservationRequired && !receiptImage) {
         Alert.alert('Required', 'Please attach your GCash receipt to confirm your reservation.');
         return;
@@ -431,12 +548,29 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
       const data = new FormData();
       data.append('room_id', activeRoom.id);
+      data.append('booking_mode', bookingMode);
       data.append('start_date', bookingData.start_date.toISOString().split('T')[0]);
       if (bookingData.end_date) data.append('end_date', bookingData.end_date.toISOString().split('T')[0]);
       data.append('contract_mode', isDailyContract ? 'daily' : 'monthly');
       data.append('payment_method', bookingData.payment_method || 'cash');
       data.append('payment_plan', isDailyContract ? 'full' : bookingData.payment_plan);
       if (bookingData.notes) data.append('notes', bookingData.notes);
+
+      if (bookingMode === 'proxy') {
+        const inferredBedCount = roomPricingModel === 'per_bed'
+          ? Math.max(1, normalizedOccupants.length)
+          : Math.max(1, Number(activeRoom?.capacity || 1));
+        data.append('bed_count', String(inferredBedCount));
+
+        normalizedOccupants.forEach((occupant, index) => {
+          data.append(`occupants[${index}][full_name]`, occupant.full_name);
+          data.append(`occupants[${index}][date_of_birth]`, occupant.date_of_birth);
+          data.append(`occupants[${index}][gender]`, occupant.gender);
+          data.append(`occupants[${index}][relationship_to_booker]`, occupant.relationship_to_booker);
+          if (occupant.phone) data.append(`occupants[${index}][phone]`, occupant.phone);
+          if (occupant.email) data.append(`occupants[${index}][email]`, occupant.email);
+        });
+      }
 
       if (isReservationRequired && receiptImage) {
         const localUri = receiptImage.uri;
@@ -820,8 +954,53 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
             <Text style={styles.modalTitle}>Book Room {activeRoom.room_number}</Text>
             <Text style={styles.psText}>Monthly = 30 days (no prorate)</Text>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Booking Type</Text>
+              <View style={styles.paymentMethodRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodBtn,
+                    bookingMode === 'normal' && styles.paymentMethodBtnActive,
+                  ]}
+                  onPress={() => setBookingMode('normal')}
+                >
+                  <Text
+                    style={[
+                      styles.paymentMethodBtnText,
+                      bookingMode === 'normal' && styles.paymentMethodBtnTextActive,
+                    ]}
+                  >
+                    Normal
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodBtn,
+                    bookingMode === 'proxy' && styles.paymentMethodBtnActive,
+                  ]}
+                  onPress={() => setBookingMode('proxy')}
+                >
+                  <Text
+                    style={[
+                      styles.paymentMethodBtnText,
+                      bookingMode === 'proxy' && styles.paymentMethodBtnTextActive,
+                    ]}
+                  >
+                    Proxy
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.summaryNote}>
+                Normal allows 1 active/pending booking per property. Proxy allows up to 3 and requires occupant details.
+              </Text>
+            </View>
 
             {supportsContractModeSwitch && (
               <View style={styles.inputContainer}>
@@ -930,6 +1109,79 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 />
               )}
             </View>
+
+            {bookingMode === 'proxy' && (
+              <View style={styles.inputContainer}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={styles.inputLabel}>Occupants ({proxyOccupants.length}/{occupantLimit})</Text>
+                  <TouchableOpacity onPress={handleAddProxyOccupant} disabled={proxyOccupants.length >= occupantLimit}>
+                    <Text style={{ color: proxyOccupants.length >= occupantLimit ? theme.colors.textTertiary : theme.colors.primary, fontWeight: '600' }}>
+                      Add Occupant
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.summaryNote}>Provide details of the people who will actually stay in this room.</Text>
+
+                {proxyOccupants.map((occupant, index) => (
+                  <View
+                    key={`proxy-occupant-${index}`}
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, marginTop: 10 }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Occupant {index + 1}</Text>
+                      {proxyOccupants.length > 1 && (
+                        <TouchableOpacity onPress={() => handleRemoveProxyOccupant(index)}>
+                          <Text style={{ color: theme.colors.error || '#ef4444', fontWeight: '600' }}>Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Full name*"
+                      placeholderTextColor="#999"
+                      value={occupant.full_name}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'full_name', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Date of birth (YYYY-MM-DD)*"
+                      placeholderTextColor="#999"
+                      value={occupant.date_of_birth}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'date_of_birth', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Gender (male/female/other/prefer_not_to_say)*"
+                      placeholderTextColor="#999"
+                      value={occupant.gender}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'gender', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Relationship to booker*"
+                      placeholderTextColor="#999"
+                      value={occupant.relationship_to_booker}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'relationship_to_booker', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Phone (optional)"
+                      placeholderTextColor="#999"
+                      value={occupant.phone}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'phone', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 0 }]}
+                      placeholder="Email (optional)"
+                      placeholderTextColor="#999"
+                      value={occupant.email}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'email', text)}
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
 
             {/* Payment Method Selection */}
             <View style={styles.inputContainer}>
@@ -1149,6 +1401,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>

@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -23,13 +24,17 @@ import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getStyles } from "../../../../styles/Tenant/ProfilePage.js";
 import ProfileService from "../../../../services/ProfileService.js";
 import Header from "../../components/Header.jsx";
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+} from "../../hooks/useTenantQueryHelpers.js";
 
 export default function ProfilePage() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const queryClient = useQueryClient();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -57,82 +62,92 @@ export default function ProfilePage() {
     profileImage: null,
   });
 
-  useEffect(() => {
-    loadUserProfile();
-  }, []);
-
-  const loadUserProfile = async () => {
-    try {
-      setLoading(true);
-      const res = await ProfileService.getProfile();
-
-      if (res.success) {
-        const data = res.data;
-
-        // Calculate age from DOB if age is missing but DOB exists
-        let calculatedAge = data.age ? String(data.age) : "";
-        if (!calculatedAge && data.date_of_birth) {
-          calculatedAge = String(
-            calculateAge(new Date(data.date_of_birth)),
-          );
+  const profilePageQuery = useQuery({
+    queryKey: tenantQueryKeys.profilePage(),
+    queryFn: async () => {
+      try {
+        const res = await ProfileService.getProfile();
+        if (res?.success && res?.data) {
+          return res.data;
         }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
 
-        setProfileData((prev) => ({
-          ...prev,
-          firstName: data.first_name || "",
-          middleName: data.middle_name || "",
-          lastName: data.last_name || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          gender: data.gender || "",
-          identifiedAs: data.identified_as || "",
-          age: calculatedAge,
-          dateOfBirth: data.date_of_birth || "",
-          bio: data.tenant_profile?.notes || "",
-          currentAddress: data.tenant_profile?.current_address || "",
-          emergencyContactName:
-            data.tenant_profile?.emergency_contact_name || "",
-          emergencyContactPhone:
-            data.tenant_profile?.emergency_contact_phone || "",
-          emergencyContactRelationship:
-            data.tenant_profile?.emergency_contact_relationship || "",
-          profileImage: data.profile_image || null,
-          preferences: (() => {
-            const raw = data.tenant_profile?.preference;
-            if (!raw) return prev.preferences;
-            const p = typeof raw === "string" ? JSON.parse(raw) : raw;
-            return {
-              room_preference: p.room_preference || "",
-              budget_range: p.budget_range || "",
-              lifestyle_notes: p.lifestyle_notes || p.lifestyle || "",
-              // Canonical 'yes'/'no'; fall back from old boolean web keys
-              smoking: p.smoking || (p.no_smoking ? "yes" : "no"),
-              pets: p.pets || (p.pet_friendly ? "yes" : "no"),
-            };
-          })(),
-        }));
-      } else {
-        // Fallback to local storage
-        const userString = await AsyncStorage.getItem("user");
-        if (userString) {
-          const user = JSON.parse(userString);
-          setProfileData((prev) => ({
-            ...prev,
-            firstName: user.first_name || "",
-            middleName: user.middle_name || "",
-            lastName: user.last_name || "",
-            email: user.email || "",
-            phone: user.phone || "",
-          }));
+      const userString = await AsyncStorage.getItem("user");
+      if (userString) {
+        return JSON.parse(userString);
+      }
+
+      throw new Error("Failed to load profile");
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const refetchProfilePage = profilePageQuery.refetch;
+  const profilePageRefetchers = React.useMemo(
+    () => [refetchProfilePage],
+    [refetchProfilePage],
+  );
+
+  useTenantFocusRefetch({ refetchers: profilePageRefetchers });
+
+  useEffect(() => {
+    const data = profilePageQuery.data;
+    if (!data) return;
+
+    let calculatedAge = data.age ? String(data.age) : "";
+    if (!calculatedAge && data.date_of_birth) {
+      calculatedAge = String(calculateAge(new Date(data.date_of_birth)));
+    }
+
+    setProfileData((prev) => {
+      let parsedPreferences = prev.preferences;
+      const raw = data.tenant_profile?.preference;
+      if (raw) {
+        try {
+          const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+          parsedPreferences = {
+            room_preference: parsed.room_preference || "",
+            budget_range: parsed.budget_range || "",
+            lifestyle_notes: parsed.lifestyle_notes || parsed.lifestyle || "",
+            smoking: parsed.smoking || (parsed.no_smoking ? "yes" : "no"),
+            pets: parsed.pets || (parsed.pet_friendly ? "yes" : "no"),
+          };
+        } catch (_error) {
+          parsedPreferences = prev.preferences;
         }
       }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-      Alert.alert("Error", "Failed to load profile");
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return {
+        ...prev,
+        firstName: data.first_name || "",
+        middleName: data.middle_name || "",
+        lastName: data.last_name || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        gender: data.gender || "",
+        identifiedAs: data.identified_as || "",
+        age: calculatedAge,
+        dateOfBirth: data.date_of_birth || "",
+        bio: data.tenant_profile?.notes || "",
+        currentAddress: data.tenant_profile?.current_address || "",
+        emergencyContactName: data.tenant_profile?.emergency_contact_name || "",
+        emergencyContactPhone: data.tenant_profile?.emergency_contact_phone || "",
+        emergencyContactRelationship:
+          data.tenant_profile?.emergency_contact_relationship || "",
+        profileImage: data.profile_image || null,
+        preferences: parsedPreferences,
+      };
+    });
+  }, [profilePageQuery.data]);
+
+  useEffect(() => {
+    if (!profilePageQuery.error) return;
+    Alert.alert("Error", profilePageQuery.error.message || "Failed to load profile");
+  }, [profilePageQuery.error]);
+
+  const loading = profilePageQuery.isLoading && !profilePageQuery.data;
 
   const calculateAge = (dob) => {
     const today = new Date();
@@ -208,6 +223,8 @@ export default function ProfilePage() {
       if (res.success) {
         const u = res.data;
         const tp = u.tenant_profile || {};
+
+        queryClient.setQueryData(tenantQueryKeys.profilePage(), u);
 
         setProfileData((prev) => ({
           ...prev,
@@ -325,6 +342,7 @@ export default function ProfilePage() {
 
       if (res.success) {
         const u = res.data;
+        queryClient.setQueryData(tenantQueryKeys.profilePage(), u);
         setProfileData((prev) => ({
           ...prev,
           profileImage: u.profile_image || imageAsset.uri,

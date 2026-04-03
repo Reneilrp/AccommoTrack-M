@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Users, Building2, CheckCircle, XCircle, Clock, Loader2, AlertCircle, Sun, Moon } from 'lucide-react';
 import api from '../../utils/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
@@ -116,26 +117,40 @@ const AdminDashboard = () => {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Monitor system-wide activities and metrics</p>
           </div>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
-              theme === 'dark' ? 'bg-gray-700' : 'bg-emerald-100'
-            }`}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            <span className="sr-only">Toggle theme</span>
-            <span
-              className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out flex items-center justify-center ${
-                theme === 'dark' ? 'translate-x-9' : 'translate-x-1'
-              }`}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/admin/payments-oversight"
+              className="hidden sm:inline-flex px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
             >
-              {theme === 'dark' ? (
-                <Moon className="w-3.5 h-3.5 text-gray-700" />
-              ) : (
-                <Sun className="w-3.5 h-3.5 text-orange-500" />
-              )}
-            </span>
-          </button>
+              Payment Oversight
+            </Link>
+            <Link
+              to="/admin/audit-logs"
+              className="hidden sm:inline-flex px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              Audit Explorer
+            </Link>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                theme === 'dark' ? 'bg-gray-700' : 'bg-emerald-100'
+              }`}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              <span className="sr-only">Toggle theme</span>
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out flex items-center justify-center ${
+                  theme === 'dark' ? 'translate-x-9' : 'translate-x-1'
+                }`}
+              >
+                {theme === 'dark' ? (
+                  <Moon className="w-3.5 h-3.5 text-gray-700" />
+                ) : (
+                  <Sun className="w-3.5 h-3.5 text-orange-500" />
+                )}
+              </span>
+            </button>
+          </div>
         </div>
       </header>
 

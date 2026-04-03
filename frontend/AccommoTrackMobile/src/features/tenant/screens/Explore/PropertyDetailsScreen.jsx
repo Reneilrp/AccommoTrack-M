@@ -16,20 +16,69 @@ import {
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { VideoView, useVideoPlayer } from "expo-video";
+import { useQuery } from "@tanstack/react-query";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { getStyles } from "../../../../styles/Tenant/PropertyDetailsScreen.js";
-import homeStyles from "../../../../styles/Tenant/HomePage.js";
 import PropertyService from "../../../../services/PropertyService.js";
 import ReviewService from "../../../../services/ReviewService.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import IconWithBadge from '../../../../components/IconWithBadge.jsx';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from "../../hooks/useTenantQueryHelpers.js";
 
 const REVIEWS_PAGE_SIZE = 5;
+const DEFAULT_NOTIFICATION_COUNTS = {
+  addons: 0,
+  maintenance: 0,
+  activity: 0,
+  reviews: 0,
+};
+
+const transformPropertyDetailsPayload = (rawData) => {
+  const detailedAccommodation = {
+    ...rawData,
+    landlord_id: rawData.landlord_id,
+    user_id: rawData.user_id || rawData.landlord_id,
+    landlord_name: rawData.landlord_name,
+    owner_name: rawData.owner_name || rawData.landlord_name,
+    landlord: rawData.landlord,
+    name: rawData.title || rawData.name,
+    title: rawData.title || rawData.name,
+    type: rawData.property_type || rawData.type,
+    availableRooms: rawData.available_rooms,
+    available_rooms: rawData.available_rooms,
+    priceRange: rawData.price_range,
+    amenities: rawData.amenities || [],
+  };
+
+  const rooms = (rawData.rooms || [])
+    .map((room) => ({
+      ...room,
+      images: room.images || [],
+      monthly_rate: parseFloat(room.monthly_rate) || 0,
+      status: (room.display_status || room.status || "unknown").toString().toLowerCase(),
+    }))
+    .sort((a, b) => {
+      const aAvailable = (a.status || "unknown").toLowerCase() === "available";
+      const bAvailable = (b.status || "unknown").toLowerCase() === "available";
+      if (aAvailable && !bAvailable) return -1;
+      if (!aAvailable && bAvailable) return 1;
+      return a.monthly_rate - b.monthly_rate;
+    });
+
+  return {
+    detailedAccommodation,
+    rooms,
+  };
+};
 
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
@@ -43,23 +92,10 @@ export default function PropertyDetailsScreen({ route }) {
     onAuthRequired,
     landlordPreview = false,
   } = route.params || {};
-  const [rooms, setRooms] = useState([]);
-  const [roomsLoading, setRoomsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [detailedAccommodation, setDetailedAccommodation] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [videoVisible, setVideoVisible] = useState(false);
-  const [publicReviews, setPublicReviews] = useState([]);
-  const [publicReviewSummary, setPublicReviewSummary] = useState(null);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewPage, setReviewPage] = useState(1);
-  const [notificationCounts, setNotificationCounts] = useState({
-    addons: 0,
-    maintenance: 0,
-    activity: 0,
-    reviews: 0,
-  });
-
 
   const effectiveId = accommodation?.id || propertyId;
 
@@ -75,17 +111,117 @@ export default function PropertyDetailsScreen({ route }) {
     loadUser();
   }, []);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (effectiveId && user && !isGuest && !landlordPreview) {
-        const result = await PropertyService.getPropertyStats(effectiveId);
-        if (result.success) {
-          setNotificationCounts(result.data);
-        }
+  const propertyDetailsQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertyDetails(effectiveId, landlordPreview),
+    enabled: Boolean(effectiveId),
+    queryFn: async () => {
+      const result = landlordPreview
+        ? await PropertyService.getProperty(effectiveId)
+        : await PropertyService.getPublicProperty(effectiveId);
+
+      if (!result?.success || !result?.data) {
+        throw new Error(result?.error || "No rooms found for this property.");
       }
-    };
-    fetchStats();
-  }, [effectiveId, user, isGuest, landlordPreview]);
+
+      return transformPropertyDetailsPayload(result.data);
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const propertyReviewsQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertyReviews(effectiveId),
+    enabled: Boolean(effectiveId) && !landlordPreview,
+    queryFn: async () => {
+      try {
+        const result = await ReviewService.getPropertyReviews(effectiveId);
+        if (!result?.success) {
+          return { reviews: [], summary: null };
+        }
+
+        return {
+          reviews: Array.isArray(result.data) ? result.data : [],
+          summary: result.summary || null,
+        };
+      } catch (error) {
+        console.error("Failed to load property reviews:", error);
+        return { reviews: [], summary: null };
+      }
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const propertyStatsQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertyStats(effectiveId, user?.id || null),
+    enabled: Boolean(effectiveId && user && !isGuest && !landlordPreview),
+    queryFn: async () => {
+      const result = await PropertyService.getPropertyStats(effectiveId);
+      if (!result?.success || !result?.data) {
+        return DEFAULT_NOTIFICATION_COUNTS;
+      }
+
+      return {
+        ...DEFAULT_NOTIFICATION_COUNTS,
+        ...result.data,
+      };
+    },
+    placeholderData: (previousData) => previousData || DEFAULT_NOTIFICATION_COUNTS,
+  });
+
+  const detailedAccommodation = propertyDetailsQuery.data?.detailedAccommodation || null;
+  const rooms = propertyDetailsQuery.data?.rooms || [];
+  const roomsLoading = propertyDetailsQuery.isLoading && !propertyDetailsQuery.data;
+  const publicReviews = landlordPreview
+    ? []
+    : (propertyReviewsQuery.data?.reviews || []);
+  const publicReviewSummary = landlordPreview
+    ? null
+    : (propertyReviewsQuery.data?.summary || null);
+  const reviewsLoading = !landlordPreview && propertyReviewsQuery.isLoading && !propertyReviewsQuery.data;
+  const notificationCounts = propertyStatsQuery.data || DEFAULT_NOTIFICATION_COUNTS;
+
+  const refetchPropertyDetails = propertyDetailsQuery.refetch;
+  const refetchPropertyReviews = propertyReviewsQuery.refetch;
+  const refetchPropertyStats = propertyStatsQuery.refetch;
+  const propertyDetailsRefetchers = React.useMemo(
+    () => [
+      refetchPropertyDetails,
+      !landlordPreview ? refetchPropertyReviews : null,
+      !isGuest && !landlordPreview ? refetchPropertyStats : null,
+    ],
+    [
+      refetchPropertyDetails,
+      refetchPropertyReviews,
+      refetchPropertyStats,
+      landlordPreview,
+      isGuest,
+    ],
+  );
+
+  useTenantFocusRefetch({
+    enabled: Boolean(effectiveId),
+    refetchers: propertyDetailsRefetchers,
+  });
+
+  const refreshPropertyDetails = useTenantRefreshHandler({
+    enabled: Boolean(effectiveId),
+    setRefreshing,
+    refetchers: propertyDetailsRefetchers,
+  });
+
+  useEffect(() => {
+    if (!propertyDetailsQuery.error) return;
+
+    console.error("Failed to load rooms:", propertyDetailsQuery.error);
+    Alert.alert("Error", "Unable to load rooms for this property right now.");
+  }, [propertyDetailsQuery.error]);
+
+  useEffect(() => {
+    setReviewPage(1);
+  }, [effectiveId, propertyReviewsQuery.dataUpdatedAt]);
+
+  const onRefresh = useCallback(async () => {
+    await refreshPropertyDetails();
+  }, [refreshPropertyDetails]);
 
   const videoUrl = detailedAccommodation?.video_url || accommodation?.video_url;
   const videoPlayer = useVideoPlayer(
@@ -103,113 +239,6 @@ export default function PropertyDetailsScreen({ route }) {
       videoPlayer.pause();
     }
   }, [videoVisible, videoPlayer]);
-
-  const loadReviews = useCallback(async () => {
-    if (!effectiveId || landlordPreview) {
-      setPublicReviews([]);
-      setPublicReviewSummary(null);
-      return;
-    }
-
-    try {
-      setReviewsLoading(true);
-      const result = await ReviewService.getPropertyReviews(effectiveId);
-      if (result.success) {
-        setPublicReviews(Array.isArray(result.data) ? result.data : []);
-        setPublicReviewSummary(result.summary || null);
-        setReviewPage(1);
-      } else {
-        setPublicReviews([]);
-        setPublicReviewSummary(null);
-        setReviewPage(1);
-      }
-    } catch (error) {
-      console.error("Failed to load property reviews:", error);
-      setPublicReviews([]);
-      setPublicReviewSummary(null);
-      setReviewPage(1);
-    } finally {
-      setReviewsLoading(false);
-    }
-  }, [effectiveId, landlordPreview]);
-
-  const loadRooms = useCallback(async () => {
-    if (!effectiveId) {
-      setRooms([]);
-      setRoomsLoading(false);
-      return;
-    }
-
-    try {
-      setRoomsLoading(true);
-
-      const result = landlordPreview
-        ? await PropertyService.getProperty(effectiveId)
-        : await PropertyService.getPublicProperty(effectiveId);
-
-      if (result.success && result.data) {
-        const rawData = result.data;
-        const detailed = {
-          ...rawData,
-          landlord_id: rawData.landlord_id,
-          user_id: rawData.user_id || rawData.landlord_id,
-          landlord_name: rawData.landlord_name,
-          owner_name: rawData.owner_name || rawData.landlord_name,
-          landlord: rawData.landlord,
-          name: rawData.title || rawData.name,
-          title: rawData.title || rawData.name,
-          type: rawData.property_type || rawData.type,
-          availableRooms: rawData.available_rooms,
-          available_rooms: rawData.available_rooms,
-          priceRange: rawData.price_range,
-          amenities: rawData.amenities || [],
-        };
-        setDetailedAccommodation(detailed);
-
-        const standardizedRooms = (rawData.rooms || [])
-          .map((room) => ({
-            ...room,
-            images: room.images || [],
-            monthly_rate: parseFloat(room.monthly_rate) || 0,
-            status: (room.display_status || room.status || "unknown").toString().toLowerCase(),
-          }))
-          .sort((a, b) => {
-            const aAvailable = (a.status || "unknown").toLowerCase() === "available";
-            const bAvailable = (b.status || "unknown").toLowerCase() === "available";
-            if (aAvailable && !bAvailable) return -1;
-            if (!aAvailable && bAvailable) return 1;
-            return a.monthly_rate - b.monthly_rate;
-          });
-        setRooms(standardizedRooms);
-      } else {
-        throw new Error(result.error || "No rooms found for this property.");
-      }
-    } catch (error) {
-      console.error("Failed to load rooms:", error);
-      Alert.alert("Error", "Unable to load rooms for this property right now.");
-      setRooms([]);
-    } finally {
-      setRoomsLoading(false);
-    }
-  }, [effectiveId, landlordPreview]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadRooms();
-      loadReviews();
-    }, [loadRooms, loadReviews])
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([loadRooms(), loadReviews()]);
-    } catch (err) {
-      console.error("Refresh failed:", err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const filteredRooms = rooms.filter((room) => {
     if (selectedFilter === "all") return true;
@@ -1095,7 +1124,7 @@ export default function PropertyDetailsScreen({ route }) {
           <View style={styles.roomsSection}>
             <View style={styles.roomsHeader}>
               <Text style={styles.sectionTitle}>Rooms</Text>
-              <TouchableOpacity onPress={loadRooms}>
+              <TouchableOpacity onPress={refetchPropertyDetails}>
                 <Text style={styles.refreshText}>Refresh</Text>
               </TouchableOpacity>
             </View>

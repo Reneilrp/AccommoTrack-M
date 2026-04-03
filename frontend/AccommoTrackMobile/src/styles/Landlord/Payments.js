@@ -72,6 +72,32 @@ export const getStyles = (theme) => StyleSheet.create({
   activeFilterText: {
     color: theme.colors.textInverse,
   },
+  statsRangeContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 8,
+  },
+  statsRangeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  statsRangeChipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  statsRangeChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  statsRangeChipTextActive: {
+    color: theme.colors.textInverse,
+  },
   listContent: {
     padding: 16,
   },

@@ -10,5 +10,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command('payments:notify-upcoming')->daily();
 Schedule::command('bookings:expire-pending')->daily();
+Schedule::command('bookings:finalize-daily-checkouts')->daily();
 Schedule::command('invoices:update-overdue')->daily();
 Schedule::command('invoices:generate-monthly')->daily();

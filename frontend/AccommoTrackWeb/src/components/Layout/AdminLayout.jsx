@@ -65,6 +65,24 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </svg>
       )
     },
+    {
+      path: '/admin/payments-oversight',
+      label: 'Payment Oversight',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zm5 0c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zM7 11c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zm5 9c4.418 0 8-3.582 8-8a8 8 0 10-16 0c0 4.418 3.582 8 8 8z" />
+        </svg>
+      )
+    },
+    {
+      path: '/admin/audit-logs',
+      label: 'Audit Explorer',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10m-3 4h3m-6 0h1m4 0h1M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    },
   ];
 
   const handleLogoutClick = () => {

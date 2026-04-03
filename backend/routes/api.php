@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AdminAuditLogController;
+use App\Http\Controllers\Admin\AdminPaymentOversightController;
 use App\Http\Controllers\Common\AuthController;
 use App\Http\Controllers\Common\ForgotPasswordController;
 use App\Http\Controllers\Common\GeocodeController;
@@ -55,11 +57,13 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 Route::get('/check-email', [AuthController::class, 'checkEmail'])->middleware('throttle:10,1');
 
 Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
+Route::get('/public/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
 Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
 
 // --- Add aliases to match frontend Service calls that omit /public prefix ---
 Route::get('/properties', [PropertyController::class, 'getAllProperties']);
+Route::get('/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
 Route::middleware('auth:sanctum')->get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
 Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 // ---------------------------------------------------------------------------
@@ -293,6 +297,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{id}', [LandlordBookingController::class, 'show']);
     Route::patch('/bookings/{id}/status', [LandlordBookingController::class, 'updateStatus']);
     Route::patch('/bookings/{id}/payment', [LandlordBookingController::class, 'updatePaymentStatus']);
+    Route::post('/bookings/{id}/finalize-checkout', [LandlordBookingController::class, 'finalizeCheckout']);
     Route::post('/bookings/{id}/deposit-settlement', [LandlordBookingController::class, 'settleDeposit']);
     Route::get('/bookings/{id}/deposit-settlements', [LandlordBookingController::class, 'getDepositSettlements']);
     Route::post('/bookings/{id}/approve-reservation', [LandlordBookingController::class, 'approveReservation']);
@@ -300,6 +305,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ===== PAYMENTS / INVOICES =====
     Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::get('/invoices/summary', [InvoiceController::class, 'summary']);
     Route::post('/invoices', [InvoiceController::class, 'store']);
     Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
     Route::post('/invoices/{id}/charge', [InvoiceController::class, 'charge']);
@@ -359,6 +365,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // Admin: Reports
         Route::get('/reports', [ReportController::class, 'index']);
         Route::patch('/reports/{id}', [ReportController::class, 'update']);
+
+        // Admin: Payment oversight and audit explorer
+        Route::get('/payments/oversight', [AdminPaymentOversightController::class, 'queue']);
+        Route::post('/payments/{invoiceId}/override-approve', [AdminPaymentOversightController::class, 'overrideApprove']);
+        Route::get('/audit-logs', [AdminAuditLogController::class, 'index']);
+        Route::get('/audit-logs/timeline', [AdminAuditLogController::class, 'entityTimeline']);
     });
 
     Route::prefix('messages')->group(function () {

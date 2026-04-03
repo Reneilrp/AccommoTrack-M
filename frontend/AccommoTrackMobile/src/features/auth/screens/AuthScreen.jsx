@@ -25,6 +25,7 @@ import BlockedUserModal from '../../../components/BlockedUserModal.jsx';
 import ForgotPasswordModal from '../../../components/ForgotPasswordModal.jsx';
 import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
+import { useAuthStore } from '../../../stores/auth/authStore.js';
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
 
@@ -297,6 +298,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const { theme, isDarkMode } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const setAuthSession = useAuthStore((state) => state.setAuthSession);
   const [isLogin, setIsLogin] = useState(true);
   const [signupStep, setSignupStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -585,6 +587,12 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         await AsyncStorage.setItem('user_id', String(data.user.id));
         await AsyncStorage.setItem('hasLaunched', 'true');
 
+        setAuthSession({
+          authToken: data.token || data.user?.token || null,
+          userId: data.user?.id ?? null,
+          activeRole: effectiveRole,
+        });
+
         
         console.log('✅ Login successful! Role:', effectiveRole, (effectiveRole !== data.user.role ? `(Backend: ${data.user.role})` : ''));
         console.log('✅ Token saved');
@@ -655,6 +663,10 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         role: formData.role,
         date_of_birth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString().split('T')[0] : '',
         gender: formData.gender,
+        agree_to_terms: agreedToTerms,
+        terms_version: UNIFIED_TERMS_AND_CONDITIONS.version || 'v2.0',
+        privacy_version: UNIFIED_TERMS_AND_CONDITIONS.version || 'v2.0',
+        consent_platform: 'mobile',
       };
 
       // Only add middle_name if it's not empty/whitespace
