@@ -21,7 +21,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
   },
   reportingText: {
     fontSize: 14,
@@ -36,7 +36,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     color: theme.colors.text,
   },
   reasonsContainer: {
@@ -45,7 +45,7 @@ export const getStyles = (theme) => StyleSheet.create({
   reasonItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     backgroundColor: theme.colors.surface,
@@ -56,14 +56,14 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
   },
   reasonText: {
-    marginLeft: 12,
+    marginLeft: 16,
     color: theme.colors.text,
   },
   descriptionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 24,
-    marginBottom: 12,
+    marginBottom: 16,
     color: theme.colors.text,
   },
   textArea: {
@@ -78,10 +78,10 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   warningBanner: {
     marginTop: 24,
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     backgroundColor: theme.isDark ? theme.colors.brand900 : '#FEF2F2',
   },
   warningText: {

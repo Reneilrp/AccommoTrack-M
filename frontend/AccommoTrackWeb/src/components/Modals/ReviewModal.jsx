@@ -49,11 +49,11 @@ const ReviewModal = ({ booking, onClose, onSuccess }) => {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Write a Review</h3>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+            className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -100,7 +100,7 @@ const ReviewModal = ({ booking, onClose, onSuccess }) => {
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={4}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none text-sm"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none text-sm"
                 placeholder="What did you like? What could be improved?"
               />
             </div>
@@ -110,7 +110,7 @@ const ReviewModal = ({ booking, onClose, onSuccess }) => {
             <button
               type="submit"
               disabled={submitting || rating === 0}
-              className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md ${
+              className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-md ${
                 submitting || rating === 0
                   ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-500' 
                   : 'bg-green-600 hover:bg-green-700 hover:shadow-lg active:scale-[0.98]'

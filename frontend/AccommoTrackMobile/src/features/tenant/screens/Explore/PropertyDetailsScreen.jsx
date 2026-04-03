@@ -1,0 +1,1321 @@
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  Image,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
+  RefreshControl,
+  Modal,
+  Dimensions,
+} from "react-native";
+import { WebView } from "react-native-webview";
+import { VideoView, useVideoPlayer } from "expo-video";
+import { useQuery } from "@tanstack/react-query";
+
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { getStyles } from "../../../../styles/Tenant/PropertyDetailsScreen.js";
+import PropertyService from "../../../../services/PropertyService.js";
+import ReviewService from "../../../../services/ReviewService.js";
+import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import { getImageUrl } from "../../../../utils/imageUtils.js";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import IconWithBadge from '../../../../components/IconWithBadge.jsx';
+import {
+  tenantQueryKeys,
+  useTenantFocusRefetch,
+  useTenantRefreshHandler,
+} from "../../hooks/useTenantQueryHelpers.js";
+
+const REVIEWS_PAGE_SIZE = 5;
+const DEFAULT_NOTIFICATION_COUNTS = {
+  addons: 0,
+  maintenance: 0,
+  activity: 0,
+  reviews: 0,
+};
+
+const transformPropertyDetailsPayload = (rawData) => {
+  const detailedAccommodation = {
+    ...rawData,
+    landlord_id: rawData.landlord_id,
+    user_id: rawData.user_id || rawData.landlord_id,
+    landlord_name: rawData.landlord_name,
+    owner_name: rawData.owner_name || rawData.landlord_name,
+    landlord: rawData.landlord,
+    name: rawData.title || rawData.name,
+    title: rawData.title || rawData.name,
+    type: rawData.property_type || rawData.type,
+    availableRooms: rawData.available_rooms,
+    available_rooms: rawData.available_rooms,
+    priceRange: rawData.price_range,
+    amenities: rawData.amenities || [],
+  };
+
+  const rooms = (rawData.rooms || [])
+    .map((room) => ({
+      ...room,
+      images: room.images || [],
+      monthly_rate: parseFloat(room.monthly_rate) || 0,
+      status: (room.display_status || room.status || "unknown").toString().toLowerCase(),
+    }))
+    .sort((a, b) => {
+      const aAvailable = (a.status || "unknown").toLowerCase() === "available";
+      const bAvailable = (b.status || "unknown").toLowerCase() === "available";
+      if (aAvailable && !bAvailable) return -1;
+      if (!aAvailable && bAvailable) return 1;
+      return a.monthly_rate - b.monthly_rate;
+    });
+
+  return {
+    detailedAccommodation,
+    rooms,
+  };
+};
+
+export default function PropertyDetailsScreen({ route }) {
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const [user, setUser] = useState(null);
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const {
+    accommodation,
+    propertyId,
+    isGuest = false,
+    onAuthRequired,
+    landlordPreview = false,
+  } = route.params || {};
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [videoVisible, setVideoVisible] = useState(false);
+  const [reviewPage, setReviewPage] = useState(1);
+
+  const effectiveId = accommodation?.id || propertyId;
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          setUser(JSON.parse(userString));
+        }
+      } catch (e) {}
+    };
+    loadUser();
+  }, []);
+
+  const propertyDetailsQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertyDetails(effectiveId, landlordPreview),
+    enabled: Boolean(effectiveId),
+    queryFn: async () => {
+      const result = landlordPreview
+        ? await PropertyService.getProperty(effectiveId)
+        : await PropertyService.getPublicProperty(effectiveId);
+
+      if (!result?.success || !result?.data) {
+        throw new Error(result?.error || "No rooms found for this property.");
+      }
+
+      return transformPropertyDetailsPayload(result.data);
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const propertyReviewsQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertyReviews(effectiveId),
+    enabled: Boolean(effectiveId) && !landlordPreview,
+    queryFn: async () => {
+      try {
+        const result = await ReviewService.getPropertyReviews(effectiveId);
+        if (!result?.success) {
+          return { reviews: [], summary: null };
+        }
+
+        return {
+          reviews: Array.isArray(result.data) ? result.data : [],
+          summary: result.summary || null,
+        };
+      } catch (error) {
+        console.error("Failed to load property reviews:", error);
+        return { reviews: [], summary: null };
+      }
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const propertyStatsQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertyStats(effectiveId, user?.id || null),
+    enabled: Boolean(effectiveId && user && !isGuest && !landlordPreview),
+    queryFn: async () => {
+      const result = await PropertyService.getPropertyStats(effectiveId);
+      if (!result?.success || !result?.data) {
+        return DEFAULT_NOTIFICATION_COUNTS;
+      }
+
+      return {
+        ...DEFAULT_NOTIFICATION_COUNTS,
+        ...result.data,
+      };
+    },
+    placeholderData: (previousData) => previousData || DEFAULT_NOTIFICATION_COUNTS,
+  });
+
+  const detailedAccommodation = propertyDetailsQuery.data?.detailedAccommodation || null;
+  const rooms = propertyDetailsQuery.data?.rooms || [];
+  const roomsLoading = propertyDetailsQuery.isLoading && !propertyDetailsQuery.data;
+  const publicReviews = landlordPreview
+    ? []
+    : (propertyReviewsQuery.data?.reviews || []);
+  const publicReviewSummary = landlordPreview
+    ? null
+    : (propertyReviewsQuery.data?.summary || null);
+  const reviewsLoading = !landlordPreview && propertyReviewsQuery.isLoading && !propertyReviewsQuery.data;
+  const notificationCounts = propertyStatsQuery.data || DEFAULT_NOTIFICATION_COUNTS;
+
+  const refetchPropertyDetails = propertyDetailsQuery.refetch;
+  const refetchPropertyReviews = propertyReviewsQuery.refetch;
+  const refetchPropertyStats = propertyStatsQuery.refetch;
+  const propertyDetailsRefetchers = React.useMemo(
+    () => [
+      refetchPropertyDetails,
+      !landlordPreview ? refetchPropertyReviews : null,
+      !isGuest && !landlordPreview ? refetchPropertyStats : null,
+    ],
+    [
+      refetchPropertyDetails,
+      refetchPropertyReviews,
+      refetchPropertyStats,
+      landlordPreview,
+      isGuest,
+    ],
+  );
+
+  useTenantFocusRefetch({
+    enabled: Boolean(effectiveId),
+    refetchers: propertyDetailsRefetchers,
+  });
+
+  const refreshPropertyDetails = useTenantRefreshHandler({
+    enabled: Boolean(effectiveId),
+    setRefreshing,
+    refetchers: propertyDetailsRefetchers,
+  });
+
+  useEffect(() => {
+    if (!propertyDetailsQuery.error) return;
+
+    console.error("Failed to load rooms:", propertyDetailsQuery.error);
+    Alert.alert("Error", "Unable to load rooms for this property right now.");
+  }, [propertyDetailsQuery.error]);
+
+  useEffect(() => {
+    setReviewPage(1);
+  }, [effectiveId, propertyReviewsQuery.dataUpdatedAt]);
+
+  const onRefresh = useCallback(async () => {
+    await refreshPropertyDetails();
+  }, [refreshPropertyDetails]);
+
+  const videoUrl = detailedAccommodation?.video_url || accommodation?.video_url;
+  const videoPlayer = useVideoPlayer(
+    videoUrl ? { uri: videoUrl } : null,
+    (player) => {
+      player.loop = true;
+      player.volume = 1.0;
+    },
+  );
+  useEffect(() => {
+    if (!videoPlayer) return;
+    if (videoVisible) {
+      videoPlayer.play();
+    } else {
+      videoPlayer.pause();
+    }
+  }, [videoVisible, videoPlayer]);
+
+  const filteredRooms = rooms.filter((room) => {
+    if (selectedFilter === "all") return true;
+    return room.status === selectedFilter;
+  });
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "available":
+        return theme.colors.success;
+      case "occupied":
+        return theme.colors.error;
+      case "maintenance":
+        return theme.colors.warning;
+      default:
+        return theme.colors.textTertiary;
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "available":
+        return "checkmark-circle";
+      case "occupied":
+        return "people";
+      case "maintenance":
+        return "construct";
+      default:
+        return "help-circle";
+    }
+  };
+
+  const capitalizeStatus = (status) => {
+    return (status || "").replace(/^\w/, (c) => c.toUpperCase()) || "Unknown";
+  };
+
+  const handleRoomPress = (room) => {
+    // Use detailedAccommodation first (has freshest API data), fallback to accommodation
+    const sourceProperty = detailedAccommodation || accommodation;
+
+    console.log("Source property for room press:", sourceProperty); // DEBUG
+
+    // Build comprehensive property data with ALL landlord fields
+    const propertyData = {
+      // Basic property info
+      id: sourceProperty.id,
+      name: sourceProperty.name || sourceProperty.title,
+      title: sourceProperty.title || sourceProperty.name,
+      type: sourceProperty.type || sourceProperty.property_type,
+
+      // Address fields
+      street_address: sourceProperty.street_address,
+      city: sourceProperty.city,
+      province: sourceProperty.province,
+      barangay: sourceProperty.barangay,
+      postal_code: sourceProperty.postal_code,
+
+      // Location
+      latitude: sourceProperty.latitude,
+      longitude: sourceProperty.longitude,
+
+      // ALL possible landlord field variations
+      landlord_id:
+        sourceProperty.landlord_id ||
+        sourceProperty.user_id ||
+        sourceProperty.landlord?.id,
+      user_id:
+        sourceProperty.user_id ||
+        sourceProperty.landlord_id ||
+        sourceProperty.landlord?.id,
+      landlord_name:
+        sourceProperty.landlord_name ||
+        sourceProperty.owner_name ||
+        (sourceProperty.landlord
+          ? `${sourceProperty.landlord.first_name || ""} ${sourceProperty.landlord.last_name || ""}`.trim()
+          : "Landlord"),
+      owner_name: sourceProperty.owner_name || sourceProperty.landlord_name,
+
+      // Full landlord object
+      landlord: sourceProperty.landlord || null,
+
+      // Other property data
+      description: sourceProperty.description,
+      amenities: sourceProperty.amenities,
+      property_rules:
+        sourceProperty.property_rules || sourceProperty.propertyRules,
+      nearby_landmarks: sourceProperty.nearby_landmarks,
+    };
+
+    console.log("Property data being passed to RoomDetails:", {
+      id: propertyData.id,
+      landlord_id: propertyData.landlord_id,
+      user_id: propertyData.user_id,
+      landlord_name: propertyData.landlord_name,
+      landlord: propertyData.landlord,
+    }); // DEBUG
+
+    navigation.navigate("RoomDetails", {
+      room,
+      property: propertyData,
+      hideLayout: true,
+    });
+  };
+
+  // Parse property rules (could be JSON string or array)
+  const getPropertyRules = () => {
+    const src = detailedAccommodation || accommodation;
+    if (!src) return [];
+
+    // Check both potential field names
+    const rulesSource = src.property_rules || src.propertyRules;
+    if (!rulesSource) return [];
+
+    if (Array.isArray(rulesSource)) return rulesSource;
+    try {
+      const parsed = JSON.parse(rulesSource);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Build full address
+  const getFullAddress = () => {
+    const src = detailedAccommodation || accommodation;
+    if (!src) return "Address not available";
+    const parts = [];
+    if (src.street_address) parts.push(src.street_address);
+    if (src.barangay) parts.push(src.barangay);
+    if (src.city) parts.push(src.city);
+    if (src.province) parts.push(src.province);
+    if (src.postal_code) parts.push(src.postal_code);
+
+    if (parts.length > 0) return parts.join(", ");
+    return (
+      src.address || src.location || src.full_address || "Address not available"
+    );
+  };
+
+  // Open maps app
+  const openMaps = () => {
+    const src = detailedAccommodation || accommodation;
+    const { latitude, longitude } = src || {};
+    if (!latitude || !longitude) {
+      Alert.alert(
+        "Location Not Available",
+        "Map coordinates are not set for this property.",
+      );
+      return;
+    }
+
+    const url = Platform.select({
+      ios: `maps://app?daddr=${latitude},${longitude}`,
+      android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent((src && (src.name || src.title)) || "")})`,
+    });
+
+    Linking.openURL(url).catch(() => {
+      // Fallback to web maps
+      Linking.openURL(
+        `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+      );
+    });
+  };
+
+  // Contact landlord function
+  const handleContactLandlord = async () => {
+    if (isGuest) {
+      if (onAuthRequired) onAuthRequired();
+      return;
+    }
+
+    try {
+      const src = detailedAccommodation || accommodation;
+
+      console.log("=== CONTACT LANDLORD FROM PROPERTY DEBUG ===");
+      console.log("Full property object:", JSON.stringify(src, null, 2));
+
+      const landlordId =
+        src.landlord_id || src.user_id || src.landlord?.id || src.owner?.id;
+
+      const landlordName =
+        src.landlord_name ||
+        src.owner_name ||
+        (src.landlord
+          ? `${src.landlord.first_name || ""} ${src.landlord.last_name || ""}`.trim()
+          : null) ||
+        (src.owner
+          ? `${src.owner.first_name || ""} ${src.owner.last_name || ""}`.trim()
+          : null) ||
+        "Landlord";
+
+      console.log("Extracted landlord info:", { landlordId, landlordName });
+
+      if (!landlordId) {
+        Alert.alert(
+          "Error",
+          "Landlord information not available. Please try refreshing the property details.",
+          [
+            {
+              text: "Refresh",
+              onPress: () => onRefresh(),
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ],
+        );
+        return;
+      }
+
+      console.log("Navigating to Messages with:", {
+        landlordId,
+        landlordName,
+        propertyId: src.id,
+        propertyTitle: src.name || src.title,
+      });
+
+      navigation.navigate("Messages", {
+        startConversation: true,
+        recipient: {
+          id: landlordId,
+          name: landlordName,
+        },
+        property: {
+          id: src.id,
+          title: src.name || src.title,
+        },
+      });
+    } catch (error) {
+      console.error("Error navigating to messages:", error);
+      Alert.alert(
+        "Error",
+        `Failed to open messages: ${error.message}\n\nPlease try again.`,
+      );
+    }
+  };
+
+  // Generate Leaflet HTML for WebView
+  const getLeafletHTML = () => {
+    const src = detailedAccommodation || accommodation;
+    const { latitude, longitude } = src || {};
+    const propertyName = (
+      (src && (src.name || src.title)) ||
+      "Property Location"
+    )
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "\\'")
+      .replace(/\"/g, '\\"')
+      .replace(/\n/g, " ")
+      .replace(/\r/g, "");
+
+    if (!latitude || !longitude) return null;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+                integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+                crossorigin="" />
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            html, body, #map { width: 100%; height: 100%; }
+            #map { border-radius: 12px; }
+          </style>
+        </head>
+        <body>
+          <div id="map"></div>
+          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+                  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+                  crossorigin=""></script>
+          <script>
+            var map = L.map('map').setView([${latitude}, ${longitude}], 15);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              maxZoom: 19
+            }).addTo(map);
+            
+            var greenIcon = L.icon({
+              iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+              shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+              shadowSize: [41, 41]
+            });
+            
+            var marker = L.marker([${latitude}, ${longitude}], {icon: greenIcon}).addTo(map);
+            marker.bindPopup('${propertyName}').openPopup();
+          </script>
+        </body>
+      </html>
+    `;
+  };
+
+  const active = detailedAccommodation || accommodation;
+
+  const formatReviewDate = (review) => {
+    if (review?.time_ago) return review.time_ago;
+    if (!review?.created_at) return 'Recently';
+    try {
+      return new Date(review.created_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return 'Recently';
+    }
+  };
+
+  const totalReviewPages = Math.max(
+    1,
+    Math.ceil(publicReviews.length / REVIEWS_PAGE_SIZE),
+  );
+  const currentReviewPage = Math.min(reviewPage, totalReviewPages);
+  const reviewStartIndex = (currentReviewPage - 1) * REVIEWS_PAGE_SIZE;
+  const paginatedReviews = publicReviews.slice(
+    reviewStartIndex,
+    reviewStartIndex + REVIEWS_PAGE_SIZE,
+  );
+  const reviewRangeStart = publicReviews.length === 0 ? 0 : reviewStartIndex + 1;
+  const reviewRangeEnd = Math.min(
+    reviewStartIndex + REVIEWS_PAGE_SIZE,
+    publicReviews.length,
+  );
+
+  if (!active) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: theme.colors.background,
+          }}
+        >
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text
+            style={{
+              marginTop: 8,
+              color: theme.colors.textSecondary,
+              fontSize: 16,
+            }}
+          >
+            Loading property details...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar barStyle="light-content" />
+
+      <View
+        style={{
+          height: 56,
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          backgroundColor: theme.colors.primary,
+          borderBottomWidth: 0.5,
+          borderBottomColor: "rgba(0,0,0,0.1)",
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{
+            padding: 8,
+            marginRight: 8,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={26} color="#ffffff" />
+        </TouchableOpacity>
+
+        <Text
+          style={{
+            flex: 1,
+            textAlign: "center",
+            fontSize: 18,
+            fontWeight: "700",
+            color: "#ffffff",
+            marginRight: 46, // Offset for the back button to center title
+          }}
+        >
+          Property Details
+        </Text>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
+        nestedScrollEnabled={true}
+      >
+        {/* Info Section */}
+        <View style={styles.infoSection}>
+          {/* Title and Type */}
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{active.name || active.title}</Text>
+            <View style={styles.typeBadge}>
+              <Text style={styles.typeText}>
+                {(active.type || "property")
+                  .replace(/_/g, " ")
+                  .replace(/\b\w/g, (c) => c.toUpperCase())}
+              </Text>
+            </View>
+          </View>
+
+          {/* Gender Restriction Badge */}
+          {active.gender_restriction && active.gender_restriction !== 'mixed' && (
+             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -4, marginBottom: 16, gap: 8 }}>
+                <Ionicons name={active.gender_restriction === 'male' ? 'male' : 'female'} size={14} color={theme.colors.primary} />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.primary }}>
+                   {active.gender_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
+                </Text>
+             </View>
+          )}
+
+          {/* Media Section */}
+          <View style={styles.mediaContainer}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              style={styles.imageCarousel}
+            >
+              {active &&
+              Array.isArray(active.images) &&
+              active.images.length > 0 ? (
+                active.images.map((img, idx) => (
+                  <Image
+                    key={idx}
+                    source={{
+                      uri:
+                        getImageUrl(img) ||
+                        "https://via.placeholder.com/800x400",
+                    }}
+                    style={{
+                      width: Dimensions.get("window").width - 32,
+                      height: 250,
+                      borderRadius: 12,
+                    }}
+                    resizeMode="cover"
+                  />
+                ))
+              ) : (
+                <Image
+                  source={{
+                    uri:
+                      getImageUrl(active.image) ||
+                      getImageUrl(active.cover_image) ||
+                      "https://via.placeholder.com/800x400",
+                  }}
+                  style={styles.mainImage}
+                  resizeMode="cover"
+                />
+              )}
+            </ScrollView>
+
+            {active && active.video_url && (
+              <TouchableOpacity
+                style={styles.videoOverlay}
+                onPress={() => setVideoVisible(true)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.playButtonCircle}>
+                  <Ionicons name="play" size={32} color="#FFFFFF" />
+                </View>
+                <Text style={styles.videoLabel}>Watch Video Tour</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Video Modal */}
+          <Modal
+            visible={videoVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setVideoVisible(false)}
+          >
+            <View style={styles.videoModalContainer}>
+              <TouchableOpacity
+                style={styles.closeVideo}
+                onPress={() => setVideoVisible(false)}
+              >
+                <Ionicons name="close" size={30} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <View style={styles.videoWrapper}>
+                <VideoView
+                  player={videoPlayer}
+                  nativeControls
+                  contentFit="contain"
+                  style={styles.videoPlayer}
+                />
+              </View>
+            </View>
+          </Modal>
+
+          {/* Full Address */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Address</Text>
+            <View style={styles.addressContainer}>
+              <Ionicons
+                name="location"
+                size={20}
+                color={theme.colors.primary}
+              />
+              <View style={styles.addressTextContainer}>
+                <Text
+                  style={[styles.addressText, { color: theme.colors.text }]}
+                >
+                  {getFullAddress()}
+                </Text>
+                {active && active.nearby_landmarks && (
+                  <Text style={styles.landmarksText}>
+                    <Text style={styles.landmarksLabel}>Nearby: </Text>
+                    {active.nearby_landmarks}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* Description */}
+          {active && active.description && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.description}>{active.description}</Text>
+            </View>
+          )}
+
+          {/* Features Section */}
+          <View style={styles.featuresContainer}>
+            <IconWithBadge
+              iconName="add-circle-outline"
+              label="Add-ons"
+              badgeCount={notificationCounts.addons}
+              onPress={() => navigation.navigate("Addons")}
+            />
+            <IconWithBadge
+              iconName="build-outline"
+              label="Maintenance"
+              badgeCount={notificationCounts.maintenance}
+              onPress={() => navigation.navigate("MyMaintenanceRequests")}
+            />
+            <IconWithBadge
+              iconName="list-outline"
+              label="Activity"
+              badgeCount={notificationCounts.activity}
+              onPress={() => navigation.navigate("Dashboard")}
+            />
+            <IconWithBadge
+              iconName="star-outline"
+              label="Reviews"
+              badgeCount={notificationCounts.reviews}
+              onPress={() => navigation.navigate("MyReviews")}
+            />
+          </View>
+
+          {/* Amenities */}
+          {active && active.amenities && active.amenities.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Amenities</Text>
+              {active.amenities.map((amenity, index) => (
+                <View key={index} style={styles.ruleItem}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={16}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={[styles.ruleText, { color: theme.colors.text }]}>
+                    {amenity}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Property Rules */}
+          {(() => {
+            const propertyRules = getPropertyRules();
+            if (propertyRules.length > 0) {
+              return (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Property Rules</Text>
+                  {propertyRules.map((rule, index) => (
+                    <View key={index} style={styles.ruleItem}>
+                      <Ionicons
+                        name="alert-circle-outline"
+                        size={16}
+                        color={theme.colors.warning}
+                      />
+                      <Text
+                        style={[styles.ruleText, { color: theme.colors.text }]}
+                      >
+                        {rule}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            }
+            return null;
+          })()}
+
+          {/* Map Section */}
+          {active.latitude && active.longitude && (
+            <View style={styles.section}>
+              <View style={styles.mapHeader}>
+                <Text style={styles.sectionTitle}>Location</Text>
+                <TouchableOpacity
+                  onPress={openMaps}
+                  style={styles.openMapsButton}
+                >
+                  <Ionicons
+                    name="open-outline"
+                    size={16}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.openMapsText,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
+                    Open in Maps
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.mapContainer}>
+                {getLeafletHTML() ? (
+                  <WebView
+                    originWhitelist={["*"]}
+                    source={{ html: getLeafletHTML() }}
+                    style={styles.mapWebView}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    startInLoadingState={true}
+                    scalesPageToFit={true}
+                    nestedScrollEnabled={true}
+                    renderLoading={() => (
+                      <View style={styles.mapLoadingContainer}>
+                        <ActivityIndicator
+                          size="large"
+                          color={theme.colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.mapLoadingText,
+                            { color: theme.colors.text },
+                          ]}
+                        >
+                          Loading map...
+                        </Text>
+                      </View>
+                    )}
+                  />
+                ) : (
+                  <View style={styles.mapPlaceholder}>
+                    <Ionicons name="map-outline" size={48} color="#d1d5db" />
+                    <Text style={styles.mapPlaceholderText}>
+                      Map not available
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Room Rules */}
+          {(() => {
+            const allRoomRules = new Set();
+            rooms.forEach((r) => {
+              if (Array.isArray(r.rules)) {
+                r.rules.forEach((rule) => allRoomRules.add(rule));
+              }
+            });
+            const rulesArray = Array.from(allRoomRules);
+
+            if (rulesArray.length > 0) {
+              return (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Room Rules</Text>
+                  {rulesArray.map((rule, index) => (
+                    <View key={index} style={styles.ruleItem}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={16}
+                        color={theme.colors.primary}
+                      />
+                      <Text
+                        style={[styles.ruleText, { color: theme.colors.text }]}
+                      >
+                        {rule}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            }
+            return null;
+          })()}
+
+          {/* Contact Landlord Button */}
+          <TouchableOpacity
+            style={[
+              styles.contactButton,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={handleContactLandlord}
+          >
+            <Ionicons
+              name="chatbubble-outline"
+              size={18}
+              color={theme.colors.textInverse}
+            />
+            <Text
+              style={[
+                styles.contactButtonText,
+                { color: theme.colors.textInverse },
+              ]}
+            >
+              Contact Landlord
+            </Text>
+          </TouchableOpacity>
+
+          {!isGuest && !landlordPreview && (
+            <TouchableOpacity
+              style={styles.reportButton}
+              onPress={() =>
+                navigation.navigate('ReportProperty', {
+                  propertyId: active.id,
+                  propertyTitle: active.title || active.name,
+                })
+              }
+            >
+              <Ionicons name="flag-outline" size={18} color="#B91C1C" />
+              <Text style={styles.reportButtonText}>Report Listing</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Report Maintenance removed from Property Details - only available via MyBookings */}
+
+          <View style={styles.section}>
+            <View style={styles.reviewsHeader}>
+              <Text style={styles.sectionTitle}>Guest Reviews</Text>
+              {publicReviewSummary?.average_rating ? (
+                <View style={styles.reviewsSummaryBadge}>
+                  <Ionicons name="star" size={14} color="#D97706" />
+                  <Text style={styles.reviewsSummaryText}>
+                    {publicReviewSummary.average_rating} ({publicReviewSummary.total_reviews || publicReviews.length})
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {reviewsLoading ? (
+              <View style={{ paddingVertical: 16 }}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            ) : publicReviews.length > 0 ? (
+              paginatedReviews.map((review) => {
+                const rating = Number(review.rating || 0);
+                return (
+                  <View key={review.id} style={styles.reviewCard}>
+                    <View style={styles.reviewHeader}>
+                      {review.reviewer_image ? (
+                        <Image source={{ uri: review.reviewer_image }} style={styles.reviewAvatarImage} />
+                      ) : (
+                        <View style={styles.reviewAvatar}>
+                          <Text style={styles.reviewAvatarText}>
+                            {(review.reviewer_name || 'U').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.reviewMeta}>
+                        <Text style={styles.reviewerName}>{review.reviewer_name || 'Anonymous'}</Text>
+                        <Text style={styles.reviewTime}>{formatReviewDate(review)}</Text>
+                      </View>
+                      <View style={styles.reviewStars}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Ionicons
+                            key={star}
+                            name={star <= rating ? 'star' : 'star-outline'}
+                            size={14}
+                            color="#F59E0B"
+                          />
+                        ))}
+                      </View>
+                    </View>
+
+                    {review.comment ? (
+                      <Text style={styles.reviewComment}>"{String(review.comment).trim()}"</Text>
+                    ) : null}
+
+                    {review.landlord_response ? (
+                      <View style={styles.landlordResponseBox}>
+                        <Text style={styles.landlordResponseLabel}>Landlord Response</Text>
+                        <Text style={styles.landlordResponseText}>{review.landlord_response}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={styles.reviewsEmpty}>No reviews yet for this property.</Text>
+            )}
+
+            {!reviewsLoading && publicReviews.length > REVIEWS_PAGE_SIZE && (
+              <View
+                style={{
+                  marginTop: 4,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <TouchableOpacity
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor:
+                      currentReviewPage === 1
+                        ? theme.colors.backgroundSecondary
+                        : theme.colors.surface,
+                    opacity: currentReviewPage === 1 ? 0.6 : 1,
+                  }}
+                  disabled={currentReviewPage === 1}
+                  onPress={() => setReviewPage((prev) => Math.max(1, prev - 1))}
+                >
+                  <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Previous</Text>
+                </TouchableOpacity>
+
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' }}>
+                  Showing {reviewRangeStart}-{reviewRangeEnd} of {publicReviews.length}
+                </Text>
+
+                <TouchableOpacity
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor:
+                      currentReviewPage >= totalReviewPages
+                        ? theme.colors.backgroundSecondary
+                        : theme.colors.surface,
+                    opacity: currentReviewPage >= totalReviewPages ? 0.6 : 1,
+                  }}
+                  disabled={currentReviewPage >= totalReviewPages}
+                  onPress={() =>
+                    setReviewPage((prev) => Math.min(totalReviewPages, prev + 1))
+                  }
+                >
+                  <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Next</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Embedded Room List */}
+          <View style={styles.roomsSection}>
+            <View style={styles.roomsHeader}>
+              <Text style={styles.sectionTitle}>Rooms</Text>
+              <TouchableOpacity onPress={refetchPropertyDetails}>
+                <Text style={styles.refreshText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterScroll}
+            >
+              {[
+                { key: "all", label: "All" },
+                { key: "available", label: "Available" },
+                { key: "occupied", label: "Occupied" },
+                { key: "maintenance", label: "Maintenance" },
+              ].map((filter) => (
+                <TouchableOpacity
+                  key={filter.key}
+                  style={[
+                    styles.filterChip,
+                    selectedFilter === filter.key && styles.filterChipActive,
+                  ]}
+                  onPress={() => setSelectedFilter(filter.key)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedFilter === filter.key &&
+                        styles.filterChipTextActive,
+                    ]}
+                  >
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {roomsLoading ? (
+              <View style={styles.roomsLoadingContainer}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text
+                  style={[
+                    styles.roomsLoadingText,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  Loading rooms...
+                </Text>
+              </View>
+            ) : filteredRooms.length === 0 ? (
+              <View style={styles.emptyRoomsContainer}>
+                <Ionicons
+                  name="bed-outline"
+                  size={48}
+                  color={theme.colors.textTertiary}
+                />
+                <Text
+                  style={[styles.emptyRoomsTitle, { color: theme.colors.text }]}
+                >
+                  No rooms found
+                </Text>
+                <Text
+                  style={[
+                    styles.emptyRoomsSubtitle,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  Try refreshing or adjusting your filter.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.roomsList}>
+                {filteredRooms.map((room) => {
+                  const isOccupied = room.status === "occupied";
+                  return (
+                  <TouchableOpacity
+                    key={room.id}
+                    style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
+                    onPress={() => handleRoomPress(room)}
+                  >
+                    <View style={styles.roomImageWrapper}>
+                      <Image
+                        source={{
+                          uri:
+                            getImageUrl(room.images?.[0]) ||
+                            getImageUrl(room.image) ||
+                            "https://via.placeholder.com/120x120?text=Room",
+                        }}
+                        style={styles.roomImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+
+                    <View style={styles.roomInfo}>
+                      {/* Top Row: Room Number and Price */}
+                      <View style={styles.roomHeader}>
+                        <Text style={styles.roomNumber} numberOfLines={1}>
+                          Room {room.room_number}
+                        </Text>
+                        <Text style={styles.roomPrice} numberOfLines={1}>
+                          ₱{room.monthly_rate.toLocaleString()}
+                        </Text>
+                      </View>
+
+                      {/* Second Row: Status Badge and Price Label */}
+                      <View style={styles.roomStatusRow}>
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            {
+                              backgroundColor:
+                                getStatusColor(room.status) + "20",
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name={getStatusIcon(room.status)}
+                            size={14}
+                            color={getStatusColor(room.status)}
+                          />
+                          <Text
+                            style={[
+                              styles.statusText,
+                              { color: getStatusColor(room.status) },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {capitalizeStatus(room.status)}
+                          </Text>
+                        </View>
+                        <Text style={styles.priceLabel} numberOfLines={1}>
+                          /month
+                        </Text>
+                      </View>
+
+                      {/* Third Row: Room Type and Floor */}
+                      <View style={styles.roomDetailsRow}>
+                        <View style={styles.roomDetailItem}>
+                          <Text style={styles.roomType} numberOfLines={1}>
+                            {room.type_label || room.room_type}
+                          </Text>
+                        </View>
+                        <View style={styles.roomDetailItem}>
+                          <Ionicons
+                            name="layers-outline"
+                            size={16}
+                            color="#6b7280"
+                          />
+                          <Text style={styles.roomDetailText} numberOfLines={1}>
+                            {room.floor_label || `Floor ${room.floor}`}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Fourth Row: Capacity and View Details */}
+                      <View style={styles.roomDetailsRow}>
+                        <View style={styles.roomDetailItem}>
+                          <Ionicons
+                            name="people-outline"
+                            size={16}
+                            color="#6b7280"
+                          />
+                          <Text style={styles.roomDetailText} numberOfLines={1}>
+                            Capacity: {room.capacity}
+                          </Text>
+                        </View>
+                        <View style={styles.viewDetailsButton}>
+                          <Text
+                            style={[
+                              styles.viewDetailsText,
+                              { color: theme.colors.primary },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            View Details
+                          </Text>
+                          <Ionicons
+                            name="arrow-forward"
+                            size={14}
+                            color={theme.colors.primary}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

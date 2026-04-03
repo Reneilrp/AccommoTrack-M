@@ -13,7 +13,10 @@ import {
   ArrowRight,
   X,
   ShieldAlert,
-  Clock
+  Clock,
+  Video,
+  Play,
+  Camera
 } from 'lucide-react';
 
 // Leaflet
@@ -27,19 +30,21 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import toast from 'react-hot-toast';
 
 import api from '../../utils/api';
-
-
 import { usePreferences } from '../../contexts/PreferencesContext';
 
 export default function AddProperty({ onBack, onSave }) {
   const { effectiveTheme } = usePreferences();
+  const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
   const [isVerified, setIsVerified] = useState(null); // null = loading, true/false = loaded
+  const [showSuccessModal, setShowSuccessModal] = useState({ visible: false, isDraft: false, result: null });
   const formContentRef = useRef(null);
 
   // Fix Leaflet marker icon issue
@@ -81,6 +86,7 @@ export default function AddProperty({ onBack, onSave }) {
     propertyName: '',
     propertyType: '',
     otherPropertyType: '',
+    genderRestriction: 'mixed',
     currentStatus: 'pending',
     streetAddress: '',
     city: '',
@@ -91,7 +97,9 @@ export default function AddProperty({ onBack, onSave }) {
     latitude: '',
     longitude: '',
     nearbyLandmarks: '',
-    maxTenants: '',
+    number_of_bathrooms: '',
+    floor_level: '',
+    total_floors: '',
     totalRooms: '',
     amenities: [],
     rules: [],
@@ -103,6 +111,10 @@ export default function AddProperty({ onBack, onSave }) {
     utilitiesIncluded: 'none',
     minimumLease: 'monthly',
     description: '',
+    require1MonthAdvance: false,
+    allowPartialPayments: true,
+    requireReservationFee: false,
+    reservationFeeAmount: '',
     images: []
   });
 
@@ -113,7 +125,7 @@ export default function AddProperty({ onBack, onSave }) {
       try {
         const res = await api.get('/landlord/my-verification');
         setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
-      } catch (err) {
+      } catch {
         // If 404 or error, assume not verified
         setIsVerified(false);
       }
@@ -141,7 +153,7 @@ export default function AddProperty({ onBack, onSave }) {
               barangay: data.address.suburb || data.address.neighbourhood || prev.barangay,
             }));
           }
-        } catch (err) {
+        } catch {
           // Optionally handle error
         }
       })();
@@ -149,9 +161,8 @@ export default function AddProperty({ onBack, onSave }) {
   }, [formData.latitude, formData.longitude]);
 
   const amenitiesList = [
-    'WiFi', 'Air Conditioning', 'Furnished',
-    'Parking', 'Security',
-    'Water Heater', 'Kitchen', 'Balcony'
+    'WiFi', 'Air Conditioning',
+    'Security', 'Kitchen', 'Balcony'
   ];
 
   const steps = [
@@ -162,6 +173,15 @@ export default function AddProperty({ onBack, onSave }) {
   ];
 
   const handleInputChange = (field, value) => {
+    // Clear error for this field when user starts typing/changing
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+
     setFormData(prev => {
       let updated = { ...prev, [field]: value };
       // If city is Zamboanga City, lock province and country
@@ -187,10 +207,66 @@ export default function AddProperty({ onBack, onSave }) {
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    setFormData(prev => ({
-      ...prev,
-      images: [...prev.images, ...files]
-    }));
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+
+    const validFiles = [];
+
+    files.forEach(file => {
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name}: unsupported file type`);
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error(`${file.name}: file too large (max 10 MB)`);
+        return;
+      }
+      validFiles.push(file);
+    });
+
+    if (validFiles.length > 0) {
+      // Clear images error
+      if (fieldErrors.images) {
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.images;
+          return next;
+        });
+      }
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...validFiles]
+      }));
+    }
+  };
+
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 90 * 1024 * 1024) {
+      toast.error('Video is too large. Maximum size is 90MB.');
+      return;
+    }
+
+    const videoEl = document.createElement('video');
+    videoEl.preload = 'metadata';
+    videoEl.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(videoEl.src);
+      if (videoEl.duration > 45) {
+        toast.error('Video must be 45 seconds or less.');
+        return;
+      }
+      setVideoFile(file);
+      setVideoPreview(URL.createObjectURL(file));
+    };
+    videoEl.src = URL.createObjectURL(file);
+  };
+
+  const removeVideo = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(null);
+    setVideoPreview(null);
   };
 
   const removeImage = (index) => {
@@ -209,7 +285,7 @@ export default function AddProperty({ onBack, onSave }) {
         }));
         setNewRule('');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to add rule. Please try again.');
     }
   };
@@ -220,7 +296,7 @@ export default function AddProperty({ onBack, onSave }) {
         ...prev,
         rules: Array.isArray(prev.rules) ? prev.rules.filter((_, i) => i !== index) : []
       }));
-    } catch (err) {
+    } catch {
       setError('Failed to remove rule. Please try again.');
     }
   };
@@ -234,7 +310,7 @@ export default function AddProperty({ onBack, onSave }) {
         }));
         setNewAmenity('');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to add amenity. Please try again.');
     }
   };
@@ -245,17 +321,43 @@ export default function AddProperty({ onBack, onSave }) {
         ...prev,
         amenities: Array.isArray(prev.amenities) ? prev.amenities.filter((_, i) => i !== index) : []
       }));
-    } catch (err) {
+    } catch {
       setError('Failed to remove amenity. Please try again.');
     }
   };
 
+  const validateStep = (step) => {
+    const errors = {};
+    if (step === 1) {
+      if (!formData.propertyName) errors.propertyName = 'Property name is required';
+      if (!formData.propertyType) errors.propertyType = 'Property type is required';
+      if (formData.propertyType === 'others' && !formData.otherPropertyType) errors.otherPropertyType = 'Please specify the property type';
+      if (!Array.isArray(formData.images) || formData.images.length === 0) {
+        errors.images = 'At least 1 property image is required';
+      }
+    } else if (step === 2) {
+      if (!formData.streetAddress) errors.streetAddress = 'Street address is required';
+      if (!formData.city) errors.city = 'City is required';
+      if (!formData.provinceRegion) errors.provinceRegion = 'Province is required';
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fix highlighted errors');
+      return false;
+    }
+    setError('');
+    return true;
+  };
+
   const handleNext = () => {
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
-      setTimeout(() => {
-        formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+    if (validateStep(currentStep)) {
+      if (currentStep < steps.length) {
+        setCurrentStep(currentStep + 1);
+        setTimeout(() => {
+          formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
     }
   };
 
@@ -271,10 +373,37 @@ export default function AddProperty({ onBack, onSave }) {
   // Credential handlers
   const handleCredentialUpload = (e) => {
     const files = Array.from(e.target.files);
-    setFormData(prev => ({
-      ...prev,
-      credentials: [...prev.credentials, ...files]
-    }));
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    
+    const validFiles = [];
+    let hasLargeFile = false;
+
+    files.forEach(file => {
+      if (file.size <= MAX_SIZE) {
+        validFiles.push(file);
+      } else {
+        hasLargeFile = true;
+      }
+    });
+
+    if (hasLargeFile) {
+      toast.error('Some documents were skipped because they exceed the 10MB limit.');
+    }
+
+    if (validFiles.length > 0) {
+      // Clear credentials error
+      if (fieldErrors.credentials) {
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.credentials;
+          return next;
+        });
+      }
+      setFormData(prev => ({
+        ...prev,
+        credentials: [...prev.credentials, ...validFiles]
+      }));
+    }
   };
 
   const removeCredential = (index) => {
@@ -285,10 +414,13 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const mapPropertyToBackend = (isDraft = false) => {
+    const isGenderRestricted = formData.propertyType !== 'apartment';
+
     return {
       title: formData.propertyName,
       description: formData.description || null,
       property_type: formData.propertyType === 'others' ? formData.otherPropertyType : formData.propertyType,
+      gender_restriction: isGenderRestricted ? formData.genderRestriction : 'mixed',
       // If saving as draft, mark draft; otherwise default to pending
       current_status: isDraft ? 'draft' : 'pending',
       street_address: formData.streetAddress,
@@ -300,14 +432,20 @@ export default function AddProperty({ onBack, onSave }) {
       latitude: parseFloat(formData.latitude) || null,
       longitude: parseFloat(formData.longitude) || null,
       nearby_landmarks: formData.nearbyLandmarks || null,
-      max_occupants: parseInt(formData.maxTenants) || 1,
+      number_of_bathrooms: parseInt(formData.number_of_bathrooms) || 0,
+      floor_level: formData.floor_level || null,
+      total_floors: parseInt(formData.total_floors) || null,
+      total_rooms: parseInt(formData.totalRooms) || null,
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
       is_published: false,
       is_available: false,
       // Indicate whether landlord marked property eligible for approval
       is_eligible: formData.isEligible ? '1' : '0',
       // Explicit flag to indicate draft from frontend
-      is_draft: isDraft ? '1' : '0',
+      require_1month_advance: formData.require1MonthAdvance ? '1' : '0',
+      allow_partial_payments: formData.allowPartialPayments ? '1' : '0',
+      require_reservation_fee: formData.requireReservationFee ? '1' : '0',
+      reservation_fee_amount: formData.requireReservationFee ? formData.reservationFeeAmount : 0,
     };
   };
 
@@ -320,6 +458,11 @@ export default function AddProperty({ onBack, onSave }) {
     if (!formData.streetAddress) errors.streetAddress = 'Street address is required';
     if (!formData.city) errors.city = 'City is required';
     if (!formData.provinceRegion) errors.provinceRegion = 'Province is required';
+
+    // At least 1 image required (even for drafts)
+    if (!Array.isArray(formData.images) || formData.images.length === 0) {
+      errors.images = 'At least 1 property image is required';
+    }
 
     // If property is marked eligible and we're submitting (not saving draft), credentials are required
     if (!isDraft && formData.isEligible && (!Array.isArray(formData.credentials) || formData.credentials.length === 0)) {
@@ -336,10 +479,17 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const handleSubmit = async (isDraft = false) => {
-    if (!isDraft && !validateForm(isDraft)) return;
+    if (!isDraft) {
+       // Validate all steps when submitting
+       if (!validateStep(1) || !validateStep(2)) {
+         return;
+       }
+       if (!validateForm(isDraft)) return;
+    } else {
+       setError('');
+    }
 
     setLoading(true);
-    setError('');
 
     // Use FormData (multipart/form-data)
     const payload = new FormData();
@@ -372,6 +522,11 @@ export default function AddProperty({ onBack, onSave }) {
       }
     });
 
+    // Append video tour if any
+    if (videoFile) {
+      payload.append('video', videoFile);
+    }
+
     try {
       const result = await api.post('/landlord/properties', payload, {
         headers: {
@@ -379,13 +534,19 @@ export default function AddProperty({ onBack, onSave }) {
           'Content-Type': 'multipart/form-data'
         }
       });
-      const data = result.data;
-      toast.success(isDraft ? 'Draft saved!' : 'Property submitted for admin approval!');
-      if (onSave) onSave(result, 'pending');
-      if (onBack) onBack();
-
+      toast.success(isDraft ? 'Property draft saved successfully!' : 'Property submitted for approval!');
+      setShowSuccessModal({ visible: true, isDraft, result });
     } catch (err) {
-      setError(err.message || 'Something went wrong');
+      const errData = err.response?.data;
+      if (errData?.errors) {
+        setFieldErrors(errData.errors);
+        setError('Submission failed. Please review the errors below and try again.');
+        toast.error('Please fix the validation errors.');
+      } else {
+        const errorMessage = errData?.message || err.message || 'Something went wrong';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -393,34 +554,29 @@ export default function AddProperty({ onBack, onSave }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-3 items-center">
-            <div className="flex items-center">
-              <button
-                onClick={onBack}
-                className="flex items-center gap-2 text-green-600 hover:text-green-800 dark:text-green-500 dark:hover:text-green-400"
-                aria-label="Back to Properties"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span className="sr-only">Back to Properties</span>
-              </button>
-            </div>
-
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add New Property</h1>
-            </div>
-
-            <div />
-          </div>
+      {/* Custom Header - Matches Global Header Style */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
+        {/* Left: Back button */}
+        <div className="absolute left-4 lg:left-8">
+          <button
+            onClick={onBack}
+            className="p-2 bg-white dark:bg-gray-800 text-green-600 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all flex-shrink-0"
+            title="Go Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Center: Title */}
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+          Add New Property
+        </h1>
       </header>
 
       {/* Error Message */}
       {error && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-4">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <span className="text-red-700 dark:text-red-400 text-sm">{error}</span>
@@ -435,11 +591,11 @@ export default function AddProperty({ onBack, onSave }) {
       {/* Verification Warning Banner */}
       {isVerified === false && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-3">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-4">
             <ShieldAlert className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <h4 className="text-yellow-800 dark:text-yellow-300 font-semibold">Account Verification Required</h4>
-              <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-1">
+              <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-2">
                 Your account is pending verification. You can create and save properties as drafts, 
                 but you won't be able to submit them for approval or publish until your documents are verified.
               </p>
@@ -506,6 +662,7 @@ export default function AddProperty({ onBack, onSave }) {
                     onChange={(e) => handleInputChange('propertyName', e.target.value)}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.propertyName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.propertyName && <p className="text-red-500 text-xs mt-2">{fieldErrors.propertyName[0]}</p>}
                 </div>
 
                 <div className={formData.propertyType === 'others' ? 'col-span-1' : 'col-span-2'}>
@@ -524,6 +681,7 @@ export default function AddProperty({ onBack, onSave }) {
                     <option value="bedSpacer">Bed Spacer</option>
                     <option value="others">Others</option>
                   </select>
+                  {fieldErrors.propertyType && <p className="text-red-500 text-xs mt-2">{fieldErrors.propertyType[0]}</p>}
                 </div>
 
                 {formData.propertyType === 'others' && (
@@ -538,6 +696,7 @@ export default function AddProperty({ onBack, onSave }) {
                       onChange={(e) => handleInputChange('otherPropertyType', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.otherPropertyType ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
+                    {fieldErrors.otherPropertyType && <p className="text-red-500 text-xs mt-2">{fieldErrors.otherPropertyType[0]}</p>}
                   </div>
                 )}
               </div>
@@ -554,13 +713,215 @@ export default function AddProperty({ onBack, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                 />
               </div>
+
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Property Specifications</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Bathrooms
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g., 1"
+                      value={formData.number_of_bathrooms}
+                      onChange={(e) => handleInputChange('number_of_bathrooms', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Total Rooms
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g., 10"
+                      value={formData.totalRooms}
+                      onChange={(e) => handleInputChange('totalRooms', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    {formData.propertyType !== 'apartment' && (
+                      <>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Gender Restriction <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={formData.genderRestriction}
+                          onChange={(e) => handleInputChange('genderRestriction', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                        >
+                          <option value="mixed">Mixed (Any Gender)</option>
+                          <option value="male">Boys Only</option>
+                          <option value="female">Girls Only</option>
+                        </select>
+                      </>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Total Floors
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g., 3"
+                      value={formData.total_floors}
+                      onChange={(e) => handleInputChange('total_floors', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div className="md:col-span-2"></div>
+
+                  {parseInt(formData.total_floors) > 1 && (
+                    <div className="md:col-span-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Managed Floors (Select floors you manage)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const totalFloors = parseInt(formData.total_floors);
+                            const selectedFloors = (formData.floor_level || '').split(',').filter(f => f && !isNaN(f));
+                            const allSelected = selectedFloors.length === totalFloors;
+                            handleInputChange('floor_level', allSelected ? '' : Array.from({ length: totalFloors }, (_, i) => i + 1).join(','));
+                          }}
+                          className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium transition-colors"
+                        >
+                          {((formData.floor_level || '').split(',').filter(f => f && !isNaN(f)).length === parseInt(formData.total_floors)) ? 'Unselect All' : 'Select All'}
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: parseInt(formData.total_floors) }, (_, i) => i + 1).map((floor) => (
+                          <label
+                            key={floor}
+                            className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 cursor-pointer transition-all ${
+                              (formData.floor_level || '').split(',').includes(String(floor))
+                                ? 'bg-green-500 border-green-500 text-white'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-500 hover:border-green-200'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={(formData.floor_level || '').split(',').includes(String(floor))}
+                              onChange={(e) => {
+                                const current = (formData.floor_level || '').split(',').filter(f => f && !isNaN(f));
+                                const next = e.target.checked
+                                  ? [...current, String(floor)].sort((a, b) => a - b)
+                                  : current.filter((f) => f !== String(floor));
+                                handleInputChange('floor_level', next.join(','));
+                              }}
+                            />
+                            {floor}
+                          </label>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Selected floors will be the only ones available when adding rooms.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="md:col-span-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-2">
+                    <label className="flex items-start space-x-4 cursor-pointer group mb-6">
+                      <div className="flex items-center h-5 mt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={formData.require1MonthAdvance}
+                          onChange={(e) => handleInputChange('require1MonthAdvance', e.target.checked)}
+                          className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                          Require 1-Month Advance Payment
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                          If enabled, tenants will be billed for their first month's rent plus an additional month as an advance payment upon booking confirmation. This setting will operate as the default for all rooms, but can be overridden per room.
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-start space-x-4 group ${(!user?.is_paymongo_ready) ? 'opacity-60' : 'cursor-pointer'} mt-6 mb-6`}>
+                      <div className="flex items-center h-5 mt-0.5">
+                        <input
+                          type="checkbox"
+                          disabled={!user?.is_paymongo_ready}
+                          checked={formData.requireReservationFee}
+                          onChange={(e) => handleInputChange('requireReservationFee', e.target.checked)}
+                          className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="flex flex-col w-full">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors">
+                          Require Instant Reservation Fee
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                          If enabled, tenants must pay a non-refundable reservation fee immediately to secure their booking request.
+                          {!user?.is_paymongo_ready && (
+                            <span className="text-red-500 block mt-2">You must complete PayMongo onboarding to enable instant payments.</span>
+                          )}
+                        </span>
+                        {formData.requireReservationFee && (
+                          <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Reservation Fee Amount (₱)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={formData.reservationFeeAmount}
+                              onChange={(e) => handleInputChange('reservationFeeAmount', e.target.value)}
+                              className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white transition-all duration-200 shadow-sm"
+                              placeholder="e.g. 500"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </label>
+
+                    <label className="flex items-start space-x-4 cursor-pointer group">
+                      <div className="flex items-center h-5 mt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={formData.allowPartialPayments}
+                          onChange={(e) => handleInputChange('allowPartialPayments', e.target.checked)}
+                          className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                          Allow Partial Payments
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                          If enabled, tenants can pay their invoice balance in smaller increments. If disabled, they will be required to pay the full remaining invoice balance in a single transaction.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Property Images */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Images</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white shrink-0">Property Images</h2>
+                {fieldErrors.images && (
+                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                    {fieldErrors.images[0]}
+                  </p>
+                )}
+              </div>
 
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 hover:border-green-500 dark:hover:border-green-500 transition-colors group">
                 <input
                   type="file"
                   multiple
@@ -571,16 +932,18 @@ export default function AddProperty({ onBack, onSave }) {
                 />
                 
                 {formData.images.length === 0 ? (
-                  <label htmlFor="image-upload" className="cursor-pointer block text-center">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
-                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                  <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center justify-center">
+                    <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-green-500 transition-colors">
+                      <Camera className="w-10 h-10" />
+                      <span className="text-sm font-medium">Click to upload or drag and drop</span>
+                      <span className="text-xs">PNG, JPG up to 10MB</span>
+                    </div>
                   </label>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-4 gap-4">
                       {formData.images.map((img, index) => (
-                        <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                        <div key={index} className="relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group">
                           <img
                             src={typeof img === 'string' ? img : URL.createObjectURL(img)}
                             alt={`Property ${index + 1}`}
@@ -588,21 +951,73 @@ export default function AddProperty({ onBack, onSave }) {
                           />
                           <button
                             onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
                       ))}
                       {formData.images.length < 10 && (
-                        <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
-                          <Plus className="w-8 h-8 text-gray-400" />
+                        <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
+                          <Plus className="w-8 h-8 text-gray-500" />
                         </label>
                       )}
                     </div>
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Property Video Tour */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <div className="mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Video className="w-5 h-5 text-green-600" />
+                  Property Video Tour
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Upload a short video tour of your property. Max <strong>45 seconds</strong> and <strong>90MB</strong>.
+                </p>
+              </div>
+
+              {!videoPreview ? (
+                <label
+                  htmlFor="video-upload"
+                  className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-green-500 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50 transition-colors group"
+                >
+                  <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-green-500 transition-colors">
+                    <Play className="w-10 h-10" />
+                    <span className="text-sm font-medium">Click to upload video</span>
+                    <span className="text-xs">MP4, MOV, AVI (max 90MB, 45s)</span>
+                  </div>
+                  <input
+                    id="video-upload"
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleVideoUpload}
+                  />
+                </label>
+              ) : (
+                <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-black">
+                  <video
+                    src={videoPreview}
+                    className="w-full max-h-64 object-contain"
+                    controls
+                  />
+                  <button
+                    type="button"
+                    onClick={removeVideo}
+                    className="absolute top-2 right-2 p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-2 rounded font-bold flex items-center gap-2">
+                    <Video className="w-3 h-3" /> VIDEO TOUR
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -611,16 +1026,16 @@ export default function AddProperty({ onBack, onSave }) {
         {currentStep === 2 && (
           <div className="space-y-6">
             {/* Map Section */}
-            <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
               <div className="flex items-start gap-2 mb-4">
                 <MapPin className="w-5 h-5 text-red-500 mt-0.5" />
                 <div>
-                  <h3 className="font-semibold text-gray-900">Set Property Coordinates</h3>
-                  <p className="text-sm text-gray-600">Drag or click on the map below to set the exact location of your property</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Set Property Coordinates</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Drag or click on the map below to set the exact location of your property</p>
                 </div>
               </div>
 
-              <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center mb-4" style={{ position: 'relative', height: '300px' }}>
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg h-64 flex items-center justify-center mb-4" style={{ position: 'relative', height: '300px' }}>
                 <MapContainer
                   center={[
                     formData.latitude ? parseFloat(formData.latitude) : 6.912559646590693,
@@ -632,7 +1047,7 @@ export default function AddProperty({ onBack, onSave }) {
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url={tileUrl}
                   />
                   <DraggableMarker
                     position={[
@@ -653,30 +1068,30 @@ export default function AddProperty({ onBack, onSave }) {
 
               {/* <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Latitude</label>
                   <input
                     type="text"
                     value={formData.latitude}
                     onChange={(e) => handleInputChange('latitude', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-white"
                     placeholder="e.g., 6.9147"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Longitude</label>
                   <input
                     type="text"
                     value={formData.longitude}
                     onChange={(e) => handleInputChange('longitude', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-white"
                     placeholder="e.g., 122.0781"
                   />
                 </div>
               </div> */}
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <h2 className="text-xl font-semibold text-gray-900 mb-1 shrink-0">Location Details</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 shrink-0">Location Details</h2>
                 {Object.keys(fieldErrors).some(k => ['streetAddress', 'city', 'provinceRegion', 'postalCode', 'barangay'].includes(k)) && (
                   <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
                     {['streetAddress', 'city', 'provinceRegion', 'postalCode', 'barangay'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
@@ -685,7 +1100,7 @@ export default function AddProperty({ onBack, onSave }) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Street Address <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -693,11 +1108,12 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., 123 Main Street"
                     value={formData.streetAddress}
                     onChange={(e) => handleInputChange('streetAddress', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.streetAddress ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.streetAddress ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.streetAddress && <p className="text-red-500 text-xs mt-2">{fieldErrors.streetAddress[0]}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Barangay
                   </label>
                   <input
@@ -705,14 +1121,15 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Barangay 123"
                     value={formData.barangay}
                     onChange={(e) => handleInputChange('barangay', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.barangay ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.barangay ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.barangay && <p className="text-red-500 text-xs mt-2">{fieldErrors.barangay[0]}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     City <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -720,12 +1137,13 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Manila"
                     value={formData.city}
                     onChange={(e) => handleInputChange('city', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.city ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.city && <p className="text-red-500 text-xs mt-2">{fieldErrors.city[0]}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Province/Region <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -733,15 +1151,16 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Metro Manila"
                     value={formData.provinceRegion}
                     onChange={(e) => handleInputChange('provinceRegion', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.provinceRegion ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.provinceRegion ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
                   />
+                  {fieldErrors.provinceRegion && <p className="text-red-500 text-xs mt-2">{fieldErrors.provinceRegion[0]}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Postal Code
                   </label>
                   <input
@@ -749,12 +1168,12 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., 1000"
                     value={formData.postalCode}
                     onChange={(e) => handleInputChange('postalCode', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Country
                   </label>
                   <input
@@ -762,21 +1181,21 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Philippines"
                     value={formData.country}
                     onChange={(e) => handleInputChange('country', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                     readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nearby Landmarks</label>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nearby Landmarks</label>
               <textarea
                 placeholder="e.g., Near SM Mall, 5 minutes from LRT Station"
                 value={formData.nearbyLandmarks}
                 onChange={(e) => handleInputChange('nearbyLandmarks', e.target.value)}
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
@@ -791,7 +1210,7 @@ export default function AddProperty({ onBack, onSave }) {
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Add Amenity</label>
-                <div className="flex gap-3">
+                <div className="flex gap-4">
                   <input
                     type="text"
                     placeholder="e.g., Water Heater"
@@ -818,13 +1237,13 @@ export default function AddProperty({ onBack, onSave }) {
               </div>
 
               <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Common Amenities:</p>
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Common Amenities:</p>
+                <div className="grid grid-cols-3 gap-4 mb-4">
                   {amenitiesList.map((amenity) => (
                     <button
                       key={amenity}
                       onClick={() => toggleAmenity(amenity)}
-                      className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${formData.amenities.includes(amenity)
+                      className={`px-4 py-4 rounded-lg border-2 text-left transition-all ${formData.amenities.includes(amenity)
                         ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                         : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
@@ -838,12 +1257,12 @@ export default function AddProperty({ onBack, onSave }) {
               {/* Current selected amenities (added + selected) */}
               {Array.isArray(formData.amenities) && formData.amenities.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Your Amenities:</p>
-                  <div className="grid grid-cols-3 gap-3">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Your Amenities:</p>
+                  <div className="grid grid-cols-3 gap-4">
                     {formData.amenities.map((amenity, index) => (
                       <div
                         key={index}
-                        className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
+                        className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
                       >
                         <div className="flex-shrink-0 mt-0.5">
                           <CheckCircle className="w-5 h-5 text-green-600" />
@@ -865,7 +1284,7 @@ export default function AddProperty({ onBack, onSave }) {
             {/* Property Rules */}
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">Property Rules</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Property Rules</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Add house rules and policies for your property</p>
               </div>
 
@@ -873,7 +1292,7 @@ export default function AddProperty({ onBack, onSave }) {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Add Rule
               </label>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <input
                   type="text"
                   placeholder="e.g., No smoking inside the premises"
@@ -901,8 +1320,8 @@ export default function AddProperty({ onBack, onSave }) {
 
             {/* Common Rules Suggestions */}
             <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Common Rules:</p>
-              <div className="grid grid-cols-3 gap-3">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Common Rules:</p>
+              <div className="grid grid-cols-3 gap-4">
                 {[
                   'No smoking',
                   'No pets allowed',
@@ -926,7 +1345,7 @@ export default function AddProperty({ onBack, onSave }) {
                         };
                       });
                     }}
-                    className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${formData.rules.includes(suggestion)
+                    className={`px-4 py-4 rounded-lg border-2 text-left transition-all ${formData.rules.includes(suggestion)
                       ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                       : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
@@ -940,12 +1359,12 @@ export default function AddProperty({ onBack, onSave }) {
             {/* Rules List */}
             {Array.isArray(formData.rules) && formData.rules.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Your Property Rules:</p>
-                <div className="grid grid-cols-3 gap-3">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Your Property Rules:</p>
+                <div className="grid grid-cols-3 gap-4">
                   {formData.rules.map((rule, index) => (
                     <div
                       key={index}
-                      className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
+                      className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
                     >
                       <div className="flex-shrink-0 mt-0.5">
                         <CheckCircle className="w-5 h-5 text-green-600" />
@@ -965,9 +1384,9 @@ export default function AddProperty({ onBack, onSave }) {
 
             {(!Array.isArray(formData.rules) || formData.rules.length === 0) && (
               <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-                <FileText className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                <FileText className="w-12 h-12 text-gray-500 dark:text-gray-500 mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400 text-sm">No rules added yet</p>
-                <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">Add rules to help tenants understand your property policies</p>
+                <p className="text-gray-500 dark:text-gray-500 text-xs mt-2">Add rules to help tenants understand your property policies</p>
               </div>
             )}
             </div>
@@ -988,7 +1407,7 @@ export default function AddProperty({ onBack, onSave }) {
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">If your property is eligible for direct admin approval, upload supporting documents (e.g., proof of ownership, permits).</p>
 
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-4 mb-4">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -1012,16 +1431,16 @@ export default function AddProperty({ onBack, onSave }) {
 
                 {formData.credentials.length === 0 ? (
                   <label htmlFor="credential-upload" className="cursor-pointer block text-center">
-                    <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-1">Click to upload credential documents</p>
+                    <Upload className="w-12 h-12 text-gray-500 dark:text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 mb-2">Click to upload credential documents</p>
                     <p className="text-sm text-gray-500 dark:text-gray-500">PDF, PNG, JPG</p>
                   </label>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
                       {formData.credentials.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                          <div className="flex items-center gap-3">
+                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center gap-4">
                             <FileText className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                             <p className="text-sm text-gray-700 dark:text-gray-300">{file.name}</p>
                           </div>
@@ -1046,8 +1465,8 @@ export default function AddProperty({ onBack, onSave }) {
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1 || loading}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${currentStep === 1 || loading
-              ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+            className={`flex items-center gap-2 px-6 py-4 rounded-lg font-medium transition-colors ${currentStep === 1 || loading
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-600 cursor-not-allowed'
               : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
           >
@@ -1055,13 +1474,13 @@ export default function AddProperty({ onBack, onSave }) {
             Previous
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {currentStep === steps.length ? (
               <>
                   <button
                     onClick={() => handleSubmit(true)}
                     disabled={loading}
-                    className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Saving...' : 'Save as Draft'}
                   </button>
@@ -1069,7 +1488,7 @@ export default function AddProperty({ onBack, onSave }) {
                   <button
                     onClick={() => handleSubmit(false)}
                     disabled={loading}
-                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <>
@@ -1094,7 +1513,7 @@ export default function AddProperty({ onBack, onSave }) {
               <button
                 onClick={handleNext}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
               >
                 Next
                 <ArrowRight className="w-5 h-5" />
@@ -1103,6 +1522,40 @@ export default function AddProperty({ onBack, onSave }) {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal.visible && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              {showSuccessModal.isDraft ? (
+                <FileText className="w-8 h-8 text-green-600 dark:text-green-400" />
+              ) : (
+                <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+              )}
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              {showSuccessModal.isDraft ? "Draft Saved!" : "Success!"}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6 font-medium">
+              {showSuccessModal.isDraft
+                ? "Your property draft has been saved successfully. You can complete it later."
+                : "Your property has been submitted and is now pending. Please wait 1-2 days for admin approval for eligibility."}
+            </p>
+            <button
+              onClick={() => {
+                const { result, isDraft } = showSuccessModal;
+                setShowSuccessModal({ visible: false, isDraft: false, result: null });
+                if (onSave) onSave(result, isDraft ? 'draft' : 'pending');
+                if (onBack) onBack();
+              }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-4 px-4 rounded-lg transition-colors"
+            >
+              Go to My Properties
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

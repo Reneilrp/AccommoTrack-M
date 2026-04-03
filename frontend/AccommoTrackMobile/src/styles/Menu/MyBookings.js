@@ -9,7 +9,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: theme.colors.primary,
   },
@@ -21,13 +21,13 @@ export const getStyles = (theme) => StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 24,
   },
   bookingCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 24,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -58,8 +58,8 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 12,
   },
   statusText: {
@@ -69,19 +69,19 @@ export const getStyles = (theme) => StyleSheet.create({
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   locationText: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginLeft: 4,
+    marginLeft: 8,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingVertical: 12,
+    marginBottom: 16,
+    paddingVertical: 16,
     paddingHorizontal: 0,
     backgroundColor: 'transparent',
     borderRadius: 0,
@@ -105,7 +105,7 @@ export const getStyles = (theme) => StyleSheet.create({
   dateLabel: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   dateValue: {
     fontSize: 14,
@@ -116,7 +116,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
@@ -150,7 +150,7 @@ export const getStyles = (theme) => StyleSheet.create({
   exploreButton: {
     backgroundColor: theme.colors.primary,
     paddingHorizontal: 32,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
   },
   exploreButtonText: {
@@ -194,8 +194,8 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -209,7 +209,7 @@ export const getStyles = (theme) => StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -246,7 +246,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   financialSummaryRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   summaryCard: {
     flex: 1,
@@ -267,7 +267,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   summaryValue: {
     fontSize: 18,
@@ -297,7 +297,7 @@ export const getStyles = (theme) => StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: 'transparent',
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -344,7 +344,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -354,7 +354,7 @@ export const getStyles = (theme) => StyleSheet.create({
   addonInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
     flex: 1,
   },
   addonIconContainer: {
@@ -391,7 +391,362 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-  }
+  },
+  tabIcon: {
+    marginRight: 0,
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  stayCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 24,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  stayContent: {
+    padding: 16,
+  },
+  stayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  stayTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: theme.colors.text,
+    letterSpacing: -0.5,
+  },
+  stayAddress: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  stayBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  stayBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.primary,
+    textTransform: 'uppercase',
+  },
+  stayMeta: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  stayMetaItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  stayMetaLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textTertiary,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  stayMetaValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  staySection: {
+    marginBottom: 24,
+  },
+  staySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  staySectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  historyCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+    flex: 1,
+  },
+  historyStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  historyDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  historyDetailItem: {
+    flex: 1,
+  },
+  historyDetailLabel: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    marginBottom: 2,
+  },
+  historyDetailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  historyFooter: {
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stayHeaderCard: {
+    marginBottom: 16, 
+    backgroundColor: '#FFFBEB', 
+    borderColor: '#FEF3C7'
+  },
+  stayHeaderInner: {
+    borderBottomColor: '#FEF3C7'
+  },
+  stayHeaderLabel: {
+    color: '#92400E'
+  },
+  stayHeaderValue: {
+    color: '#92400E', 
+    fontSize: 14, 
+    fontWeight: '500'
+  },
+  stayHeaderBtn: {
+    marginTop: 16, 
+    backgroundColor: '#D97706'
+  },
+  stayHeaderBtnText: {
+    color: '#fff', 
+    fontWeight: 'bold', 
+    fontSize: 12
+  },
+  avatarSmall: {
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    alignItems: 'center', 
+    justifyContent: 'center'
+  },
+  avatarSmallText: {
+    fontWeight: 'bold', 
+    fontSize: 18
+  },
+  managerName: {
+    fontWeight: 'bold',
+  },
+  managerEmail: {
+    fontSize: 12,
+  },
+  financialsNotice: {
+    marginBottom: 16, 
+    backgroundColor: '#EFF6FF', 
+    borderColor: '#DBEAFE'
+  },
+  financialsNoticeHeader: {
+    borderBottomColor: '#DBEAFE'
+  },
+  financialsNoticeTitle: {
+    color: '#1E40AF'
+  },
+  financialsNoticeText: {
+    color: '#1E40AF', 
+    fontSize: 14
+  },
+  invoiceDueDateCell: {
+    flex: 1.5
+  },
+  invoiceAmountCell: {
+    flex: 2
+  },
+  invoiceStatusCell: {
+    flex: 1.5
+  },
+  emptyHistoryCard: {
+    backgroundColor: theme.colors.surface, 
+    borderRadius: 16, 
+    padding: 32
+  },
+  emptyHistoryIcon: {
+    alignSelf: 'center'
+  },
+  emptyHistoryTitle: {
+    textAlign: 'center'
+  },
+  emptyHistoryText: {
+    textAlign: 'center'
+  },
+  historyItemCard: {
+    backgroundColor: theme.colors.surface
+  },
+  historyItemImage: {
+    width: 80, 
+    height: 80, 
+    borderRadius: 8
+  },
+  historyItemContent: {
+    flex: 1, 
+    justifyContent: 'center'
+  },
+  historyItemName: {
+    fontSize: 16, 
+  },
+  historyItemDate: {
+    fontSize: 12, 
+    marginTop: 8
+  },
+  historyItemBadge: {
+    alignSelf: 'flex-start', 
+    marginTop: 8
+  },
+  historyItemRight: {
+    justifyContent: 'center', 
+    alignItems: 'flex-end'
+  },
+  // Sliding Toggle Styles
+  sliderContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6',
+    borderRadius: 14,
+    padding: 8,
+    marginBottom: 24,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  sliderIndicator: {
+    position: 'absolute',
+    top: 8,
+    bottom: 8,
+    left: 8,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sliderTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  sliderTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  // Property Selector Styles
+  selectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 24,
+  },
+  selectorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectorIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectorLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  selectorSublabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.textTertiary,
+    textTransform: 'uppercase',
+  },
+  selectorDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  selectorValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  // Warning Banner
+  warningBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 24,
+    gap: 16,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#581C87',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#7E22CE',
+    marginTop: 2,
+    lineHeight: 18,
+  },
 });
 
 export default getStyles;

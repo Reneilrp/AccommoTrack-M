@@ -1,6 +1,5 @@
-import React, { useRef } from 'react';
-import { Phone, MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X } from 'lucide-react';
-import { getImageUrl } from '../../../utils/api';
+import React, { useMemo, useRef, useState } from 'react';
+import { MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X } from 'lucide-react';
 
 const ChatArea = ({
   selectedChat,
@@ -21,12 +20,87 @@ const ChatArea = ({
   removeSelectedImage
 }) => {
   const fileInputRef = useRef(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const otherUser = selectedChat?.other_user || null;
+  const isLandlordView = normalizedRole === 'landlord' || normalizedRole === 'caretaker';
+  const isTenantConversation = otherUser?.role === 'tenant';
+
+  const mediaItems = useMemo(() => {
+    if (!Array.isArray(messages)) return [];
+
+    const seen = new Set();
+
+    return messages
+      .filter((msg) => {
+        const imageUrl = msg?.image_url;
+        if (!imageUrl || seen.has(imageUrl)) return false;
+        seen.add(imageUrl);
+        return true;
+      })
+      .map((msg) => ({
+        id: msg.id,
+        image_url: msg.image_url,
+        created_at: msg.created_at,
+        sender_role: msg.sender_role,
+      }));
+  }, [messages]);
+
+  const getAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+
+    const dob = new Date(dateOfBirth);
+    if (Number.isNaN(dob.getTime())) return null;
+
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const monthDelta = now.getMonth() - dob.getMonth();
+
+    if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < dob.getDate())) {
+      age -= 1;
+    }
+
+    return age >= 0 ? age : null;
+  };
+
+  const formatPreferences = (preferences) => {
+    if (!preferences) return [];
+    if (Array.isArray(preferences)) {
+      return preferences
+        .filter(Boolean)
+        .map((value) => String(value).trim())
+        .filter(Boolean);
+    }
+
+    if (typeof preferences === 'string') {
+      return preferences
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+    }
+
+    if (typeof preferences === 'object') {
+      return Object.entries(preferences)
+        .filter(([, value]) => value !== null && value !== undefined && value !== false && value !== '')
+        .map(([key, value]) => {
+          if (value === true) return key;
+          if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
+          return `${key}: ${String(value)}`;
+        });
+    }
+
+    return [];
+  };
+
+  const userPreferences = formatPreferences(otherUser?.preferences);
+  const userAge = getAge(otherUser?.date_of_birth);
+
   if (!selectedChat) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center p-8">
           <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-300 dark:border-gray-700 shadow-md">
-            <MessageCircle className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+            <MessageCircle className="w-10 h-10 text-gray-500 dark:text-gray-500" />
           </div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">No conversation selected</h3>
           <p className="text-gray-500 dark:text-gray-400 max-w-xs mx-auto font-medium">Choose a conversation from the list to start messaging</p>
@@ -36,10 +110,10 @@ const ChatArea = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
+    <div className="relative flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
       {/* Chat Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-4 flex items-center justify-between z-10 shadow-sm">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
             <span className="text-green-600 dark:text-green-400 font-semibold">
               {getInitials(selectedChat.other_user)}
@@ -55,10 +129,12 @@ const ChatArea = ({
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
-            <Phone className="w-5 h-5" />
-          </button>
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+          <button
+            onClick={() => setIsDetailsOpen((prev) => !prev)}
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
+            aria-label="Open chat details"
+            title="Open chat details"
+          >
             <MoreVertical className="w-5 h-5" />
           </button>
         </div>
@@ -73,39 +149,13 @@ const ChatArea = ({
           </div>
         ) : (
           messages.map((msg, idx) => {
-            const getSenderId = (m) => {
-              if (!m) return null;
-              return (
-                m.sender_id || m.senderId || m.user_id || m.userId || m.from_id ||
-                (m.sender && (m.sender.id || m.sender.user_id)) ||
-                (m.user && (m.user.id || m.user_id)) ||
-                null
-              );
-            };
-
-            const senderId = getSenderId(msg);
-            const actualSenderId = msg.actual_sender_id || msg.actual_sender?.id;
-            
-            const isCurrentUserCaretaker = normalizedRole === 'caretaker';
-            const senderRole = msg.sender?.role;
-            const isFromLandlordSide = senderRole === 'landlord' || msg.sender_role === 'caretaker' || msg.sender_role === 'landlord';
-            
-            const isMine = isCurrentUserCaretaker
-              ? isFromLandlordSide  
-              : String(senderId) === String(currentUserId);  
-            
+            // Using standardized fields from MessageResource
+            const isMine = msg.is_mine;
+            const actualSenderId = msg.actual_sender_id;
             const isCaretakerMessage = msg.sender_role === 'caretaker';
             const isSentByCurrentCaretaker = isCaretakerMessage && actualSenderId && String(actualSenderId) === String(currentUserId);
             
-            const getTimestamp = (m) => {
-              if (!m) return null;
-              return (
-                m.created_at || m.createdAt || m.sent_at || m.sentAt || m.timestamp || m.time || m.date || m.updated_at || m.updatedAt || null
-              );
-            };
-
-            let ts = getTimestamp(msg);
-            if (!ts) ts = msg.last_message_at || msg.lastMessageAt || new Date().toISOString();
+            const ts = msg.created_at || new Date().toISOString();
 
             return (
               <div
@@ -114,7 +164,7 @@ const ChatArea = ({
               >
                 <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-xs lg:max-w-md`}> 
                   {isCaretakerMessage && msg.actual_sender && (
-                    <p className="text-[10px] mb-1 text-gray-500 dark:text-gray-400 font-medium">
+                    <p className="text-[10px] mb-2 text-gray-500 dark:text-gray-400 font-medium">
                       {isSentByCurrentCaretaker
                         ? 'You (Caretaker)'
                         : `via ${msg.actual_sender.first_name} ${msg.actual_sender.last_name} (Caretaker)`
@@ -131,16 +181,16 @@ const ChatArea = ({
                     {msg.image_url && (
                       <div className="mb-2 max-w-full">
                         <img 
-                          src={getImageUrl(msg.image_url)} 
+                          src={msg.image_url} 
                           alt="Attachment" 
                           className="rounded-lg max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => window.open(getImageUrl(msg.image_url), '_blank')}
+                          onClick={() => window.open(msg.image_url, '_blank')}
                         />
                       </div>
                     )}
                     {msg.message && <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>}
                   </div>
-                  <p className="text-[10px] mt-1 text-gray-400 dark:text-gray-500 px-1">
+                  <p className="text-[10px] mt-2 text-gray-500 dark:text-gray-500 px-2">
                     {formatTime(ts)}
                   </p>
                 </div>
@@ -154,7 +204,7 @@ const ChatArea = ({
       {/* Message Input Area */}
       <div className="bg-white dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 p-4">
         {caretakerMessagingRestricted && (
-          <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex gap-2 text-amber-800 dark:text-amber-400 text-xs">
+          <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex gap-2 text-amber-800 dark:text-amber-400 text-xs">
             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <p>Actions disabled because you are viewing as a caretaker.</p>
           </div>
@@ -162,12 +212,12 @@ const ChatArea = ({
 
         {/* Image Preview */}
         {imagePreview && (
-          <div className="mb-3 relative inline-block">
+          <div className="mb-4 relative inline-block">
             <div className="relative rounded-xl overflow-hidden border-2 border-green-500 shadow-lg animate-in zoom-in duration-200">
               <img src={imagePreview} alt="Preview" className="h-32 w-auto object-cover" />
               <button 
                 onClick={removeSelectedImage}
-                className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full backdrop-blur-sm transition-colors"
+                className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-2.5 rounded-full backdrop-blur-sm transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -185,7 +235,7 @@ const ChatArea = ({
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0" 
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0" 
             disabled={!canSendMessages}
             title="Attach photo"
           >
@@ -220,6 +270,128 @@ const ChatArea = ({
           </button>
         </div>
       </div>
+
+      {isDetailsOpen && (
+        <button
+          type="button"
+          onClick={() => setIsDetailsOpen(false)}
+          className="absolute inset-0 z-20 bg-black/30 backdrop-blur-[1px] lg:hidden"
+          aria-label="Close details panel"
+        />
+      )}
+
+      <aside
+        className={`absolute top-0 right-0 z-30 h-full w-full sm:w-[360px] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-2xl transition-transform duration-300 ${
+          isDetailsOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">Chat Details</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Personal details and shared media</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsDetailsOpen(false)}
+              className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label="Close details panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+              <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 dark:text-gray-400 mb-3">Personal Details</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-gray-500 dark:text-gray-400">Name</span>
+                  <span className="text-right font-semibold text-gray-900 dark:text-white">
+                    {otherUser?.first_name || otherUser?.last_name
+                      ? `${otherUser?.first_name || ''} ${otherUser?.last_name || ''}`.trim()
+                      : 'Unavailable'}
+                  </span>
+                </div>
+
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-gray-500 dark:text-gray-400">Gender</span>
+                  <span className="text-right font-semibold text-gray-900 dark:text-white capitalize">
+                    {otherUser?.gender || otherUser?.identified_as || 'Not provided'}
+                  </span>
+                </div>
+
+                {selectedChat?.property && (
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-gray-500 dark:text-gray-400">Property</span>
+                    <span className="text-right font-semibold text-gray-900 dark:text-white">
+                      {selectedChat.property.title}
+                    </span>
+                  </div>
+                )}
+
+                {isLandlordView && isTenantConversation && (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">Age</span>
+                      <span className="text-right font-semibold text-gray-900 dark:text-white">
+                        {userAge !== null ? `${userAge} years old` : 'Not provided'}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mb-2">Preferences</p>
+                      {userPreferences.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">No preferences shared yet.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {userPreferences.map((pref) => (
+                            <span
+                              key={pref}
+                              className="px-2.5 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold"
+                            >
+                              {pref}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 dark:text-gray-400">Media</p>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{mediaItems.length} photo{mediaItems.length === 1 ? '' : 's'}</span>
+              </div>
+
+              {mediaItems.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No photos shared in this conversation yet.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {mediaItems.map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => window.open(item.image_url, '_blank', 'noopener,noreferrer')}
+                      className="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+                      title={item.created_at ? `Sent ${formatTime(item.created_at)}` : 'Open image'}
+                    >
+                      <img
+                        src={item.image_url}
+                        alt="Shared media"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 };

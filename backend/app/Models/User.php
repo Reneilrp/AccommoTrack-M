@@ -42,6 +42,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \App\Models\TenantProfile|null $tenantProfile
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Sanctum\PersonalAccessToken> $tokens
  * @property-read int|null $tokens_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User landlords()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
@@ -62,6 +63,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRole($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class User extends Authenticatable
@@ -75,18 +77,28 @@ class User extends Authenticatable
         'first_name',
         'middle_name',
         'last_name',
+        'gender',
+        'identified_as',
         'phone',
+        'date_of_birth',
         'profile_image',
         'is_verified',
         'is_active',
         'payment_methods_settings',
         'notification_preferences',
+        'preferences',
         'is_blocked',
+        'paymongo_child_id',
+        'paymongo_verification_status',
+        'email_otp_code',
+        'email_otp_expires_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'email_otp_code',
+        'email_otp_expires_at',
     ];
 
     protected $casts = [
@@ -94,11 +106,14 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'payment_methods_settings' => 'array',
         'notification_preferences' => 'array',
+        'preferences' => 'array',
         'is_blocked' => 'boolean',
+        'date_of_birth' => 'date',
     ];
 
     protected $appends = [
         'caretaker_permissions',
+        'name',
     ];
 
     /**
@@ -124,8 +139,8 @@ class User extends Authenticatable
     public function roomAssignments()
     {
         return $this->belongsToMany(Room::class, 'room_tenant_assignments', 'tenant_id', 'room_id')
-                    ->withPivot('start_date', 'end_date', 'status', 'monthly_rent')
-                    ->wherePivot('status', 'active');
+            ->withPivot('start_date', 'end_date', 'status', 'monthly_rent')
+            ->wherePivot('status', 'active');
     }
 
     /**
@@ -153,11 +168,45 @@ class User extends Authenticatable
     }
 
     /**
+     * Legal consent records accepted by this user.
+     */
+    public function legalConsents()
+    {
+        return $this->hasMany(UserLegalConsent::class, 'user_id');
+    }
+
+    /**
      * Bookings made by tenant
      */
     public function bookings()
     {
         return $this->hasMany(Booking::class, 'tenant_id');
+    }
+
+    /**
+     * Eviction records where this user is the tenant.
+     */
+    public function tenantEvictions()
+    {
+        return $this->hasMany(TenantEviction::class, 'tenant_id');
+    }
+
+    /**
+     * Latest scheduled eviction for this tenant.
+     */
+    public function scheduledEviction()
+    {
+        return $this->hasOne(TenantEviction::class, 'tenant_id')
+            ->where('status', 'scheduled')
+            ->latestOfMany('scheduled_for');
+    }
+
+    /**
+     * Latest eviction record regardless of status.
+     */
+    public function latestEvictionRecord()
+    {
+        return $this->hasOne(TenantEviction::class, 'tenant_id')->latestOfMany();
     }
 
     /**
@@ -231,7 +280,15 @@ class User extends Authenticatable
      */
     public function getFullNameAttribute()
     {
-        return trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
+        return trim($this->first_name.' '.$this->middle_name.' '.$this->last_name);
+    }
+
+    /**
+     * Get name attribute as alias for full_name
+     */
+    public function getNameAttribute()
+    {
+        return $this->full_name;
     }
 
     /**
@@ -252,7 +309,7 @@ class User extends Authenticatable
 
     public function getCaretakerPermissionsAttribute(): array
     {
-        if (!$this->isCaretaker()) {
+        if (! $this->isCaretaker()) {
             return [
                 'bookings' => true,
                 'messages' => true,
@@ -263,7 +320,7 @@ class User extends Authenticatable
         }
 
         // Load the assignment if not already loaded
-        if (!$this->relationLoaded('caretakerAssignment')) {
+        if (! $this->relationLoaded('caretakerAssignment')) {
             $this->load('caretakerAssignment');
         }
 

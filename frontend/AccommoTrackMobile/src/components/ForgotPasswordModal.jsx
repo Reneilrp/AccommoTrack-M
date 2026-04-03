@@ -10,12 +10,12 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  SafeAreaView
+  ScrollView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE_URL as API_URL } from '../config';
-import { useTheme } from '../contexts/ThemeContext';
+import { API_BASE_URL as API_URL } from '../config/index.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const ForgotPasswordModal = ({ visible, onClose }) => {
   const { theme, isDarkMode } = useTheme();
@@ -33,7 +33,8 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
   const codeInputs = useRef([]);
 
   const handleSendCode = async () => {
-    if (!email) {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
       Alert.alert('Error', 'Please enter your email address.');
       return;
     }
@@ -43,13 +44,14 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       const response = await fetch(`${API_URL}/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: normalizedEmail })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'Reset code sent to your email.');
+        setEmail(normalizedEmail);
+        Alert.alert('Success', data.message || 'If your email is registered, a reset code has been sent.');
         setStep(2);
       } else {
         Alert.alert('Error', data.message || 'Failed to send reset code.');
@@ -162,7 +164,12 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
           style={styles.container}
         >
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.backButton}>
+            <TouchableOpacity 
+              onPress={handleClose} 
+              style={styles.backButton}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+            >
               <Ionicons name="arrow-back" size={28} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Reset Password</Text>
@@ -201,7 +208,13 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                   />
                 </View>
 
-                <TouchableOpacity style={styles.primaryButton} onPress={handleSendCode} disabled={loading}>
+                <TouchableOpacity 
+                  style={styles.primaryButton} 
+                  onPress={handleSendCode} 
+                  disabled={loading}
+                  accessibilityLabel="Send Reset Code"
+                  accessibilityRole="button"
+                >
                   {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Send Reset Code</Text>}
                 </TouchableOpacity>
               </View>
@@ -233,11 +246,22 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                   ))}
                 </View>
 
-                <TouchableOpacity style={styles.primaryButton} onPress={handleVerifyCode} disabled={loading}>
+                <TouchableOpacity 
+                  style={styles.primaryButton} 
+                  onPress={handleVerifyCode} 
+                  disabled={loading}
+                  accessibilityLabel="Verify Code"
+                  accessibilityRole="button"
+                >
                   {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Verify Code</Text>}
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setStep(1)} disabled={loading}>
+                <TouchableOpacity 
+                  onPress={() => setStep(1)} 
+                  disabled={loading}
+                  accessibilityLabel="Change Email"
+                  accessibilityRole="button"
+                >
                   <Text style={styles.linkText}>Change Email</Text>
                 </TouchableOpacity>
               </View>
@@ -264,7 +288,11 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                     secureTextEntry={!showPassword}
                     editable={!loading}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <TouchableOpacity 
+                    onPress={() => setShowPassword(!showPassword)}
+                    accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                    accessibilityRole="button"
+                  >
                     <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
@@ -280,12 +308,22 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                     secureTextEntry={!showConfirmPassword}
                     editable={!loading}
                   />
-                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <TouchableOpacity 
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    accessibilityRole="button"
+                  >
                     <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.primaryButton} onPress={handleResetPassword} disabled={loading}>
+                <TouchableOpacity 
+                  style={styles.primaryButton} 
+                  onPress={handleResetPassword} 
+                  disabled={loading}
+                  accessibilityLabel="Reset Password"
+                  accessibilityRole="button"
+                >
                   {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Reset Password</Text>}
                 </TouchableOpacity>
               </View>
@@ -304,7 +342,7 @@ const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -313,7 +351,7 @@ const getStyles = (theme) => StyleSheet.create({
   backButton: { padding: 5 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text },
   scrollContent: { padding: 25, alignItems: 'center' },
-  stepContainer: { flexDirection: 'row', gap: 8, marginBottom: 30 },
+  stepContainer: { flexDirection: 'row', gap: 8, marginBottom: 32 },
   stepDot: { width: 30, height: 4, borderRadius: 2, backgroundColor: theme.colors.border },
   stepDotActive: { backgroundColor: theme.colors.primary },
   content: { width: '100%', alignItems: 'center' },
@@ -324,10 +362,10 @@ const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20
+    marginBottom: 24
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 10 },
-  description: { fontSize: 15, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 30, lineHeight: 22 },
+  title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 },
+  description: { fontSize: 15, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 32, lineHeight: 22 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -337,10 +375,10 @@ const getStyles = (theme) => StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     height: 55,
-    marginBottom: 20,
+    marginBottom: 24,
     width: '100%'
   },
-  inputIcon: { marginRight: 10 },
+  inputIcon: { marginRight: 8 },
   input: { flex: 1, fontSize: 16, color: theme.colors.text },
   primaryButton: {
     backgroundColor: theme.colors.primary,
@@ -349,7 +387,7 @@ const getStyles = (theme) => StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
     shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -357,7 +395,7 @@ const getStyles = (theme) => StyleSheet.create({
     elevation: 3
   },
   buttonText: { color: theme.colors.textInverse, fontWeight: 'bold', fontSize: 16 },
-  otpContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 30 },
+  otpContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 32 },
   otpInput: {
     width: 45,
     height: 55,
@@ -370,7 +408,7 @@ const getStyles = (theme) => StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.text
   },
-  linkText: { color: theme.colors.textTertiary, marginTop: 20, fontWeight: '600' }
+  linkText: { color: theme.colors.textTertiary, marginTop: 24, fontWeight: '600' }
 });
 
 export default ForgotPasswordModal;

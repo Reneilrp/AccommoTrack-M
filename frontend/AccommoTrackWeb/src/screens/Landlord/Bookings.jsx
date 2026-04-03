@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw, CalendarDays, Calculator } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
-import api from '../../utils/api';
+import bookingService from '../../services/bookingService';
 import { SkeletonStatCard, SkeletonTableRow } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
+import { LANDLORD_MUTATION_FRESHNESS, refreshAfterMutation } from '../../utils/mutationFreshness';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
-  const { uiState, updateData } = useUIState();
+  const location = useLocation();
+  const { uiState, updateData, invalidateData } = useUIState();
   const cachedData = uiState.data?.landlord_bookings;
 
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -20,13 +23,58 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const [bookings, setBookings] = useState(cachedData?.bookings || []);
   const [stats, setStats] = useState(cachedData?.stats || { total: 0, confirmed: 0, pending: 0, completed: 0 });
   const [loading, setLoading] = useState(!cachedData);
-  const [error, setError] = useState('');
+  const [__error, setError] = useState('');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [cancellationData, setCancellationData] = useState({ reason: '', refundAmount: 0, shouldRefund: false });
   const [showAddBookingModal, setShowAddBookingModal] = useState(false);
+  const [extensionRequests, setExtensionRequests] = useState([]);
+  const [loadingExtensions, setLoadingExtensions] = useState(false);
+  const [transferRequests, setTransferRequests] = useState([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(false);
+  const [drilldownApplied, setDrilldownApplied] = useState(false);
+  const [depositSettlementHistory, setDepositSettlementHistory] = useState([]);
+  const [loadingDepositSettlementHistory, setLoadingDepositSettlementHistory] = useState(false);
+  const [submittingDepositSettlement, setSubmittingDepositSettlement] = useState(false);
+  const [depositSettlementForm, setDepositSettlementForm] = useState({
+    damageFee: '',
+    cleaningFee: '',
+    otherFee: '',
+    markRefunded: false,
+    refundMethod: '',
+    refundReference: '',
+    note: ''
+  });
+
+  const resetDepositSettlementState = () => {
+    setDepositSettlementHistory([]);
+    setLoadingDepositSettlementHistory(false);
+    setSubmittingDepositSettlement(false);
+    setDepositSettlementForm({
+      damageFee: '',
+      cleaningFee: '',
+      otherFee: '',
+      markRefunded: false,
+      refundMethod: '',
+      refundReference: '',
+      note: ''
+    });
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedBooking(null);
+    resetDepositSettlementState();
+  };
+
+  const refreshLandlordMutationViews = () => {
+    refreshAfterMutation({
+      invalidateData,
+      ...LANDLORD_MUTATION_FRESHNESS,
+    });
+  };
 
   const readOnlyGuard = () => {
     if (canManageBookings) return false;
@@ -34,25 +82,92 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     return true;
   };
 
-  const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  const formatDateTime = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const calculateDays = (checkIn, checkOut) => Math.ceil(Math.abs(new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Open-ended';
+
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const canShowDepositSettlement = (booking) => {
+    const status = String(booking?.status || '').toLowerCase();
+    return ['confirmed', 'partial-completed', 'partial_completed', 'completed', 'cancelled'].includes(status);
+  };
+
+  const handleRefresh = async () => {
+    await Promise.all([
+      fetchBookings(),
+      fetchStats(),
+      fetchExtensions(),
+      fetchTransfers()
+    ]);
+  };
 
   useEffect(() => {
     fetchBookings();
     fetchStats();
+    fetchExtensions();
+    fetchTransfers();
 
     const handleOpenAdd = () => setShowAddBookingModal(true);
     window.addEventListener('open-add-booking', handleOpenAdd);
     return () => window.removeEventListener('open-add-booking', handleOpenAdd);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const nextStatus = params.get('status');
+    const nextSearch = params.get('search');
+
+    if (nextStatus) {
+      setFilterStatus(nextStatus);
+    }
+
+    if (nextSearch !== null) {
+      setSearchQuery(nextSearch);
+    }
+
+    setDrilldownApplied(false);
+  }, [location.search]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const bookingId = params.get('bookingId');
+
+    if (!bookingId || drilldownApplied || bookings.length === 0) {
+      return;
+    }
+
+    const targetBooking = bookings.find((booking) => String(booking.id) === String(bookingId));
+    if (!targetBooking) {
+      return;
+    }
+
+    setDrilldownApplied(true);
+    handleOpenDetailModal(targetBooking);
+  }, [location.search, bookings, drilldownApplied]);
+
   const fetchBookings = async () => {
     try {
       if (!cachedData) setLoading(true);
-      const response = await api.get('/bookings');
-      setBookings(response.data);
-      updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, bookings: response.data });
+      const response = await bookingService.getBookings();
+      if (response.success) {
+        const list = Array.isArray(response.data)
+          ? response.data
+          : (Array.isArray(response.data?.data) ? response.data.data : []);
+        setBookings(list);
+        updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, bookings: list });
+        setError(null);
+      } else if (response.status === 404 || response.status === 204) {
+        setBookings([]);
+        setError(null);
+      } else {
+        setBookings([]);
+        setError(response.error || 'Failed to fetch bookings');
+      }
     } catch (err) {
       if (err.response?.status === 404 || err.response?.status === 204) setBookings([]);
       else setError(err.response?.data?.message || 'Failed to fetch bookings');
@@ -61,46 +176,189 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get('/bookings/stats');
-      setStats(response.data);
-      updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, stats: response.data });
+      const response = await bookingService.getStats();
+      if (response.success) {
+        const data = response.data || { total: 0, confirmed: 0, pending: 0, completed: 0 };
+        setStats(data);
+        updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, stats: data });
+      }
     } catch (err) { console.error('Error fetching stats:', err); }
+  };
+
+  const fetchExtensions = async () => {
+    try {
+      setLoadingExtensions(true);
+      const response = await bookingService.getExtensions();
+      if (response.success) {
+        const list = Array.isArray(response.data)
+          ? response.data
+          : (Array.isArray(response.data?.data) ? response.data.data : []);
+        setExtensionRequests(list);
+      } else {
+        setExtensionRequests([]);
+      }
+    } catch (err) {
+      console.error('Error fetching extensions:', err);
+    } finally {
+      setLoadingExtensions(false);
+    }
+  };
+
+  const fetchTransfers = async () => {
+    try {
+      setLoadingTransfers(true);
+      const response = await bookingService.getTransfers();
+      if (response.success) {
+        const list = Array.isArray(response.data)
+          ? response.data
+          : (Array.isArray(response.data?.data) ? response.data.data : []);
+        setTransferRequests(list);
+      } else {
+        setTransferRequests([]);
+      }
+    } catch (err) {
+      console.error('Error fetching transfers:', err);
+    } finally {
+      setLoadingTransfers(false);
+    }
+  };
+
+  const handleHandleExtension = async (id, action, modifyData = null) => {
+    if (readOnlyGuard()) return;
+    const toastId = toast.loading(`${action === 'modify' ? 'Modifying' : 'Updating'} request...`);
+    try {
+      const response = await bookingService.handleExtension(id, action, modifyData || {});
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to handle request');
+      }
+      toast.success(`Request ${action === 'modify' ? 'modified' : action} successfully!`, { id: toastId });
+      refreshLandlordMutationViews();
+      fetchExtensions();
+      fetchBookings(); // Refresh bookings to reflect new dates
+    } catch (err) {
+      console.error('Error handling extension:', err);
+      toast.error(err.response?.data?.message || 'Failed to handle request', { id: toastId });
+    }
+  };
+
+  const handleHandleTransfer = async (id, action, transferData = null) => {
+    if (readOnlyGuard()) return;
+    const toastId = toast.loading(`${action === 'approve' ? 'Approving' : 'Rejecting'} transfer...`);
+    try {
+      const response = await bookingService.handleTransfer(id, action, transferData || {});
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to handle transfer');
+      }
+      toast.success(`Transfer ${action}d successfully!`, { id: toastId });
+      refreshLandlordMutationViews();
+      fetchTransfers();
+      fetchBookings(); // Refresh bookings to reflect new room
+    } catch (err) {
+      console.error('Error handling transfer:', err);
+      toast.error(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        'Failed to handle transfer',
+        { id: toastId }
+      );
+    }
   };
 
   const handleUpdateStatus = async (bookingId, newStatus, cancellationReason = null, refundData = null) => {
     if (readOnlyGuard()) return;
+
+    const activeBooking = selectedBooking?.id === bookingId
+      ? selectedBooking
+      : bookings.find((booking) => booking.id === bookingId);
+
+    if (newStatus === 'completed' && Number(activeBooking?.deposit_balance || 0) > 0) {
+      toast.error(`Settle the deposit balance (₱${Number(activeBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+      return;
+    }
+
     const toastId = toast.loading(`${newStatus === 'cancelled' ? 'Cancelling' : 'Updating'} booking...`);
     setProcessing(true);
     try {
-      const response = await api.patch(`/bookings/${bookingId}/status`, {
-        status: newStatus,
+      const response = await bookingService.updateStatus(bookingId, newStatus, {
         cancellation_reason: cancellationReason,
         refund_amount: refundData?.refundAmount || 0,
-        should_refund: refundData?.shouldRefund || false
+        should_refund: refundData?.shouldRefund || false,
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update booking status');
+      }
 
+      refreshLandlordMutationViews();
       await fetchBookings();
       await fetchStats();
-      setShowDetailModal(false);
+      closeDetailModal();
       setShowCancelModal(false);
 
       toast.success(`Booking ${newStatus} successfully!`, { id: toastId });
     } catch (err) {
       console.error('Error updating status:', err);
-      toast.error('Failed to update booking status', { id: toastId });
+      toast.error(err.message || err.response?.data?.message || 'Failed to update booking status', { id: toastId });
     } finally {
       setProcessing(false);
     }
   };
 
+  const handleApproveReservation = async (bookingId) => {
+    if (readOnlyGuard()) return;
+    const toastId = toast.loading('Approving reservation...');
+    setProcessing(true);
+    try {
+      const response = await bookingService.approveReservation(bookingId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to approve reservation');
+      }
+      refreshLandlordMutationViews();
+      toast.success('Reservation approved!', { id: toastId });
+      await fetchBookings();
+      await fetchStats();
+      closeDetailModal();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to approve reservation', { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCheckInTenant = async (bookingId) => {
+    if (readOnlyGuard()) return;
+    const toastId = toast.loading('Checking in tenant...');
+    setProcessing(true);
+    try {
+      const response = await bookingService.checkIn(bookingId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to check in tenant');
+      }
+      refreshLandlordMutationViews();
+      toast.success('Tenant checked in successfully!', { id: toastId });
+      await fetchBookings();
+      await fetchStats();
+      closeDetailModal();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to check in tenant', { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+
   const handleUpdatePayment = async (bookingId, paymentStatus) => {
     if (readOnlyGuard()) return;
     try {
-      const response = await api.patch(`/bookings/${bookingId}/payment`, {
+      const response = await bookingService.recordPayment(bookingId, {
         payment_status: paymentStatus
       });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update payment status');
+      }
       
-      const result = response.data;
+      const result = response.data || {};
+
+      refreshLandlordMutationViews();
 
       // Refresh bookings list
       await fetchBookings();
@@ -115,14 +373,41 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       }
 
       // Show appropriate message
-      if (result.status_upgraded) {
+      if (result.completion_blocked) {
+        toast.success(result.message || 'Payment updated, but deposit must be settled before completion.');
+      } else if (result.status_upgraded) {
         toast.success('Payment updated! Booking automatically upgraded to Completed.');
       } else {
-        toast.success('Payment status updated!');
+        toast.success(result.message || 'Payment status updated!');
       }
     } catch (err) {
       console.error('Error updating payment:', err);
-      toast.error('Failed to update payment status');
+      toast.error(err.message || err.response?.data?.message || 'Failed to update payment status');
+    }
+  };
+
+  const handleFinalizeCheckout = async (bookingId, payload = {}) => {
+    if (readOnlyGuard()) return;
+
+    const toastId = toast.loading('Finalizing checkout...');
+    setProcessing(true);
+    try {
+      const response = await bookingService.finalizeCheckout(bookingId, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to finalize checkout');
+      }
+
+      refreshLandlordMutationViews();
+      await fetchBookings();
+      await fetchStats();
+      closeDetailModal();
+
+      toast.success(response.message || 'Checkout finalized successfully.', { id: toastId });
+    } catch (err) {
+      console.error('Error finalizing checkout:', err);
+      toast.error(err.message || err.response?.data?.message || 'Failed to finalize checkout', { id: toastId });
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -135,6 +420,130 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       shouldRefund: false
     });
     setShowCancelModal(true);
+  };
+
+  const fetchDepositSettlementHistory = async (bookingId, showError = true) => {
+    try {
+      setLoadingDepositSettlementHistory(true);
+      const response = await bookingService.getDepositSettlements(bookingId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch deposit settlement history');
+      }
+      const payload = response.data || {};
+      const settlements = Array.isArray(payload.settlements) ? payload.settlements : [];
+      const latestBalance = Number(payload.deposit_balance || 0);
+
+      setDepositSettlementHistory(settlements);
+      setSelectedBooking((prev) => (
+        prev && prev.id === bookingId
+          ? { ...prev, deposit_balance: latestBalance }
+          : prev
+      ));
+      setBookings((prev) => prev.map((booking) => (
+        booking.id === bookingId
+          ? { ...booking, deposit_balance: latestBalance }
+          : booking
+      )));
+    } catch (err) {
+      if (showError) {
+        toast.error(err.message || err.response?.data?.message || 'Failed to fetch deposit settlement history');
+      }
+    } finally {
+      setLoadingDepositSettlementHistory(false);
+    }
+  };
+
+  const handleOpenDetailModal = async (booking) => {
+    setSelectedBooking(booking);
+    setShowDetailModal(true);
+    resetDepositSettlementState();
+    if (canShowDepositSettlement(booking)) {
+      await fetchDepositSettlementHistory(booking.id, false);
+    }
+  };
+
+  const handleDepositSettlementInput = (field, value) => {
+    setDepositSettlementForm((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSettleDeposit = async () => {
+    if (readOnlyGuard()) return;
+    if (!selectedBooking) return;
+
+    const damageFee = Number.parseFloat(depositSettlementForm.damageFee) || 0;
+    const cleaningFee = Number.parseFloat(depositSettlementForm.cleaningFee) || 0;
+    const otherFee = Number.parseFloat(depositSettlementForm.otherFee) || 0;
+    const markRefunded = Boolean(depositSettlementForm.markRefunded);
+    const totalDeductions = damageFee + cleaningFee + otherFee;
+
+    if (totalDeductions <= 0 && !markRefunded) {
+      toast.error('Add a deduction or mark the remaining balance as refunded.');
+      return;
+    }
+
+    if (markRefunded && !depositSettlementForm.refundMethod.trim()) {
+      toast.error('Refund method is required when marking as refunded.');
+      return;
+    }
+
+    try {
+      setSubmittingDepositSettlement(true);
+      const response = await bookingService.createDepositSettlement(selectedBooking.id, {
+        damage_fee: damageFee,
+        cleaning_fee: cleaningFee,
+        other_fee: otherFee,
+        mark_refunded: markRefunded,
+        refund_method: markRefunded ? depositSettlementForm.refundMethod.trim() : null,
+        refund_reference: markRefunded && depositSettlementForm.refundReference.trim()
+          ? depositSettlementForm.refundReference.trim()
+          : null,
+        note: depositSettlementForm.note.trim() || null
+      });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to settle deposit');
+      }
+
+      const payload = response.data || {};
+      const updatedBalance = Number(payload.deposit_balance || 0);
+      const latestSettlement = payload.settlement || null;
+
+      setSelectedBooking((prev) => (
+        prev && prev.id === selectedBooking.id
+          ? { ...prev, deposit_balance: updatedBalance }
+          : prev
+      ));
+      setBookings((prev) => prev.map((booking) => (
+        booking.id === selectedBooking.id
+          ? { ...booking, deposit_balance: updatedBalance }
+          : booking
+      )));
+
+      if (latestSettlement) {
+        setDepositSettlementHistory((prev) => [latestSettlement, ...prev]);
+      } else {
+        await fetchDepositSettlementHistory(selectedBooking.id, false);
+      }
+
+      setDepositSettlementForm({
+        damageFee: '',
+        cleaningFee: '',
+        otherFee: '',
+        markRefunded: false,
+        refundMethod: '',
+        refundReference: '',
+        note: ''
+      });
+
+      refreshLandlordMutationViews();
+      toast.success('Deposit settlement recorded successfully.');
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to settle deposit.');
+    } finally {
+      setSubmittingDepositSettlement(false);
+    }
   };
 
   const handleCancelConfirm = () => {
@@ -174,6 +583,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     switch (s) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'pending_reservation': return 'bg-orange-100 text-orange-800';
+      case 'reserved': return 'bg-teal-100 text-teal-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -190,8 +601,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   return (
-    <>
-      <div className="space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
         {isCaretaker && !canManageBookings && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             You are viewing bookings as a caretaker. Management actions are disabled.
@@ -201,28 +612,61 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         <AddBookingModal
           isOpen={showAddBookingModal}
           onClose={() => setShowAddBookingModal(false)}
-          onBookingAdded={() => { setShowAddBookingModal(false); fetchBookings(); fetchStats(); }}
+          onBookingAdded={() => {
+            setShowAddBookingModal(false);
+            refreshLandlordMutationViews();
+            fetchBookings();
+            fetchStats();
+          }}
         />
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {loading ? [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />) : (
             <>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Bookings</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Bookings</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{stats.total}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-gray-50 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Confirmed</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Confirmed</p>
+                    <p className="text-2xl font-bold text-green-600 mt-2">{stats.confirmed}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600 mt-2">{stats.pending}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Completed</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Completed</p>
+                    <p className="text-2xl font-bold text-blue-600 mt-2">{stats.completed}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                    <Check className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -231,7 +675,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         {/* Search & Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700 flex flex-col lg:flex-row gap-4 lg:items-center">
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+            {filterStatus !== 'extensions' && filterStatus !== 'transfers' && (
+            <>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-500" />
             <input
               type="text"
               value={searchQuery}
@@ -239,24 +685,54 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               placeholder="Search by name, room, property..."
               className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white outline-none text-sm"
             />
+            </>
+            )}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
-            {['all', 'confirmed', 'pending', 'completed', 'cancelled'].map((s) => (
+            {['all', 'confirmed', 'pending_reservation', 'reserved', 'pending', 'completed', 'cancelled', 'extensions', 'transfers'].map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 className={`flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${filterStatus === s ? 'bg-green-600 text-white shadow-md shadow-green-500/20' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === 'extensions' ? 'Extensions' : s === 'transfers' ? 'Transfers' : s === 'pending_reservation' ? 'Pending Res.' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                title="Refresh"
+                className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+              </button>
+            </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+        {/* Table / Extensions List */}
+        {filterStatus === 'extensions' ? (
+          <ExtensionRequestsList 
+            requests={extensionRequests} 
+            loading={loadingExtensions}
+            onHandle={handleHandleExtension}
+          />
+        ) : filterStatus === 'transfers' ? (
+          <TransferRequestsList 
+            requests={transferRequests}
+            loading={loadingTransfers}
+            onHandle={handleHandleTransfer}
+          />
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left">
               <thead className="bg-gray-50 dark:bg-gray-700 text-xs font-bold uppercase text-gray-500 dark:text-gray-400 tracking-wider">
                 <tr>
                   <th className="px-6 py-4">Guest</th>
@@ -294,10 +770,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           <PriceRow amount={b.amount} />
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${getStatusColor(b.status)}`}>{b.status}</span>
+                          <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${getStatusColor(b.status)}`}>{b.status}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <button onClick={() => { setSelectedBooking(b); setShowDetailModal(true); }} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-1 transition-colors">
+                          <button onClick={() => handleOpenDetailModal(b)} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-2 transition-colors">
                             <Eye className="w-3.5 h-3.5" /> View
                           </button>
                         </td>
@@ -309,6 +785,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             </table>
           </div>
         </div>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -317,43 +794,70 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 z-10">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Booking Details</h2>
-              <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                <X className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+              <button onClick={closeDetailModal} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-500" />
               </button>
             </div>
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-1">Check-In</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-2">Check-In</p>
                   <p className="font-bold text-lg text-gray-900 dark:text-white">{formatDate(selectedBooking.checkIn)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold text-right tracking-wider mb-1">Check-Out</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold text-right tracking-wider mb-2">Check-Out</p>
                   <p className="font-bold text-lg text-right text-gray-900 dark:text-white">{formatDate(selectedBooking.checkOut)}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Guest Name</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Guest Name</p>
                   <p className="font-semibold text-gray-900 dark:text-white text-lg">{selectedBooking.guestName}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Contact Information</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Contact Information</p>
                   <p className="font-semibold text-gray-900 dark:text-white">{selectedBooking.phone || selectedBooking.email}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Property</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Property</p>
                   <p className="font-semibold text-gray-900 dark:text-white">{selectedBooking.propertyTitle}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Room Details</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Room Details</p>
                   <p className="font-semibold text-gray-900 dark:text-white">Room {selectedBooking.roomNumber} ({selectedBooking.roomType})</p>
                 </div>
               </div>
 
+              {(selectedBooking.receipt_image_path || selectedBooking.reference_number || selectedBooking.move_in_date) && (
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Reservation Details</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {selectedBooking.move_in_date && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Expected Move-in Date</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{formatDate(selectedBooking.move_in_date)}</p>
+                      </div>
+                    )}
+                    {selectedBooking.reference_number && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Ref Number</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{selectedBooking.reference_number}</p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedBooking.receipt_image_path && (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Receipt</p>
+                      <img src={selectedBooking.receipt_image_path} alt="Receipt" className="max-h-64 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(selectedBooking.receipt_image_path, '_blank')} />
+                      <p className="text-xs text-gray-500 mt-1">Click image to enlarge</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Amount</p>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Amount</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">₱{selectedBooking.amount.toLocaleString()}</p>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getPaymentColor(selectedBooking.paymentStatus)}`}>
@@ -362,7 +866,162 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+              {canShowDepositSettlement(selectedBooking) ? (
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Deposit Settlement</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Current Balance: <span className="font-bold text-gray-900 dark:text-white">₱{Number(selectedBooking.deposit_balance || 0).toLocaleString()}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {canManageBookings ? (
+                    <div className="space-y-4 rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-gray-50/70 dark:bg-gray-700/30">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Damage Fee</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={depositSettlementForm.damageFee}
+                            onChange={(e) => handleDepositSettlementInput('damageFee', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Cleaning Fee</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={depositSettlementForm.cleaningFee}
+                            onChange={(e) => handleDepositSettlementInput('cleaningFee', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Other Fee</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={depositSettlementForm.otherFee}
+                            onChange={(e) => handleDepositSettlementInput('otherFee', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+
+                      <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-200">
+                        <input
+                          type="checkbox"
+                          checked={depositSettlementForm.markRefunded}
+                          onChange={(e) => handleDepositSettlementInput('markRefunded', e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                        Mark remaining balance as refunded
+                      </label>
+
+                      {depositSettlementForm.markRefunded && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Refund Method</label>
+                            <input
+                              type="text"
+                              value={depositSettlementForm.refundMethod}
+                              onChange={(e) => handleDepositSettlementInput('refundMethod', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                              placeholder="Cash, GCash, Bank Transfer"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Refund Reference</label>
+                            <input
+                              type="text"
+                              value={depositSettlementForm.refundReference}
+                              onChange={(e) => handleDepositSettlementInput('refundReference', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white"
+                              placeholder="Optional reference ID"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Notes</label>
+                        <textarea
+                          value={depositSettlementForm.note}
+                          onChange={(e) => handleDepositSettlementInput('note', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white resize-none"
+                          placeholder="Optional summary (damages, refund reason, etc.)"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleSettleDeposit}
+                        disabled={submittingDepositSettlement}
+                        className="w-full md:w-auto px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {submittingDepositSettlement && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Record Deposit Settlement
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                      Settlement actions are disabled in caretaker view.
+                    </p>
+                  )}
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Settlement History</p>
+                    {loadingDepositSettlementHistory ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading settlement history...
+                      </div>
+                    ) : depositSettlementHistory.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No settlement records yet.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {depositSettlementHistory.map((entry) => (
+                          <div key={entry.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="font-semibold text-gray-900 dark:text-white">
+                                Deductions ₱{Number(entry.total_deductions || 0).toLocaleString()} • Balance ₱{Number(entry.ending_balance || 0).toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(entry.created_at)}</p>
+                            </div>
+                            {entry.mark_refunded ? (
+                              <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
+                                Refunded via {entry.refund_method || 'N/A'}{entry.refund_reference ? ` • Ref ${entry.refund_reference}` : ''}
+                              </p>
+                            ) : null}
+                            {entry.note ? <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{entry.note}</p> : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
+                  <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+                    <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-2">Deposit Settlement</p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      Deposit settlement is available after the booking is confirmed.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                 {canManageBookings ? (
                   <>
                     {(() => {
@@ -381,14 +1040,14 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         } else if (paymentStatus === 'paid' || paymentStatus === 'partial') {
                           return (
                             <div className="w-full">
-                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-3">
+                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
                                 <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
                                   <strong>Note:</strong> This booking is cancelled but payment hasn't been refunded yet.
                                 </p>
                               </div>
                               <button
                                 onClick={() => handleUpdatePayment(selectedBooking.id, 'refunded')}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-purple-500/20 active:scale-[0.98]"
+                                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-purple-500/20 active:scale-[0.98]"
                               >
                                 <CheckCircle className="w-5 h-5" />
                                 Mark as Refunded
@@ -408,14 +1067,14 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                       if (status === 'completed') {
                         return (
                           <div className="w-full">
-                            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 mb-3">
+                            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 mb-4">
                               <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">
                                 <strong>Completed:</strong> This booking is completed. You can still cancel and process refund if needed.
                               </p>
                             </div>
                             <button
                               onClick={() => handleOpenCancelModal(selectedBooking)}
-                              className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              className="w-full flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                             >
                               <XCircle className="w-5 h-5" />
                               Cancel & Refund
@@ -424,20 +1083,53 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         );
                       }
 
+                      // Partial Completed - allow transitioning to fully completed
+                      if (status === 'partial-completed') {
+                        return (
+                          <div className="w-full">
+                            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
+                              <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
+                                <strong>Partial Complete:</strong> This booking has been partially paid. Mark as completed once the full payment is received.
+                              </p>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                if (window.confirm('Mark this booking as fully completed and paid?')) {
+                                  if (Number(selectedBooking.deposit_balance || 0) > 0) {
+                                    toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+                                    return;
+                                  }
+
+                                  // Fix #1: await payment update FIRST to avoid race condition
+                                  if (paymentStatus !== 'paid') {
+                                    await handleUpdatePayment(selectedBooking.id, 'paid');
+                                  }
+                                  handleUpdateStatus(selectedBooking.id, 'completed');
+                                }
+                              }}
+                              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                            >
+                              <CheckCircle className="w-5 h-5" />
+                              Mark Fully Paid & Completed
+                            </button>
+                          </div>
+                        );
+                      }
+
                       // Pending status - can confirm or cancel
                       if (status === 'pending') {
                         return (
-                          <div className="flex gap-3 w-full">
+                          <div className="flex gap-4 w-full">
                             <button
                               onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed')}
-                              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
+                              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
                             >
                               <CheckCircle className="w-5 h-5" />
                               Confirm
                             </button>
                             <button
                               onClick={() => handleOpenCancelModal(selectedBooking)}
-                              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                             >
                               <XCircle className="w-5 h-5" />
                               Cancel
@@ -446,25 +1138,95 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         );
                       }
 
+                      // Pending Reservation
+                      if (status === 'pending_reservation') {
+                        return (
+                          <div className="flex flex-col gap-4 w-full">
+                            <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800 mb-2">
+                              <p className="text-sm text-orange-800 dark:text-orange-300 font-medium">
+                                <strong>Manual Verification Required:</strong> Please verify the uploaded GCash receipt before approving.
+                              </p>
+                            </div>
+                            <div className="flex gap-4">
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to approve this reservation? Verify the receipt amount first.')) {
+                                    handleApproveReservation(selectedBooking.id);
+                                  }
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-teal-500/20 active:scale-[0.98]"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                                Approve Reservation
+                              </button>
+                              <button
+                                onClick={() => handleOpenCancelModal(selectedBooking)}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              >
+                                <XCircle className="w-5 h-5" />
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Reserved - ready for check-in
+                      if (status === 'reserved') {
+                        return (
+                          <div className="flex flex-col gap-4 w-full">
+                            <div className="p-4 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-800 mb-2">
+                              <p className="text-sm text-teal-800 dark:text-teal-300 font-medium">
+                                <strong>Reserved:</strong> Tenant holds this room until {formatDate(selectedBooking.move_in_date || selectedBooking.checkIn)}.
+                              </p>
+                            </div>
+                            <div className="flex gap-4">
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Check in this tenant? This will officially assign them to the room and generate their first month invoice.')) {
+                                    handleCheckInTenant(selectedBooking.id);
+                                  }
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                                Check In Tenant
+                              </button>
+                              <button
+                                onClick={() => handleOpenCancelModal(selectedBooking)}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              >
+                                <XCircle className="w-5 h-5" />
+                                Revoke & Cancel
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       // Confirmed status - smart completion based on payment
                       if (status === 'confirmed') {
                         if (paymentStatus === 'paid') {
                           return (
-                            <div className="flex gap-3 w-full">
+                            <div className="flex gap-4 w-full">
                               <button
                                 onClick={() => {
-                                  if (window.confirm('Mark this booking as completed?')) {
-                                    handleUpdateStatus(selectedBooking.id, 'completed');
+                                  if (window.confirm('Finalize checkout for this tenant now?')) {
+                                    if (Number(selectedBooking.deposit_balance || 0) > 0 && paymentStatus === 'paid') {
+                                      toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before finalizing as completed.`);
+                                      return;
+                                    }
+                                    handleFinalizeCheckout(selectedBooking.id);
                                   }
                                 }}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                               >
                                 <CheckCircle className="w-5 h-5" />
-                                Complete
+                                Finalize Checkout
                               </button>
                               <button
                                 onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                               >
                                 <XCircle className="w-5 h-5" />
                                 Cancel & Refund
@@ -473,55 +1235,62 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           );
                         } else if (paymentStatus === 'partial') {
                           return (
-                            <div className="flex flex-col gap-3 w-full">
-                              <div className="flex gap-3">
+                            <div className="flex flex-col gap-4 w-full">
+                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                                <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
+                                  <strong>Outstanding Balance:</strong> Finalizing checkout will close the stay as partial-completed.
+                                </p>
+                              </div>
+                              <div className="flex gap-4">
                                 <button
                                   onClick={() => {
-                                    if (window.confirm('Mark as completed with full payment received?')) {
-                                      handleUpdateStatus(selectedBooking.id, 'completed');
+                                    if (window.confirm('Finalize checkout now?')) {
+                                      handleFinalizeCheckout(selectedBooking.id);
                                     }
                                   }}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                                 >
                                   <CheckCircle className="w-5 h-5" />
-                                  Complete
+                                  Finalize Checkout
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm('Mark as completed with partial payment? Remaining balance should be tracked separately.')) {
-                                      handleUpdateStatus(selectedBooking.id, 'partial-completed');
-                                    }
-                                  }}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-yellow-500/20 active:scale-[0.98]"
+                                  onClick={() => handleOpenCancelModal(selectedBooking)}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                                 >
-                                  <CheckCircle className="w-5 h-5" />
-                                  Partial
+                                  <XCircle className="w-5 h-5" />
+                                  Cancel & Refund
                                 </button>
                               </div>
-                              <button
-                                onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                              >
-                                <XCircle className="w-5 h-5" />
-                                Cancel & Refund
-                              </button>
                             </div>
                           );
                         } else {
                           return (
                             <div className="w-full">
-                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-3">
+                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
                                 <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
-                                  <strong>Note:</strong> Payment is required before completion. Only cancellation is available.
+                                  <strong>Unpaid Stay:</strong> You can finalize checkout, but booking will be marked partial-completed until balances are settled.
                                 </p>
                               </div>
-                              <button
-                                onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                              >
-                                <XCircle className="w-5 h-5" />
-                                Cancel
-                              </button>
+                              <div className="flex gap-4">
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Finalize checkout now?')) {
+                                      handleFinalizeCheckout(selectedBooking.id);
+                                    }
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                >
+                                  <CheckCircle className="w-5 h-5" />
+                                  Finalize Checkout
+                                </button>
+                                <button
+                                  onClick={() => handleOpenCancelModal(selectedBooking)}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                >
+                                  <XCircle className="w-5 h-5" />
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
                           );
                         }
@@ -547,13 +1316,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Cancel Booking</h3>
-              <button onClick={() => setShowCancelModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                <X className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+              <button onClick={() => setShowCancelModal(false)} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-500" />
               </button>
             </div>
 
             <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 mb-6 border border-red-100 dark:border-red-900/30">
-              <p className="text-sm text-red-800 dark:text-red-300 font-bold mb-1">Booking: {selectedBooking.guestName}</p>
+              <p className="text-sm text-red-800 dark:text-red-300 font-bold mb-2">Booking: {selectedBooking.guestName}</p>
               <p className="text-xs text-red-700 dark:text-red-400 font-medium">Ref: {selectedBooking.bookingReference}</p>
               <div className="flex justify-between items-center mt-2">
                 <p className="text-xs text-red-700 dark:text-red-400 font-bold uppercase tracking-wider">
@@ -574,7 +1343,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   value={cancellationData.reason}
                   onChange={(e) => setCancellationData({ ...cancellationData, reason: e.target.value })}
                   placeholder="e.g. Guest request, double booking, etc."
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm outline-none transition-all h-24 resize-none"
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm outline-none transition-all h-24 resize-none"
                   rows="3"
                   required
                 />
@@ -582,7 +1351,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
               {(selectedBooking.paymentStatus === 'paid' || selectedBooking.paymentStatus === 'partial') && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 cursor-pointer group"
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 cursor-pointer group"
                        onClick={() => setCancellationData({...cancellationData, shouldRefund: !cancellationData.shouldRefund, refundAmount: !cancellationData.shouldRefund ? selectedBooking.amount : 0})}>
                     <input
                       type="checkbox"
@@ -609,10 +1378,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           refundAmount: parseFloat(e.target.value) || 0
                         })}
                         max={selectedBooking.amount}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white font-bold text-xl outline-none"
+                        className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white font-bold text-xl outline-none"
                         placeholder="0.00"
                       />
-                      <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                         <span>Min: ₱0</span>
                         <span>Max: ₱{selectedBooking.amount.toLocaleString()}</span>
                       </div>
@@ -622,18 +1391,18 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               )}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={() => setShowCancelModal(false)}
                 disabled={processing}
-                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Go Back
               </button>
               <button
                 onClick={handleCancelConfirm}
                 disabled={processing}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
+                className="flex-1 px-4 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
               >
                 {processing ? (
                   <>
@@ -648,6 +1417,429 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
+
+// ==================== Extension Requests List ====================
+const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
+  const [modifying, setModifying] = useState(null); // id of request being modified
+  const [modifyData, setModifyData] = useState({ requested_end_date: '', proposed_amount: '' });
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <Loader2 className="w-10 h-10 text-green-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading requests...</p>
+      </div>
+    );
+  }
+
+  if (requests.length === 0) {
+    return (
+      <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">No Extension Requests</h3>
+        <p className="text-gray-500 text-sm">When tenants want to extend their stay, they will appear here.</p>
+      </div>
+    );
+  }
+
+  const startModify = (req) => {
+    setModifying(req.id);
+    setModifyData({
+      requested_end_date: req.requested_end_date,
+      proposed_amount: req.proposed_amount
+    });
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {requests.map((req) => (
+        <div key={req.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-300 dark:border-gray-700">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name}</h4>
+              <p className="text-xs text-gray-500">Room {req.booking?.room?.room_number} • {req.booking?.room?.property?.title}</p>
+            </div>
+            <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${
+              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+              req.status === 'approved' ? 'bg-green-100 text-green-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {req.status}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+              <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Current End</p>
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{new Date(req.current_end_date).toLocaleDateString()}</p>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+              <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-2">Requested End</p>
+              {modifying === req.id ? (
+                <input 
+                  type="date"
+                  value={modifyData.requested_end_date}
+                  onChange={e => setModifyData({...modifyData, requested_end_date: e.target.value})}
+                  className="w-full bg-transparent text-sm font-bold outline-none border-b border-blue-300"
+                />
+              ) : (
+                <p className="text-sm font-bold text-blue-900 dark:text-blue-200">{new Date(req.requested_end_date).toLocaleDateString()}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <p className="text-[10px] font-bold text-gray-500 uppercase">Extension Fee</p>
+              {modifying === req.id ? (
+                <div className="flex items-center">
+                  <span className="text-green-600 font-bold mr-2">₱</span>
+                  <input 
+                    type="number"
+                    value={modifyData.proposed_amount}
+                    onChange={e => setModifyData({...modifyData, proposed_amount: e.target.value})}
+                    className="w-24 bg-transparent text-xl font-black text-green-600 outline-none border-b border-green-300"
+                  />
+                </div>
+              ) : (
+                <p className="text-xl font-black text-green-600">₱{parseFloat(req.proposed_amount).toLocaleString()}</p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-gray-500 uppercase">Type</p>
+              <p className="text-xs font-bold text-gray-700 dark:text-gray-300 capitalize">{req.extension_type}</p>
+            </div>
+          </div>
+
+          {req.tenant_notes && (
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-xs italic text-gray-600 dark:text-gray-400">
+              "{req.tenant_notes}"
+            </div>
+          )}
+
+          {req.status === 'pending' && (
+            <div className="flex gap-2">
+              {modifying === req.id ? (
+                <>
+                  <button 
+                    onClick={() => onHandle(req.id, 'modify', modifyData)}
+                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-blue-500/20"
+                  >
+                    Apply Changes
+                  </button>
+                  <button 
+                    onClick={() => setModifying(null)}
+                    className="px-4 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 py-2 rounded-lg text-xs font-bold"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => onHandle(req.id, 'approve')}
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" /> Approve
+                  </button>
+                  <button 
+                    onClick={() => startModify(req)}
+                    className="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Modify
+                  </button>
+                  <button 
+                    onClick={() => onHandle(req.id, 'reject')}
+                    className="flex-1 border border-red-200 text-red-600 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
+                  >
+                    Reject
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ==================== Transfer Requests List ====================
+const TransferRequestsList = ({ requests, loading, onHandle }) => {
+  const [approving, setApproving] = useState(null); // id of request being approved (to show form)
+  const [approvalData, setApprovalData] = useState({ transfer_fee: '', damage_charge: '', damage_description: '', landlord_notes: '', prorated_adjustment: '' });
+  const [prorationDetails, setProrationDetails] = useState(null);
+  const [loadingProration, setLoadingProration] = useState(false);
+
+  const requestReject = (requestId) => {
+    const reason = window.prompt('Please provide a rejection reason for this transfer request:');
+    if (reason === null) return;
+
+    const landlordNotes = reason.trim();
+    if (!landlordNotes) {
+      toast.error('Rejection reason is required.');
+      return;
+    }
+
+    onHandle(requestId, 'reject', { landlord_notes: landlordNotes });
+    if (approving === requestId) {
+      setApproving(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <Loader2 className="w-10 h-10 text-green-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading transfer requests...</p>
+      </div>
+    );
+  }
+
+  if (requests.length === 0) {
+    return (
+      <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <Shuffle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">No Transfer Requests</h3>
+        <p className="text-gray-500 text-sm">When tenants want to move rooms, they will appear here.</p>
+      </div>
+    );
+  }
+
+  const startApprove = async (req) => {
+    setApproving(req.id);
+    setApprovalData({
+      transfer_fee: req?.quoted_transfer_fee != null ? String(req.quoted_transfer_fee) : '',
+      damage_charge: '',
+      damage_description: '',
+      landlord_notes: '',
+      prorated_adjustment: '',
+    });
+    
+    setLoadingProration(true);
+    setProrationDetails(null);
+    try {
+      const response = await bookingService.getTransferProration(req.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load proration details');
+      }
+      const details = response.data || null;
+      setProrationDetails(details);
+      setApprovalData(prev => ({
+        ...prev,
+        transfer_fee:
+          details?.quoted_transfer_fee != null
+            ? String(details.quoted_transfer_fee)
+            : details?.transfer_fee != null
+              ? String(details.transfer_fee)
+              : prev.transfer_fee,
+        prorated_adjustment: details?.suggested_adjustment ?? '',
+      }));
+    } catch (err) {
+      console.error("Failed to load proration details", err);
+    } finally {
+      setLoadingProration(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      {requests.map((req) => (
+        <div key={req.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-300 dark:border-gray-700 max-w-2xl mx-auto w-full">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name || (req.tenant?.first_name + ' ' + req.tenant?.last_name)}</h4>
+              <p className="text-xs text-gray-500">{req.requested_room?.property?.title}</p>
+            </div>
+            <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${
+              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+              req.status === 'approved' ? 'bg-green-100 text-green-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {req.status}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
+              <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Current Room</p>
+              <div className="flex items-center justify-between">
+                <p className="text-base font-bold text-gray-700 dark:text-gray-300">Room {req.current_room?.room_number}</p>
+                <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <X className="w-4 h-4 text-red-500" />
+                </div>
+              </div>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-100 dark:border-amber-800 flex flex-col justify-between">
+              <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-2">Requested Room</p>
+              <div className="flex items-center justify-between">
+                <p className="text-base font-bold text-amber-900 dark:text-amber-300">Room {req.requested_room?.room_number}</p>
+                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="col-span-2 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex items-center justify-between">
+               <div>
+                 <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">New Lease Duration</p>
+                 <p className="text-sm font-bold text-blue-900 dark:text-blue-200">
+                   {req.new_end_date ? 'Ends on: ' + new Date(req.new_end_date).toLocaleDateString() : 'Keep current lease logic'}
+                 </p>
+               </div>
+               <CalendarDays className="w-5 h-5 text-blue-500 opacity-50"/>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Reason for Transfer</p>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-sm italic text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+              "{req.reason}"
+            </div>
+          </div>
+
+          {req.status === 'pending' && (
+            <div className="space-y-4">
+              {approving === req.id ? (
+                <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-2 mx-auto">
+                  
+                  {/* Proration Calculation block */}
+                  <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 space-y-4">
+                    <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase flex items-center gap-2">
+                       <Calculator className="w-4 h-4" /> Rent Proration Math
+                    </p>
+                    {loadingProration ? (
+                      <div className="flex items-center gap-2 text-sm text-blue-600 py-4">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Calculating unused days...
+                      </div>
+                    ) : prorationDetails ? (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Unused Days in Old Room:</span>
+                            <span className="font-bold text-gray-800 dark:text-gray-200">{Math.max(0, Math.round(Number(prorationDetails.remaining_days || 0)))} Days</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Credit from Old Room:</span>
+                            <span className="font-bold text-green-600">- ₱{Number(prorationDetails.old_room_unused_value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Cost of New Room (for {Math.max(0, Math.round(Number(prorationDetails.remaining_days || 0)))} Days):</span>
+                            <span className="font-bold text-amber-600">+ ₱{Number(prorationDetails.new_room_cost || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center border-t border-blue-200 dark:border-blue-800 pt-3 mt-3">
+                          <span className="font-bold text-blue-900 dark:text-blue-100">Suggested Final Adjustment:</span>
+                          <div className="text-right">
+                            <span className={`text-xl font-black ${prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                              {prorationDetails.suggested_adjustment > 0 ? '+' : ''}₱{Number(prorationDetails.suggested_adjustment || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-red-500 py-4">Could not calculate proration automatically.</p>
+                    )}
+                    
+                    <div className="pt-2">
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mt-2 mb-2">Transfer Fee (₱)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={approvalData.transfer_fee}
+                        onChange={e => setApprovalData({...approvalData, transfer_fee: e.target.value})}
+                        className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all text-gray-900 dark:text-white"
+                      />
+                      <p className="text-[10px] text-gray-500 font-medium mt-2">Cannot exceed the quoted fee from transfer request.</p>
+                    </div>
+
+                    <div className="pt-2">
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mt-2 mb-2">Final Override Adjustment (₱)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        placeholder="0.00"
+                        value={approvalData.prorated_adjustment}
+                        onChange={e => setApprovalData({...approvalData, prorated_adjustment: e.target.value})}
+                        className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all text-gray-900 dark:text-white"
+                      />
+                      <p className="text-[10px] text-gray-500 font-medium mt-2">Positive = Create Invoice Charge. Negative = Apply Discount to Next Bill.</p>
+                    </div>
+                  </div>
+
+                  {/* Damages Block */}
+                  <div className="space-y-4">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Damage Charge for Old Room (Optional)</label>
+                    <div className="flex flex-col md:flex-row gap-3">
+                      <input 
+                        type="number" 
+                        placeholder="0.00"
+                        value={approvalData.damage_charge}
+                        onChange={e => setApprovalData({...approvalData, damage_charge: e.target.value})}
+                        className="w-full md:w-1/3 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      {parseFloat(approvalData.damage_charge) > 0 && (
+                        <input 
+                          type="text" 
+                          placeholder="What was damaged?"
+                          required
+                          value={approvalData.damage_description}
+                          onChange={e => setApprovalData({...approvalData, damage_description: e.target.value})}
+                          className="w-full md:flex-1 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Landlord Notes / Message to Tenant</label>
+                    <textarea 
+                      placeholder="Any instructions for moving in..."
+                      value={approvalData.landlord_notes}
+                      onChange={e => setApprovalData({...approvalData, landlord_notes: e.target.value})}
+                      className="w-full text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 min-h-[80px] resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-4 pt-4">
+                    <button 
+                      onClick={() => setApproving(null)}
+                      className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 py-4 rounded-xl font-bold bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => onHandle(req.id, 'approve', approvalData)}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
+                    >
+                      <CheckCircle className="w-5 h-5" /> Execute Transfer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => startApprove(req)}
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" /> Approve
+                  </button>
+                  <button 
+                    onClick={() => requestReject(req.id)}
+                    className="flex-1 border border-red-200 text-red-600 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};

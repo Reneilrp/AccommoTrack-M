@@ -24,7 +24,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 18,
     color: theme.colors.primary,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   placeholderSubtext: {
     fontSize: 14,
@@ -38,7 +38,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.error,
     paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
     shadowColor: theme.colors.error,

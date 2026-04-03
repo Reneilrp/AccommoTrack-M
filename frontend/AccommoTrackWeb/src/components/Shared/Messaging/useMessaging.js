@@ -67,9 +67,24 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchConversations = async () => {
+  const appendUniqueMessage = useCallback((prevMessages, incomingMessage) => {
+    if (!incomingMessage) return prevMessages;
+
+    const incomingId = incomingMessage.id;
+    if (incomingId !== undefined && incomingId !== null) {
+      const exists = prevMessages.some((msg) => String(msg.id) === String(incomingId));
+      if (exists) return prevMessages;
+    }
+
+    return [...prevMessages, incomingMessage];
+  }, []);
+
+  const initialLoadRef = useRef(conversations.length === 0);
+
+  const fetchConversations = useCallback(async () => {
     try {
-      if (conversations.length === 0) setLoading(true);
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
       const res = await api.get('/messages/conversations');
       const data = res.data;
       const conversationsList = Array.isArray(data) ? data : [];
@@ -81,16 +96,16 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [updateData]);
 
-  const fetchMessages = async (conversationId) => {
+  const fetchMessages = useCallback(async (conversationId) => {
     try {
       const res = await api.get(`/messages/${conversationId}`);
       setMessages(res.data);
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
-  };
+  }, []);
 
   const handleSendMessage = async () => {
     if (readOnlyGuard()) return;
@@ -117,7 +132,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
       }
 
       const newMessage = response.data;
-      setMessages((prev) => [...prev, newMessage]);
+      setMessages((prev) => appendUniqueMessage(prev, newMessage));
       setMessageText('');
       removeSelectedImage();
       
@@ -167,24 +182,36 @@ export const useMessaging = (user, accessRole = 'landlord') => {
           const parsed = JSON.parse(stored);
           if (parsed && parsed.id) return parseInt(parsed.id, 10);
           return parseInt(stored, 10);
-        } catch (e) { return parseInt(stored, 10); }
+        } catch (__e) { return parseInt(stored, 10); }
       }
       const userRaw = localStorage.getItem('user') || localStorage.getItem('userData');
       if (userRaw) {
         const parsedUser = JSON.parse(userRaw);
         return parseInt(parsedUser.id || parsedUser.user_id, 10);
       }
-    } catch (err) { return null; }
+    } catch (__err) { return null; }
     return null;
   })();
 
   // Effects
   useEffect(() => {
     const initChat = async () => {
-      if (location.state?.startConversation) {
-        const { recipient_id, property_id } = location.state.startConversation;
+      // Check both formats: startConversation object or flat params
+      const startParams = location.state?.startConversation || {};
+      const recipientParam = location.state?.recipient || {};
+      const propertyParam = location.state?.property || {};
+
+      const recipient_id = startParams.recipient_id || startParams.landlord_id || recipientParam.id;
+      const property_id = startParams.property_id || propertyParam.id;
+      
+      const shouldStart = location.state?.startConversation || location.state?.startConversation === true;
+
+      if (shouldStart && recipient_id) {
         try {
-          const res = await api.post('/messages/start', { recipient_id, property_id });
+          const res = await api.post('/messages/start', { 
+            recipient_id, 
+            property_id 
+          });
           const conversation = res.data;
           if (conversation) {
             setConversations(prev => {
@@ -204,7 +231,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [fetchConversations]);
 
   useEffect(() => {
     if (selectedChat) {
@@ -215,7 +242,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
           echoRef.current
             .private(`conversation.${selectedChat.id}`)
             .listen('.message.sent', (e) => {
-              setMessages((prev) => [...prev, e.message]);
+              setMessages((prev) => appendUniqueMessage(prev, e.message));
               scrollToBottom();
             });
         } catch (err) { console.warn('Echo subscription failed:', err); }
@@ -224,7 +251,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
         if (echoRef.current) echoRef.current.leave(`conversation.${selectedChat.id}`);
       };
     }
-  }, [selectedChat]);
+  }, [selectedChat, fetchMessages, appendUniqueMessage]);
 
   useEffect(() => {
     scrollToBottom();

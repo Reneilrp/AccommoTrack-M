@@ -1,0 +1,1666 @@
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Switch,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
+import { Picker } from "@react-native-picker/picker";
+import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
+import PropertyService from "../../../../services/PropertyService.js";
+import { getImageUrl } from "../../../../utils/imageUtils.js";
+import { getStyles } from "../../../../styles/Landlord/RoomManagement.js";
+import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from "../../hooks/useLandlordQueryHelpers.js";
+
+const FILTERS = [
+  { label: "All Rooms", value: "all" },
+  { label: "Occupied", value: "occupied" },
+  { label: "Available", value: "available" },
+  { label: "Maintenance", value: "maintenance" },
+];
+
+const DEFAULT_STATS = { total: 0, occupied: 0, available: 0, maintenance: 0 };
+const EMPTY_PROPERTIES = [];
+const EMPTY_ROOMS = [];
+const EMPTY_TENANTS = [];
+const ALL_ROOM_TYPES = [
+  { value: "single", label: "Single Room" },
+  { value: "double", label: "Double Room" },
+  { value: "quad", label: "Quad Room" },
+  { value: "bedSpacer", label: "Bed Spacer" },
+];
+
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? value : parsed;
+};
+
+const getOrdinalSuffix = (num) => {
+  const j = num % 10;
+  const k = num % 100;
+  if (j === 1 && k !== 11) return "st";
+  if (j === 2 && k !== 12) return "nd";
+  if (j === 3 && k !== 13) return "rd";
+  return "th";
+};
+
+const buildFloors = () =>
+  Array.from({ length: 15 }, (_, i) => ({
+    value: String(i + 1),
+    label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`,
+  }));
+
+const FLOORS = buildFloors();
+
+const parseList = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value))
+    return value.filter(Boolean).map((item) => item?.trim?.() ?? item);
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch (_err) {}
+    return value
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const formatCurrency = (value) => {
+  if (!value && value !== 0) return "₱0";
+  const number = Number(value) || 0;
+  return `₱${number.toLocaleString("en-US")}`;
+};
+
+const statusTokens = {
+  available: { bg: "#DCFCE7", color: "#15803D", label: "Available" },
+  occupied: { bg: "#FEE2E2", color: "#B91C1C", label: "Occupied" },
+  maintenance: { bg: "#FEF3C7", color: "#B45309", label: "Maintenance" },
+};
+
+export default function RoomManagementScreen({ navigation, route }) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const preselectedPropertyId = normalizeId(route?.params?.propertyId);
+  const initialFilter = route?.params?.filter || "all";
+
+  const [selectedPropertyId, setSelectedPropertyId] = useState(
+    preselectedPropertyId || null,
+  );
+  const [filter, setFilter] = useState(initialFilter);
+  const [refreshing, setRefreshing] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
+  const [modalLoading, setModalLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // Web-exact state
+  const [formData, setFormData] = useState({
+    id: null,
+    roomNumber: "",
+    roomType: "single",
+    floor: "1",
+    monthlyRate: "",
+    dailyRate: "",
+    billingPolicy: "monthly",
+    minStayDays: "1",
+    capacity: "1",
+    pricingModel: "full_room",
+    description: "",
+    status: "available",
+    require1MonthAdvance: false,
+    amenities: [],
+    rules: [],
+  });
+
+  const [newAmenity, setNewAmenity] = useState("");
+  const [newRule, setNewRule] = useState("");
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [statusTarget, setStatusTarget] = useState(null);
+
+  const [extendModalVisible, setExtendModalVisible] = useState(false);
+  const [extendTarget, setExtendTarget] = useState(null);
+  const [extendType, setExtendType] = useState('months'); // 'days' or 'months'
+  const [extendValue, setExtendValue] = useState('1');
+  const [extending, setExtending] = useState(false);
+
+  const [tenantModalVisible, setTenantModalVisible] = useState(false);
+  const [assignTargetRoom, setAssignTargetRoom] = useState(null);
+  const [assigningTenant, setAssigningTenant] = useState(false);
+
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
+    queryFn: async () => {
+      const response = await PropertyService.getMyProperties();
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load properties");
+      }
+
+      return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const roomsQuery = useQuery({
+    queryKey: landlordQueryKeys.roomsByProperty(selectedPropertyId),
+    enabled: Boolean(selectedPropertyId),
+    queryFn: async () => {
+      const response = await PropertyService.getRooms(selectedPropertyId);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load rooms");
+      }
+
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      return EMPTY_ROOMS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const roomStatsQuery = useQuery({
+    queryKey: landlordQueryKeys.roomStatsByProperty(selectedPropertyId),
+    enabled: Boolean(selectedPropertyId),
+    queryFn: async () => {
+      const response = await PropertyService.getRoomStats(selectedPropertyId);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load room stats");
+      }
+
+      const source = response.data?.data || response.data || {};
+      return {
+        total: Number(source.total ?? 0),
+        occupied: Number(source.occupied ?? 0),
+        available: Number(source.available ?? 0),
+        maintenance: Number(source.maintenance ?? 0),
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const allTenantsQuery = useQuery({
+    queryKey: landlordQueryKeys.tenants(),
+    queryFn: async () => {
+      const response = await PropertyService.getTenants();
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load tenants");
+      }
+
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      return EMPTY_TENANTS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const rooms = roomsQuery.data || EMPTY_ROOMS;
+  const stats = roomStatsQuery.data || DEFAULT_STATS;
+  const allTenants = allTenantsQuery.data || EMPTY_TENANTS;
+  const loadingProperties = propertiesQuery.isPending && properties.length === 0;
+  const loadingRooms =
+    Boolean(selectedPropertyId) && roomsQuery.isPending && rooms.length === 0;
+  const loading = loadingProperties || loadingRooms;
+  const fetchError =
+    propertiesQuery.error?.message ||
+    roomsQuery.error?.message ||
+    roomStatsQuery.error?.message ||
+    allTenantsQuery.error?.message ||
+    "";
+
+  const refetchProperties = propertiesQuery.refetch;
+  const refetchRooms = roomsQuery.refetch;
+  const refetchRoomStats = roomStatsQuery.refetch;
+  const refetchAllTenants = allTenantsQuery.refetch;
+  const propertyAndTenantRefetchers = useMemo(
+    () => [refetchProperties, refetchAllTenants],
+    [refetchProperties, refetchAllTenants],
+  );
+  const roomRefetchers = useMemo(
+    () => [refetchRooms, refetchRoomStats],
+    [refetchRooms, refetchRoomStats],
+  );
+  const roomAndTenantRefetchers = useMemo(
+    () => [refetchRooms, refetchRoomStats, refetchAllTenants],
+    [refetchRooms, refetchRoomStats, refetchAllTenants],
+  );
+  const fullRefreshRefetchers = useMemo(
+    () =>
+      selectedPropertyId
+        ? [refetchProperties, refetchAllTenants, refetchRooms, refetchRoomStats]
+        : [refetchProperties, refetchAllTenants],
+    [
+      selectedPropertyId,
+      refetchProperties,
+      refetchAllTenants,
+      refetchRooms,
+      refetchRoomStats,
+    ],
+  );
+
+  useLandlordFocusRefetch({ refetchers: propertyAndTenantRefetchers });
+  useLandlordFocusRefetch({
+    enabled: Boolean(selectedPropertyId),
+    refetchers: roomRefetchers,
+  });
+
+  const handleRoomsRefresh = useLandlordRefreshHandler({
+    setRefreshing,
+    refetchers: fullRefreshRefetchers,
+  });
+
+  const selectedProperty = useMemo(
+    () =>
+      properties.find(
+        (p) => normalizeId(p.id) === normalizeId(selectedPropertyId),
+      ) || null,
+    [properties, selectedPropertyId],
+  );
+
+  const propertyType = selectedProperty?.property_type || "";
+  const normalizedType = propertyType.toLowerCase();
+  const isApartment = normalizedType.includes("apartment");
+  const isDormitory = normalizedType.includes("dormitory");
+  const isBoarding = normalizedType.includes("boarding");
+  const isBedSpacerProperty =
+    normalizedType.includes("bedspacer") ||
+    normalizedType.includes("bed spacer");
+
+  const roomTypes = useMemo(() => {
+    if (isApartment)
+      return ALL_ROOM_TYPES.filter((rt) => rt.value !== "bedSpacer");
+    if (isBedSpacerProperty)
+      return ALL_ROOM_TYPES.filter((rt) => rt.value === "bedSpacer");
+    if (isDormitory || isBoarding)
+      return ALL_ROOM_TYPES.filter(
+        (rt) => rt.value === "single" || rt.value === "bedSpacer",
+      );
+    return ALL_ROOM_TYPES.filter((rt) => rt.value !== "bedSpacer");
+  }, [isApartment, isBedSpacerProperty, isDormitory, isBoarding]);
+
+  const propertyAmenities = useMemo(
+    () =>
+      parseList(
+        selectedProperty?.amenities_list || selectedProperty?.amenities,
+      ),
+    [selectedProperty],
+  );
+  const propertyRules = useMemo(
+    () =>
+      parseList(selectedProperty?.property_rules || selectedProperty?.rules),
+    [selectedProperty],
+  );
+
+  const filteredRooms = useMemo(() => {
+    if (filter === "all") return rooms;
+    return rooms.filter((room) => room.status === filter);
+  }, [rooms, filter]);
+
+  useEffect(() => {
+    if (properties.length === 0) return;
+
+    if (!selectedPropertyId) {
+      setSelectedPropertyId(
+        normalizeId(preselectedPropertyId ?? properties[0].id),
+      );
+      return;
+    }
+
+    const hasSelectedProperty = properties.some(
+      (property) =>
+        normalizeId(property.id) === normalizeId(selectedPropertyId),
+    );
+    if (!hasSelectedProperty) {
+      setSelectedPropertyId(normalizeId(properties[0].id));
+    }
+  }, [preselectedPropertyId, properties, selectedPropertyId]);
+
+  const handleRemoveTenant = (room) => {
+    Alert.alert(
+      "Remove Tenant",
+      `Are you sure you want to remove the tenant from Room ${room.room_number}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            const res = await PropertyService.removeTenantFromRoom(room.id);
+            if (res.success) {
+              setActionError("");
+              Alert.alert("Success", "Tenant removed successfully");
+              await refetchLandlordQueries(roomAndTenantRefetchers);
+            } else {
+              setActionError(res.error || "Failed to remove tenant");
+              Alert.alert("Error", res.error || "Failed to remove tenant");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleSelectTenant = async (tenantId) => {
+    if (!assignTargetRoom) return;
+    setAssigningTenant(true);
+    try {
+      const res = await PropertyService.assignTenantToRoom(
+        tenantId,
+        { room_id: assignTargetRoom.id }
+      );
+      if (res.success) {
+        setActionError("");
+        Alert.alert("Success", "Tenant assigned successfully");
+        setTenantModalVisible(false);
+        setAssignTargetRoom(null);
+        await refetchLandlordQueries(roomAndTenantRefetchers);
+      } else {
+        setActionError(res.error || "Failed to assign tenant");
+        Alert.alert("Error", res.error || "Failed to assign tenant");
+      }
+    } finally {
+      setAssigningTenant(false);
+    }
+  };
+
+  const [tenantSearch, setTenantSearch] = useState("");
+  const filteredTenants = useMemo(() => {
+    if (!tenantSearch.trim()) return allTenants;
+    const query = tenantSearch.toLowerCase();
+    return allTenants.filter(
+      (t) =>
+        t.first_name?.toLowerCase().includes(query) ||
+        t.last_name?.toLowerCase().includes(query) ||
+        t.email?.toLowerCase().includes(query),
+    );
+  }, [allTenants, tenantSearch]);
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => {
+      let updated = { ...prev, [field]: value };
+
+      if (field === "roomType") {
+        const capacityMap = { single: "1", double: "2", quad: "4" };
+        if (capacityMap[value]) updated.capacity = capacityMap[value];
+        if (value === "bedSpacer") updated.pricingModel = "per_bed";
+        else if (value === "single") updated.pricingModel = "full_room";
+      }
+
+      if (field === "billingPolicy") {
+        if (value !== "monthly" && value !== "monthly_with_daily")
+          updated.monthlyRate = "";
+        if (value !== "daily" && value !== "monthly_with_daily")
+          updated.dailyRate = "";
+      }
+
+      return updated;
+    });
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
+  const validateForm = (data) => {
+    const errors = {};
+    if (!data.roomNumber || !String(data.roomNumber).trim())
+      errors.roomNumber = "Room number is required";
+
+    const bp = data.billingPolicy || "monthly";
+    if (bp === "monthly" || bp === "monthly_with_daily") {
+      const m = parseFloat(data.monthlyRate);
+      if (!m || m <= 0) errors.monthlyRate = "Enter a valid monthly rate";
+    }
+    if (bp === "daily" || bp === "monthly_with_daily") {
+      const d = parseFloat(data.dailyRate);
+      if (!d || d <= 0) errors.dailyRate = "Enter a valid daily rate";
+    }
+
+    const cap = parseInt(data.capacity, 10);
+    if (!cap || cap < 1) errors.capacity = "Capacity must be 1 or more";
+    else if (cap > 10) errors.capacity = "Max capacity is 10";
+
+    const ms = parseInt(data.minStayDays, 10);
+    if (!ms || ms < 1) errors.minStayDays = "Min stay must be at least 1 day";
+
+    if (data.roomType === "bedSpacer" && data.pricingModel !== "per_bed") {
+      errors.pricingModel = "Bed Spacer must use per-bed pricing";
+    }
+
+    return { valid: Object.keys(errors).length === 0, errors };
+  };
+
+  const openAddModal = () => {
+    if (!selectedPropertyId) {
+      Alert.alert("Error", "Select a property first");
+      return;
+    }
+    setModalMode("add");
+    const initialRT = isBedSpacerProperty ? "bedSpacer" : "single";
+    const initialPM = isBedSpacerProperty ? "per_bed" : "full_room";
+
+    setFormData({
+      id: null,
+      roomNumber: "",
+      roomType: initialRT,
+      floor: "1",
+      monthlyRate: "",
+      dailyRate: "",
+      billingPolicy: "monthly",
+      minStayDays: "1",
+      capacity: initialRT === "bedSpacer" ? "1" : "1",
+      pricingModel: initialPM,
+      description: "",
+      status: "available",
+      require1MonthAdvance: null,
+      amenities: [],
+      rules: [],
+    });
+    setSelectedImages([]);
+    setFieldErrors({});
+    setModalVisible(true);
+  };
+
+  const openEditModal = (room) => {
+    setModalMode("edit");
+    setFormData({
+      id: room.id,
+      roomNumber: room.room_number || "",
+      roomType: room.room_type || "single",
+      floor: String(room.floor || "1"),
+      monthlyRate: String(room.monthly_rate || ""),
+      dailyRate: String(room.daily_rate || ""),
+      billingPolicy: room.billing_policy || "monthly",
+      minStayDays: String(room.min_stay_days || "1"),
+      capacity: String(room.capacity || "1"),
+      pricingModel: room.pricing_model || "full_room",
+      description: room.description || "",
+      status: room.status || "available",
+      amenities: parseList(room.amenities),
+      rules: parseList(room.rules),
+      require1MonthAdvance: room.require_1month_advance === null || room.require_1month_advance === undefined
+        ? null
+        : !!room.require_1month_advance,
+      occupied: room.occupied || 0,
+    });
+    setSelectedImages([]);
+    setFieldErrors({});
+    setModalVisible(true);
+  };
+
+  const toggleAmenity = (amenity) => {
+    setFormData((prev) => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter((a) => a !== amenity)
+        : [...prev.amenities, amenity],
+    }));
+  };
+
+  const toggleRule = (rule) => {
+    setFormData((prev) => ({
+      ...prev,
+      rules: prev.rules.includes(rule)
+        ? prev.rules.filter((r) => r !== rule)
+        : [...prev.rules, rule],
+    }));
+  };
+
+  const handleAddAmenity = async () => {
+    if (!newAmenity.trim() || !selectedPropertyId) return;
+    const res = await PropertyService.addPropertyAmenity(
+      selectedPropertyId,
+      newAmenity.trim(),
+    );
+    if (res.success) {
+      setActionError("");
+      setFormData((prev) => ({
+        ...prev,
+        amenities: [...prev.amenities, newAmenity.trim()],
+      }));
+      setNewAmenity("");
+      await refetchLandlordQueries([refetchProperties]);
+    } else {
+      setActionError(res.error || "Failed to add amenity");
+    }
+  };
+
+  const handleAddRule = async () => {
+    if (!newRule.trim() || !selectedPropertyId) return;
+    const res = await PropertyService.addPropertyRule(
+      selectedPropertyId,
+      newRule.trim(),
+    );
+    if (res.success) {
+      setActionError("");
+      setFormData((prev) => ({
+        ...prev,
+        rules: [...prev.rules, newRule.trim()],
+      }));
+      setNewRule("");
+      await refetchLandlordQueries([refetchProperties]);
+    } else {
+      setActionError(res.error || "Failed to add property rule");
+    }
+  };
+
+  const handlePickImages = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+    if (!res.canceled) {
+      const mapped = res.assets.map((a, i) => ({
+        uri: a.uri,
+        name: a.fileName || `room-${Date.now()}-${i}.jpg`,
+        type: a.mimeType || "image/jpeg",
+      }));
+      setSelectedImages((prev) => [...prev, ...mapped]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    const { valid, errors } = validateForm(formData);
+    if (!valid) {
+      setFieldErrors(errors);
+      Alert.alert("Validation Error", "Please fix the highlighted errors.");
+      return;
+    }
+
+    setModalLoading(true);
+    try {
+      const payload = new FormData();
+      payload.append("property_id", selectedPropertyId);
+      payload.append("room_number", formData.roomNumber.trim());
+      payload.append("room_type", formData.roomType);
+      payload.append("floor", formData.floor);
+      payload.append("capacity", isApartment ? "1" : formData.capacity);
+      payload.append("billing_policy", formData.billingPolicy);
+      payload.append("pricing_model", formData.pricingModel);
+      payload.append("min_stay_days", formData.minStayDays);
+      payload.append("description", formData.description || "");
+      payload.append("status", formData.status);
+      // Only send if explicitly set; null means inherit from property
+      if (formData.require1MonthAdvance !== null) {
+        payload.append("require_1month_advance", formData.require1MonthAdvance ? "1" : "0");
+      }
+
+      if (formData.monthlyRate)
+        payload.append("monthly_rate", formData.monthlyRate);
+      if (formData.dailyRate) payload.append("daily_rate", formData.dailyRate);
+
+      formData.amenities.forEach((a, i) =>
+        payload.append(`amenities[${i}]`, a),
+      );
+      formData.rules.forEach((r, i) => payload.append(`rules[${i}]`, r));
+      selectedImages.forEach((img, i) => payload.append(`images[${i}]`, img));
+
+      const res =
+        modalMode === "add"
+          ? await PropertyService.createRoom(payload)
+          : await PropertyService.updateRoom(formData.id, payload);
+
+      if (res.success) {
+        setActionError("");
+        Alert.alert("Success", modalMode === "add" ? "Room added successfully" : "Room updated successfully");
+        setModalVisible(false);
+        await refetchLandlordQueries(roomRefetchers);
+      } else {
+        setActionError(res.error || "Failed to save room");
+        Alert.alert("Error", res.error || "Failed to save room");
+      }
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const renderRoomCard = ({ item }) => {
+    const badge = statusTokens[item.status] || statusTokens.available;
+    const cover = item.images?.[0]
+      ? {
+          uri: getImageUrl(
+            typeof item.images[0] === "string"
+              ? item.images[0]
+              : item.images[0].path,
+          ),
+        }
+      : null;
+
+    return (
+      <View style={styles.roomCard}>
+        {cover ? (
+          <Image source={cover} style={styles.roomImage} />
+        ) : (
+          <View
+            style={[
+              styles.roomImage,
+              { alignItems: "center", justifyContent: "center" },
+            ]}
+          >
+            <Ionicons name="bed-outline" size={40} color="#94A3B8" />
+          </View>
+        )}
+        <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+          <Text style={[styles.statusText, { color: badge.color }]}>
+            {badge.label}
+          </Text>
+        </View>
+        <View style={styles.roomContent}>
+          <View style={styles.roomTopRow}>
+            <View>
+              <Text style={styles.roomTitle}>Room {item.room_number}</Text>
+              <Text style={styles.roomMeta}>
+                {item.room_type} • Floor {item.floor}
+              </Text>
+            </View>
+            <View style={styles.priceBlock}>
+              <Text style={styles.price}>
+                {formatCurrency(item.unit_price || item.monthly_rate || item.daily_rate)}
+              </Text>
+              <Text style={styles.priceCaption}>
+                {item.billing_policy === "daily" ? "per day" : "per month"}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.roomActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => openEditModal(item)}
+            >
+              <Ionicons name="create-outline" size={18} color="#0369A1" />
+              <Text style={styles.actionText}>Edit</Text>
+            </TouchableOpacity>
+
+            {item.status === 'available' ? (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: "#DCFCE7" }]}
+                onPress={() => {
+                  setAssignTargetRoom(item);
+                  setTenantModalVisible(true);
+                }}
+              >
+                <Ionicons name="person-add-outline" size={18} color="#15803D" />
+                <Text style={[styles.actionText, { color: "#15803D" }]}>
+                  Assign
+                </Text>
+              </TouchableOpacity>
+            ) : item.status === 'occupied' ? (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: "#FEE2E2" }]}
+                onPress={() => handleRemoveTenant(item)}
+              >
+                <Ionicons name="person-remove-outline" size={18} color="#B91C1C" />
+                <Text style={[styles.actionText, { color: "#B91C1C" }]}>
+                  Remove
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: "#FEF3C7" }]}
+              onPress={() => {
+                setStatusTarget(item);
+                setStatusModalVisible(true);
+              }}
+            >
+              <Ionicons name="swap-horizontal" size={18} color="#B45309" />
+              <Text style={[styles.actionText, { color: "#B45309" }]}>
+                Status
+              </Text>
+            </TouchableOpacity>
+
+            {item.status === 'occupied' && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: "#F3E8FF" }]}
+                onPress={() => {
+                  setExtendTarget(item);
+                  setExtendType('months');
+                  setExtendValue('1');
+                  setExtendModalVisible(true);
+                }}
+              >
+                <Ionicons name="time-outline" size={18} color="#7E22CE" />
+                <Text style={[styles.actionText, { color: "#7E22CE" }]}>
+                  Extend
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  if (loading && !refreshing && rooms.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={theme.colors.primary}
+        />
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.emptyTitle}>Loading room data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={theme.colors.primary}
+      />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Room Management</Text>
+        <TouchableOpacity style={styles.iconButton} onPress={openAddModal}>
+          <Ionicons name="add" size={32} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={filteredRooms}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderRoomCard}
+        ListHeaderComponent={
+          <View>
+            {(fetchError || actionError) ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{actionError || fetchError}</Text>
+              </View>
+            ) : null}
+
+            {!preselectedPropertyId && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.propertyScroll}
+              >
+                {properties.map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[
+                      styles.propertyChip,
+                      normalizeId(p.id) === selectedPropertyId &&
+                        styles.propertyChipActive,
+                    ]}
+                    onPress={() => setSelectedPropertyId(normalizeId(p.id))}
+                  >
+                    <Text style={styles.propertyChipTitle}>{p.title}</Text>
+                    <Text style={styles.propertyChipMeta}>{p.city}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Occupied</Text>
+                <Text style={[styles.statValue, { color: "#B91C1C" }]}>
+                  {stats.occupied}
+                </Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Available</Text>
+                <Text style={[styles.statValue, { color: "#15803D" }]}>
+                  {stats.available}
+                </Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Maintenance</Text>
+                <Text style={[styles.statValue, { color: "#B45309" }]}>
+                  {stats.maintenance}
+                </Text>
+              </View>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterScroll}
+            >
+              {FILTERS.map((f) => (
+                <TouchableOpacity
+                  key={f.value}
+                  style={[
+                    styles.filterChip,
+                    filter === f.value && styles.filterChipActive,
+                  ]}
+                  onPress={() => setFilter(f.value)}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      filter === f.value && { color: "#059669" },
+                    ]}
+                  >
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        }
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRoomsRefresh}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Add/Edit Modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setModalVisible(false)}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              {modalMode === "add" ? "Add New Room" : "Edit Room"}
+            </Text>
+            <View style={styles.modalEmptyView} />
+          </View>
+
+          <ScrollView
+            style={styles.modalContent}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+          >
+            <Text style={styles.sectionTitle}>Basic Information</Text>
+
+            {/* Row 1: Room Number | Floor | Room Type */}
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
+                <Text style={styles.label}>
+                  Room Number <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    fieldErrors.roomNumber && { borderColor: "#EF4444" },
+                  ]}
+                  value={formData.roomNumber}
+                  onChangeText={(t) => handleInputChange("roomNumber", t)}
+                  placeholder="e.g., 301"
+                />
+              </View>
+              <View style={styles.inputHalf}>
+                <Text style={styles.label}>
+                  Floor <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={formData.floor}
+                    onValueChange={(v) => handleInputChange("floor", v)}
+                  >
+                    {FLOORS.map((f) => (
+                      <Picker.Item
+                        key={f.value}
+                        label={f.label}
+                        value={f.value}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.label}>
+              Room Type <Text style={styles.requiredAsterisk}>*</Text>
+            </Text>
+            <View
+              style={[
+                styles.pickerWrapper,
+                isBedSpacerProperty && {
+                  backgroundColor: theme.colors.backgroundSecondary,
+                },
+              ]}
+            >
+              <Picker
+                selectedValue={formData.roomType}
+                onValueChange={(v) => handleInputChange("roomType", v)}
+                enabled={!isBedSpacerProperty}
+              >
+                {roomTypes.map((rt) => (
+                  <Picker.Item
+                    key={rt.value}
+                    label={rt.label}
+                    value={rt.value}
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            {/* Billing Row */}
+            <Text style={styles.sectionTitle}>Billing & Rates</Text>
+            <Text style={styles.label}>Billing Policy</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker
+                selectedValue={formData.billingPolicy}
+                onValueChange={(v) => handleInputChange("billingPolicy", v)}
+              >
+                <Picker.Item label="Monthly Rate" value="monthly" />
+                <Picker.Item
+                  label="Monthly + Daily"
+                  value="monthly_with_daily"
+                />
+                <Picker.Item label="Daily Rate" value="daily" />
+              </Picker>
+            </View>
+
+            <View style={styles.inputRow}>
+              {formData.billingPolicy !== "daily" && (
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>
+                    Monthly Rate (₱/month){" "}
+                    <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      fieldErrors.monthlyRate && { borderColor: "#EF4444" },
+                    ]}
+                    keyboardType="numeric"
+                    value={formData.monthlyRate}
+                    onChangeText={(t) => handleInputChange("monthlyRate", t)}
+                    placeholder="e.g., 5000"
+                  />
+                </View>
+              )}
+              {formData.billingPolicy !== "monthly" && (
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>
+                    Daily Rate (₱/day){" "}
+                    <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      fieldErrors.dailyRate && { borderColor: "#EF4444" },
+                    ]}
+                    keyboardType="numeric"
+                    value={formData.dailyRate}
+                    onChangeText={(t) => handleInputChange("dailyRate", t)}
+                    placeholder="e.g., 300"
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* Min Stay & Capacity Row */}
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
+                <Text style={styles.label}>Minimum Stay (days)</Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    fieldErrors.minStayDays && { borderColor: "#EF4444" },
+                  ]}
+                  keyboardType="numeric"
+                  value={formData.minStayDays}
+                  onChangeText={(t) => handleInputChange("minStayDays", t)}
+                  placeholder="e.g., 30"
+                />
+              </View>
+              <View style={styles.inputHalf}>
+                <View style={styles.inputLabelRow}>
+                  <Text style={styles.label}>
+                    Capacity <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                </View>
+                <TextInput
+                  style={[
+                    styles.input,
+                    (isDormitory || isBoarding) &&
+                      formData.roomType !== "bedSpacer" && {
+                        backgroundColor: theme.colors.backgroundSecondary,
+                      },
+                    fieldErrors.capacity && { borderColor: "#EF4444" },
+                  ]}
+                  keyboardType="numeric"
+                  value={formData.capacity}
+                  onChangeText={(t) => handleInputChange("capacity", t)}
+                  editable={
+                    !(
+                      (isDormitory || isBoarding) &&
+                      formData.roomType !== "bedSpacer"
+                    )
+                  }
+                />
+              </View>
+            </View>
+
+            <Text style={styles.sectionTitle}>Pricing Model</Text>
+            <Text style={[styles.helperText, { marginBottom: 16 }]}>
+              {formData.roomType === "bedSpacer"
+                ? "Bed Spacer rooms use per-bed pricing only"
+                : "How should tenants pay for this room?"}
+            </Text>
+
+            <View style={styles.pricingGroup}>
+              {formData.roomType !== "bedSpacer" && (
+                <TouchableOpacity
+                  style={[
+                    styles.pricingCard,
+                    formData.pricingModel === "full_room" &&
+                      styles.pricingCardActive,
+                  ]}
+                  onPress={() => handleInputChange("pricingModel", "full_room")}
+                >
+                  <View style={styles.pricingRadioRow}>
+                    <Ionicons
+                      name={
+                        formData.pricingModel === "full_room"
+                          ? "radio-button-on"
+                          : "radio-button-off"
+                      }
+                      size={20}
+                      color={
+                        formData.pricingModel === "full_room"
+                          ? "#059669"
+                          : "#6B7280"
+                      }
+                    />
+                    <View style={styles.pricingTextContent}>
+                      <Text
+                        style={[
+                          styles.pricingCardTitle,
+                          formData.pricingModel === "full_room" && {
+                            color: "#059669",
+                          },
+                        ]}
+                      >
+                        Room Price
+                      </Text>
+                      <Text style={styles.pricingCardDesc}>
+                        {parseInt(formData.capacity) > 1
+                          ? `Tenants divide ₱${formData.monthlyRate || "0"} equally (₱${formData.monthlyRate && formData.capacity ? Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)).toLocaleString() : "0"}/person)`
+                          : "Single tenant pays full price"}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {(formData.roomType !== "single" ||
+                formData.roomType === "bedSpacer") && (
+                <TouchableOpacity
+                  style={[
+                    styles.pricingCard,
+                    formData.pricingModel === "per_bed" &&
+                      styles.pricingCardActive,
+                  ]}
+                  onPress={() => handleInputChange("pricingModel", "per_bed")}
+                >
+                  <View style={styles.pricingRadioRow}>
+                    <Ionicons
+                      name={
+                        formData.pricingModel === "per_bed"
+                          ? "radio-button-on"
+                          : "radio-button-off"
+                      }
+                      size={20}
+                      color={
+                        formData.pricingModel === "per_bed"
+                          ? "#059669"
+                          : "#6B7280"
+                      }
+                    />
+                    <View style={styles.pricingTextContent}>
+                      <Text
+                        style={[
+                          styles.pricingCardTitle,
+                          formData.pricingModel === "per_bed" && {
+                            color: "#059669",
+                          },
+                        ]}
+                      >
+                        Per Bed/Tenant Price
+                      </Text>
+                      <Text style={styles.pricingCardDesc}>
+                        Each tenant pays ₱${formData.monthlyRate || "0"} for
+                        their bed (independent billing)
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={styles.sectionTitle}>Lease Advance</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.label}>Require 1-Month Advance</Text>
+                {formData.require1MonthAdvance === null && selectedProperty?.require_1month_advance ? (
+                  <Text style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>
+                    ✦ Inherited from property — toggle to override
+                  </Text>
+                ) : formData.require1MonthAdvance === null ? (
+                  <Text style={styles.helperText}>If enabled, tenants must pay an extra month upfront.</Text>
+                ) : (
+                  <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                    {formData.require1MonthAdvance
+                      ? 'Override: advance enabled for this room.'
+                      : 'Override: advance disabled for this room.'}
+                  </Text>
+                )}
+              </View>
+              <Switch
+                value={formData.require1MonthAdvance ?? (selectedProperty?.require_1month_advance ?? false)}
+                onValueChange={(v) => handleInputChange("require1MonthAdvance", v)}
+                trackColor={{ true: "#059669", false: "#CBD5E1" }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+            {formData.require1MonthAdvance !== null && (
+              <TouchableOpacity
+                onPress={() => handleInputChange("require1MonthAdvance", null)}
+                style={{ marginBottom: 16 }}
+              >
+                <Text style={{ fontSize: 11, color: '#3B82F6', textDecorationLine: 'underline' }}>
+                  Reset to inherit from property
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.sectionTitle}>Description (Optional)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Add room description..."
+              multiline
+              value={formData.description}
+              onChangeText={(t) => handleInputChange("description", t)}
+            />
+
+            <Text style={styles.sectionTitle}>Room Rules (optional)</Text>
+            <View style={[styles.pillList, { marginBottom: 16 }]}>
+              {propertyRules.map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  style={[
+                    styles.pill,
+                    formData.rules.includes(r) && styles.pillActive,
+                  ]}
+                  onPress={() => toggleRule(r)}
+                >
+                  <Text style={styles.pillText}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="Add new rule (e.g., no smoking)"
+                value={newRule}
+                onChangeText={setNewRule}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.pill,
+                  {
+                    paddingVertical: 0,
+                    justifyContent: "center",
+                    borderColor: "#059669",
+                  },
+                ]}
+                onPress={handleAddRule}
+              >
+                <Ionicons name="add" size={20} color="#059669" />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.helperText, { marginTop: 8 }]}>
+              Select rules to include for this room or add a new rule to the
+              property.
+            </Text>
+
+            <Text style={styles.sectionTitle}>Room Amenities</Text>
+            <View style={[styles.pillList, { marginBottom: 16 }]}>
+              {propertyAmenities.map((a) => (
+                <TouchableOpacity
+                  key={a}
+                  style={[
+                    styles.pill,
+                    formData.amenities.includes(a) && styles.pillActive,
+                  ]}
+                  onPress={() => toggleAmenity(a)}
+                >
+                  <Text style={styles.pillText}>{a}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="e.g., Water Heater, Study Lamp"
+                value={newAmenity}
+                onChangeText={setNewAmenity}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.pill,
+                  {
+                    paddingVertical: 0,
+                    justifyContent: "center",
+                    borderColor: "#059669",
+                  },
+                ]}
+                onPress={handleAddAmenity}
+              >
+                <Ionicons name="add" size={20} color="#059669" />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.helperText, { marginTop: 8 }]}>
+              Add amenities that will be available in this room and saved to
+              property
+            </Text>
+
+            <Text style={styles.sectionTitle}>Room Images</Text>
+            <View style={styles.imageGrid}>
+              {selectedImages.map((img, i) => (
+                <View key={i} style={styles.imagePreview}>
+                  <Image
+                    source={{ uri: img.uri }}
+                    style={{ width: "100%", height: "100%" }}
+                  />
+                  {i === 0 && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        left: 6,
+                        top: 6,
+                        backgroundColor: "#059669",
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#FFFFFF",
+                          fontSize: 10,
+                          fontWeight: "700",
+                        }}
+                      >
+                        Cover
+                      </Text>
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.imageRemove}
+                    onPress={() =>
+                      setSelectedImages((prev) =>
+                        prev.filter((_, idx) => idx !== i),
+                      )
+                    }
+                  >
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {selectedImages.length < 10 && (
+                <TouchableOpacity
+                  style={[styles.imagePreview, styles.addImageTile]}
+                  onPress={handlePickImages}
+                >
+                  <Ionicons name="camera" size={28} color="#94A3B8" />
+                  <Text
+                    style={{ color: "#94A3B8", fontSize: 10, marginTop: 8 }}
+                  >
+                    Add Image
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={[styles.helperText, { marginTop: 8 }]}>
+              PNG, JPG up to 10MB (Max 10 images)
+            </Text>
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => setModalVisible(false)}
+              disabled={modalLoading}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleSubmit}
+              disabled={modalLoading}
+            >
+              {modalLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>
+                  {modalMode === "add" ? "Add Room" : "Save Changes"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Status Modal */}
+      <Modal visible={statusModalVisible} transparent animationType="fade">
+        <View style={styles.statusModalOverlay}>
+          <View style={styles.statusSheet}>
+            <Text
+              style={[styles.sectionTitle, { marginTop: 0, marginBottom: 24 }]}
+            >
+              Update Room Status
+            </Text>
+            {Object.keys(statusTokens).map((s) => (
+              <TouchableOpacity
+                key={s}
+                style={styles.statusOption}
+                onPress={async () => {
+                  const res = await PropertyService.updateRoomStatus(
+                    statusTarget.id,
+                    s,
+                  );
+                  if (res.success) {
+                    setActionError("");
+                    setStatusModalVisible(false);
+                    await refetchLandlordQueries(roomRefetchers);
+                  } else {
+                    setActionError(res.error || "Failed to update room status");
+                  }
+                }}
+              >
+                <Text style={styles.statusOptionText}>
+                  {statusTokens[s].label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.statusOption, { borderBottomWidth: 0 }]}
+              onPress={() => setStatusModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Extend Stay Modal */}
+      <Modal visible={extendModalVisible} transparent animationType="fade">
+        <View style={styles.statusModalOverlay}>
+          <View style={[styles.statusSheet, { padding: 16 }]}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 8 }]}>
+              Extend Stay
+            </Text>
+            <Text style={[styles.helperText, { marginBottom: 24 }]}>
+              Extend the current tenant's stay for Room {extendTarget?.room_number}.
+            </Text>
+
+            <View style={{ flexDirection: 'row', marginBottom: 24, gap: 8 }}>
+              <TouchableOpacity 
+                style={[
+                  { flex: 1, padding: 16, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+                  extendType === 'months' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : { borderColor: theme.colors.border }
+                ]}
+                onPress={() => setExtendType('months')}
+              >
+                <Text style={{ color: extendType === 'months' ? '#FFF' : theme.colors.text }}>Months</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  { flex: 1, padding: 16, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+                  extendType === 'days' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : { borderColor: theme.colors.border }
+                ]}
+                onPress={() => setExtendType('days')}
+              >
+                <Text style={{ color: extendType === 'days' ? '#FFF' : theme.colors.text }}>Days</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={[styles.input, { marginBottom: 25 }]}
+              placeholder={`Number of ${extendType}`}
+              keyboardType="numeric"
+              value={extendValue}
+              onChangeText={setExtendValue}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity 
+                style={[styles.secondaryButton, { flex: 1 }]} 
+                onPress={() => setExtendModalVisible(false)}
+                disabled={extending}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.primaryButton, { flex: 2 }]} 
+                onPress={async () => {
+                  if (!extendValue || isNaN(extendValue) || parseInt(extendValue) <= 0) {
+                    Alert.alert('Invalid Value', `Please enter a valid number of ${extendType}.`);
+                    return;
+                  }
+                  setExtending(true);
+                  try {
+                    const payload = {
+                      [extendType]: parseInt(extendValue),
+                      tenant_id: extendTarget.tenant?.id || extendTarget.tenant_id
+                    };
+                    const res = await PropertyService.extendStay(extendTarget.id, payload);
+                    if (res.success) {
+                      setActionError("");
+                      setExtendModalVisible(false);
+                      await refetchLandlordQueries(roomRefetchers);
+                      Alert.alert('Success', 'Stay extended successfully.');
+                    } else {
+                      setActionError(res.error || 'Failed to extend stay.');
+                      Alert.alert('Error', res.error || 'Failed to extend stay.');
+                    }
+                  } catch (_err) {
+                    setActionError('An unexpected error occurred.');
+                    Alert.alert('Error', 'An unexpected error occurred.');
+                  } finally {
+                    setExtending(false);
+                  }
+                }}
+                disabled={extending}
+              >
+                {extending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Confirm Extension</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Tenant Selection Modal */}
+      <Modal visible={tenantModalVisible} transparent animationType="slide">
+        <View style={styles.statusModalOverlay}>
+          <View
+            style={[
+              styles.statusSheet,
+              {
+                height: "80%",
+                paddingBottom: 16,
+                backgroundColor: theme.colors.background,
+              },
+            ]}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
+            >
+              <Text style={[styles.sectionTitle, { marginTop: 0 }]}>
+                Select Tenant
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setTenantModalVisible(false);
+                  setAssignTargetRoom(null);
+                  setTenantSearch("");
+                }}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: theme.colors.surface,
+                borderRadius: 10,
+                paddingHorizontal: 8,
+                marginBottom: 15,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+              }}
+            >
+              <Ionicons name="search" size={20} color={theme.colors.textSecondary} />
+              <TextInput
+                style={{
+                  flex: 1,
+                  height: 45,
+                  marginLeft: 8,
+                  color: theme.colors.text,
+                }}
+                placeholder="Search tenants..."
+                placeholderTextColor={theme.colors.textTertiary}
+                value={tenantSearch}
+                onChangeText={setTenantSearch}
+              />
+            </View>
+
+            <FlatList
+              data={filteredTenants}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.border,
+                  }}
+                  onPress={() => handleSelectTenant(item.id)}
+                  disabled={assigningTenant}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: theme.colors.primary + "20",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 16,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.colors.primary,
+                        fontWeight: "bold",
+                        fontSize: 16,
+                      }}
+                    >
+                      {item.first_name?.[0] || ""}
+                      {item.last_name?.[0] || ""}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: theme.colors.text,
+                      }}
+                    >
+                      {item.first_name} {item.last_name}
+                    </Text>
+                    <Text
+                      style={{ fontSize: 13, color: theme.colors.textSecondary }}
+                    >
+                      {item.email}
+                    </Text>
+                  </View>
+                  {assigningTenant && assignTargetRoom?.id === item.id ? (
+                    <ActivityIndicator color={theme.colors.primary} />
+                  ) : (
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={theme.colors.textTertiary}
+                    />
+                  )}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={{ alignItems: "center", marginTop: 50 }}>
+                  <Text style={{ color: theme.colors.textSecondary }}>
+                    No tenants found
+                  </Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}

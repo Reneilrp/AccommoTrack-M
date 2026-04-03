@@ -1,0 +1,710 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  Modal
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
+import { useQuery } from '@tanstack/react-query';
+import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
+import AddonService from '../../../../services/AddonService.js';
+import { getStyles } from '../../../../styles/Landlord/AddonManagement.js';
+
+const EMPTY_ADDONS = [];
+const EMPTY_PENDING_REQUESTS = [];
+const EMPTY_ACTIVE_ADDONS_DATA = { activeAddons: [], summary: {} };
+
+export default function AddonManagement({ route, navigation }) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const { propertyId, propertyTitle } = route.params || {};
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('manage'); // 'manage', 'requests', 'active'
+  const [showModal, setShowModal] = useState(false);
+  const [showRejectNoteModal, setShowRejectNoteModal] = useState(false);
+  const [editingAddon, setEditingAddon] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [rejectContext, setRejectContext] = useState(null);
+  const [rejectNote, setRejectNote] = useState('');
+
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    price_type: 'monthly',
+    addon_type: 'fee',
+    stock: '',
+    is_active: true
+  });
+
+  const addonsQuery = useQuery({
+    queryKey: landlordQueryKeys.propertyAddons(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const response = await AddonService.getPropertyAddons(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load add-ons');
+      }
+
+      return Array.isArray(response.data?.addons) ? response.data.addons : EMPTY_ADDONS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const pendingRequestsQuery = useQuery({
+    queryKey: landlordQueryKeys.addonPendingRequests(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const response = await AddonService.getPendingRequests(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load pending add-on requests');
+      }
+
+      return Array.isArray(response.data?.pendingRequests)
+        ? response.data.pendingRequests
+        : EMPTY_PENDING_REQUESTS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const activeAddonsQuery = useQuery({
+    queryKey: landlordQueryKeys.addonActiveAddons(propertyId),
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const response = await AddonService.getActiveAddons(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load active add-ons');
+      }
+
+      const payload = response.data || EMPTY_ACTIVE_ADDONS_DATA;
+      return {
+        activeAddons: Array.isArray(payload.activeAddons) ? payload.activeAddons : EMPTY_ACTIVE_ADDONS_DATA.activeAddons,
+        summary: payload.summary || EMPTY_ACTIVE_ADDONS_DATA.summary,
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const addons = addonsQuery.data || EMPTY_ADDONS;
+  const pendingRequests = pendingRequestsQuery.data || EMPTY_PENDING_REQUESTS;
+  const activeAddonsData = activeAddonsQuery.data || EMPTY_ACTIVE_ADDONS_DATA;
+  const loading =
+    (addonsQuery.isPending && addons.length === 0)
+    || (pendingRequestsQuery.isPending && pendingRequests.length === 0)
+    || (activeAddonsQuery.isPending && !activeAddonsQuery.data);
+  const errorMessage =
+    addonsQuery.error?.message
+    || pendingRequestsQuery.error?.message
+    || activeAddonsQuery.error?.message
+    || '';
+
+  const refetchAddons = addonsQuery.refetch;
+  const refetchPendingRequests = pendingRequestsQuery.refetch;
+  const refetchActiveAddons = activeAddonsQuery.refetch;
+  const addonRefetchers = React.useMemo(
+    () => [refetchAddons, refetchPendingRequests, refetchActiveAddons],
+    [refetchAddons, refetchPendingRequests, refetchActiveAddons],
+  );
+
+  useLandlordFocusRefetch({ enabled: Boolean(propertyId), refetchers: addonRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    enabled: Boolean(propertyId),
+    setRefreshing,
+    refetchers: addonRefetchers,
+  });
+
+  const handleSubmit = async () => {
+    if (!formData.name.trim() || !formData.price) {
+      Alert.alert('Validation', 'Name and Price are required.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const data = {
+        ...formData,
+        price: parseFloat(formData.price),
+        stock: formData.stock ? parseInt(formData.stock) : null
+      };
+
+      let res;
+      if (editingAddon) {
+        res = await AddonService.updateAddon(propertyId, editingAddon.id, data);
+      } else {
+        res = await AddonService.createAddon(propertyId, data);
+      }
+
+      if (res.success) {
+        setShowModal(false);
+        resetForm();
+        await refetchLandlordQueries(addonRefetchers);
+      } else {
+        Alert.alert('Error', res.error || 'Failed to save addon');
+      }
+    } catch (_error) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = (addonId) => {
+    Alert.alert(
+      'Delete Add-on',
+      'Are you sure you want to delete this add-on? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            const res = await AddonService.deleteAddon(propertyId, addonId);
+            if (res.success) {
+              await refetchLandlordQueries(addonRefetchers);
+            } else {
+              Alert.alert('Error', res.error || 'Failed to delete addon');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleRequest = (bookingId, addonId, action) => {
+    if (action === 'reject') {
+      setRejectContext({ bookingId, addonId });
+      setRejectNote('');
+      setShowRejectNoteModal(true);
+    } else {
+      Alert.alert(
+        'Approve Request',
+        'Approve this add-on request?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Approve', 
+            onPress: () => processRequestAction(bookingId, addonId, 'approve')
+          }
+        ]
+      );
+    }
+  };
+
+  const handleSubmitReject = async () => {
+    if (!rejectContext) return;
+    const { bookingId, addonId } = rejectContext;
+    await processRequestAction(bookingId, addonId, 'reject', rejectNote.trim() || null);
+    setShowRejectNoteModal(false);
+    setRejectContext(null);
+    setRejectNote('');
+  };
+
+  const processRequestAction = async (bookingId, addonId, action, note = null) => {
+    const res = await AddonService.handleAddonRequest(bookingId, addonId, action, note);
+    if (res.success) {
+      await refetchLandlordQueries(addonRefetchers);
+    } else {
+      Alert.alert('Error', res.error || `Failed to ${action} request`);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      price: '',
+      price_type: 'monthly',
+      addon_type: 'fee',
+      stock: '',
+      is_active: true
+    });
+    setEditingAddon(null);
+  };
+
+  const openEditModal = (addon) => {
+    setEditingAddon(addon);
+    setFormData({
+      name: addon.name,
+      description: addon.description || '',
+      price: addon.price.toString(),
+      price_type: addon.price_type,
+      addon_type: addon.addon_type,
+      stock: addon.stock?.toString() || '',
+      is_active: addon.is_active
+    });
+    setShowModal(true);
+  };
+
+  const renderManageTab = () => {
+    if (addons.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="sparkles-outline" size={64} color="#D1D5DB" />
+          <Text style={styles.emptyTitle}>No add-ons yet</Text>
+          <Text style={styles.emptySubtitle}>Create add-ons to offer extra usage fees or rentals to your tenants.</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View>
+        {addons.map((addon) => (
+          <View key={addon.id} style={[styles.addonCard, !addon.is_active && styles.inactiveAddonCard]}>
+            <View style={styles.addonHeader}>
+              <View style={styles.addonNameContainer}>
+                <Text style={styles.addonName}>{addon.name}</Text>
+                {!addon.is_active && (
+                  <View style={styles.inactiveBadge}>
+                    <Text style={styles.inactiveBadgeText}>Inactive</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.addonActions}>
+                <TouchableOpacity 
+                  style={[styles.actionIconButton, styles.editIconButton]}
+                  onPress={() => openEditModal(addon)}
+                >
+                  <Ionicons name="pencil" size={16} color="#2563EB" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.actionIconButton, styles.deleteIconButton]}
+                  onPress={() => handleDelete(addon.id)}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.badgeRow}>
+              <View style={[styles.typeBadge, addon.price_type === 'monthly' ? styles.monthlyBadge : styles.oneTimeBadge]}>
+                <Text style={addon.price_type === 'monthly' ? styles.monthlyBadgeText : styles.oneTimeBadgeText}>
+                  {addon.price_type_label}
+                </Text>
+              </View>
+              <View style={[styles.typeBadge, addon.addon_type === 'rental' ? styles.rentalBadge : styles.feeBadge]}>
+                <Text style={addon.addon_type === 'rental' ? styles.rentalBadgeText : styles.feeBadgeText}>
+                  {addon.addon_type_label}
+                </Text>
+              </View>
+            </View>
+
+            {addon.description ? <Text style={styles.addonDescription}>{addon.description}</Text> : null}
+            
+            <Text style={styles.addonPrice}>
+              ₱{parseFloat(addon.price).toLocaleString()}
+              {addon.price_type === 'monthly' && <Text style={styles.priceUnit}>/month</Text>}
+            </Text>
+            
+            {addon.stock !== null && (
+              <Text style={styles.addonStock}>Stock: {addon.stock}</Text>
+            )}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderRequestsTab = () => {
+    if (pendingRequests.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="notifications-outline" size={64} color="#D1D5DB" />
+          <Text style={styles.emptyTitle}>No pending requests</Text>
+          <Text style={styles.emptySubtitle}>Requests from tenants for usage fees or rentals will appear here.</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View>
+        {pendingRequests.map((request) => (
+          <View key={request.requestId} style={styles.requestCard}>
+            <View style={styles.requestHeader}>
+              <View style={styles.flex1}>
+                <Text style={styles.addonName}>{request.addonName}</Text>
+                <View style={styles.requestTenantInfo}>
+                  <Text style={styles.tenantName}>{request.tenant.name}</Text>
+                  <Text style={styles.tenantRoom}>Room {request.roomNumber}</Text>
+                </View>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.addonPrice}>₱{parseFloat(request.price).toLocaleString()}</Text>
+                <View style={[styles.typeBadge, request.priceType === 'monthly' ? styles.monthlyBadge : styles.oneTimeBadge]}>
+                  <Text style={request.priceType === 'monthly' ? styles.monthlyBadgeText : styles.oneTimeBadgeText}>
+                    {request.priceType === 'monthly' ? 'Monthly' : 'One-time'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {request.requestNote ? (
+              <View style={styles.requestNote}>
+                <Text style={{ fontStyle: 'italic', color: '#4B5563' }}>"{request.requestNote}"</Text>
+              </View>
+            ) : null}
+
+            <Text style={styles.requestDate}>
+              Requested: {new Date(request.requestedAt).toLocaleDateString()}
+            </Text>
+
+            <View style={styles.requestActions}>
+              <TouchableOpacity 
+                style={styles.approveButton}
+                onPress={() => handleRequest(request.bookingId, request.addonId, 'approve')}
+              >
+                <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                <Text style={styles.approveButtonText}>Approve</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.rejectButton}
+                onPress={() => handleRequest(request.bookingId, request.addonId, 'reject')}
+              >
+                <Ionicons name="close-circle" size={18} color="#DC2626" />
+                <Text style={styles.rejectButtonText}>Reject</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderActiveTab = () => {
+    const { activeAddons, summary } = activeAddonsData;
+
+    return (
+      <View>
+        <View style={styles.activeSummary}>
+          <View style={[styles.summaryCard, { backgroundColor: '#DCFCE7' }]}>
+            <Text style={[styles.summaryLabel, { color: '#166534' }]}>Subscriptions</Text>
+            <Text style={[styles.summaryValue, { color: '#166534' }]}>{summary?.totalActive || 0}</Text>
+          </View>
+          <View style={[styles.summaryCard, { backgroundColor: '#DBEAFE' }]}>
+            <Text style={[styles.summaryLabel, { color: '#1D4ED8' }]}>Monthly Revenue</Text>
+            <Text style={[styles.summaryValue, { color: '#1D4ED8' }]}>₱{(summary?.monthlyRevenue || 0).toLocaleString()}</Text>
+          </View>
+        </View>
+
+        {activeAddons && activeAddons.length > 0 ? (
+          activeAddons.map((item) => (
+            <View key={item.requestId} style={styles.activeItemCard}>
+              <View style={styles.flex1}>
+                <Text style={styles.addonName}>{item.addonName}</Text>
+                <Text style={styles.tenantName}>{item.tenantName}</Text>
+                <Text style={styles.tenantRoom}>Room {item.roomNumber}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.addonPrice}>
+                  ₱{parseFloat(item.price).toLocaleString()}
+                  {item.priceType === 'monthly' && <Text style={styles.priceUnit}>/mo</Text>}
+                </Text>
+                <View style={[styles.activeItemStatus, styles.activeStatusBadge]}>
+                  <Text style={styles.activeStatusText}>{item.status.toUpperCase()}</Text>
+                </View>
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Ionicons name="checkmark-done-outline" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyTitle}>No active add-ons</Text>
+            <Text style={styles.emptySubtitle}>Once requests are approved, active subscriptions will appear here.</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#059669" />
+          <Text style={styles.loadingText}>Loading add-on data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Add-on Management</Text>
+      </View>
+
+      <View style={styles.headerSubtitle}>
+        <Text style={styles.subtitleText}>
+          {propertyTitle || 'Manage usage fees'} • Extra usage fees and rentals
+        </Text>
+        <TouchableOpacity 
+          style={styles.addServiceButton}
+          onPress={() => { resetForm(); setShowModal(true); }}
+        >
+          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+          <Text style={styles.addServiceButtonText}>Add New Usage Fee</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        {[
+          { id: 'manage', label: 'Manage', icon: 'sparkles', count: addons.length },
+          { id: 'requests', label: 'Requests', icon: 'notifications', count: pendingRequests.length },
+          { id: 'active', label: 'Active', icon: 'checkmark-circle', count: activeAddonsData.summary?.totalActive || 0 }
+        ].map((tab) => (
+          <TouchableOpacity 
+            key={tab.id}
+            style={[styles.tab, activeTab === tab.id && styles.activeTab]}
+            onPress={() => setActiveTab(tab.id)}
+          >
+            <Ionicons 
+              name={tab.icon + (activeTab === tab.id ? '' : '-outline')} 
+              size={18} 
+              color={activeTab === tab.id ? '#166534' : '#6B7280'} 
+            />
+            <Text style={[styles.tabText, activeTab === tab.id && styles.activeTabText]}>
+              {tab.label}
+            </Text>
+            {tab.count > 0 && (
+              <View style={[styles.tabBadge, activeTab === tab.id && styles.activeTabBadge]}>
+                <Text style={[styles.tabBadgeText, activeTab === tab.id && styles.activeTabBadgeText]}>
+                  {tab.count}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#059669']}
+            tintColor="#059669"
+          />
+        }
+      >
+        {errorMessage ? (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={16} color="#B91C1C" />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : null}
+
+        {activeTab === 'manage' && renderManageTab()}
+        {activeTab === 'requests' && renderRequestsTab()}
+        {activeTab === 'active' && renderActiveTab()}
+      </ScrollView>
+
+      {/* Form Modal */}
+      <Modal
+        visible={showModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{editingAddon ? 'Edit Add-on' : 'Create Add-on'}</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.name}
+                  onChangeText={(text) => setFormData({ ...formData, name: text })}
+                  placeholder="e.g., Rice Cooker, Wi-Fi Upgrade"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Description</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={formData.description}
+                  onChangeText={(text) => setFormData({ ...formData, description: text })}
+                  placeholder="Brief description of the add-on"
+                  multiline
+                />
+              </View>
+
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, styles.flex1]}>
+                  <Text style={styles.label}>Price (₱) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={formData.price}
+                    onChangeText={(text) => setFormData({ ...formData, price: text.replace(/[^0-9.]/g, '') })}
+                    placeholder="100.00"
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={[styles.inputGroup, styles.flex1]}>
+                  <Text style={styles.label}>Price Type *</Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={formData.price_type}
+                      onValueChange={(value) => setFormData({ ...formData, price_type: value })}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Monthly" value="monthly" />
+                      <Picker.Item label="One-time" value="one_time" />
+                    </Picker>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, styles.flex1]}>
+                  <Text style={styles.label}>Add-on Type *</Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={formData.addon_type}
+                      onValueChange={(value) => setFormData({ ...formData, addon_type: value })}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Usage Fee" value="fee" />
+                      <Picker.Item label="Rental" value="rental" />
+                    </Picker>
+                  </View>
+                </View>
+                <View style={[styles.inputGroup, styles.flex1]}>
+                  <Text style={styles.label}>Stock (Rentals)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={formData.stock}
+                    onChangeText={(text) => setFormData({ ...formData, stock: text.replace(/[^0-9]/g, '') })}
+                    placeholder="Unlimited"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity 
+                style={styles.checkboxContainer}
+                onPress={() => setFormData({ ...formData, is_active: !formData.is_active })}
+              >
+                <View style={[styles.checkbox, formData.is_active && styles.checkboxChecked]}>
+                  {formData.is_active && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                </View>
+                <Text style={styles.checkboxLabel}>Active (visible to tenants)</Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity 
+                  style={styles.cancelButton}
+                  onPress={() => setShowModal(false)}
+                  disabled={submitting}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.submitButton}
+                  onPress={handleSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>{editingAddon ? 'Update' : 'Create'}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showRejectNoteModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => {
+          setShowRejectNoteModal(false);
+          setRejectContext(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reject Request</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowRejectNoteModal(false);
+                  setRejectContext(null);
+                }}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formContainer}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Reason for rejection (optional)</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={rejectNote}
+                  onChangeText={setRejectNote}
+                  placeholder="Add a note for the tenant"
+                  multiline
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.cancelButton]}
+                onPress={() => {
+                  setShowRejectNoteModal(false);
+                  setRejectContext(null);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.saveButton]}
+                onPress={handleSubmitReject}
+              >
+                <Text style={styles.saveButtonText}>Reject</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}

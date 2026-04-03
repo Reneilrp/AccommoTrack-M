@@ -1,4 +1,4 @@
-import api from './api';
+import api from './api.js';
 
 const extractError = (error, fallback = 'Something went wrong') => {
   if (error?.response?.data?.message) {

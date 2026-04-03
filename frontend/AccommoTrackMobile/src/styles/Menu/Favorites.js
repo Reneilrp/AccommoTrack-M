@@ -9,7 +9,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
@@ -44,8 +44,8 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   likeButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 16,
+    right: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -75,19 +75,19 @@ export const getStyles = (theme) => StyleSheet.create({
   locationText: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginLeft: 4,
+    marginLeft: 8,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.isDark ? theme.colors.warningLight : '#FEF3C7',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 8,
     borderRadius: 6,
     marginRight: 8,
   },
@@ -95,7 +95,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.isDark ? theme.colors.text : '#111827',
-    marginLeft: 4,
+    marginLeft: 8,
   },
   reviewsText: {
     fontSize: 14,
@@ -105,7 +105,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
@@ -116,7 +116,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   typeBadge: {
     backgroundColor: theme.colors.primaryLight,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 8,
   },
@@ -146,7 +146,7 @@ export const getStyles = (theme) => StyleSheet.create({
   exploreButton: {
     backgroundColor: theme.colors.primary,
     paddingHorizontal: 32,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
   },
   exploreButtonText: {

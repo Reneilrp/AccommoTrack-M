@@ -1,4 +1,4 @@
-import api from './api';
+import api from './api.js';
 
 /**
  * Addon Service for handling all addon-related API calls

@@ -2,14 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Toast from 'react-native-toast-message';
 
 /* Core */
-import LandingPages from '../core/LandingPages/LandingPages.jsx';
-import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
-import LandlordLayout from '../mobile-landlord/src/navigation/LandlordLayout.jsx';
-import TenantLayout from '../mobile-tenant/src/navigation/TenantLayout.jsx';
+import LandingPages from '../features/auth/screens/LandingPages.jsx';
+import AuthScreens from '../features/auth/screens/AuthScreen.jsx';
+import LandlordRegisterScreen from '../features/auth/screens/LandlordRegisterScreen.jsx';
+import OtpVerificationScreen from '../features/auth/screens/OtpVerificationScreen.jsx';
+import LandlordLayout from '../features/landlord/navigation/LandlordLayout.jsx';
+import TenantLayout from '../features/tenant/navigation/TenantLayout.jsx';
 import { getStyles } from '../styles/AppNavigator.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
+import { useAuthStore } from '../stores/auth/authStore.js';
+import { setForcedLogoutCallback, setRoleSwitchCallback } from './RootNavigation.js';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,9 +24,47 @@ export default function AppNavigator() {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState(null); 
   const [authContext, setAuthContext] = useState(null);
+  const clearAuthSession = useAuthStore((state) => state.clearAuthSession);
+  const setAuthSession = useAuthStore((state) => state.setAuthSession);
+  const setActiveRole = useAuthStore((state) => state.setActiveRole);
+
+  // Register handlers for navigation events
+  useEffect(() => {
+    setForcedLogoutCallback(async (isBlocked) => {
+      try {
+        clearAuthSession();
+        await AsyncStorage.removeItem('token');
+        await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('user_id');
+        await AsyncStorage.removeItem('isGuest');
+      } catch {}
+      if (isBlocked) {
+        Toast.show({
+          type: 'error',
+          text1: 'Account Blocked',
+          text2: 'Your account has been blocked. Please contact support.',
+          visibilityTime: 6000,
+        });
+      }
+      setAuthContext('returning');
+      setUserRole('auth');
+    });
+
+    setRoleSwitchCallback((newRole) => {
+      console.log('🔄 Switching role to:', newRole);
+      setActiveRole(newRole);
+      setUserRole(newRole);
+    });
+
+    return () => {
+      setForcedLogoutCallback(null);
+      setRoleSwitchCallback(null);
+    };
+  }, [clearAuthSession, setActiveRole]);
 
   const handleLogout = async () => {
     try {
+      clearAuthSession();
       // Remove auth-related data and guest flag, keep hasLaunched
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
@@ -36,6 +79,7 @@ export default function AppNavigator() {
 
   const enterGuestMode = async () => {
     try {
+      clearAuthSession();
       await AsyncStorage.setItem('hasLaunched', 'true');
       await AsyncStorage.setItem('isGuest', 'true');
       setAuthContext(null);
@@ -58,6 +102,7 @@ export default function AppNavigator() {
       console.error('Error updating guest flag after login:', error);
     }
 
+    setActiveRole(role);
     setAuthContext(null);
     setUserRole(role);
   };
@@ -71,14 +116,24 @@ export default function AppNavigator() {
 
       if (userString) {
         const user = JSON.parse(userString);
+        const storedToken = user?.token || (await AsyncStorage.getItem('token')) || null;
+
+        setAuthSession({
+          authToken: storedToken,
+          userId: user?.id ?? null,
+          activeRole: user?.role ?? null,
+        });
+
         console.log('👤 User role:', user.role);
         setAuthContext(null);
         setUserRole(user.role);
       } else if (isGuest === 'true') {
         // Persisted guest mode
+        clearAuthSession();
         setAuthContext(null);
         setUserRole('guest');
       } else {
+        clearAuthSession();
         // If first launch, set to null to show landing pages
         if (hasLaunched) {
           setAuthContext('returning');
@@ -90,6 +145,7 @@ export default function AppNavigator() {
       }
     } catch (error) {
       console.error('Error checking app state:', error);
+      clearAuthSession();
       setAuthContext(null);
       setUserRole(null);
     } finally {
@@ -111,7 +167,7 @@ export default function AppNavigator() {
 
   // If user is logged in as tenant or running as guest, render TenantNavigator
   if (userRole === 'tenant' || userRole === 'guest') {
-    console.log(' Rendering TenantLayout (isGuest =', userRole === 'guest', ')');
+    console.log('🏠 Rendering TenantLayout (isGuest =', userRole === 'guest', ')');
     return (
       <TenantLayout
         onLogout={handleLogout}
@@ -134,7 +190,7 @@ export default function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          animation: 'none',
+          animation: 'slide_from_right',
         }}
       >
         <Stack.Screen name="Auth">
@@ -160,6 +216,8 @@ export default function AppNavigator() {
             />
           )}
         </Stack.Screen>
+        <Stack.Screen name="LandlordRegister" component={LandlordRegisterScreen} />
+        <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
       </Stack.Navigator>
     );
   }

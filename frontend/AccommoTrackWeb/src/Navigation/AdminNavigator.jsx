@@ -6,6 +6,8 @@ import UserManagement from '../screens/Admin/UserManagement.jsx';
 import InquiryManagement from '../screens/Admin/InquiryManagement.jsx';
 import Approvals from '../screens/Admin/Approvals.jsx';
 import Reports from '../screens/Admin/Reports.jsx';
+import PaymentOversight from '../screens/Admin/PaymentOversight.jsx';
+import AuditExplorer from '../screens/Admin/AuditExplorer.jsx';
 
 export default function AdminNavigator({ user, onLogout }) {
   return (
@@ -48,6 +50,22 @@ export default function AdminNavigator({ user, onLogout }) {
           element={
             <AdminLayout user={user} onLogout={onLogout}>
               <InquiryManagement />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/payments-oversight"
+          element={
+            <AdminLayout user={user} onLogout={onLogout}>
+              <PaymentOversight />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/audit-logs"
+          element={
+            <AdminLayout user={user} onLogout={onLogout}>
+              <AuditExplorer />
             </AdminLayout>
           }
         />

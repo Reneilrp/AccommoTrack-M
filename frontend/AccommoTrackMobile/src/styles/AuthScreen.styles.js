@@ -43,7 +43,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
     marginBottom: 8,
   },
   dismissButtonText: {
@@ -80,7 +80,7 @@ export const getStyles = (theme) => StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   backButtonText: {
     color: theme.colors.primary,
@@ -105,11 +105,11 @@ export const getStyles = (theme) => StyleSheet.create({
 
   roleButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   roleButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 2,
@@ -135,7 +135,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.error,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     marginBottom: 16,
     gap: 8,
   },
@@ -148,7 +148,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.error,
     marginTop: -10,
-    marginBottom: 10,
+    marginBottom: 8,
     paddingHorizontal: 5,
   },
   form: {
@@ -160,7 +160,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     backgroundColor: theme.colors.background,
   },
   inputIcon: {
@@ -168,12 +168,12 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   input: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 16,
     fontSize: 16,
     color: theme.colors.text,
   },
   eyeIcon: {
-    padding: 4,
+    padding: 8,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
@@ -188,8 +188,8 @@ export const getStyles = (theme) => StyleSheet.create({
   termsContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 10,
-    paddingHorizontal: 4,
+    marginBottom: 8,
+    paddingHorizontal: 8,
   },
   checkbox: {
     width: 20,
@@ -197,7 +197,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 4,
     borderWidth: 2,
     borderColor: theme.colors.border,
-    marginRight: 12,
+    marginRight: 16,
     marginTop: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -245,7 +245,7 @@ export const getStyles = (theme) => StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
@@ -258,7 +258,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textTertiary,
   },
   socialButtons: {
-    gap: 12,
+    gap: 16,
   },
   socialButton: {
     flexDirection: 'row',
@@ -267,8 +267,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: 12,
-    paddingVertical: 12,
-    gap: 12,
+    paddingVertical: 16,
+    gap: 16,
   },
   socialButtonText: {
     fontSize: 14,
@@ -302,7 +302,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.primary,
     borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 24,
     gap: 8,
     backgroundColor: theme.colors.backgroundSecondary,
@@ -315,9 +315,181 @@ export const getStyles = (theme) => StyleSheet.create({
   guestHintText: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginTop: 4,
+    marginTop: 8,
     marginBottom: 0,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    padding: 25,
+    width: '85%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border,
+  },
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  reasonContainer: {
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.error,
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 25,
+    width: '100%',
+  },
+  reasonLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  reasonText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  modalActions: {
+    width: '100%',
+    gap: 8,
+  },
+  resubmitButton: {
+    backgroundColor: theme.colors.error,
+    paddingVertical: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resubmitButtonText: {
+    color: theme.colors.textInverse,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalCloseButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    width: '100%',
+  },
+  modalCloseButtonText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  fullScreenModal: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    padding: 16,
+    paddingTop: 60,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  fullModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
+  },
+  modalScroll: {
+    paddingBottom: 16,
+  },
+  idTypeContainer: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  idTypeScroll: {
+    padding: 8,
+  },
+  idTypeBadge: {
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  idTypeBadgeText: {
+    fontWeight: '500',
+  },
+  uploadButton: {
+    height: 120,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  uploadButtonText: {
+    marginTop: 8,
+  },
+  uploadPreview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  submitButtonRe: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  submitButtonTextRe: {
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  emailAvailabilityText: {
+    fontSize: 12,
+    marginTop: -10,
+    marginBottom: 8,
+    paddingHorizontal: 5,
+  },
+  passwordChecksContainer: {
+    marginTop: 8,
+    paddingHorizontal: 5,
+    marginBottom: 8,
+  },
+  passwordCheckItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  passwordCheckText: {
+    marginLeft: 5,
+    color: '#9CA3AF',
   },
 });
 

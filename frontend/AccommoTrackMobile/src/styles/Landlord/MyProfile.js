@@ -12,7 +12,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 15,
     color: theme.colors.textSecondary,
   },
@@ -51,7 +51,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 40,
   },
   
@@ -107,7 +107,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: theme.colors.text,
-    marginTop: 12,
+    marginTop: 16,
   },
   roleBadge: {
     marginTop: 8,
@@ -163,7 +163,7 @@ export const getStyles = (theme) => StyleSheet.create({
   fieldValueEditable: {
     borderBottomWidth: 1.5,
     borderBottomColor: theme.colors.primary,
-    paddingBottom: 4,
+    paddingBottom: 8,
   },
 
   // Status Card
@@ -176,7 +176,7 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOpacity: theme.isDark ? 0.3 : 0.06,
     shadowRadius: 8,
     elevation: 3,
-    marginBottom: 20,
+    marginBottom: 24,
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border
   },
@@ -184,7 +184,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   statusRow: {
     flexDirection: 'row',

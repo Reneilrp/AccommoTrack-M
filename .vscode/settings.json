@@ -1,0 +1,10 @@
+{
+  "prettier.useEditorConfig": false,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.formatOnSave": true,
+  "editor.dropIntoEditor.preferences": [],
+  "editor.formatOnSaveTimeout": 3000
+}

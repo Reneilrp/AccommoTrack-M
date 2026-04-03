@@ -57,7 +57,7 @@ class ErrorBoundary extends Component {
             </p>
 
             {/* Error details (only in development) */}
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="mb-6 text-left bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <summary className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Error Details
@@ -70,7 +70,7 @@ class ErrorBoundary extends Component {
             )}
 
             {/* Actions */}
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={this.handleRetry}
                 className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"

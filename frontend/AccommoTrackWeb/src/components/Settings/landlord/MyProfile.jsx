@@ -1,7 +1,31 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 
-export default function MyProfile({ user, profileData, setProfileData, isEditingProfile, setIsEditingProfile, handleSaveProfile, profilePhoto, setProfilePhoto, photoPreview, setPhotoPreview, isUploadingPhoto, setIsUploadingPhoto, fileInputRef, handlePhotoSelect, handlePhotoUpload, handleRemovePhoto }) {
+export default function MyProfile({ user, profileData, setProfileData, isEditingProfile, setIsEditingProfile, handleSaveProfile, profilePhoto, photoPreview, setPhotoPreview, fileInputRef, handlePhotoSelect, handleRemovePhoto }) {
+  const NAME_REGEX = /^[\p{L}\s'-]+$/u;
+  const PHONE_REGEX = /^(09|\+639)\d{9}$/;
+  const [nameErrors, setNameErrors] = useState({ firstName: '', lastName: '', phone: '' });
+
+  const handleNameChange = (field, value) => {
+    if (value && !NAME_REGEX.test(value)) {
+      setNameErrors(prev => ({ ...prev, [field]: 'Only letters, spaces, hyphens and apostrophes are allowed.' }));
+    } else {
+      setNameErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    setProfileData({ ...profileData, [field]: value });
+  };
+
+  const handlePhoneChange = (value) => {
+    if (value && !PHONE_REGEX.test(value)) {
+      setNameErrors(prev => ({ ...prev, phone: 'Must be a valid PH mobile number.' }));
+    } else {
+      setNameErrors(prev => ({ ...prev, phone: '' }));
+    }
+    setProfileData({ ...profileData, phone: value });
+  };
+
+  const hasNameErrors = Object.values(nameErrors).some(e => e !== '');
+
   // Helper to get initials for avatar fallback
   const getUserInitials = () => {
     if (!profileData.firstName && !profileData.lastName) return '?';
@@ -73,39 +97,15 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
             {isEditingProfile && (
               <div className="mt-4 flex flex-col gap-2 w-full">
                 {photoPreview ? (
-                  <>
-                    <button
-                      onClick={handlePhotoUpload}
-                      disabled={isUploadingPhoto}
-                      className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {isUploadingPhoto ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                          </svg>
-                          Upload Photo
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setPhotoPreview(null);
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm"
-                    >
-                      Cancel
-                    </button>
-                  </>
+                  <button
+                    onClick={() => {
+                      setPhotoPreview(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm"
+                  >
+                    Cancel Selection
+                  </button>
                 ) : (
                   <button
                     onClick={() => fileInputRef.current && fileInputRef.current.click()}
@@ -125,7 +125,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
               // Edit Mode - Form inputs with green accent
               <>
                 <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-3 flex items-center gap-2">
+                  <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-4 flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
@@ -137,19 +137,23 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
                         <input
                           type="text"
+                          maxLength={20}
                           value={profileData.firstName}
-                          onChange={e => setProfileData({ ...profileData, firstName: e.target.value })}
+                          onChange={e => handleNameChange('firstName', e.target.value)}
                           className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         />
+                        {nameErrors.firstName && <p className="mt-2 text-xs text-red-500">{nameErrors.firstName}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
                         <input
                           type="text"
+                          maxLength={20}
                           value={profileData.lastName}
-                          onChange={e => setProfileData({ ...profileData, lastName: e.target.value })}
+                          onChange={e => handleNameChange('lastName', e.target.value)}
                           className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         />
+                        {nameErrors.lastName && <p className="mt-2 text-xs text-red-500">{nameErrors.lastName}</p>}
                       </div>
                     </div>
                     <div>
@@ -165,11 +169,48 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone Number</label>
                       <input
                         type="tel"
+                        maxLength={13}
                         value={profileData.phone}
-                        onChange={e => setProfileData({ ...profileData, phone: e.target.value })}
+                        onChange={e => handlePhoneChange(e.target.value)}
                         className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         placeholder="+63 XXX XXX XXXX"
                       />
+                      {nameErrors.phone && <p className="mt-2 text-xs text-red-500">{nameErrors.phone}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date of Birth</label>
+                      <input
+                        type="date"
+                        value={profileData.dateOfBirth ? profileData.dateOfBirth.split('T')[0] : ''}
+                        onChange={e => setProfileData({ ...profileData, dateOfBirth: e.target.value })}
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 20)).toISOString().split('T')[0]}
+                        className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
+                        <select
+                          value={profileData.gender || ''}
+                          onChange={e => setProfileData({ ...profileData, gender: e.target.value })}
+                          className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pronouns <span className="text-gray-500 text-xs font-normal">(e.g., He/Him)</span></label>
+                        <input
+                          type="text"
+                          maxLength={50}
+                          value={profileData.identified_as || ''}
+                          onChange={e => setProfileData({ ...profileData, identified_as: e.target.value })}
+                          className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
+                          placeholder="How do you identify?"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -185,14 +226,17 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                     </p>
                   </div>
                 </div>
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-2">
+                <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 mt-2">
                   <button 
                     onClick={() => {
                       setProfileData({
                         firstName: user.first_name || '',
                         lastName: user.last_name || '',
                         email: user.email || '',
-                        phone: user.phone || ''
+                        phone: user.phone || '',
+                        dateOfBirth: user.date_of_birth || '',
+                        gender: user.gender || '',
+                        identified_as: user.identified_as || ''
                       });
                       setIsEditingProfile(false);
                     }}
@@ -202,10 +246,13 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                   </button>
                   <button
                     onClick={() => {
-                      handleSaveProfile();
-                      setIsEditingProfile(false);
+                      if (!hasNameErrors) {
+                        handleSaveProfile();
+                        setIsEditingProfile(false);
+                      }
                     }}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    disabled={hasNameErrors}
+                    className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ${hasNameErrors ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     Save Changes
                   </button>
@@ -216,20 +263,20 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">First Name</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">First Name</label>
                     <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.firstName || '-'}</p>
                   </div>
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Last Name</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Last Name</label>
                     <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.lastName || '-'}</p>
                   </div>
                 </div>
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                  <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Email Address</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Email Address</label>
                   <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.email || '-'}</p>
                 </div>
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                  <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Phone Number</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Phone Number</label>
                   <p className="text-gray-900 dark:text-white font-medium text-lg">
                     {(!profileData.phone || profileData.phone === '-') ? (
                       <button
@@ -241,6 +288,23 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                       </button>
                     ) : profileData.phone}
                   </p>
+                </div>
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Date of Birth</label>
+                  <p className="text-gray-900 dark:text-white font-medium text-lg">
+                    {profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
+                  </p>
+                </div>
+                {/* Gender and Pronouns View */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Gender</label>
+                    <p className="text-gray-900 dark:text-white font-medium text-lg capitalize">{profileData.gender ? profileData.gender.replace(/_/g, ' ') : '-'}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Pronouns</label>
+                    <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.identified_as || '-'}</p>
+                  </div>
                 </div>
                 {/* Account Info Card */}
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">

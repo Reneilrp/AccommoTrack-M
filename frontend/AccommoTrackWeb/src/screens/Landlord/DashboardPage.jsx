@@ -17,7 +17,7 @@ import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 
 export default function DashboardPage({ user }) {
-  const navigate = useNavigate();
+  const __navigate = useNavigate();
   const { uiState, updateData } = useUIState();
   const isCaretaker = user?.role === 'caretaker';
   const dashboardKey = isCaretaker ? 'caretaker_dashboard' : 'landlord_dashboard';
@@ -26,17 +26,28 @@ export default function DashboardPage({ user }) {
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [activities, setActivities] = useState(cachedData?.activities || []);
   const [verificationStatus, setVerificationStatus] = useState(null);
-  const [upcomingPayments, setUpcomingPayments] = useState(cachedData?.upcomingPayments || { upcomingCheckouts: [], unpaidBookings: [] });
-  const [propertyPerformance, setPropertyPerformance] = useState(cachedData?.propertyPerformance || []);
+  const [upcomingPayments, setUpcomingPayments] = useState(
+    cachedData?.upcomingPayments || {
+      upcomingCheckouts: [],
+      unpaidBookings: [],
+      vacatingSoon: [],
+      billingHealth: {
+        dueForBillingCount: 0,
+        dueForBilling: [],
+        overdueInvoicesCount: 0,
+        overdueInvoicesAmount: 0,
+        dueSoonInvoicesCount: 0,
+        dueSoonInvoicesAmount: 0,
+        overdueInvoices: [],
+        dueSoonInvoices: [],
+      },
+    }
+  );
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
+  const initialLoadRef = React.useRef(!cachedData);
 
-  useEffect(() => {
-    fetchDashboardData();
-    fetchVerificationStatus();
-  }, []);
-
-  const fetchVerificationStatus = async () => {
+  const fetchVerificationStatus = React.useCallback(async () => {
     try {
       const res = await api.get('/landlord/my-verification');
       setVerificationStatus(res.data);
@@ -45,35 +56,32 @@ export default function DashboardPage({ user }) {
         setVerificationStatus({ status: 'not_submitted' });
       }
     }
-  };
+  }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = React.useCallback(async () => {
     try {
-      if (!cachedData) setLoading(true);
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
       setError('');
 
-      const [statsRes, activitiesRes, paymentsRes, performanceRes] = await Promise.all([
+      const [statsRes, activitiesRes, paymentsRes] = await Promise.all([
         api.get('/landlord/dashboard/stats'),
         api.get('/landlord/dashboard/recent-activities'),
-        api.get('/landlord/dashboard/upcoming-payments'),
-        api.get('/landlord/dashboard/property-performance')
+        api.get('/landlord/dashboard/upcoming-payments')
       ]);
 
       const statsData = statsRes.data;
       const activitiesData = activitiesRes.data;
       const paymentsData = paymentsRes.data;
-      const performanceData = performanceRes.data;
 
       setStats(statsData);
       setActivities(activitiesData);
       setUpcomingPayments(paymentsData);
-      setPropertyPerformance(performanceData);
 
       const dashboardState = {
         stats: statsData,
         activities: activitiesData,
-        upcomingPayments: paymentsData,
-        propertyPerformance: performanceData
+        upcomingPayments: paymentsData
       };
 
       updateData(dashboardKey, dashboardState);
@@ -85,12 +93,18 @@ export default function DashboardPage({ user }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dashboardKey, updateData]);
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchVerificationStatus();
+  }, [fetchDashboardData, fetchVerificationStatus]);
 
   const getActivityIcon = (type) => {
     switch (type) {
       case 'booking': return <Calendar className="w-5 h-5" />;
       case 'room': return <Home className="w-5 h-5" />;
+      case 'property': return <Building2 className="w-5 h-5" />;
       case 'payment': return <LucidePhilippinePeso className="w-5 h-5" />;
       default: return <AlertCircle className="w-5 h-5" />;
     }
@@ -102,6 +116,7 @@ export default function DashboardPage({ user }) {
       case 'blue': return 'bg-blue-100 text-blue-600';
       case 'yellow': return 'bg-yellow-100 text-yellow-600';
       case 'red': return 'bg-red-100 text-red-600';
+      case 'gray': return 'bg-gray-100 text-gray-600';
       default: return 'bg-gray-100 text-gray-600';
     }
   };
@@ -113,6 +128,32 @@ export default function DashboardPage({ user }) {
       case 'low': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString()}`;
+
+  const openBookingDrilldown = (booking) => {
+    if (!booking?.id) return;
+
+    const params = new URLSearchParams();
+    params.set('status', 'confirmed');
+    params.set('bookingId', String(booking.id));
+    if (booking.tenantName) {
+      params.set('search', booking.tenantName);
+    }
+    __navigate(`/bookings?${params.toString()}`);
+  };
+
+  const openInvoiceDrilldown = (invoice, defaultFilter = 'overdue') => {
+    if (!invoice?.id) return;
+
+    const params = new URLSearchParams();
+    params.set('filter', defaultFilter);
+    params.set('invoiceId', String(invoice.id));
+    if (invoice.tenantName) {
+      params.set('search', invoice.tenantName);
+    }
+    __navigate(`/payments?${params.toString()}`);
   };
 
   const formatDate = (dateString) => {
@@ -183,13 +224,13 @@ export default function DashboardPage({ user }) {
   return (
     <div className="space-y-6">
       {/* Verification Status Banner */}
-      {verificationStatus && verificationStatus.status !== 'approved' && verificationStatus.user?.is_verified !== true && (
+      {verificationStatus && verificationStatus.status !== 'approved' && (
         <div className={`rounded-xl border p-4 ${
           verificationStatus.status === 'rejected' ? 'bg-red-50 border-red-200' : 
           verificationStatus.status === 'pending' ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200'
         }`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               {verificationStatus.status === 'rejected' ? <FileWarning className="w-6 h-6 text-red-600" /> : 
                verificationStatus.status === 'pending' ? <Clock className="w-6 h-6 text-yellow-600" /> : <ShieldAlert className="w-6 h-6 text-orange-600" />}
               <div>
@@ -256,10 +297,10 @@ export default function DashboardPage({ user }) {
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity.color)}`}>{getActivityIcon(activity.type)}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{activity.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">{formatDate(activity.timestamp)}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{activity.description}</p>
+                    <p className="text-xs text-gray-500 mt-2">{formatDate(activity.timestamp)}</p>
                   </div>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${getActivityColor(activity.color)}`}>{activity.status}</span>
+                  <span className={`px-2 py-2 text-xs font-medium rounded-full capitalize ${getActivityColor(activity.color)}`}>{activity.status}</span>
                 </div>
               ))
             }
@@ -269,53 +310,127 @@ export default function DashboardPage({ user }) {
         <div className="space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Upcoming Checkouts</h2>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {upcomingPayments.upcomingCheckouts.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">None scheduled</p> :
                 upcomingPayments.upcomingCheckouts.slice(0, 4).map((c) => (
-                  <div key={c.id} className={`p-3 rounded-lg border ${getUrgencyColor(c.urgency)}`}>
+                  <div key={c.id} className={`p-4 rounded-lg border ${getUrgencyColor(c.urgency)}`}>
                     <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white"><span>{c.tenantName}</span><span>{c.daysLeft}d</span></div>
-                    <p className="text-xs mt-1 text-gray-600 dark:text-gray-400">{c.propertyTitle} - Room {c.roomNumber}</p>
+                    <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">{c.propertyTitle} - Room {c.roomNumber}</p>
                   </div>
                 ))
               }
             </div>
           </div>
 
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Vacating Soon</h2>
+            <p className="text-xs text-gray-500 mb-4">Tenants who submitted move-out notice</p>
+            <div className="space-y-4">
+              {(upcomingPayments.vacatingSoon || []).length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No move-out notices yet</p>
+              ) : (
+                (upcomingPayments.vacatingSoon || []).slice(0, 4).map((tenant) => (
+                  <button
+                    key={tenant.id}
+                    onClick={() => openBookingDrilldown(tenant)}
+                    className={`w-full p-4 rounded-lg border text-left transition-colors hover:brightness-95 ${getUrgencyColor(tenant.urgency)}`}
+                  >
+                    <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white">
+                      <span>{tenant.tenantName}</span>
+                      <span>{tenant.daysLeft}d</span>
+                    </div>
+                    <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">{tenant.propertyTitle} - Room {tenant.roomNumber}</p>
+                    <p className="text-[11px] mt-1 text-gray-500">Move-out: {tenant.endDate}</p>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {!isCaretaker && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Billing Health</h2>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  onClick={() => {
+                    const dueSoonInvoice = (upcomingPayments.billingHealth?.dueSoonInvoices || [])[0];
+                    if (dueSoonInvoice) {
+                      openInvoiceDrilldown(dueSoonInvoice, 'pending');
+                      return;
+                    }
+                    __navigate('/payments?filter=pending');
+                  }}
+                  className="p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 text-left hover:brightness-95 transition-colors"
+                >
+                  <p className="text-[11px] text-amber-700 font-semibold uppercase">Due This Week</p>
+                  <p className="text-lg font-bold text-amber-800 dark:text-amber-300">{upcomingPayments.billingHealth?.dueForBillingCount || 0}</p>
+                </button>
+                <button
+                  onClick={() => {
+                    const overdueInvoice = (upcomingPayments.billingHealth?.overdueInvoices || [])[0];
+                    if (overdueInvoice) {
+                      openInvoiceDrilldown(overdueInvoice, 'overdue');
+                      return;
+                    }
+                    __navigate('/payments?filter=overdue');
+                  }}
+                  className="p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-700 text-left hover:brightness-95 transition-colors"
+                >
+                  <p className="text-[11px] text-red-700 font-semibold uppercase">Overdue Invoices</p>
+                  <p className="text-lg font-bold text-red-800 dark:text-red-300">{upcomingPayments.billingHealth?.overdueInvoicesCount || 0}</p>
+                </button>
+              </div>
+              <div className="space-y-2 mb-4">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Overdue Amount: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(upcomingPayments.billingHealth?.overdueInvoicesAmount || 0)}</span>
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Due Soon Amount: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(upcomingPayments.billingHealth?.dueSoonInvoicesAmount || 0)}</span>
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {(upcomingPayments.billingHealth?.overdueInvoices || []).slice(0, 3).map((invoice) => (
+                  <button
+                    key={invoice.id}
+                    onClick={() => openInvoiceDrilldown(invoice, 'overdue')}
+                    className="w-full p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 text-left hover:brightness-95 transition-colors"
+                  >
+                    <div className="flex justify-between text-xs font-semibold text-gray-900 dark:text-white">
+                      <span>{invoice.tenantName}</span>
+                      <span>{formatCurrency(invoice.amount)}</span>
+                    </div>
+                    <p className="text-[11px] mt-1 text-gray-600 dark:text-gray-400">
+                      {invoice.propertyTitle} - Room {invoice.roomNumber} - Due {invoice.dueDate}
+                    </p>
+                  </button>
+                ))}
+                {(upcomingPayments.billingHealth?.overdueInvoices || []).length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-2">No overdue invoices</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {!isCaretaker && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Unpaid Invoices</h2>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {upcomingPayments.unpaidBookings.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">All paid up!</p> :
                   upcomingPayments.unpaidBookings.slice(0, 4).map((b) => (
-                    <div key={b.id} className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                    <div key={b.id} className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                       <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white"><span>{b.tenantName}</span><span>₱{b.amount.toLocaleString()}</span></div>
-                      <p className="text-xs mt-1 text-gray-600 dark:text-gray-400">{b.propertyTitle} - Room {b.roomNumber}</p>
+                      <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">{b.propertyTitle} - Room {b.roomNumber}</p>
                     </div>
                   ))
                 }
               </div>
-              <Link to="/payments" className="block text-center mt-4 text-xs font-bold text-brand-600 hover:underline uppercase tracking-wider">View All Payments &rarr;</Link>
+              <Link to="/payments" className="block text-center mt-4 text-xs font-bold text-brand-700 hover:underline uppercase tracking-wider">View All Payments &rarr;</Link>
             </div>
           )}
         </div>
       </div>
 
-      {/* Performance Grid */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {propertyPerformance.map((p) => (
-            <div key={p.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-              <div className="flex justify-between mb-3"><h3 className="font-semibold text-gray-900 dark:text-white">{p.title}</h3><span className="text-xs font-bold text-green-600">{p.occupancyRate}%</span></div>
-              <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-3"><div className="bg-green-600 h-1.5 rounded-full" style={{ width: `${p.occupancyRate}%` }} /></div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Rooms: {p.occupiedRooms}/{p.totalRooms}</span>
-                {!isCaretaker && <span>Rev: ₱{p.actualRevenue?.toLocaleString()}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

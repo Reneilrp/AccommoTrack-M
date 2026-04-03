@@ -42,7 +42,7 @@ const InquiryModal = ({ onClose }) => {
             <MessageSquare className="w-5 h-5 text-green-600" />
             Contact Support
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -53,9 +53,9 @@ const InquiryModal = ({ onClose }) => {
           </p>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Name</label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Name</label>
             <div className="relative">
-              <User className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+              <User className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
               <input
                 type="text"
                 name="name"
@@ -69,9 +69,9 @@ const InquiryModal = ({ onClose }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Email</label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Email</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+              <Mail className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
               <input
                 type="email"
                 name="email"
@@ -85,9 +85,9 @@ const InquiryModal = ({ onClose }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Phone (Optional)</label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Phone (Optional)</label>
             <div className="relative">
-              <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+              <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
               <input
                 type="tel"
                 name="phone"
@@ -100,14 +100,14 @@ const InquiryModal = ({ onClose }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Message</label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Message</label>
             <textarea
               name="message"
               value={formData.message}
               onChange={handleChange}
               required
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm resize-none"
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm resize-none"
               placeholder="How can we help you?"
             />
           </div>

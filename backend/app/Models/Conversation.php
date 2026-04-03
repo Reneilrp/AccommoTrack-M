@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\Property|null $property
  * @property-read \App\Models\User $userOne
  * @property-read \App\Models\User $userTwo
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Conversation newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Conversation newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Conversation query()
@@ -28,6 +29,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Conversation whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Conversation whereUserOneId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Conversation whereUserTwoId($value)
+ *
  * @mixin \Eloquent
  */
 class Conversation extends Model

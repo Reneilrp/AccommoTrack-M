@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\Property $property
  * @property-read \App\Models\Room $room
  * @property-read \App\Models\User $tenant
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking cancelled()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking confirmed()
  * @method static \Database\Factories\BookingFactory factory($count = null, $state = [])
@@ -71,6 +72,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking whereTotalAmount($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking whereTotalMonths($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Booking extends Model
@@ -80,21 +82,36 @@ class Booking extends Model
     protected $fillable = [
         'property_id',
         'tenant_id',
+        'booking_mode',
         'landlord_id',
         'guest_name',
         'room_id',
+        'bed_count',
         'booking_reference',
+        'booking_group_reference',
         'start_date',
         'end_date',
+        'move_in_date',
         'total_months',
         'monthly_rent',
         'total_amount',
         'status',
         'payment_status',
+        'payment_plan',
+        'contract_mode',
+        'next_billing_date',
+        'billing_day',
+        'deposit_balance',
         'payment_method',
+        'receipt_image_path',
+        'reference_number',
         'notes',
         'cancelled_at',
-        'cancellation_reason'
+        'cancellation_reason',
+        'confirmed_at',
+        'notice_given_at',
+        'refund_amount',
+        'refund_processed_at',
     ];
 
     protected $casts = [
@@ -102,8 +119,18 @@ class Booking extends Model
         'end_date' => 'date',
         'monthly_rent' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'booking_mode' => 'string',
+        'booking_group_reference' => 'string',
+        'contract_mode' => 'string',
+        'next_billing_date' => 'date',
+        'billing_day' => 'integer',
+        'deposit_balance' => 'decimal:2',
+        'refund_amount' => 'decimal:2',
         'cancelled_at' => 'datetime',
-        'guest_name' => 'string'
+        'confirmed_at' => 'datetime',
+        'notice_given_at' => 'datetime',
+        'refund_processed_at' => 'datetime',
+        'guest_name' => 'string',
     ];
 
     /**
@@ -139,24 +166,34 @@ class Booking extends Model
     }
 
     /**
+     * Relationship: Booking has many proxy occupants.
+     */
+    public function occupants()
+    {
+        return $this->hasMany(BookingOccupant::class);
+    }
+
+    /**
      * Relationship: Booking has many Addons through pivot
      */
     public function addons()
     {
         return $this->belongsToMany(Addon::class, 'booking_addons')
-                    ->withPivot([
-                        'id',
-                        'quantity',
-                        'price_at_booking',
-                        'status',
-                        'request_note',
-                        'response_note',
-                        'approved_at',
-                        'approved_by',
-                        'invoiced_at',
-                        'invoice_id'
-                    ])
-                    ->withTimestamps();
+            ->withPivot([
+                'id',
+                'quantity',
+                'price_at_booking',
+                'status',
+                'request_note',
+                'response_note',
+                'approved_at',
+                'approved_by',
+                'invoiced_at',
+                'invoice_id',
+                'cancellation_requested_at',
+                'cancellation_effective_at',
+            ])
+            ->withTimestamps();
     }
 
     /**
@@ -165,8 +202,8 @@ class Booking extends Model
     public function activeMonthlyAddons()
     {
         return $this->addons()
-                    ->wherePivot('status', 'active')
-                    ->where('price_type', 'monthly');
+            ->wherePivot('status', 'active')
+            ->where('price_type', 'monthly');
     }
 
     /**
@@ -191,6 +228,22 @@ class Booking extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * Relationship: Booking has many Deposit Settlements
+     */
+    public function depositSettlements()
+    {
+        return $this->hasMany(BookingDepositSettlement::class)->orderByDesc('created_at');
+    }
+
+    /**
+     * Relationship: Booking has many Billing Reminder Logs
+     */
+    public function billingReminderLogs()
+    {
+        return $this->hasMany(BillingReminderLog::class)->orderByDesc('sent_at');
     }
 
     /**

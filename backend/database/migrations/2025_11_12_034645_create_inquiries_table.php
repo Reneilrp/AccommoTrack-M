@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('email')->index('idx_email');
             $table->string('phone', 20)->nullable();
             $table->text('message');
-            $table->enum('status', ['new', 'contacted', 'converted', 'closed'])->default('new')->index('idx_status');
+            $table->enum('status', ['new', 'contacted', 'converted', 'closed', 'responded'])->default('new')->index('idx_status');
             $table->string('source', 50)->nullable();
             $table->timestamp('responded_at')->nullable();
             $table->timestamp('created_at')->useCurrent();

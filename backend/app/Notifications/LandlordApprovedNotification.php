@@ -34,11 +34,11 @@ class LandlordApprovedNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $loginUrl = config('app.frontend_url', 'https://accommotrack.me') . '/login';
+        $loginUrl = config('app.frontend_url', 'https://accommotrack.me').'/login';
 
         return (new MailMessage)
             ->subject('🎉 Your Landlord Registration Has Been Approved!')
-            ->greeting('Congratulations, ' . $notifiable->first_name . '!')
+            ->greeting('Congratulations, '.$notifiable->first_name.'!')
             ->line('Great news! Your landlord registration with AccommoTrack has been approved.')
             ->line('You can now:')
             ->line('• Create and publish property listings')

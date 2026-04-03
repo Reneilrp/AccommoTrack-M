@@ -20,7 +20,7 @@ class UpdatePaymentStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_status' => 'required|in:unpaid,partial,paid,refunded'
+            'payment_status' => 'required|in:unpaid,partial,paid,refunded',
         ];
     }
 

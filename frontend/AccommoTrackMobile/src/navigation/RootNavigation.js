@@ -13,6 +13,27 @@ export default {
   navigate,
 };
 
+// Forced logout callback — registered by AppNavigator, triggered by API interceptor
+let _forcedLogoutCallback = null;
+export function setForcedLogoutCallback(cb) {
+  _forcedLogoutCallback = cb;
+}
+export function triggerForcedLogout(isBlocked = false) {
+  if (_forcedLogoutCallback) {
+    _forcedLogoutCallback(isBlocked);
+  }
+}
+
+let _roleSwitchCallback = null;
+export function setRoleSwitchCallback(cb) {
+  _roleSwitchCallback = cb;
+}
+export function triggerRoleSwitch(role) {
+  if (_roleSwitchCallback) {
+    _roleSwitchCallback(role);
+  }
+}
+
 // Simple navigation state listeners so other modules can react to route changes
 const _stateListeners = new Set();
 export function notifyNavigationStateChange(route) {

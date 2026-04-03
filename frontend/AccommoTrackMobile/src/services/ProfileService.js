@@ -1,6 +1,25 @@
-import api from './api';
+import api from './api.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfileService = {
+  /**
+   * Determine the correct profile endpoint based on the logged-in user's role.
+   * Tenants → /tenant/profile  (TenantSettingsController)
+   * Landlord/Caretaker → /me  (AuthController)
+   */
+  async _getProfileEndpoint() {
+    try {
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        if (user.role === 'landlord' || user.role === 'caretaker') {
+          return '/me';
+        }
+      }
+    } catch (e) { /* ignore – fall through to tenant default */ }
+    return '/tenant/profile';
+  },
+
   /**
    * Get current user profile
    */
@@ -30,7 +49,8 @@ const ProfileService = {
   async updateProfile(profileData, image = null) {
     try {
       let response;
-      const endpoint = '/tenant/profile';
+      // Use /me for landlords/caretakers, /tenant/profile for tenants
+      const endpoint = await this._getProfileEndpoint();
       
       if (image) {
         // Use FormData for image upload
@@ -90,7 +110,8 @@ const ProfileService = {
    */
   async updateSettings(settings) {
     try {
-      const response = await api.put('/tenant/profile', settings);
+      const endpoint = await this._getProfileEndpoint();
+      const response = await api.put(endpoint, settings);
       return {
         success: true,
         data: response.data.user || response.data,
@@ -111,7 +132,15 @@ const ProfileService = {
    */
   async changePassword(passwordData) {
     try {
-      const response = await api.post('/change-password', passwordData);
+      const response = await api
+        .post('/tenant/change-password', passwordData)
+        .catch(async (error) => {
+          const status = error?.response?.status;
+          if (status === 404 || status === 405) {
+            return api.post('/change-password', passwordData);
+          }
+          throw error;
+        });
       return {
         success: true,
         message: response.data.message || 'Password changed successfully'
@@ -188,6 +217,79 @@ const ProfileService = {
       return {
         success: false,
         error: error.response?.data?.message || 'Failed to resubmit verification'
+      };
+    }
+  },
+
+  /**
+   * Tenant landlord registration flow (keeps account in tenant mode while pending approval)
+   */
+  async registerAsLandlord(formData) {
+    try {
+      const response = await api.post('/tenant/register-landlord', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return {
+        success: true,
+        data: response.data,
+        message: response.data.message || 'Landlord registration submitted successfully',
+      };
+    } catch (error) {
+      console.error('Tenant landlord registration failed:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to submit landlord registration',
+        errors: error.response?.data?.errors || {},
+        status: error.response?.data?.status || null,
+      };
+    }
+  },
+
+  /**
+   * Get PayMongo onboarding URL for landlord
+   */
+  async getPayMongoOnboardingUrl() {
+    try {
+      const response = await api.get('/landlord/paymongo/onboarding');
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      const serverData = error.response?.data;
+      const errMsg = serverData?.message
+        || serverData?.error
+        || error.message
+        || 'Failed to get onboarding link';
+      console.error('Error getting PayMongo onboarding URL:', errMsg, serverData);
+      return {
+        success: false,
+        error: errMsg,
+        status: error.response?.status,
+      };
+    }
+  },
+
+  /**
+   * Switch user role (Landlord <-> Tenant)
+   * @param {string} role - 'landlord' or 'tenant'
+   */
+  async switchRole(role, payload = {}) {
+    try {
+      const response = await api.post('/switch-role', { role, ...payload });
+      return {
+        success: true,
+        data: response.data.user || response.data,
+        message: response.data.message || 'Role switched successfully'
+      };
+    } catch (error) {
+      console.error('Error switching role:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to switch role'
       };
     }
   }

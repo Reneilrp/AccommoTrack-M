@@ -12,24 +12,24 @@ const ProfileTab = ({ onUserUpdate }) => {
   const [loading, setLoading] = useState(!cachedProfile);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [nameErrors, setNameErrors] = useState({});
   const [imagePreview, setImagePreview] = useState(null);
   
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
 
-  // 'Male', 'Female', 'Others', or ''
-  const [genderMode, setGenderMode] = useState('');
-
   const [formData, setFormData] = useState({
     first_name: '',
     middle_name: '',
     last_name: '',
+    email: '',
     phone: '',
     profile_image: null,
     
     // Tenant Fields
     date_of_birth: '',
     gender: '', // The actual value stored
+    identified_as: '',
     current_address: '',
     emergency_contact_name: '',
     emergency_contact_phone: '',
@@ -47,26 +47,20 @@ const ProfileTab = ({ onUserUpdate }) => {
     // Extract gender from preferences
     let prefs = data.tenant_profile?.preference || {};
     if (typeof prefs === 'string') {
-      try { prefs = JSON.parse(prefs); } catch (e) { prefs = {}; }
+      try { prefs = JSON.parse(prefs); } catch (__e) { prefs = {}; }
     }
 
-    const backendGender = data.tenant_profile?.gender || prefs.gender || '';
-    let initialMode = '';
-    if (backendGender === 'Male' || backendGender === 'Female') {
-      initialMode = backendGender;
-    } else if (backendGender) {
-      initialMode = 'Others';
-    }
-
-    setGenderMode(initialMode);
+    const backendGender = data.gender || prefs.gender || '';
 
     setFormData({
       first_name: data.first_name || '',
       middle_name: data.middle_name || '',
       last_name: data.last_name || '',
+      email: data.email || '',
       phone: data.phone || '',
-      date_of_birth: data.tenant_profile?.date_of_birth || '',
+      date_of_birth: data.date_of_birth || '',
       gender: backendGender,
+      identified_as: data.identified_as || '',
       current_address: data.tenant_profile?.current_address || '',
       emergency_contact_name: data.tenant_profile?.emergency_contact_name || '',
       emergency_contact_phone: data.tenant_profile?.emergency_contact_phone || '',
@@ -98,27 +92,30 @@ const ProfileTab = ({ onUserUpdate }) => {
     }
   };
 
+  const NAME_FIELDS = ['first_name', 'middle_name', 'last_name'];
+  const NAME_REGEX = /^[\p{L}\s'-]+$/u;
+  const PHONE_REGEX = /^(09|\+639)\d{9}$/;
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleGenderSelectChange = (e) => {
-    const selectedMode = e.target.value;
-    setGenderMode(selectedMode);
-    
-    // If selecting specific standard options, update the actual data
-    if (selectedMode === 'Male' || selectedMode === 'Female') {
-        setFormData(prev => ({ ...prev, gender: selectedMode }));
-    } else if (selectedMode === 'Others') {
-        // Look for existing data if it's not Male/Female, otherwise clear
-        if (formData.gender === 'Male' || formData.gender === 'Female') {
-            setFormData(prev => ({ ...prev, gender: '' }));
-        }
-    } else {
-        setFormData(prev => ({ ...prev, gender: '' }));
+    if (NAME_FIELDS.includes(name)) {
+      if (value && !NAME_REGEX.test(value)) {
+        setNameErrors(prev => ({ ...prev, [name]: 'Only letters, spaces, hyphens and apostrophes are allowed.' }));
+      } else {
+        setNameErrors(prev => ({ ...prev, [name]: '' }));
+      }
+    }
+    if (name === 'phone') {
+      if (value && !PHONE_REGEX.test(value)) {
+        setNameErrors(prev => ({ ...prev, phone: 'Must be a valid PH mobile number (e.g. 09123456789 or +639123456789).' }));
+      } else {
+        setNameErrors(prev => ({ ...prev, phone: '' }));
+      }
     }
   };
+
+
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -130,6 +127,10 @@ const ProfileTab = ({ onUserUpdate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (Object.values(nameErrors).some(e => e)) {
+      setMessage({ type: 'error', text: 'Please fix the name errors before saving.' });
+      return;
+    }
     setSaving(true);
     setMessage({ type: '', text: '' });
 
@@ -143,29 +144,25 @@ const ProfileTab = ({ onUserUpdate }) => {
           }
           return;
         }
-        
-        // Handle Gender directly (since it has its own column now)
-        if (key === 'gender') {
-            if (formData[key]) data.append('gender', formData[key]);
-            return;
+
+        // Email is display-only in this tab.
+        if (key === 'email') {
+          return;
         }
 
-        // Only append fields that have values
-        if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
-             data.append(key, formData[key]);
+        // Always send every field (including empty strings) so the backend
+        // can clear nullable fields like middle_name, gender, phone, etc.
+        if (formData[key] !== null && formData[key] !== undefined) {
+          data.append(key, formData[key]);
         }
       });
       
       const response = await tenantService.updateProfile(data);
       
-      // Update global user state if onUserUpdate exists
+      // Propagate the updated user up to App.jsx (updates header avatar, etc.)
+      // App.jsx's handleUserUpdate handles both setUser() and localStorage correctly.
       if (onUserUpdate && response.user) {
-        // The backend returns the updated user. We need to make sure 
-        // the profile_image path is correctly handled if it's just a path.
-        const updatedUser = { ...response.user };
-        // The global user state in App.jsx should have the latest info
-        onUserUpdate(updatedUser);
-        localStorage.setItem('userData', JSON.stringify(updatedUser));
+        onUserUpdate(response.user);
       }
 
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -193,7 +190,7 @@ const ProfileTab = ({ onUserUpdate }) => {
   };
 
   return (
-    <div>
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-all">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Personal Information</h2>
         {!isEditing && (
@@ -220,7 +217,7 @@ const ProfileTab = ({ onUserUpdate }) => {
                {imagePreview ? (
                   <img src={imagePreview} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                  <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-500">
                     <CircleUser className="w-12 h-12" />
                   </div>
                 )}
@@ -243,52 +240,57 @@ const ProfileTab = ({ onUserUpdate }) => {
             <input
               type="text"
               name="first_name"
+              maxLength={20}
               value={formData.first_name}
               onChange={handleChange}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
+            {nameErrors.first_name && <p className="mt-2 text-xs text-red-500">{nameErrors.first_name}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Last Name</label>
             <input
               type="text"
               name="last_name"
+              maxLength={20}
               value={formData.last_name}
               onChange={handleChange}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
+            {nameErrors.last_name && <p className="mt-2 text-xs text-red-500">{nameErrors.last_name}</p>}
           </div>
           
           {/* Gender Section */}
-          <div className={`${genderMode === 'Others' ? 'col-span-1' : 'col-span-1'}`}>
+          <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Gender</label>
-             <div className="flex flex-col gap-2">
-                <select
-                value={genderMode}
-                onChange={handleGenderSelectChange}
-                disabled={!isEditing}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
-                >
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Others">Others</option>
-                </select>
-
-                {genderMode === 'Others' && (
-                    <input
-                        type="text"
-                        name="gender"
-                        value={formData.gender}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        placeholder="Please specify"
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white animate-fadeIn disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
-                    />
-                )}
-            </div>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              disabled={!isEditing}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+            >
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+          
+          {/* Pronouns Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Pronouns <span className="text-gray-500 text-xs font-normal">(e.g., He/Him, She/Her)</span></label>
+            <input
+              type="text"
+              name="identified_as"
+              maxLength={50}
+              value={formData.identified_as}
+              onChange={handleChange}
+              disabled={!isEditing}
+              placeholder="How do you identify?"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+            />
           </div>
 
           <div>
@@ -299,7 +301,7 @@ const ProfileTab = ({ onUserUpdate }) => {
               value={formData.date_of_birth}
               onChange={handleChange}
               disabled={!isEditing}
-              max={new Date().toISOString().split('T')[0]}
+              max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
               onKeyDown={(e) => e.preventDefault()}
               onClick={(e) => isEditing && e.target.showPicker?.()}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 cursor-pointer"
@@ -311,11 +313,24 @@ const ProfileTab = ({ onUserUpdate }) => {
             <input
               type="tel"
               name="phone"
+              maxLength={13}
               value={formData.phone}
               onChange={handleChange}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
+            {nameErrors.phone && <p className="mt-2 text-xs text-red-500">{nameErrors.phone}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Email Address</label>
+            <input
+              type="email"
+              value={formData.email || ''}
+              disabled
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+            />
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Your email is used for account verification and OTP.</p>
           </div>
 
           <div className="md:col-span-2">
@@ -323,6 +338,7 @@ const ProfileTab = ({ onUserUpdate }) => {
             <input
               type="text"
               name="current_address"
+              maxLength={150}
               value={formData.current_address}
               onChange={handleChange}
               disabled={!isEditing}
@@ -372,7 +388,7 @@ const ProfileTab = ({ onUserUpdate }) => {
         </div>
 
         {isEditing && (
-          <div className="flex justify-end pt-4 gap-3">
+          <div className="flex justify-end pt-4 gap-4">
             <button
                 type="button"
                 onClick={toggleEdit}
@@ -383,8 +399,8 @@ const ProfileTab = ({ onUserUpdate }) => {
             </button>
             <button
                 type="submit"
-                disabled={saving}
-                className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                disabled={saving || Object.values(nameErrors).some(e => e)}
+                className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${(saving || Object.values(nameErrors).some(e => e)) ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
                 {saving ? 'Saving...' : 'Save Changes'}
             </button>

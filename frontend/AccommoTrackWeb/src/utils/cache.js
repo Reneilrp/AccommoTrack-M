@@ -1,7 +1,7 @@
 /**
  * Simple client-side cache utility using LocalStorage
  */
-const DEFAULT_TTL = 1000 * 60 * 5; // 5 minutes
+const DEFAULT_TTL = 1000 * 30; // 30 seconds (reduced from 5 mins for better responsiveness)
 
 export const cacheManager = {
   /**

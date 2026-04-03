@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\Property $property
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyCredential newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyCredential newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyCredential query()
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyCredential whereOriginalName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyCredential wherePropertyId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyCredential whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class PropertyCredential extends Model

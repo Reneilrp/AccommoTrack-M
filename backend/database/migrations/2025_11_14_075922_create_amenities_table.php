@@ -37,7 +37,7 @@ return new class extends Migration
             $table->foreignId('property_id')->constrained()->onDelete('cascade');
             $table->foreignId('amenity_id')->constrained()->onDelete('cascade');
             $table->timestamps();
-            
+
             // Ensure unique combination of property and amenity
             $table->unique(['property_id', 'amenity_id']);
         });

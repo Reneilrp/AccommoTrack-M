@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Room> $rooms
  * @property-read int|null $rooms_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Amenity newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Amenity newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Amenity query()
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Amenity whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Amenity whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Amenity whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Amenity extends Model
@@ -32,7 +34,7 @@ class Amenity extends Model
     protected $fillable = [
         'name',
         'icon',
-        'description'
+        'description',
     ];
 
     /**
@@ -41,6 +43,6 @@ class Amenity extends Model
     public function rooms()
     {
         return $this->belongsToMany(Room::class, 'room_amenities', 'amenity_id', 'room_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 }

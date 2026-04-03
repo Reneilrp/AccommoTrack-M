@@ -15,7 +15,7 @@ export default function NotFoundPage({
         {/* Illustration or Icon */}
         <div className="relative mx-auto w-48 h-48 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full mb-8">
           <Search className="w-24 h-24 text-gray-300 dark:text-gray-600" />
-          <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-700 p-3 rounded-full shadow-lg border border-gray-100 dark:border-gray-600">
+          <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-700 p-4 rounded-full shadow-lg border border-gray-100 dark:border-gray-600">
             <span className="text-4xl">🤔</span>
           </div>
         </div>
@@ -32,10 +32,10 @@ export default function NotFoundPage({
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
           >
             <ArrowLeft className="w-4 h-4" />
             Go Back
@@ -44,7 +44,7 @@ export default function NotFoundPage({
           {showHomeButton && (
             <button
               onClick={() => navigate('/')}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
             >
               <Home className="w-4 h-4" />
               Go Home

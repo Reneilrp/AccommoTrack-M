@@ -13,25 +13,43 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textInverse,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B91C1C',
+  },
   profileCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: theme.colors.border,
     shadowColor: '#000',
@@ -47,7 +65,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 2,
     borderColor: theme.colors.primary,
   },
@@ -64,13 +82,13 @@ export const getStyles = (theme) => StyleSheet.create({
   tenantEmail: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 8,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 12,
-    marginTop: 12,
+    marginTop: 16,
   },
   statusText: {
     fontSize: 12,
@@ -80,8 +98,8 @@ export const getStyles = (theme) => StyleSheet.create({
   infoGrid: {
     flexDirection: 'row',
     width: '100%',
-    marginTop: 20,
-    paddingTop: 20,
+    marginTop: 24,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderLight,
   },
@@ -94,7 +112,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textTertiary,
     textTransform: 'uppercase',
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   infoValue: {
     fontSize: 14,
@@ -117,7 +135,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 10,
-    padding: 4,
+    padding: 8,
     marginBottom: 16,
   },
   filterTab: {
@@ -146,7 +164,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     flexDirection: 'row',
@@ -164,7 +182,7 @@ export const getStyles = (theme) => StyleSheet.create({
   paymentDate: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginTop: 4,
+    marginTop: 8,
   },
   paymentRight: {
     alignItems: 'flex-end',
@@ -185,6 +203,88 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
+  // New Styles
+  cardIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  historyCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+    flex: 1,
+  },
+  cardBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  cardBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  cardBody: {
+    gap: 8,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardLabel: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    width: 80,
+  },
+  cardValue: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+    flex: 1,
+  },
+  cardFooter: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardDate: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+  },
+  priorityBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  priorityText: {
+    fontSize: 9,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -192,7 +292,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: theme.colors.textSecondary,
   },
@@ -205,7 +305,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.textSecondary,
-    marginTop: 12,
+    marginTop: 16,
   },
 });
 

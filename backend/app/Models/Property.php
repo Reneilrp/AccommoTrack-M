@@ -51,6 +51,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Review> $reviews
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Room> $rooms
  * @property-read int|null $rooms_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property active()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property available()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property forLandlord(int $landlordId)
@@ -85,11 +86,23 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereTotalRooms($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Property extends Model
 {
     use HasFactory;
+
+    // Status Constants
+    const STATUS_DRAFT = 'draft';
+
+    const STATUS_PENDING = 'pending';
+
+    const STATUS_ACTIVE = 'active';
+
+    const STATUS_INACTIVE = 'inactive';
+
+    const STATUS_MAINTENANCE = 'maintenance';
 
     protected $fillable = [
         'landlord_id',
@@ -98,6 +111,7 @@ class Property extends Model
         'title',
         'description',
         'property_type',
+        'gender_restriction',
         'current_status',
 
         // Location Details
@@ -115,12 +129,15 @@ class Property extends Model
 
         // Property Rules
         'property_rules',
+        'curfew_time',
+        'curfew_policy',
 
         // Property Specifications
         'number_of_bedrooms',
         'number_of_bathrooms',
         'floor_area',
         'floor_level',
+        'total_floors',
         'max_occupants',
 
         // Room Management
@@ -129,8 +146,18 @@ class Property extends Model
 
         // Status
         'is_published',
-        'is_available'
-        ,'is_eligible'
+        'is_available',
+        'is_eligible',
+
+        // Payment Methods
+        'accepted_payments',
+        'require_1month_advance',
+        'allow_partial_payments',
+        'require_reservation_fee',
+        'reservation_fee',
+        'gcash_name',
+        'gcash_number',
+        'gcash_qr_path',
     ];
 
     protected $casts = [
@@ -138,17 +165,21 @@ class Property extends Model
         'number_of_bedrooms' => 'integer',
         'number_of_bathrooms' => 'integer',
         'floor_area' => 'decimal:2',
+        'total_floors' => 'integer',
         'max_occupants' => 'integer',
         'total_rooms' => 'integer',
         'available_rooms' => 'integer',
-        'price_per_month' => 'decimal:2',
-        'security_deposit' => 'decimal:2',
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
         'is_published' => 'boolean',
         'is_available' => 'boolean',
         'is_eligible' => 'boolean',
+        'require_1month_advance' => 'boolean',
+        'allow_partial_payments' => 'boolean',
+        'require_reservation_fee' => 'boolean',
+        'reservation_fee' => 'decimal:2',
         'property_rules' => 'array',
+        'accepted_payments' => 'array',
     ];
 
     protected $appends = ['image_url'];
@@ -186,11 +217,20 @@ class Property extends Model
     }
 
     /**
+     * Relationship: Property has many Payments through Bookings
+     */
+    public function payments()
+    {
+        return $this->hasManyThrough(Payment::class, Booking::class);
+    }
+
+    /**
      * Get average rating for the property
      */
     public function getAverageRatingAttribute()
     {
         $avg = $this->reviews()->where('is_published', true)->avg('rating');
+
         return $avg ? round($avg, 1) : null;
     }
 
@@ -212,43 +252,10 @@ class Property extends Model
             $this->barangay,
             $this->city,
             $this->province,
-            $this->postal_code
+            $this->postal_code,
         ]);
 
         return implode(', ', $parts);
-    }
-
-    /**
-     * Accessor: Get property rules as array
-     */
-    public function getPropertyRulesAttribute($value)
-    {
-        if (is_null($value)) {
-            return [];
-        }
-
-        // If already an array, return it
-        if (is_array($value)) {
-            return $value;
-        }
-
-        // Try to decode JSON
-        $decoded = json_decode($value, true);
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    /**
-     * Mutator: Set property rules as JSON
-     */
-    public function setPropertyRulesAttribute($value)
-    {
-        if (is_null($value) || (is_array($value) && empty($value))) {
-            $this->attributes['property_rules'] = null;
-        } elseif (is_array($value)) {
-            $this->attributes['property_rules'] = json_encode($value);
-        } else {
-            $this->attributes['property_rules'] = $value;
-        }
     }
 
     /**
@@ -264,7 +271,13 @@ class Property extends Model
      */
     public function getAvailableRoomsCountAttribute()
     {
-        return $this->rooms()->where('status', 'available')->count();
+        return $this->rooms()
+            ->where('status', 'available')
+            ->get()
+            ->filter(function ($room) {
+                return $room->isAvailable();
+            })
+            ->count();
     }
 
     /**
@@ -287,22 +300,26 @@ class Property extends Model
     {
         return $this->hasMany(PropertyImage::class);
     }
+
     public function credentials()
     {
         return $this->hasMany(PropertyCredential::class);
     }
+
     public function getImageUrlAttribute()
     {
         $firstImage = $this->images()->where('media_type', 'image')->first();
-        return $firstImage ? asset('storage/' . $firstImage->image_url) : null;
+
+        return $firstImage ? asset('storage/'.$firstImage->image_url) : null;
     }
+
     /**
      * Relationship: Property has many amenities (many-to-many)
      */
     public function amenities()
     {
         return $this->belongsToMany(Amenity::class, 'property_amenities', 'property_id', 'amenity_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     /**
@@ -326,7 +343,31 @@ class Property extends Model
      */
     public function isActive()
     {
-        return $this->current_status === 'active';
+        return $this->current_status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Check if property is pending
+     */
+    public function isPending()
+    {
+        return $this->current_status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Check if property is draft
+     */
+    public function isDraft()
+    {
+        return $this->current_status === self::STATUS_DRAFT;
+    }
+
+    /**
+     * Check if property is inactive
+     */
+    public function isInactive()
+    {
+        return $this->current_status === self::STATUS_INACTIVE;
     }
 
     /**
@@ -334,7 +375,7 @@ class Property extends Model
      */
     public function isPublished()
     {
-        return $this->is_published === true;
+        return (bool) $this->is_published === true;
     }
 
     /**
@@ -342,7 +383,7 @@ class Property extends Model
      */
     public function isAvailable()
     {
-        return $this->is_available === true && $this->available_rooms > 0;
+        return (bool) $this->is_available === true && $this->available_rooms > 0 && $this->isActive();
     }
 
     /**
@@ -371,10 +412,19 @@ class Property extends Model
 
     /**
      * Update available rooms count based on actual room data
+     * A room is only available if it has slots left after accounting for
+     * both confirmed tenants and pending booking requests.
      */
     public function updateAvailableRooms()
     {
-        $this->available_rooms = $this->rooms()->where('status', 'available')->count();
+        $this->available_rooms = $this->rooms()
+            ->where('status', 'available')
+            ->get()
+            ->filter(function ($room) {
+                return $room->isAvailable();
+            })
+            ->count();
+
         $this->save();
     }
 
@@ -383,8 +433,11 @@ class Property extends Model
      */
     public function updateTotalRooms()
     {
-        $this->total_rooms = $this->rooms()->count();
-        $this->save();
+        $count = $this->rooms()->count();
+        if ($count > $this->total_rooms) {
+            $this->total_rooms = $count;
+            $this->save();
+        }
     }
 
     // ====================================================================
@@ -422,11 +475,11 @@ class Property extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('title', 'like', "%{$search}%")
-              ->orWhere('description', 'like', "%{$search}%")
-              ->orWhere('street_address', 'like', "%{$search}%")
-              ->orWhere('barangay', 'like', "%{$search}%")
-              ->orWhere('city', 'like', "%{$search}%")
-              ->orWhere('province', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhere('street_address', 'like', "%{$search}%")
+                ->orWhere('barangay', 'like', "%{$search}%")
+                ->orWhere('city', 'like', "%{$search}%")
+                ->orWhere('province', 'like', "%{$search}%");
         });
     }
 
@@ -435,7 +488,21 @@ class Property extends Model
      */
     public function scopeOfType($query, string $type)
     {
-        return $query->where('property_type', $type);
+        $rawType = trim($type);
+
+        if ($rawType === '') {
+            return $query;
+        }
+
+        $normalizedType = strtolower(preg_replace('/[\s_-]+/', '', $rawType) ?? $rawType);
+
+        return $query->where(function ($q) use ($rawType, $normalizedType) {
+            $q->where('property_type', $rawType)
+                ->orWhereRaw(
+                    "LOWER(REPLACE(REPLACE(REPLACE(property_type, ' ', ''), '_', ''), '-', '')) = ?",
+                    [$normalizedType]
+                );
+        });
     }
 
     /**
@@ -444,7 +511,10 @@ class Property extends Model
     public function scopePriceRange($query, ?float $minPrice = null, ?float $maxPrice = null)
     {
         return $query->whereHas('rooms', function ($q) use ($minPrice, $maxPrice) {
-            $q->where('status', 'available');
+            $q->where('status', 'available')
+                ->whereDoesntHave('evictionSchedules', function ($evictionQuery) {
+                    $evictionQuery->where('status', 'scheduled');
+                });
             if ($minPrice !== null) {
                 $q->where('monthly_rate', '>=', $minPrice);
             }

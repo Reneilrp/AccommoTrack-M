@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read string $addon_type_label
  * @property-read string $price_type_label
  * @property-read \App\Models\Property $property
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Addon active()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Addon monthly()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Addon newModelQuery()
@@ -39,6 +40,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Addon wherePropertyId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Addon whereStock($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Addon whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Addon extends Model
@@ -53,14 +55,16 @@ class Addon extends Model
         'price_type',
         'addon_type',
         'stock',
-        'is_active'
+        'is_active',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'stock' => 'integer',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
     ];
+
+    protected $appends = ['price_type_label', 'addon_type_label', 'has_stock'];
 
     /**
      * Relationship: Addon belongs to Property
@@ -76,19 +80,21 @@ class Addon extends Model
     public function bookings()
     {
         return $this->belongsToMany(Booking::class, 'booking_addons')
-                    ->withPivot([
-                        'id',
-                        'quantity',
-                        'price_at_booking',
-                        'status',
-                        'request_note',
-                        'response_note',
-                        'approved_at',
-                        'approved_by',
-                        'invoiced_at',
-                        'invoice_id'
-                    ])
-                    ->withTimestamps();
+            ->withPivot([
+                'id',
+                'quantity',
+                'price_at_booking',
+                'status',
+                'request_note',
+                'response_note',
+                'approved_at',
+                'approved_by',
+                'invoiced_at',
+                'invoice_id',
+                'cancellation_requested_at',
+                'cancellation_effective_at',
+            ])
+            ->withTimestamps();
     }
 
     /**
@@ -129,11 +135,19 @@ class Addon extends Model
     }
 
     /**
+     * Accessor: exposes hasStock() as a JSON-serializable attribute
+     */
+    public function getHasStockAttribute(): bool
+    {
+        return $this->hasStock();
+    }
+
+    /**
      * Get the display label for price type
      */
     public function getPriceTypeLabelAttribute(): string
     {
-        return match($this->price_type) {
+        return match ($this->price_type) {
             'one_time' => 'One-time',
             'monthly' => 'Monthly',
             default => $this->price_type
@@ -145,7 +159,7 @@ class Addon extends Model
      */
     public function getAddonTypeLabelAttribute(): string
     {
-        return match($this->addon_type) {
+        return match ($this->addon_type) {
             'rental' => 'Rental (Provided)',
             'fee' => 'Usage Fee',
             default => $this->addon_type

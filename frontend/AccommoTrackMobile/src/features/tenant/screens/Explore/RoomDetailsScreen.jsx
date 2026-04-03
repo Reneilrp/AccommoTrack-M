@@ -1,0 +1,1410 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  Image,
+  StatusBar,
+  Dimensions,
+  Modal,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  RefreshControl,
+  Linking,
+} from 'react-native';
+
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
+import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import { getStyles } from '../../../../styles/Tenant/RoomDetailsScreen.js';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import BookingService from '../../../../services/BookingService.js';
+import PropertyService from '../../../../services/PropertyService.js';
+import PaymentService from '../../../../services/PaymentService.js';
+import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
+import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  tenantQueryKeys,
+  useTenantRefreshHandler,
+} from '../../hooks/useTenantQueryHelpers.js';
+
+const { width } = Dimensions.get('window');
+
+// Helper function to get proper image URL
+const getRoomImageUrl = (imageUrl) => {
+  if (!imageUrl) return 'https://via.placeholder.com/400x280?text=No+Image';
+  
+  if (typeof imageUrl === 'string') {
+    // Already a full URL
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    // Relative path - construct full URL
+    const cleanPath = imageUrl.replace(/^\/?storage\//, '');
+    return `${API_BASE_URL}/storage/${cleanPath}`;
+  }
+  
+  return 'https://via.placeholder.com/400x280?text=No+Image';
+};
+
+export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequired }) {
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const { room, property } = route.params;
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [bookingModalVisible, setBookingModalVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [propertyData, setPropertyData] = useState(property || null);
+  const [roomData, setRoomData] = useState(room || null);
+  const [receiptImage, setReceiptImage] = useState(null);
+  const [bookingMode, setBookingMode] = useState('normal');
+  const createEmptyOccupant = () => ({
+    full_name: '',
+    date_of_birth: '',
+    gender: '',
+    relationship_to_booker: '',
+    phone: '',
+    email: '',
+  });
+  const [proxyOccupants, setProxyOccupants] = useState([createEmptyOccupant()]);
+
+  // Prefer the freshest room object (roomData updated on refresh), fallback to route param
+  const activeRoom = roomData || room;
+  const activeRoomId = activeRoom?.id;
+  const activePropertyId = propertyData?.id || property?.id;
+
+  const roomPaymentOptionsQuery = useQuery({
+    queryKey: tenantQueryKeys.exploreRoomPaymentOptions(activeRoomId),
+    enabled: Boolean(activeRoomId),
+    queryFn: async () => {
+      const res = await PropertyService.getRoomPaymentOptions(activeRoomId);
+      if (!res?.success || !res?.data) {
+        return { methods: ['cash'], is_paymongo_ready: false };
+      }
+      return res.data;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const paymentOptions = roomPaymentOptionsQuery.data || {
+    methods: ['cash'],
+    is_paymongo_ready: false,
+  };
+
+  const propertySnapshotQuery = useQuery({
+    queryKey: tenantQueryKeys.explorePropertySnapshot(activePropertyId),
+    enabled: false,
+    queryFn: async () => {
+      const res = await PropertyService.getPublicProperty(activePropertyId);
+      if (!res?.success || !res?.data) {
+        throw new Error(res?.error || 'Failed to refresh room details');
+      }
+      return res.data;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const reservationFee = propertyData?.reservation_fee || activeRoom?.property?.reservation_fee || 0;
+  const isReservationRequired = Number(reservationFee) > 0;
+  const gcashName = propertyData?.gcash_name || activeRoom?.property?.gcash_name || '';
+  const gcashNumber = propertyData?.gcash_number || activeRoom?.property?.gcash_number || '';
+  const gcashQrPath = propertyData?.gcash_qr_path || activeRoom?.property?.gcash_qr_path || '';
+
+  useEffect(() => {
+    // keep roomData in sync when navigation param changes
+    setRoomData(room);
+    setPropertyData(property);
+  }, [room, property]);
+
+  // Hide parent tab bar and mark route to hide layout (TenantLayout)
+  useEffect(() => {
+    let isMounted = true;
+    try {
+      navigation.setParams?.({ hideLayout: true });
+    } catch (e) {}
+    const parent = navigation.getParent?.();
+    try {
+      parent?.setOptions?.({ tabBarStyle: { display: 'none' } });
+    } catch (e) {}
+    return () => {
+      isMounted = false;
+      try { 
+        if (navigation.isFocused()) {
+          navigation.setParams?.({ hideLayout: false }); 
+        }
+      } catch (e) {}
+      try { parent?.setOptions?.({ tabBarStyle: undefined }); } catch (e) {}
+    };
+  }, [navigation]);
+
+  // Set a friendly title for TenantLayout to use
+  useEffect(() => {
+    let isMounted = true;
+    const title = (roomData && (roomData.title || roomData.name)) || (room && (room.title || room.name)) || (propertyData && (propertyData.title || propertyData.name));
+    try { navigation.setParams?.({ layoutTitle: title, hideLayout: true }); } catch (e) {}
+    return () => { 
+      isMounted = false;
+      try { 
+        if (navigation.isFocused()) {
+          navigation.setParams?.({ layoutTitle: undefined, hideLayout: false }); 
+        }
+      } catch (e) {} 
+    };
+  }, [roomData, room, propertyData, property, navigation]);
+
+  const roomIsBookable = typeof activeRoom?.is_available === 'boolean'
+    ? activeRoom.is_available
+    : (activeRoom?.status === 'available'
+      && Number(activeRoom?.available_slots ?? 1) > 0
+      && !activeRoom?.is_booking_locked);
+
+  // Date picker states
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  const [bookingData, setBookingData] = useState({
+    start_date: new Date(),
+    end_date: null,
+    contract_mode: 'monthly',
+    notes: '',
+    payment_method: 'cash',
+    payment_plan: 'full',
+  });
+
+  const roomBillingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
+  const roomPricingModel = String(activeRoom?.pricing_model || 'full_room').toLowerCase();
+  const occupantLimit = Math.max(1, Number(activeRoom?.available_slots ?? activeRoom?.capacity ?? 1));
+  const supportsContractModeSwitch = roomBillingPolicy === 'monthly_with_daily';
+  const isDailyContract = roomBillingPolicy === 'daily' || (supportsContractModeSwitch && bookingData.contract_mode === 'daily');
+
+  useEffect(() => {
+    if (bookingMode !== 'proxy') return;
+
+    setProxyOccupants((prev) => {
+      const next = prev.length > 0 ? prev : [createEmptyOccupant()];
+      return next.slice(0, occupantLimit);
+    });
+  }, [bookingMode, occupantLimit]);
+
+  const pricingStartDate = bookingData.start_date
+    ? bookingData.start_date.toISOString().split('T')[0]
+    : null;
+  const pricingEndDate = React.useMemo(() => {
+    if (!bookingData.start_date) return null;
+
+    const effectiveEndDate = bookingData.end_date
+      ? new Date(bookingData.end_date)
+      : (!isDailyContract
+          ? new Date(new Date(bookingData.start_date).setDate(new Date(bookingData.start_date).getDate() + 30))
+          : null);
+
+    return effectiveEndDate ? effectiveEndDate.toISOString().split('T')[0] : null;
+  }, [bookingData.start_date, bookingData.end_date, isDailyContract]);
+
+  const shouldFetchPricing = Boolean(
+    activeRoomId
+      && pricingStartDate
+      && pricingEndDate
+      && new Date(pricingEndDate) > new Date(pricingStartDate),
+  );
+
+  const roomPricingQuery = useQuery({
+    queryKey: tenantQueryKeys.exploreRoomPricing({
+      roomId: activeRoomId,
+      startDate: pricingStartDate,
+      endDate: pricingEndDate,
+      contractMode: bookingData.contract_mode,
+    }),
+    enabled: shouldFetchPricing,
+    queryFn: async () => {
+      const res = await PropertyService.getRoomPricing(activeRoomId, pricingStartDate, pricingEndDate);
+      if (!res?.success || !res?.data) {
+        throw new Error(res?.error || 'Pricing calculation failed');
+      }
+
+      return {
+        total: Number(res.data.total || 0),
+        breakdown: res.data.breakdown || null,
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const totalPrice = shouldFetchPricing
+    ? Number(roomPricingQuery.data?.total || 0)
+    : 0;
+  const pricingBreakdown = shouldFetchPricing
+    ? (roomPricingQuery.data?.breakdown || null)
+    : null;
+  const isPricingLoading = shouldFetchPricing && roomPricingQuery.isFetching;
+
+  useEffect(() => {
+    if (!roomPaymentOptionsQuery.error) return;
+    console.error('Error fetching payment options:', roomPaymentOptionsQuery.error);
+  }, [roomPaymentOptionsQuery.error]);
+
+  useEffect(() => {
+    if (!roomPricingQuery.error) return;
+    console.error('Pricing calculation failed', roomPricingQuery.error);
+  }, [roomPricingQuery.error]);
+
+  // Get allowed methods from landlord settings, default to cash only if not set
+  const allowedMethods = activeRoom?.landlord?.payment_methods_settings?.allowed || ['cash'];
+  const gcashDetails = activeRoom?.landlord?.payment_methods_settings?.details?.gcash_info;
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'available': return theme.colors.success;
+      case 'occupied': return theme.colors.error;
+      case 'maintenance': return theme.colors.warning;
+      default: return theme.colors.textTertiary;
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'available': return 'checkmark-circle';
+      case 'occupied': return 'people';
+      case 'maintenance': return 'construct';
+      default: return 'help-circle';
+    }
+  };
+
+  const handleImageScroll = (event) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = event.nativeEvent.contentOffset.x / slideSize;
+    setCurrentImageIndex(Math.round(index));
+  };
+
+  const capitalizeStatus = (status) => {
+    return (status || '').replace(/^\w/, c => c.toUpperCase()) || 'Unknown';
+  };
+
+  // Format date for display
+  const formatDate = (date) => {
+    if (!date) return 'Select date';
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Booking window helpers:
+  // - check-in must be within 3 months from today
+  // - check-out can be any future date after check-in
+  const getAllowedMaxDate = (fromDate = new Date()) => {
+    const dt = new Date(fromDate);
+    dt.setMonth(dt.getMonth() + 3);
+    return dt;
+  };
+
+  const isStartWithinAllowedRange = (date) => {
+    if (!date) return false;
+    const dt = new Date(date);
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = getAllowedMaxDate();
+    return dt >= start && dt <= end;
+  };
+
+  // Handle start date change - auto-fill checkout to 30 days later
+  const onStartDateChange = (event, selectedDate) => {
+    setShowStartDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      // Ensure selected start date is within allowed range
+      if (!isStartWithinAllowedRange(selectedDate)) {
+        Alert.alert('Invalid Check-in', 'Check-in must be within the next 3 months.');
+        return;
+      }
+
+      // Daily contracts require a concrete check-out date.
+      let updatedEndDate = bookingData.end_date;
+      if (isDailyContract) {
+        updatedEndDate = new Date(selectedDate);
+        updatedEndDate.setDate(updatedEndDate.getDate() + 1);
+      } else if (updatedEndDate && updatedEndDate <= selectedDate) {
+        updatedEndDate = null;
+      }
+
+      setBookingData(prev => ({
+        ...prev,
+        start_date: selectedDate,
+        end_date: updatedEndDate,
+      }));
+    }
+  };
+
+  // Handle end date change - tenant can still manually edit
+  const onEndDateChange = (event, selectedDate) => {
+    setShowEndDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      // Ensure end date is after start date
+      if (bookingData.start_date && selectedDate <= bookingData.start_date) {
+        Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
+        return;
+      }
+      setBookingData(prev => ({ ...prev, end_date: selectedDate }));
+    }
+  };
+
+  // AUTH GATE: Check if user is authenticated before booking
+  const handleBook = () => {
+    if (activeRoom.status !== 'available') {
+      Alert.alert('Unavailable', 'This room is not available for booking.');
+      return;
+    }
+
+    // If guest user, trigger auth requirement
+    if (isGuest) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to sign in to book a room. Create an account or log in to continue.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign In',
+            onPress: () => {
+              if (onAuthRequired) {
+                onAuthRequired();
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    // Reset form with today's date and contract-aware checkout defaults.
+    const today = new Date();
+    const bookingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
+    const defaultContractMode = bookingPolicy === 'daily' ? 'daily' : 'monthly';
+    const defaultEndDate = defaultContractMode === 'daily'
+      ? new Date(new Date(today).setDate(today.getDate() + 1))
+      : null;
+
+    setBookingData({
+      start_date: today,
+      end_date: defaultEndDate,
+      contract_mode: defaultContractMode,
+      notes: '',
+      payment_method: 'cash', // Reset to default
+      payment_plan: 'full',
+    });
+    setBookingMode('normal');
+    setProxyOccupants([createEmptyOccupant()]);
+    setReceiptImage(null);
+
+    setBookingModalVisible(true);
+  };
+
+  const refetchRoomPaymentOptions = roomPaymentOptionsQuery.refetch;
+  const refetchPropertySnapshotQuery = propertySnapshotQuery.refetch;
+  const refetchPropertySnapshot = React.useCallback(async () => {
+    if (!activePropertyId) return;
+
+    const result = await refetchPropertySnapshotQuery();
+    const refreshedProperty = result?.data;
+    if (!refreshedProperty) return;
+
+    setPropertyData(refreshedProperty);
+    const updatedRoom = (refreshedProperty.rooms || []).find(
+      (item) => String(item.id) === String(activeRoomId),
+    );
+    if (updatedRoom) {
+      setRoomData(updatedRoom);
+    }
+  }, [activePropertyId, activeRoomId, refetchPropertySnapshotQuery]);
+
+  const roomDetailsRefreshRefetchers = React.useMemo(
+    () => [refetchPropertySnapshot, refetchRoomPaymentOptions],
+    [refetchPropertySnapshot, refetchRoomPaymentOptions],
+  );
+
+  const onRefresh = useTenantRefreshHandler({
+    enabled: Boolean(activePropertyId),
+    setRefreshing,
+    refetchers: roomDetailsRefreshRefetchers,
+  });
+
+  const validateDates = () => {
+    if (!bookingData.start_date) {
+      Alert.alert('Missing Information', 'Please select a check-in date.');
+      return false;
+    }
+
+    if (isDailyContract && !bookingData.end_date) {
+      Alert.alert('Missing Information', 'Please select both check-in and check-out dates for daily contracts.');
+      return false;
+    }
+
+    const start = new Date(bookingData.start_date);
+    const end = bookingData.end_date ? new Date(bookingData.end_date) : null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (start < today) {
+      Alert.alert('Invalid Date', 'Check-in date cannot be in the past.');
+      return false;
+    }
+    if (end && end <= start) {
+      Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
+      return false;
+    }
+
+    // Ensure start is within allowed range (3 months)
+    if (!isStartWithinAllowedRange(start)) {
+      Alert.alert('Invalid Date', 'Check-in must be within the next 3 months.');
+      return false;
+    }
+
+    // End date may be any future date after start (no max)
+
+    return true;
+  };
+
+  const handleAddProxyOccupant = () => {
+    setProxyOccupants((prev) => {
+      if (prev.length >= occupantLimit) return prev;
+      return [...prev, createEmptyOccupant()];
+    });
+  };
+
+  const handleRemoveProxyOccupant = (index) => {
+    setProxyOccupants((prev) => {
+      const next = prev.filter((_, idx) => idx !== index);
+      return next.length > 0 ? next : [createEmptyOccupant()];
+    });
+  };
+
+  const handleProxyOccupantChange = (index, field, value) => {
+    setProxyOccupants((prev) => prev.map((occupant, idx) => (
+      idx === index ? { ...occupant, [field]: value } : occupant
+    )));
+  };
+
+    const pickReceiptImage = async () => {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setReceiptImage(result.assets[0]);
+      }
+    };
+
+  const handleSubmitBooking = async () => {
+    try {
+      if (!validateDates()) return;
+
+      const normalizedOccupants = proxyOccupants
+        .map((occupant) => ({
+          full_name: String(occupant.full_name || '').trim(),
+          date_of_birth: String(occupant.date_of_birth || '').trim(),
+          gender: String(occupant.gender || '').trim().toLowerCase(),
+          relationship_to_booker: String(occupant.relationship_to_booker || '').trim(),
+          phone: String(occupant.phone || '').trim(),
+          email: String(occupant.email || '').trim(),
+        }))
+        .filter((occupant) => Object.values(occupant).some((fieldValue) => Boolean(fieldValue)));
+
+      if (bookingMode === 'proxy') {
+        if (normalizedOccupants.length === 0) {
+          Alert.alert('Missing Information', 'Proxy booking requires at least one occupant.');
+          return;
+        }
+
+        if (normalizedOccupants.length > occupantLimit) {
+          Alert.alert('Occupant Limit', `This booking can only hold up to ${occupantLimit} occupant${occupantLimit > 1 ? 's' : ''}.`);
+          return;
+        }
+
+        for (let i = 0; i < normalizedOccupants.length; i += 1) {
+          const occupant = normalizedOccupants[i];
+          if (!occupant.full_name || !occupant.date_of_birth || !occupant.gender || !occupant.relationship_to_booker) {
+            Alert.alert('Missing Information', `Occupant ${i + 1} is missing required information.`);
+            return;
+          }
+        }
+      }
+
+      if (isReservationRequired && !receiptImage) {
+        Alert.alert('Required', 'Please attach your GCash receipt to confirm your reservation.');
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      const data = new FormData();
+      data.append('room_id', activeRoom.id);
+      data.append('booking_mode', bookingMode);
+      data.append('start_date', bookingData.start_date.toISOString().split('T')[0]);
+      if (bookingData.end_date) data.append('end_date', bookingData.end_date.toISOString().split('T')[0]);
+      data.append('contract_mode', isDailyContract ? 'daily' : 'monthly');
+      data.append('payment_method', bookingData.payment_method || 'cash');
+      data.append('payment_plan', isDailyContract ? 'full' : bookingData.payment_plan);
+      if (bookingData.notes) data.append('notes', bookingData.notes);
+
+      if (bookingMode === 'proxy') {
+        const inferredBedCount = roomPricingModel === 'per_bed'
+          ? Math.max(1, normalizedOccupants.length)
+          : Math.max(1, Number(activeRoom?.capacity || 1));
+        data.append('bed_count', String(inferredBedCount));
+
+        normalizedOccupants.forEach((occupant, index) => {
+          data.append(`occupants[${index}][full_name]`, occupant.full_name);
+          data.append(`occupants[${index}][date_of_birth]`, occupant.date_of_birth);
+          data.append(`occupants[${index}][gender]`, occupant.gender);
+          data.append(`occupants[${index}][relationship_to_booker]`, occupant.relationship_to_booker);
+          if (occupant.phone) data.append(`occupants[${index}][phone]`, occupant.phone);
+          if (occupant.email) data.append(`occupants[${index}][email]`, occupant.email);
+        });
+      }
+
+      if (isReservationRequired && receiptImage) {
+        const localUri = receiptImage.uri;
+        let filename = localUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        let type = match ? `image/${match[1]}` : `image`;
+        if (type === 'image/jpg') type = 'image/jpeg';
+        
+        data.append('receipt_image', {
+          uri: localUri,
+          name: filename,
+          type
+        });
+      }
+
+      console.log('Submitting booking:', data);
+
+      // Create the booking first
+      const result = await BookingService.createBooking(data);
+
+      if (result.success) {
+        const bookingResponse = result.data || {};
+        const bookingObj = bookingResponse.booking || bookingResponse.data?.booking || null;
+        const reservationInvoice = bookingResponse.reservation_invoice || bookingResponse.data?.reservation_invoice || null;
+        const checkoutUrl = reservationInvoice?.checkout_url;
+
+        if (bookingData.payment_method === 'online') {
+          if (checkoutUrl) {
+            await Linking.openURL(checkoutUrl);
+          } else {
+            // Backward-compatible fallback for environments that still use room-level checkout creation.
+            const payRes = await PaymentService.createPaymentLink(activeRoom.id);
+            if (payRes.success && payRes.data.checkout_url) {
+              await Linking.openURL(payRes.data.checkout_url);
+            } else {
+              Alert.alert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
+            }
+          }
+        } else if (bookingData.payment_method === 'cash') {
+          // Reservation invoice is created by booking endpoint in web flow; fallback keeps compatibility.
+          if (!reservationInvoice) {
+            await PaymentService.generateCashInvoice(activeRoom.id);
+          }
+        }
+
+        Alert.alert(
+          'Success',
+          `Booking submitted successfully! Reference: ${bookingObj?.booking_reference || 'N/A'}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setBookingModalVisible(false);
+                navigation.goBack();
+              }
+            }
+          ]
+        );
+      } else {
+        // Handle errors...
+        if (result.error && (
+          result.error.toLowerCase().includes('authentication') ||
+          result.error.toLowerCase().includes('unauthenticated')
+        )) {
+          if (onAuthRequired) onAuthRequired();
+          else triggerForcedLogout();
+          return;
+        }
+
+        if (result.details) {
+          const errorMessages = Object.values(result.details).flat().join('\n');
+          Alert.alert('Validation Error', errorMessages);
+        } else {
+          Alert.alert('Error', result.error || 'Failed to submit booking.');
+        }
+      }
+    } catch (error) {
+      console.error('Booking submission error:', error);
+      Alert.alert('Error', error.message || 'An unexpected error occurred.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // AUTH GATE: Contact landlord also requires auth
+  const handleContactLandlord = async () => {
+    if (isGuest) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to sign in to contact the landlord.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign In',
+            onPress: () => {
+              if (onAuthRequired) {
+                onAuthRequired();
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    try {
+      // COMPREHENSIVE DEBUG LOGGING
+      console.log('=== CONTACT LANDLORD DEBUG ===');
+      console.log('Full property object:', JSON.stringify(property, null, 2));
+      console.log('Property keys:', Object.keys(property));
+      console.log('Direct property.landlord_id:', property.landlord_id);
+      console.log('Direct property.user_id:', property.user_id);
+      console.log('Direct property.landlord:', property.landlord);
+      console.log('Direct property.landlord_name:', property.landlord_name);
+      console.log('Direct property.owner_name:', property.owner_name);
+      console.log('==============================');
+
+      // Try EVERY possible way to get landlord_id
+      const landlordId = property.landlord_id ||
+        property.user_id ||
+        property.landlord?.id ||
+        property.owner?.id;
+
+      // Try EVERY possible way to get landlord name
+      const landlordName = property.landlord_name ||
+        property.owner_name ||
+        (property.landlord ?
+          `${property.landlord.first_name || ''} ${property.landlord.last_name || ''}`.trim()
+          : null) ||
+        (property.owner ?
+          `${property.owner.first_name || ''} ${property.owner.last_name || ''}`.trim()
+          : null) ||
+        'Landlord';
+
+      console.log('Extracted landlord info:', JSON.stringify({ landlordId, landlordName }, null, 2));
+
+      // Check if we have the landlord information
+      if (!landlordId) {
+        console.error('LANDLORD ID NOT FOUND!');
+        console.error('Available property data:', Object.keys(property));
+
+        Alert.alert(
+          'Debug Info',
+          `Property ID: ${property.id}\n\nAvailable fields: ${Object.keys(property).join(', ')}\n\nPlease screenshot this and check the backend response.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Show more detailed error
+                Alert.alert(
+                  'Error',
+                  'Landlord information not available. This might be an older property listing. Please try viewing the property again from the home page.',
+                  [
+                    {
+                      text: 'Go Back',
+                      onPress: () => navigation.goBack()
+                    }
+                  ]
+                );
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      console.log('Navigating to Messages with:', {
+        landlordId,
+        landlordName,
+        propertyId: property.id,
+        propertyTitle: property.name || property.title,
+        roomId: activeRoom.id,
+        roomNumber: activeRoom.room_number
+      });
+
+      // Navigate to Messages with the conversation parameters
+      navigation.navigate('Messages', {
+        startConversation: true,
+        recipient: {
+          id: landlordId,
+          name: landlordName,
+        },
+        property: {
+          id: property.id,
+          title: property.name || property.title,
+        },
+        room: {
+          id: activeRoom.id,
+          room_number: activeRoom.room_number,
+        }
+      });
+    } catch (error) {
+      console.error('Error navigating to messages:', error);
+      console.error('Error stack:', error.stack);
+      Alert.alert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" />
+
+      <View style={[styles.headerBar, { backgroundColor: theme.colors.primary, borderBottomColor: theme.colors.primary }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse || '#fff'} />
+        </TouchableOpacity>
+
+        <Text style={[styles.titleTxt, { color: theme.colors.textInverse || '#fff' }]}>Room Details</Text>
+
+        <View style={styles.emptyHeaderSide} />
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
+      >
+        {/* Image Gallery */}
+        {activeRoom.images && activeRoom.images.length > 0 ? (
+          <View style={styles.imageGalleryContainer}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleImageScroll}
+              scrollEventThrottle={16}
+            >
+              {activeRoom.images.map((image, index) => (
+                <Image
+                  key={index}
+                  source={{ uri: getRoomImageUrl(image) }}
+                  style={styles.roomImage}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+
+            {/* Image Indicators */}
+            {activeRoom.images.length > 1 && (
+              <View style={styles.imageIndicator}>
+                {activeRoom.images.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.indicatorDot,
+                      index === currentImageIndex && styles.indicatorDotActive
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={styles.imageGalleryContainer}>
+            <Image
+              source={{ uri: 'https://via.placeholder.com/400x280?text=No+Image' }}
+              style={styles.roomImage}
+              resizeMode="cover"
+            />
+          </View>
+        )}
+
+        {/* Content Container */}
+        <View style={styles.contentContainer}>
+          {/* Room Header */}
+          <View style={styles.roomHeader}>
+            <Text style={styles.roomNumber}>Room {activeRoom.room_number}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(activeRoom.status) + '20' }]}>
+              <Ionicons name={getStatusIcon(activeRoom.status)} size={14} color={getStatusColor(activeRoom.status)} />
+              <Text style={[styles.statusText, { color: getStatusColor(activeRoom.status) }]}>
+                {capitalizeStatus(activeRoom.status)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Room Type */}
+          <Text style={styles.roomType}>{activeRoom.type_label || activeRoom.room_type}</Text>
+
+          {/* Price */}
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}</Text>
+            <Text style={styles.priceLabel}>/month</Text>
+          </View>
+
+          {/* Room Details Grid */}
+          <View style={styles.section}>
+            <View style={styles.amenitiesGrid}>
+              <View style={styles.amenityItem}>
+                <Ionicons name="layers-outline" size={18} color="#6b7280" />
+                <Text style={styles.amenityText}>{activeRoom.floor_label || `Floor ${activeRoom.floor}`}</Text>
+              </View>
+              <View style={styles.amenityItem}>
+                <Ionicons name="people-outline" size={18} color="#6b7280" />
+                <Text style={styles.amenityText}>Capacity: {activeRoom.capacity} {activeRoom.capacity === 1 ? 'person' : 'people'}</Text>
+              </View>
+            </View>
+            {activeRoom.capacity && parseInt(activeRoom.capacity, 10) > 1 && (
+              <Text style={styles.psText}>
+                PS: This room has a capacity of {activeRoom.capacity}. The monthly rent can be divided if you find another tenant (or wait for one); otherwise you'll pay the full room rent.
+              </Text>
+            )}
+          </View>
+
+          {/* Description */}
+          {activeRoom.description && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.description}>{activeRoom.description}</Text>
+            </View>
+          )}
+
+          {/* Amenities */}
+          {activeRoom.amenities && activeRoom.amenities.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Room Amenities</Text>
+              <View style={styles.amenitiesGrid}>
+                {activeRoom.amenities.map((amenity, index) => (
+                  <View key={index} style={styles.amenityItem}>
+                    <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+                    <Text style={[styles.amenityText, { color: theme.colors.text }]}>{amenity}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Room Rules */}
+          {((activeRoom.rules && activeRoom.rules.length > 0) || (propertyData?.rules && propertyData.rules.length > 0)) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Room Rules</Text>
+              <View style={styles.rulesList}>
+                {(activeRoom.rules?.length > 0 ? activeRoom.rules : propertyData?.rules || []).map((rule, index) => (
+                  <View key={index} style={styles.ruleItem}>
+                    <Ionicons name="alert-circle-outline" size={18} color="#f97316" />
+                    <Text style={[styles.ruleText, { color: theme.colors.text }]}>{rule}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* GUEST USER NOTICE */}
+          {isGuest && (
+            <View style={styles.guestNotice}>
+              <Ionicons name="information-circle" size={20} color="#3B82F6" />
+              <Text style={styles.guestNoticeText}>
+                Sign in to book rooms and contact landlords
+              </Text>
+            </View>
+          )}
+
+          {/* Action Buttons */}
+          {roomIsBookable && (
+            <TouchableOpacity style={styles.bookButton} onPress={handleBook}>
+              <Text style={styles.bookButtonText}>
+                {isGuest ? 'Sign In to Book' : 'Book This Room'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity style={styles.contactButton} onPress={handleContactLandlord}>
+            <Ionicons name="chatbubble-outline" size={18} color="#ffffff" />
+            <Text style={styles.contactButtonText}>Contact Landlord</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* Booking Modal - UPDATED WITH DATE PICKERS */}
+      <Modal
+        visible={bookingModalVisible}
+        animationType="fade"
+        transparent={true}
+        statusBarTranslucent={true}
+        onRequestClose={() => !isSubmitting && setBookingModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+            <Text style={styles.modalTitle}>Book Room {activeRoom.room_number}</Text>
+            <Text style={styles.psText}>Monthly = 30 days (no prorate)</Text>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Booking Type</Text>
+              <View style={styles.paymentMethodRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodBtn,
+                    bookingMode === 'normal' && styles.paymentMethodBtnActive,
+                  ]}
+                  onPress={() => setBookingMode('normal')}
+                >
+                  <Text
+                    style={[
+                      styles.paymentMethodBtnText,
+                      bookingMode === 'normal' && styles.paymentMethodBtnTextActive,
+                    ]}
+                  >
+                    Normal
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodBtn,
+                    bookingMode === 'proxy' && styles.paymentMethodBtnActive,
+                  ]}
+                  onPress={() => setBookingMode('proxy')}
+                >
+                  <Text
+                    style={[
+                      styles.paymentMethodBtnText,
+                      bookingMode === 'proxy' && styles.paymentMethodBtnTextActive,
+                    ]}
+                  >
+                    Proxy
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.summaryNote}>
+                Normal allows 1 active/pending booking per property. Proxy allows up to 3 and requires occupant details.
+              </Text>
+            </View>
+
+            {supportsContractModeSwitch && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Stay Mode</Text>
+                <View style={styles.paymentMethodRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentMethodBtn,
+                      !isDailyContract && styles.paymentMethodBtnActive,
+                    ]}
+                    onPress={() => setBookingData(prev => ({
+                      ...prev,
+                      contract_mode: 'monthly',
+                      end_date: null,
+                      payment_plan: prev.payment_plan === 'monthly' ? 'monthly' : 'full',
+                    }))}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentMethodBtnText,
+                        !isDailyContract && styles.paymentMethodBtnTextActive,
+                      ]}
+                    >
+                      Monthly Contract
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentMethodBtn,
+                      isDailyContract && styles.paymentMethodBtnActive,
+                    ]}
+                    onPress={() => setBookingData(prev => {
+                      const defaultEndDate = new Date(prev.start_date || new Date());
+                      defaultEndDate.setDate(defaultEndDate.getDate() + 1);
+                      return {
+                        ...prev,
+                        contract_mode: 'daily',
+                        end_date: prev.end_date || defaultEndDate,
+                        payment_plan: 'full',
+                      };
+                    })}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentMethodBtnText,
+                        isDailyContract && styles.paymentMethodBtnTextActive,
+                      ]}
+                    >
+                      Daily Contract
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.summaryNote}>
+                  Monthly contracts may leave check-out blank for open-ended stay.
+                </Text>
+              </View>
+            )}
+
+            {/* Start Date Picker */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Check-in Date <Text style={{color: '#ef4444'}}>*</Text></Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowStartDatePicker(true)}
+                disabled={isSubmitting}
+              >
+                <Ionicons name="calendar-outline" size={20} color="#6b7280" />
+                <Text style={styles.dateButtonText}>{formatDate(bookingData.start_date)}</Text>
+              </TouchableOpacity>
+
+              {showStartDatePicker && (
+                <DateTimePicker
+                  value={bookingData.start_date || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onStartDateChange}
+                  minimumDate={new Date()}
+                  maximumDate={getAllowedMaxDate()}
+                />
+              )}
+            </View>
+
+            {/* End Date Picker */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>
+                {isDailyContract ? 'Check-out Date' : 'Planned Move-out Date (Optional)'}
+                {isDailyContract ? <Text style={{color: '#ef4444'}}> *</Text> : null}
+              </Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowEndDatePicker(true)}
+                disabled={isSubmitting}
+              >
+                <Ionicons name="calendar-outline" size={20} color="#6b7280" />
+                <Text style={styles.dateButtonText}>{formatDate(bookingData.end_date)}</Text>
+              </TouchableOpacity>
+
+              {showEndDatePicker && (
+                <DateTimePicker
+                  value={bookingData.end_date || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onEndDateChange}
+                  minimumDate={bookingData.start_date || new Date()}
+                  // No maximumDate: checkout may be any future date
+                />
+              )}
+            </View>
+
+            {bookingMode === 'proxy' && (
+              <View style={styles.inputContainer}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={styles.inputLabel}>Occupants ({proxyOccupants.length}/{occupantLimit})</Text>
+                  <TouchableOpacity onPress={handleAddProxyOccupant} disabled={proxyOccupants.length >= occupantLimit}>
+                    <Text style={{ color: proxyOccupants.length >= occupantLimit ? theme.colors.textTertiary : theme.colors.primary, fontWeight: '600' }}>
+                      Add Occupant
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.summaryNote}>Provide details of the people who will actually stay in this room.</Text>
+
+                {proxyOccupants.map((occupant, index) => (
+                  <View
+                    key={`proxy-occupant-${index}`}
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, marginTop: 10 }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Occupant {index + 1}</Text>
+                      {proxyOccupants.length > 1 && (
+                        <TouchableOpacity onPress={() => handleRemoveProxyOccupant(index)}>
+                          <Text style={{ color: theme.colors.error || '#ef4444', fontWeight: '600' }}>Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Full name*"
+                      placeholderTextColor="#999"
+                      value={occupant.full_name}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'full_name', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Date of birth (YYYY-MM-DD)*"
+                      placeholderTextColor="#999"
+                      value={occupant.date_of_birth}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'date_of_birth', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Gender (male/female/other/prefer_not_to_say)*"
+                      placeholderTextColor="#999"
+                      value={occupant.gender}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'gender', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Relationship to booker*"
+                      placeholderTextColor="#999"
+                      value={occupant.relationship_to_booker}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'relationship_to_booker', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 10 }]}
+                      placeholder="Phone (optional)"
+                      placeholderTextColor="#999"
+                      value={occupant.phone}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'phone', text)}
+                    />
+                    <TextInput
+                      style={[styles.input, { marginBottom: 0 }]}
+                      placeholder="Email (optional)"
+                      placeholderTextColor="#999"
+                      value={occupant.email}
+                      onChangeText={(text) => handleProxyOccupantChange(index, 'email', text)}
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Payment Method Selection */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Payment Method <Text style={{color: '#ef4444'}}>*</Text></Text>
+              
+              <View style={styles.paymentMethodRow}>
+                {paymentOptions.methods.includes('cash') && (
+                  <TouchableOpacity 
+                    style={[
+                      styles.paymentMethodBtn, 
+                      bookingData.payment_method === 'cash' && styles.paymentMethodBtnActive
+                    ]}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'cash' }))}
+                  >
+                     <Text style={[
+                       styles.paymentMethodBtnText, 
+                       bookingData.payment_method === 'cash' && styles.paymentMethodBtnTextActive
+                     ]}>Cash</Text>
+                  </TouchableOpacity>
+                )}
+
+                {paymentOptions.methods.includes('online') && paymentOptions.is_paymongo_ready && (
+                  <TouchableOpacity 
+                    style={[
+                      styles.paymentMethodBtn, 
+                      bookingData.payment_method === 'online' && styles.paymentMethodBtnActive
+                    ]}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'online' }))}
+                  >
+                     <Text style={[
+                       styles.paymentMethodBtnText, 
+                       bookingData.payment_method === 'online' && styles.paymentMethodBtnTextActive
+                     ]}>Online (PayMongo)</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Payment Plan Selection - Only for monthly contract stays >= 2 months */}
+            {!isDailyContract && pricingBreakdown && pricingBreakdown.months >= 2 && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Payment Plan <Text style={{color: '#ef4444'}}>*</Text></Text>
+                
+                <View style={styles.paymentMethodRow}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.paymentMethodBtn, 
+                      bookingData.payment_plan === 'full' && styles.paymentMethodBtnActive
+                    ]}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'full' }))}
+                  >
+                     <Text style={[
+                       styles.paymentMethodBtnText, 
+                       bookingData.payment_plan === 'full' && styles.paymentMethodBtnTextActive
+                     ]}>Full</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[
+                      styles.paymentMethodBtn, 
+                      bookingData.payment_plan === 'monthly' && styles.paymentMethodBtnActive
+                    ]}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'monthly' }))}
+                  >
+                     <Text style={[
+                       styles.paymentMethodBtnText, 
+                       bookingData.payment_plan === 'monthly' && styles.paymentMethodBtnTextActive
+                     ]}>Monthly</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.summaryNote, { marginTop: 8, fontStyle: 'italic' }]}>
+                  {bookingData.payment_plan === 'monthly' 
+                    ? 'Pay the first month now to confirm, then pay monthly.'
+                    : 'Pay the total amount within 3 days to confirm your booking.'}
+                </Text>
+              </View>
+            )}
+
+            {/* Duration & Cost Summary */}
+            {(bookingData.end_date || !isDailyContract) && (
+              <View style={styles.summaryContainer}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Duration</Text>
+                  <Text style={styles.summaryValue}>
+                    {isPricingLoading ? 'Calculating...' : (
+                      pricingBreakdown 
+                        ? `${pricingBreakdown.months || 0} month(s) ${pricingBreakdown.remaining_days > 0 ? `+ ${pricingBreakdown.remaining_days} day(s)` : ''}`
+                        : 'Select dates'
+                    )}
+                  </Text>
+                </View>
+                
+                {activeRoom.requires_advance && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>1-Month Advance</Text>
+                    <Text style={styles.summaryValue}>
+                      ₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+
+                {isReservationRequired && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Reservation Fee</Text>
+                    <Text style={styles.summaryValue}>
+                      ₱{Number(reservationFee).toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
+                  <Text style={styles.summaryLabelBold}>Total Amount</Text>
+                  <Text style={styles.summaryValueBold}>
+                    {isPricingLoading ? '...' : `₱${(
+                      (Number(totalPrice) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? Number(reservationFee) : 0)
+                    ).toLocaleString()}`}
+                  </Text>
+                </View>
+
+                {isReservationRequired && (
+                  <View style={{ marginTop: 24, padding: 12, backgroundColor: theme.colors.surface || '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border || '#e2e8f0' }}>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>
+                      <Ionicons name="warning-outline" size={14} /> Reservation Payment Required
+                    </Text>
+                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 16 }}>
+                      This property requires a ₱{Number(reservationFee).toLocaleString()} reservation fee paid manually via GCash.
+                    </Text>
+                    
+                    <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 }}>GCash Account Details:</Text>
+                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text }}>{gcashName || 'Not Provided'}</Text>
+                      <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.primary, marginVertical: 4 }}>{gcashNumber || 'Not Provided'}</Text>
+                      {gcashQrPath ? (
+                        <TouchableOpacity style={{ marginTop: 8 }} onPress={() => Linking.openURL(getRoomImageUrl(gcashQrPath))}>
+                          <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: 'bold' }}>View QR Code</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>Upload Receipt <Text style={{ color: theme.colors.error }}>*</Text></Text>
+                    <TouchableOpacity
+                      style={{
+                        height: 120,
+                        borderWidth: 2,
+                        borderColor: receiptImage ? theme.colors.primary : (theme.colors.border || '#cbd5e1'),
+                        borderStyle: 'dashed',
+                        borderRadius: 12,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: receiptImage ? (theme.colors.primary + '10') : 'transparent'
+                      }}
+                      onPress={pickReceiptImage}
+                    >
+                      {receiptImage ? (
+                        <>
+                          <Image source={{ uri: receiptImage.uri }} style={{ width: '100%', height: '100%', borderRadius: 10, position: 'absolute' }} opacity={0.3} resizeMode="cover" />
+                          <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary} />
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.primary, marginTop: 4 }}>Receipt Attached</Text>
+                          <Text style={{ fontSize: 10, color: theme.colors.primary }}>Tap to change</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Ionicons name="cloud-upload-outline" size={32} color={theme.colors.textTertiary || '#94a3b8'} />
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.textSecondary, marginTop: 8 }}>Tap to upload GCash receipt</Text>
+                          <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 4 }}>PNG, JPG up to 5MB</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+                
+                <View style={{ marginTop: 8 }}>
+                  {pricingBreakdown && pricingBreakdown.months > 0 && (
+                    <Text style={[styles.summaryNote, { marginBottom: 2 }]}>
+                      Rent: ₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × {pricingBreakdown.months}
+                    </Text>
+                  )}
+                  {activeRoom.requires_advance && (
+                    <Text style={[styles.summaryNote, { color: theme.colors.primary, fontWeight: '600' }]}>
+                      * Includes 1-month advance required for this room
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Notes */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Notes (Optional)</Text>
+              <TextInput
+                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                placeholder="Add any special requests or notes"
+                placeholderTextColor="#999"
+                multiline
+                value={bookingData.notes}
+                onChangeText={(text) => setBookingData(prev => ({ ...prev, notes: text }))}
+                editable={!isSubmitting}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, ((isDailyContract && !bookingData.end_date) || isSubmitting) && styles.submitButtonDisabled]}
+              onPress={handleSubmitBooking}
+              disabled={(isDailyContract && !bookingData.end_date) || isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Submit Booking</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setBookingModalVisible(false)}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}

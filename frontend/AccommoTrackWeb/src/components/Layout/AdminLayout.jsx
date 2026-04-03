@@ -4,6 +4,7 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
 import { getImageUrl } from '../../utils/api';
+import { Menu } from 'lucide-react';
 
 const AdminLayout = ({ children, user, onLogout = () => {} }) => {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
@@ -11,7 +12,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
   const navigate = useNavigate();
 
   const navLinkClasses = (isActive) =>
-    `w-full flex items-center gap-3 px-4 py-3 transition-colors text-sm font-medium ${
+    `w-full flex items-center gap-4 px-4 py-4 transition-colors text-sm font-medium ${
       isActive
         ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 border-r-4 border-brand-600 dark:border-brand-500'
         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -64,6 +65,24 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </svg>
       )
     },
+    {
+      path: '/admin/payments-oversight',
+      label: 'Payment Oversight',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zm5 0c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zM7 11c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zm5 9c4.418 0 8-3.582 8-8a8 8 0 10-16 0c0 4.418 3.582 8 8 8z" />
+        </svg>
+      )
+    },
+    {
+      path: '/admin/audit-logs',
+      label: 'Audit Explorer',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10m-3 4h3m-6 0h1m4 0h1M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    },
   ];
 
   const handleLogoutClick = () => {
@@ -78,13 +97,12 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      <aside 
+      <aside
         ref={asideRef}
         className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
-          isSidebarOpen ? 'w-64' : 'w-20'
-        } flex flex-col min-h-0`}
-      >
-        {/* Logo */}
+          isSidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'
+        } w-64 flex flex-col min-h-0`}
+      >        {/* Logo */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <div 
             className="cursor-pointer flex items-center gap-2"
@@ -95,7 +113,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
               <>
                 <img src={Logo} alt="AccommoTrack" className="h-8 w-auto" />
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 font-semibold">Admin Suite</p>
+                  <p className="text-xs uppercase tracking-wider text-brand-700 dark:text-brand-400 font-semibold">Admin Suite</p>
                   <span className="text-sm font-bold text-gray-900 dark:text-white">AccommoTrack</span>
                 </div>
               </>
@@ -105,7 +123,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
           </div>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
+            className={`p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
             aria-label="Toggle sidebar"
           >
             <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,7 +153,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
           onClick={() => navigate('/admin')}
           title="Admin Profile"
         >
-          <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
+          <div className={`flex items-center gap-4 ${!isSidebarOpen && 'justify-center'}`}>
             {user?.profile_image ? (
               <img 
                 src={getImageUrl(user.profile_image)} 
@@ -144,7 +162,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
               />
             ) : (
               <div className="w-10 h-10 bg-brand-100 dark:bg-brand-900 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-brand-600 dark:text-brand-400 font-semibold">
+                <span className="text-brand-700 dark:text-brand-400 font-semibold">
                   {user?.first_name?.[0]}{user?.last_name?.[0] || user?.email?.[0]?.toUpperCase()}
                 </span>
               </div>
@@ -154,7 +172,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
                 <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                   {user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user?.email}
                 </p>
-                <p className="text-xs text-brand-600 dark:text-brand-400 font-medium">Administrator</p>
+                <p className="text-xs text-brand-700 dark:text-brand-400 font-medium">Administrator</p>
               </div>
             )}
           </div>
@@ -179,7 +197,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={handleLogoutClick}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
               !isSidebarOpen && 'justify-center'
             }`}
           >
@@ -191,9 +209,29 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </div>
       </aside>
 
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-10 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile Sidebar Trigger */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed top-4 left-4 z-30 lg:hidden p-2.5 rounded-lg bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 shadow-lg"
+          aria-label="Open sidebar"
+        >
+          <Menu className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+        </button>
+      )}
+
       {/* Main Content */}
       <main className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-all duration-300 ${
-        isSidebarOpen ? 'ml-64' : 'ml-20'
+        isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
       }`}>
         {children}
       </main>

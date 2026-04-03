@@ -23,7 +23,7 @@ return new class extends Migration
             $table->text('landlord_response')->nullable();
             $table->timestamp('landlord_response_date')->nullable();
             $table->timestamps();
-            
+
             $table->unique('booking_id');
             $table->index('property_id');
             $table->index('rating');

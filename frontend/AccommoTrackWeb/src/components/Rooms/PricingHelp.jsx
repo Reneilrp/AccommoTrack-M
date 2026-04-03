@@ -12,7 +12,7 @@ export default function PricingHelp({ open, onClose }) {
           <button onClick={onClose} aria-label="Close" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">✕</button>
         </div>
 
-        <div className="mt-4 text-sm text-gray-700 dark:text-gray-300 space-y-3 overflow-y-auto pr-2" style={{ maxHeight: '60vh' }}>
+        <div className="mt-4 text-sm text-gray-700 dark:text-gray-300 space-y-4 overflow-y-auto pr-2" style={{ maxHeight: '60vh' }}>
           <p>
             This explains how room charges are calculated depending on the billing policy.
           </p>
@@ -25,27 +25,27 @@ export default function PricingHelp({ open, onClose }) {
             <strong className="text-gray-900 dark:text-white">monthly</strong>: Charge a fixed price per full month using the landlord-entered <em>Monthly Rate</em>.
             This policy is intended for month-based stays. For stays that include extra days beyond whole months,
             use <strong className="text-gray-900 dark:text-white">Monthly + Daily</strong> (below) or select <strong className="text-gray-900 dark:text-white">Daily</strong> when renting strictly by day.
-            <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300">
+            <div className="mt-2 p-4 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300">
               Example: monthly_rate = ₱5,000
-              <div className="mt-1 font-medium text-gray-800 dark:text-gray-200">A 30-day booking → ₱5,000</div>
-              <div className="mt-1 text-gray-500 dark:text-gray-400">(If the booking includes extra days, use Monthly + Daily to bill leftover days.)</div>
+              <div className="mt-2 font-medium text-gray-800 dark:text-gray-200">A 30-day booking → ₱5,000</div>
+              <div className="mt-2 text-gray-500 dark:text-gray-400">(If the booking includes extra days, use Monthly + Daily to bill leftover days.)</div>
             </div>
           </div>
 
           <div>
             <strong className="text-gray-900 dark:text-white">monthly_with_daily</strong>: Charge full months at the Monthly Rate, and charge any leftover days at the landlord-entered Daily Rate.
             This requires the Daily Rate to be set when choosing this policy.
-            <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300">
+            <div className="mt-2 p-4 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300">
               Example: monthly_rate = ₱5,000, daily_rate = ₱300, stay = 35 days
-              <div className="mt-1">months = 1 → ₱5,000</div>
+              <div className="mt-2">months = 1 → ₱5,000</div>
               <div>remaining = 5 → 5 × ₱300 = ₱1,500</div>
-              <div className="mt-1 font-medium text-gray-800 dark:text-gray-200">Total = ₱6,500</div>
+              <div className="mt-2 font-medium text-gray-800 dark:text-gray-200">Total = ₱6,500</div>
             </div>
           </div>
 
           <div>
             <strong className="text-gray-900 dark:text-white">daily</strong>: Charge every day using the landlord-entered Daily Rate (suitable for short stays and daily rentals).
-            <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300">
+            <div className="mt-2 p-4 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300">
               Example: daily_rate = ₱300, stay = 5 days → 5 × ₱300 = ₱1,500
             </div>
           </div>

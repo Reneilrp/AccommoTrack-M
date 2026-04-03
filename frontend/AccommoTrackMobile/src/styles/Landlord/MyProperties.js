@@ -34,8 +34,8 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingTop: 16
   },
   statsScroll: {
-    paddingBottom: 12,
-    gap: 12,
+    paddingBottom: 16,
+    gap: 16,
   },
   statCard: {
     width: 140,
@@ -57,35 +57,35 @@ export const getStyles = (theme) => StyleSheet.create({
     textAlign: 'center',
   },
   statValue: {
-    marginTop: 4,
+    marginTop: 8,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.text,
     textAlign: 'center',
   },
   statValueGreen: {
-    marginTop: 4,
+    marginTop: 8,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.success,
     textAlign: 'center',
   },
   statValueOrange: {
-    marginTop: 4,
+    marginTop: 8,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.warning,
     textAlign: 'center',
   },
   statValueRed: {
-    marginTop: 4,
+    marginTop: 8,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.error,
     textAlign: 'center',
   },
   statValueBlue: {
-    marginTop: 4,
+    marginTop: 8,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.info,
@@ -107,13 +107,13 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 8,
     fontSize: 14,
     color: theme.colors.text
   },
   filtersRow: {
     flexDirection: 'row',
-    marginTop: 12,
+    marginTop: 16,
     marginBottom: 16,
     gap: 8
   },
@@ -164,8 +164,8 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 999
   },
   statusText: {
@@ -175,7 +175,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   cardBody: {
     flexDirection: 'row',
-    marginTop: 12
+    marginTop: 16
   },
   imageColumn: {
     marginRight: 14,
@@ -189,8 +189,8 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   propertyTypeContainer: {
     marginTop: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: theme.colors.primaryLight
   },
@@ -222,8 +222,8 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 8
   },
   chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: theme.colors.backgroundTertiary,
     marginRight: 8,
@@ -236,10 +236,10 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   metricsRow: {
     flexDirection: 'row',
-    marginTop: 10
+    marginTop: 8
   },
   metricsGrid: {
-    marginTop: 10,
+    marginTop: 8,
     gap: 6
   },
   metricsGridRow: {
@@ -258,7 +258,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600'
   },
   progressBar: {
-    marginTop: 12,
+    marginTop: 16,
     height: 6,
     borderRadius: 999,
     backgroundColor: theme.colors.backgroundTertiary,
@@ -273,10 +273,10 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.error,
-    marginBottom: 12
+    marginBottom: 16
   },
   errorText: {
     flex: 1,
@@ -292,16 +292,16 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text,
-    marginTop: 12
+    marginTop: 16
   },
   emptySubtitle: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 8,
     textAlign: 'center'
   },
   listHeaderSpacer: {
-    paddingBottom: 12
+    paddingBottom: 16
   },
   loadingContainer: {
     flex: 1,
@@ -310,7 +310,7 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center'
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 15,
     color: theme.colors.textSecondary
   }

@@ -1,20 +1,43 @@
-import React, { useState } from 'react';
-import { X, Users, List, CreditCard, CalendarDays } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Users, List, CreditCard, CalendarDays, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../utils/api';
 
-export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
+export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyType }) {
   const [showActivity, setShowActivity] = useState(false);
+  const [activity, setActivity] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
   const [extensionValues, setExtensionValues] = useState({});
   const [extending, setExtending] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (isOpen && showActivity && room?.id) {
+      fetchRoomActivity();
+    }
+  }, [isOpen, showActivity, room?.id]);
+
+  const fetchRoomActivity = async () => {
+    setLoadingActivity(true);
+    try {
+      const res = await api.get(`/landlord/dashboard/recent-activities?room_id=${room.id}`);
+      setActivity(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch room activity', err);
+    } finally {
+      setLoadingActivity(false);
+    }
+  };
+
   if (!isOpen || !room) return null;
 
-  const payments = room.payments || [];
-  const tenants = room.tenant ? [room.tenant] : (room.tenants || []);
-  const activity = room.activity_logs || [];
-
-  const tenant = tenants[0] || null;
+  const __payments = room.payments || [];
+  const tenants = (Array.isArray(room.tenants) && room.tenants.length > 0)
+    ? room.tenants
+    : (room.tenant ? (typeof room.tenant === 'string' ? [{ name: room.tenant }] : [room.tenant]) : []);
+  const normalizedGender = String(room.gender_restriction || 'mixed').toLowerCase().trim();
+  const normalizedPropertyType = String(propertyType || room.property_type || room.property?.property_type || '').toLowerCase().trim();
+  const showGenderBadge = !(normalizedPropertyType === 'apartment' && normalizedGender === 'mixed');
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
@@ -23,14 +46,27 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
       <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto z-10">
         <div className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-gray-700">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
+              {showGenderBadge && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                  room.gender_restriction === 'male' 
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
+                    : room.gender_restriction === 'female'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                }`}>
+                  {room.gender_restriction === 'male' ? 'Boys' : room.gender_restriction === 'female' ? 'Girls' : 'Mixed'}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">{room.type_label || room.room_type} {room.floor_label ? `• ${room.floor_label}` : ''}</p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowActivity(s => !s)}
-              className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 ${showActivity ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`} 
+              className={`px-4 py-2.5 rounded-md text-sm flex items-center gap-2 ${showActivity ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`} 
               title="Activity logs"
               aria-pressed={showActivity}
             >
@@ -49,7 +85,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
               Age, Contact No., Payments, Due Day, Extension */}
           <div className="mb-4">
             {/* Header row for md+ */}
-            <div className="hidden md:grid grid-cols-4 gap-3 text-xs text-gray-500 dark:text-gray-400 mb-2 px-1">
+            <div className="hidden md:grid grid-cols-4 gap-4 text-xs text-gray-500 dark:text-gray-400 mb-2 px-2">
               <div>Tenant Name</div>
               <div>Contact No.</div>
               <div>Payments</div>
@@ -61,7 +97,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
             ) : (
               <div className="space-y-2">
                 {tenants.map((t, i) => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md border border-gray-100 dark:border-gray-700">
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md border border-gray-100 dark:border-gray-700">
                     <div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Tenant Name</div>
                       <button
@@ -105,40 +141,55 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-2">
                       <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Extension</div>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          value={(() => {
-                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                            return extensionValues[idKey] ?? 1;
-                          })()}
-                          onChange={(e) => {
-                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                            setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
-                          }}
-                          className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          aria-label="Extension days"
-                        />
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            value={(() => {
+                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                              return extensionValues[idKey] ?? 1;
+                            })()}
+                            onChange={(e) => {
+                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                              setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
+                            }}
+                            className="w-20 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                            aria-label="Extension value"
+                          />
+                          {/* Mini Price Preview */}
+                          <div className="absolute -top-5 left-0 whitespace-nowrap text-[10px] font-bold text-green-600 dark:text-green-400">
+                            Est: ₱{(() => {
+                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                              const val = extensionValues[idKey] ?? 1;
+                              const monthly = Number(room.monthly_rate) || 0;
+                              const daily = Number(room.daily_rate) || (monthly / 30);
+                              return (val * daily).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                            })()}
+                          </div>
+                        </div>
                           <button
                             disabled={extending}
                             onClick={async () => {
                               if (!onExtend) return;
+                              const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
+                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                              const days = extensionValues[idKey] ?? 1;
+                              
+                              if (!window.confirm(`Extend stay for ${days} days? This will generate an invoice.`)) return;
+                              
                               setExtending(true);
                               try {
-                                const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
-                                const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                                const days = extensionValues[idKey] ?? 1;
-                                await onExtend({ roomId: room.id, days: Number(days), tenantId });
-                              } catch (e) {
+                                await onExtend({ roomId: room.id, days: Number(days), tenant_id: tenantId });
+                              } catch (__e) {
                                 // parent handles error
                               } finally {
                                 setExtending(false);
                               }
                             }}
-                          className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-sm"
+                          className="px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-xs font-bold uppercase"
                         >
                           Days
                         </button>
@@ -146,19 +197,22 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                           disabled={extending}
                           onClick={async () => {
                             if (!onExtend) return;
+                            const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
+                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                            const months = extensionValues[idKey] ?? 1;
+
+                            if (!window.confirm(`Extend stay for ${months} month(s)? This will generate an invoice.`)) return;
+
                             setExtending(true);
                             try {
-                                const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
-                                const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                                const days = extensionValues[idKey] ?? 1;
-                                await onExtend({ roomId: room.id, months: 1, tenantId });
-                            } catch (e) {
+                                await onExtend({ roomId: room.id, months: Number(months), tenant_id: tenantId });
+                            } catch (__e) {
                               // parent handles error
                             } finally {
                               setExtending(false);
                             }
                           }}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-sm"
+                          className="px-4 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-xs font-bold uppercase"
                         >
                           Month
                         </button>
@@ -176,15 +230,35 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
           {showActivity && (
             <div className="mb-4">
               <h4 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Activity Logs</h4>
-              {activity.length === 0 ? (
+              {loadingActivity ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-green-600" />
+                </div>
+              ) : activity.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">No activity recorded for this room.</p>
               ) : (
                 <ul className="space-y-2">
                   {activity.map((a, i) => (
-                    <li key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-100 dark:border-gray-700">
-                      <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{a.title || a.action || 'Activity'}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{a.by || a.user || 'System'} — {a.created_at || a.time || ''}</div>
-                      {a.details && <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">{a.details}</div>}
+                    <li key={i} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-100 dark:border-gray-700">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="text-sm text-gray-800 dark:text-gray-200 font-bold">{a.action || a.title || 'Activity'}</div>
+                        <div className="text-[10px] font-bold text-gray-500 uppercase">
+                          {new Date(a.timestamp || a.created_at || a.time).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{a.description || a.details}</div>
+                      {a.status && (
+                        <div className="mt-2">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            a.color === 'green' ? 'bg-green-100 text-green-700' :
+                            a.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
+                            a.color === 'red' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {a.status}
+                          </span>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

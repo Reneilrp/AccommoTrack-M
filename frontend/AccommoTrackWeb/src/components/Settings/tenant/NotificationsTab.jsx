@@ -33,7 +33,14 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 	const mapDataToSettings = (profile) => {
 		if (profile.notification_preferences) {
 			const backendPrefs = profile.notification_preferences;
-			const merged = { ...savedSettings, ...backendPrefs };
+			// Normalize string '1'/'0' values (from old FormData saves) to proper booleans
+			// so that '0' doesn't appear truthy and toggle incorrectly as ON.
+			const normalized = {};
+			Object.keys(backendPrefs).forEach(k => {
+				const v = backendPrefs[k];
+				normalized[k] = v === true || v === 1 || v === '1';
+			});
+			const merged = { ...savedSettings, ...normalized };
 			setSavedSettings(merged);
 			setSettings(merged);
 		}
@@ -72,36 +79,27 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 	const handleSave = async () => {
 		setSaving(true);
 		try {
+			// Send as a JSON string so boolean values are preserved correctly.
+			// Using `notification_preferences[key] = '1'` via FormData stores strings;
+			// '0' is truthy in JS and breaks toggle display. JSON preserves real booleans.
 			const formData = new FormData();
-			// Send as JSON string (or individual fields if backend expects array, but we configured cast 'array')
-			// Since we use FormData for the endpoint, and the backend expects 'notification_preferences' as array/json.
-			// Laravel's $casts to array handles JSON string automatically if passed correctly? 
-			// Actually, with FormData, sending nested arrays/objects can be tricky.
-			// Let's iterate and send as array or just send individual keys if we mapped them.
-			// But we added 'notification_preferences' column.
-			// Best to send: notification_preferences[key] = value
-			
-			// Strategy: Loop keys and append `notification_preferences[key]`
-			Object.keys(settings).forEach(key => {
-				// Convert boolean to 1/0 or string 'true'/'false'
-				formData.append(`notification_preferences[${key}]`, settings[key] ? '1' : '0');
-			});
+			formData.append('notification_preferences', JSON.stringify(settings));
 
 			await tenantService.updateProfile(formData);
-			
-			setSavedSettings(settings);
+
+			setSavedSettings({ ...settings });
 			setIsEditing(false);
 			toast.success('Preferences saved successfully');
 		} catch (error) {
 			console.error('Failed to save notification prefs', error);
-			toast.error('Failed to save preferences');
+			toast.error('Failed to save preferences')
 		} finally {
 			setSaving(false);
 		}
 	};
 
 	return (
-		<div>
+		<div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-all">
 			{loading ? <SkeletonNotificationsTab /> : null}
 			{!loading && (
 			<>
@@ -166,7 +164,7 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 				</div>
         
 				{isEditing && (
-					<div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
+					<div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-100 dark:border-gray-700">
 						<button
 							onClick={handleCancel}
 							disabled={saving}
@@ -196,25 +194,25 @@ const ToggleItem = ({ label, description, checked, disabled, onChange }) => (
 			<p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
 			<p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
 		</div>
-		{disabled ? (
-			<span className={`text-sm font-medium px-2.5 py-0.5 rounded-full ${checked ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-400'}`}>
-				{checked ? 'Enabled' : 'Disabled'}
-			</span>
-		) : (
-			<button
-				onClick={onChange}
-				className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-600 dark:focus:ring-green-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-					checked ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'
+		<button
+			type="button"
+			onClick={disabled ? undefined : onChange}
+			disabled={disabled}
+			aria-label={`${label} notification toggle`}
+			aria-pressed={checked}
+			className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+				disabled
+					? 'cursor-not-allowed opacity-80'
+					: 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 dark:focus:ring-green-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800'
+			} ${checked ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'}`}
+		>
+			<span
+				aria-hidden="true"
+				className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+					checked ? 'translate-x-5' : 'translate-x-0'
 				}`}
-			>
-				<span
-					aria-hidden="true"
-					className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-						checked ? 'translate-x-5' : 'translate-x-0'
-					}`}
-				/>
-			</button>
-		)}
+			/>
+		</button>
 	</div>
 );
 

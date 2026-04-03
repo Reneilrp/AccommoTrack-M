@@ -33,8 +33,8 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.2)'
   },
@@ -65,7 +65,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 16
   },
   sectionTitle: {
     fontSize: 18,
@@ -75,7 +75,7 @@ export const getStyles = (theme) => StyleSheet.create({
   helperText: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    marginBottom: 12
+    marginBottom: 16
   },
   label: {
     fontSize: 13,
@@ -87,7 +87,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     overflow: 'hidden',
     backgroundColor: theme.colors.surface
   },
@@ -100,10 +100,10 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 16,
     fontSize: 14,
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
     backgroundColor: theme.colors.surface
   },
   textArea: {
@@ -117,7 +117,7 @@ export const getStyles = (theme) => StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12
+    gap: 16
   },
   statCard: {
     flex: 1,
@@ -135,13 +135,13 @@ export const getStyles = (theme) => StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 8,
     textAlign: 'center',
   },
   pillGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10
+    gap: 8
   },
   pill: {
     borderRadius: 999,
@@ -166,8 +166,8 @@ export const getStyles = (theme) => StyleSheet.create({
   ruleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    gap: 12
+    paddingVertical: 8,
+    gap: 16
   },
   divider: {
     height: 1,
@@ -176,7 +176,7 @@ export const getStyles = (theme) => StyleSheet.create({
   imagesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12
+    gap: 16
   },
   imagePreview: {
     width: '31%',
@@ -202,12 +202,12 @@ export const getStyles = (theme) => StyleSheet.create({
     right: 8,
     backgroundColor: 'rgba(0,0,0,0.55)',
     borderRadius: 999,
-    padding: 4
+    padding: 8
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12
+    gap: 16,
+    marginTop: 16
   },
   actionButton: {
     backgroundColor: theme.colors.primary,
@@ -226,7 +226,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   errorText: {
     color: theme.colors.error,
-    marginBottom: 12,
+    marginBottom: 16,
     fontSize: 13
   },
   dangerCard: {
@@ -239,7 +239,7 @@ export const getStyles = (theme) => StyleSheet.create({
   dangerText: {
     fontSize: 14,
     color: theme.isDark ? theme.colors.text : '#7F1D1D',
-    marginBottom: 12
+    marginBottom: 16
   },
   deleteButton: {
     backgroundColor: theme.colors.error,
@@ -261,7 +261,7 @@ export const getStyles = (theme) => StyleSheet.create({
     width: '85%',
     backgroundColor: theme.colors.surface,
     borderRadius: 18,
-    padding: 20,
+    padding: 16,
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border
   },
@@ -279,11 +279,11 @@ export const getStyles = (theme) => StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
+    gap: 16,
     marginTop: 16
   },
   modalButton: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 18,
     borderRadius: 12,
     backgroundColor: theme.colors.backgroundSecondary
@@ -301,8 +301,8 @@ export const getStyles = (theme) => StyleSheet.create({
   inlineInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 12,
+    gap: 8,
+    marginTop: 16,
   },
   inlineInput: {
     flex: 1,
@@ -310,7 +310,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 16,
     fontSize: 14,
     color: theme.colors.text,
     backgroundColor: theme.colors.surface
@@ -319,7 +319,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -331,6 +331,194 @@ export const getStyles = (theme) => StyleSheet.create({
   requiredAsterisk: {
     color: theme.colors.error,
   },
+  centered: {
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center'
+  },
+  iconButtonHeader: {
+    padding: 8,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  primaryBtn: {
+    marginTop: 16,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8
+  },
+  outlineBtn: {
+    marginTop: 16,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+  },
+  outlineBtnPrimary: {
+    borderColor: theme.colors.primary
+  },
+  outlineBtnSecondary: {
+    borderColor: '#6B7280'
+  },
+  outlineBtnBlue: {
+    borderColor: '#2563EB'
+  },
+  imageFull: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover'
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
+    padding: 6,
+    gap: 6
+  },
+  imageAction: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2
+  },
+  primaryBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#F59E0B',
+    paddingVertical: 2,
+    alignItems: 'center'
+  },
+  primaryBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5
+  },
+  videoThumbnail: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  credentialItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight
+  },
+  credentialInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flex: 1
+  },
+  credentialName: {
+    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: '500',
+    flex: 1
+  },
+  credentialActions: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  credActionBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: theme.colors.backgroundSecondary
+  },
+  credActionText: {
+    fontSize: 12,
+    color: theme.colors.primary,
+    fontWeight: '600'
+  },
+  badgePill: {
+    position: 'absolute', 
+    bottom: 8, 
+    left: 8, 
+    backgroundColor: 'rgba(0,0,0,0.6)', 
+    paddingHorizontal: 8, 
+    borderRadius: 4
+  },
+  badgeTextPill: {
+    color: '#FFF', 
+    fontSize: 10, 
+    fontWeight: 'bold'
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    marginBottom: 16
+  },
+  floorsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8
+  },
+  floorButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface
+  },
+  floorButtonActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
+  },
+  floorButtonText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: '600'
+  },
+  floorButtonTextActive: {
+    color: theme.colors.textInverse
+  },
+  switchRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight
+  },
+  switchHelpText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2
+  },
 });
+
 
 export default getStyles;

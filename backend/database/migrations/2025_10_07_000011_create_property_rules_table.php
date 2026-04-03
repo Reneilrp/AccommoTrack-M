@@ -14,7 +14,7 @@ return new class extends Migration
             $table->enum('rule_type', ['allowed', 'not_allowed', 'policy']);
             $table->text('rule_text');
             $table->timestamps();
-            
+
             $table->index('property_id');
         });
     }

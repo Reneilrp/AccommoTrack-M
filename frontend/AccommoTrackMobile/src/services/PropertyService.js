@@ -1,0 +1,1552 @@
+import api from "./api.js";
+import { API_BASE_URL, BASE_URL } from "../config/index.js";
+import { getImageUrl } from "../utils/imageUtils.js";
+import { extractErrorMessage } from "../utils/error.js";
+import cacheManager from "../utils/cache.js";
+
+const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
+
+const isFormData = (data) => data instanceof FormData;
+
+const CACHE_KEYS = {
+  PUBLIC_PROPERTIES: "public_properties",
+  PUBLIC_PROPERTY: "public_property_", // + id
+  LANDLORD_PROPERTIES: "landlord_properties",
+};
+
+const PropertyService = {
+  /**
+   * Get all public properties (no auth required)
+   * Matches: GET /api/properties/public
+   * @param {Object} filters - Optional filters (type, city, min_price, max_price)
+   * @returns {Promise<Object>} - { success: boolean, data: array, error: string }
+   */
+  async getPublicProperties(filters = {}) {
+    const cacheKey = `${CACHE_KEYS.PUBLIC_PROPERTIES}_${JSON.stringify(filters)}`;
+    try {
+      const cached = await cacheManager.get(cacheKey);
+      if (cached) return { success: true, data: cached, error: null };
+
+      const params = new URLSearchParams();
+
+      // Add filters if provided
+      if (filters.type && filters.type !== "All") {
+        params.append("type", filters.type);
+      }
+      if (filters.search) {
+        params.append("search", filters.search);
+      }
+      if (filters.city) {
+        params.append("city", filters.city);
+      }
+      if (filters.min_price || filters.price_min) {
+        params.append("min_price", filters.min_price || filters.price_min);
+      }
+      if (filters.max_price || filters.price_max) {
+        params.append("max_price", filters.max_price || filters.price_max);
+      }
+      if (filters.availability) {
+        params.append("availability", filters.availability);
+      }
+      if (filters.min_rating) {
+        params.append("min_rating", filters.min_rating);
+      }
+      if (Array.isArray(filters.amenities) && filters.amenities.length > 0) {
+        filters.amenities.forEach((amenity) => {
+          params.append("amenities[]", amenity);
+        });
+      }
+
+      const url = `/public/properties${params.toString() ? "?" + params.toString() : ""}`;
+      const response = await api.get(url);
+      const data = response.data?.data || response.data || [];
+
+      await cacheManager.set(cacheKey, data);
+
+      return {
+        success: true,
+        data,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: [],
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch properties",
+      };
+    }
+  },
+
+  /**
+   * Get single public property with full details including rooms
+   * Matches: GET /api/properties/public/{id}
+   * @param {number} propertyId - Property ID
+   * @returns {Promise<Object>} - { success: boolean, data: object, error: string }
+   */
+  async getPublicProperty(propertyId) {
+    const cacheKey = `${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`;
+    try {
+      const cached = await cacheManager.get(cacheKey);
+      if (cached) return { success: true, data: cached, error: null };
+
+      const response = await api.get(`/public/properties/${propertyId}`);
+      const data = response.data?.data || response.data || null;
+
+      await cacheManager.set(cacheKey, data);
+
+      return {
+        success: true,
+        data,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch property",
+      };
+    }
+  },
+
+  /**
+   * Get notification stats for a property (for authenticated tenant)
+   * Matches: GET /api/properties/{id}/stats
+   * @param {number} propertyId - Property ID
+   * @returns {Promise<Object>} - { success: boolean, data: object, error: string }
+   */
+  async getPropertyStats(propertyId) {
+    try {
+      const response = await api.get(`/properties/${propertyId}/stats`);
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: { addons: 0, maintenance: 0, activity: 0, reviews: 0 },
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch property stats",
+      };
+    }
+  },
+
+  /**
+   * Reverse geocode coordinates using backend relay
+   * Matches: GET /api/reverse-geocode?lat={lat}&lon={lon}
+   * @param {number|string} lat
+   * @param {number|string} lon
+   */
+  async reverseGeocode(lat, lon) {
+    try {
+      const response = await api.get(`/reverse-geocode`, {
+        params: { lat, lon },
+      });
+
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error reverse geocoding:", error);
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Reverse geocode failed",
+      };
+    }
+  },
+
+  /**
+   * Transform backend property data to accommodation format for frontend
+   * This matches the structure from PropertyController::publicIndex() and publicShow()
+   * @param {Object} property - Property from backend
+   * @returns {Object} - Transformed accommodation object
+   */
+  transformPropertyToAccommodation(property) {
+    // Backend already provides the image URL or placeholder
+    const coverImage =
+      property.image || "https://via.placeholder.com/400x200?text=No+Image";
+
+    // Parse property_rules if it's a JSON string
+    let propertyRules = [];
+    if (property.property_rules) {
+      if (Array.isArray(property.property_rules)) {
+        propertyRules = property.property_rules;
+      } else if (typeof property.property_rules === "string") {
+        try {
+          const parsed = JSON.parse(property.property_rules);
+          propertyRules = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          // If parsing fails, treat as single rule or empty
+          propertyRules = property.property_rules.trim()
+            ? [property.property_rules]
+            : [];
+        }
+      }
+    }
+
+    return {
+      id: property.id,
+      name: property.name || property.title,
+      title: property.title,
+      type: property.type || property.property_type || "Property",
+      property_type: property.property_type, // Raw property type from backend
+      gender_restriction: property.gender_restriction || 'mixed',
+      has_bedspacer_room: property.has_bedspacer_room || false, // Flag for bedspacer filter
+      location: property.location || property.city,
+      address: property.full_address || property.address,
+      street_address: property.street_address,
+      city: property.city,
+      province: property.province,
+      barangay: property.barangay,
+      postal_code: property.postal_code,
+      description: property.description,
+      image: coverImage,
+      priceRange: property.priceRange || property.price_range,
+      minPrice: property.minPrice || property.min_price,
+      maxPrice: property.maxPrice || property.max_price,
+      totalRooms: property.total_rooms,
+      availableRooms: property.availableRooms || property.available_rooms,
+      available_rooms: property.availableRooms || property.available_rooms,
+      occupiedRooms:
+        property.total_rooms -
+        (property.availableRooms || property.available_rooms || 0),
+      rating: null, // Not implemented yet
+      amenities: property.amenities_list?.length
+        ? property.amenities_list.map((a) => a.name || a)
+        : this.extractPropertyAmenities(property.rooms),
+      propertyRules: propertyRules,
+      curfew_time: property.curfew_time,
+      curfew_policy: property.curfew_policy,
+      rooms: (property.rooms || []).map(room => ({
+        ...room,
+        rules: room.rules || [], // Map rules from backend
+        monthly_rate: room.monthly_rate, // keep as string/original for precision
+        daily_rate: room.daily_rate,
+      })),
+      latitude: property.latitude ? parseFloat(property.latitude) : null,
+      longitude: property.longitude ? parseFloat(property.longitude) : null,
+      nearby_landmarks: property.nearby_landmarks,
+      video_url: property.video_url,
+
+      landlord_id: property.landlord_id,
+      user_id: property.user_id || property.landlord_id,
+      landlord_name: property.landlord_name,
+      owner_name: property.owner_name || property.landlord_name,
+      landlord: property.landlord || null,
+    };
+  },
+
+  /**
+   * Format property type to display format
+   * Matches the property_type values from your backend
+   * @param {string} type - Property type from backend
+   * @returns {string} - Formatted type
+   */
+  formatPropertyType(type) {
+    if (!type) return "Property";
+
+    const normalized = String(type).toLowerCase().trim().replace(/\s+/g, "");
+    const typeMap = {
+      apartment: "Apartment",
+      dormitory: "Dormitory",
+      boardinghouse: "Boarding House",
+      bedspacer: "Bed Spacer",
+    };
+    return typeMap[normalized] || type;
+  },
+
+  /**
+   * Extract unique amenities from all rooms in a property
+   * @param {Array} rooms - Array of room objects
+   * @returns {Array} - Unique amenities list
+   */
+  extractPropertyAmenities(rooms) {
+    if (!rooms || rooms.length === 0) return [];
+
+    const allAmenities = rooms.reduce((acc, room) => {
+      if (room.amenities && Array.isArray(room.amenities)) {
+        return [...acc, ...room.amenities];
+      }
+      return acc;
+    }, []);
+
+    // Return unique amenities
+    return [...new Set(allAmenities)];
+  },
+
+  // ----- AUTHENTICATED ENDPOINTS (For landlords) -----
+
+  /**
+   * Get all properties for authenticated landlord
+   * Matches: GET /api/landlord/properties
+   * @returns {Promise<Object>} - { success: boolean, data: array, error: string }
+   */
+  async getMyProperties() {
+    try {
+      const cached = await cacheManager.get(CACHE_KEYS.LANDLORD_PROPERTIES);
+      if (cached) return { success: true, data: cached, error: null };
+
+      const response = await api.get(`/landlord/properties`);
+      const data = response.data?.data || response.data || [];
+
+      await cacheManager.set(CACHE_KEYS.LANDLORD_PROPERTIES, data);
+
+      return {
+        success: true,
+        data,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching my properties:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Get specific landlord property with relations
+   * Matches: GET /api/landlord/properties/{id}
+   */
+  async getProperty(propertyId) {
+    try {
+      const response = await api.get(`/landlord/properties/${propertyId}`);
+
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching property details:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Create a new property
+   * Matches: POST /api/landlord/properties
+   * @param {Object} propertyData - Property data
+   * @returns {Promise<Object>} - { success: boolean, data: object, error: string }
+   */
+  async createProperty(propertyData) {
+    try {
+      const headers = {
+        "Content-Type": isFormData(propertyData)
+          ? "multipart/form-data"
+          : "application/json",
+      };
+      const response = await api.post(`/landlord/properties`, propertyData, {
+        headers,
+      });
+
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
+      await cacheManager.clearAll(); // Invalidate public caches too
+
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error creating property:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Update a property
+   * Matches: PUT /api/landlord/properties/{id}
+   * @param {number} propertyId - Property ID
+   * @param {Object} propertyData - Updated property data
+   * @returns {Promise<Object>} - { success: boolean, data: object, error: string }
+   */
+  async updateProperty(propertyId, propertyData) {
+    try {
+      let payload = propertyData;
+      let headers = {
+        "Content-Type": isFormData(propertyData)
+          ? "multipart/form-data"
+          : "application/json",
+      };
+
+      // For multipart/form-data with PUT, use POST + _method=PUT spoofing
+      if (isFormData(propertyData)) {
+        propertyData.append("_method", "PUT");
+      }
+
+      const response = await api.post(
+        `/landlord/properties/${propertyId}`,
+        payload,
+        { headers },
+      );
+
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
+      await cacheManager.invalidate(`${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`);
+      await cacheManager.clearAll(); // Invalidate search results
+
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error updating property:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Delete a property
+   * Matches: DELETE /api/landlord/properties/{id}
+   * @param {number} propertyId - Property ID
+   * @param {string} password - Landlord password confirmation
+   * @returns {Promise<Object>} - { success: boolean, error: string }
+   */
+  async deleteProperty(propertyId, password) {
+    try {
+      await api.delete(`/landlord/properties/${propertyId}`, {
+        data: { password },
+      });
+
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
+      await cacheManager.invalidate(`${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`);
+      await cacheManager.clearAll();
+
+      return {
+        success: true,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error deleting property:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Verify password before destructive action
+   * Matches: POST /api/landlord/properties/verify-password
+   */
+  async verifyPropertyPassword(password) {
+    try {
+      const response = await api.post(`/landlord/properties/verify-password`, {
+        password,
+      });
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Password verification failed:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch rooms for a property
+   * Matches: GET /api/landlord/properties/{id}/rooms
+   */
+  async getRooms(propertyId) {
+    try {
+      const response = await api.get(
+        `/landlord/properties/${propertyId}/rooms`,
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching rooms:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch room statistics for a property
+   * Matches: GET /api/landlord/properties/{id}/rooms/stats
+   */
+  async getRoomStats(propertyId) {
+    try {
+      const response = await api.get(
+        `/landlord/properties/${propertyId}/rooms/stats`,
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching room stats:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Create a room for the landlord
+   * Matches: POST /api/landlord/rooms
+   */
+  async createRoom(roomData) {
+    try {
+      const headers = {
+        "Content-Type": isFormData(roomData)
+          ? "multipart/form-data"
+          : "application/json",
+      };
+      const response = await api.post(`/landlord/rooms`, roomData, { headers });
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error creating room:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Update a room
+   * Matches: PUT /api/rooms/{id}
+   */
+  async updateRoom(roomId, roomData) {
+    try {
+      let payload = roomData;
+      let headers = {
+        "Content-Type": isFormData(roomData)
+          ? "multipart/form-data"
+          : "application/json",
+      };
+
+      if (isFormData(roomData)) {
+        roomData.append("_method", "PUT");
+        const response = await api.post(`/rooms/${roomId}`, payload, {
+          headers,
+        });
+        return { success: true, data: response.data, error: null };
+      }
+
+      const response = await api.put(`/rooms/${roomId}`, payload, { headers });
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error updating room:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Delete a room
+   * Matches: DELETE /api/rooms/{id}
+   */
+  async deleteRoom(roomId) {
+    try {
+      await api.delete(`/rooms/${roomId}`);
+      return {
+        success: true,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error deleting room:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Update room status
+   * Matches: PATCH /api/rooms/{id}/status
+   */
+  async updateRoomStatus(roomId, status) {
+    try {
+      const response = await api.patch(`/rooms/${roomId}/status`, { status });
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error updating room status:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Add amenity to property catalog
+   * Matches: POST /api/landlord/properties/{id}/amenities
+   */
+  async addPropertyAmenity(propertyId, amenity) {
+    try {
+      const response = await api.post(
+        `/landlord/properties/${propertyId}/amenities`,
+        { amenity },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error adding property amenity:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Add rule to property catalog
+   * Matches: POST /api/landlord/properties/{id}/rules
+   */
+  async addPropertyRule(propertyId, rule) {
+    try {
+      const response = await api.post(
+        `/landlord/properties/${propertyId}/rules`,
+        { rule },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error adding property rule:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch tenants for the authenticated landlord
+   * Matches: GET /api/landlord/tenants
+   */
+  async getTenants(params = {}) {
+    try {
+      const response = await api.get(`/landlord/tenants`, {
+        params,
+      });
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching tenants:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch rooms by property ID for transfer flow
+   * Matches: GET /api/rooms/property/{propertyId}
+   */
+  async getRoomsByProperty(propertyId) {
+    try {
+      const response = await api.get(`/rooms/property/${propertyId}`);
+      const list = Array.isArray(response.data?.data)
+        ? response.data.data
+        : (Array.isArray(response.data) ? response.data : []);
+      return {
+        success: true,
+        data: list,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching rooms by property:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Transfer tenant to another room
+   * Matches: POST /api/landlord/tenants/{tenantId}/transfer-room
+   */
+  async transferTenantRoom(tenantId, payload) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/transfer-room`,
+        payload,
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error transferring tenant room:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Schedule tenant eviction
+   * Matches: POST /api/landlord/tenants/{tenantId}/evictions/schedule
+   */
+  async scheduleTenantEviction(tenantId, payload) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/evictions/schedule`,
+        payload,
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error evicting tenant:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Finalize scheduled eviction
+   * Matches: POST /api/landlord/tenants/{tenantId}/evictions/finalize
+   */
+  async finalizeTenantEviction(tenantId, payload = {}) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/evictions/finalize`,
+        payload,
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error finalizing tenant eviction:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Cancel scheduled eviction
+   * Matches: POST /api/landlord/tenants/{tenantId}/evictions/cancel
+   */
+  async cancelTenantEviction(tenantId, note = "") {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/evictions/cancel`,
+        { note },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error cancelling tenant eviction:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Undo finalized eviction
+   * Matches: POST /api/landlord/tenants/{tenantId}/evictions/undo
+   */
+  async undoTenantEviction(tenantId, reason = "") {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/evictions/undo`,
+        { reason },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error undoing tenant eviction:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Legacy immediate eviction endpoint.
+   * Matches: POST /api/landlord/tenants/{tenantId}/evict
+   */
+  async evictTenant(tenantId, reason) {
+    return this.scheduleTenantEviction(tenantId, { reason, grace_hours: 0 });
+  },
+
+  /**
+   * Broadcast message to selected tenants
+   * Matches: POST /api/landlord/broadcast
+   */
+  async broadcastToTenants(tenantIds, message) {
+    try {
+      const response = await api.post(
+        `/landlord/broadcast`,
+        { tenant_ids: tenantIds, message },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error sending tenant broadcast:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Create a tenant on behalf of landlord
+   * Matches: POST /api/landlord/tenants
+   */
+  async createTenant(tenantData) {
+    try {
+      const response = await api.post(`/landlord/tenants`, tenantData, {
+        headers: { "Content-Type": "application/json" },
+      });
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error creating tenant:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Update tenant details
+   * Matches: PUT /api/landlord/tenants/{id}
+   */
+  async updateTenant(tenantId, tenantData) {
+    try {
+      const response = await api.put(
+        `/landlord/tenants/${tenantId}`,
+        tenantData,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error updating tenant:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Delete tenant
+   * Matches: DELETE /api/landlord/tenants/{id}
+   */
+  async deleteTenant(tenantId) {
+    try {
+      await api.delete(`/landlord/tenants/${tenantId}`);
+      return {
+        success: true,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error deleting tenant:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Assign tenant to room
+   * Matches: POST /api/landlord/tenants/{id}/assign-room
+   */
+  async assignTenantToRoom(tenantId, payload) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/assign-room`,
+        payload,
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error assigning tenant to room:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Unassign tenant from room
+   * Matches: DELETE /api/landlord/tenants/{id}/unassign-room
+   */
+  async unassignTenantFromRoom(tenantId) {
+    try {
+      const response = await api.delete(
+        `/landlord/tenants/${tenantId}/unassign-room`,
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error unassigning tenant room:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch bookings for landlord
+   * Matches: GET /api/bookings
+   */
+  async getBookings(params = {}) {
+    try {
+      const response = await api.get(`/bookings`, {
+        params,
+      });
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching bookings:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch booking stats
+   * Matches: GET /api/bookings/stats
+   */
+  async getBookingStats() {
+    try {
+      const response = await api.get(`/bookings/stats`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching booking stats:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Update booking status
+   * Matches: PATCH /api/bookings/{id}/status
+   */
+  async updateBookingStatus(bookingId, payload) {
+    try {
+      const response = await api.patch(
+        `/bookings/${bookingId}/status`,
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error updating booking status:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Update booking payment status
+   * Matches: PATCH /api/bookings/{id}/payment
+   */
+  async updateBookingPayment(bookingId, payload) {
+    try {
+      const response = await api.patch(
+        `/bookings/${bookingId}/payment`,
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error updating booking payment:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Finalize checkout for an active booking.
+   * Matches: POST /api/bookings/{id}/finalize-checkout
+   */
+  async finalizeBookingCheckout(bookingId, payload = {}) {
+    try {
+      const response = await api.post(
+        `/bookings/${bookingId}/finalize-checkout`,
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        message: response.data?.message || 'Checkout finalized successfully.',
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error finalizing booking checkout:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Record deposit settlement for a booking.
+   * Matches: POST /api/bookings/{id}/deposit-settlement
+   */
+  async settleBookingDeposit(bookingId, payload) {
+    try {
+      const response = await api.post(
+        `/bookings/${bookingId}/deposit-settlement`,
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        message: response.data?.message || 'Deposit settlement recorded successfully.',
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error settling booking deposit:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch deposit settlement history for a booking.
+   * Matches: GET /api/bookings/{id}/deposit-settlements
+   */
+  async getBookingDepositSettlements(bookingId) {
+    try {
+      const response = await api.get(`/bookings/${bookingId}/deposit-settlements`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching booking deposit settlements:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch tenant extension requests for landlord
+   * Matches: GET /api/landlord/extensions
+   */
+  async getExtensionRequests() {
+    try {
+      const response = await api.get(`/landlord/extensions`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching extension requests:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Handle tenant extension request (approve/modify/reject)
+   * Matches: PATCH /api/landlord/extensions/{id}/handle
+   */
+  async handleExtensionRequest(requestId, payload) {
+    try {
+      const response = await api.patch(
+        `/landlord/extensions/${requestId}/handle`,
+        payload,
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error handling extension request:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch tenant transfer requests for landlord
+   * Matches: GET /api/landlord/transfers
+   */
+  async getTransferRequests() {
+    try {
+      const response = await api.get(`/landlord/transfers`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching transfer requests:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Handle tenant transfer request (approve/reject)
+   * Matches: PATCH /api/landlord/transfers/{id}/handle
+   */
+  async handleTransferRequest(requestId, payload) {
+    try {
+      const response = await api.patch(
+        `/landlord/transfers/${requestId}/handle`,
+        payload,
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error handling transfer request:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch transfer proration details
+   * Matches: GET /api/landlord/transfers/{id}/proration
+   */
+  async getTransferProration(requestId) {
+    try {
+      const response = await api.get(`/landlord/transfers/${requestId}/proration`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching transfer proration:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Get payment options for a room
+   * Matches: GET /api/rooms/{roomId}/payment-options
+   */
+  async getRoomPaymentOptions(roomId) {
+    try {
+      const response = await api.get(`/rooms/${roomId}/payment-options`);
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching payment options:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: { methods: ["cash"], is_paymongo_ready: false }, // Default to cash only on error
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Get dynamic pricing calculation for a room (no auth required)
+   * Matches: GET /api/rooms/{roomId}/pricing?start_date={start}&end_date={end}
+   * @param {number} roomId - Room ID
+   * @param {string} startDate - YYYY-MM-DD
+   * @param {string} endDate - YYYY-MM-DD
+   */
+  async getRoomPricing(roomId, startDate, endDate) {
+    try {
+      const response = await api.get(`/rooms/${roomId}/pricing`, {
+        params: { start_date: startDate, end_date: endDate },
+      });
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error("Pricing calculation failed:", error);
+      return {
+        success: false,
+        data: { total: 0, breakdown: null },
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+
+
+  /**
+   * Assign a tenant to a room
+   * Matches: POST /api/rooms/{id}/assign-tenant
+   */
+  async assignRoomToTenant(roomId, tenantId, startDate = null) {
+    try {
+      const response = await api.post(`/rooms/${roomId}/assign-tenant`, {
+        tenant_id: tenantId,
+        start_date: startDate,
+      });
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error assigning tenant:", error);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Remove a tenant from a room
+   * Matches: DELETE /api/rooms/{id}/remove-tenant
+   */
+  async removeTenantFromRoom(roomId, tenantId = null) {
+    try {
+      const response = await api.delete(`/rooms/${roomId}/remove-tenant`, {
+        data: { tenant_id: tenantId },
+      });
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error removing tenant:", error);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Extend stay for a tenant in a room
+   * Matches: POST /api/rooms/{id}/extend
+   */
+  async extendStay(roomId, payload) {
+    try {
+      const response = await api.post(`/rooms/${roomId}/extend`, payload);
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error extending stay:", error);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  getImageUrl,
+};
+
+export default PropertyService;

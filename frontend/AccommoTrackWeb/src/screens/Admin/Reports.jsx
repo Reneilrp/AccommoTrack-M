@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   ShieldAlert, 
   CheckCircle2, 
@@ -50,7 +51,7 @@ export default function Reports() {
       setShowModal(false);
       setSelectedReport(null);
       setAdminNotes('');
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to update report');
     } finally {
       setActionLoading(false);
@@ -66,11 +67,11 @@ export default function Reports() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'pending':
-        return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold uppercase rounded-full">Pending</span>;
+        return <span className="px-2 py-2 bg-yellow-100 text-yellow-700 text-[10px] font-bold uppercase rounded-full">Pending</span>;
       case 'resolved':
-        return <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full">Resolved</span>;
+        return <span className="px-2 py-2 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full">Resolved</span>;
       case 'dismissed':
-        return <span className="px-2 py-1 bg-gray-100 text-gray-700 text-[10px] font-bold uppercase rounded-full">Dismissed</span>;
+        return <span className="px-2 py-2 bg-gray-100 text-gray-700 text-[10px] font-bold uppercase rounded-full">Dismissed</span>;
       default:
         return null;
     }
@@ -85,6 +86,20 @@ export default function Reports() {
             Report Management
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">Review and resolve property flags from tenants.</p>
+        </div>
+        <div className="hidden md:flex items-center gap-2">
+          <Link
+            to="/admin/payments-oversight"
+            className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
+          >
+            Payment Oversight
+          </Link>
+          <Link
+            to="/admin/audit-logs"
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            Audit Explorer
+          </Link>
         </div>
       </div>
 
@@ -116,7 +131,8 @@ export default function Reports() {
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-4 text-left">Reporter</th>
@@ -131,13 +147,13 @@ export default function Reports() {
               {reports.map((report) => (
                 <tr key={report.id} className="bg-white dark:bg-gray-800 even:bg-gray-50/50 dark:even:bg-gray-700/30 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
                         {report.reporter?.first_name?.[0]}{report.reporter?.last_name?.[0]}
                       </div>
                       <div>
                         <p className="text-sm font-bold text-gray-900 dark:text-white">{report.reporter?.first_name} {report.reporter?.last_name}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500">{report.reporter?.email}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-500">{report.reporter?.email}</p>
                       </div>
                     </div>
                   </td>
@@ -145,14 +161,14 @@ export default function Reports() {
                     {report.property?.title}
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md">
+                    <span className="text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-2 rounded-md">
                       {report.reason}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     {getStatusBadge(report.status)}
                   </td>
-                  <td className="px-6 py-4 text-xs text-gray-400 dark:text-gray-500">
+                  <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-500">
                     {new Date(report.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-center">
@@ -167,6 +183,7 @@ export default function Reports() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -179,7 +196,7 @@ export default function Reports() {
                 <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
                 Report Details
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
@@ -187,44 +204,44 @@ export default function Reports() {
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Reporter</p>
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Reporter</p>
                   <p className="font-bold text-gray-900 dark:text-white">{selectedReport.reporter?.first_name} {selectedReport.reporter?.last_name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{selectedReport.reporter?.email}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Property Flagged</p>
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Property Flagged</p>
                   <p className="font-bold text-gray-900 dark:text-white">{selectedReport.property?.title}</p>
-                  <p className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer" onClick={() => window.open(`/properties/${selectedReport.property_id}`, '_blank')}>View Listing</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer" onClick={() => window.open(`/property/${selectedReport.property_id}`, '_blank')}>View Listing</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Subject</p>
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg font-bold text-sm inline-block">
+                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Subject</p>
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg font-bold text-sm inline-block">
                   {selectedReport.reason}
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Detailed Report</p>
+                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Detailed Report</p>
                 <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap italic leading-relaxed border border-gray-100 dark:border-gray-700">
                   "{selectedReport.description}"
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Admin Actions & Notes</p>
+                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Admin Actions & Notes</p>
                 <textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
                   placeholder="Record your investigation results or internal notes here..."
-                  className="w-full p-4 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                  className="w-full p-4 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-500"
                   rows="3"
                 />
               </div>
             </div>
 
-            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 flex justify-between gap-3">
+            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 flex justify-between gap-4">
               <div className="flex gap-2">
                 <button 
                   onClick={() => setShowModal(false)}
@@ -233,7 +250,7 @@ export default function Reports() {
                   Close
                 </button>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 {selectedReport.status === 'pending' && (
                   <>
                     <button

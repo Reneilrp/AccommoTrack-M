@@ -20,6 +20,15 @@ export default {
           800: '#065f46',
           900: '#064e3b',
         }
+      },
+      keyframes: {
+        slideDown: {
+          from: { opacity: '0', transform: 'translateY(-8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        slideDown: 'slideDown 0.25s ease',
       }
     },
   },

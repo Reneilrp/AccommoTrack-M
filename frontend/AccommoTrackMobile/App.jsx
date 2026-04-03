@@ -1,15 +1,17 @@
 import React from 'react';
 import { View, StatusBar } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { navigationRef, notifyNavigationStateChange } from './src/navigation/RootNavigation';
+import { navigationRef, notifyNavigationStateChange } from './src/navigation/RootNavigation.js';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import AppNavigator from './src/navigation/AppNavigator.jsx';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext.jsx';
+import { UIStateProvider, useUIState } from './src/contexts/UIStateContext.jsx';
 import { queryClient } from './src/config/queryClient.js';
+import { useAuthStore } from './src/stores/auth/authStore.js';
 
-import { getToastConfig } from './src/config/toastConfig';
+import { getToastConfig } from './src/config/toastConfig.jsx';
 
 const MyLightTheme = {
   ...DefaultTheme,
@@ -28,10 +30,12 @@ const MyDarkTheme = {
 };
 
 function AppContent() {
-  const { theme, isDarkMode, isLoading } = useTheme();
+  const { theme, isDarkMode, isLoading: isThemeLoading } = useTheme();
+  const { isLoaded: isUIStateLoaded } = useUIState();
+  const isAuthHydrated = useAuthStore((state) => state.hasHydrated);
   const toastConfig = React.useMemo(() => getToastConfig(theme), [theme]);
 
-  if (isLoading) {
+  if (isThemeLoading || !isUIStateLoaded || !isAuthHydrated) {
     return null; // Or a splash screen component
   }
 
@@ -61,7 +65,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AppContent />
+          <UIStateProvider>
+            <AppContent />
+          </UIStateProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </QueryClientProvider>

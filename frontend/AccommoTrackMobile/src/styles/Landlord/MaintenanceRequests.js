@@ -14,7 +14,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     fontSize: 18,
@@ -30,7 +30,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   filterContainer: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
@@ -61,7 +61,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    gap: 12,
+    gap: 16,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -82,7 +82,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   priorityBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 8,
     borderRadius: 12,
   },
   priorityText: {
@@ -91,7 +91,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 8,
     borderRadius: 12,
   },
   statusText: {
@@ -101,12 +101,12 @@ export const getStyles = (theme) => StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 8,
     color: theme.colors.text,
   },
   cardDesc: {
     fontSize: 14,
-    marginBottom: 12,
+    marginBottom: 16,
     color: theme.colors.textSecondary,
   },
   cardFooter: {
@@ -115,12 +115,12 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderLight,
-    paddingTop: 12,
+    paddingTop: 16,
   },
   footerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
     flex: 1,
   },
   footerText: {
@@ -136,7 +136,7 @@ export const getStyles = (theme) => StyleSheet.create({
     padding: 40,
   },
   emptyText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: theme.colors.textSecondary,
   },
@@ -159,7 +159,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   modalContent: {
-    padding: 20,
+    padding: 16,
   },
   detailSection: {
     marginBottom: 24,
@@ -173,7 +173,7 @@ export const getStyles = (theme) => StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   detailDate: {
     fontSize: 14,
@@ -183,7 +183,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: 8,
     color: theme.colors.textTertiary,
   },
   sectionValue: {

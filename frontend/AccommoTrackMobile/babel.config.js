@@ -1,5 +1,12 @@
+const fs = require('fs');
+
 module.exports = function(api) {
-  api.cache(true);
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
+  api.cache.using(() => `${process.env.APP_ENV || ''}:${process.env.NODE_ENV || ''}`);
+
+  const profileEnvFile = `.env.${appEnv}`;
+  const envPath = fs.existsSync(profileEnvFile) ? profileEnvFile : '.env';
+
   return {
     presets: ['babel-preset-expo'],
     plugins: [
@@ -7,7 +14,7 @@ module.exports = function(api) {
         'module:react-native-dotenv',
         {
           moduleName: '@env',
-          path: '.env',
+          path: envPath,
           blacklist: null,
           whitelist: null,
           safe: false,

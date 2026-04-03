@@ -23,7 +23,7 @@ class UpdateStatusRequest extends FormRequest
             'status' => 'required|in:pending,confirmed,cancelled,completed,partial-completed',
             'cancellation_reason' => 'required_if:status,cancelled|nullable|string|max:500',
             'refund_amount' => 'nullable|numeric|min:0',
-            'should_refund' => 'nullable|boolean'
+            'should_refund' => 'nullable|boolean',
         ];
     }
 

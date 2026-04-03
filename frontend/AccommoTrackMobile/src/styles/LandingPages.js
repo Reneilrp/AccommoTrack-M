@@ -14,12 +14,12 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     paddingBottom: 80,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   skipButton: {
     alignSelf: 'flex-end',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   skipText: {
     color: '#FFFFFF',
@@ -47,14 +47,14 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   textContainer: {
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   description: {
     fontSize: 16,
@@ -79,12 +79,12 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 30,
+    paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 30,
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    gap: 10,
+    gap: 8,
   },
   nextButtonText: {
     color: '#FFFFFF',

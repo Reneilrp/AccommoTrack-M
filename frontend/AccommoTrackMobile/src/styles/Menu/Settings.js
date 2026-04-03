@@ -9,7 +9,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: theme.colors.primary,
   },
@@ -23,13 +23,13 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   section: {
     marginTop: 24,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: 16,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -70,7 +70,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   settingIconHighlight: {
     backgroundColor: theme.colors.primary,
@@ -110,7 +110,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.error,
   },
   cardInner: {
-    padding: 12,
+    padding: 16,
   },
   cardTitle: {
     fontSize: 16, 

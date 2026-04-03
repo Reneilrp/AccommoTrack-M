@@ -13,14 +13,14 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textInverse,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   searchContainer: {
     padding: 16,
@@ -33,7 +33,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     height: 44,
   },
   searchInput: {
@@ -43,20 +43,20 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   filterContainer: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
   filterScroll: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: theme.colors.backgroundSecondary,
-    marginHorizontal: 4,
+    marginHorizontal: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -72,6 +72,32 @@ export const getStyles = (theme) => StyleSheet.create({
   activeFilterText: {
     color: theme.colors.textInverse,
   },
+  statsRangeContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 8,
+  },
+  statsRangeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  statsRangeChipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  statsRangeChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  statsRangeChipTextActive: {
+    color: theme.colors.textInverse,
+  },
   listContent: {
     padding: 16,
   },
@@ -79,7 +105,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     shadowColor: '#000',
@@ -92,7 +118,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   invoiceId: {
     fontSize: 14,
@@ -126,8 +152,8 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderLight,
   },
@@ -143,7 +169,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   viewButton: {
     paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     borderRadius: 6,
     backgroundColor: theme.colors.primaryLight,
   },
@@ -159,7 +185,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: theme.colors.textSecondary,
   },
@@ -187,7 +213,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    padding: 20,
+    padding: 16,
   },
   modalContent: {
     backgroundColor: theme.colors.surface,
@@ -211,26 +237,26 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   closeButton: {
-    padding: 4,
+    padding: 8,
   },
   modalBody: {
-    padding: 20,
+    padding: 16,
   },
   summaryGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: 16,
+    marginBottom: 24,
   },
   summaryItem: {
     flex: 1,
     backgroundColor: theme.colors.backgroundSecondary,
-    padding: 12,
+    padding: 16,
     borderRadius: 10,
   },
   summaryLabel: {
     fontSize: 12,
     color: theme.colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   summaryValue: {
     fontSize: 14,
@@ -241,7 +267,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   statusGrid: {
     flexDirection: 'row',
@@ -250,7 +276,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   statusOption: {
     width: '48%',
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
@@ -262,6 +288,151 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+
+  // ── Record-payment form ──────────────────────────────────────────────────
+  sectionDivider: {
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
+    paddingTop: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginBottom: 6,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    fontSize: 15,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  fieldTextarea: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  methodRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  methodChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  methodChipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  methodChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  methodChipTextActive: {
+    color: '#FFFFFF',
+  },
+  recordButton: {
+    marginTop: 16,
+    backgroundColor: '#059669',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  
+  // Transaction List Styles
+  transactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: theme.colors.text,
+  },
+  transactionMeta: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  transactionRef: {
+    fontSize: 10,
+    color: theme.colors.textTertiary,
+    marginTop: 1,
+  },
+  refundButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: '#F3E8FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D8B4FE',
+  },
+  refundButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7E22CE',
+  },
+  refundedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 6,
+  },
+  refundedText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#9CA3AF',
   },
 });
 

@@ -1,0 +1,124 @@
+import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import tenantService from '../../../../services/TenantService.js';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { getStyles } from '../../../../styles/Tenant/ReviewStyles.js';
+import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
+
+export default function MyReviews() {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const navigation = useNavigation();
+  const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState(null);
+
+  const myReviewsQuery = useQuery({
+    queryKey: tenantQueryKeys.myReviews(),
+    queryFn: async () => {
+      const res = await tenantService.getTenantReviews();
+      if (!res?.success) {
+        throw new Error(res?.error || 'Failed to load your reviews');
+      }
+
+      const data = Array.isArray(res.data) ? res.data : res.data?.reviews || [];
+      return Array.isArray(data) ? data : [];
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const reviews = myReviewsQuery.data || [];
+  const loading = myReviewsQuery.isLoading;
+  const refetchMyReviews = myReviewsQuery.refetch;
+  const myReviewsRefetchers = React.useMemo(
+    () => [refetchMyReviews],
+    [refetchMyReviews],
+  );
+
+  useTenantFocusRefetch({ refetchers: myReviewsRefetchers });
+
+  useEffect(() => {
+    if (!myReviewsQuery.error) return;
+    Alert.alert('Error', myReviewsQuery.error.message || 'Failed to load your reviews');
+  }, [myReviewsQuery.error]);
+
+  const confirmDelete = (id) => {
+    Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => handleDelete(id) }
+    ]);
+  };
+
+  const handleDelete = async (id) => {
+    setDeletingId(id);
+    try {
+      const res = await tenantService.deleteReview(id);
+      if (res.success) {
+        Alert.alert('Deleted', 'Review deleted');
+        queryClient.setQueryData(tenantQueryKeys.myReviews(), (prev) => {
+          if (!Array.isArray(prev)) return [];
+          return prev.filter((review) => review.id !== id);
+        });
+      } else {
+        Alert.alert('Error', res.error || 'Failed to delete review');
+      }
+    } catch (err) {
+      console.error('Delete review error', err);
+      Alert.alert('Error', 'Failed to delete review');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const renderItem = ({ item }) => (
+    <View style={[styles.reviewCard, { backgroundColor: theme.colors.surface }]}>
+      <View style={styles.cardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.propertyName, { color: theme.colors.text }]}>
+            {item.property_title || 'Property'}
+            {item.room_number ? ` (Room ${item.room_number})` : ''}
+          </Text>
+          {item.property_location ? <Text style={[styles.propertyLocation, { color: theme.colors.textSecondary }]}>{item.property_location}</Text> : null}
+        </View>
+        <View style={styles.ratingContainer}>
+          <Text style={[styles.ratingText, { color: theme.colors.text }]}>{item.rating} ★</Text>
+          <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>{item.time_ago || ''}</Text>
+        </View>
+      </View>
+      {item.comment ? <Text style={[styles.commentText, { color: theme.colors.text }]}>{item.comment}</Text> : null}
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity 
+            onPress={() => navigation.navigate('LeaveReview', { 
+                reviewId: item.id, 
+                initialRating: item.rating, 
+                initialComment: item.comment, 
+                propertyId: item.property_id 
+            })} 
+            style={[styles.editBtn, { backgroundColor: theme.colors.primary }]}
+        >
+          <Text style={[styles.btnText, { color: theme.colors.textInverse }]}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
+          {deletingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Delete</Text>}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  if (loading) return (
+    <SafeAreaView style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+      <ActivityIndicator />
+    </SafeAreaView>
+  );
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>My Reviews</Text>
+      <FlatList data={reviews} keyExtractor={(i) => String(i.id)} renderItem={renderItem} />
+    </SafeAreaView>
+  );
+}

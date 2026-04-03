@@ -70,11 +70,11 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   formSection: {
-    padding: 20,
+    padding: 16,
     backgroundColor: theme.colors.background,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
     fontSize: 14,
@@ -90,13 +90,13 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   inputDisabled: {
     backgroundColor: theme.colors.backgroundSecondary,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 16,
   },
   input: {
     flex: 1,
@@ -106,8 +106,8 @@ export const getStyles = (theme) => StyleSheet.create({
   helperText: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginTop: 4,
-    marginLeft: 4,
+    marginTop: 8,
+    marginLeft: 8,
   },
   textAreaContainer: {
     backgroundColor: theme.colors.surface,
@@ -121,6 +121,10 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+  divider: {
+    height: 1,
+    width: '100%',
   },
   preferencesSection: {
     marginTop: 24,
@@ -138,7 +142,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -146,7 +150,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 12,
+    gap: 16,
   },
   preferenceText: {
     flex: 1,
@@ -180,6 +184,39 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   toggleCircleActive: {
     alignSelf: 'flex-end',
+  },
+  eyeBtn: {
+    padding: 8,
+  },
+  saveButton: {
+    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  passwordChecksContainer: {
+    marginTop: 8,
+    paddingHorizontal: 5,
+    marginBottom: 8,
+  },
+  passwordCheckItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  passwordCheckText: {
+    marginLeft: 5,
+    color: '#9CA3AF',
   },
 });
 

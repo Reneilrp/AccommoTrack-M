@@ -1,4 +1,7 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
+const actionCardSize = 80;
 
 export const getStyles = (theme) => StyleSheet.create({
   container: {
@@ -13,7 +16,7 @@ export const getStyles = (theme) => StyleSheet.create({
     padding: 24
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: theme.colors.textSecondary
   },
@@ -23,7 +26,7 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    gap: 12
+    gap: 16
   },
   errorTitle: {
     fontSize: 18,
@@ -37,7 +40,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   retryButton: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: theme.colors.primary
   },
@@ -101,27 +104,39 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: 'bold'
   },
   statsContainer: {
-    marginTop: 16,
+    marginTop: 8,
     paddingHorizontal: 16
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12
+    gap: 8
   },
   statCard: {
     width: '48%',
     backgroundColor: theme.colors.surface,
-    padding: 14,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    flexDirection: 'row',
     alignItems: 'center',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 2,
+  },
+  statCardLeft: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  statCardRight: {
+    flex: 1,
+    paddingLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statCardBlue: {
     backgroundColor: theme.isDark ? '#1E293B' : '#EFF6FF',
@@ -140,32 +155,31 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.isDark ? '#92400E' : '#FEF3C7',
   },
   statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10
   },
   statBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginTop: 8
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
   statBadgeText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '600'
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: theme.colors.text
+    color: theme.colors.text,
+    lineHeight: 26,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: theme.colors.textSecondary,
-    marginTop: 2
+    marginTop: 1,
   },
   chartContainer: {
     marginTop: 24,
@@ -190,7 +204,7 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16
   },
   section: {
-    padding: 20,
+    padding: 16,
     paddingTop: 24
   },
   sectionHeader: {
@@ -216,15 +230,15 @@ export const getStyles = (theme) => StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 16
+    justifyContent: 'space-around',
+    gap: 6,
+    marginTop: 8
   },
   actionCard: {
-    width: '31%',
+    width: actionCardSize,
+    height: actionCardSize,
     backgroundColor: theme.colors.surface,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    borderRadius: actionCardSize / 2,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 4,
@@ -233,22 +247,44 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOpacity: theme.isDark ? 0.4 : 0.15,
     shadowRadius: 6,
     borderWidth: 1,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    position: 'relative',
+  },
+  actionBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EF4444',
+  },
+  actionBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8
+    marginBottom: 2,
   },
   actionTitle: {
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '600',
     color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: 4
+    paddingHorizontal: 2,
+  },
+  quickActionsSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   actionArrow: {
     marginTop: 2
@@ -257,7 +293,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
-    gap: 12,
+    gap: 16,
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border,
   },
@@ -274,7 +310,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12
+    marginRight: 16
   },
   activityContent: {
     flex: 1
@@ -283,7 +319,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 4
+    marginBottom: 8
   },
   activitySubtitle: {
     fontSize: 12,
@@ -300,8 +336,8 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.primary
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 999
   },
   statusBadgeText: {
@@ -313,7 +349,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
-    gap: 12,
+    gap: 16,
     borderWidth: 1,
     borderColor: theme.colors.border
   },
@@ -330,11 +366,11 @@ export const getStyles = (theme) => StyleSheet.create({
   listItem: {
     borderWidth: 1,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 16,
     backgroundColor: theme.colors.backgroundSecondary,
     borderColor: theme.colors.border
   },
@@ -362,8 +398,8 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.error
   },
   pill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 999
   },
   pillText: {
@@ -397,11 +433,11 @@ export const getStyles = (theme) => StyleSheet.create({
   propertyAddress: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   occupancyBadge: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 12
   },
@@ -412,7 +448,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   propertyStats: {
     flexDirection: 'row',
-    gap: 20
+    gap: 24
   },
   propertyStatItem: {
     flexDirection: 'row',
@@ -429,7 +465,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 16,
     padding: 16,
-    gap: 12,
+    gap: 16,
     backgroundColor: theme.colors.surface
   },
   performanceHeader: {

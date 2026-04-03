@@ -34,7 +34,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   errorBanner: {
     margin: 16,
-    padding: 12,
+    padding: 16,
     borderRadius: 12,
     backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2'
   },
@@ -45,7 +45,7 @@ export const getStyles = (theme) => StyleSheet.create({
   statsScroll: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    gap: 12,
+    gap: 16,
   },
   statCard: {
     width: 140,
@@ -82,7 +82,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    gap: 10,
+    gap: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -93,8 +93,148 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   filterRow: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     gap: 8
+  },
+  requestSection: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    gap: 8,
+  },
+  requestSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  requestEmptyText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  requestCard: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+  },
+  requestCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  requestTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  requestStatus: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    color: '#B45309',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  requestSubtitle: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  requestMeta: {
+    fontSize: 12,
+    color: theme.colors.text,
+  },
+  requestNote: {
+    marginTop: 8,
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  requestActionsRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  transferApprovalWrap: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    gap: 8,
+  },
+  transferApprovalLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  transferApprovalInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    color: theme.colors.text,
+    fontSize: 12,
+  },
+  transferApprovalTextArea: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    color: theme.colors.text,
+    fontSize: 12,
+    minHeight: 64,
+    textAlignVertical: 'top',
+  },
+  requestApproveBtn: {
+    flex: 1,
+    backgroundColor: '#059669',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  requestApproveText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  requestRejectBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FECACA',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  requestRejectText: {
+    color: '#B91C1C',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  requestNeutralBtn: {
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+  },
+  requestNeutralText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   filterChip: {
     paddingHorizontal: 16,
@@ -144,7 +284,7 @@ export const getStyles = (theme) => StyleSheet.create({
   guestBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
     flexShrink: 1
   },
   guestAvatar: {
@@ -169,7 +309,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textSecondary
   },
   statusBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 999
   },
@@ -204,7 +344,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.primary
   },
   paymentBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 999
   },
@@ -232,7 +372,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 16,
     backgroundColor: theme.colors.background
   },
   centerText: {
@@ -248,7 +388,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: theme.colors.surface
@@ -276,7 +416,7 @@ export const getStyles = (theme) => StyleSheet.create({
   modalContent: {
     padding: 16,
     paddingBottom: 32,
-    gap: 12
+    gap: 16
   },
   // Timeline - Blue themed like web
   timelineCard: {
@@ -287,8 +427,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12
+    paddingVertical: 16,
+    paddingHorizontal: 16
   },
   timelineItem: {
     flex: 1,
@@ -321,13 +461,13 @@ export const getStyles = (theme) => StyleSheet.create({
   // Status Row
   statusRow: {
     flexDirection: 'row',
-    gap: 12
+    gap: 16
   },
   statusItem: {
     flex: 1,
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     shadowColor: '#0F172A',
     shadowOpacity: theme.isDark ? 0.2 : 0.04,
     shadowRadius: 4,
@@ -344,7 +484,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   statusBadgeLarge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 999
   },
@@ -370,11 +510,69 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.textSecondary,
     textTransform: 'uppercase',
-    marginBottom: 12,
+    marginBottom: 16,
     letterSpacing: 0.5
   },
+  depositBalanceLabel: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    marginBottom: 6,
+  },
+  depositBalanceValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+  settlementFeeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  settlementFeeField: {
+    flex: 1,
+  },
+  settleDepositBtn: {
+    marginTop: 8,
+    backgroundColor: '#4F46E5',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  settleDepositBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  settlementHistoryTitle: {
+    marginTop: 14,
+    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  settlementHistoryCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  settlementHistoryAmount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  settlementHistoryMeta: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    marginBottom: 2,
+  },
   infoGrid: {
-    gap: 12
+    gap: 16
   },
   infoItem: {
     gap: 2
@@ -408,7 +606,7 @@ export const getStyles = (theme) => StyleSheet.create({
   totalAmountLabel: {
     fontSize: 11,
     color: theme.colors.textTertiary,
-    marginBottom: 4
+    marginBottom: 8
   },
   totalAmountValue: {
     fontSize: 28,
@@ -423,7 +621,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   paymentPill: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -444,7 +642,7 @@ export const getStyles = (theme) => StyleSheet.create({
   // Action Buttons
   actionButtonsRow: {
     flexDirection: 'row',
-    gap: 12
+    gap: 16
   },
   confirmBtnFull: {
     flex: 1,
@@ -484,7 +682,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.error,
     borderRadius: 10,
-    padding: 12
+    padding: 16
   },
   cancelledNoteText: {
     fontSize: 13,
@@ -508,7 +706,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text,
-    marginTop: 4
+    marginTop: 8
   },
   section: {
     backgroundColor: theme.colors.surface,
@@ -560,14 +758,14 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
+    gap: 16,
+    marginTop: 16,
     flexWrap: 'wrap'
   },
   confirmBtn: {
     flex: 1,
     backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center'
   },
@@ -579,7 +777,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     borderWidth: 2,
     borderColor: theme.colors.error,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: theme.colors.surface
@@ -591,7 +789,7 @@ export const getStyles = (theme) => StyleSheet.create({
   completeBtn: {
     flex: 1,
     backgroundColor: theme.colors.info,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center'
   },
@@ -603,7 +801,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     borderWidth: 2,
     borderColor: theme.colors.error,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: theme.colors.surface
@@ -615,7 +813,7 @@ export const getStyles = (theme) => StyleSheet.create({
   primaryBtn: {
     flex: 1,
     backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center'
   },
@@ -627,7 +825,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: theme.colors.surface
@@ -638,7 +836,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border
@@ -647,7 +845,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: theme.colors.surface
@@ -659,7 +857,7 @@ export const getStyles = (theme) => StyleSheet.create({
   confirmCancelBtn: {
     flex: 1,
     backgroundColor: theme.colors.error,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center'
   },
@@ -670,7 +868,7 @@ export const getStyles = (theme) => StyleSheet.create({
   dangerBtn: {
     flex: 1,
     backgroundColor: theme.colors.error,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center'
   },
@@ -683,7 +881,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    padding: 12,
+    padding: 16,
     fontSize: 14,
     color: theme.colors.text
   },

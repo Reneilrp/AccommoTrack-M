@@ -3,17 +3,17 @@ import { StyleSheet } from 'react-native';
 export const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
-        padding: 12,
+        padding: 16,
         backgroundColor: theme.colors.background,
     },
     title: {
         fontSize: 18,
         fontWeight: '600',
-        marginBottom: 12,
+        marginBottom: 16,
         color: theme.colors.text,
     },
     reviewCard: {
-        padding: 12,
+        padding: 16,
         borderRadius: 8,
         marginBottom: 8,
         elevation: 2,
@@ -55,7 +55,7 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     actionRow: {
         flexDirection: 'row',
-        marginTop: 10,
+        marginTop: 8,
     },
     editBtn: {
         padding: 8,
@@ -84,14 +84,14 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     starsContainer: {
         flexDirection: 'row',
-        marginBottom: 12,
+        marginBottom: 16,
     },
     starBtn: {
         marginRight: 8,
     },
     textInput: {
         minHeight: 120,
-        padding: 12,
+        padding: 16,
         borderRadius: 8,
         textAlignVertical: 'top',
         backgroundColor: theme.colors.surface,
@@ -103,7 +103,7 @@ export const getStyles = (theme) => StyleSheet.create({
         marginTop: 16,
     },
     submitBtn: {
-        padding: 12,
+        padding: 16,
         borderRadius: 8,
         alignItems: 'center',
         backgroundColor: theme.colors.primary,

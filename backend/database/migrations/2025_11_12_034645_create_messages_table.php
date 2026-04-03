@@ -14,9 +14,12 @@ return new class extends Migration
         Schema::create('messages', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->foreignId('sender_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('actual_sender_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->string('sender_role', 20)->nullable();
             $table->foreignId('receiver_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('room_id')->nullable()->constrained('rooms')->onDelete('cascade');
             $table->text('message');
+            $table->string('image_url')->nullable();
             $table->boolean('is_read')->nullable()->default(false);
             $table->timestamp('read_at')->nullable();
             $table->timestamp('created_at')->useCurrent();

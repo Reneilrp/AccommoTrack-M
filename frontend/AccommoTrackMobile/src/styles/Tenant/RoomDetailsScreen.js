@@ -14,7 +14,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: theme.colors.primary,
     borderBottomWidth: 1,
     borderBottomColor: 'transparent',
@@ -27,7 +27,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.textInverse,
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
     textAlign: 'center',
   },
   placeholder: {
@@ -46,7 +46,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   imageIndicator: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 24,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -66,7 +66,7 @@ export const getStyles = (theme) => StyleSheet.create({
   
   // Content Container
   contentContainer: {
-    padding: 20,
+    padding: 16,
     backgroundColor: theme.colors.background,
   },
   
@@ -87,10 +87,10 @@ export const getStyles = (theme) => StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 6,
-    gap: 4,
+    gap: 8,
   },
   statusText: {
     fontSize: 11,
@@ -102,7 +102,7 @@ export const getStyles = (theme) => StyleSheet.create({
   roomType: {
     fontSize: 15,
     color: theme.colors.textSecondary,
-    marginBottom: 20,
+    marginBottom: 24,
     fontWeight: '400',
   },
   
@@ -139,6 +139,9 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     letterSpacing: -0.2,
   },
+  rulesList: {
+    gap: 8,
+  },
   description: {
     fontSize: 15,
     color: theme.colors.textSecondary,
@@ -150,12 +153,12 @@ export const getStyles = (theme) => StyleSheet.create({
   amenitiesGrid: {
   flexDirection: 'row',
   flexWrap: 'wrap',
-  gap: 12,
+  gap: 16,
 },
 amenityItem: {
   flexDirection: 'row',
   alignItems: 'center',
-  gap: 10,
+  gap: 8,
   paddingVertical: 2,
   width: '48%',
 },
@@ -170,8 +173,8 @@ amenityText: {
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 16,
   },
   infoText: {
     fontSize: 14,
@@ -194,7 +197,7 @@ amenityText: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   ruleItem: {
     flexDirection: 'row',
@@ -224,7 +227,7 @@ amenityText: {
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   bookButtonText: {
     color: theme.colors.textInverse,
@@ -241,7 +244,7 @@ amenityText: {
     justifyContent: 'center',
     gap: 8,
     borderWidth: 0,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   contactButtonText: {
     color: theme.colors.textInverse,
@@ -255,7 +258,7 @@ amenityText: {
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     width: '100%',
     height: '100%',
   },
@@ -265,6 +268,10 @@ amenityText: {
     borderRadius: 16,
     width: '100%',
     maxWidth: 400,
+    maxHeight: '90%',
+  },
+  modalScrollContent: {
+    paddingBottom: 8,
   },
   modalTitle: {
     fontSize: 20,
@@ -275,6 +282,12 @@ amenityText: {
   },
   inputContainer: {
     marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
@@ -299,8 +312,8 @@ amenityText: {
     letterSpacing: 0.3,
   },
   cancelButton: {
-    marginTop: 12,
-    paddingVertical: 12,
+    marginTop: 16,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   cancelButtonText: {
@@ -320,7 +333,7 @@ amenityText: {
 },
 guestNoticeText: {
   flex: 1,
-  marginLeft: 12,
+  marginLeft: 16,
   fontSize: 14,
   color: theme.isDark ? '#BFDBFE' : '#1E40AF',
   lineHeight: 20,
@@ -333,7 +346,7 @@ dateButton: {
   borderColor: theme.colors.border,
   borderRadius: 8,
   padding: 14,
-  gap: 10,
+  gap: 8,
 },
 dateButtonText: {
   fontSize: 16,
@@ -377,12 +390,130 @@ summaryValueBold: {
 summaryNote: {
   fontSize: 12,
   color: theme.colors.textTertiary,
-  marginTop: 4,
+  marginTop: 8,
 },
 
 // Update existing submitButtonDisabled style
-submitButtonDisabled: {
-  backgroundColor: theme.colors.textTertiary,
-  opacity: 0.6,
-},
+  submitButtonDisabled: {
+    backgroundColor: theme.colors.textTertiary,
+    opacity: 0.6,
+  },
+  fullFlex: {
+    flex: 1,
+  },
+  modalCloseHeader: {
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 24
+  },
+  modalHeaderSpace: {
+    width: 24
+  },
+  headerIconWrapper: {
+    padding: 8
+  },
+  modalFormTitle: {
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: theme.colors.text
+  },
+  modalFormSubtitle: {
+    fontSize: 14, 
+    color: theme.colors.textSecondary, 
+    marginBottom: 16
+  },
+  modalFormGroup: {
+    marginBottom: 16
+  },
+  modalFormLabel: {
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: theme.colors.text, 
+    marginBottom: 8
+  },
+  modalFormInput: {
+    borderWidth: 1, 
+    borderColor: theme.colors.border, 
+    borderRadius: 8, 
+    padding: 16, 
+    color: theme.colors.text, 
+    fontSize: 16
+  },
+  modalFormAction: {
+    backgroundColor: theme.colors.primary, 
+    paddingVertical: 14, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    marginTop: 8
+  },
+  modalFormActionText: {
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '600'
+  },
+  modalFormCancel: {
+    paddingVertical: 16, 
+    alignItems: 'center'
+  },
+  headerBar: {
+    height: 56, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 16, 
+    borderBottomWidth: 0.5,
+  },
+  backBtn: {
+    padding: 8
+  },
+  titleTxt: {
+    flex: 1, 
+    textAlign: 'center', 
+    fontSize: 18, 
+    fontWeight: '600'
+  },
+  emptyHeaderSide: {
+    width: 40
+  },
+  psText: {
+    marginTop: 6, 
+    fontSize: 12, 
+    color: '#6b7280', 
+    fontStyle: 'italic'
+  },
+  paymentMethodRow: {
+    flexDirection: 'row', 
+    gap: 8, 
+    marginTop: 5
+  },
+  paymentMethodBtn: {
+    flex: 1, 
+    borderColor: '#ddd', 
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  paymentMethodBtnActive: {
+    borderColor: theme.colors.primary, 
+    backgroundColor: theme.colors.successLight
+  },
+  paymentMethodBtnText: {
+    color: '#374151', 
+    fontWeight: 'bold', 
+    textAlign: 'center'
+  },
+  paymentMethodBtnTextActive: {
+    color: theme.colors.primary
+  },
+  gcashDetailsBox: {
+    marginTop: 8, 
+    padding: 8, 
+    backgroundColor: theme.colors.backgroundSecondary, 
+    borderRadius: 6, 
+    borderWidth: 1, 
+    borderColor: theme.colors.border
+  },
 });

@@ -15,6 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('room_id')->index('idx_room');
             $table->unsignedBigInteger('tenant_id')->index('idx_tenant');
+            $table->integer('bed_count')->default(1);
             $table->date('start_date');
             $table->date('end_date')->nullable();
             $table->decimal('monthly_rent', 10);

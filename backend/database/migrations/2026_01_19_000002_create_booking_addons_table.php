@@ -23,7 +23,7 @@ return new class extends Migration
                 'active',    // Currently active (for monthly recurring)
                 'rejected',  // Landlord rejected the request
                 'completed', // One-time addon has been invoiced/paid
-                'cancelled'  // Tenant or landlord cancelled
+                'cancelled',  // Tenant or landlord cancelled
             ])->default('pending');
             $table->text('request_note')->nullable(); // Tenant's note when requesting
             $table->text('response_note')->nullable(); // Landlord's note when approving/rejecting
@@ -31,10 +31,13 @@ return new class extends Migration
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('invoiced_at')->nullable(); // When the addon was added to an invoice
             $table->foreignId('invoice_id')->nullable()->constrained()->nullOnDelete();
+            $table->timestamp('cancellation_requested_at')->nullable();
+            $table->timestamp('cancellation_effective_at')->nullable();
             $table->timestamps();
 
             $table->unique(['booking_id', 'addon_id'], 'booking_addon_unique');
             $table->index(['booking_id', 'status']);
+            $table->index(['status', 'cancellation_effective_at'], 'booking_addons_status_cancel_effective_idx');
         });
     }
 

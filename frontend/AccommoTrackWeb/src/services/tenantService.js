@@ -35,13 +35,9 @@ export const tenantService = {
     /**
      * Request an addon for current booking
      */
-    async requestAddon(addonId, quantity = 1, note = null) {
+    async requestAddon(payload) {
         try {
-            const response = await api.post('/tenant/addons/request', {
-                addon_id: addonId,
-                quantity,
-                note
-            });
+            const response = await api.post('/tenant/addons/request', payload);
             return response.data;
         } catch (error) {
             console.error('Error requesting addon:', error);
@@ -123,6 +119,37 @@ export const tenantService = {
     },
 
     /**
+     * Cancel a booking
+     */
+    async cancelBooking(bookingId, reason = '') {
+        try {
+            const response = await api.patch(`/tenant/bookings/${bookingId}/cancel`, {
+                cancellation_reason: reason
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error cancelling booking:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Request move-out for an active stay.
+     */
+    async requestMoveOut(bookingId, moveOutDate, reason = '') {
+        try {
+            const response = await api.patch(`/tenant/bookings/${bookingId}/request-move-out`, {
+                move_out_date: moveOutDate,
+                reason,
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error requesting move-out:', error);
+            throw error;
+        }
+    },
+
+    /**
      * Update Tenant Profile
      * @param {FormData} formData 
      */
@@ -152,13 +179,53 @@ export const tenantService = {
         try {
             const response = await api.post('/tenant/change-password', {
                 current_password: currentPassword,
-                password: newPassword,
-                password_confirmation: newPasswordConfirmation
+                new_password: newPassword,
+                new_password_confirmation: newPasswordConfirmation
             });
             return response.data;
         } catch (error) {
             console.error('Error changing password:', error);
             throw error;
+        }
+    },
+
+    /**
+     * Get available add-ons for active booking
+     */
+    async getAvailableAddons() {
+        try {
+            const response = await api.get('/tenant/addons/available');
+            return response.data;
+        } catch (error) {
+            if (error.response?.status === 404) return { success: false, status: 404 };
+            console.error('Error fetching available addons:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
+     * Get current addon requests (pending/active)
+     */
+    async getAddonRequests() {
+        try {
+            const response = await api.get('/tenant/addons/requests');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching addon requests:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
+     * Get recent activities for tenant
+     */
+    async getActivities() {
+        try {
+            const response = await api.get('/tenant/dashboard/activities');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching tenant activities:', error);
+            return { success: false, activities: [] };
         }
     }
 };

@@ -1,53 +1,85 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  ChevronLeft, 
-  AlertCircle, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  User, 
-  Phone, 
-  Check, 
-  Monitor, 
-  Smartphone, 
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ChevronLeft,
+  AlertCircle,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  User,
+  Phone,
+  Check,
+  Monitor,
+  Smartphone,
   Loader2,
   XCircle,
   RefreshCw,
   Upload,
-  X
-} from 'lucide-react';
-import Logo from '../../assets/Logo.png';
-import api, { isCancel, rootApi } from '../../utils/api';
-import { getDefaultLandingRoute } from '../../utils/userRoutes';
-import toast, { Toaster } from 'react-hot-toast';
-import { usePreferences } from '../../contexts/PreferencesContext';
-import BlockedUserModal from '../../components/Shared/BlockedUserModal';
-import ForgotPasswordModal from '../../components/Modals/ForgotPasswordModal';
+  X,
+} from "lucide-react";
+import Logo from "../../assets/Logo.png";
+import api, {
+  isCancel,
+  rootApi,
+  initCsrfCookie,
+  shouldUseBearerForRequest,
+  setPersistedAuthMode,
+} from "../../utils/api";
+import { getDefaultLandingRoute } from "../../utils/userRoutes";
+import toast, { Toaster } from "react-hot-toast";
+import { usePreferences } from "../../contexts/PreferencesContext";
+import BlockedUserModal from "../../components/Shared/BlockedUserModal";
+import ForgotPasswordModal from "../../components/Modals/ForgotPasswordModal";
+
+import { UNIFIED_TERMS_AND_CONDITIONS } from "../../shared/LegalContent";
+
+const ensureCsrfCookieOrFallback = async () => {
+  try {
+    await initCsrfCookie();
+  } catch (error) {
+    if (!shouldUseBearerForRequest()) {
+      throw error;
+    }
+  }
+};
 
 // Resubmit Modal Component
-const ResubmitModal = ({ visible, onClose, theme }) => {
+const ResubmitModal = ({ visible, onClose, __theme }) => {
   const [loading, setLoading] = useState(false);
   const [idTypes, setIdTypes] = useState([]);
-  const [idTypesLoading, setIdTypesLoading] = useState(false);
+  const [__idTypesLoading, setIdTypesLoading] = useState(false);
   const [form, setForm] = useState({
-    validIdType: '',
-    validIdOther: '',
+    validIdType: "",
+    validIdOther: "",
     validId: null,
-    permit: null
+    permit: null,
   });
 
   useEffect(() => {
     if (visible && idTypes.length === 0) {
       setIdTypesLoading(true);
-      api.get('/valid-id-types')
-        .then(res => {
+      api
+        .get("/valid-id-types")
+        .then((res) => {
           setIdTypes(res.data);
           setIdTypesLoading(false);
         })
         .catch(() => {
-          setIdTypes(['Philippine Passport', 'Driver\'s License', 'PhilSys ID', 'UMID', 'PRC ID', 'Postal ID', 'Voter\'s ID', 'TIN ID', 'PhilHealth ID', 'Senior Citizen ID', 'OFW ID', 'Other']);
+          setIdTypes([
+            "Philippine Passport",
+            "Driver's License",
+            "PhilSys ID",
+            "UMID",
+            "PRC ID",
+            "Postal ID",
+            "Voter's ID",
+            "TIN ID",
+            "PhilHealth ID",
+            "Senior Citizen ID",
+            "OFW ID",
+            "Other",
+          ]);
           setIdTypesLoading(false);
         });
     }
@@ -56,35 +88,40 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
   const handleFileChange = (e) => {
     const { name, files } = e.target;
     if (files && files[0]) {
-      setForm(prev => ({ ...prev, [name]: files[0] }));
+      setForm((prev) => ({ ...prev, [name]: files[0] }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.validIdType || !form.validId || !form.permit) {
-      toast.error('Please fill in all required fields and upload documents.');
+      toast.error("Please fill in all required fields and upload documents.");
       return;
     }
 
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('valid_id_type', form.validIdType);
-      if (form.validIdType === 'Other') formData.append('valid_id_other', form.validIdOther);
-      formData.append('valid_id', form.validId);
-      formData.append('permit', form.permit);
+      formData.append("valid_id_type", form.validIdType);
+      if (form.validIdType === "Other")
+        formData.append("valid_id_other", form.validIdOther);
+      formData.append("valid_id", form.validId);
+      formData.append("permit", form.permit);
 
-      await api.post('/tenant/resubmit-verification', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      await api.post("/tenant/resubmit-verification", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      toast.success('Documents resubmitted successfully! Please wait for admin review.');
+      toast.success(
+        "Documents resubmitted successfully! Please wait for admin review.",
+      );
       onClose();
       // reload to clear login state or navigate
       setTimeout(() => window.location.reload(), 2000);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to resubmit documents.');
+      toast.error(
+        err.response?.data?.message || "Failed to resubmit documents.",
+      );
     } finally {
       setLoading(false);
     }
@@ -101,41 +138,59 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
             <RefreshCw className="w-5 h-5" />
             Resubmit Documents
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+          >
             <X className="w-6 h-6" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
           <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 mb-4">
-            <p className="text-xs text-amber-800 font-bold uppercase mb-1">Notice:</p>
+            <p className="text-xs text-amber-800 font-bold uppercase mb-2">
+              Notice:
+            </p>
             <p className="text-sm text-amber-700">
-              Only document re-upload is required. Your name and contact information will remain unchanged.
+              Only document re-upload is required. Your name and contact
+              information will remain unchanged.
             </p>
           </div>
 
           {/* ID Type */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Valid ID Type <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Valid ID Type <span className="text-red-500">*</span>
+            </label>
             <select
               value={form.validIdType}
-              onChange={(e) => setForm(prev => ({ ...prev, validIdType: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, validIdType: e.target.value }))
+              }
               className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 transition-all outline-none text-gray-900 dark:text-white"
               required
             >
               <option value="">Select ID type</option>
-              {idTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              {idTypes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
               <option value="Other">Other (specify below)</option>
             </select>
           </div>
 
-          {form.validIdType === 'Other' && (
+          {form.validIdType === "Other" && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Specify ID Type <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Specify ID Type <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={form.validIdOther}
-                onChange={(e) => setForm(prev => ({ ...prev, validIdOther: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, validIdOther: e.target.value }))
+                }
                 className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 transition-all outline-none text-gray-900 dark:text-white"
                 placeholder="Enter your ID type"
                 required
@@ -145,7 +200,9 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
 
           {/* Valid ID Upload */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Upload Valid ID <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Upload Valid ID <span className="text-red-500">*</span>
+            </label>
             <div className="relative group">
               <input
                 type="file"
@@ -158,18 +215,24 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
               />
               <label
                 htmlFor="resubmit-valid-id"
-                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${form.validId ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-green-400 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50'}`}
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${form.validId ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-gray-300 dark:border-gray-600 hover:border-green-400 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50"}`}
               >
                 {form.validId ? (
                   <div className="flex flex-col items-center text-green-600 dark:text-green-400">
                     <Check className="w-8 h-8 mb-2" />
-                    <span className="text-xs font-medium text-center px-4 truncate w-full">{form.validId.name}</span>
+                    <span className="text-xs font-medium text-center px-4 truncate w-full">
+                      {form.validId.name}
+                    </span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center text-gray-500 dark:text-gray-400">
                     <Upload className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-xs font-medium">Click to upload valid ID</span>
-                    <span className="text-[10px] mt-1 opacity-60">JPG, PNG, PDF up to 10MB</span>
+                    <span className="text-xs font-medium">
+                      Click to upload valid ID
+                    </span>
+                    <span className="text-[10px] mt-2 opacity-60">
+                      JPG, PNG, PDF up to 10MB
+                    </span>
                   </div>
                 )}
               </label>
@@ -178,7 +241,9 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
 
           {/* Permit Upload */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Upload Business Permit <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Upload Business Permit <span className="text-red-500">*</span>
+            </label>
             <div className="relative group">
               <input
                 type="file"
@@ -191,18 +256,24 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
               />
               <label
                 htmlFor="resubmit-permit"
-                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${form.permit ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-green-400 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50'}`}
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${form.permit ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-gray-300 dark:border-gray-600 hover:border-green-400 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50"}`}
               >
                 {form.permit ? (
                   <div className="flex flex-col items-center text-green-600 dark:text-green-400">
                     <Check className="w-8 h-8 mb-2" />
-                    <span className="text-xs font-medium text-center px-4 truncate w-full">{form.permit.name}</span>
+                    <span className="text-xs font-medium text-center px-4 truncate w-full">
+                      {form.permit.name}
+                    </span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center text-gray-500 dark:text-gray-400">
                     <Upload className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-xs font-medium">Click to upload business permit</span>
-                    <span className="text-[10px] mt-1 opacity-60">JPG, PNG, PDF up to 10MB</span>
+                    <span className="text-xs font-medium">
+                      Click to upload business permit
+                    </span>
+                    <span className="text-[10px] mt-2 opacity-60">
+                      JPG, PNG, PDF up to 10MB
+                    </span>
                   </div>
                 )}
               </label>
@@ -213,7 +284,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -221,7 +292,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
                 Submitting Documents...
               </>
             ) : (
-              'Submit for Re-verification'
+              "Submit for Re-verification"
             )}
           </button>
         </form>
@@ -230,103 +301,273 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
   );
 };
 
-function AuthScreen({ onLogin = () => {} }) {
-  const navigate = useNavigate();
-  const { effectiveTheme } = usePreferences();
-  const [isLogin, setIsLogin] = useState(() => {
-    try {
-      const saved = localStorage.getItem('auth_is_login');
-      return saved !== null ? JSON.parse(saved) : true;
-    } catch {
-      return true;
-    }
-  });
+// ... (imports)
+
+const OtpVerificationScreen = ({
+  email,
+  onVerified,
+  onBack,
+  initialResendCooldown = 0,
+}) => {
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(
+    Number.isFinite(initialResendCooldown) && initialResendCooldown > 0
+      ? Math.floor(initialResendCooldown)
+      : 0,
+  );
 
   useEffect(() => {
-    localStorage.setItem('auth_is_login', JSON.stringify(isLogin));
-  }, [isLogin]);
+    const nextCooldown = Number.isFinite(initialResendCooldown)
+      ? Math.max(0, Math.floor(initialResendCooldown))
+      : 0;
+    setResendCooldown(nextCooldown);
+  }, [email, initialResendCooldown]);
+
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+      setError("Please enter a valid 6-digit OTP.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await ensureCsrfCookieOrFallback();
+
+      const response = await api.post("/verify-email-otp", {
+        email: email,
+        email_otp_code: otp,
+      });
+      onVerified(response.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Verification failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    setError("");
+    try {
+      await ensureCsrfCookieOrFallback();
+
+      await api.post("/resend-email-otp", { email });
+      toast.success("A new OTP has been sent to your email.");
+      setResendCooldown(60); // 60-second cooldown
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to resend OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
+      <button
+        type="button"
+        onClick={onBack}
+        className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+        aria-label="Back"
+      >
+        <ChevronLeft className="w-7 h-7" />
+      </button>
+      <div className="text-center mb-8">
+        <h2 className="no-scale text-2xl md:text-3xl lg:text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
+          Verify Your Email
+        </h2>
+        <p className="text-green-900/90 dark:text-gray-300">
+          An OTP has been sent to <strong>{email}</strong>. Please enter it below.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-4">
+          <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <span className="text-red-700 dark:text-red-300 text-sm font-semibold">
+            {error}
+          </span>
+        </div>
+      )}
+
+      <form onSubmit={handleVerify} className="space-y-6">
+        <div>
+          <label className="block text-sm font-semibold text-black dark:text-gray-200 mb-2">
+            Verification Code
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="w-full text-center tracking-[0.5em] font-bold text-2xl p-4 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              maxLength="6"
+              disabled={loading}
+              required
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="animate-spin h-5 w-5" />
+              Verifying...
+            </span>
+          ) : (
+            "Verify Account"
+          )}
+        </button>
+      </form>
+
+      <div className="mt-6 text-center">
+        <span className="text-green-700/80">Didn't receive the code? </span>
+        <button
+          onClick={handleResend}
+          className="text-green-700 font-semibold hover:text-green-900 transition-colors underline disabled:text-gray-500 disabled:no-underline"
+          disabled={loading || resendCooldown > 0}
+        >
+          {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+function AuthScreen({ isRegister = false, onLogin = () => {} }) {
+  const navigate = useNavigate();
+  const { effectiveTheme } = usePreferences();
+  const [isLogin, setIsLogin] = useState(!isRegister);
+
+  // Sync state if prop changes via routing (e.g., user directly clicks 'Sign In' or 'Register' links)
+  useEffect(() => {
+    setIsLogin(!isRegister);
+  }, [isRegister]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showPlatformChoice, setShowPlatformChoice] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [showResubmitModal, setShowResubmitModal] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
-  const [registeredEmail, setRegisteredEmail] = useState('');
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [pendingModalData, setPendingModalData] = useState({
+    title: "",
+    message: "",
+    status: "",
+    reason: "",
+  });
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [otpInitialCooldown, setOtpInitialCooldown] = useState(0);
+  const [__isMobileDevice, setIsMobileDevice] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Detect if user is on mobile device
   useEffect(() => {
     const checkMobileDevice = () => {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-      const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      const isMobile =
+        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+          userAgent.toLowerCase(),
+        );
       const isSmallScreen = window.innerWidth <= 768;
       setIsMobileDevice(isMobile || isSmallScreen);
     };
-    
+
     checkMobileDevice();
-    window.addEventListener('resize', checkMobileDevice);
-    return () => window.removeEventListener('resize', checkMobileDevice);
+    window.addEventListener("resize", checkMobileDevice);
+    return () => window.removeEventListener("resize", checkMobileDevice);
   }, []);
 
   // Live email check state (should NOT be inside formData)
   const [emailAvailable, setEmailAvailable] = useState(null); // null = untouched, true = available, false = taken
-  const [emailCheckMsg, setEmailCheckMsg] = useState('');
-  const [passwordChecks, setPasswordChecks] = useState({ minLen: false, hasUpper: false, numCount: false, hasSpecial: false });
+  const [emailCheckMsg, setEmailCheckMsg] = useState("");
+  const [passwordChecks, setPasswordChecks] = useState({
+    minLen: false,
+    hasUpper: false,
+    numCount: false,
+    hasSpecial: false,
+  });
   const [fieldErrors, setFieldErrors] = useState({});
   const emailCheckTimeout = useRef(null);
   const emailCheckAbortController = useRef(null);
   const fieldRefs = useRef({});
+  const todayDate = new Date();
+  const latestTenantBirthDate = new Date(
+    todayDate.getFullYear() - 18,
+    todayDate.getMonth(),
+    todayDate.getDate(),
+  )
+    .toISOString()
+    .split("T")[0];
   const [formData, setFormData] = useState(() => {
     try {
-      const saved = localStorage.getItem('auth_form_data');
+      const saved = sessionStorage.getItem("auth_form_data");
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
           ...parsed,
-          password: '',
-          password_confirmation: '',
-          role: 'tenant'
+          date_of_birth: parsed.date_of_birth || "",
+          gender: parsed.gender || "",
+          password: "",
+          password_confirmation: "",
+          role: "tenant",
         };
       }
     } catch {
       // ignore parsing errors
     }
     return {
-      first_name: '',
-      middle_name: '',
-      last_name: '',
-      email: '',
-      password: '',
-      password_confirmation: '',
-      role: 'tenant', // Registration is tenant-only
-      phone: '',
+      first_name: "",
+      middle_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      password_confirmation: "",
+      role: "tenant", // Registration is tenant-only
+      phone: "",
+      date_of_birth: "",
+      gender: "",
     };
   });
 
-  // Persist form data (excluding passwords) to localStorage
+  // Persist form data (excluding passwords) to sessionStorage
   useEffect(() => {
-    const dataToSave = { ...formData, password: '', password_confirmation: '' };
-    localStorage.setItem('auth_form_data', JSON.stringify(dataToSave));
+    const dataToSave = { ...formData, password: "", password_confirmation: "" };
+    sessionStorage.setItem("auth_form_data", JSON.stringify(dataToSave));
   }, [formData]);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setError('');
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setError("");
     // clear field error when user types
-    setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    setFieldErrors((prev) => ({ ...prev, [field]: "" }));
     // Live email uniqueness check
-    if (field === 'email' && !isLogin) {
+    if (field === "email" && !isLogin) {
       setEmailAvailable(null);
-      setEmailCheckMsg('');
-      
+      setEmailCheckMsg("");
+
       // Cancel pending timeout
       if (emailCheckTimeout.current) clearTimeout(emailCheckTimeout.current);
-      
+
       // Cancel pending request
       if (emailCheckAbortController.current) {
         emailCheckAbortController.current.abort();
@@ -338,38 +579,38 @@ function AuthScreen({ onLogin = () => {} }) {
         emailCheckTimeout.current = setTimeout(async () => {
           try {
             emailCheckAbortController.current = new AbortController();
-            const res = await api.get('/check-email', { 
+            const res = await api.get("/check-email", {
               params: { email: value },
-              signal: emailCheckAbortController.current.signal
+              signal: emailCheckAbortController.current.signal,
             });
-            
+
             setEmailAvailable(res.data.available);
             if (!res.data.available) {
               setEmailCheckMsg(res.data.message);
             } else {
-              setEmailCheckMsg('');
+              setEmailCheckMsg("");
             }
           } catch (err) {
             if (isCancel(err)) {
               return;
             }
-            
+
             // Handle actual errors
-            console.error('Email check error:', err);
-            
+            console.error("Email check error:", err);
+
             // Only show error if it's a validation error (422) or if we want to default to "taken" for safety
-            // But defaulting to "taken" for network errors confuses users. 
+            // But defaulting to "taken" for network errors confuses users.
             // Better to show nothing (assume available until proven otherwise) or a generic warning.
-            
+
             if (err.response && err.response.status === 422) {
               // Invalid email format according to backend
               setEmailAvailable(false);
-              setEmailCheckMsg('Invalid email format');
+              setEmailCheckMsg("Invalid email format");
             } else {
               // Network error or server error - don't block user with "Taken" message
               // Just reset to neutral state
               setEmailAvailable(null);
-              setEmailCheckMsg('');
+              setEmailCheckMsg("");
             }
           }
         }, 500); // debounce 500ms
@@ -377,27 +618,30 @@ function AuthScreen({ onLogin = () => {} }) {
     }
 
     // Live password check when typing on register screen
-    if (field === 'password') {
-      const pwd = value || '';
+    if (field === "password") {
+      const pwd = value || "";
       const checks = {
         minLen: pwd.length >= 8,
         hasUpper: /[A-Z]/.test(pwd),
         numCount: (pwd.match(/\d/g) || []).length >= 2,
-        hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
+        hasSpecial: /[!@#$%^&*(),.?":{}|<>[\]\\/~`_+=;'-]/.test(pwd),
       };
       setPasswordChecks(checks);
     }
   };
 
   const validateLoginForm = () => {
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+    const email = (formData.email || "").trim();
+    const password = formData.password || "";
+
+    if (!email || !password) {
+      setError("Please fill in all fields");
       return false;
     }
 
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
       return false;
     }
 
@@ -408,52 +652,120 @@ function AuthScreen({ onLogin = () => {} }) {
     const errors = {};
 
     // Required fields
-    if (!formData.first_name) errors.first_name = 'First name is required';
-    if (!formData.last_name) errors.last_name = 'Last name is required';
-    if (!formData.email) errors.email = 'Email is required';
-    if (!formData.password) errors.password = 'Password is required';
-    if (!formData.password_confirmation) errors.password_confirmation = 'Please confirm your password';
+    if (!formData.first_name) errors.first_name = "First name is required";
+    if (!formData.last_name) errors.last_name = "Last name is required";
+    if (!formData.email) errors.email = "Email is required";
+    if (!formData.date_of_birth)
+      errors.date_of_birth = "Date of birth is required";
+    if (!formData.gender) errors.gender = "Gender is required";
+    if (!formData.password) errors.password = "Password is required";
+    if (!formData.password_confirmation)
+      errors.password_confirmation = "Please confirm your password";
 
     // Name validation (allow letters, spaces, hyphens, apostrophes, ñ)
-    const nameRegex = /^[\p{L} '\-]+$/u;
+    const nameRegex = /^[\p{L} '-]+$/u;
     if (formData.first_name && !nameRegex.test(formData.first_name)) {
-      errors.first_name = 'First name contains invalid characters';
+      errors.first_name = "First name contains invalid characters";
     }
-    if (formData.middle_name && formData.middle_name.trim() !== '' && !nameRegex.test(formData.middle_name)) {
-      errors.middle_name = 'Middle name contains invalid characters';
+    if (
+      formData.middle_name &&
+      formData.middle_name.trim() !== "" &&
+      !nameRegex.test(formData.middle_name)
+    ) {
+      errors.middle_name = "Middle name contains invalid characters";
     }
     if (formData.last_name && !nameRegex.test(formData.last_name)) {
-      errors.last_name = 'Last name contains invalid characters';
+      errors.last_name = "Last name contains invalid characters";
     }
 
     // Email format: keep basic check + ensure domain has at least one letter (helps avoid garbage domains)
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
     if (formData.email && !emailRegex.test(formData.email)) {
-      errors.email = 'Please enter a valid email address';
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (formData.date_of_birth) {
+      const dobParts = formData.date_of_birth.split("-").map(Number);
+      const dob =
+        dobParts.length === 3
+          ? new Date(dobParts[0], dobParts[1] - 1, dobParts[2])
+          : new Date(NaN);
+
+      if (
+        Number.isNaN(dob.getTime()) ||
+        dobParts[1] < 1 ||
+        dobParts[1] > 12 ||
+        dobParts[2] < 1 ||
+        dobParts[2] > 31
+      ) {
+        errors.date_of_birth = "Please provide a valid date of birth";
+      } else {
+        const today = new Date(
+          todayDate.getFullYear(),
+          todayDate.getMonth(),
+          todayDate.getDate(),
+        );
+
+        if (dob > today) {
+          errors.date_of_birth = "Date of birth cannot be in the future";
+        }
+
+        let age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (
+          monthDiff < 0 ||
+          (monthDiff === 0 && today.getDate() < dob.getDate())
+        ) {
+          age -= 1;
+        }
+
+        const minAge = formData.role === "landlord" ? 21 : 18;
+        if (!errors.date_of_birth && age < minAge) {
+          errors.date_of_birth = `You must be at least ${minAge} years old`;
+        }
+      }
+    }
+
+    const allowedGenders = ["male", "female", "prefer_not_to_say"];
+    if (formData.gender && !allowedGenders.includes(formData.gender)) {
+      errors.gender = "Please select a valid gender";
     }
 
     // Password rules
-    if (formData.password && formData.password_confirmation && formData.password !== formData.password_confirmation) {
-      errors.password_confirmation = 'Passwords do not match';
+    if (
+      formData.password &&
+      formData.password_confirmation &&
+      formData.password !== formData.password_confirmation
+    ) {
+      errors.password_confirmation = "Passwords do not match";
     }
 
-    const pwd = formData.password || '';
+    const pwd = formData.password || "";
     const pwdChecks = {
       minLen: pwd.length >= 8,
       hasUpper: /[A-Z]/.test(pwd),
       numCount: (pwd.match(/\d/g) || []).length >= 2,
-      hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
+      hasSpecial: /[!@#$%^&*(),.?":{}|<>[\]\\/~`_+=;'-]/.test(pwd),
     };
     setPasswordChecks(pwdChecks);
-    if (!pwdChecks.minLen || !pwdChecks.hasUpper || !pwdChecks.numCount || !pwdChecks.hasSpecial) {
-      errors.password = 'Password does not meet complexity requirements';
+    if (
+      !pwdChecks.minLen ||
+      !pwdChecks.hasUpper ||
+      !pwdChecks.numCount ||
+      !pwdChecks.hasSpecial
+    ) {
+      errors.password = "Password does not meet complexity requirements";
+    }
+
+    if (!formData.agree_to_terms) {
+      errors.agree_to_terms = "You must agree to the Terms and Conditions";
     }
 
     // Phone number (optional) - if provided, must be 11 digits and start with 09
-    if (formData.phone && formData.phone.trim() !== '') {
-      const digits = (formData.phone || '').replace(/\D/g, '');
-      if (!(digits.length === 11 && digits.startsWith('09'))) {
-        errors.phone = 'Phone must be 11 digits and start with 09';
+    if (formData.phone && formData.phone.trim() !== "") {
+      const digits = (formData.phone || "").replace(/\D/g, "");
+      if (!(digits.length === 11 && digits.startsWith("09"))) {
+        errors.phone = "Phone must be 11 digits and start with 09";
       }
     }
 
@@ -461,7 +773,7 @@ function AuthScreen({ onLogin = () => {} }) {
 
     const hasErrors = Object.keys(errors).length > 0;
     if (hasErrors) {
-      setError('Please fix the highlighted fields');
+      setError("Please fix the highlighted fields");
       return false;
     }
 
@@ -474,41 +786,69 @@ function AuthScreen({ onLogin = () => {} }) {
     if (!validateLoginForm()) return;
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      // Token-based authentication doesn't require the CSRF cookie initialization.
-      // This call often causes CORS issues when running on subdomains like beta.accommotrack.me.
-      // await rootApi.get('/sanctum/csrf-cookie');
+      // Attempt to initialize the Sanctum SPA session cookie.
+      // This works same-origin (prod). Cross-origin (local dev) it will fail due
+      // to CORS — that's expected; we fall back to Bearer token below.
+      await ensureCsrfCookieOrFallback();
 
-      const result = await api.post('/login', {
+      console.log('[AUTH_DEBUG] Login POST initiated', {
         email: formData.email,
-        password: formData.password
+        xClientPlatform:
+          api.defaults.headers?.["X-Client-Platform"] ||
+          api.defaults.headers?.common?.["X-Client-Platform"],
+      });
+
+      const result = await api.post("/login", {
+        email: (formData.email || "").trim(),
+        password: formData.password,
       });
 
       const data = result.data;
 
-      // If server returned a token, set it on the API instance so subsequent
-      // protected requests include the bearer token and don't trigger 401.
-      if (data && data.token) {
+      console.log('[AUTH_DEBUG] Login response received', {
+        auth_mode: data?.auth_mode,
+        has_token: !!data?.token,
+        has_user: !!data?.user,
+        auth_mode_detail: data?.auth_mode_detail,
+        _debug: data?._debug,
+      });
+
+      const responseAuthMode = data?.auth_mode || (data?.token ? "token" : "cookie");
+      setPersistedAuthMode(responseAuthMode);
+
+      if (responseAuthMode === "token" && data?.token) {
         try {
-          api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-          localStorage.setItem('authToken', data.token);
-          localStorage.setItem('lastLoginAt', Date.now().toString());
-        } catch (e) {
-          console.warn('Failed to persist auth token', e);
+          localStorage.setItem("authToken", data.token);
+          localStorage.setItem("lastLoginAt", Date.now().toString());
+          api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+          console.log('[AUTH_DEBUG] Auth token stored, bearer auth enabled');
+        } catch (__e) {
+          // ignore
         }
+      } else {
+        // Cookie-auth response mode intentionally omits token.
+        localStorage.removeItem("authToken");
+        delete api.defaults.headers.common["Authorization"];
+        console.log('[AUTH_DEBUG] Cookie mode: bearer auth disabled, relying on session cookie');
       }
 
       // Check if account is pending or rejected verification (EVEN IF LOGIN SUCCEEDED)
       // This is important because we allowed login for 'rejected' landlords.
-      if (data && data.user && data.user.role === 'landlord' && !data.user.is_verified) {
-        if (data.verification_status === 'rejected') {
+      if (
+        data &&
+        data.user &&
+        data.user.role === "landlord" &&
+        !data.user.is_verified
+      ) {
+        if (data.verification_status === "rejected") {
           setPendingModalData({
-            status: 'rejected_verification',
-            title: 'Account Rejected',
-            message: 'Your landlord verification was rejected.',
-            reason: data.rejection_reason || 'No reason provided'
+            status: "rejected_verification",
+            title: "Account Rejected",
+            message: "Your landlord verification was rejected.",
+            reason: data.rejection_reason || "No reason provided",
           });
           setShowPendingModal(true);
           return;
@@ -518,18 +858,20 @@ function AuthScreen({ onLogin = () => {} }) {
       // If the login response already contains the user, use it immediately.
       if (data && data.user) {
         const me = data.user;
-        localStorage.setItem('userData', JSON.stringify(me));
+        localStorage.setItem("userData", JSON.stringify(me));
         onLogin(me);
         // Clear stored form data on successful login
         setFormData({
-          first_name: '',
-          middle_name: '',
-          last_name: '',
-          email: '',
-          password: '',
-          password_confirmation: '',
-          role: 'tenant',
-          phone: '',
+          first_name: "",
+          middle_name: "",
+          last_name: "",
+          email: "",
+          password: "",
+          password_confirmation: "",
+          role: "tenant",
+          phone: "",
+          date_of_birth: "",
+          gender: "",
         });
         const landingRoute = getDefaultLandingRoute(me);
         navigate(landingRoute);
@@ -538,7 +880,8 @@ function AuthScreen({ onLogin = () => {} }) {
 
       // Otherwise, fall back to querying the authenticated user endpoints.
       try {
-        const endpoints = ['/api/me', '/api/auth/me', '/me', '/auth/me'];
+        // Use API-only fallback endpoints so requests never hit frontend HTML routes.
+        const endpoints = ["/api/me"];
         let me = null;
         for (const ep of endpoints) {
           try {
@@ -547,54 +890,92 @@ function AuthScreen({ onLogin = () => {} }) {
               me = res.data.user || res.data;
               break;
             }
-          } catch (e) {
+          } catch (__e) {
             continue;
           }
         }
 
         if (me) {
-          localStorage.setItem('userData', JSON.stringify(me));
+          localStorage.setItem("userData", JSON.stringify(me));
           onLogin(me);
           // Clear stored form data on successful login
           setFormData({
-            first_name: '',
-            middle_name: '',
-            last_name: '',
-            email: '',
-            password: '',
-            password_confirmation: '',
-            role: 'tenant',
-            phone: '',
+            first_name: "",
+            middle_name: "",
+            last_name: "",
+            email: "",
+            password: "",
+            password_confirmation: "",
+            role: "tenant",
+            phone: "",
+            date_of_birth: "",
+            gender: "",
           });
           const landingRoute = getDefaultLandingRoute(me);
           navigate(landingRoute);
         } else {
-          console.error('Failed to fetch authenticated user after login');
-          setError('Login succeeded but fetching account failed. Please refresh.');
+          console.error("Failed to fetch authenticated user after login");
+          setError(
+            "Login succeeded but fetching account failed. Please refresh.",
+          );
         }
       } catch (err) {
-        console.error('Failed to fetch authenticated user after login', err);
-        setError('Login succeeded but fetching account failed. Please refresh.');
+        console.error("Failed to fetch authenticated user after login", err);
+        setError(
+          "Login succeeded but fetching account failed. Please refresh.",
+        );
       }
     } catch (err) {
       // Check if account is pending verification
-      if (err.response?.status === 403 && err.response?.data?.status === 'pending_verification') {
+      if (
+        err.response?.status === 403 &&
+        err.response?.data?.status === "pending_verification"
+      ) {
+        const pendingData = err.response?.data || {};
+
+        if (pendingData.requires_email_otp) {
+          const retryAfterSeconds = Number(pendingData.retry_after_seconds);
+          const nextOtpCooldown =
+            Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+              ? Math.floor(retryAfterSeconds)
+              : pendingData.otp_resent
+                ? 60
+                : 0;
+
+          setRegisteredEmail((formData.email || "").trim());
+          setOtpInitialCooldown(nextOtpCooldown);
+          setShowPendingModal(false);
+          setShowOtpVerification(true);
+
+          if (pendingData.otp_resent) {
+            toast.success("A new OTP has been sent to your email.");
+          }
+
+          return;
+        }
+
         setPendingModalData({
-          status: 'pending_verification',
-          title: 'Account Pending Review',
-          message: err.response.data.message
+          status: "pending_verification",
+          title: "Account Pending Review",
+          message: pendingData.message,
         });
         setShowPendingModal(true);
         return;
       }
 
       // Check if account is blocked
-      if (err.response?.status === 403 && err.response?.data?.status === 'blocked') {
+      if (
+        err.response?.status === 403 &&
+        err.response?.data?.status === "blocked"
+      ) {
         setShowBlockedModal(true);
         return;
       }
 
-      let errorMsg = err.response?.data?.message || err.message || 'Network error. Please check your connection.';
+      let errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Network error. Please check your connection.";
 
       if (err.response?.data?.errors) {
         // Get the first error message from the validation errors object
@@ -615,23 +996,24 @@ function AuthScreen({ onLogin = () => {} }) {
     if (!validateRegisterForm()) return;
 
     setLoading(true);
-    setError('');
+    setError("");
 
     // Run server-side email check (DNS/MX) before submitting to give immediate feedback
     try {
       // Abort any pending check from live validation
-      if (emailCheckAbortController.current) emailCheckAbortController.current.abort();
+      if (emailCheckAbortController.current)
+        emailCheckAbortController.current.abort();
       emailCheckAbortController.current = new AbortController();
-      const checkRes = await api.get('/check-email', {
+      const checkRes = await api.get("/check-email", {
         params: { email: formData.email },
         signal: emailCheckAbortController.current.signal,
       });
 
       // If server says not available or invalid (e.g., DNS/MX failure), surface inline error
       if (checkRes.data && checkRes.data.available === false) {
-        const msg = checkRes.data.message || 'Email address is invalid';
-        setFieldErrors(prev => ({ ...prev, email: msg }));
-        setError('Please fix the highlighted fields');
+        const msg = checkRes.data.message || "Email address is invalid";
+        setFieldErrors((prev) => ({ ...prev, email: msg }));
+        setError("Please fix the highlighted fields");
         setLoading(false);
         return;
       }
@@ -644,65 +1026,74 @@ function AuthScreen({ onLogin = () => {} }) {
     }
 
     try {
-      const result = await api.post('/register', formData);
-      const data = result.data;
+      const registerPayload = {
+        ...formData,
+        role: "tenant",
+        agree_to_terms: !!formData.agree_to_terms,
+        terms_version: UNIFIED_TERMS_AND_CONDITIONS.version || "v2.0",
+        privacy_version: UNIFIED_TERMS_AND_CONDITIONS.version || "v2.0",
+        consent_platform: "web",
+      };
 
-      // Store email for platform choice modal
+      await ensureCsrfCookieOrFallback();
+
+      const result = await api.post("/register", registerPayload);
+      
+      // Store email for OTP screen
       setRegisteredEmail(formData.email);
+      setOtpInitialCooldown(0);
 
-      // Check if user is on mobile device
-      if (isMobileDevice) {
-        // Show platform choice modal for mobile users
-        setShowPlatformChoice(true);
-      } else {
-        // Desktop users get normal flow
-        toast.success('Registration successful! Please login with your credentials.');
-        setIsLogin(true);
-      }
+      // Show OTP verification screen
+      setShowOtpVerification(true);
+      toast.success(result.data.message);
 
-      setFormData({
-        first_name: '',
-        middle_name: '',
-        last_name: '',
-        email: formData.email,
-        password: '',
-        password_confirmation: '',
-        role: 'tenant',
-        phone: '',
-      });
     } catch (err) {
       // Try to extract Laravel validation errors and map them to fieldErrors
-      let errorMsg = 'Registration failed. Please try again.';
+      let errorMsg = "Registration failed. Please try again.";
       if (err.response?.data) {
         const data = err.response.data;
-        if (typeof data === 'string') {
+        if (typeof data === "string") {
           errorMsg = data;
         } else if (data.message) {
           errorMsg = data.message;
         }
 
         if (data.errors) {
-            const serverFieldErrors = {};
-            Object.keys(data.errors).forEach((f) => {
-              if (Array.isArray(data.errors[f]) && data.errors[f].length) {
-                serverFieldErrors[f] = data.errors[f][0];
-              }
-            });
-            // Show inline field errors (this will surface DNS/MX email failures next to the email input)
-            setFieldErrors(prev => ({ ...prev, ...serverFieldErrors }));
-            setError('Please fix the highlighted fields');
-
-            // Autofocus first invalid field in a predictable order
-            const order = ['first_name','middle_name','last_name','email','phone','password','password_confirmation'];
-            const firstInvalid = order.find(k => serverFieldErrors[k]);
-            if (firstInvalid) {
-              setTimeout(() => {
-                const el = fieldRefs.current[firstInvalid];
-                if (el && typeof el.focus === 'function') {
-                  try { el.focus(); } catch(e) { /* ignore */ }
-                }
-              }, 0);
+          const serverFieldErrors = {};
+          Object.keys(data.errors).forEach((f) => {
+            if (Array.isArray(data.errors[f]) && data.errors[f].length) {
+              serverFieldErrors[f] = data.errors[f][0];
             }
+          });
+          // Show inline field errors (this will surface DNS/MX email failures next to the email input)
+          setFieldErrors((prev) => ({ ...prev, ...serverFieldErrors }));
+          setError("Please fix the highlighted fields");
+
+          // Autofocus first invalid field in a predictable order
+          const order = [
+            "first_name",
+            "middle_name",
+            "last_name",
+            "email",
+            "phone",
+            "date_of_birth",
+            "gender",
+            "password",
+            "password_confirmation",
+          ];
+          const firstInvalid = order.find((k) => serverFieldErrors[k]);
+          if (firstInvalid) {
+            setTimeout(() => {
+              const el = fieldRefs.current[firstInvalid];
+              if (el && typeof el.focus === "function") {
+                try {
+                  el.focus();
+                } catch (__e) {
+                  /* ignore */
+                }
+              }
+            }, 0);
+          }
         } else {
           setError(errorMsg);
         }
@@ -724,582 +1115,823 @@ function AuthScreen({ onLogin = () => {} }) {
   const handleGoToMobileApp = () => {
     setShowPlatformChoice(false);
     // Show instructions to return to mobile app
-    toast.success('Please return to your AccommoTrack mobile app and login with your new landlord account.');
+    toast.success(
+      "Please return to your AccommoTrack mobile app and login with your new landlord account.",
+    );
     setIsLogin(true);
+  };
+
+  const handleOtpVerified = (data) => {
+    const me = data.user;
+    const responseAuthMode = data?.auth_mode || (data?.token ? "token" : "cookie");
+    setPersistedAuthMode(responseAuthMode);
+
+    if (responseAuthMode === "token" && data?.token) {
+      localStorage.setItem("authToken", data.token);
+      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+    } else {
+      localStorage.removeItem("authToken");
+      delete api.defaults.headers.common["Authorization"];
+    }
+    localStorage.setItem("userData", JSON.stringify(me));
+    onLogin(me);
+    const landingRoute = getDefaultLandingRoute(me);
+    navigate(landingRoute);
   };
 
   const toggleScreen = () => {
     setIsLogin(!isLogin);
-    setError('');
+    setError("");
     setEmailAvailable(null);
-    setEmailCheckMsg('');
+    setEmailCheckMsg("");
   };
 
-  const inputClasses = "w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-400 placeholder:opacity-80 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-500 focus:border-green-300 dark:focus:border-green-400 transition-all";
-  const labelClasses = "block text-sm font-semibold text-black dark:text-gray-200 mb-2";
+  const inputClasses =
+    "w-full pl-10 pr-4 py-4 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 placeholder:opacity-80 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-500 focus:border-green-300 dark:focus:border-green-400 transition-all";
+  const labelClasses =
+    "block text-sm font-semibold text-black dark:text-gray-200 mb-2";
   const iconClasses = "w-5 h-5 text-green-400 dark:text-green-500";
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Toaster />
-      <BlockedUserModal isOpen={showBlockedModal} onClose={() => setShowBlockedModal(false)} />
-      <ResubmitModal 
-        visible={showResubmitModal} 
-        onClose={() => setShowResubmitModal(false)} 
-        theme={effectiveTheme} 
-      />
-      <ForgotPasswordModal 
-        isOpen={showForgotPassword}
-        onClose={() => setShowForgotPassword(false)}
-      />
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
-        {/* Back/Sign In Button */}
-        {isLogin ? (
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
-            aria-label="Back to Landing Page"
-          >
-            <ChevronLeft className="w-7 h-7" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsLogin(true)}
-            className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
-            aria-label="Back to Sign In"
-          >
-            <ChevronLeft className="w-7 h-7" />
-          </button>
-        )}
-        {/* Logo and Header */}
-        <div className="flex flex-col items-center justify-center mb-4">
-          <img src={Logo} alt="AccommoTrack Logo" className="h-12 w-auto mb-2" />
-          <span className="no-scale text-2xl md:text-3xl lg:text-3xl font-extrabold text-green-700 dark:text-green-400 tracking-tight">AccommoTrack</span>
-        </div>
-        <div className="text-center mb-8">
-          <h2 className="no-scale text-2xl md:text-3xl lg:text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </h2>
-          <p className="text-green-900/90 dark:text-gray-300">
-            {isLogin
-              ? 'Access your account and discover accommodations.'
-              : 'Sign up to get started and look for accommodations.'}
-          </p>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
-            <span className="text-red-700 dark:text-red-300 text-sm font-semibold">{error}</span>
-          </div>
-        )}
-
-        {/* LOGIN FORM (all users) */}
-        {isLogin && (
-          <form onSubmit={handleLogin} className="space-y-5">
-            {/* Email Field */}
-            <div>
-              <label className={labelClasses}>
-                Email Address
-                {emailAvailable === false && (
-                  <span className="ml-2 text-red-400 text-xs font-semibold">*</span>
-                )}
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className={iconClasses} />
-                </div>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={inputClasses + (emailAvailable === false ? ' border-red-400' : emailAvailable === true ? ' border-green-400' : '')}
-                  placeholder="Enter your email"
-                  disabled={loading}
-                  required
-                />
-                {/* Live email check message */}
-                {formData.email && emailCheckMsg && (
-                  <span className={
-                    'absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold ' +
-                    (emailAvailable === false ? 'text-red-400' : emailAvailable === true ? 'text-green-400' : 'text-gray-300')
-                  }>
-                    {emailCheckMsg}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label className={labelClasses}>
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className={iconClasses} />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  className={inputClasses + " pr-12"}
-                  placeholder="Enter your password"
-                  disabled={loading}
-                  required
-                />
-                <button
-                  type="button"
-                  tabIndex="-1"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  disabled={loading}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Forgot Password */}
-            <div className="text-right">
+      {showOtpVerification ? (
+        <OtpVerificationScreen
+          email={registeredEmail}
+          initialResendCooldown={otpInitialCooldown}
+          onVerified={handleOtpVerified}
+          onBack={() => {
+            setShowOtpVerification(false);
+            setOtpInitialCooldown(0);
+            setIsLogin(true); // Go back to login screen
+          }}
+        />
+      ) : (
+        <>
+          <BlockedUserModal
+            isOpen={showBlockedModal}
+            onClose={() => setShowBlockedModal(false)}
+          />
+          <ResubmitModal
+            visible={showResubmitModal}
+            onClose={() => setShowResubmitModal(false)}
+            theme={effectiveTheme}
+          />
+          <ForgotPasswordModal
+            isOpen={showForgotPassword}
+            onClose={() => setShowForgotPassword(false)}
+          />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
+            {/* Back/Sign In Button */}
+            {isLogin ? (
               <button
                 type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white font-semibold transition-colors opacity-50 hover:opacity-80"
+                onClick={() => navigate("/")}
+                className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+                aria-label="Back to Landing Page"
               >
-                 Forgot Password?
+                <ChevronLeft className="w-7 h-7" />
               </button>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="animate-spin h-5 w-5 text-white" />
-                  Signing In...
-                </span>
-              ) : (
-                'Sign In'
-              )}
-            </button>
-          </form>
-        )}
-        {/* TENANT SIGN UP ONLY (role is fixed to tenant) */}
-        {!isLogin && (
-          <form onSubmit={handleRegister} className="space-y-4">
-            {/* First Name */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>First Name</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className={iconClasses} />
-                </div>
-                <input
-                  type="text"
-                  name="first_name"
-                  ref={el => fieldRefs.current.first_name = el}
-                  value={formData.first_name}
-                  onChange={(e) => handleInputChange('first_name', e.target.value)}
-                  className={inputClasses}
-                  placeholder="Enter your first name"
-                  disabled={loading}
-                  required
-                />
-              </div>
-              {fieldErrors.first_name && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.first_name}</p>
-              )}
-            </div>
-
-            {/* Middle Name */}
-            <div>
-              <label className={labelClasses}>
-                Middle Name <span className="text-black/50 dark:text-white/50 text-xs">(Optional)</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className={iconClasses} />
-                </div>
-                <input
-                  type="text"
-                  name="middle_name"
-                  ref={el => fieldRefs.current.middle_name = el}
-                  value={formData.middle_name}
-                  onChange={(e) => handleInputChange('middle_name', e.target.value)}
-                  className={inputClasses}
-                  placeholder="Enter your middle name"
-                  disabled={loading}
-                />
-              </div>
-              {fieldErrors.middle_name && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.middle_name}</p>
-              )}
-            </div>
-
-            {/* Last Name */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>Last Name</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className={iconClasses} />
-                </div>
-                <input
-                  type="text"
-                  name="last_name"
-                  ref={el => fieldRefs.current.last_name = el}
-                  value={formData.last_name}
-                  onChange={(e) => handleInputChange('last_name', e.target.value)}
-                  className={inputClasses}
-                  placeholder="Enter your last name"
-                  disabled={loading}
-                  required
-                />
-              </div>
-              {fieldErrors.last_name && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.last_name}</p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>Email Address</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-                {/* Show live email check or backend error as a red span next to label */}
-                {(formData.email && (emailCheckMsg || (error && error.toLowerCase().includes('email')))) && (
-                  <span className="text-red-400 text-xs font-semibold ml-2">
-                    {emailCheckMsg ? emailCheckMsg : error}
-                  </span>
-                )}
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className={iconClasses} />
-                </div>
-                <input
-                  type="email"
-                  name="email"
-                  ref={el => fieldRefs.current.email = el}
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={inputClasses + (emailAvailable === false ? ' border-red-400' : emailAvailable === true ? ' border-green-400' : '')}
-                  placeholder="Enter your email"
-                  disabled={loading}
-                  required
-                />
-              </div>
-              {fieldErrors.email && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>
-              )}
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className={labelClasses}>
-                Phone Number <span className="text-black/50 dark:text-white/50 text-xs">(Optional)</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Phone className={iconClasses} />
-                </div>
-                <input
-                  type="tel"
-                  name="phone"
-                  ref={el => fieldRefs.current.phone = el}
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className={inputClasses}
-                  placeholder="Enter your phone number"
-                  disabled={loading}
-                />
-              </div>
-              {fieldErrors.phone && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>Password</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className={iconClasses} />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  ref={el => fieldRefs.current.password = el}
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  className={inputClasses + " pr-12"}
-                  placeholder="Create a password"
-                  disabled={loading}
-                  required
-                  minLength="8"
-                />
-                <button
-                  type="button"
-                  tabIndex="-1"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  disabled={loading}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
-                  )}
-                </button>
-              </div>
-              <div className="mt-2">
-                <ul className="text-xs space-y-1">
-                  {!passwordChecks.minLen && (
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">--Minimum 8 characters</span>
-                    </li>
-                  )}
-                  {!passwordChecks.hasUpper && (
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">--At least 1 uppercase letter</span>
-                    </li>
-                  )}
-                  {!passwordChecks.numCount && (
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">--At least 2 numbers</span>
-                    </li>
-                  )}
-                  {!passwordChecks.hasSpecial && (
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">--At least 1 special character</span>
-                    </li>
-                  )}
-                </ul>
-              </div>
-              {fieldErrors.password && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>
-              )}
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>Confirm Password</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className={iconClasses} />
-                </div>
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  name="password_confirmation"
-                  ref={el => fieldRefs.current.password_confirmation = el}
-                  value={formData.password_confirmation}
-                  onChange={(e) => handleInputChange('password_confirmation', e.target.value)}
-                  className={inputClasses + " pr-12"}
-                  placeholder="Confirm your password"
-                  disabled={loading}
-                  required
-                  minLength="8"
-                />
-                <button
-                  type="button"
-                  tabIndex="-1"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  disabled={loading}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
-                  )}
-                </button>
-              </div>
-              {fieldErrors.password_confirmation && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.password_confirmation}</p>
-              )}
-            </div>
-
-            {/* Hidden Role Field (always tenant) */}
-            <input type="hidden" name="role" value="tenant" />
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="animate-spin h-5 w-5 text-white" />
-                  Creating Account...
-                </span>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
-        )}
-
-        {/* Toggle Login/Register */}
-        <div className="mt-6 text-center">
-          <span className="text-green-700/80">
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-          </span>
-          <button
-            onClick={toggleScreen}
-            className="text-green-700 font-semibold hover:text-green-900 transition-colors underline"
-            disabled={loading}
-          >
-            {isLogin ? 'Sign Up' : 'Sign In'}
-          </button>
-        </div>
-      </div>
-
-      {/* Platform Choice Modal - Shows for mobile users after registration */}
-      {showPlatformChoice && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
-            {/* Success Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <Check className="w-10 h-10 text-green-500" />
-              </div>
-            </div>
-
-            {/* Title */}
-            <h3 className="text-xl font-bold text-green-700 text-center mb-2">
-              Registration Successful!
-            </h3>
-            
-            {/* Description */}
-            <p className="text-green-900/90 text-center mb-6">
-              Your tenant account has been created. How would you like to continue?
-            </p>
-
-            {/* Registered Email Display */}
-            <div className="bg-green-50 rounded-lg p-3 mb-6 border border-green-100">
-              <p className="text-sm text-green-700 text-center">Registered as:</p>
-              <p className="text-sm font-medium text-green-900 text-center">{registeredEmail}</p>
-            </div>
-
-            {/* Choice Buttons */}
-            <div className="space-y-3">
-              <Toaster />
-              {/* Continue on Web */}
+            ) : (
               <button
-                onClick={handleContinueOnWeb}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => setIsLogin(true)}
+                className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+                aria-label="Back to Sign In"
               >
-                <Monitor className="w-5 h-5" />
-                Continue on Web
+                <ChevronLeft className="w-7 h-7" />
               </button>
-
-              {/* Return to Mobile App */}
-              <button
-                onClick={handleGoToMobileApp}
-                className="w-full bg-green-50 text-green-900 font-semibold py-3 px-4 rounded-xl hover:bg-green-100 transition-all duration-200 flex items-center justify-center gap-2 border border-green-100"
-              >
-                <Smartphone className="w-5 h-5" />
-                Go Back to Mobile App
-              </button>
+            )}
+            {/* Logo and Header */}
+            <div className="flex flex-col items-center justify-center mb-4">
+              <img
+                src={Logo}
+                alt="AccommoTrack Logo"
+                className="h-12 w-auto mb-2"
+              />
+              <span className="no-scale text-2xl md:text-3xl lg:text-3xl font-extrabold text-green-700 dark:text-green-400 tracking-tight">
+                AccommoTrack
+              </span>
+            </div>
+            <div className="text-center mb-8">
+              <h2 className="no-scale text-2xl md:text-3xl lg:text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
+                {isLogin ? "Welcome Back" : "Create Account"}
+              </h2>
+              <p className="text-green-900/90 dark:text-gray-300">
+                {isLogin
+                  ? "Access your account and discover accommodations."
+                  : "Sign up to get started and look for accommodations."}
+              </p>
             </div>
 
-            {/* Note */}
-            <p className="text-xs text-green-700/70 text-center mt-4">
-              You can access your tenant account from any device
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Pending/Rejected Verification Modal */}
-      {showPendingModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
-            {/* Status Icon */}
-            <div className="flex justify-center mb-4">
-              {pendingModalData.status === 'pending_verification' ? (
-                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <Loader2 className="w-10 h-10 text-yellow-600 animate-spin" />
-                </div>
-              ) : (
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                  <XCircle className="w-10 h-10 text-red-600" />
-                </div>
-              )}
-            </div>
-
-            {/* Title */}
-            <h3 className={`text-xl font-bold text-center mb-2 ${pendingModalData.status === 'pending_verification' ? 'text-yellow-700' : 'text-red-700'}`}>
-              {pendingModalData.title}
-            </h3>
-            
-            {/* Description */}
-            <p className="text-gray-600 text-center mb-4">
-              {pendingModalData.message}
-            </p>
-
-            {/* Rejection Reason */}
-            {pendingModalData.status === 'rejected_verification' && pendingModalData.reason && (
-              <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-6">
-                <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">Reason for Rejection:</p>
-                <p className="text-sm text-red-600 italic">"{pendingModalData.reason}"</p>
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-4">
+                <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                <span className="text-red-700 dark:text-red-300 text-sm font-semibold">
+                  {error}
+                </span>
               </div>
             )}
 
-            {/* Choice Buttons */}
-            <div className="space-y-3">
-              {pendingModalData.status === 'rejected_verification' && (
-                <button
-                  onClick={() => {
-                    setShowPendingModal(false);
-                    setShowResubmitModal(true);
-                  }}
-                  className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-red-700 hover:to-rose-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                  Resubmit Documents
-                </button>
-              )}
+            {/* LOGIN FORM (all users) */}
+            {isLogin && (
+              <form onSubmit={handleLogin} className="space-y-6">
+                {/* Email Field */}
+                <div>
+                  <label className={labelClasses}>
+                    Email Address
+                    {emailAvailable === false && (
+                      <span className="ml-2 text-red-400 text-xs font-semibold">
+                        *
+                      </span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Mail className={iconClasses} />
+                    </div>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className={
+                        inputClasses +
+                        (emailAvailable === false
+                          ? " border-red-400"
+                          : emailAvailable === true
+                            ? " border-green-400"
+                            : "")
+                      }
+                      placeholder="Enter your email"
+                      disabled={loading}
+                      required
+                    />
+                    {/* Live email check message */}
+                    {formData.email && emailCheckMsg && (
+                      <span
+                        className={
+                          "absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold " +
+                          (emailAvailable === false
+                            ? "text-red-400"
+                            : emailAvailable === true
+                              ? "text-green-400"
+                              : "text-gray-300")
+                        }
+                      >
+                        {emailCheckMsg}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-              {/* Close Button */}
+                {/* Password Field */}
+                <div>
+                  <label className={labelClasses}>Password</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className={iconClasses} />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
+                      className={inputClasses + " pr-12"}
+                      placeholder="Enter your password"
+                      disabled={loading}
+                      required
+                    />
+                    <button
+                      type="button"
+                      tabIndex="-1"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                      disabled={loading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Forgot Password */}
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white font-semibold transition-colors opacity-50 hover:opacity-80"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="animate-spin h-5 w-5 text-white" />
+                      Signing In...
+                    </span>
+                  ) : (
+                    "Sign In"
+                  )}
+                </button>
+              </form>
+            )}
+            {/* TENANT SIGN UP ONLY (role is fixed to tenant) */}
+            {!isLogin && (
+              <form onSubmit={handleRegister} className="space-y-4">
+                {/* First Name */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>First Name</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="first_name"
+                      ref={(el) => (fieldRefs.current.first_name = el)}
+                      value={formData.first_name}
+                      onChange={(e) =>
+                        handleInputChange("first_name", e.target.value)
+                      }
+                      className={inputClasses}
+                      placeholder="Enter your first name"
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  {fieldErrors.first_name && (
+                    <p className="text-xs text-red-500 mt-2">
+                      {fieldErrors.first_name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Middle Name */}
+                <div>
+                  <label className={labelClasses}>
+                    Middle Name{" "}
+                    <span className="text-black/50 dark:text-white/50 text-xs">
+                      (Optional)
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="middle_name"
+                      ref={(el) => (fieldRefs.current.middle_name = el)}
+                      value={formData.middle_name}
+                      onChange={(e) =>
+                        handleInputChange("middle_name", e.target.value)
+                      }
+                      className={inputClasses}
+                      placeholder="Enter your middle name"
+                      disabled={loading}
+                    />
+                  </div>
+                  {fieldErrors.middle_name && (
+                    <p className="text-xs text-red-500 mt-2">
+                      {fieldErrors.middle_name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Last Name */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Last Name</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="last_name"
+                      ref={(el) => (fieldRefs.current.last_name = el)}
+                      value={formData.last_name}
+                      onChange={(e) =>
+                        handleInputChange("last_name", e.target.value)
+                      }
+                      className={inputClasses}
+                      placeholder="Enter your last name"
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  {fieldErrors.last_name && (
+                    <p className="text-xs text-red-500 mt-2">
+                      {fieldErrors.last_name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Email Address</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                    {/* Show live email check or backend error as a red span next to label */}
+                    {formData.email &&
+                      (emailCheckMsg ||
+                        (error && error.toLowerCase().includes("email"))) && (
+                        <span className="text-red-400 text-xs font-semibold ml-2">
+                          {emailCheckMsg ? emailCheckMsg : error}
+                        </span>
+                      )}
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Mail className={iconClasses} />
+                    </div>
+                    <input
+                      type="email"
+                      name="email"
+                      ref={(el) => (fieldRefs.current.email = el)}
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className={
+                        inputClasses +
+                        (emailAvailable === false
+                          ? " border-red-400"
+                          : emailAvailable === true
+                            ? " border-green-400"
+                            : "")
+                      }
+                      placeholder="Enter your email"
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  {fieldErrors.email && (
+                    <p className="text-xs text-red-500 mt-2">{fieldErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className={labelClasses}>
+                    Phone Number{" "}
+                    <span className="text-black/50 dark:text-white/50 text-xs">
+                      (Optional)
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Phone className={iconClasses} />
+                    </div>
+                    <input
+                      type="tel"
+                      name="phone"
+                      ref={(el) => (fieldRefs.current.phone = el)}
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      className={inputClasses}
+                      placeholder="Enter your phone number"
+                      disabled={loading}
+                    />
+                  </div>
+                  {fieldErrors.phone && (
+                    <p className="text-xs text-red-500 mt-2">{fieldErrors.phone}</p>
+                  )}
+                </div>
+
+                {/* Date of Birth */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Date of Birth</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="date_of_birth"
+                    ref={(el) => (fieldRefs.current.date_of_birth = el)}
+                    value={formData.date_of_birth}
+                    onChange={(e) =>
+                      handleInputChange("date_of_birth", e.target.value)
+                    }
+                    className={inputClasses}
+                    disabled={loading}
+                    required
+                    max={latestTenantBirthDate}
+                  />
+                  {fieldErrors.date_of_birth && (
+                    <p className="text-xs text-red-500 mt-2">
+                      {fieldErrors.date_of_birth}
+                    </p>
+                  )}
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Gender</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <select
+                    name="gender"
+                    ref={(el) => (fieldRefs.current.gender = el)}
+                    value={formData.gender}
+                    onChange={(e) => handleInputChange("gender", e.target.value)}
+                    className={inputClasses + " pl-4"}
+                    disabled={loading}
+                    required
+                  >
+                    <option value="">Select your gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                  {fieldErrors.gender && (
+                    <p className="text-xs text-red-500 mt-2">{fieldErrors.gender}</p>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Password</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className={iconClasses} />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      ref={(el) => (fieldRefs.current.password = el)}
+                      value={formData.password}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
+                      className={inputClasses + " pr-12"}
+                      placeholder="Create a password"
+                      disabled={loading}
+                      required
+                      minLength="8"
+                    />
+                    <button
+                      type="button"
+                      tabIndex="-1"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                      disabled={loading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-2">
+                    <ul className="text-xs space-y-2">
+                      {!passwordChecks.minLen && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 text-gray-300" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            --Minimum 8 characters
+                          </span>
+                        </li>
+                      )}
+                      {!passwordChecks.hasUpper && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 text-gray-300" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            --At least 1 uppercase letter
+                          </span>
+                        </li>
+                      )}
+                      {!passwordChecks.numCount && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 text-gray-300" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            --At least 2 numbers
+                          </span>
+                        </li>
+                      )}
+                      {!passwordChecks.hasSpecial && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 text-gray-300" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            --At least 1 special character
+                          </span>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                  {fieldErrors.password && (
+                    <p className="text-xs text-red-500 mt-2">
+                      {fieldErrors.password}
+                    </p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Confirm Password</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className={iconClasses} />
+                    </div>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="password_confirmation"
+                      ref={(el) => (fieldRefs.current.password_confirmation = el)}
+                      value={formData.password_confirmation}
+                      onChange={(e) =>
+                        handleInputChange("password_confirmation", e.target.value)
+                      }
+                      className={inputClasses + " pr-12"}
+                      placeholder="Confirm your password"
+                      disabled={loading}
+                      required
+                      minLength="8"
+                    />
+                    <button
+                      type="button"
+                      tabIndex="-1"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                      disabled={loading}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      )}
+                    </button>
+                  </div>
+                  {fieldErrors.password_confirmation && (
+                    <p className="text-xs text-red-500 mt-2">
+                      {fieldErrors.password_confirmation}
+                    </p>
+                  )}
+                </div>
+
+                {/* Terms and Conditions Agreement */}
+                <div className="flex items-start gap-4 py-2">
+                  <div className="flex items-center h-5">
+                    <input
+                      type="checkbox"
+                      id="agree_to_terms"
+                      checked={formData.agree_to_terms || false}
+                      onChange={(e) => handleInputChange("agree_to_terms", e.target.checked)}
+                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+                      required
+                    />
+                  </div>
+                  <label htmlFor="agree_to_terms" className="text-xs text-gray-700 dark:text-gray-300 leading-tight">
+                    I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="text-green-600 hover:text-green-700 font-bold underline">Terms and Conditions</button> and confirm that I have read the Privacy Policy.
+                  </label>
+                </div>
+                {fieldErrors.agree_to_terms && (
+                  <p className="text-xs text-red-500 mt-2">{fieldErrors.agree_to_terms}</p>
+                )}
+
+                {/* Hidden Role Field (always tenant) */}
+                <input type="hidden" name="role" value="tenant" />
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="animate-spin h-5 w-5 text-white" />
+                      Creating Account...
+                    </span>
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            )}
+
+            {/* Toggle Login/Register */}
+            <div className="mt-6 text-center">
+              <span className="text-green-700/80">
+                {isLogin ? "Don't have an account? " : "Already have an account? "}
+              </span>
               <button
-                onClick={() => setShowPendingModal(false)}
-                className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center ${pendingModalData.status === 'pending_verification' ? 'bg-gradient-to-r from-yellow-600 to-amber-600 text-white hover:from-yellow-700 hover:to-amber-700 shadow-md hover:shadow-lg' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'}`}
+                onClick={toggleScreen}
+                className="text-green-700 font-semibold hover:text-green-900 transition-colors underline"
+                disabled={loading}
               >
-                {pendingModalData.status === 'pending_verification' ? 'Got it, thanks!' : 'Close'}
+                {isLogin ? "Sign Up" : "Sign In"}
               </button>
             </div>
           </div>
-        </div>
+
+          {/* Platform Choice Modal - Shows for mobile users after registration */}
+          {showPlatformChoice && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
+                {/* Success Icon */}
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check className="w-10 h-10 text-green-500" />
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-bold text-green-700 text-center mb-2">
+                  Registration Successful!
+                </h3>
+
+                {/* Description */}
+                <p className="text-green-900/90 text-center mb-6">
+                  Your tenant account has been created. How would you like to
+                  continue?
+                </p>
+
+                {/* Registered Email Display */}
+                <div className="bg-green-50 rounded-lg p-4 mb-6 border border-green-100">
+                  <p className="text-sm text-green-700 text-center">
+                    Registered as:
+                  </p>
+                  <p className="text-sm font-medium text-green-900 text-center">
+                    {registeredEmail}
+                  </p>
+                </div>
+
+                {/* Choice Buttons */}
+                <div className="space-y-4">
+                  <Toaster />
+                  {/* Continue on Web */}
+                  <button
+                    onClick={handleContinueOnWeb}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-4 px-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <Monitor className="w-5 h-5" />
+                    Continue on Web
+                  </button>
+
+                  {/* Return to Mobile App */}
+                  <button
+                    onClick={handleGoToMobileApp}
+                    className="w-full bg-green-50 text-green-900 font-semibold py-4 px-4 rounded-xl hover:bg-green-100 transition-all duration-200 flex items-center justify-center gap-2 border border-green-100"
+                  >
+                    <Smartphone className="w-5 h-5" />
+                    Go Back to Mobile App
+                  </button>
+                </div>
+
+                {/* Note */}
+                <p className="text-xs text-green-700/70 text-center mt-4">
+                  You can access your tenant account from any device
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Pending/Rejected Verification Modal */}
+          {showPendingModal && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
+                {/* Status Icon */}
+                <div className="flex justify-center mb-4">
+                  {pendingModalData.status === "pending_verification" ? (
+                    <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <Loader2 className="w-10 h-10 text-yellow-600 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                      <XCircle className="w-10 h-10 text-red-600" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Title */}
+                <h3
+                  className={`text-xl font-bold text-center mb-2 ${pendingModalData.status === "pending_verification" ? "text-yellow-700" : "text-red-700"}`}
+                >
+                  {pendingModalData.title}
+                </h3>
+
+                {/* Description */}
+                <p className="text-gray-600 text-center mb-4">
+                  {pendingModalData.message}
+                </p>
+
+                {/* Rejection Reason */}
+                {pendingModalData.status === "rejected_verification" &&
+                  pendingModalData.reason && (
+                    <div className="bg-red-50 border border-red-100 rounded-lg p-4 mb-6">
+                      <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-2">
+                        Reason for Rejection:
+                      </p>
+                      <p className="text-sm text-red-600 italic">
+                        "{pendingModalData.reason}"
+                      </p>
+                    </div>
+                  )}
+
+                {/* Choice Buttons */}
+                <div className="space-y-4">
+                  {pendingModalData.status === "rejected_verification" && (
+                    <button
+                      onClick={() => {
+                        setShowPendingModal(false);
+                        setShowResubmitModal(true);
+                      }}
+                      className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold py-4 px-4 rounded-xl hover:from-red-700 hover:to-rose-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                      Resubmit Documents
+                    </button>
+                  )}
+
+                  {/* Close Button */}
+                  <button
+                    onClick={() => setShowPendingModal(false)}
+                    className={`w-full font-semibold py-4 px-4 rounded-xl transition-all duration-200 flex items-center justify-center ${pendingModalData.status === "pending_verification" ? "bg-gradient-to-r from-yellow-600 to-amber-600 text-white hover:from-yellow-700 hover:to-amber-700 shadow-md hover:shadow-lg" : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"}`}
+                  >
+                    {pendingModalData.status === "pending_verification"
+                      ? "Got it, thanks!"
+                      : "Close"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Terms and Conditions Modal */}
+          {showTermsModal && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl border border-green-100 dark:border-gray-700 overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-green-50 dark:bg-gray-900/50">
+                  <div>
+                    <h3 className="text-xl font-bold text-green-800 dark:text-green-400">Terms and Conditions</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowTermsModal(false)}
+                    className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed scrollbar-thin">
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800 mb-4">
+                    <p className="text-green-800 dark:text-green-300 font-medium text-xs">
+                      By using AccommoTrack, you agree to be a respectful member of our community, provide truthful information, and follow property rules.
+                    </p>
+                  </div>
+
+                  {UNIFIED_TERMS_AND_CONDITIONS.sections.map((section, idx) => (
+                    <section key={idx}>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">{section.title}</h4>
+                      {Array.isArray(section.content) ? (
+                        <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">
+                          {section.content.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-gray-600 dark:text-gray-400">{section.content}</p>
+                      )}
+                    </section>
+                  ))}
+                </div>
+                <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                  <button
+                    onClick={() => setShowTermsModal(false)}
+                    className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

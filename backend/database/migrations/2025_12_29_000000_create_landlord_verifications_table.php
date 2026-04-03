@@ -20,11 +20,15 @@ return new class extends Migration
             $table->string('valid_id_type');
             $table->string('valid_id_other')->nullable();
             $table->string('valid_id_path');
-            $table->string('permit_path');
+            $table->string('permit_path')->nullable();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->text('rejection_reason')->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->unsignedBigInteger('reviewed_by')->nullable();
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
         });
     }
 

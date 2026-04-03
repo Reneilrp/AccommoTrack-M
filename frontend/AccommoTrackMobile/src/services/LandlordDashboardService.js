@@ -1,4 +1,4 @@
-import api from './api';
+import api from './api.js';
 
 /**
  * Landlord dashboard aggregated data fetcher mirroring the web admin endpoints.
@@ -13,6 +13,8 @@ const withTimeout = (promise, ms = 15000) => {
         )
     ]);
 };
+
+// Change the Timeout logic
 
 const LandlordDashboardService = {
     async fetchDashboard() {
@@ -31,7 +33,25 @@ const LandlordDashboardService = {
             // Extract data from settled promises, use defaults for rejected ones
             const statsRes = results[0].status === 'fulfilled' ? results[0].value : { data: null };
             const activitiesRes = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
-            const paymentsRes = results[2].status === 'fulfilled' ? results[2].value : { data: { upcomingCheckouts: [], unpaidBookings: [] } };
+            const paymentsRes = results[2].status === 'fulfilled'
+                ? results[2].value
+                : {
+                    data: {
+                        upcomingCheckouts: [],
+                        unpaidBookings: [],
+                        vacatingSoon: [],
+                        billingHealth: {
+                            dueForBillingCount: 0,
+                            dueForBilling: [],
+                            overdueInvoicesCount: 0,
+                            overdueInvoicesAmount: 0,
+                            dueSoonInvoicesCount: 0,
+                            dueSoonInvoicesAmount: 0,
+                            overdueInvoices: [],
+                            dueSoonInvoices: [],
+                        },
+                    },
+                };
             const chartRes = results[3].status === 'fulfilled' ? results[3].value : { data: { labels: [], data: [] } };
             const performanceRes = results[4].status === 'fulfilled' ? results[4].value : { data: [] };
 
@@ -40,7 +60,21 @@ const LandlordDashboardService = {
                 data: {
                     stats: statsRes.data,
                     activities: activitiesRes.data || [],
-                    upcomingPayments: paymentsRes.data || { upcomingCheckouts: [], unpaidBookings: [] },
+                    upcomingPayments: paymentsRes.data || {
+                        upcomingCheckouts: [],
+                        unpaidBookings: [],
+                        vacatingSoon: [],
+                        billingHealth: {
+                            dueForBillingCount: 0,
+                            dueForBilling: [],
+                            overdueInvoicesCount: 0,
+                            overdueInvoicesAmount: 0,
+                            dueSoonInvoicesCount: 0,
+                            dueSoonInvoicesAmount: 0,
+                            overdueInvoices: [],
+                            dueSoonInvoices: [],
+                        },
+                    },
                     revenueChart: chartRes.data || { labels: [], data: [] },
                     propertyPerformance: performanceRes.data || [],
                 },
@@ -56,10 +90,19 @@ const LandlordDashboardService = {
 
     async fetchUnreadNotificationsCount() {
         try {
-            const response = await api.get('/notifications/unread-count');
+            const response = await api.get('/notifications/unread-count?role=landlord');
+            const payload = response?.data;
+            const rawCount =
+                payload?.count ??
+                payload?.data?.count ??
+                payload?.unread_count ??
+                payload?.data?.unread_count ??
+                (typeof payload === 'number' ? payload : 0);
+            const normalizedCount = Number(rawCount);
+
             return {
                 success: true,
-                data: response.data.count ?? response.data
+                data: Number.isFinite(normalizedCount) ? normalizedCount : 0,
             };
         } catch (error) {
             console.error('Failed to fetch unread notification count:', error);

@@ -12,8 +12,8 @@ export const getStyles = (theme) => StyleSheet.create({
   // HEADER STYLES
   header: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 8,
-    minHeight: 56,
+    paddingHorizontal: 16,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -24,18 +24,18 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
   },
   headerSide: {
-    width: 50,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerCenter: {
-    flex: 1,
+    flex: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
@@ -64,7 +64,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    padding: 20,
+    padding: 16,
     backgroundColor: theme.colors.backgroundSecondary,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -72,7 +72,7 @@ export const getStyles = (theme) => StyleSheet.create({
   menuUserInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
     flex: 1,
   },
   menuAvatar: {
@@ -101,7 +101,7 @@ export const getStyles = (theme) => StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 16,
     borderBottomWidth: 1,
@@ -116,7 +116,7 @@ export const getStyles = (theme) => StyleSheet.create({
 
   // SEARCH BAR STYLES
   searchContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     backgroundColor: theme.colors.background,
     height: 72,
@@ -141,7 +141,7 @@ export const getStyles = (theme) => StyleSheet.create({
   searchButton: {
     backgroundColor: theme.colors.primary,
     paddingHorizontal: 24,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 25,
     marginLeft: 8,
   },
@@ -154,12 +154,12 @@ export const getStyles = (theme) => StyleSheet.create({
   // FILTER STYLES
   filterButtonsRow: {
     marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 16,
     height: 56,
   },
   filterButtonsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     gap: 8,
     alignItems: 'center',
   },
@@ -207,10 +207,10 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   typeBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: 16,
+    left: 16,
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 6,
   },
@@ -231,19 +231,30 @@ export const getStyles = (theme) => StyleSheet.create({
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   locationText: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginLeft: 4,
+    marginLeft: 8,
+    flex: 1,
+  },
+  curfewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  curfewText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginLeft: 8,
     flex: 1,
   },
   availabilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.successLight,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 6,
     alignSelf: 'flex-start',
@@ -252,12 +263,12 @@ export const getStyles = (theme) => StyleSheet.create({
   availabilityText: {
     fontSize: 12,
     color: theme.colors.success,
-    marginLeft: 4,
+    marginLeft: 8,
     fontWeight: '500',
   },
   viewButton: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 40,
     borderRadius: 8,
     alignItems: 'center',
@@ -273,15 +284,18 @@ export const getStyles = (theme) => StyleSheet.create({
   guestBanner: {
     backgroundColor: theme.isDark ? theme.colors.brand900 : '#EFF6FF',
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 16,
     marginBottom: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
     overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   guestBannerContent: {
-    padding: 12,
+    flex: 1,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -316,7 +330,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10,
-    marginTop: 4,
+    marginTop: 8,
   },
   fabButton: {
     width: 56,
@@ -338,7 +352,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   noResultsContainer: {
     paddingVertical: 60,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     alignItems: 'center',
   },
   noResultsText: {
@@ -348,7 +362,7 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
   },
   errorContainer: {
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -356,11 +370,11 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     color: theme.colors.error,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   retryButton: {
     backgroundColor: theme.colors.error,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignSelf: 'center',
@@ -371,8 +385,8 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600',
   },
   clearButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.primary,
@@ -384,11 +398,11 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600',
   },
   loadMoreContainer: {
-    paddingVertical: 20,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   loadMoreButton: {
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 24,
     borderRadius: 20,
     backgroundColor: theme.colors.backgroundSecondary,
@@ -399,6 +413,113 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  headerContainer: {
+    backgroundColor: theme.colors.primary,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    borderWidth: 1.5,
+  },
+  notificationBadgeText: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  navContainer: {
+    backgroundColor: theme.colors.surface,
+    position: 'relative',
+  },
+  tabButtonContainer: {
+    backgroundColor: theme.colors.surface,
+    borderTopColor: theme.colors.border,
+    height: 60,
+    paddingVertical: 0,
+    paddingBottom: 0,
+    alignItems: 'center',
+  },
+  fabOverlay: {
+    position: 'absolute', 
+    left: 0, 
+    right: 0, 
+    zIndex: 30, 
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: 100,
+  },
+  drawerContainer: {
+    flex: 1,
+  },
+  drawerFooter: {
+    borderTopWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  drawerFooterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  drawerFooterText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 16,
+  },
+  fullFlex: {
+    flex: 1,
+  },
+
+  // MODAL STYLES
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    margin: 24,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '80%',
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  modalButton: {
+    width: '100%',
+    borderRadius: 10,
+    padding: 8,
+    elevation: 2,
+    backgroundColor: theme.colors.primary,
+    marginBottom: 8,
+  },
+  modalButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center"
   },
 });
 

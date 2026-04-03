@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property-read \App\Models\User $landlord
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Property> $properties
  * @property-read int|null $properties_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment query()
@@ -34,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereLandlordId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class CaretakerAssignment extends Model
@@ -46,6 +48,8 @@ class CaretakerAssignment extends Model
         'can_view_tenants',
         'can_view_rooms',
         'can_view_properties',
+        'can_manage_maintenance',
+        'can_manage_payments',
     ];
 
     protected $casts = [
@@ -54,6 +58,8 @@ class CaretakerAssignment extends Model
         'can_view_tenants' => 'boolean',
         'can_view_rooms' => 'boolean',
         'can_view_properties' => 'boolean',
+        'can_manage_maintenance' => 'boolean',
+        'can_manage_payments' => 'boolean',
     ];
 
     public function landlord(): BelongsTo

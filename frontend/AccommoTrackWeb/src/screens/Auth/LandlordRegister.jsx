@@ -14,8 +14,12 @@ import {
 import logo from '../../assets/Logo.png';
 import api, { isCancel } from '../../utils/api';
 
+import { UNIFIED_TERMS_AND_CONDITIONS } from "../../shared/LegalContent";
+
 const LandlordRegister = () => {
   const [showModal, setShowModal] = useState(true);
+  // Terms & Conditions modal
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -53,29 +57,41 @@ const LandlordRegister = () => {
 
   // Field level server errors
   const [fieldErrors, setFieldErrors] = useState({});
+  const idTypesRequestedRef = useRef(false);
 
   // Live password checks
   const [passwordChecks, setPasswordChecks] = useState({ minLen: false, hasUpper: false, numCount: false, hasSpecial: false });
 
   // Fetch ID types from backend
   useEffect(() => {
-    if (step === 3 && idTypes.length === 0 && !idTypesLoading) {
-      setIdTypesLoading(true);
-      setIdTypesError('');
-      // Use configured api client
-      api.get('/valid-id-types')
-        .then(res => {
-          setIdTypes(Array.isArray(res.data) ? res.data : []);
-          setIdTypesLoading(false);
-        })
-        .catch(() => {
-          setIdTypesError('Failed to load ID types. Please try again.');
-          // Fallback static types if API fails
-          setIdTypes(['Passport', 'Driver\'s License', 'National ID', 'SSS UMID', 'PhilHealth ID', 'Other']);
-          setIdTypesLoading(false);
-        });
-    }
-  }, [step, idTypes.length, idTypesLoading]);
+    if (step !== 3 || idTypes.length > 0 || idTypesRequestedRef.current) return;
+
+    idTypesRequestedRef.current = true;
+    setIdTypesLoading(true);
+    setIdTypesError('');
+
+    let isMounted = true;
+
+    api.get('/valid-id-types')
+      .then(res => {
+        if (!isMounted) return;
+        setIdTypes(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setIdTypesError('Failed to load ID types. Please try again.');
+        // Fallback static types if API fails
+        setIdTypes(['Passport', 'Driver\'s License', 'National ID', 'SSS UMID', 'PhilHealth ID', 'Other']);
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIdTypesLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [step, idTypes.length]);
 
 
   const handleChange = (e) => {
@@ -117,7 +133,7 @@ const LandlordRegister = () => {
           minLen: pwd.length >= 8,
           hasUpper: /[A-Z]/.test(pwd),
           numCount: (pwd.match(/\d/g) || []).length >= 2,
-          hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
+          hasSpecial: /[!@#$%^&*(),.?":{}|[\]\\/~`_+=;'-]/.test(pwd),
         });
       }
     }
@@ -131,7 +147,7 @@ const LandlordRegister = () => {
     if (!value || !emailRegex.test(value)) return;
     try {
       if (emailCheckAbortController.current) {
-        try { emailCheckAbortController.current.abort(); } catch (e) { }
+        try { emailCheckAbortController.current.abort(); } catch (_ignore) { /* ignore */ }
       }
       emailCheckAbortController.current = new AbortController();
       const res = await api.get('/check-email', { params: { email: value }, signal: emailCheckAbortController.current.signal });
@@ -218,7 +234,7 @@ const LandlordRegister = () => {
     const errors = {};
     
     if (step === 1) {
-      const nameRegex = /^[\p{L} '\-]+$/u;
+      const nameRegex = /^[\p{L} '-]+$/u;
 
       if (!form.firstName?.trim()) {
         errors.firstName = 'First name is required';
@@ -236,7 +252,7 @@ const LandlordRegister = () => {
         errors.lastName = 'Last name contains invalid characters (letters, spaces, hyphens only)';
       }
     } else if (step === 2) {
-      // DOB required + age >= 20
+      // DOB required + age >= 21
       if (!form.dob) {
         errors.dob = 'Date of birth is required';
       } else {
@@ -249,8 +265,8 @@ const LandlordRegister = () => {
           const m = today.getMonth() - bd.getMonth();
           if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
           
-          if (age < 20) {
-            errors.dob = 'You must be at least 20 years old to register as a landlord';
+          if (age < 21) {
+            errors.dob = 'You must be at least 21 years old to register as a landlord';
           } else if (age > 100) {
             errors.dob = 'Please enter a valid date of birth';
           }
@@ -272,9 +288,10 @@ const LandlordRegister = () => {
       } else {
         const pwd = form.password;
         if (pwd.length < 8) errors.password = 'Password must be at least 8 characters';
+        else if (!/[a-z]/.test(pwd)) errors.password = 'Password must include at least one lowercase letter';
         else if (!/[A-Z]/.test(pwd)) errors.password = 'Password must include at least one uppercase letter';
         else if ((pwd.match(/\d/g) || []).length < 2) errors.password = 'Password must include at least two numbers';
-        else if (!/[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd)) errors.password = 'Password must include at least one special character';
+        else if (!/[!@#$%^&*(),.?":{}|[\]\\/~`_+=;'-]/.test(pwd)) errors.password = 'Password must include at least one special character';
       }
 
       if (!form.confirmPassword) {
@@ -298,7 +315,7 @@ const LandlordRegister = () => {
       }
       
       if (!form.validId) {
-        errors.validId = 'Please upload a copy of your valid ID';
+        errors.validId = 'Please upload your valid ID';
       }
       if (!form.permit) {
         errors.permit = 'Please upload your accommodation or business permit';
@@ -358,7 +375,7 @@ const LandlordRegister = () => {
 
       // Pre-submit: ensure email availability
       try {
-        if (emailCheckAbortController.current) { try { emailCheckAbortController.current.abort(); } catch (e) { } }
+        if (emailCheckAbortController.current) { try { emailCheckAbortController.current.abort(); } catch (_ignore) { /* ignore */ } }
         emailCheckAbortController.current = new AbortController();
         const chk = await api.get('/check-email', { params: { email: form.email }, signal: emailCheckAbortController.current.signal });
         if (chk.data?.available === false) {
@@ -367,10 +384,8 @@ const LandlordRegister = () => {
           setSubmitting(false);
           return;
         }
-      } catch (err) {
-        if (err.name === 'CanceledError' || err.name === 'AbortError') {
-          // ignore
-        }
+      } catch (_ignore) {
+        // ignore
       }
 
       await api.post('/landlord-verification', formData, {
@@ -394,7 +409,7 @@ const LandlordRegister = () => {
         const order = ['firstName', 'middleName', 'lastName', 'dob', 'email', 'phone', 'password', 'confirmPassword'];
         const firstInvalid = order.find(o => map[o]);
         if (firstInvalid && fieldRefs.current[firstInvalid] && typeof fieldRefs.current[firstInvalid].focus === 'function') {
-          setTimeout(() => { try { fieldRefs.current[firstInvalid].focus(); } catch (e) { } }, 0);
+          setTimeout(() => { try { fieldRefs.current[firstInvalid].focus(); } catch (_ignore) { /* ignore */ } }, 0);
         }
         setError(err.response?.data?.message || 'Please fix highlighted fields.');
       } else {
@@ -425,7 +440,7 @@ const LandlordRegister = () => {
                   Your landlord registration has been successfully submitted. Our administrators will review your documents within 1-3 business days. You will receive an email once your account is verified.
                 </p>
                 <button
-                  className="w-full bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
+                  className="w-full bg-green-700 text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
                   onClick={() => navigate('/')}
                 >
                   Return to Home
@@ -442,7 +457,7 @@ const LandlordRegister = () => {
                 </ul>
                 <span className="text-xs text-gray-500 dark:text-gray-400 block mb-2">Your documents will be reviewed by our team for verification and approval.<br />Verification may take 1-3 work days.</span>
                 <button
-                  className="mt-4 bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
+                  className="mt-4 bg-green-700 text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
                   onClick={() => setShowModal(false)}
                 >
                   Proceed
@@ -479,13 +494,13 @@ const LandlordRegister = () => {
           </div>
           <form className="space-y-4" onSubmit={step === 3 ? handleSubmit : handleNext}>
             {error && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded flex items-center gap-3">
+              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded flex items-center gap-4">
                 <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
                 <span className="text-red-700 dark:text-red-300 text-sm font-medium">{error}</span>
               </div>
             )}
             {success && (
-              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded flex items-center gap-3">
+              <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded flex items-center gap-4">
                 <Check className="w-5 h-5 text-green-500 shrink-0" />
                 <span className="text-green-700 dark:text-green-300 text-sm font-medium">{success}</span>
               </div>
@@ -501,15 +516,15 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.firstName = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.firstName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.firstName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your first name"
                     required
                     disabled={submitting}
                   />
-                  {fieldErrors.firstName && <p className="text-xs text-red-500 mt-1">{fieldErrors.firstName}</p>}
+                  {fieldErrors.firstName && <p className="text-xs text-red-500 mt-2">{fieldErrors.firstName}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Middle Name <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Middle Name <span className="text-gray-500 dark:text-gray-500">(optional)</span></label>
                   <input
                     type="text"
                     name="middleName"
@@ -517,11 +532,11 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.middleName = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.middleName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.middleName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your middle name"
                     disabled={submitting}
                   />
-                  {fieldErrors.middleName && <p className="text-xs text-red-500 mt-1">{fieldErrors.middleName}</p>}
+                  {fieldErrors.middleName && <p className="text-xs text-red-500 mt-2">{fieldErrors.middleName}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Last Name <span className="text-red-500">*</span></label>
@@ -532,12 +547,12 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.lastName = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.lastName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.lastName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your last name"
                     required
                     disabled={submitting}
                   />
-                  {fieldErrors.lastName && <p className="text-xs text-red-500 mt-1">{fieldErrors.lastName}</p>}
+                  {fieldErrors.lastName && <p className="text-xs text-red-500 mt-2">{fieldErrors.lastName}</p>}
                 </div>
                 <div className="flex justify-end mt-4">
                   <button type="button" className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-800 transition shadow-md" onClick={handleNext} disabled={submitting}>Next</button>
@@ -553,7 +568,7 @@ const LandlordRegister = () => {
                     onClick={() => {
                       const el = fieldRefs.current.dob;
                       if (el && typeof el.showPicker === 'function') {
-                        try { el.showPicker(); } catch (e) { }
+                        try { el.showPicker(); } catch (_ignore) { /* ignore */ }
                       }
                     }}
                   >
@@ -572,17 +587,17 @@ const LandlordRegister = () => {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (typeof e.target.showPicker === 'function') {
-                          try { e.target.showPicker(); } catch (err) { }
+                          try { e.target.showPicker(); } catch (_ignore) { /* ignore */ }
                         }
                       }}
                       max={new Date(new Date().getFullYear() - 20, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
                       ref={el => fieldRefs.current.dob = el}
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer transition-colors ${fieldErrors.dob ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                      className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer transition-colors ${fieldErrors.dob ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                       required
                       disabled={submitting}
                     />
                   </div>
-                  {fieldErrors.dob && <p className="text-xs text-red-500 mt-1">{fieldErrors.dob}</p>}
+                  {fieldErrors.dob && <p className="text-xs text-red-500 mt-2">{fieldErrors.dob}</p>}
                 </div>
 
                 <div>
@@ -590,7 +605,7 @@ const LandlordRegister = () => {
                     <span className="flex items-center gap-2">
                       <span>Email Address <span className="text-red-500">*</span></span>
                       {emailAvailable === true && !fieldErrors.email && (
-                        <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 font-medium animate-fadeIn">
+                        <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-2 font-medium animate-fadeIn">
                           <Check size={14}/> available
                         </span>
                       )}
@@ -605,14 +620,14 @@ const LandlordRegister = () => {
                     onBlur={handleEmailBlur}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.email = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.email ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.email ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your email"
                     required
                     disabled={submitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Phone Number <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Phone Number <span className="text-gray-500 dark:text-gray-500">(optional)</span></label>
                   <input
                     type="tel"
                     name="phone"
@@ -624,11 +639,11 @@ const LandlordRegister = () => {
                       // normalize phone on blur
                       setForm(prev => ({ ...prev, phone: (prev.phone || '').replace(/[^0-9]/g, '') }));
                     }}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.phone ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.phone ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your phone number (09123456789)"
                     disabled={submitting}
                   />
-                  {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
+                  {fieldErrors.phone && <p className="text-xs text-red-500 mt-2">{fieldErrors.phone}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Password <span className="text-red-500">*</span></label>
@@ -639,19 +654,20 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.password = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.password ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.password ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Create a password"
                     required
                     disabled={submitting}
                   />
                   {form.password && (
-                    <div className="mt-2 space-y-1">
-                      {!passwordChecks.minLen && <p className="text-xs text-gray-500 flex items-center gap-1">--Minimum 8 characters</p>}
-                      {!passwordChecks.hasUpper && <p className="text-xs text-gray-500 flex items-center gap-1">--At least 1 uppercase letter</p>}
-                      {!passwordChecks.hasSpecial && <p className="text-xs text-gray-500 flex items-center gap-1">--At least 1 special character</p>}
+                    <div className="mt-2 space-y-2">
+                      {!passwordChecks.minLen && <p className="text-xs text-gray-500 flex items-center gap-2">--Minimum 8 characters</p>}
+                      {!passwordChecks.hasUpper && <p className="text-xs text-gray-500 flex items-center gap-2">--At least 1 uppercase letter</p>}
+                      {!passwordChecks.numCount && <p className="text-xs text-gray-500 flex items-center gap-2">--At least 2 numbers</p>}
+                      {!passwordChecks.hasSpecial && <p className="text-xs text-gray-500 flex items-center gap-2">--At least 1 special character</p>}
                     </div>
                   )}
-                  {fieldErrors.password && <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>}
+                  {fieldErrors.password && <p className="text-xs text-red-500 mt-2">{fieldErrors.password}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Confirm Password <span className="text-red-500">*</span></label>
@@ -662,12 +678,12 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.confirmPassword = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Confirm your password"
                     required
                     disabled={submitting}
                   />
-                  {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>}
+                  {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-2">{fieldErrors.confirmPassword}</p>}
                 </div>
                 <div className="flex justify-between mt-4">
                   <button type="button" className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition" onClick={handleBack} disabled={submitting}>Back</button>
@@ -685,32 +701,32 @@ const LandlordRegister = () => {
                       Loading ID types...
                     </div>
                   ) : idTypesError ? (
-                    <div className="text-red-600 dark:text-red-400 text-sm mb-2 flex flex-col gap-1">
+                    <div className="text-red-600 dark:text-red-400 text-sm mb-2 flex flex-col gap-2">
                       <span>{idTypesError}</span>
-                      <button type="button" className="text-green-700 dark:text-green-400 underline self-start text-xs font-bold" onClick={() => { setIdTypes([]); setIdTypesError(''); setIdTypesLoading(false); }}>Retry</button>
+                      <button
+                        type="button"
+                        className="text-green-700 dark:text-green-400 underline self-start text-xs font-bold"
+                        onClick={() => {
+                          idTypesRequestedRef.current = false;
+                          setIdTypes([]);
+                          setIdTypesError('');
+                          setIdTypesLoading(false);
+                        }}
+                      >
+                        Retry
+                      </button>
                     </div>
                   ) : (
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => !submitting && setIsIdDropdownOpen(!isIdDropdownOpen)}
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-left flex justify-between items-center transition-colors ${fieldErrors.validIdType ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                        className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-left flex justify-between items-center transition-colors ${fieldErrors.validIdType ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                         disabled={submitting}
                       >
-                        <span className={form.validIdType ? "text-green-900 dark:text-green-200" : "text-gray-400 dark:text-gray-500"}>
+                        <span className={form.validIdType ? "text-green-900 dark:text-green-200" : "text-gray-500 dark:text-gray-500"}>
                           {
                             [
-                              { value: "Philippine Passport", label: "Philippine Passport" },
-                              { value: "Driver’s License", label: "Driver’s License" },
-                              { value: "PhilSys ID (National ID)", label: "PhilSys ID (National ID)" },
-                              { value: "UMID", label: "Unified Multi-Purpose ID (UMID)" },
-                              { value: "PRC ID", label: "Professional Regulation Commission (PRC) ID" },
-                              { value: "Postal ID", label: "Postal ID (Digitized)" },
-                              { value: "Voter’s ID", label: "Voter’s ID" },
-                              { value: "TIN ID", label: "Taxpayer Identification Number (TIN) ID" },
-                              { value: "PhilHealth ID", label: "PhilHealth ID" },
-                              { value: "Senior Citizen ID", label: "Senior Citizen ID" },
-                              { value: "OFW ID", label: "Overseas Workers Welfare Administration (OWWA) / OFW ID" },
                               ...idTypes.map(t => ({ value: t, label: t })),
                               { value: "other", label: "Other (specify below)" }
                             ].find(opt => opt.value === form.validIdType)?.label || "Select ID type"
@@ -720,30 +736,19 @@ const LandlordRegister = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
-                      {fieldErrors.validIdType && <p className="text-xs text-red-500 mt-1">{fieldErrors.validIdType}</p>}
+                      {fieldErrors.validIdType && <p className="text-xs text-red-500 mt-2">{fieldErrors.validIdType}</p>}
                       
                       {isIdDropdownOpen && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsIdDropdownOpen(false)}></div>
-                          <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto text-sm">
+                          <div className="absolute z-20 w-full mt-2 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto text-sm">
                             {[
-                              { value: "Philippine Passport", label: "Philippine Passport" },
-                              { value: "Driver’s License", label: "Driver’s License" },
-                              { value: "PhilSys ID (National ID)", label: "PhilSys ID (National ID)" },
-                              { value: "UMID", label: "Unified Multi-Purpose ID (UMID)" },
-                              { value: "PRC ID", label: "Professional Regulation Commission (PRC) ID" },
-                              { value: "Postal ID", label: "Postal ID (Digitized)" },
-                              { value: "Voter’s ID", label: "Voter’s ID" },
-                              { value: "TIN ID", label: "Taxpayer Identification Number (TIN) ID" },
-                              { value: "PhilHealth ID", label: "PhilHealth ID" },
-                              { value: "Senior Citizen ID", label: "Senior Citizen ID" },
-                              { value: "OFW ID", label: "Overseas Workers Welfare Administration (OWWA) / OFW ID" },
                               ...idTypes.map(t => ({ value: t, label: t })),
                               { value: "other", label: "Other (specify below)" }
                             ].map((option) => (
                               <div
                                 key={option.value}
-                                className={`px-4 py-3 cursor-pointer transition-colors ${form.validIdType === option.value ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-200 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-600'}`}
+                                className={`px-4 py-4 cursor-pointer transition-colors ${form.validIdType === option.value ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-200 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-600'}`}
                                 onClick={() => {
                                   setForm(prev => ({ ...prev, validIdType: option.value }));
                                   setIsIdDropdownOpen(false);
@@ -770,12 +775,12 @@ const LandlordRegister = () => {
                                         onChange={handleChange}
                                         onKeyDown={handleKeyDown}
                                         ref={el => fieldRefs.current.validIdOther = el}
-                                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validIdOther ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
+                                        className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validIdOther ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
                                         placeholder="Enter your ID type"
                                         required
                                         disabled={submitting}
                                       />
-                                      {fieldErrors.validIdOther && <p className="text-xs text-red-500 mt-1">{fieldErrors.validIdOther}</p>}
+                                      {fieldErrors.validIdOther && <p className="text-xs text-red-500 mt-2">{fieldErrors.validIdOther}</p>}
                   </div>
                 )}
                 <div>
@@ -795,9 +800,9 @@ const LandlordRegister = () => {
                       <div className="absolute inset-y-0 right-0 flex items-center pr-2">
                         <button
                           type="button"
-                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                           onClick={() => {
-                            try { if (fileInputRefs.current.validId) fileInputRefs.current.validId.value = ''; } catch (e) {}
+                            try { if (fileInputRefs.current.validId) fileInputRefs.current.validId.value = ''; } catch (_ignore) { /* ignore */ }
                             setForm(prev => ({ ...prev, validId: null }));
                             setFieldErrors(prev => ({ ...prev, validId: '' }));
                           }}
@@ -808,8 +813,8 @@ const LandlordRegister = () => {
                       </div>
                     )}
                   </div>
-                  {fieldErrors.validId && <p className="text-xs text-red-500 mt-1">{fieldErrors.validId}</p>}
-                  <p className="text-[10px] text-gray-500 mt-1">Max 5MB (JPG, PNG, PDF)</p>
+                  {fieldErrors.validId && <p className="text-xs text-red-500 mt-2">{fieldErrors.validId}</p>}
+                  <p className="text-[10px] text-gray-500 mt-2">Max 5MB (JPG, PNG, PDF)</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Accommodation/Business Permit <span className="text-red-500">*</span></label>
@@ -828,9 +833,9 @@ const LandlordRegister = () => {
                       <div className="absolute inset-y-0 right-0 flex items-center pr-2">
                         <button
                           type="button"
-                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                           onClick={() => {
-                            try { if (fileInputRefs.current.permit) fileInputRefs.current.permit.value = ''; } catch (e) {}
+                            try { if (fileInputRefs.current.permit) fileInputRefs.current.permit.value = ''; } catch (_ignore) { /* ignore */ }
                             setForm(prev => ({ ...prev, permit: null }));
                             setFieldErrors(prev => ({ ...prev, permit: '' }));
                           }}
@@ -841,8 +846,8 @@ const LandlordRegister = () => {
                       </div>
                     )}
                   </div>
-                  {fieldErrors.permit && <p className="text-xs text-red-500 mt-1">{fieldErrors.permit}</p>}
-                  <p className="text-[10px] text-gray-500 mt-1">Max 5MB (JPG, PNG, PDF)</p>
+                  {fieldErrors.permit && <p className="text-xs text-red-500 mt-2">{fieldErrors.permit}</p>}
+                  <p className="text-[10px] text-gray-500 mt-2">Max 5MB (JPG, PNG, PDF)</p>
                 </div>
                 <div className="flex items-start mt-2">
                   <div className="flex items-center h-5">
@@ -857,9 +862,9 @@ const LandlordRegister = () => {
                       required
                     />
                   </div>
-                  <div className="ml-3 text-sm">
-                    <label className="text-green-800 dark:text-green-300">I agree to the <a href="/terms" className="underline text-green-700 dark:text-green-400 font-bold">terms and conditions</a>.</label>
-                    {fieldErrors.agree && <p className="text-xs text-red-500 mt-1">{fieldErrors.agree}</p>}
+                  <div className="ml-4 text-sm">
+                    <label className="text-green-800 dark:text-green-300">I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="underline text-green-700 dark:text-green-400 font-bold">terms and conditions</button>.</label>
+                    {fieldErrors.agree && <p className="text-xs text-red-500 mt-2">{fieldErrors.agree}</p>}
                   </div>
                 </div>
                 <div className="flex justify-between mt-6">
@@ -880,6 +885,68 @@ const LandlordRegister = () => {
               </>
             )}
           </form>
+        </div>
+      )}
+
+      {/* Terms and Conditions Modal */}
+      {showTermsModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Terms and Conditions</h3>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed scrollbar-thin">
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800">
+                <p className="text-green-800 dark:text-green-300 font-medium text-xs">
+                  By using AccommoTrack, you agree to be a respectful member of our community, provide truthful information, and follow property rules.
+                </p>
+              </div>
+
+              {UNIFIED_TERMS_AND_CONDITIONS.sections.map((section, idx) => (
+                <section key={idx}>
+                  <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">{section.title}</h4>
+                  {Array.isArray(section.content) ? (
+                    <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">
+                      {section.content.map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600 dark:text-gray-400">{section.content}</p>
+                  )}
+                </section>
+              ))}
+
+              <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 mt-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  If you have any questions about these terms, please contact us through the Help & Support page.
+                </p>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <p className="text-[10px] text-gray-500 dark:text-gray-500">Please read carefully before proceeding.</p>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-all shadow-md shadow-green-500/20"
+              >
+                I Understand
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
 
 const RequireAdmin = ({ user, children }) => {
-  const location = useLocation();
+  const __location = useLocation();
   const [loading, setLoading] = useState(false);
   const [fetchedUser, setFetchedUser] = useState(null);
 
@@ -12,7 +12,8 @@ const RequireAdmin = ({ user, children }) => {
     const fetchUser = async () => {
       setLoading(true);
       try {
-        const endpoints = ['/user', '/auth/me', '/me'];
+        // Keep this API-only to avoid probing non-API routes that can return HTML.
+        const endpoints = ['/me'];
         for (const ep of endpoints) {
           try {
             const res = await api.get(ep);
@@ -21,7 +22,7 @@ const RequireAdmin = ({ user, children }) => {
               setFetchedUser(res.data.user || res.data);
               break;
             }
-          } catch (e) {
+          } catch (__e) {
             // try next
           }
         }

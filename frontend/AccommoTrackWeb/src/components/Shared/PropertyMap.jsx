@@ -92,7 +92,7 @@ const PropertyMap = ({ properties, onMarkerClick, centerOn }) => {
                     position={[property.latitude, property.longitude]}
                     icon={houseIcon}
                     eventHandlers={{
-                        click: (e) => {
+                        click: (__e) => {
                             if (onMarkerClick) onMarkerClick(property);
                         }
                     }}

@@ -32,14 +32,14 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   propertyScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 12
+    paddingVertical: 16
   },
   propertyChip: {
     width: 200,
     padding: 16,
     borderRadius: 18,
     backgroundColor: theme.colors.surface,
-    marginRight: 12,
+    marginRight: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: theme.isDark ? 0.3 : 0.08,
@@ -60,7 +60,7 @@ export const getStyles = (theme) => StyleSheet.create({
   propertyChipMeta: {
     fontSize: 12,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   // Stats Grid (5 columns)
   statsGrid: {
@@ -74,7 +74,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     minWidth: '30%',
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 8,
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
@@ -101,14 +101,14 @@ export const getStyles = (theme) => StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 8,
     fontSize: 14,
     color: theme.colors.text
   },
@@ -149,7 +149,7 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     padding: 16,
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     elevation: 2,
@@ -199,8 +199,8 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderLight
   },
@@ -217,8 +217,8 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 2
   },
   paymentBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 6
   },
   paymentText: {
@@ -228,8 +228,9 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   cardActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 16,
-    gap: 10
+    gap: 8
   },
   primaryBtn: {
     flex: 1,
@@ -237,7 +238,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     gap: 6
   },
@@ -252,7 +253,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     gap: 6
   },
@@ -260,6 +261,130 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
     fontWeight: '700',
     fontSize: 13
+  },
+  warningBtn: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#F59E0B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6
+  },
+  warningBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
+  successBtn: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#16A34A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6
+  },
+  successBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
+  unassignBtn: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#B45309',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6
+  },
+  unassignBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
+  dangerBtn: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#DC2626',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6
+  },
+  dangerBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
+  actionDisabledBtn: {
+    opacity: 0.5
+  },
+  selectCheckbox: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 2,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 10,
+    padding: 2
+  },
+  bulkActionsBar: {
+    marginTop: 16,
+    marginHorizontal: 16,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 16,
+    gap: 8
+  },
+  bulkSelectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  selectAllText: {
+    color: theme.colors.text,
+    fontWeight: '600',
+    fontSize: 13
+  },
+  bulkCountText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  bulkButtonsRow: {
+    flexDirection: 'row',
+    gap: 8
+  },
+  bulkPrimaryBtn: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  bulkPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700'
   },
   // Modal
   modalContainer: {
@@ -315,18 +440,18 @@ export const getStyles = (theme) => StyleSheet.create({
   detailEmail: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   detailTags: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     marginTop: 16
   },
   detailTag: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.backgroundSecondary,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 8,
     gap: 6
@@ -363,7 +488,7 @@ export const getStyles = (theme) => StyleSheet.create({
   assignmentMeta: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   assignmentEmpty: {
     alignItems: 'center',
@@ -376,7 +501,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14
   },
   detailList: {
-    gap: 12
+    gap: 16
   },
   detailLabel: {
     fontSize: 11,
@@ -403,7 +528,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background
   },
   centerText: {
-    marginTop: 12,
+    marginTop: 16,
     color: theme.colors.textSecondary,
     fontSize: 14
   },
@@ -428,7 +553,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   errorBanner: {
     backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2',
-    padding: 12,
+    padding: 16,
     margin: 16,
     borderRadius: 10,
     borderWidth: 1,
@@ -438,6 +563,174 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.isDark ? theme.colors.text : '#B91C1C',
     fontSize: 13,
     fontWeight: '500'
+  },
+  loadingIndicator: {
+    marginTop: 40,
+  },
+  modalHeaderView: {
+    width: 48,
+  },
+  profileScroll: {
+    marginTop: 16, 
+    backgroundColor: '#059669', 
+    paddingVertical: 16, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    gap: 8
+  },
+  profileBtn: {
+    color: '#FFFFFF', 
+    fontWeight: '600', 
+    fontSize: 14
+  },
+  overlayContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    padding: 16
+  },
+  actionModalCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: 16,
+    maxHeight: '86%'
+  },
+  actionModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.text
+  },
+  actionModalSubtitle: {
+    color: theme.colors.textSecondary,
+    marginTop: 8,
+    marginBottom: 14,
+    lineHeight: 19
+  },
+  actionFieldLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
+    marginBottom: 6,
+    marginTop: 8
+  },
+  roomsPicker: {
+    maxHeight: 150,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    padding: 8,
+    backgroundColor: theme.colors.backgroundSecondary
+  },
+  modalLoader: {
+    marginVertical: 16
+  },
+  roomOption: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+    backgroundColor: theme.colors.surface
+  },
+  roomOptionActive: {
+    borderColor: '#059669',
+    backgroundColor: theme.isDark ? 'rgba(22, 163, 74, 0.18)' : '#DCFCE7'
+  },
+  roomOptionTitle: {
+    color: theme.colors.text,
+    fontWeight: '700',
+    fontSize: 14
+  },
+  roomOptionMeta: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginTop: 3
+  },
+  actionInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    color: theme.colors.text
+  },
+  actionTextArea: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 86,
+    textAlignVertical: 'top',
+    color: theme.colors.text
+  },
+  actionTextAreaLarge: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 120,
+    textAlignVertical: 'top',
+    color: theme.colors.text
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14
+  },
+  modalCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    backgroundColor: theme.colors.backgroundSecondary
+  },
+  modalCancelText: {
+    color: theme.colors.text,
+    fontWeight: '700'
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    backgroundColor: '#D97706'
+  },
+  modalDangerBtn: {
+    flex: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    backgroundColor: '#DC2626'
+  },
+  modalSuccessBtn: {
+    flex: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    backgroundColor: '#059669'
+  },
+  modalConfirmText: {
+    color: '#FFFFFF',
+    fontWeight: '700'
+  },
+  modalDisabledBtn: {
+    opacity: 0.45
   }
 });
 

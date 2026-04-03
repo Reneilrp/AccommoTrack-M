@@ -12,7 +12,7 @@ export function formatPrice(value, { currency = 'PHP', locale = 'en-PH', minimum
       minimumFractionDigits: digits,
       maximumFractionDigits: digits
     }).format(num);
-  } catch (e) {
+  } catch (__e) {
     // Fallback: simple formatted number with currency symbol
     return (currency === 'PHP' ? '₱' : '') + num.toLocaleString();
   }

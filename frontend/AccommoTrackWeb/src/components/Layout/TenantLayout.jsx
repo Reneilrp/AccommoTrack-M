@@ -15,7 +15,11 @@ import {
   Settings as SettingsIcon,
   Menu,
   ChevronLeft,
-  LogOut
+  LogOut,
+  Bell,
+  Package,
+  Star,
+  HelpCircle
 } from 'lucide-react';
 
 export default function TenantLayout({ user, onLogout, children }) {
@@ -41,8 +45,8 @@ export default function TenantLayout({ user, onLogout, children }) {
       icon: <Calendar className="w-5 h-5" />
     },
     {
-      path: '/wallet',
-      label: 'Payments',
+      path: '/payments',
+      label: 'Billing & Payments',
       icon: <Wallet className="w-5 h-5" />
     },
     {
@@ -51,9 +55,9 @@ export default function TenantLayout({ user, onLogout, children }) {
       icon: <MessageSquare className="w-5 h-5" />
     },
     {
-      path: '/maintenance',
-      label: 'Maintenance',
-      icon: <Wrench className="w-5 h-5" />
+      path: '/support',
+      label: 'Help & Support',
+      icon: <HelpCircle className="w-5 h-5" />
     },
     {
       path: '/settings',
@@ -71,20 +75,20 @@ export default function TenantLayout({ user, onLogout, children }) {
     return 'AccommoTrack';
   };
 
-  const displayName = user?.name || (user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Tenant');
+  const displayName = user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.name || 'Tenant');
 
   return (
     <div className="flex h-screen bg-gray-200 dark:bg-gray-900">
       {/* Sidebar */}
-      <aside 
+      <aside
         ref={asideRef}
         className={`
           fixed left-0 top-0 bottom-0 z-30
           bg-white dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col
-          ${isSidebarOpen ? 'w-64' : 'w-20'}
+          w-64 lg:${isSidebarOpen ? 'w-64' : 'w-20'}
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
-      >
-        {/* Logo & Toggle */}
+      >        {/* Logo & Toggle */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
           <div 
             className="cursor-pointer" 
@@ -103,7 +107,7 @@ export default function TenantLayout({ user, onLogout, children }) {
           
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
+            className={`p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
           >
             <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
@@ -127,7 +131,7 @@ export default function TenantLayout({ user, onLogout, children }) {
             onClick={() => navigate('/settings')}
             title="Go to Profile Settings"
         >
-          <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
+          <div className={`flex items-center gap-4 ${!isSidebarOpen && 'justify-center'}`}>
             <img
               src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${displayName}&background=random`}
               alt="Profile"
@@ -149,7 +153,7 @@ export default function TenantLayout({ user, onLogout, children }) {
               key={item.path}
               to={item.path}
               className={({ isActive }) => `
-                w-full flex items-center gap-3 px-4 py-3 transition-colors relative
+                w-full flex items-center gap-4 px-4 py-4 transition-colors relative
                 ${isActive 
                   ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-r-4 border-green-600 dark:border-green-500' 
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}
@@ -164,32 +168,50 @@ export default function TenantLayout({ user, onLogout, children }) {
           ))}
         </nav>
 
-        {/* Settings + Logout Buttons (bottom) */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto space-y-2">
+        {/* Bottom Actions */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={() => setShowLogoutModal(true)}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
               !isSidebarOpen && 'justify-center'
             }`}
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
+            <LogOut className="w-5 h-5" />
             {isSidebarOpen && <span className="font-medium">Log out</span>}
           </button>
         </div>
       </aside>
 
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-20 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile Sidebar Trigger */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed top-4 left-4 z-40 lg:hidden p-2.5 rounded-lg bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 shadow-lg"
+          aria-label="Open sidebar"
+        >
+          <Menu className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+        </button>
+      )}
+
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
+      <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         {/* Top Header - Simplified (No Menu Button) */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight pointer-events-auto">
-              {getPageTitle()}
-            </h1>
-          </div>
+        <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-between px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+            {getPageTitle()}
+          </h1>
           
-          <div className="ml-auto z-10">
-            {location.pathname === '/dashboard' && <NotificationDropdown />}
+          <div className="z-10">
+            <NotificationDropdown />
           </div>
         </header>
 

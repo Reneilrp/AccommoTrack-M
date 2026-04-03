@@ -1,0 +1,1117 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import PropertyService from '../../../../services/PropertyService.js';
+import { getStyles } from '../../../../styles/Landlord/Tenants.js';
+import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import {
+  landlordQueryKeys,
+  refetchLandlordQueries,
+  useLandlordFocusRefetch,
+  useLandlordRefreshHandler,
+} from '../../hooks/useLandlordQueryHelpers.js';
+
+const FILTERS = [
+  { label: 'All Tenants', value: 'all' },
+  { label: 'Active', value: 'active' },
+  { label: 'Paid', value: 'paid' },
+  { label: 'Unpaid', value: 'unpaid' },
+  { label: 'Overdue', value: 'overdue' }
+];
+
+const PAYMENT_BADGES = {
+  paid: { bg: '#DCFCE7', color: '#15803D', label: 'Paid' },
+  partial: { bg: '#FEF3C7', color: '#B45309', label: 'Partial' },
+  unpaid: { bg: '#FEE2E2', color: '#B91C1C', label: 'Unpaid' },
+  overdue: { bg: '#FEE2E2', color: '#B91C1C', label: 'Overdue' }
+};
+
+const EMPTY_PROPERTIES = [];
+const EMPTY_TENANTS = [];
+
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? value : parsed;
+};
+
+const formatCurrency = (value) => {
+  if (!value && value !== 0) return '₱0';
+  return `₱${Number(value).toLocaleString('en-US')}`;
+};
+
+const isRoomBookable = (room) => {
+  if (!room) return false;
+  if (typeof room.is_available === 'boolean') {
+    return room.is_available;
+  }
+
+  return room.status === 'available'
+    && Number(room.available_slots ?? 0) > 0
+    && !room.is_booking_locked;
+};
+
+const isEvictionDue = (tenant) => {
+  const scheduledFor = tenant?.pending_eviction?.scheduled_for;
+  if (!scheduledFor) return false;
+  return new Date(scheduledFor).getTime() <= Date.now();
+};
+
+export default function TenantsScreen({ navigation, route }) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const preselectedPropertyId = normalizeId(route?.params?.propertyId);
+
+  const [selectedPropertyId, setSelectedPropertyId] = useState(preselectedPropertyId || null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  const [detailTenant, setDetailTenant] = useState(null);
+  const [detailVisible, setDetailVisible] = useState(false);
+
+  const [selectedTenants, setSelectedTenants] = useState([]);
+
+  const [transferVisible, setTransferVisible] = useState(false);
+  const [transferringTenant, setTransferringTenant] = useState(null);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [loadingRoomsForTransfer, setLoadingRoomsForTransfer] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferData, setTransferData] = useState({
+    new_room_id: '',
+    reason: '',
+    damage_charge: '',
+    damage_description: ''
+  });
+
+  const [assignVisible, setAssignVisible] = useState(false);
+  const [assigningTenant, setAssigningTenant] = useState(null);
+  const [availableRoomsForAssign, setAvailableRoomsForAssign] = useState([]);
+  const [loadingRoomsForAssign, setLoadingRoomsForAssign] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignData, setAssignData] = useState({
+    room_id: '',
+    move_in_date: '',
+    end_date: '',
+    notes: ''
+  });
+
+  const [unassignVisible, setUnassignVisible] = useState(false);
+  const [unassigningTenant, setUnassigningTenant] = useState(null);
+  const [isUnassigning, setIsUnassigning] = useState(false);
+
+  const [evictionVisible, setEvictionVisible] = useState(false);
+  const [evictingTenant, setEvictingTenant] = useState(null);
+  const [evictionReason, setEvictionReason] = useState('');
+  const [evictionGraceHours, setEvictionGraceHours] = useState('24');
+  const [isEvicting, setIsEvicting] = useState(false);
+
+  const [broadcastVisible, setBroadcastVisible] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
+    queryFn: async () => {
+      const response = await PropertyService.getMyProperties();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load properties');
+      }
+
+      return Array.isArray(response.data) ? response.data : [];
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const tenantsQuery = useQuery({
+    queryKey: landlordQueryKeys.tenantsByProperty(selectedPropertyId),
+    enabled: Boolean(selectedPropertyId),
+    queryFn: async () => {
+      const response = await PropertyService.getTenants({ property_id: selectedPropertyId });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load tenants');
+      }
+
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      return [];
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const tenants = tenantsQuery.data || EMPTY_TENANTS;
+  const loadingProperties = propertiesQuery.isPending && properties.length === 0;
+  const loadingTenants = tenantsQuery.isPending && tenants.length === 0;
+  const loading = loadingProperties || loadingTenants;
+  const fetchError = tenantsQuery.error?.message || propertiesQuery.error?.message || '';
+  const refetchProperties = propertiesQuery.refetch;
+  const refetchTenants = tenantsQuery.refetch;
+  const tenantManagementRefetchers = useMemo(
+    () => [refetchProperties, refetchTenants],
+    [refetchProperties, refetchTenants],
+  );
+  const tenantListRefetchers = useMemo(() => [refetchTenants], [refetchTenants]);
+
+  useLandlordFocusRefetch({ refetchers: tenantManagementRefetchers });
+
+  const handleRefresh = useLandlordRefreshHandler({
+    enabled: Boolean(selectedPropertyId),
+    setRefreshing,
+    refetchers: tenantManagementRefetchers,
+  });
+
+  const stats = useMemo(() => {
+    return {
+      total: tenants.length,
+      active: tenants.filter(t => t.tenantProfile?.status === 'active').length,
+      paid: tenants.filter(t => t.latestBooking?.payment_status === 'paid').length,
+      pending: tenants.filter(t => t.latestBooking?.payment_status === 'unpaid' || !t.latestBooking).length,
+      overdue: tenants.filter(t => t.latestBooking?.payment_status === 'overdue').length
+    };
+  }, [tenants]);
+
+  const filteredTenants = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return tenants.filter((tenant) => {
+      const fullName = (tenant.full_name || `${tenant.first_name} ${tenant.last_name}`).toLowerCase();
+      const matchesSearch = !query
+        || fullName.includes(query)
+        || (tenant.email || '').toLowerCase().includes(query)
+        || (tenant.room?.room_number || '').toString().includes(query);
+
+      if (!matchesSearch) return false;
+
+      if (filter === 'all') return true;
+      if (filter === 'active') return tenant.tenantProfile?.status === 'active';
+      if (filter === 'paid') return tenant.latestBooking?.payment_status === 'paid';
+      if (filter === 'unpaid') return tenant.latestBooking?.payment_status === 'unpaid';
+      if (filter === 'overdue') return tenant.latestBooking?.payment_status === 'overdue';
+      return true;
+    });
+  }, [tenants, searchQuery, filter]);
+
+  useEffect(() => {
+    setSelectedTenants([]);
+  }, [searchQuery, filter, selectedPropertyId]);
+
+  useEffect(() => {
+    if (!selectedPropertyId && properties.length > 0) {
+      setSelectedPropertyId(normalizeId(properties[0].id));
+    }
+  }, [selectedPropertyId, properties]);
+
+  const handleSelectTenant = (tenantId) => {
+    setSelectedTenants((current) => (
+      current.includes(tenantId)
+        ? current.filter((id) => id !== tenantId)
+        : [...current, tenantId]
+    ));
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTenants.length === filteredTenants.length) {
+      setSelectedTenants([]);
+      return;
+    }
+    setSelectedTenants(filteredTenants.map((tenant) => tenant.id));
+  };
+
+  const handleTransferInitiate = async (tenant) => {
+    const propertyId = tenant.room?.property_id || selectedPropertyId;
+    if (!propertyId) {
+      Alert.alert('Transfer unavailable', 'Tenant has no assigned property.');
+      return;
+    }
+
+    setTransferringTenant(tenant);
+    setTransferData({ new_room_id: '', reason: '', damage_charge: '', damage_description: '' });
+    setAvailableRooms([]);
+    setTransferVisible(true);
+    setLoadingRoomsForTransfer(true);
+
+    try {
+      const response = await PropertyService.getRoomsByProperty(propertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load rooms');
+      }
+
+      const currentRoomId = normalizeId(tenant.room?.id);
+      const rooms = (response.data || []).filter((room) => (
+        isRoomBookable(room) && normalizeId(room.id) !== currentRoomId
+      ));
+      setAvailableRooms(rooms);
+    } catch (transferError) {
+      Alert.alert('Error', transferError.message || 'Failed to load available rooms.');
+    } finally {
+      setLoadingRoomsForTransfer(false);
+    }
+  };
+
+  const handleTransferSubmit = async () => {
+    if (!transferringTenant) return;
+    if (!transferData.new_room_id || !transferData.reason.trim()) {
+      Alert.alert('Required fields', 'Please select a room and provide a reason.');
+      return;
+    }
+    if (Number(transferData.damage_charge || 0) > 0 && !transferData.damage_description.trim()) {
+      Alert.alert('Required fields', 'Please add a damage charge description.');
+      return;
+    }
+
+    setIsTransferring(true);
+    try {
+      const payload = {
+        new_room_id: transferData.new_room_id,
+        reason: transferData.reason.trim(),
+        damage_charge: transferData.damage_charge ? Number(transferData.damage_charge) : undefined,
+        damage_description: transferData.damage_description.trim() || undefined
+      };
+      const response = await PropertyService.transferTenantRoom(transferringTenant.id, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to transfer room.');
+      }
+      setTransferVisible(false);
+      setTransferringTenant(null);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      Alert.alert('Success', 'Room transfer completed successfully.');
+    } catch (transferError) {
+      setActionError(transferError.message || 'Failed to transfer room.');
+      Alert.alert('Error', transferError.message || 'Failed to transfer room.');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const handleAssignInitiate = async (tenant) => {
+    if (tenant.room) {
+      Alert.alert('Already assigned', 'This tenant already has a room. Use Transfer instead.');
+      return;
+    }
+    if (!selectedPropertyId) {
+      Alert.alert('Property required', 'Please select a property first.');
+      return;
+    }
+
+    setAssigningTenant(tenant);
+    setAssignData({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+    setAvailableRoomsForAssign([]);
+    setAssignVisible(true);
+    setLoadingRoomsForAssign(true);
+
+    try {
+      const response = await PropertyService.getRoomsByProperty(selectedPropertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load rooms');
+      }
+
+      const rooms = (response.data || []).filter((room) => isRoomBookable(room));
+      setAvailableRoomsForAssign(rooms);
+    } catch (assignError) {
+      Alert.alert('Error', assignError.message || 'Failed to load available rooms.');
+    } finally {
+      setLoadingRoomsForAssign(false);
+    }
+  };
+
+  const handleAssignSubmit = async () => {
+    if (!assigningTenant) return;
+    if (!assignData.room_id) {
+      Alert.alert('Required fields', 'Please select a room.');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const payload = {
+        room_id: Number(assignData.room_id),
+        move_in_date: assignData.move_in_date.trim() || undefined,
+        end_date: assignData.end_date.trim() || undefined,
+        notes: assignData.notes.trim() || undefined
+      };
+
+      const response = await PropertyService.assignTenantToRoom(assigningTenant.id, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to assign room.');
+      }
+
+      setAssignVisible(false);
+      setAssigningTenant(null);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      Alert.alert('Success', 'Room assignment completed successfully.');
+    } catch (assignError) {
+      setActionError(assignError.message || 'Failed to assign room.');
+      Alert.alert('Error', assignError.message || 'Failed to assign room.');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassignInitiate = (tenant) => {
+    if (!tenant.room) {
+      Alert.alert('Not assigned', 'This tenant does not have an assigned room.');
+      return;
+    }
+    setUnassigningTenant(tenant);
+    setUnassignVisible(true);
+  };
+
+  const handleUnassignConfirm = async () => {
+    if (!unassigningTenant) return;
+
+    setIsUnassigning(true);
+    try {
+      const response = await PropertyService.unassignTenantFromRoom(unassigningTenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to unassign tenant.');
+      }
+
+      setUnassignVisible(false);
+      setUnassigningTenant(null);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      Alert.alert('Success', 'Tenant unassigned successfully.');
+    } catch (unassignError) {
+      setActionError(unassignError.message || 'Failed to unassign tenant.');
+      Alert.alert('Error', unassignError.message || 'Failed to unassign tenant.');
+    } finally {
+      setIsUnassigning(false);
+    }
+  };
+
+  const handleEvictionInitiate = (tenant) => {
+    setEvictingTenant(tenant);
+    setEvictionReason('');
+    setEvictionGraceHours('24');
+    setEvictionVisible(true);
+  };
+
+  const handleEvictConfirm = async () => {
+    if (!evictingTenant) return;
+    if (!evictionReason.trim()) {
+      Alert.alert('Required', 'Reason for eviction is required.');
+      return;
+    }
+
+    const graceHours = Number(evictionGraceHours || 0);
+    if (Number.isNaN(graceHours) || graceHours < 0 || graceHours > 168) {
+      Alert.alert('Invalid value', 'Grace hours must be between 0 and 168.');
+      return;
+    }
+
+    setIsEvicting(true);
+    try {
+      const response = await PropertyService.scheduleTenantEviction(evictingTenant.id, {
+        reason: evictionReason.trim(),
+        grace_hours: graceHours,
+      });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to schedule eviction.');
+      }
+      setEvictionVisible(false);
+      setEvictingTenant(null);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      Alert.alert('Success', 'Eviction scheduled successfully.');
+    } catch (evictionError) {
+      setActionError(evictionError.message || 'Failed to schedule eviction.');
+      Alert.alert('Error', evictionError.message || 'Failed to schedule eviction.');
+    } finally {
+      setIsEvicting(false);
+    }
+  };
+
+  const handleFinalizeEviction = async (tenant) => {
+    try {
+      const response = await PropertyService.finalizeTenantEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to finalize eviction.');
+      }
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      Alert.alert('Success', 'Eviction finalized successfully.');
+    } catch (error) {
+      setActionError(error.message || 'Failed to finalize eviction.');
+      Alert.alert('Error', error.message || 'Failed to finalize eviction.');
+    }
+  };
+
+  const handleCancelEviction = async (tenant) => {
+    try {
+      const response = await PropertyService.cancelTenantEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to cancel eviction schedule.');
+      }
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      Alert.alert('Success', 'Eviction schedule cancelled.');
+    } catch (error) {
+      setActionError(error.message || 'Failed to cancel eviction schedule.');
+      Alert.alert('Error', error.message || 'Failed to cancel eviction schedule.');
+    }
+  };
+
+  const handleUndoEviction = async (tenant) => {
+    try {
+      const response = await PropertyService.undoTenantEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to undo eviction.');
+      }
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      Alert.alert('Success', 'Eviction undone and tenancy restored.');
+    } catch (error) {
+      setActionError(error.message || 'Failed to undo eviction.');
+      Alert.alert('Error', error.message || 'Failed to undo eviction.');
+    }
+  };
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastMessage.trim()) {
+      Alert.alert('Required', 'Message cannot be empty.');
+      return;
+    }
+    if (selectedTenants.length === 0) {
+      Alert.alert('No selection', 'Please select at least one tenant.');
+      return;
+    }
+
+    setIsBroadcasting(true);
+    try {
+      const response = await PropertyService.broadcastToTenants(selectedTenants, broadcastMessage.trim());
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to send broadcast.');
+      }
+      setBroadcastVisible(false);
+      setBroadcastMessage('');
+      setActionError('');
+      Alert.alert('Success', `Message sent to ${selectedTenants.length} tenant(s).`);
+    } catch (broadcastError) {
+      setActionError(broadcastError.message || 'Failed to send broadcast.');
+      Alert.alert('Error', broadcastError.message || 'Failed to send broadcast.');
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  const renderTenantCard = ({ item }) => {
+    const paymentStatus = item.latestBooking?.payment_status || 'unpaid';
+    const payment = PAYMENT_BADGES[paymentStatus] || PAYMENT_BADGES.unpaid;
+    const initials = (item.first_name?.[0] || '') + (item.last_name?.[0] || '');
+
+    const currentRoom = item.room || (item.roomAssignments && item.roomAssignments.length > 0 ? item.roomAssignments[0] : null);
+    const hasPendingEviction = Boolean(item.pending_eviction);
+    const canUndoEviction = Boolean(item.can_undo_eviction);
+    const evictionDue = isEvictionDue(item);
+
+    return (
+      <View style={styles.tenantCard}>
+        <TouchableOpacity style={styles.selectCheckbox} onPress={() => handleSelectTenant(item.id)}>
+          <Ionicons
+            name={selectedTenants.includes(item.id) ? 'checkbox' : 'square-outline'}
+            size={20}
+            color={selectedTenants.includes(item.id) ? '#059669' : '#94A3B8'}
+          />
+        </TouchableOpacity>
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarText}>{initials || 'TN'}</Text>
+        </View>
+        <View style={styles.tenantContent}>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.tenantName}>{item.first_name} {item.last_name}</Text>
+              <Text style={styles.tenantEmail}>{item.email}</Text>
+            </View>
+          </View>
+          <View style={styles.roomRow}>
+            <Ionicons name="bed-outline" size={16} color="#059669" />
+            <Text style={styles.roomText}>
+              {currentRoom ? `Room ${currentRoom.room_number}` : 'No room assigned'}
+            </Text>
+          </View>
+          {hasPendingEviction && (
+            <Text style={[styles.helperText, { marginTop: 6, color: '#B91C1C' }]}>
+              Eviction scheduled for {new Date(item.pending_eviction.scheduled_for).toLocaleString()}
+            </Text>
+          )}
+          <View style={styles.metaRow}>
+            <View>
+              <Text style={styles.metaLabel}>Monthly Rent</Text>
+              <Text style={styles.metaValue}>{currentRoom ? formatCurrency(currentRoom.monthly_rate) : '—'}</Text>
+            </View>
+            <View style={[styles.paymentBadge, { backgroundColor: payment.bg }]}>
+              <Text style={[styles.paymentText, { color: payment.color }]}>{payment.label}</Text>
+            </View>
+          </View>
+          <View style={styles.cardActions}>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => { setDetailTenant(item); setDetailVisible(true); }}>
+              <Ionicons name="eye-outline" size={16} color="#475569" />
+              <Text style={styles.secondaryBtnText}>View Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.primaryBtn} 
+              onPress={() => navigation.navigate('Messages', { startConversation: true, tenant: item, propertyId: selectedPropertyId })}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.primaryBtnText}>Message</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.successBtn, (currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null]}
+              onPress={() => handleAssignInitiate(item)}
+              disabled={!!currentRoom || hasPendingEviction}
+            >
+              <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.successBtnText}>Assign</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.warningBtn, hasPendingEviction ? styles.actionDisabledBtn : null]}
+              onPress={() => handleTransferInitiate(item)}
+              disabled={hasPendingEviction}
+            >
+              <Ionicons name="swap-horizontal-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.warningBtnText}>Transfer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.unassignBtn, (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null]}
+              onPress={() => handleUnassignInitiate(item)}
+              disabled={!currentRoom || hasPendingEviction}
+            >
+              <Ionicons name="person-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.unassignBtnText}>Unassign</Text>
+            </TouchableOpacity>
+            {!hasPendingEviction && (
+              <TouchableOpacity style={styles.dangerBtn} onPress={() => handleEvictionInitiate(item)}>
+                <Ionicons name="person-remove-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.dangerBtnText}>Schedule Eviction</Text>
+              </TouchableOpacity>
+            )}
+            {hasPendingEviction && (
+              <>
+                <TouchableOpacity
+                  style={[styles.dangerBtn, !evictionDue ? styles.actionDisabledBtn : null]}
+                  onPress={() => Alert.alert(
+                    'Finalize eviction',
+                    `Finalize eviction for ${item.first_name} ${item.last_name}?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Finalize', style: 'destructive', onPress: () => handleFinalizeEviction(item) },
+                    ]
+                  )}
+                  disabled={!evictionDue}
+                >
+                  <Ionicons name="checkmark-done-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.dangerBtnText}>Finalize Eviction</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.warningBtn}
+                  onPress={() => Alert.alert(
+                    'Cancel eviction schedule',
+                    `Cancel pending eviction for ${item.first_name} ${item.last_name}?`,
+                    [
+                      { text: 'Keep schedule', style: 'cancel' },
+                      { text: 'Cancel schedule', style: 'destructive', onPress: () => handleCancelEviction(item) },
+                    ]
+                  )}
+                >
+                  <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.warningBtnText}>Cancel Eviction</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {canUndoEviction && !hasPendingEviction && (
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => Alert.alert(
+                  'Undo eviction',
+                  `Restore tenancy for ${item.first_name} ${item.last_name}?`,
+                  [
+                    { text: 'No', style: 'cancel' },
+                    { text: 'Undo', onPress: () => handleUndoEviction(item) },
+                  ]
+                )}
+              >
+                <Ionicons name="refresh-outline" size={16} color="#475569" />
+                <Text style={styles.secondaryBtnText}>Undo Eviction</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  if (loading && !refreshing && tenants.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color="#059669" />
+          <Text style={styles.emptyTitle}>Loading tenant data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Tenant Management</Text>
+        <TouchableOpacity style={styles.iconButton} onPress={handleRefresh}>
+          <Ionicons name="refresh" size={22} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={filteredTenants}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderTenantCard}
+        ListHeaderComponent={(
+          <View>
+            {(fetchError || actionError) ? (
+              <View
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: theme.isDark ? '#7F1D1D' : '#FECACA',
+                  backgroundColor: theme.isDark ? 'rgba(127,29,29,0.32)' : '#FEF2F2',
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <Ionicons name="alert-circle-outline" size={18} color={theme.isDark ? '#FCA5A5' : '#B91C1C'} />
+                <Text
+                  style={{
+                    flex: 1,
+                    marginLeft: 8,
+                    fontSize: 12,
+                    fontWeight: '500',
+                    color: theme.isDark ? '#FCA5A5' : '#B91C1C',
+                  }}
+                >
+                  {actionError || fetchError}
+                </Text>
+                <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      marginLeft: 10,
+                      color: theme.isDark ? '#FCA5A5' : '#B91C1C',
+                    }}
+                  >
+                    Retry
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            <View style={styles.propertySelector}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propertyScroll}>
+                {properties.map(p => (
+                  <TouchableOpacity 
+                    key={p.id} 
+                    style={[styles.propertyChip, normalizeId(p.id) === selectedPropertyId && styles.propertyChipActive]}
+                    onPress={() => setSelectedPropertyId(normalizeId(p.id))}
+                  >
+                    <Text style={styles.propertyChipTitle}>{p.title}</Text>
+                    <Text style={styles.propertyChipMeta}>{p.city}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}><Text style={styles.statLabel}>Total</Text><Text style={styles.statValue}>{stats.total}</Text></View>
+              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#059669'}]}>Active</Text><Text style={[styles.statValue, {color: '#059669'}]}>{stats.active}</Text></View>
+              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#2563EB'}]}>Paid</Text><Text style={[styles.statValue, {color: '#2563EB'}]}>{stats.paid}</Text></View>
+              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#D97706'}]}>Pending</Text><Text style={[styles.statValue, {color: '#D97706'}]}>{stats.pending}</Text></View>
+              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#DC2626'}]}>Overdue</Text><Text style={[styles.statValue, {color: '#DC2626'}]}>{stats.overdue}</Text></View>
+            </View>
+
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={20} color="#94A3B8" />
+              <TextInput style={styles.searchInput} placeholder="Search by name, room or email..." value={searchQuery} onChangeText={setSearchQuery} />
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              {FILTERS.map(f => (
+                <TouchableOpacity key={f.value} style={[styles.filterChip, filter === f.value && styles.filterChipActive]} onPress={() => setFilter(f.value)}>
+                  <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {selectedTenants.length > 0 && (
+              <View style={styles.bulkActionsBar}>
+                <View style={styles.bulkSelectionRow}>
+                  <TouchableOpacity style={styles.selectAllButton} onPress={handleSelectAll}>
+                    <Ionicons
+                      name={selectedTenants.length === filteredTenants.length ? 'checkbox' : 'square-outline'}
+                      size={18}
+                      color="#059669"
+                    />
+                    <Text style={styles.selectAllText}>Select All</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.bulkCountText}>{selectedTenants.length} selected</Text>
+                </View>
+                <View style={styles.bulkButtonsRow}>
+                  <TouchableOpacity style={styles.bulkPrimaryBtn} onPress={() => setBroadcastVisible(true)}>
+                    <Ionicons name="send-outline" size={16} color="#FFFFFF" />
+                    <Text style={styles.bulkPrimaryBtnText}>Broadcast</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+        contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#059669" />}
+        ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#059669" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
+      />
+
+      <Modal visible={detailVisible} animationType="slide" onRequestClose={() => setDetailVisible(false)}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setDetailVisible(false)} style={styles.backButton}>
+              <Ionicons name="close" size={24} color="#0F172A" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Tenant Profile</Text>
+            <View style={styles.modalHeaderView} />
+          </View>
+          {detailTenant && (
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              <View style={styles.detailHero}>
+                <View style={styles.avatarLarge}><Text style={styles.avatarLargeText}>{detailTenant.first_name?.[0]}{detailTenant.last_name?.[0]}</Text></View>
+                <Text style={styles.detailName}>{detailTenant.first_name} {detailTenant.last_name}</Text>
+                <Text style={styles.detailEmail}>{detailTenant.email}</Text>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Personal Information</Text>
+                <View style={styles.detailList}>
+                  <Text style={styles.detailLabel}>Phone</Text>
+                  <Text style={styles.detailValue}>{detailTenant.phone || '—'}</Text>
+                  <Text style={styles.detailLabel}>Date of Birth</Text>
+                  <Text style={styles.detailValue}>
+                    {detailTenant.date_of_birth 
+                      ? new Date(detailTenant.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                      : '—'}
+                  </Text>
+                  <Text style={styles.detailLabel}>Gender</Text>
+                  <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>{detailTenant.gender || '—'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Room Assignment</Text>
+                {detailTenant.room ? (
+                  <View style={styles.assignmentCard}>
+                    <Text style={styles.assignmentTitle}>Room {detailTenant.room.room_number}</Text>
+                    <Text style={styles.assignmentMeta}>{detailTenant.room.type_label}</Text>
+                    <Text style={[styles.assignmentMeta, {color: '#059669', fontWeight: '700'}]}>{formatCurrency(detailTenant.room.monthly_rate)} / month</Text>
+                  </View>
+                ) : <Text style={styles.helperText}>No room assigned</Text>}
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Emergency Contact</Text>
+                {detailTenant.tenantProfile?.emergency_contact_name ? (
+                  <View style={styles.detailList}>
+                    <Text style={styles.detailLabel}>Name</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_name}</Text>
+                    <Text style={styles.detailLabel}>Phone</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_phone}</Text>
+                  </View>
+                ) : <Text style={styles.helperText}>Not provided</Text>}
+              </View>
+
+              <TouchableOpacity
+                style={styles.profileScroll}
+                onPress={() => { setDetailVisible(false); navigation.navigate('TenantLogs', { tenantId: detailTenant.id, tenantName: `${detailTenant.first_name} ${detailTenant.last_name}` }); }}
+              >
+                <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.profileBtn}>View Payment Logs</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      <Modal visible={transferVisible} transparent animationType="fade" onRequestClose={() => setTransferVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={styles.actionModalTitle}>Transfer Room</Text>
+            <Text style={styles.actionModalSubtitle}>
+              {transferringTenant
+                ? `Transfer ${transferringTenant.first_name} ${transferringTenant.last_name} from Room ${transferringTenant.room?.room_number || 'N/A'}.`
+                : 'Select a tenant to transfer.'}
+            </Text>
+
+            <Text style={styles.actionFieldLabel}>New Room *</Text>
+            <ScrollView style={styles.roomsPicker}>
+              {loadingRoomsForTransfer && <ActivityIndicator color="#f59e0b" style={styles.modalLoader} />}
+              {!loadingRoomsForTransfer && availableRooms.length === 0 && (
+                <Text style={styles.helperText}>No available rooms found.</Text>
+              )}
+              {availableRooms.map((room) => (
+                <TouchableOpacity
+                  key={room.id}
+                  style={[
+                    styles.roomOption,
+                    normalizeId(transferData.new_room_id) === normalizeId(room.id) && styles.roomOptionActive
+                  ]}
+                  onPress={() => setTransferData((current) => ({ ...current, new_room_id: room.id }))}
+                >
+                  <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
+                  <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.actionFieldLabel}>Reason *</Text>
+            <TextInput
+              value={transferData.reason}
+              onChangeText={(value) => setTransferData((current) => ({ ...current, reason: value }))}
+              placeholder="Reason for transfer"
+              style={styles.actionTextArea}
+              multiline
+            />
+
+            <Text style={styles.actionFieldLabel}>Damage Charge (optional)</Text>
+            <TextInput
+              value={transferData.damage_charge}
+              onChangeText={(value) => setTransferData((current) => ({ ...current, damage_charge: value }))}
+              placeholder="0.00"
+              style={styles.actionInput}
+              keyboardType="numeric"
+            />
+
+            {Number(transferData.damage_charge || 0) > 0 && (
+              <>
+                <Text style={styles.actionFieldLabel}>Damage Description *</Text>
+                <TextInput
+                  value={transferData.damage_description}
+                  onChangeText={(value) => setTransferData((current) => ({ ...current, damage_description: value }))}
+                  placeholder="Describe the charge"
+                  style={styles.actionInput}
+                />
+              </>
+            )}
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setTransferVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, (isTransferring || availableRooms.length === 0) && styles.modalDisabledBtn]}
+                onPress={handleTransferSubmit}
+                disabled={isTransferring || availableRooms.length === 0}
+              >
+                <Text style={styles.modalConfirmText}>{isTransferring ? 'Transferring...' : 'Transfer'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={assignVisible} transparent animationType="fade" onRequestClose={() => setAssignVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={styles.actionModalTitle}>Assign Room</Text>
+            <Text style={styles.actionModalSubtitle}>
+              {assigningTenant
+                ? `Assign ${assigningTenant.first_name} ${assigningTenant.last_name} to an available room.`
+                : 'Select a tenant to assign.'}
+            </Text>
+
+            <Text style={styles.actionFieldLabel}>Room *</Text>
+            <ScrollView style={styles.roomsPicker}>
+              {loadingRoomsForAssign && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
+              {!loadingRoomsForAssign && availableRoomsForAssign.length === 0 && (
+                <Text style={styles.helperText}>No available rooms found.</Text>
+              )}
+              {availableRoomsForAssign.map((room) => (
+                <TouchableOpacity
+                  key={room.id}
+                  style={[
+                    styles.roomOption,
+                    normalizeId(assignData.room_id) === normalizeId(room.id) && styles.roomOptionActive
+                  ]}
+                  onPress={() => setAssignData((current) => ({ ...current, room_id: room.id }))}
+                >
+                  <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
+                  <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
+            <TextInput
+              value={assignData.move_in_date}
+              onChangeText={(value) => setAssignData((current) => ({ ...current, move_in_date: value }))}
+              placeholder="2026-03-28"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
+            <TextInput
+              value={assignData.end_date}
+              onChangeText={(value) => setAssignData((current) => ({ ...current, end_date: value }))}
+              placeholder="2026-09-28"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Notes</Text>
+            <TextInput
+              value={assignData.notes}
+              onChangeText={(value) => setAssignData((current) => ({ ...current, notes: value }))}
+              placeholder="Optional assignment notes"
+              style={styles.actionTextArea}
+              multiline
+            />
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAssignVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSuccessBtn, (isAssigning || availableRoomsForAssign.length === 0) && styles.modalDisabledBtn]}
+                onPress={handleAssignSubmit}
+                disabled={isAssigning || availableRoomsForAssign.length === 0}
+              >
+                <Text style={styles.modalConfirmText}>{isAssigning ? 'Assigning...' : 'Assign'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={unassignVisible} transparent animationType="fade" onRequestClose={() => setUnassignVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={[styles.actionModalTitle, { color: '#B45309' }]}>Confirm Unassign</Text>
+            <Text style={styles.actionModalSubtitle}>
+              {unassigningTenant
+                ? `Unassign ${unassigningTenant.first_name} ${unassigningTenant.last_name} from their current room?`
+                : 'Select a tenant to unassign.'}
+            </Text>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setUnassignVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, isUnassigning && styles.modalDisabledBtn]}
+                onPress={handleUnassignConfirm}
+                disabled={isUnassigning}
+              >
+                <Text style={styles.modalConfirmText}>{isUnassigning ? 'Unassigning...' : 'Unassign'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={evictionVisible} transparent animationType="fade" onRequestClose={() => setEvictionVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={[styles.actionModalTitle, { color: '#DC2626' }]}>Schedule Eviction</Text>
+            <Text style={styles.actionModalSubtitle}>
+              {evictingTenant
+                ? `Set grace period before finalizing eviction for ${evictingTenant.first_name} ${evictingTenant.last_name}.`
+                : 'Select a tenant to schedule eviction.'}
+            </Text>
+
+            <Text style={styles.actionFieldLabel}>Grace Period (Hours) *</Text>
+            <TextInput
+              value={evictionGraceHours}
+              onChangeText={setEvictionGraceHours}
+              placeholder="24"
+              style={styles.actionInput}
+              keyboardType="numeric"
+            />
+            <Text style={styles.helperText}>Use 0 for immediate finalization eligibility.</Text>
+
+            <Text style={styles.actionFieldLabel}>Reason *</Text>
+            <TextInput
+              value={evictionReason}
+              onChangeText={setEvictionReason}
+              placeholder="Reason for eviction"
+              style={styles.actionTextArea}
+              multiline
+            />
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setEvictionVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalDangerBtn, (isEvicting || !evictionReason.trim()) && styles.modalDisabledBtn]}
+                onPress={handleEvictConfirm}
+                disabled={isEvicting || !evictionReason.trim()}
+              >
+                <Text style={styles.modalConfirmText}>{isEvicting ? 'Scheduling...' : 'Schedule'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={broadcastVisible} transparent animationType="fade" onRequestClose={() => setBroadcastVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={styles.actionModalTitle}>Send Broadcast</Text>
+            <Text style={styles.actionModalSubtitle}>
+              This message will be sent to {selectedTenants.length} selected tenant(s).
+            </Text>
+
+            <TextInput
+              value={broadcastMessage}
+              onChangeText={setBroadcastMessage}
+              placeholder="Type your message here..."
+              style={styles.actionTextAreaLarge}
+              multiline
+            />
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setBroadcastVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSuccessBtn, (isBroadcasting || !broadcastMessage.trim()) && styles.modalDisabledBtn]}
+                onPress={handleSendBroadcast}
+                disabled={isBroadcasting || !broadcastMessage.trim()}
+              >
+                <Text style={styles.modalConfirmText}>{isBroadcasting ? 'Sending...' : 'Send'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}

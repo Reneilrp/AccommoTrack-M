@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Users, Building2, CheckCircle, XCircle, Clock, Loader2, AlertCircle, Sun, Moon } from 'lucide-react';
 import api from '../../utils/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
@@ -10,11 +11,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = React.useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -32,7 +29,11 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -114,28 +115,42 @@ const AdminDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Monitor system-wide activities and metrics</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Monitor system-wide activities and metrics</p>
           </div>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
-              theme === 'dark' ? 'bg-gray-700' : 'bg-emerald-100'
-            }`}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            <span className="sr-only">Toggle theme</span>
-            <span
-              className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out flex items-center justify-center ${
-                theme === 'dark' ? 'translate-x-9' : 'translate-x-1'
-              }`}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/admin/payments-oversight"
+              className="hidden sm:inline-flex px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
             >
-              {theme === 'dark' ? (
-                <Moon className="w-3.5 h-3.5 text-gray-700" />
-              ) : (
-                <Sun className="w-3.5 h-3.5 text-orange-500" />
-              )}
-            </span>
-          </button>
+              Payment Oversight
+            </Link>
+            <Link
+              to="/admin/audit-logs"
+              className="hidden sm:inline-flex px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              Audit Explorer
+            </Link>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                theme === 'dark' ? 'bg-gray-700' : 'bg-emerald-100'
+              }`}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              <span className="sr-only">Toggle theme</span>
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out flex items-center justify-center ${
+                  theme === 'dark' ? 'translate-x-9' : 'translate-x-1'
+                }`}
+              >
+                {theme === 'dark' ? (
+                  <Moon className="w-3.5 h-3.5 text-gray-700" />
+                ) : (
+                  <Sun className="w-3.5 h-3.5 text-orange-500" />
+                )}
+              </span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -208,7 +223,7 @@ const AdminDashboard = () => {
           <div className="p-6">
             {activities.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-500" />
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-500 dark:text-gray-500" />
                 <p>No recent activities</p>
               </div>
             ) : (
@@ -220,14 +235,18 @@ const AdminDashboard = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.title}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{activity.description}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{formatDate(activity.timestamp)}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{activity.description}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{formatDate(activity.timestamp)}</p>
                     </div>
                     {activity.badge && (
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      <span className={`px-2 py-2 text-xs font-medium rounded-full capitalize ${
                         activity.badge === 'Approved' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
                         activity.badge === 'Rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
                         activity.badge === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        (activity.badge === 'Active' || activity.badge === 'active') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                        (activity.badge === 'Landlord' || activity.badge === 'landlord') ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                        (activity.badge === 'Tenant' || activity.badge === 'tenant') ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400' :
+                        (activity.badge === 'Caretaker' || activity.badge === 'caretaker' || activity.badge === 'CareTaker') ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' :
                         'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                       }`}>
                         {activity.badge}

@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $responded_at
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
+ *
  * @method static \Database\Factories\InquiryFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Inquiry newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Inquiry newQuery()
@@ -32,6 +33,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Inquiry whereSource($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Inquiry whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Inquiry whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Inquiry extends Model
@@ -47,7 +49,7 @@ class Inquiry extends Model
         'message',
         'status',
         'source',
-        'responded_at'
+        'responded_at',
     ];
 
     public function property()
@@ -55,4 +57,3 @@ class Inquiry extends Model
         return $this->belongsTo(Property::class);
     }
 }
-

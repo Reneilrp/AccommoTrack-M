@@ -10,9 +10,14 @@ import TenantPropertyDetails from '../screens/Tenant/TenantPropertyDetails';
 import MyBookings from '../screens/Tenant/MyBookings';
 import TenantMessages from '../screens/Tenant/TenantMessages';
 import TenantSettings from '../screens/Tenant/TenantSettings';
-import TenantWallet from '../screens/Tenant/TenantWallet';
+import TenantPayments from '../screens/Tenant/TenantPayments';
 import InvoiceCheckout from '../screens/Tenant/InvoiceCheckout';
 import TenantMaintenance from '../screens/Tenant/TenantMaintenance';
+import Notifications from '../screens/Tenant/Notifications';
+import Addons from '../screens/Tenant/Addons';
+import Reviews from '../screens/Tenant/Reviews';
+import VerificationStatus from '../screens/Landlord/VerificationStatus';
+import TenantSupport from '../screens/Tenant/TenantSupport';
 
 export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
   return (
@@ -23,11 +28,16 @@ export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="/explore" element={<ExploreProperties />} />
           <Route path="/property/:id" element={<TenantPropertyDetails />} />
           <Route path="/bookings" element={<MyBookings />} />
-          <Route path="/wallet" element={<TenantWallet />} />
+          <Route path="/payments" element={<TenantPayments user={user} />} />
           <Route path="/maintenance" element={<TenantMaintenance />} />
           <Route path="/checkout/:id" element={<InvoiceCheckout />} />
           <Route path="/messages" element={<TenantMessages user={user} />} />
           <Route path="/settings" element={<TenantSettings user={user} onUserUpdate={onUserUpdate} />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/addons" element={<Addons />} />
+          <Route path="/reviews" element={<Reviews />} />
+          <Route path="/support" element={<TenantSupport />} />
+          <Route path="/verification" element={<VerificationStatus />} />
           
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

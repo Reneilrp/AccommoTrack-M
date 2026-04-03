@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\Invoice|null $invoice
  * @property-read \App\Models\User|null $tenant
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction query()
@@ -45,6 +46,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class PaymentTransaction extends Model
@@ -56,7 +58,7 @@ class PaymentTransaction extends Model
     protected $fillable = [
         'invoice_id', 'tenant_id', 'amount_cents', 'currency', 'status', 'method',
         'gateway_reference', 'gateway_response', 'idempotency_key', 'refunded_amount_cents',
-        'gateway_fee_cents', 'net_amount_cents', 'balance_transaction_id', 'provider_event_id'
+        'gateway_fee_cents', 'net_amount_cents', 'balance_transaction_id', 'provider_event_id',
     ];
 
     protected $casts = [

@@ -1,11 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
-import api from '../../utils/api';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
+import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle } from 'lucide-react';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
-import { Skeleton, SkeletonStatCard, SkeletonTableRow } from '../../components/Shared/Skeleton';
+import TenantCard from './TenantCard';
+import { Skeleton, SkeletonTableRow } from '../../components/Shared/Skeleton';
+import toast from 'react-hot-toast';
+import landlordService from '../../services/landlordService';
+import bookingService from '../../services/bookingService';
+import roomService from '../../services/roomService';
 
 export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const { uiState, updateData } = useUIState();
@@ -23,23 +28,64 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     return '';
   };
 
-  const [properties, setProperties] = useState(cachedProps || []);
+  const [__properties, setProperties] = useState(cachedProps || []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(getInitialPropertyId());
   
   const tenantCacheKey = selectedPropertyId ? `tenants_property_${selectedPropertyId}` : null;
   const cachedTenants = tenantCacheKey ? (uiState.data?.[tenantCacheKey] || cacheManager.get(tenantCacheKey)) : null;
 
   const [tenants, setTenants] = useState(cachedTenants || []);
-  const [viewingTenant, setViewingTenant] = useState(null);
-  const [error, setError] = useState('');
+  const [transferringTenant, setTransferringTenant] = useState(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [loadingRoomsForTransfer, setLoadingRoomsForTransfer] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferData, setTransferData] = useState({ new_room_id: '', reason: '', transfer_reason: 'Tenant Request', transfer_fee: '', damage_charge: '', damage_description: '' });
+  const [assigningTenant, setAssigningTenant] = useState(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [availableRoomsForAssign, setAvailableRoomsForAssign] = useState([]);
+  const [loadingRoomsForAssign, setLoadingRoomsForAssign] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignData, setAssignData] = useState({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+  const [showUnassignModal, setShowUnassignModal] = useState(false);
+  const [unassigningTenant, setUnassigningTenant] = useState(null);
+  const [isUnassigning, setIsUnassigning] = useState(false);
+  const [__error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
+  const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(selectedPropertyId && !cachedTenants);
+
+  // New state for bulk actions & modals
+  const [selectedTenants, setSelectedTenants] = useState([]);
+  const [showEvictModal, setShowEvictModal] = useState(false);
+  const [evictingTenant, setEvictingTenant] = useState(null);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('tenantViewMode') || 'card');
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('tenantViewMode', mode);
+  };
+
+  const isRoomBookable = (room) => {
+    if (!room) return false;
+    if (typeof room.is_available === 'boolean') {
+      return room.is_available;
+    }
+
+    return room.status === 'available'
+      && Number(room.available_slots ?? 0) > 0
+      && !room.is_booking_locked;
+  };
+
+  const isEvictionDue = (tenant) => {
+    const scheduledFor = tenant?.pending_eviction?.scheduled_for;
+    if (!scheduledFor) return false;
+    return new Date(scheduledFor).getTime() <= Date.now();
+  };
 
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
-  const [isFromProperty, setIsFromProperty] = useState(Boolean(new URLSearchParams(location.search).get('property')));
-
-  const selectedProperty = properties.find(p => String(p.id) === String(selectedPropertyId)) || null;
+  const isFromProperty = Boolean(new URLSearchParams(location.search).get('property'));
   
   const handleBackClick = () => {
     if (isFromProperty && selectedPropertyId) {
@@ -53,7 +99,10 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     const load = async () => {
       try {
         if (!cachedProps) setLoading(true);
-        const { data } = await api.get('/properties/accessible');
+        const response = await landlordService.getAccessibleProperties();
+        const data = response.success
+          ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+          : [];
         setProperties(data);
         updateData('accessible_properties', data);
         cacheManager.set('accessible_properties', data);
@@ -79,13 +128,11 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
       if (!currentCached) setLoading(true);
       setError('');
       
-      const res = await api.get(`/landlord/tenants?property_id=${selectedPropertyId}&t=${Date.now()}`);
-      const data = res.data;
-      
-      if (data.error) {
-        throw new Error(data.message || data.error);
-      }
-      
+      const response = await landlordService.getTenants({ property_id: selectedPropertyId, t: Date.now() });
+      const data = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
+
       const list = Array.isArray(data) ? data : [];
       setTenants(list);
       
@@ -102,7 +149,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     } finally {
       setLoading(false);
     }
-  }, [selectedPropertyId]);
+  }, [selectedPropertyId, updateData]);
 
   useEffect(() => {
     if (!selectedPropertyId) return;
@@ -110,45 +157,235 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   }, [selectedPropertyId, loadTenants]);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && selectedPropertyId) {
+    // Clear selections when filters change
+    setSelectedTenants([]);
+  }, [searchQuery, filter, selectedPropertyId]);
+
+  const handleTransferInitiate = async (tenant) => {
+    const defaultFee = tenant?.room?.property?.transfer_fee ?? 0;
+    setTransferringTenant(tenant);
+    setTransferData({ 
+      new_room_id: '', 
+      reason: '', 
+      transfer_reason: 'Tenant Request', 
+      transfer_fee: defaultFee,
+      damage_charge: '', 
+      damage_description: '' 
+    });
+    setShowTransferModal(true);
+    setLoadingRoomsForTransfer(true);
+    try {
+      const propertyId = tenant.room?.property_id;
+      if (!propertyId) throw new Error("Tenant has no assigned property");
+
+      const response = await roomService.getRoomsByProperty(propertyId);
+      const list = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
+      // Filter for available rooms, excluding current one
+      setAvailableRooms(list.filter(r => isRoomBookable(r) && r.id !== tenant.room?.id));
+    } catch {
+      setError("Failed to load available rooms for transfer");
+    } finally {
+      setLoadingRoomsForTransfer(false);
+    }
+  };
+
+  const handleEvictInitiate = (tenant) => {
+    setEvictingTenant(tenant);
+    setShowEvictModal(true);
+  };
+
+  const handleEvictionFinalize = async (tenant) => {
+    const confirmed = window.confirm(`Finalize eviction for ${tenant.first_name} ${tenant.last_name}?`);
+    if (!confirmed) return;
+
+    try {
+      const response = await landlordService.finalizeEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to finalize eviction.');
+      }
+      toast.success(`Eviction finalized for ${tenant.first_name}.`);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to finalize eviction.');
+    }
+  };
+
+  const handleEvictionCancel = async (tenant) => {
+    const confirmed = window.confirm(`Cancel pending eviction schedule for ${tenant.first_name} ${tenant.last_name}?`);
+    if (!confirmed) return;
+
+    try {
+      const response = await landlordService.cancelEviction(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to cancel eviction schedule.');
+      }
+      toast.success(`Eviction schedule cancelled for ${tenant.first_name}.`);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to cancel eviction schedule.');
+    }
+  };
+
+  const handleEvictionUndo = async (tenant) => {
+    const note = window.prompt('Optional note for undoing this eviction:', '') || '';
+
+    try {
+      const response = await landlordService.undoEviction(tenant.id, {
+        reason: note.trim() || undefined,
+      });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to undo eviction.');
+      }
+      toast.success(`Eviction undone for ${tenant.first_name}.`);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to undo eviction.');
+    }
+  };
+
+  const handleApproveReservation = async (tenant) => {
+    const bookingId = tenant.latestBooking?.id;
+    if (!bookingId) return;
+    try {
+      if (window.confirm(`Approve reservation for ${tenant.first_name}?`)) {
+        const response = await bookingService.approveReservation(bookingId);
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to approve reservation.');
+        }
+        toast.success(`Reservation approved for ${tenant.first_name}.`);
         loadTenants();
       }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [selectedPropertyId, loadTenants]);
-
-  const handleView = (tenant) => {
-    setViewingTenant(tenant);
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to approve reservation.');
+    }
   };
 
-  const refresh = () => {
-    loadTenants();
+  const handleCheckInTenant = async (tenant) => {
+    const bookingId = tenant.latestBooking?.id;
+    if (!bookingId) return;
+    try {
+      if (window.confirm(`Check in ${tenant.first_name} and generate first invoice?`)) {
+        const response = await bookingService.checkIn(bookingId);
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to check in tenant.');
+        }
+        toast.success(`${tenant.first_name} checked in successfully.`);
+        loadTenants();
+      }
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to check in tenant.');
+    }
   };
 
-  const handleSearch = async () => {
-    let list = tenants || [];
-    if (selectedPropertyId) {
-      list = await loadTenants();
+  const handleAssignInitiate = async (tenant) => {
+    const propertyId = tenant.room?.property_id || selectedPropertyId;
+    if (!propertyId) {
+      toast.error('Select a property before assigning a room');
+      return;
     }
 
-    const q = (searchQuery || '').toLowerCase().trim();
-    if (!q) return;
-
-    const matches = (list || []).filter(tenant => {
-      const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
-      const email = (tenant.email || '').toLowerCase();
-      const roomNumber = tenant.room?.room_number || '';
-      return fullName.includes(q) || email.includes(q) || roomNumber.includes(q);
-    });
-
-    if (matches.length === 1) {
-      const m = matches[0];
-      const id = m.id || m.tenant_id || m.tenantId || m.user_id || (m.user && m.user.id);
-      if (id) navigate(`/tenants/${id}`);
+    setAssigningTenant(tenant);
+    setAssignData({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+    setAvailableRoomsForAssign([]);
+    setShowAssignModal(true);
+    setLoadingRoomsForAssign(true);
+    try {
+      const response = await roomService.getRoomsByProperty(propertyId);
+      const list = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
+      setAvailableRoomsForAssign(list.filter(r => isRoomBookable(r)));
+    } catch {
+      setError('Failed to load available rooms for assignment');
+    } finally {
+      setLoadingRoomsForAssign(false);
     }
+  };
+
+  const handleAssignSubmit = async (e) => {
+    e.preventDefault();
+    if (!assigningTenant) return;
+    if (!assignData.room_id) {
+      toast.error('Please select a room');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const payload = { room_id: Number(assignData.room_id) };
+      if (assignData.move_in_date) payload.move_in_date = assignData.move_in_date;
+      if (assignData.end_date) payload.end_date = assignData.end_date;
+      if (assignData.notes?.trim()) payload.notes = assignData.notes.trim();
+
+      const response = await landlordService.assignRoom(assigningTenant.id, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to assign room');
+      }
+      toast.success('Room assignment completed successfully');
+      setShowAssignModal(false);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || 'Failed to assign room');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassignInitiate = (tenant) => {
+    setUnassigningTenant(tenant);
+    setShowUnassignModal(true);
+  };
+
+  const handleUnassignConfirm = async () => {
+    if (!unassigningTenant) return;
+
+    setIsUnassigning(true);
+    try {
+      const response = await landlordService.unassignRoom(unassigningTenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to unassign tenant');
+      }
+      toast.success('Tenant unassigned successfully');
+      setShowUnassignModal(false);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || 'Failed to unassign tenant');
+    } finally {
+      setIsUnassigning(false);
+    }
+  };
+
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    if (!transferData.new_room_id || !transferData.reason) {
+      toast.error("Please select a room and provide a reason");
+      return;
+    }
+
+    setIsTransferring(true);
+    try {
+      const response = await landlordService.transferRoom(transferringTenant.id, transferData);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to transfer room');
+      }
+      toast.success("Room transfer completed successfully");
+      setShowTransferModal(false);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || "Failed to transfer room");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const handleSelectTenant = (tenantId) => {
+    setSelectedTenants(prev => 
+      prev.includes(tenantId)
+        ? prev.filter(id => id !== tenantId)
+        : [...prev, tenantId]
+    );
   };
 
   const filteredTenants = tenants.filter(tenant => {
@@ -156,9 +393,27 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     const email = (tenant.email || '').toLowerCase();
     const roomNumber = tenant.room?.room_number || '';
     const q = (searchQuery || '').toLowerCase();
-    if (!q) return true;
-    return fullName.includes(q) || email.includes(q) || roomNumber.includes(q);
+    
+    const matchesSearch = !q || fullName.includes(q) || email.includes(q) || roomNumber.includes(q);
+    if (!matchesSearch) return false;
+
+    if (filter === 'all') return true;
+    if (filter === 'active') return tenant.tenantProfile?.status === 'active';
+    if (filter === 'paid') return tenant.latestBooking?.payment_status === 'paid';
+    if (filter === 'unpaid') return tenant.latestBooking?.payment_status === 'unpaid';
+    if (filter === 'overdue') return tenant.latestBooking?.payment_status === 'overdue';
+    
+    return true;
   });
+
+  const handleSelectAll = () => {
+    if (selectedTenants.length === filteredTenants.length) {
+      setSelectedTenants([]);
+    } else {
+      setSelectedTenants(filteredTenants.map(t => t.id));
+    }
+  };
+
 
   const stats = {
     total: tenants.length,
@@ -168,402 +423,717 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     overdue: tenants.filter(t => t.latestBooking?.payment_status === 'overdue').length
   };
 
-  // Show Skeleton loading state
-  if (loading && tenants.length === 0 && properties.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2">
-              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
-            </div>
-            <div className="text-center">
-              <Skeleton className="h-8 w-64 mx-auto mb-2" />
-            </div>
-          </div>
-        </header>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Stats Cards Skeleton */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700 animate-pulse">
-                <Skeleton className="h-8 w-12 mb-2" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-            ))}
-          </div>
-
-          {/* Search Bar Skeleton */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <Skeleton className="h-10 w-full max-w-md rounded-lg" />
-              <div className="flex gap-2 w-full md:w-auto">
-                <Skeleton className="h-10 w-24 rounded-lg" />
-                <Skeleton className="h-10 w-24 rounded-lg" />
-              </div>
-            </div>
-          </div>
-
-          {/* Table Skeleton */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-300 dark:border-gray-700">
-                  <tr>
-                    {[...Array(7)].map((_, i) => (
-                      <th key={i} className="px-6 py-3">
-                        <Skeleton className="h-3 w-20" />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...Array(6)].map((_, i) => (
-                    <SkeletonTableRow key={i} columns={7} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900">
-      {/* Header */}
+      {__error && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+          <X className="w-5 h-5 cursor-pointer" onClick={() => setError('')} />
+          <span className="font-bold uppercase tracking-wide text-xs">{__error}</span>
+        </div>
+      )}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-300 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2">
-            <button
-              onClick={handleBackClick}
-              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              aria-label="Back to property"
-            >
+            <button onClick={handleBackClick} className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" aria-label="Back to property">
               <ArrowLeft className="w-5 h-5 text-green-600 dark:text-green-500" />
             </button>
           </div>
-
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tenant Management</h1>
-          </div>
-
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        {isCaretaker && (
-          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3 text-amber-800 dark:text-amber-300">
-            <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold">Read-only caretaker access</p>
-              <p className="text-sm">Tenant edits, room assignments, and removals are disabled. Please contact the landlord if you need a change.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Total Tenants</p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.paid}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Paid</p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.overdue}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Overdue</p>
-          </div>
+            <StatCard label="Total" value={stats.total} icon={Users} />
+            <StatCard label="Active" value={stats.active} icon={UserCheck} color="green" />
+            <StatCard label="Paid" value={stats.paid} icon={CreditCard} color="blue" />
+            <StatCard label="Pending" value={stats.pending} icon={Clock} color="yellow" />
+            <StatCard label="Overdue" value={stats.overdue} icon={AlertOctagon} color="red" />
         </div>
 
-        {/* Search and Filter Bar */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
-            <div className="relative w-full lg:max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search by name, room or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none text-sm"
-              />
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            <div className="relative w-full lg:w-[28rem]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-500" />
+              <input type="text" placeholder="Search by name, room or email..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white outline-none text-sm" />
             </div>
 
-            <div className="flex items-center gap-2 w-full lg:w-auto">
-              <button
-                onClick={handleSearch}
-                disabled={loading}
-                className="flex-1 lg:flex-none px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 font-bold text-sm"
-              >
-                <Search className="w-4 h-4" />
-                <span>Search</span>
-              </button>
+            <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
+              {['all', 'active', 'paid', 'unpaid', 'overdue'].map((f) => (
+                <button key={f} onClick={() => setFilter(f)} className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${filter === f ? "bg-green-600 text-white shadow-md shadow-green-500/20" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
 
-              <button
-                onClick={refresh}
-                disabled={loading}
-                className="flex-1 lg:flex-none px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 font-bold text-sm shadow-md shadow-blue-500/20"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                <span>{loading ? 'Loading...' : 'Refresh'}</span>
+            <div className="flex items-center gap-2 ml-auto">
+              {/* View Toggle */}
+              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1 gap-1">
+                <button onClick={() => handleSetViewMode('card')} title="Card view" className={`p-1.5 rounded-md transition-colors ${viewMode === 'card' ? 'bg-white dark:bg-gray-600 shadow text-green-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button onClick={() => handleSetViewMode('list')} title="List view" className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-600 shadow text-green-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                  <LayoutList className="w-4 h-4" />
+                </button>
+              </div>
+
+              <button onClick={loadTenants} disabled={loading} title="Refresh" className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20">
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
               </button>
             </div>
           </div>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg flex justify-between items-center">
-            <span>{error}</span>
-            <button onClick={() => setError('')} className="text-red-700 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">
-              <X className="w-5 h-5" />
+        {selectedTenants.length > 0 && (
+          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-700 mb-6 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+            <input type="checkbox" checked={selectedTenants.length === filteredTenants.length} onChange={handleSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
+            <span className="text-sm font-bold text-green-700 dark:text-green-300 flex-1">{selectedTenants.length} tenant{selectedTenants.length !== 1 ? 's' : ''} selected</span>
+            <button onClick={() => setSelectedTenants([])} className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-800 rounded-lg" title="Clear selection">
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-300 dark:border-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tenant</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monthly Rent</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredTenants.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                      <p className="text-lg font-medium">No tenants yet</p>
-                      <p className="text-sm mt-1">Tenants will appear here when they're assigned to rooms</p>
-                      <p className="text-sm mt-1 text-blue-600 dark:text-blue-400">Go to Room Management to assign tenants to rooms</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredTenants.map(tenant => (
-                  <tr key={tenant.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
-                          {tenant.first_name[0]}{tenant.last_name[0]}
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">{tenant.first_name} {tenant.last_name}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{tenant.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {tenant.room ? (
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">Room {tenant.room.room_number}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{tenant.room.type_label}</p>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-amber-600 dark:text-amber-400 italic font-medium">No room assigned</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-900 dark:text-gray-300 font-medium">{tenant.phone || 'N/A'}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">
-                        {tenant.room ? <PriceRow amount={tenant.room.monthly_rate} /> : '—'}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {tenant.latestBooking ? (
-                        <>
-                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full capitalize ${
-                            tenant.latestBooking.payment_status === 'paid' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : tenant.latestBooking.payment_status === 'partial'
-                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                          }`}>
-                            {tenant.latestBooking.payment_status || 'unpaid'}
-                          </span>
-                          {tenant.latestBooking.payment_status === 'paid' && (
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 font-medium">
-                              Paid {new Date(tenant.latestBooking.updated_at).toLocaleDateString()}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <span className="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
-                          No booking
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full capitalize
-                        ${tenant.tenantProfile?.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                          tenant.tenantProfile?.status === 'inactive' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                          'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
-                        {tenant.tenantProfile?.status || 'active'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleView(tenant)}
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 p-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* View Tenant Details Modal */}
-        {viewingTenant && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
-              <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Tenant Details</h2>
-                <button onClick={() => setViewingTenant(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
+        {viewMode === 'card' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTenants.length === 0 ? (
+              <div className="col-span-full text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+                <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No tenants found</p>
+                <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">{searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}</p>
               </div>
-              
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</p>
-                    <p className="font-semibold text-gray-900 dark:text-white text-lg">{viewingTenant.first_name} {viewingTenant.last_name}</p>
+            ) : (
+              filteredTenants.map(tenant => (
+                <div key={tenant.id} className="relative">
+                  <div className="absolute top-3 left-3 z-10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-2 rounded-full">
+                    <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => handleSelectTenant(tenant.id)} className="w-4 h-4 text-green-600 rounded-full border-gray-300 focus:ring-green-500" />
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{viewingTenant.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Phone Number</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{viewingTenant.phone || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date of Birth</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {viewingTenant.tenantProfile?.date_of_birth 
-                        ? new Date(viewingTenant.tenantProfile.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                        : '—'}
-                    </p>
-                  </div>
+                  <TenantCard
+                    tenant={tenant}
+                    onTransfer={handleTransferInitiate}
+                    onAssign={handleAssignInitiate}
+                    onUnassign={handleUnassignInitiate}
+                    onEvict={handleEvictInitiate}
+                    onEvictionFinalize={handleEvictionFinalize}
+                    onEvictionCancel={handleEvictionCancel}
+                    onEvictionUndo={handleEvictionUndo}
+                    onApproveReservation={handleApproveReservation}
+                    onCheckIn={handleCheckInTenant}
+                    canTransfer={!isCaretaker}
+                    isEvictionDue={isEvictionDue(tenant)}
+                  />
                 </div>
-
-                <div className="border-t border-gray-100 dark:border-gray-700 pt-6">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <span className="w-1 h-5 bg-green-500 rounded-full"></span>
-                    Room Assignment
-                  </h3>
-                  {viewingTenant.room ? (
-                    <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 grid grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Room</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{viewingTenant.room.room_number}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Type</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{viewingTenant.room.type_label}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Monthly Rate</p>
-                        <p className="font-bold text-green-600 dark:text-green-400"><PriceRow amount={viewingTenant.room.monthly_rate} /></p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-amber-600 dark:text-amber-400 italic bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-100 dark:border-amber-900/30">No room assigned</p>
-                  )}
-                </div>
-
-                <div className="border-t border-gray-100 dark:border-gray-700 pt-6">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <span className="w-1 h-5 bg-red-500 rounded-full"></span>
-                    Emergency Contact
-                  </h3>
-                  {viewingTenant.tenantProfile?.emergency_contact_name ? (
-                    <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Name</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{viewingTenant.tenantProfile.emergency_contact_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Phone</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{viewingTenant.tenantProfile.emergency_contact_phone}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Relationship</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{viewingTenant.tenantProfile.emergency_contact_relationship}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-100 dark:border-gray-700">No emergency contact information</p>
-                  )}
-                </div>
-
-                {viewingTenant.tenantProfile?.current_address && (
-                  <div className="border-t border-gray-100 dark:border-gray-700 pt-6">
-                    <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                      <span className="w-1 h-5 bg-blue-500 rounded-full"></span>
-                      Current Address
-                    </h3>
-                    <p className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{viewingTenant.tenantProfile.current_address}</p>
-                  </div>
-                )}
-
-                {viewingTenant.tenantProfile?.preference && (
-                  <div className="border-t border-gray-100 dark:border-gray-700 pt-6">
-                    <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                      <span className="w-1 h-5 bg-purple-500 rounded-full"></span>
-                      Notes / Preferences
-                    </h3>
-                    <p className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic">"{viewingTenant.tenantProfile.preference}"</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
-                <button 
-                  onClick={() => setViewingTenant(null)} 
-                  className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm active:scale-[0.98]"
-                >
-                  Close Profile
-                </button>
-              </div>
-            </div>
+              ))
+            )}
           </div>
+        ) : (
+          <TenantListView
+            tenants={filteredTenants}
+            selectedTenants={selectedTenants}
+            onSelect={handleSelectTenant}
+            onSelectAll={handleSelectAll}
+            onTransfer={handleTransferInitiate}
+            onAssign={handleAssignInitiate}
+            onUnassign={handleUnassignInitiate}
+            onEvict={handleEvictInitiate}
+            onEvictionFinalize={handleEvictionFinalize}
+            onEvictionCancel={handleEvictionCancel}
+            onEvictionUndo={handleEvictionUndo}
+            onApproveReservation={handleApproveReservation}
+            onCheckIn={handleCheckInTenant}
+            canTransfer={!isCaretaker}
+            searchQuery={searchQuery}
+            isEvictionDue={isEvictionDue}
+          />
         )}
       </div>
-    </div>
+
+      {showAssignModal && (
+        <AssignModal
+          tenant={assigningTenant}
+          availableRooms={availableRoomsForAssign}
+          loading={loadingRoomsForAssign}
+          isSubmitting={isAssigning}
+          data={assignData}
+          setData={setAssignData}
+          onClose={() => setShowAssignModal(false)}
+          onSubmit={handleAssignSubmit}
+        />
+      )}
+      {showTransferModal && <TransferModal tenant={transferringTenant} availableRooms={availableRooms} loading={loadingRoomsForTransfer} isSubmitting={isTransferring} data={transferData} setData={setTransferData} onClose={() => setShowTransferModal(false)} onSubmit={handleTransferSubmit} />}
+      {showUnassignModal && (
+        <UnassignModal
+          tenant={unassigningTenant}
+          isSubmitting={isUnassigning}
+          onClose={() => setShowUnassignModal(false)}
+          onConfirm={handleUnassignConfirm}
+        />
+      )}
+      {showEvictModal && <EvictionModal tenant={evictingTenant} onClose={() => setShowEvictModal(false)} onConfirm={loadTenants} />}
     </div>
   );
 }
+
+// Helper components for modals and stats
+const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
+  const colors = {
+    gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', text: 'text-gray-600 dark:text-gray-400', border: 'bg-gray-400 dark:bg-gray-600' },
+    green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400', border: 'bg-green-500' },
+    blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', border: 'bg-blue-500' },
+    yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-600 dark:text-yellow-400', border: 'bg-yellow-500' },
+    red: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400', border: 'bg-red-500' },
+  };
+  return (
+    <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+          <p className={`text-2xl font-bold ${color === 'gray' ? 'text-gray-900 dark:text-white' : colors[color].text}`}>{value}</p>
+        </div>
+        <div className={`w-10 h-10 ${colors[color].bg} rounded-lg flex items-center justify-center`}>
+          <Icon className={`w-5 h-5 ${colors[color].text}`} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AssignModal = ({ tenant, availableRooms, loading, isSubmitting, data, setData, onClose, onSubmit }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><UserPlus className="w-5 h-5 text-emerald-500" />Assign Room</h2>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+      </div>
+      <form onSubmit={onSubmit} className="p-6 space-y-6">
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg text-sm text-emerald-800 dark:text-emerald-300">
+          Assigning <strong>{tenant.first_name} {tenant.last_name}</strong> to a room.
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Room *</label>
+          <select required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white" value={data.room_id} onChange={e => setData({ ...data, room_id: e.target.value })} disabled={loading}>
+            <option value="">{loading ? 'Loading rooms...' : 'Select Room'}</option>
+            {availableRooms.map(r => (<option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>))}
+          </select>
+          {availableRooms.length === 0 && !loading && <p className="text-[10px] text-red-500 mt-2 font-bold italic">No available rooms in this property.</p>}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Move-in Date</label>
+            <input type="date" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white" value={data.move_in_date} onChange={e => setData({ ...data, move_in_date: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contract End Date</label>
+            <input type="date" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white" value={data.end_date} onChange={e => setData({ ...data, end_date: e.target.value })} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Notes</label>
+          <textarea className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none" value={data.notes} onChange={e => setData({ ...data, notes: e.target.value })} placeholder="Optional assignment notes..." />
+        </div>
+        <div className="flex gap-4 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+          <button type="submit" disabled={isSubmitting || availableRooms.length === 0} className="flex-1 px-4 py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Assigning...</> : 'Assign Room'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+);
+
+const TransferModal = ({ tenant, availableRooms, loading, isSubmitting, data, setData, onClose, onSubmit }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><Shuffle className="w-5 h-5 text-amber-500" />Transfer Room</h2>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+      </div>
+      <form onSubmit={onSubmit} className="p-6 space-y-6">
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
+          Transferring <strong>{tenant.first_name} {tenant.last_name}</strong> from <strong>Room {tenant.room?.room_number}</strong>.
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">New Room *</label>
+          <select required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white" value={data.new_room_id} onChange={e => setData({ ...data, new_room_id: e.target.value })} disabled={loading}>
+            <option value="">{loading ? 'Loading rooms...' : 'Select New Room'}</option>
+            {availableRooms.map(r => (<option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>))}
+          </select>
+          {availableRooms.length === 0 && !loading && <p className="text-[10px] text-red-500 mt-2 font-bold italic">No other available rooms in this property.</p>}
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Transfer Reason *</label>
+          <select 
+            required 
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+            value={data.transfer_reason}
+            onChange={(e) => {
+              const val = e.target.value;
+              const updates = { transfer_reason: val };
+              if (val === 'Maintenance Issue') {
+                updates.transfer_fee = 0;
+              } else if (data.transfer_reason === 'Maintenance Issue' && val !== 'Maintenance Issue') {
+                // Revert to original property default if they switch back from maintenance
+                updates.transfer_fee = tenant?.room?.property?.transfer_fee ?? 0;
+              }
+              setData({ ...data, ...updates });
+            }}
+          >
+            <option value="Tenant Request">Tenant Request</option>
+            <option value="Room Upgrade">Room Upgrade</option>
+            <option value="Maintenance Issue">Maintenance Issue (₱0 Fee)</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Internal Note / Detailed Reason *</label>
+          <textarea required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none" value={data.reason} onChange={e => setData({ ...data, reason: e.target.value })} placeholder="e.g., Tenant requested a larger room, or specific maintenance details..." />
+        </div>
+        
+        <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Financial Adjustments</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Transfer Fee (₱)</label>
+              <input 
+                type="number" 
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white" 
+                value={data.transfer_fee} 
+                onChange={e => setData({ ...data, transfer_fee: e.target.value })} 
+                placeholder="0.00" 
+                min="0" 
+                disabled={data.transfer_reason === 'Maintenance Issue'}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Damage Charge (₱)</label>
+              <input type="number" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white" value={data.damage_charge} onChange={e => setData({ ...data, damage_charge: e.target.value })} placeholder="0.00" min="0" />
+            </div>
+          </div>
+          {parseFloat(data.damage_charge) > 0 && (<div className="animate-in slide-in-from-top-1 mt-3">
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Damage Description *</label>
+              <input type="text" required={parseFloat(data.damage_charge) > 0} className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white" value={data.damage_description} onChange={e => setData({ ...data, damage_description: e.target.value })} placeholder="e.g., Broken window blind, wall scratches..." />
+            </div>)}
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-4 italic text-center">
+              * All proration is based on a standard 30-day month calculation.
+            </p>
+        </div>
+        <div className="flex gap-4 pt-4">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+          <button type="submit" disabled={isSubmitting || availableRooms.length === 0} className="flex-1 px-4 py-4 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 shadow-lg shadow-amber-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Transferring...</> : 'Execute Transfer'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+);
+
+const UnassignModal = ({ tenant, onClose, onConfirm, isSubmitting }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700 shadow-2xl">
+      <h3 className="text-lg font-bold text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-2"><UserMinus /> Confirm Unassign</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+        You are about to remove <strong>{tenant.first_name} {tenant.last_name}</strong> from their current room. This will end their active booking and mark them as inactive.
+      </p>
+      <div className="flex gap-4 mt-4">
+        <button onClick={onClose} disabled={isSubmitting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
+        <button onClick={onConfirm} disabled={isSubmitting} className="flex-1 px-4 py-4 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Unassign'}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const EvictionModal = ({ tenant, onClose, onConfirm }) => {
+  const [reason, setReason] = useState('');
+  const [effectiveAt, setEffectiveAt] = useState(() => {
+    const nextDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    nextDay.setMinutes(0, 0, 0);
+    const year = nextDay.getFullYear();
+    const month = String(nextDay.getMonth() + 1).padStart(2, '0');
+    const day = String(nextDay.getDate()).padStart(2, '0');
+    const hours = String(nextDay.getHours()).padStart(2, '0');
+    const minutes = String(nextDay.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  });
+  const [isEvicting, setIsEvicting] = useState(false);
+  
+  const handleConfirm = async () => {
+    if (!reason.trim()) return toast.error("Reason for eviction is required.");
+    if (!effectiveAt) return toast.error("Please set an effective date and time.");
+
+    const parsedEffectiveAt = new Date(effectiveAt);
+    if (Number.isNaN(parsedEffectiveAt.getTime())) {
+      return toast.error('Invalid effective date/time.');
+    }
+
+    setIsEvicting(true);
+    try {
+      const response = await landlordService.scheduleEviction(tenant.id, {
+        reason: reason.trim(),
+        effective_at: parsedEffectiveAt.toISOString(),
+      });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to schedule eviction.');
+      }
+      toast.success(`Eviction scheduled for ${tenant.first_name}.`);
+      onConfirm(); // Callback to refresh the tenant list
+      onClose();
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || "Failed to schedule eviction.");
+    } finally {
+      setIsEvicting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700 shadow-2xl">
+        <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"><UserX /> Schedule Eviction</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">Set a move-out grace period before finalizing eviction for <strong>{tenant.first_name} {tenant.last_name}</strong>. Room booking is locked while eviction is pending.</p>
+        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Effective Date & Time *</label>
+        <input
+          type="datetime-local"
+          value={effectiveAt}
+          onChange={(e) => setEffectiveAt(e.target.value)}
+          className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 mb-3 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white"
+        />
+        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for eviction... (required)" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm" />
+        <div className="flex gap-4 mt-4">
+          <button onClick={onClose} disabled={isEvicting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
+          <button onClick={handleConfirm} disabled={isEvicting || !reason.trim() || !effectiveAt} className="flex-1 px-4 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {isEvicting ? <Loader2 className="w-4 h-4 animate-spin"/> : "Schedule Eviction"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}; 
+
+// ─── List View ────────────────────────────────────────────────────────────────
+
+const TenantListView = ({
+  tenants,
+  selectedTenants,
+  onSelect,
+  onSelectAll,
+  onTransfer,
+  onAssign,
+  onUnassign,
+  onEvict,
+  onEvictionFinalize,
+  onEvictionCancel,
+  onEvictionUndo,
+  onApproveReservation,
+  onCheckIn,
+  canTransfer,
+  searchQuery,
+  isEvictionDue,
+}) => {
+  const navigate = useNavigate();
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [expandedEmergency, setExpandedEmergency] = useState(null);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpenMenuId(null);
+      }
+    };
+    if (openMenuId) {
+      document.addEventListener('mousedown', handler);
+    }
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openMenuId]);
+
+  const handleMenuOpen = (e, tenantId) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Use absolute positioning relative to document body
+    setMenuPos({
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.right + window.scrollX - 192, // 192 = width of dropdown (w-48)
+    });
+    setOpenMenuId(openMenuId === tenantId ? null : tenantId);
+  };
+
+  const isLate = (t) => t.has_overdue_invoices;
+  const isExpiring = (t) => {
+    if (!t.latestBooking?.end_date) return false;
+    const diff = Math.ceil((new Date(t.latestBooking.end_date) - new Date()) / (1000 * 60 * 60 * 24));
+    return diff >= 0 && diff <= 30;
+  };
+
+  const statusBadge = (status) => {
+    const map = {
+      active:   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
+      inactive: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
+    };
+    return map[status] || 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800';
+  };
+
+  const allSelected = tenants.length > 0 && selectedTenants.length === tenants.length;
+
+  if (tenants.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+        <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No tenants found</p>
+        <p className="text-sm mt-2 text-gray-500">{searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+              <th className="px-4 py-3 text-left">
+                <input type="checkbox" checked={allSelected} onChange={onSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Full Name</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Email</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Room</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Contract End</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-700/60">
+            {tenants.map((tenant) => {
+              const profile = tenant.tenantProfile;
+              const late = isLate(tenant);
+              const expiring = isExpiring(tenant);
+              const isOpen = openMenuId === tenant.id;
+              const showEmergency = expandedEmergency === tenant.id;
+              const hasPendingEviction = Boolean(tenant.pending_eviction);
+              const canUndoEviction = Boolean(tenant.can_undo_eviction);
+              const evictionDue = isEvictionDue ? isEvictionDue(tenant) : false;
+
+              return (
+                <React.Fragment key={tenant.id}>
+                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group">
+                    {/* Checkbox */}
+                    <td className="px-4 py-3">
+                      <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => onSelect(tenant.id)} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
+                    </td>
+
+                    {/* Full Name + behavioral badges */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                          {tenant.first_name} {tenant.last_name}
+                        </span>
+                        {late && (
+                          <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-red-200 dark:border-red-800">
+                            <AlertCircle className="w-2.5 h-2.5" /> Late
+                          </span>
+                        )}
+                        {expiring && !late && (
+                          <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-orange-200 dark:border-orange-800">
+                            <Clock className="w-2.5 h-2.5" /> Expiring
+                          </span>
+                        )}
+                        {hasPendingEviction && (
+                          <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-red-200 dark:border-red-800">
+                            <AlertOctagon className="w-2.5 h-2.5" /> Eviction Scheduled
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Email */}
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                        <Mail className="w-3 h-3 shrink-0" />
+                        <span className="truncate max-w-[180px]">{tenant.email}</span>
+                      </span>
+                    </td>
+
+                    {/* Room */}
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {tenant.room ? (
+                        <span className="text-gray-700 dark:text-gray-300 flex items-center gap-1.5 font-medium">
+                          <Home className="w-3 h-3 text-gray-400 shrink-0" /> {tenant.room.room_number}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">None</span>
+                      )}
+                    </td>
+
+                    {/* Contract End */}
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      <span className={`flex items-center gap-1.5 ${expiring ? 'text-orange-600 dark:text-orange-400 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
+                        <Calendar className="w-3 h-3 shrink-0" />
+                        {tenant.latestBooking?.end_date
+                          ? new Date(tenant.latestBooking.end_date).toLocaleDateString()
+                          : 'N/A'}
+                      </span>
+                    </td>
+
+                    {/* Status Badge */}
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${statusBadge(profile?.status)}`}>
+                        {profile?.status || 'Active'}
+                      </span>
+                    </td>
+
+                    {/* Manage Dropdown */}
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={(e) => handleMenuOpen(e, tenant.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-colors"
+                      >
+                        Manage <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {isOpen && ReactDOM.createPortal(
+                        <div
+                          ref={dropdownRef}
+                          style={{ position: 'absolute', top: menuPos.top, left: menuPos.left, zIndex: 9999, width: 192 }}
+                          className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
+                        >
+                          <button
+                            onClick={() => { setOpenMenuId(null); navigate('/messages', { state: { startConversation: true, recipient: { id: tenant.id }, property: tenant.room ? { id: tenant.room.property_id } : null } }); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-green-600" /> Message
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); navigate(`/payments?search=${tenant.email}`); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <CreditCard className="w-3.5 h-3.5 text-blue-600" /> Payments
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); navigate(`/tenants/${tenant.id}`); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <Users className="w-3.5 h-3.5 text-gray-500" /> View Logs
+                          </button>
+                          <div className="border-t border-gray-100 dark:border-gray-700" />
+                          {tenant.latestBooking?.status === 'pending_reservation' && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onApproveReservation?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" /> Approve Reservation
+                            </button>
+                          )}
+                          {tenant.latestBooking?.status === 'reserved' && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onCheckIn?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" /> Check In Tenant
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { setOpenMenuId(null); onAssign?.(tenant); }}
+                            disabled={!canTransfer || !!tenant.room || hasPendingEviction}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <UserPlus className="w-3.5 h-3.5 text-emerald-500" /> Assign Room
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); onTransfer?.(tenant); }}
+                            disabled={!canTransfer || !tenant.room || hasPendingEviction}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Shuffle className="w-3.5 h-3.5 text-amber-500" /> Transfer Room
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); onUnassign?.(tenant); }}
+                            disabled={!canTransfer || !tenant.room || hasPendingEviction}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign Room
+                          </button>
+                          {hasPendingEviction && (
+                            <>
+                              <button
+                                onClick={() => { setOpenMenuId(null); onEvictionFinalize?.(tenant); }}
+                                disabled={!canTransfer || !evictionDue}
+                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <UserX className="w-3.5 h-3.5" /> Finalize Eviction
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); onEvictionCancel?.(tenant); }}
+                                disabled={!canTransfer}
+                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" /> Cancel Eviction Schedule
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => { setOpenMenuId(null); setExpandedEmergency(showEmergency ? null : tenant.id); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <ShieldAlert className="w-3.5 h-3.5 text-purple-500" /> Emergency Contact
+                          </button>
+                          <div className="border-t border-gray-100 dark:border-gray-700" />
+                          {!hasPendingEviction && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onEvict?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <UserX className="w-3.5 h-3.5" /> Schedule Eviction
+                            </button>
+                          )}
+                          {canUndoEviction && !hasPendingEviction && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onEvictionUndo?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" /> Undo Eviction
+                            </button>
+                          )}
+                        </div>,
+                        document.body
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Emergency Contact Expandable Row */}
+                  {showEmergency && profile && (
+                    <tr key={`${tenant.id}-emergency`} className="bg-purple-50 dark:bg-purple-900/10">
+                      <td colSpan={7} className="px-8 py-3">
+                        <div className="flex items-center gap-6 text-xs text-gray-700 dark:text-gray-300">
+                          <span className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-400 uppercase text-[10px]">
+                            <ShieldAlert className="w-3 h-3" /> Emergency Contact
+                          </span>
+                          <span className="font-semibold">{profile.emergency_contact_name || '—'}</span>
+                          <span className="flex items-center gap-1 text-gray-500"><Phone className="w-3 h-3" />{profile.emergency_contact_phone || '—'}</span>
+                          {profile.emergency_contact_relationship && (
+                            <span className="text-gray-400 italic">({profile.emergency_contact_relationship})</span>
+                          )}
+                          <button onClick={() => setExpandedEmergency(null)} className="ml-auto text-gray-400 hover:text-gray-600">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+

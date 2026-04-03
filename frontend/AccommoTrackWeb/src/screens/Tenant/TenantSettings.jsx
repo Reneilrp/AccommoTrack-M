@@ -3,8 +3,10 @@ import ProfileTab from '../../components/Settings/tenant/ProfileTab';
 import PreferencesTab from '../../components/Settings/tenant/PreferencesTab';
 import AccountTab from '../../components/Settings/tenant/AccountTab';
 import NotificationsTab from '../../components/Settings/tenant/NotificationsTab';
+import ReviewsTab from '../../components/Settings/tenant/ReviewsTab';
 import AppearanceTab from '../../components/Settings/AppearanceTab';
-import { User, Sliders, Shield, Bell, Palette } from 'lucide-react';
+import SwitchRoleTab from '../../components/Settings/SwitchRoleTab';
+import { User, Sliders, Shield, Bell, Palette, ArrowLeftRight, Star } from 'lucide-react';
 
 const TenantSettings = ({ user, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -14,7 +16,9 @@ const TenantSettings = ({ user, onUserUpdate }) => {
     { id: 'preferences', label: 'Preferences & Lifestyle', icon: 'Sliders' },
     { id: 'account', label: 'Account Security', icon: 'Shield' },
     { id: 'notifications', label: 'Notifications', icon: 'Bell' },
+    { id: 'reviews', label: 'My Reviews', icon: 'Star' },
     { id: 'appearance', label: 'Appearance', icon: 'Palette' },
+    { id: 'switch-role', label: 'Switch Role', icon: 'ArrowLeftRight' },
   ];
 
   return (
@@ -28,7 +32,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors text-left border-l-4 ${
+                  className={`flex items-center gap-4 px-4 py-4 text-sm font-medium transition-colors text-left border-l-4 ${
                     activeTab === tab.id
                       ? 'border-green-600 dark:border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                       : 'border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
@@ -44,12 +48,14 @@ const TenantSettings = ({ user, onUserUpdate }) => {
 
         {/* Main Content */}
         <div className="flex-1">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 md:p-8">
+          <div className="">
             {activeTab === 'profile' && <ProfileTab onUserUpdate={onUserUpdate} />}
             {activeTab === 'preferences' && <PreferencesTab />}
             {activeTab === 'account' && <AccountTab user={user} />}
             {activeTab === 'notifications' && <NotificationsTab />}
-            {activeTab === 'appearance' && <AppearanceTab />}
+            {activeTab === 'reviews' && <ReviewsTab />}
+            {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
+            {activeTab === 'switch-role' && <SwitchRoleTab user={user} onUserUpdate={onUserUpdate} />}
           </div>
         </div>
       </div>
@@ -63,7 +69,9 @@ const Icon = ({ name, className }) => {
     case 'Sliders': return <Sliders className={className} />;
     case 'Shield': return <Shield className={className} />;
     case 'Bell': return <Bell className={className} />;
+    case 'Star': return <Star className={className} />;
     case 'Palette': return <Palette className={className} />;
+    case 'ArrowLeftRight': return <ArrowLeftRight className={className} />;
     default: return null;
   }
 };

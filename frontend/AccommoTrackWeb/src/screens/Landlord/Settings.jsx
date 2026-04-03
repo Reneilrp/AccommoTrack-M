@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useSearchParams, useLocation } from 'react-router-dom';
-import { Clock, ShieldCheck, Palette, User, Bell, Lock, Users, Receipt, CreditCard } from 'lucide-react';
-import api, { getImageUrl } from '../../utils/api';
+import { ShieldCheck, Palette, User, Bell, Lock, Users, CreditCard, ArrowLeftRight } from 'lucide-react';
+import api from '../../utils/api';
 import MyProfile from '../../components/Settings/landlord/MyProfile';
 import Notifications from '../../components/Settings/landlord/Notifications';
 import Security from '../../components/Settings/landlord/Security';
@@ -10,33 +10,36 @@ import CareTakerAccess from '../../components/Settings/landlord/CareTakerAccess'
 import PaymentMethods from '../../components/Settings/landlord/PaymentMethods';
 import VerificationStatus from './VerificationStatus';
 import AppearanceTab from '../../components/Settings/AppearanceTab';
+import SwitchRoleTab from '../../components/Settings/SwitchRoleTab';
 import { useUIState } from '../../contexts/UIStateContext';
 
-const CARETAKER_PERMISSION_FIELDS = [
-  { key: 'bookings', label: 'Bookings', description: 'View booking requests, statuses, and payment updates.', defaultValue: true },
-  { key: 'tenants', label: 'Tenants', description: 'See tenant profiles, room assignments, and contact info.', defaultValue: true },
-  { key: 'messages', label: 'Messages', description: 'Monitor inbox conversations with prospects and tenants.', defaultValue: true },
-  { key: 'rooms', label: 'Room Management', description: 'Allow caretakers to edit room availability and assignments.', defaultValue: false },
-];
+const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'payments', 'verification', 'appearance', 'switch-role'];
+const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
 
-const createCaretakerPermissionDefaults = () => {
-  const defaults = CARETAKER_PERMISSION_FIELDS.reduce((acc, field) => { acc[field.key] = field.defaultValue; return acc; }, {});
-  defaults.properties = false;
-  return defaults;
-};
-
-const createCaretakerEditState = () => ({ open: false, assignmentId: null, caretakerName: '', permissions: createCaretakerPermissionDefaults(), propertyIds: [], saving: false, error: '' });
-
-const serializeCaretakerPermissions = (permissions) => ({
-  can_view_bookings: Boolean(permissions.bookings),
-  can_view_messages: Boolean(permissions.messages),
-  can_view_tenants: Boolean(permissions.tenants),
-  can_view_rooms: Boolean(permissions.rooms),
-  can_view_properties: Boolean(permissions.properties)
+const createCaretakerPermissionDefaults = () => ({
+  bookings: false,
+  tenants: false,
+  messages: false,
+  rooms: false,
+  properties: false,
+  maintenance: false,
+  payments: false
 });
 
-const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'payments', 'verification', 'appearance'];
-const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
+const DEFAULT_SECURITY_PREFERENCES = {
+  twoFactorAuth: false,
+  loginAlerts: true
+};
+
+const getSecurityPreferences = (preferences) => {
+  const source = preferences?.security;
+  if (!source || typeof source !== 'object') return DEFAULT_SECURITY_PREFERENCES;
+
+  return {
+    twoFactorAuth: Boolean(source.twoFactorAuth),
+    loginAlerts: source.loginAlerts === undefined ? true : Boolean(source.loginAlerts)
+  };
+};
 
 export default function Settings({ user, accessRole = 'landlord', onUserUpdate }) {
   const { uiState, updateData } = useUIState();
@@ -50,6 +53,66 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   });
 
   const normalizedRole = accessRole || user?.role || 'landlord';
+
+  const allTabs = [
+    { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
+    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
+    { id: 'security', label: 'Security', icon: <Lock className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
+    { id: 'caretaker', label: 'Caretaker Management', icon: <Users className="w-4 h-4" />, roles: ['landlord'] },
+    { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" />, roles: ['landlord'] },
+    { id: 'verification', label: 'Verification', icon: <ShieldCheck className="w-4 h-4" />, roles: ['landlord'] },
+    { id: 'appearance', label: 'Appearance', icon: <Palette className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
+    { id: 'switch-role', label: 'Switch Role', icon: <ArrowLeftRight className="w-4 h-4" />, roles: ['landlord'] },
+  ];
+
+  const visibleTabs = allTabs.filter(tab => tab.roles.includes(normalizedRole));
+
+  // --- Profile State ---
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileData, setProfileData] = useState({
+    firstName: user?.first_name || '',
+    lastName: user?.last_name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    dateOfBirth: user?.date_of_birth || '',
+    gender: user?.gender || '',
+    identified_as: user?.identified_as || ''
+  });
+  const [profilePhoto, setProfilePhoto] = useState(user?.profile_image || null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Sync profileData when user prop changes
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        dateOfBirth: user.date_of_birth || '',
+        gender: user.gender || '',
+        identified_as: user.identified_as || ''
+      });
+      setProfilePhoto(user.profile_image || null);
+    }
+  }, [user]);
+
+  // --- Security State ---
+  const [isEditingPassword, setIsEditingPassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [isEditingSecurity, setIsEditingSecurity] = useState(false);
+  const [security, setSecurity] = useState(() => getSecurityPreferences(user?.preferences));
+  const [isSavingSecurity, setIsSavingSecurity] = useState(false);
+
+  // --- Caretaker State ---
+  const [caretakers, setCaretakers] = useState(() => Array.isArray(cachedData?.caretakers) ? cachedData.caretakers : []);
+  const [landlordProperties, setLandlordProperties] = useState(() => Array.isArray(cachedData?.landlordProperties) ? cachedData.landlordProperties : []);
+  const [caretakerForm, setCaretakerForm] = useState({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState([]);
+  const [caretakerPermissions, setCaretakerPermissions] = useState(createCaretakerPermissionDefaults());
+  const [caretakerState, setCaretakerState] = useState({ loading: false, error: '' });
 
   useEffect(() => {
     if (location.state?.tab && VALID_TABS.includes(location.state.tab)) {
@@ -75,103 +138,228 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     setSearchParams(params);
   };
 
-  const [profileData, setProfileData] = useState({ firstName: user?.first_name || '', lastName: user?.last_name || '', email: user?.email || '', phone: user?.phone || '' });
-  const [security, setSecurity] = useState({ twoFactorAuth: false, loginAlerts: true });
-  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [caretakers, setCaretakers] = useState(cachedData?.caretakers || []);
-  const [landlordProperties, setLandlordProperties] = useState(cachedData?.landlordProperties || []);
-  const [caretakerForm, setCaretakerForm] = useState({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
-  const [selectedPropertyIds, setSelectedPropertyIds] = useState([]);
-  const [caretakerPermissions, setCaretakerPermissions] = useState(() => createCaretakerPermissionDefaults());
-  const [caretakerState, setCaretakerState] = useState({ loading: false, error: '', message: '' });
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isEditingPassword, setIsEditingPassword] = useState(false);
-  const [isEditingSecurity, setIsEditingSecurity] = useState(false);
-  const [profilePhoto, setProfilePhoto] = useState(user?.profile_image || null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const fileInputRef = useRef(null);
+  // --- Profile Handlers ---
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) return toast.error('Image size must be less than 5MB');
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
 
-  useEffect(() => {
-    if (activeTab === 'caretaker' && user?.role === 'landlord') fetchCaretakers();
-  }, [activeTab]);
-
-  const fetchCaretakers = async () => {
+  const handleRemovePhoto = async () => {
+    if (photoPreview) {
+      setPhotoPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     try {
-      if (!cachedData) setCaretakerState(prev => ({ ...prev, loading: true }));
-      const { data } = await api.get('/landlord/caretakers');
-      setCaretakers(data.caretakers || []);
-      setLandlordProperties(data.landlord_properties || []);
-      updateData('landlord_settings', { caretakers: data.caretakers, landlordProperties: data.landlord_properties });
-      setCaretakerState(prev => ({ ...prev, loading: false }));
-    } catch (error) { setCaretakerState(prev => ({ ...prev, loading: false, error: 'Failed to fetch caretakers.' })); }
+      await api.delete('/me/profile-image');
+      setProfilePhoto(null);
+      onUserUpdate({ ...user, profile_image: null });
+      toast.success('Photo removed');
+    } catch {
+      toast.error('Failed to remove photo');
+    }
   };
 
   const handleSaveProfile = async () => {
     try {
-      const result = await api.put('/me', { first_name: profileData.firstName, last_name: profileData.lastName, phone: profileData.phone });
-      onUserUpdate?.(result.data.user);
-      setIsEditingProfile(false);
-      toast.success('Profile updated successfully!');
-    } catch (error) { toast.error('Failed to update profile.'); }
-  };
+      const formData = new FormData();
+      formData.append('first_name', profileData.firstName);
+      formData.append('last_name', profileData.lastName);
+      formData.append('phone', profileData.phone);
+      formData.append('date_of_birth', profileData.dateOfBirth);
+      formData.append('gender', profileData.gender || '');
+      formData.append('identified_as', profileData.identified_as || '');
+      formData.append('_method', 'PUT');
 
-  const handlePhotoSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setPhotoPreview(reader.result);
-      reader.readAsDataURL(file);
+      if (fileInputRef.current?.files[0]) {
+        formData.append('profile_image', fileInputRef.current.files[0]);
+      }
+
+      const res = await api.post('/me', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onUserUpdate(res.data.user);
+      setIsEditingProfile(false);
+      setPhotoPreview(null);
+      toast.success('Profile updated!');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Update failed');
     }
   };
 
-  const handlePhotoUpload = async () => {
-    const formData = new FormData();
-    formData.append('profile_image', fileInputRef.current.files[0]);
+  // --- Security Handlers ---
+  const handleUpdatePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) return toast.error('Passwords do not match');
     try {
-      setIsUploadingPhoto(true);
-      const res = await api.post('/me', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      onUserUpdate?.(res.data.user);
-      setPhotoPreview(null);
-      toast.success('Photo updated!');
-    } finally { setIsUploadingPhoto(false); }
+      await api.post('/change-password', {
+        current_password: passwordData.currentPassword,
+        new_password: passwordData.newPassword,
+        new_password_confirmation: passwordData.confirmPassword
+      });
+      toast.success('Password changed!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setIsEditingPassword(false);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to change password');
+    }
   };
+
+  useEffect(() => {
+    if (!isEditingSecurity) {
+      setSecurity(getSecurityPreferences(user?.preferences));
+    }
+  }, [user, isEditingSecurity]);
+
+  const persistUserPreferences = async (nextPreferences) => {
+    const response = await api.put('/me', { preferences: nextPreferences });
+    const nextUser = response.data?.user || { ...user, preferences: nextPreferences };
+    if (onUserUpdate) onUserUpdate(nextUser);
+    return nextUser;
+  };
+
+  const handleCancelSecurityEdit = () => {
+    setSecurity(getSecurityPreferences(user?.preferences));
+    setIsEditingSecurity(false);
+  };
+
+  const handleUpdateSecurity = async () => {
+    setIsSavingSecurity(true);
+    try {
+      const currentPreferences = (user?.preferences && typeof user.preferences === 'object')
+        ? user.preferences
+        : {};
+
+      const nextPreferences = {
+        ...currentPreferences,
+        security: {
+          twoFactorAuth: Boolean(security.twoFactorAuth),
+          loginAlerts: Boolean(security.loginAlerts)
+        }
+      };
+
+      await persistUserPreferences(nextPreferences);
+      toast.success('Security settings updated!');
+      setIsEditingSecurity(false);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to save security settings');
+    } finally {
+      setIsSavingSecurity(false);
+    }
+  };
+
+  // --- Caretaker Handlers ---
+  const fetchCaretakers = async () => {
+    setCaretakerState(s => ({ ...s, loading: true }));
+    try {
+      const [cRes, pRes] = await Promise.all([api.get('/landlord/caretakers'), api.get('/landlord/properties')]);
+      
+      // The backend returns { caretakers: [...], landlord_properties: [...] }
+      const caretakersData = Array.isArray(cRes.data?.caretakers) ? cRes.data.caretakers : [];
+      const propertiesData = Array.isArray(pRes.data.data) ? pRes.data.data : (Array.isArray(pRes.data) ? pRes.data : []);
+      
+      setCaretakers(caretakersData);
+      setLandlordProperties(propertiesData);
+      updateData('landlord_settings', { caretakers: caretakersData, landlordProperties: propertiesData });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCaretakerState(s => ({ ...s, loading: false }));
+    }
+  };
+
+  const handlePermissionToggle = (key) => setCaretakerPermissions(p => ({ ...p, [key]: !p[key] }));
+  const resetCaretakerPermissions = () => setCaretakerPermissions(createCaretakerPermissionDefaults());
 
   const handleCreateCaretaker = async () => {
+    setCaretakerState(s => ({ ...s, loading: true }));
     try {
-      setCaretakerState(prev => ({ ...prev, loading: true, error: '', message: '' }));
-      await api.post('/landlord/caretakers', { 
-        ...caretakerForm, 
-        permissions: serializeCaretakerPermissions(caretakerPermissions), 
-        property_ids: selectedPropertyIds 
+      // Map frontend permission keys to backend 'can_view_*' keys
+      const mappedPermissions = {
+        can_view_bookings: !!caretakerPermissions.bookings,
+        can_view_messages: !!caretakerPermissions.messages,
+        can_view_tenants: !!caretakerPermissions.tenants,
+        can_view_rooms: !!caretakerPermissions.rooms,
+        can_view_properties: !!caretakerPermissions.properties,
+        can_manage_maintenance: !!caretakerPermissions.maintenance,
+        can_manage_payments: !!caretakerPermissions.payments
+      };
+
+      await api.post('/landlord/caretakers', {
+        ...caretakerForm,
+        property_ids: selectedPropertyIds,
+        permissions: mappedPermissions
       });
+      await fetchCaretakers();
       
-      // Reset state and clear form
-      setCaretakerState({ loading: false, error: '', message: '' });
-      setCaretakerForm({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
+      toast.success('Caretaker added!');
+      setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
       setSelectedPropertyIds([]);
-      
-      // Refresh the list
-      fetchCaretakers();
-      
-      toast.success('Caretaker account created successfully!');
-    } catch (e) { 
-      const errorMsg = e.response?.data?.message || 'Failed to create caretaker account.';
-      setCaretakerState(prev => ({ ...prev, loading: false, error: errorMsg })); 
-      toast.error(errorMsg);
-      throw e;
+      resetCaretakerPermissions();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to add caretaker');
+    } finally {
+      setCaretakerState(s => ({ ...s, loading: false }));
     }
   };
 
-  const handlePermissionToggle = (key) => {
-    setCaretakerPermissions(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+  const handleUpdateCaretaker = async (id) => {
+    setCaretakerState(s => ({ ...s, loading: true }));
+    try {
+      // Map frontend permission keys to backend 'can_view_*' keys
+      const mappedPermissions = {
+        can_view_bookings: !!caretakerPermissions.bookings,
+        can_view_messages: !!caretakerPermissions.messages,
+        can_view_tenants: !!caretakerPermissions.tenants,
+        can_view_rooms: !!caretakerPermissions.rooms,
+        can_view_properties: !!caretakerPermissions.properties,
+        can_manage_maintenance: !!caretakerPermissions.maintenance,
+        can_manage_payments: !!caretakerPermissions.payments
+      };
+
+      const response = await api.patch(`/landlord/caretakers/${id}`, {
+        ...caretakerForm,
+        property_ids: selectedPropertyIds,
+        permissions: mappedPermissions
+      });
+      
+      const updatedCaretakerData = response.data.caretaker;
+
+      const transformedCaretaker = {
+        id: updatedCaretakerData.assignment_id,
+        caretaker: {
+          id: null, // Not available in response
+          first_name: updatedCaretakerData.first_name,
+          middle_name: updatedCaretakerData.middle_name,
+          last_name: updatedCaretakerData.last_name,
+          email: updatedCaretakerData.email,
+          phone: updatedCaretakerData.phone,
+          date_of_birth: updatedCaretakerData.date_of_birth,
+          is_active: true,
+        },
+        permissions: updatedCaretakerData.permissions,
+        assigned_properties: updatedCaretakerData.assigned_properties,
+        assigned_property_ids: updatedCaretakerData.assigned_properties.map(p => p.id),
+        created_at: new Date().toISOString(), // This will be slightly off, but ok for UI update
+      };
+
+      setCaretakers(prev => prev.map(c => c.id === id ? transformedCaretaker : c));
+      toast.success('Caretaker updated!');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Update failed');
+    } finally {
+      setCaretakerState(s => ({ ...s, loading: false }));
+    }
   };
 
-  const resetCaretakerPermissions = () => {
-    setCaretakerPermissions(createCaretakerPermissionDefaults());
+  const handleRevokeCaretaker = async (id, reason) => {
+    try {
+      await api.delete(`/landlord/caretakers/${id}`, { data: { reason } });
+      fetchCaretakers();
+      toast.success('Access revoked');
+    } catch {
+      toast.error('Revocation failed');
+    }
   };
 
   return (
@@ -179,52 +367,83 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-            <nav className="space-y-1">
-              {[
-                { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
-                { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
-                { id: 'security', label: 'Security', icon: <Lock className="w-4 h-4" /> },
-                { id: 'caretaker', label: 'Caretaker', icon: <Users className="w-4 h-4" /> }
-              ].map(tab => (
-                <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+            <nav className="space-y-2">
+              {visibleTabs.map(tab => (
+                <button 
+                  key={tab.id} 
+                  onClick={() => handleTabChange(tab.id)} 
+                  className={`w-full text-left px-4 py-4 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}
+                >
                   {tab.icon} {tab.label}
                 </button>
               ))}
-              {normalizedRole === 'landlord' && (
-                <>
-                  <button onClick={() => handleTabChange('payments')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'payments' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><CreditCard className="w-4 h-4" /> Payments</button>
-                  <button onClick={() => handleTabChange('verification')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'verification' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><ShieldCheck className="w-4 h-4" /> Verification</button>
-                </>
-              )}
-              <button onClick={() => handleTabChange('appearance')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'appearance' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><Palette className="w-4 h-4" /> Appearance</button>
             </nav>
           </div>
         </div>
 
         <div className="lg:col-span-3">
-          {activeTab === 'profile' && <MyProfile user={user} profileData={profileData} setProfileData={setProfileData} isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} handleSaveProfile={handleSaveProfile} profilePhoto={profilePhoto} photoPreview={photoPreview} isUploadingPhoto={isUploadingPhoto} fileInputRef={fileInputRef} handlePhotoSelect={handlePhotoSelect} handlePhotoUpload={handlePhotoUpload} />}
-          {activeTab === 'notifications' && <Notifications user={user} onUpdate={onUserUpdate} />}
-          {activeTab === 'security' && <Security passwordData={passwordData} setPasswordData={setPasswordData} isEditingPassword={isEditingPassword} setIsEditingPassword={setIsEditingPassword} security={security} setSecurity={setSecurity} isEditingSecurity={isEditingSecurity} setIsEditingSecurity={setIsEditingSecurity} />}
-          {activeTab === 'caretaker' && (
-            <CareTakerAccess 
-              caretakers={caretakers} 
-              landlordProperties={landlordProperties} 
-              selectedPropertyIds={selectedPropertyIds} 
-              setSelectedPropertyIds={setSelectedPropertyIds} 
-              caretakerState={caretakerState} 
-              setCaretakerState={setCaretakerState}
-              handleCreateCaretaker={handleCreateCaretaker} 
-              caretakerForm={caretakerForm} 
-              setCaretakerForm={setCaretakerForm} 
-              caretakerPermissions={caretakerPermissions} 
-              setCaretakerPermissions={setCaretakerPermissions}
-              handlePermissionToggle={handlePermissionToggle}
-              resetCaretakerPermissions={resetCaretakerPermissions}
+          {activeTab === 'profile' && (
+            <MyProfile 
+              user={user}
+              profileData={profileData}
+              setProfileData={setProfileData}
+              isEditingProfile={isEditingProfile}
+              setIsEditingProfile={setIsEditingProfile}
+              handleSaveProfile={handleSaveProfile}
+              profilePhoto={profilePhoto}
+              setProfilePhoto={setProfilePhoto}
+              photoPreview={photoPreview}
+              setPhotoPreview={setPhotoPreview}
+              isUploadingPhoto={isUploadingPhoto}
+              setIsUploadingPhoto={setIsUploadingPhoto}
+              fileInputRef={fileInputRef}
+              handlePhotoSelect={handlePhotoSelect}
+              handleRemovePhoto={handleRemovePhoto}
             />
           )}
-          {normalizedRole === 'landlord' && activeTab === 'payments' && <PaymentMethods user={user} onUpdate={onUserUpdate} />}
-          {normalizedRole === 'landlord' && activeTab === 'verification' && <VerificationStatus />}
-          {activeTab === 'appearance' && <AppearanceTab />}
+          {activeTab === 'notifications' && <Notifications user={user} onUpdate={onUserUpdate} />}
+          {activeTab === 'security' && (
+            <Security 
+              user={user} 
+              passwordData={passwordData}
+              setPasswordData={setPasswordData}
+              isEditingPassword={isEditingPassword}
+              setIsEditingPassword={setIsEditingPassword}
+              handleUpdatePassword={handleUpdatePassword}
+              security={security}
+              setSecurity={setSecurity}
+              isEditingSecurity={isEditingSecurity}
+              setIsEditingSecurity={setIsEditingSecurity}
+              handleCancelSecurityEdit={handleCancelSecurityEdit}
+              handleUpdateSecurity={handleUpdateSecurity}
+              isSavingSecurity={isSavingSecurity}
+            />
+          )}
+          {activeTab === 'caretaker' && (
+            <CareTakerAccess 
+              caretakers={caretakers}
+              setCaretakers={setCaretakers}
+              caretakerForm={caretakerForm}
+              setCaretakerForm={setCaretakerForm}
+              caretakerPermissions={caretakerPermissions}
+              setCaretakerPermissions={setCaretakerPermissions}
+              landlordProperties={landlordProperties}
+              selectedPropertyIds={selectedPropertyIds}
+              setSelectedPropertyIds={setSelectedPropertyIds}
+              caretakerState={caretakerState}
+              setCaretakerState={setCaretakerState}
+              handleCreateCaretaker={handleCreateCaretaker}
+              handleUpdateCaretaker={handleUpdateCaretaker}
+              handleRevokeCaretaker={handleRevokeCaretaker}
+              fetchCaretakers={fetchCaretakers}
+              resetCaretakerPermissions={resetCaretakerPermissions}
+              handlePermissionToggle={handlePermissionToggle}
+            />
+          )}
+          {activeTab === 'payments' && <PaymentMethods user={user} onUpdate={onUserUpdate} />}
+          {activeTab === 'verification' && <VerificationStatus user={user} onUpdate={onUserUpdate} />}
+          {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
+          {activeTab === 'switch-role' && <SwitchRoleTab user={user} onUserUpdate={onUserUpdate} />}
         </div>
       </div>
     </div>
