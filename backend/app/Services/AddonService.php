@@ -128,9 +128,9 @@ class AddonService
 
                 $amountCents = (int) round($resolvedPrice * ($addonRequest->pivot->quantity ?? 1) * 100);
 
-                // Check for existing PENDING invoice for this booking
+                // Check for existing unpaid rent-like invoice for this booking
                 $latestInvoice = $booking->invoices()
-                    ->where('status', 'pending')
+                    ->whereIn('status', ['pending', 'partial', 'overdue', 'unpaid'])
                     ->where(function ($query) {
                         $query->whereNull('invoice_type')
                             ->orWhere('invoice_type', 'rent');

@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Pencil, Save } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function SystemSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [tenantPaymentsDisabled, setTenantPaymentsDisabled] = useState(true);
   const [reservationFeeDisabled, setReservationFeeDisabled] = useState(true);
+  const [initialSettings, setInitialSettings] = useState({
+    tenantPaymentsDisabled: true,
+    reservationFeeDisabled: true,
+  });
 
   const loadSettings = async () => {
     setLoading(true);
@@ -17,8 +22,15 @@ export default function SystemSettings() {
         throw new Error(response?.error || response?.message || 'Failed to load settings');
       }
 
-      setTenantPaymentsDisabled(Boolean(response.data?.tenantPaymentsDisabled));
-      setReservationFeeDisabled(Boolean(response.data?.reservationFeeDisabled));
+      const nextSettings = {
+        tenantPaymentsDisabled: Boolean(response.data?.tenantPaymentsDisabled),
+        reservationFeeDisabled: Boolean(response.data?.reservationFeeDisabled),
+      };
+
+      setTenantPaymentsDisabled(nextSettings.tenantPaymentsDisabled);
+      setReservationFeeDisabled(nextSettings.reservationFeeDisabled);
+      setInitialSettings(nextSettings);
+      setIsEditing(false);
     } catch (error) {
       toast.error(error?.message || 'Failed to load settings');
     } finally {
@@ -42,12 +54,23 @@ export default function SystemSettings() {
         throw new Error(response?.error || response?.message || 'Failed to save settings');
       }
 
+      setInitialSettings({
+        tenantPaymentsDisabled,
+        reservationFeeDisabled,
+      });
+      setIsEditing(false);
       toast.success(response?.message || 'Settings updated');
     } catch (error) {
       toast.error(error?.message || 'Failed to save settings');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setTenantPaymentsDisabled(initialSettings.tenantPaymentsDisabled);
+    setReservationFeeDisabled(initialSettings.reservationFeeDisabled);
+    setIsEditing(false);
   };
 
   return (
@@ -79,6 +102,7 @@ export default function SystemSettings() {
                 className="mt-1 h-5 w-5"
                 checked={tenantPaymentsDisabled}
                 onChange={(e) => setTenantPaymentsDisabled(e.target.checked)}
+                disabled={!isEditing || saving}
               />
             </label>
 
@@ -94,18 +118,39 @@ export default function SystemSettings() {
                 className="mt-1 h-5 w-5"
                 checked={reservationFeeDisabled}
                 onChange={(e) => setReservationFeeDisabled(e.target.checked)}
+                disabled={!isEditing || saving}
               />
             </label>
 
             <div className="pt-2 flex items-center gap-3">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold disabled:opacity-60"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save Settings
-              </button>
+              {!isEditing ? (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  disabled={loading || saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold disabled:opacity-60"
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit Settings
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold disabled:opacity-60"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Settings
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
               <button
                 onClick={loadSettings}
                 disabled={loading || saving}
