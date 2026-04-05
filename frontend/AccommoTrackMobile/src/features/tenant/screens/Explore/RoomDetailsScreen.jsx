@@ -29,6 +29,7 @@ import BookingService from '../../../../services/BookingService.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
+import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import {
   tenantQueryKeys,
@@ -79,6 +80,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [roomData, setRoomData] = useState(room || null);
   const [receiptImage, setReceiptImage] = useState(null);
   const [bookingMode, setBookingMode] = useState('normal');
+  const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(
+    SystemToggleService.getDefaults().reservationFeeDisabled,
+  );
   const createEmptyOccupant = () => ({
     full_name: '',
     date_of_birth: '',
@@ -131,14 +135,28 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const reservationFeeSetting =
     propertyData?.require_reservation_fee ?? activeRoom?.property?.require_reservation_fee;
   const normalizedReservationFeeSetting = toBooleanFlag(reservationFeeSetting);
-  const isReservationFeeEnabled = reservationFeeSetting === undefined || reservationFeeSetting === null
-    ? reservationFeeAmount > 0
-    : (normalizedReservationFeeSetting ?? reservationFeeAmount > 0);
+  const isReservationFeeEnabled = !reservationFeeTempDisabled && (
+    reservationFeeSetting === undefined || reservationFeeSetting === null
+      ? reservationFeeAmount > 0
+      : (normalizedReservationFeeSetting ?? reservationFeeAmount > 0)
+  );
   const isReservationConfigured = isReservationFeeEnabled && reservationFeeAmount > 0;
   const reservationFeeThresholdDays = 3;
   const gcashName = propertyData?.gcash_name || activeRoom?.property?.gcash_name || '';
   const gcashNumber = propertyData?.gcash_number || activeRoom?.property?.gcash_number || '';
   const gcashQrPath = propertyData?.gcash_qr_path || activeRoom?.property?.gcash_qr_path || '';
+
+  useEffect(() => {
+    let mounted = true;
+    SystemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setReservationFeeTempDisabled(Boolean(result.data.reservationFeeDisabled));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     // keep roomData in sync when navigation param changes

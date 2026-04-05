@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL } from '../../../../config/index.js';
+import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import {
@@ -23,6 +24,9 @@ export default function PaymentDetail() {
 
   const [isPaying, setIsPaying] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
+    SystemToggleService.getDefaults().tenantPaymentsDisabled,
+  );
   const paymentDetailQuery = useQuery({
     queryKey: tenantQueryKeys.paymentDetail(invoiceId),
     queryFn: async () => {
@@ -48,6 +52,18 @@ export default function PaymentDetail() {
     enabled: Boolean(invoiceId),
     refetchers: paymentDetailRefetchers,
   });
+
+  useEffect(() => {
+    let mounted = true;
+    SystemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!paymentDetailQuery.error) return;
@@ -90,6 +106,11 @@ export default function PaymentDetail() {
   const loading = paymentDetailQuery.isLoading || isPaying;
 
   const handleGCashPay = async () => {
+    if (tenantPaymentsTempDisabled) {
+      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
+
     if (!invoice) return;
     const amountToPay = Number(paymentAmount);
     if (isNaN(amountToPay) || amountToPay <= 0) {
@@ -120,6 +141,11 @@ export default function PaymentDetail() {
   };
 
   const handleCardPay = () => {
+    if (tenantPaymentsTempDisabled) {
+      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
+
     // Note: If using a custom tokenization view, it might need the amount passed in the URL.
     // For now, passing standard tokenizeUrl. If partial is needed for cards, backend updates for tokenization route might be required.
     const apiUrl = BASE_URL;
@@ -223,6 +249,13 @@ export default function PaymentDetail() {
             </View>
           ) : (
             <View style={{ marginTop: 24 }}>
+                {tenantPaymentsTempDisabled && (
+                  <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
+                    <Text style={{ color: '#92400e', fontWeight: '600' }}>
+                      Tenant payments are temporarily unavailable while payment compliance updates are in progress.
+                    </Text>
+                  </View>
+                )}
               <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>Amount to Pay (₱)</Text>
               <TextInput
                 style={{
@@ -247,10 +280,10 @@ export default function PaymentDetail() {
               </Text>
 
               <View style={styles.actionsRow}>
-                <TouchableOpacity onPress={handleGCashPay} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF' }]}>
+                  <TouchableOpacity onPress={handleGCashPay} disabled={tenantPaymentsTempDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}> 
                   <Text style={styles.payBtnText}>Pay with GCash</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleCardPay} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary }]}>
+                  <TouchableOpacity onPress={handleCardPay} disabled={tenantPaymentsTempDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}> 
                   <Text style={styles.payBtnText}>Pay with Card</Text>
                 </TouchableOpacity>
               </View>

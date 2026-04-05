@@ -16,6 +16,9 @@ import api from "../../utils/api";
 import ImagePlaceholder from "../Shared/ImagePlaceholder";
 import ImageCarousel from "../Shared/ImageCarousel";
 import bookingServiceDefault from "../../services/bookingService";
+import systemToggleService from "../../services/systemToggleService";
+
+const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
 export default function RoomDetailsModal({
   room,
@@ -51,6 +54,7 @@ export default function RoomDetailsModal({
   const [autoNavTimer, setAutoNavTimer] = useState(null);
   const [bookingMode, setBookingMode] = useState("normal");
   const [proxyOccupants, setProxyOccupants] = useState([]);
+  const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(DEFAULT_TOGGLES.reservationFeeDisabled);
 
   const createEmptyOccupant = () => ({
     full_name: "",
@@ -164,9 +168,24 @@ export default function RoomDetailsModal({
   const reservationFeeSetting =
     property?.require_reservation_fee ?? property?.requireReservationFee;
   const normalizedReservationFeeSetting = toBooleanFlag(reservationFeeSetting);
-  const isReservationFeeEnabled = reservationFeeSetting === undefined || reservationFeeSetting === null
-    ? reservationFeeAmount > 0
-    : (normalizedReservationFeeSetting ?? reservationFeeAmount > 0);
+
+  useEffect(() => {
+    let mounted = true;
+    systemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setReservationFeeTempDisabled(Boolean(result.data.reservationFeeDisabled));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const isReservationFeeEnabled = !reservationFeeTempDisabled && (
+    reservationFeeSetting === undefined || reservationFeeSetting === null
+      ? reservationFeeAmount > 0
+      : (normalizedReservationFeeSetting ?? reservationFeeAmount > 0)
+  );
   const isReservationFeeConfigured = isReservationFeeEnabled && reservationFeeAmount > 0;
   const reservationFeeThresholdDays = 3;
   const moveInDate = toLocalDate(startDate);

@@ -7,6 +7,7 @@ use App\Models\Room;
 use App\Models\TenantProfile;
 use App\Models\User;
 use App\Notifications\NewBookingNotification;
+use App\Support\SystemToggle;
 use App\Services\AuditLogService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -213,7 +214,12 @@ class BookingService
             $effectiveMoveInDate = $startDate->copy()->startOfDay();
             $bookingIssuedDate = Carbon::today();
             $daysUntilMoveIn = max(0, $bookingIssuedDate->diffInDays($effectiveMoveInDate, false));
-            $reservationFeeEnabled = (bool) ($room->property->require_reservation_fee ?? false);
+            $reservationFeeTemporarilyDisabled = SystemToggle::getBool(
+                'reservation_fee_disabled',
+                (bool) config('app.reservation_fee_disabled', false)
+            );
+            $reservationFeeEnabled = ! $reservationFeeTemporarilyDisabled
+                && (bool) ($room->property->require_reservation_fee ?? false);
             $reservationFeeAmount = (float) ($room->property->reservation_fee ?? 0);
             $requiresReservationFee = $reservationFeeEnabled
                 && $reservationFeeAmount > 0

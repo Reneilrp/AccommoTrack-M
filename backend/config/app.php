@@ -126,4 +126,8 @@ return [
     'frontend_url' => env('FRONTEND_URL', 'https://accommotrack.me'),
     'backend_url' => env('BACKEND_URL', 'https://accommotrack.me'),
 
+    // Temporary operational kill switches for tenant payment channels.
+    'tenant_payments_disabled' => (bool) env('TENANT_PAYMENTS_DISABLED', true),
+    'reservation_fee_disabled' => (bool) env('RESERVATION_FEE_DISABLED', true),
+
 ];

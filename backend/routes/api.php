@@ -16,6 +16,7 @@ use App\Http\Controllers\Common\PaymongoController;
 use App\Http\Controllers\Common\PaymongoWebhookController;
 use App\Http\Controllers\Common\ReportController;
 use App\Http\Controllers\Common\ReviewController;
+use App\Http\Controllers\Common\SystemToggleController;
 use App\Http\Controllers\Common\TransactionController;
 use App\Http\Controllers\ReservationDisputeController;
 use App\Http\Controllers\Landlord\AddonController;
@@ -69,6 +70,7 @@ Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']
 // ---------------------------------------------------------------------------
 
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
+Route::get('/system/toggles', [SystemToggleController::class, 'index']);
 
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
 Route::get('/rooms/{room}/payment-options', [RoomController::class, 'getPaymentOptions']);
@@ -336,6 +338,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function () {
         Route::get('/dashboard/stats', [AdminController::class, 'getDashboardStats']);
         Route::get('/dashboard/recent-activities', [AdminController::class, 'getRecentActivities']);
+        Route::get('/settings/payment-controls', [AdminController::class, 'getPaymentControlSettings']);
+        Route::put('/settings/payment-controls', [AdminController::class, 'updatePaymentControlSettings']);
         Route::get('/users', [AdminController::class, 'getUsers']);
         // Route::post('/users', [AdminController::class, 'createAdmin']);
         Route::post('/users/{id}/approve', [AdminController::class, 'approveUser']);

@@ -4,6 +4,9 @@ import api from '../../utils/api';
 import { ArrowLeft, CreditCard, Wallet, Landmark, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import PriceRow from '../../components/Shared/PriceRow';
 import toast from 'react-hot-toast';
+import systemToggleService from '../../services/systemToggleService';
+
+const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
 export default function InvoiceCheckout() {
   const { id } = useParams();
@@ -16,10 +19,22 @@ export default function InvoiceCheckout() {
   const [remainingBalance, setRemainingBalance] = useState(0);
   const [pendingOffline, setPendingOffline] = useState(0);
   const [offlineDetails, setOfflineDetails] = useState({ method: '', reference: '', notes: '', show: false });
+  const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
 
   useEffect(() => {
     loadInvoice();
   }, [id]);
+
+  useEffect(() => {
+    let mounted = true;
+    systemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const loadInvoice = async () => {
     try {
@@ -52,6 +67,10 @@ export default function InvoiceCheckout() {
   };
 
   const handlePayMongoSource = async (method) => {
+    if (tenantPaymentsTempDisabled) {
+      return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+    }
+
     const amountToPay = Number(paymentAmount);
     if (isNaN(amountToPay) || amountToPay <= 0) {
       return toast.error('Please enter a valid amount');
@@ -87,6 +106,10 @@ export default function InvoiceCheckout() {
   };
 
   const handleOfflinePayment = async () => {
+    if (tenantPaymentsTempDisabled) {
+      return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+    }
+
     const amountToPay = Number(paymentAmount);
     if (isNaN(amountToPay) || amountToPay <= 0) {
       return toast.error('Please enter a valid amount');
@@ -152,9 +175,9 @@ export default function InvoiceCheckout() {
   
   const allowPartialPayments = property?.allow_partial_payments !== 0 && property?.allow_partial_payments !== false;
   
-  const showOnline = acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
-  const showCash = acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
-  const showManualGcash = globalSettings.allowed?.includes('gcash');
+  const showOnline = !tenantPaymentsTempDisabled && acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
+  const showCash = !tenantPaymentsTempDisabled && acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
+  const showManualGcash = !tenantPaymentsTempDisabled && globalSettings.allowed?.includes('gcash');
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4">
@@ -170,6 +193,11 @@ export default function InvoiceCheckout() {
         {/* Left Column: Payment Actions */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-700 overflow-hidden">
+            {tenantPaymentsTempDisabled && (
+              <div className="mx-8 mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                Tenant payments are temporarily unavailable while payment compliance updates are in progress.
+              </div>
+            )}
             <div className="p-8 md:p-10 border-b border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
           <div className="flex flex-col md:flex-row justify-between items-start gap-6">
             <div>

@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import PaymentService from '../../../../services/PaymentService.js';
 import { API_BASE_URL } from '../../../../config/index.js';
+import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
@@ -43,6 +44,9 @@ export default function PaymentsScreen() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('1m');
   const [refreshing, setRefreshing] = useState(false);
+  const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
+    SystemToggleService.getDefaults().tenantPaymentsDisabled,
+  );
 
   const currentUserIdQuery = useQuery({
     queryKey: tenantQueryKeys.paymentsCurrentUserId(),
@@ -121,6 +125,18 @@ export default function PaymentsScreen() {
 
   // Real-time updates
   useEffect(() => {
+    let mounted = true;
+    SystemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!userId) return;
 
     let echoInstance = null;
@@ -168,6 +184,11 @@ export default function PaymentsScreen() {
   const [processingPayment, setProcessingPayment] = useState(false);
 
   const openCheckout = (payment) => {
+    if (tenantPaymentsTempDisabled) {
+      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
+
     setCheckoutItem(payment);
     setCheckoutMethod('gcash');
     setOfflineDetails({ reference: '', notes: '' });
@@ -183,6 +204,11 @@ export default function PaymentsScreen() {
   };
 
   const handlePayInvoice = async (paymentItem, paymentMethod = 'gcash', details = {}) => {
+    if (tenantPaymentsTempDisabled) {
+      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
+
     try {
       setProcessingPayment(true);
 
@@ -519,6 +545,14 @@ export default function PaymentsScreen() {
       <View style={[styles.listCard, { backgroundColor: theme.colors.surface }]}>
         <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Transactions</Text>
 
+        {tenantPaymentsTempDisabled && (
+          <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 10 }}>
+            <Text style={{ color: '#92400e', fontWeight: '600' }}>
+              Tenant payments are temporarily unavailable while payment compliance updates are in progress.
+            </Text>
+          </View>
+        )}
+
         {loading && payments.length === 0 ? (
           <>
             <ListItemSkeleton />
@@ -586,7 +620,7 @@ export default function PaymentsScreen() {
                   </Text>
                 </View>
 
-                {isPayable(payment) && (
+                {!tenantPaymentsTempDisabled && isPayable(payment) && (
                   <TouchableOpacity
                     onPress={() => openCheckout(payment)}
                     style={[styles.payBtn, { backgroundColor: theme.colors.primary }]}

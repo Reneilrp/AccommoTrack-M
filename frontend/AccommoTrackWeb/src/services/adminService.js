@@ -357,6 +357,55 @@ const adminService = {
   },
 
   /**
+   * Get admin payment control settings.
+   */
+  async getPaymentControlSettings() {
+    try {
+      const response = await api.get('/admin/settings/payment-controls');
+      const envelope = normalizeEnvelope(response?.data);
+      const payload = isPlainObject(envelope.data) ? envelope.data : {};
+
+      return {
+        success: envelope.success,
+        data: {
+          tenantPaymentsDisabled: toBoolean(payload.tenant_payments_disabled, false),
+          reservationFeeDisabled: toBoolean(payload.reservation_fee_disabled, false),
+        },
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Update admin payment control settings.
+   * @param {{tenantPaymentsDisabled: boolean, reservationFeeDisabled: boolean}} payload
+   */
+  async updatePaymentControlSettings(payload = {}) {
+    try {
+      const body = {
+        tenant_payments_disabled: Boolean(payload.tenantPaymentsDisabled),
+        reservation_fee_disabled: Boolean(payload.reservationFeeDisabled),
+      };
+      const response = await api.put('/admin/settings/payment-controls', body);
+      const envelope = normalizeEnvelope(response?.data);
+      const data = isPlainObject(envelope.data) ? envelope.data : {};
+
+      return {
+        success: envelope.success,
+        data: {
+          tenantPaymentsDisabled: toBoolean(data.tenant_payments_disabled, body.tenant_payments_disabled),
+          reservationFeeDisabled: toBoolean(data.reservation_fee_disabled, body.reservation_fee_disabled),
+        },
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
    * Get payment oversight queue (manual payments)
    * @param {Object} params
    */

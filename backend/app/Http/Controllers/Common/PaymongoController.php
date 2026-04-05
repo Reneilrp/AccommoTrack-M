@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
+use App\Support\SystemToggle;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,13 @@ use Illuminate\Support\Facades\Log;
 class PaymongoController extends Controller
 {
     use ResolvesLandlordAccess;
+
+    private function tenantPaymentsTemporarilyDisabledResponse()
+    {
+        return response()->json([
+            'message' => 'Tenant online payments are temporarily unavailable while payment compliance updates are in progress.',
+        ], 503);
+    }
 
     /**
      * Create a PayMongo Source / session for an invoice.
@@ -138,6 +146,10 @@ class PaymongoController extends Controller
      */
     public function createSourceForTenant(Request $request, $invoiceId)
     {
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return $this->tenantPaymentsTemporarilyDisabledResponse();
+        }
+
         $validated = $request->validate([
             'method' => 'required|string',
             'return_url' => 'nullable|url',
@@ -387,6 +399,10 @@ class PaymongoController extends Controller
      */
     public function createPaymentForTenant(Request $request, $invoiceId)
     {
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return $this->tenantPaymentsTemporarilyDisabledResponse();
+        }
+
         $validated = $request->validate([
             'payment_method_id' => 'nullable|string',
             'source_id' => 'nullable|string',
@@ -525,6 +541,10 @@ class PaymongoController extends Controller
      */
     public function refreshInvoiceForTenant(Request $request, $invoiceId)
     {
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return $this->tenantPaymentsTemporarilyDisabledResponse();
+        }
+
         $invoice = Invoice::findOrFail($invoiceId);
         $tenantId = Auth::id();
         if ($invoice->tenant_id !== $tenantId) {

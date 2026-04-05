@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Notifications\NewPaymentReceived;
+use App\Support\SystemToggle;
 use App\Services\AuditLogService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -524,6 +525,12 @@ class InvoiceController extends Controller
      */
     public function recordOfflineForTenant(Request $request, $id)
     {
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return response()->json([
+                'message' => 'Tenant payment submissions are temporarily unavailable while payment compliance updates are in progress.',
+            ], 503);
+        }
+
         $invoice = Invoice::findOrFail($id);
         $tenantId = Auth::id();
         if ($invoice->tenant_id !== $tenantId) {

@@ -9,12 +9,54 @@ use App\Models\Property;
 use App\Models\User;
 use App\Notifications\LandlordApprovedNotification;
 use App\Notifications\LandlordRejectedNotification;
+use App\Support\SystemToggle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
+    /**
+     * Get payment control system settings.
+     */
+    public function getPaymentControlSettings(Request $request)
+    {
+        $data = [
+            'tenant_payments_disabled' => SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false)),
+            'reservation_fee_disabled' => SystemToggle::getBool('reservation_fee_disabled', (bool) config('app.reservation_fee_disabled', false)),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'message' => '',
+        ]);
+    }
+
+    /**
+     * Update payment control system settings.
+     */
+    public function updatePaymentControlSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'tenant_payments_disabled' => 'required|boolean',
+            'reservation_fee_disabled' => 'required|boolean',
+        ]);
+
+        $actorId = Auth::id();
+        SystemToggle::setBool('tenant_payments_disabled', (bool) $validated['tenant_payments_disabled'], $actorId);
+        SystemToggle::setBool('reservation_fee_disabled', (bool) $validated['reservation_fee_disabled'], $actorId);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'tenant_payments_disabled' => (bool) $validated['tenant_payments_disabled'],
+                'reservation_fee_disabled' => (bool) $validated['reservation_fee_disabled'],
+            ],
+            'message' => 'Payment control settings updated successfully.',
+        ]);
+    }
+
     /**
      * Get all users
      */

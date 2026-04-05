@@ -40,6 +40,12 @@ const resolvedReverbAppKey =
   normalizeEnvValue(REVERB_APP_KEY) ||
   normalizeEnvValue(process.env.EXPO_PUBLIC_REVERB_APP_KEY) ||
   '';
+const resolvedTenantPaymentsDisabled =
+  normalizeEnvValue(process.env.EXPO_PUBLIC_TENANT_PAYMENTS_DISABLED) ??
+  'true';
+const resolvedReservationFeeDisabled =
+  normalizeEnvValue(process.env.EXPO_PUBLIC_RESERVATION_FEE_DISABLED) ??
+  'true';
 
 // 1. Backend 
 const safeApiUrl = normalizeEnvValue(resolvedApiUrl);
@@ -50,6 +56,8 @@ console.log('[Config] API_BASE_URL:', API_BASE_URL);
 
 // 2. Web Frontend
 export const WEB_BASE_URL = resolvedWebUrl;
+export const TENANT_PAYMENTS_TEMP_DISABLED = String(resolvedTenantPaymentsDisabled).toLowerCase() !== 'false';
+export const RESERVATION_FEE_TEMP_DISABLED = String(resolvedReservationFeeDisabled).toLowerCase() !== 'false';
 
 // 3. Echo / Reverb Config
 export const ECHO_CONFIG = {

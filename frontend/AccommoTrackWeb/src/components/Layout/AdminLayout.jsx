@@ -83,6 +83,16 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </svg>
       )
     },
+    {
+      path: '/admin/settings',
+      label: 'Settings',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317a1 1 0 011.35-.936l.276.111a1 1 0 00.908 0l.276-.111a1 1 0 011.35.936l.032.295a1 1 0 00.57.773l.266.133a1 1 0 01.554 1.206l-.083.285a1 1 0 00.205.941l.2.222a1 1 0 010 1.338l-.2.222a1 1 0 00-.205.941l.083.285a1 1 0 01-.554 1.206l-.266.133a1 1 0 00-.57.773l-.032.295a1 1 0 01-1.35.936l-.276-.111a1 1 0 00-.908 0l-.276.111a1 1 0 01-1.35-.936l-.032-.295a1 1 0 00-.57-.773l-.266-.133a1 1 0 01-.554-1.206l.083-.285a1 1 0 00-.205-.941l-.2-.222a1 1 0 010-1.338l.2-.222a1 1 0 00.205-.941l-.083-.285a1 1 0 01.554-1.206l.266-.133a1 1 0 00.57-.773l.032-.295z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+        </svg>
+      )
+    },
   ];
 
   const handleLogoutClick = () => {

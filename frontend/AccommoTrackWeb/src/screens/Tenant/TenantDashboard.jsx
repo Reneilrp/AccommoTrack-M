@@ -8,8 +8,10 @@ import {
   Activity, CreditCard, ChevronRight, Bell, CalendarClock,
   CheckCircle2, AlertTriangle, ArrowRight, Zap, Droplets, Wifi
 } from 'lucide-react';
+import systemToggleService from '../../services/systemToggleService';
 
 const ROOM_COLORS = ['#22c55e', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171'];
+const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -30,6 +32,7 @@ const TenantDashboard = () => {
     pendingCheckIns: [],
     upcomingBooking: false,
   });
+  const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
   const initialLoadRef = React.useRef(!cachedData);
 
   const fetchDashboardData = useCallback(async () => {
@@ -56,6 +59,17 @@ const TenantDashboard = () => {
   }, [updateData]);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
+
+  useEffect(() => {
+    let mounted = true;
+    systemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleFocusRefresh = () => fetchDashboardData();
@@ -379,12 +393,14 @@ const TenantDashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/payments')}
-              className="w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
-            >
-              Pay Now <ArrowRight className="w-4 h-4" />
-            </button>
+            {!tenantPaymentsTempDisabled && (
+              <button
+                onClick={() => navigate('/payments')}
+                className="w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+              >
+                Pay Now <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={() => dismissNotification('overdueBalance')}
               className="w-8 h-8 rounded-full border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex-shrink-0"
@@ -410,12 +426,14 @@ const TenantDashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/payments')}
-              className="w-full md:w-auto px-8 py-4.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
-            >
-              Pay Now <ArrowRight className="w-4 h-4" />
-            </button>
+            {!tenantPaymentsTempDisabled && (
+              <button
+                onClick={() => navigate('/payments')}
+                className="w-full md:w-auto px-8 py-4.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+              >
+                Pay Now <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={() => dismissNotification('balanceDue')}
               className="w-8 h-8 rounded-full border border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors flex-shrink-0"
