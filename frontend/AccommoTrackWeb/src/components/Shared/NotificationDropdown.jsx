@@ -28,6 +28,13 @@ const NotificationDropdown = () => {
 
   const isNotificationRead = (item) => Boolean(item?.is_read || item?.read_at);
 
+  const extractNotificationRows = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+  };
+
   const fetchNotifications = async () => {
     try {
       setLoading(true);
@@ -46,7 +53,7 @@ const NotificationDropdown = () => {
 
       // DB notifications
       const rawNotifs = notifRes.status === 'fulfilled'
-        ? (notifRes.value.data?.data || notifRes.value.data || [])
+        ? extractNotificationRows(notifRes.value.data)
         : [];
       const safeNotifs = (Array.isArray(rawNotifs) ? rawNotifs : []).map(n => ({
         ...n,

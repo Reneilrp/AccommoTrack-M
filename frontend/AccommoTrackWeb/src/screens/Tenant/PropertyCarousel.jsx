@@ -111,6 +111,12 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     const occupancyLabel = hasOccupancyData && roomCapacity > 1
       ? `${occupiedCount}/${roomCapacity} Pax`
       : `${roomCapacity} Pax`;
+    const amenityLabels = (Array.isArray(room?.amenities) ? room.amenities : [])
+      .map((amenity) => {
+        if (typeof amenity === 'string') return amenity.trim();
+        return String(amenity?.name || amenity?.title || '').trim();
+      })
+      .filter(Boolean);
 
     return {
       ...room,
@@ -123,6 +129,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       displayName: displayName,
       roomTypeLabel: roomType,
       occupancyLabel,
+      amenityLabels,
       imageSource: room?.image || room?.images?.[0] || null,
     };
   };
@@ -312,6 +319,25 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                   {room.occupancyLabel}
                 </span>
               </div>
+
+              {room.amenityLabels.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {room.amenityLabels.slice(0, 3).map((label, idx) => (
+                    <span
+                      key={`${label}-${idx}`}
+                      className="inline-flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100"
+                      title={label}
+                    >
+                      {label}
+                    </span>
+                  ))}
+                  {room.amenityLabels.length > 3 && (
+                    <span className="inline-flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                      +{room.amenityLabels.length - 3} more
+                    </span>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-end justify-between mt-auto pt-4">
                 <div className="flex flex-col">

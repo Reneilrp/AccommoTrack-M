@@ -218,6 +218,13 @@ export default function TenantNotifications({ navigation }) {
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS });
   const [actionError, setActionError] = useState("");
 
+  const extractNotificationRows = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+  };
+
   const notificationsFeedQuery = useQuery({
     queryKey: tenantQueryKeys.notificationsFeed(),
     queryFn: async () => {
@@ -233,11 +240,7 @@ export default function TenantNotifications({ navigation }) {
         let failedSources = 0;
 
         if (backendResult.status === "fulfilled") {
-          const backendPayload =
-            backendResult.value?.data?.data || backendResult.value?.data || [];
-          const backendNotifs = Array.isArray(backendPayload)
-            ? backendPayload
-            : [];
+          const backendNotifs = extractNotificationRows(backendResult.value?.data);
 
           backendNotifs.forEach((n) => {
             items.push({

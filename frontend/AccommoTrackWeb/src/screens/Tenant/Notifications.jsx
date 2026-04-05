@@ -32,12 +32,19 @@ export default function Notifications() {
   const [fetchError, setFetchError] = useState('');
   const [actionError, setActionError] = useState('');
 
+  const extractNotificationRows = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+  };
+
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     setFetchError('');
     try {
       const res = await api.get('/notifications?role=tenant&per_page=200');
-      const rawNotifs = res.data?.data || res.data || [];
+      const rawNotifs = extractNotificationRows(res.data);
 
       // Only use real backend notifications — no synthetic booking/payment injection
       const items = (Array.isArray(rawNotifs) ? rawNotifs : []).map((n) => ({

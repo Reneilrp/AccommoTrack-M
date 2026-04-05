@@ -63,14 +63,18 @@ export default function NotificationsScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [actionError, setActionError] = useState('');
 
+  const extractNotificationRows = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+  };
+
   const notificationsQuery = useQuery({
     queryKey: landlordQueryKeys.notifications(),
     queryFn: async () => {
       const response = await api.get('/notifications?role=landlord&per_page=200');
-      const payload = response.data;
-      const list = Array.isArray(payload?.data)
-        ? payload.data
-        : (Array.isArray(payload) ? payload : []);
+      const list = extractNotificationRows(response.data);
 
       return list.map(mapNotification);
     },
