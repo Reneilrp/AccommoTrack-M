@@ -36,7 +36,7 @@ export default function Notifications() {
     setLoading(true);
     setFetchError('');
     try {
-      const res = await api.get('/notifications?role=tenant');
+      const res = await api.get('/notifications?role=tenant&per_page=200');
       const rawNotifs = res.data?.data || res.data || [];
 
       // Only use real backend notifications — no synthetic booking/payment injection
@@ -46,7 +46,7 @@ export default function Notifications() {
         title: n.data?.title || 'Notification',
         message: n.data?.message || n.data?.body || '',
         timestamp: n.created_at,
-        read: !!n.read_at,
+        read: Boolean(n.is_read || n.read_at),
         raw: n,
       }));
 

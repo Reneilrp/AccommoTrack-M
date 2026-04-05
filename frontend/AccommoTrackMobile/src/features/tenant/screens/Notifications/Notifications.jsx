@@ -224,7 +224,7 @@ export default function TenantNotifications({ navigation }) {
       try {
         const [backendResult, bookingsResult, paymentsResult] =
           await Promise.allSettled([
-            api.get("/notifications?role=tenant"),
+            api.get("/notifications?role=tenant&per_page=200"),
             BookingService.getMyBookings(),
             PaymentService.getPayments(),
           ]);
@@ -246,7 +246,7 @@ export default function TenantNotifications({ navigation }) {
               title: n.data?.title || "Notification",
               message: n.data?.message || "",
               timestamp: n.created_at || new Date().toISOString(),
-              read: !!n.read_at,
+              read: Boolean(n.is_read || n.read_at),
               raw: n,
             });
           });

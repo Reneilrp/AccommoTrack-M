@@ -42,7 +42,7 @@ const mapNotification = (notification) => ({
   title: notification.data?.title || 'Notification',
   message: notification.data?.message || notification.data?.description || '',
   timestamp: notification.created_at,
-  read: Boolean(notification.read_at),
+  read: Boolean(notification.is_read || notification.read_at),
 });
 
 const notificationTypeMap = {
@@ -66,7 +66,7 @@ export default function NotificationsScreen({ navigation }) {
   const notificationsQuery = useQuery({
     queryKey: landlordQueryKeys.notifications(),
     queryFn: async () => {
-      const response = await api.get('/notifications?role=landlord');
+      const response = await api.get('/notifications?role=landlord&per_page=200');
       const payload = response.data;
       const list = Array.isArray(payload?.data)
         ? payload.data

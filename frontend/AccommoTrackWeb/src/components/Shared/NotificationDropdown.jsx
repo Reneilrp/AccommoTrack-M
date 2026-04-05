@@ -26,6 +26,8 @@ const NotificationDropdown = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
+  const isNotificationRead = (item) => Boolean(item?.is_read || item?.read_at);
+
   const fetchNotifications = async () => {
     try {
       setLoading(true);
@@ -36,7 +38,7 @@ const NotificationDropdown = () => {
       const isTenant = role === 'tenant';
 
       const [notifRes, activitiesRes] = await Promise.allSettled([
-        api.get(`/notifications?role=${role}`),
+        api.get(`/notifications?role=${role}&per_page=200`),
         isLandlordOrCaretaker 
           ? api.get('/landlord/dashboard/recent-activities') 
           : (isTenant ? api.get('/tenant/dashboard/activities') : Promise.resolve({ data: [] })),
@@ -77,7 +79,7 @@ const NotificationDropdown = () => {
         .sort((a, b) => b._sortKey - a._sortKey);
 
       setNotifications(merged);
-      setUnreadCount(safeNotifs.filter(n => !n.read_at).length);
+      setUnreadCount(safeNotifs.filter(n => !isNotificationRead(n)).length);
 
       if (role === 'tenant') {
         window.dispatchEvent(new CustomEvent('accommo:tenant-data-refresh'));
@@ -129,7 +131,7 @@ const NotificationDropdown = () => {
   };
 
   const handleNotificationClick = (notification) => {
-    if (notification._kind === 'notification' && !notification.read_at) {
+    if (notification._kind === 'notification' && !isNotificationRead(notification)) {
       handleMarkAsRead(notification.id);
     }
     setIsOpen(false);
@@ -179,13 +181,13 @@ const NotificationDropdown = () => {
       <li
         key={key}
         role="menuitem"
-        className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!item.read_at ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
+        className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!isNotificationRead(item) ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
         onClick={() => handleNotificationClick(item)}
       >
         <div className="px-4 py-4 flex gap-4">
-          <div className={`mt-2 h-2 w-2 rounded-full flex-shrink-0 ${!item.read_at ? 'bg-brand-500' : 'bg-transparent'}`} />
+          <div className={`mt-2 h-2 w-2 rounded-full flex-shrink-0 ${!isNotificationRead(item) ? 'bg-brand-500' : 'bg-transparent'}`} />
           <div className="flex-1 min-w-0">
-            <p className={`text-sm ${!item.read_at ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+            <p className={`text-sm ${!isNotificationRead(item) ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
               {item.data?.title || 'Notification'}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">

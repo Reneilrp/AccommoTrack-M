@@ -61,7 +61,7 @@ export default function NotificationsPage() {
       setLoading(true);
       setFetchError('');
       const [notifRes, activitiesRes] = await Promise.allSettled([
-        api.get('/notifications?role=landlord'),
+        api.get('/notifications?role=landlord&per_page=200'),
         api.get('/landlord/dashboard/recent-activities'),
       ]);
 
@@ -85,7 +85,7 @@ export default function NotificationsPage() {
         title: n.data?.title || 'Notification',
         message: n.data?.message || n.data?.body || '',
         timestamp: n.created_at,
-        read: !!n.read_at,
+        read: Boolean(n.is_read || n.read_at),
         data: n.data,
       }));
 
