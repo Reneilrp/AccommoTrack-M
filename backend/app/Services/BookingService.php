@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\PaymentTransaction;
 use App\Models\Room;
 use App\Models\TenantProfile;
 use App\Models\User;
+use App\Notifications\RentPaidSuccess;
 use App\Notifications\NewBookingNotification;
 use App\Support\SystemToggle;
 use App\Services\AuditLogService;
@@ -866,25 +868,77 @@ class BookingService
      *
      * @return array{booking: Booking, status_upgraded: bool, completion_blocked: bool}
      */
-    public function updatePaymentStatus(Booking $booking, string $paymentStatus): array
+    public function updatePaymentStatus(Booking $booking, string $paymentStatus, array $paymentContext = []): array
     {
         $statusUpgraded = false;
         $completionBlocked = false;
-        $booking->payment_status = $paymentStatus;
 
-        $booking->save();
+        DB::transaction(function () use ($booking, $paymentStatus, $paymentContext): void {
+            $booking->payment_status = $paymentStatus;
+            $booking->save();
 
-        // Synchronize only rent invoices to avoid mutating add-on and other special invoices.
-        $this->rentInvoicesForPaymentSync($booking)->update(['status' => $paymentStatus]);
-        if ($paymentStatus === 'paid') {
-            $this->rentInvoicesForPaymentSync($booking)->update(['paid_at' => now()]);
-        }
+            // Synchronize only rent invoices to avoid mutating add-on and other special invoices.
+            $this->rentInvoicesForPaymentSync($booking)->update(['status' => $paymentStatus]);
+            if ($paymentStatus === 'paid') {
+                $now = now();
+                $paymentMethod = $this->normalizeRecordedPaymentMethod($paymentContext['payment_method'] ?? null);
+
+                $this->rentInvoicesForPaymentSync($booking)->update(['paid_at' => $now]);
+
+                $rentInvoices = $this->rentInvoicesForPaymentSync($booking)->get();
+
+                foreach ($rentInvoices as $invoice) {
+                    $alreadyPaidCents = (int) ($invoice->transactions()
+                        ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                        ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
+                        ->value('net_cents') ?? 0);
+
+                    $remainingCents = max(0, (int) ($invoice->amount_cents ?? 0) - $alreadyPaidCents);
+                    if ($remainingCents <= 0) {
+                        continue;
+                    }
+
+                    PaymentTransaction::create([
+                        'invoice_id' => $invoice->id,
+                        'tenant_id' => $booking->tenant_id,
+                        'amount_cents' => $remainingCents,
+                        'currency' => $invoice->currency ?? 'PHP',
+                        'status' => 'paid',
+                        'method' => $paymentMethod,
+                        'gateway_reference' => $paymentContext['payment_reference'] ?? null,
+                        'gateway_response' => [
+                            'source' => 'landlord_payment_status_update',
+                            'notes' => $paymentContext['notes'] ?? null,
+                            'actor_id' => $paymentContext['actor_id'] ?? null,
+                        ],
+                    ]);
+                }
+
+                if ($booking->tenant) {
+                    $booking->tenant->notify(new RentPaidSuccess($paymentMethod));
+                }
+            }
+        });
 
         return [
             'booking' => $booking,
             'status_upgraded' => $statusUpgraded,
             'completion_blocked' => $completionBlocked,
         ];
+    }
+
+    private function normalizeRecordedPaymentMethod(?string $method): string
+    {
+        $normalized = strtolower(trim((string) $method));
+
+        if ($normalized === '') {
+            return 'cash';
+        }
+
+        return match ($normalized) {
+            'paymongo', 'paymongo_gcash', 'gcash', 'cash', 'bank_transfer', 'paymaya' => $normalized,
+            default => 'cash',
+        };
     }
 
     protected function rentInvoicesForPaymentSync(Booking $booking)

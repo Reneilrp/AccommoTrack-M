@@ -179,6 +179,17 @@ export default function InvoiceCheckout() {
   const showCash = !tenantPaymentsTempDisabled && acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
   const showManualGcash = !tenantPaymentsTempDisabled && globalSettings.allowed?.includes('gcash');
 
+  const addonTotalCents = Array.isArray(invoice?.metadata?.addons)
+    ? invoice.metadata.addons.reduce((sum, addon) => {
+        const rawPrice = Number(addon?.price ?? addon?.amount_cents ?? 0);
+        if (!Number.isFinite(rawPrice) || rawPrice <= 0) return sum;
+
+        // Newer invoice metadata stores add-on price in cents. Some legacy rows may store pesos.
+        const normalizedCents = rawPrice >= 1000 ? Math.round(rawPrice) : Math.round(rawPrice * 100);
+        return sum + normalizedCents;
+      }, 0)
+    : 0;
+
   return (
     <div className="max-w-5xl mx-auto py-8 px-4">
       <button 
@@ -477,6 +488,14 @@ export default function InvoiceCheckout() {
                   <PriceRow amount={invoice.booking.monthly_rent} />
                 </span>
               </div>
+              {addonTotalCents > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">Add-ons</span>
+                  <span className="text-gray-900 dark:text-white font-bold">
+                    <PriceRow amount={addonTotalCents / 100} />
+                  </span>
+                </div>
+              )}
               {(invoice.booking.room?.require_1month_advance || 
                 invoice.booking.property?.require_1month_advance ||
                 invoice.description?.toLowerCase().includes('1 month advance')) && (

@@ -156,12 +156,24 @@ class PaymongoWebhookController extends Controller
 
                         $tenant = \App\Models\User::find($metadata['tenant_id']);
                         if ($tenant) {
-                            $tenant->notify(new \App\Notifications\RentPaidSuccess);
+                            $paymongoSourceType = (string) ($resourceAttr['source']['type'] ?? '');
+                            $methodForNotification = $paymongoSourceType === 'gcash'
+                                ? 'paymongo_gcash'
+                                : 'paymongo';
+                            $tenant->notify(new \App\Notifications\RentPaidSuccess($methodForNotification));
                         }
 
-                        $landlord = $room->property->landlord;
-                        if ($landlord) {
-                            $landlord->notify(new \App\Notifications\NewPaymentReceived);
+                        // Notify landlord only when this PayMongo payment maps to an
+                        // invoice that is already marked paid.
+                        $invoiceId = isset($metadata['invoice_id']) ? (int) $metadata['invoice_id'] : null;
+                        if ($invoiceId) {
+                            $invoice = Invoice::find($invoiceId);
+                            if ($invoice && $invoice->status === 'paid') {
+                                $landlord = $room->property->landlord;
+                                if ($landlord) {
+                                    $landlord->notify(new \App\Notifications\NewPaymentReceived);
+                                }
+                            }
                         }
                     }
                 }

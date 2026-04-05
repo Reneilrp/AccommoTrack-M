@@ -21,6 +21,9 @@ class UpdatePaymentStatusRequest extends FormRequest
     {
         return [
             'payment_status' => 'required|in:unpaid,partial,paid,refunded',
+            'payment_method' => 'nullable|in:paymongo,paymongo_gcash,gcash,cash,bank_transfer,paymaya',
+            'payment_reference' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:500',
         ];
     }
 
@@ -32,6 +35,7 @@ class UpdatePaymentStatusRequest extends FormRequest
         return [
             'payment_status.required' => 'Payment status is required.',
             'payment_status.in' => 'Invalid payment status. Allowed: unpaid, partial, paid, refunded.',
+            'payment_method.in' => 'Invalid payment method. Allowed: paymongo, paymongo_gcash, gcash, cash, bank_transfer, paymaya.',
         ];
     }
 }

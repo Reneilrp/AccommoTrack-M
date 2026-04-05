@@ -233,9 +233,17 @@ class LandlordBookingController extends Controller
             $booking = Booking::forLandlord($context['landlord_id'])->findOrFail($id);
             $this->checkPropertyAccess($context, $booking->property_id);
 
+            $validated = $request->validated();
+
             $result = $this->bookingService->updatePaymentStatus(
                 $booking,
-                $request->validated()['payment_status']
+                $validated['payment_status'],
+                [
+                    'payment_method' => $validated['payment_method'] ?? null,
+                    'payment_reference' => $validated['payment_reference'] ?? null,
+                    'notes' => $validated['notes'] ?? null,
+                    'actor_id' => $context['user']->id,
+                ]
             );
 
             return response()->json([

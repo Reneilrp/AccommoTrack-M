@@ -101,6 +101,15 @@ class LandlordDashboardController extends Controller
                 }
                 if ($item instanceof \App\Models\PaymentTransaction) {
                     $isPending = $item->status === 'pending_offline';
+                    $invoiceStatus = (string) ($item->invoice->status ?? '');
+                    $method = (string) ($item->method ?? '');
+                    $isPaymongoMethod = str_starts_with($method, 'paymongo_');
+
+                    // Only for PayMongo: avoid misleading "Payment Received" items
+                    // for attempts that did not settle the invoice.
+                    if (! $isPending && $isPaymongoMethod && $invoiceStatus !== 'paid') {
+                        return null;
+                    }
 
                     return [
                         'id' => $item->id, 'type' => 'payment',
@@ -123,7 +132,7 @@ class LandlordDashboardController extends Controller
                 }
 
                 return (array) $item;
-            });
+            })->filter()->values();
 
             $limit = $propertyId ? 50 : 20;
 

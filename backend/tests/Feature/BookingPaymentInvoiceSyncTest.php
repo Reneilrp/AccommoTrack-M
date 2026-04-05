@@ -4,11 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\Invoice;
+use App\Models\PaymentTransaction;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\User;
+use App\Notifications\RentPaidSuccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -115,6 +118,102 @@ class BookingPaymentInvoiceSyncTest extends TestCase
         $this->assertSame('paid', $rentInvoice->status);
         $this->assertSame('pending', $legacyAddonInvoice->status);
         $this->assertNull($legacyAddonInvoice->paid_at);
+    }
+
+    public function test_manual_cash_mark_paid_creates_cash_transaction_and_method_aware_notification(): void
+    {
+        [$landlord, $tenant, $booking] = $this->createScenario();
+
+        $rentInvoice = Invoice::create([
+            'reference' => 'INV-'.now()->format('Ymd').'-RENTCASH',
+            'landlord_id' => $landlord->id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $booking->tenant_id,
+            'description' => 'Monthly rent invoice',
+            'invoice_type' => 'rent',
+            'amount_cents' => 100000,
+            'currency' => 'PHP',
+            'status' => 'pending',
+            'issued_at' => now(),
+            'due_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        Notification::fake();
+        Sanctum::actingAs($landlord);
+
+        $this->patchJson("/api/bookings/{$booking->id}/payment", [
+            'payment_status' => 'paid',
+            'payment_method' => 'cash',
+            'payment_reference' => 'ONSITE-001',
+        ])->assertStatus(200);
+
+        $cashTx = PaymentTransaction::where('invoice_id', $rentInvoice->id)
+            ->where('status', 'paid')
+            ->where('method', 'cash')
+            ->first();
+
+        $this->assertNotNull($cashTx);
+        $this->assertSame(100000, (int) $cashTx->amount_cents);
+
+        Notification::assertSentTo(
+            $tenant,
+            RentPaidSuccess::class,
+            function (RentPaidSuccess $notification) use ($tenant) {
+                $data = $notification->toArray($tenant);
+
+                return ($data['payment_method'] ?? null) === 'cash'
+                    && str_contains((string) ($data['message'] ?? ''), 'Cash');
+            }
+        );
+    }
+
+    public function test_manual_gcash_mark_paid_creates_gcash_transaction_and_method_aware_notification(): void
+    {
+        [$landlord, $tenant, $booking] = $this->createScenario();
+
+        $rentInvoice = Invoice::create([
+            'reference' => 'INV-'.now()->format('Ymd').'-RENTGCASH',
+            'landlord_id' => $landlord->id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $booking->tenant_id,
+            'description' => 'Monthly rent invoice',
+            'invoice_type' => 'rent',
+            'amount_cents' => 100000,
+            'currency' => 'PHP',
+            'status' => 'pending',
+            'issued_at' => now(),
+            'due_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        Notification::fake();
+        Sanctum::actingAs($landlord);
+
+        $this->patchJson("/api/bookings/{$booking->id}/payment", [
+            'payment_status' => 'paid',
+            'payment_method' => 'gcash',
+            'payment_reference' => 'GCASH-001',
+        ])->assertStatus(200);
+
+        $gcashTx = PaymentTransaction::where('invoice_id', $rentInvoice->id)
+            ->where('status', 'paid')
+            ->where('method', 'gcash')
+            ->first();
+
+        $this->assertNotNull($gcashTx);
+        $this->assertSame(100000, (int) $gcashTx->amount_cents);
+
+        Notification::assertSentTo(
+            $tenant,
+            RentPaidSuccess::class,
+            function (RentPaidSuccess $notification) use ($tenant) {
+                $data = $notification->toArray($tenant);
+
+                return ($data['payment_method'] ?? null) === 'gcash'
+                    && str_contains((string) ($data['message'] ?? ''), 'GCash');
+            }
+        );
     }
 
     /**
