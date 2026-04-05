@@ -16,6 +16,7 @@ import {
   useTenantFocusRefetch,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
+import ReservationPolicyNotice from './components/ReservationPolicyNotice.jsx';
 
 const TABS = [
   { id: 'current', label: 'My Stay', icon: 'home-outline' },
@@ -253,6 +254,23 @@ export default function MyBookings() {
       style: 'currency',
       currency: 'PHP',
     }).format(amount || 0);
+  };
+
+  const resolveAddonDisplayPrice = (addon) => {
+    const candidates = [
+      addon?.pivot?.price_at_booking,
+      addon?.price_at_booking,
+      addon?.price,
+    ];
+
+    for (const candidate of candidates) {
+      const numericValue = Number(candidate);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+
+    return 0;
   };
 
   const handleCancelBooking = async (bookingId) => {
@@ -590,6 +608,7 @@ export default function MyBookings() {
         contract_mode: currentData?.contract_mode,
         contractMode: currentData?.contract_mode,
         billing_policy: currentData?.billing_policy,
+        reservation_policy: currentData?.reservation_policy,
         status: currentData?.status,
         paymentStatus: currentData?.status,
         daysStayed: 0,
@@ -604,6 +623,7 @@ export default function MyBookings() {
     if (!display) return null;
 
     const { booking, room, property, landlord, addons } = display;
+    const reservationPolicy = currentData?.reservation_policy || booking?.reservation_policy;
     const bookingContractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
     const hasScheduledEndDate = Boolean(booking.endDate || booking.end_date);
     const canRequestExtension = !booking.isPending && !(bookingContractMode === 'monthly' && !hasScheduledEndDate) && hasScheduledEndDate;
@@ -836,6 +856,10 @@ export default function MyBookings() {
               </View>
             )}
 
+            {booking.isPending && (
+              <ReservationPolicyNotice policy={reservationPolicy} theme={theme} />
+            )}
+
             <View style={[styles.reviewBtnContainer, { gap: 16 }]}>
                {!booking.isPending ? (
                  <>
@@ -968,7 +992,7 @@ export default function MyBookings() {
                             <Text style={styles.addonSubtext}>{addon.priceTypeLabel}</Text>
                          </View>
                       </View>
-                      <Text style={styles.addonPrice}>{formatCurrency(addon.price)}</Text>
+                      <Text style={styles.addonPrice}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
                    </View>
                  ))}
                  {addons.pending?.map((addon, idx) => (
@@ -982,7 +1006,7 @@ export default function MyBookings() {
                             <Text style={[styles.addonSubtext, { color: '#D97706' }]}>Pending Approval</Text>
                          </View>
                       </View>
-                      <Text style={styles.addonPrice}>{formatCurrency(addon.price)}</Text>
+                      <Text style={styles.addonPrice}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
                    </View>
                  ))}
                </>
@@ -1137,6 +1161,12 @@ export default function MyBookings() {
                   </Text>
                 </View>
               )}
+
+              <ReservationPolicyNotice
+                policy={booking?.reservation_policy}
+                theme={theme}
+                marginBottom={16}
+              />
 
               {/* Review Button for History */}
               {['completed', 'confirmed'].includes(booking.status?.toLowerCase()) && !booking.has_review && !booking.hasReview && (

@@ -247,6 +247,7 @@ export default function BookingDetails() {
     const bookingStatus = (booking.isOverdue || booking.is_overdue) ? 'overdue' : booking.status;
     const statusStyle = getStatusStyles(bookingStatus);
     const paymentStyle = getStatusStyles(booking.paymentStatus);
+    const reservationPolicy = booking.reservation_policy || null;
 
     const handleCancelAddon = (addon) => {
         const reqId = addon?.pivot?.id || addon?.request_id || addon?.id;
@@ -366,6 +367,47 @@ export default function BookingDetails() {
                             <Text style={[styles.dateValue, { color: theme.colors.text }]}>{checkOut}</Text>
                         </View>
                     </View>
+
+                    {reservationPolicy?.message && (
+                        <View
+                            style={[
+                                styles.sectionCard,
+                                {
+                                    backgroundColor: reservationPolicy.fee_required
+                                        ? (theme.isDark ? 'rgba(120,53,15,0.25)' : '#FFF7ED')
+                                        : (theme.isDark ? 'rgba(20,83,45,0.25)' : '#ECFDF5'),
+                                    borderWidth: 1,
+                                    borderColor: reservationPolicy.fee_required
+                                        ? (theme.isDark ? 'rgba(251,191,36,0.35)' : '#FED7AA')
+                                        : (theme.isDark ? 'rgba(74,222,128,0.35)' : '#BBF7D0'),
+                                },
+                            ]}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 12,
+                                    fontWeight: '700',
+                                    color: reservationPolicy.fee_required
+                                        ? (theme.isDark ? '#FCD34D' : '#9A3412')
+                                        : (theme.isDark ? '#86EFAC' : '#166534'),
+                                    marginBottom: 4,
+                                }}
+                            >
+                                Reservation Policy
+                            </Text>
+                            <Text
+                                style={{
+                                    fontSize: 12,
+                                    lineHeight: 18,
+                                    color: reservationPolicy.fee_required
+                                        ? (theme.isDark ? '#FCD34D' : '#7C2D12')
+                                        : (theme.isDark ? '#86EFAC' : '#166534'),
+                                }}
+                            >
+                                {reservationPolicy.message}
+                            </Text>
+                        </View>
+                    )}
 
                     {booking.room && <RoomDetails room={booking.room} theme={theme} styles={styles} />}
 

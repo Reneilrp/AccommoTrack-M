@@ -227,20 +227,38 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             const displayStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawDisplayStatus === 'available')
               ? 'reserved'
               : rawDisplayStatus;
-            const isOccupied = displayStatus === 'occupied';
+            const parsedCapacity = Number(room.raw_capacity ?? room.capacity);
+            const parsedAvailableSlots = Number(room.available_slots ?? room.availableSlots);
+            const parsedOccupied = Number(room.occupied_count ?? room.occupied);
+            const isFullyOccupied = Number.isFinite(parsedCapacity) && parsedCapacity > 0 && (
+              (Number.isFinite(parsedAvailableSlots) && parsedAvailableSlots <= 0)
+              || (Number.isFinite(parsedOccupied) && parsedOccupied >= parsedCapacity)
+            );
+            const effectiveDisplayStatus = displayStatus === 'occupied' && !isFullyOccupied
+              ? 'available'
+              : displayStatus;
+            const isOccupied = effectiveDisplayStatus === 'occupied';
+            const hasAdjustedDisplayStatus = effectiveDisplayStatus !== displayStatus;
             const hasAlternatePrice =
+              room.billingPolicy !== 'monthly' &&
               Number.isFinite(Number(room.alternatePrice)) && Number(room.alternatePrice) > 0;
             const statusBadgeText = room.reserved_by_me
               ? 'Reserved by you (Pending)'
-              : (room.display_status_label || displayStatus || '').toString().charAt(0).toUpperCase() +
-                (room.display_status_label || displayStatus || '').toString().slice(1);
+              : (hasAdjustedDisplayStatus
+                ? effectiveDisplayStatus
+                : (room.display_status_label || effectiveDisplayStatus || '')
+              ).toString().charAt(0).toUpperCase() +
+                (hasAdjustedDisplayStatus
+                  ? effectiveDisplayStatus
+                  : (room.display_status_label || effectiveDisplayStatus || '')
+                ).toString().slice(1);
             const statusBadgeClassName = room.reserved_by_me
               ? 'bg-amber-50 text-amber-800 border border-amber-100'
-              : displayStatus === 'occupied'
+              : effectiveDisplayStatus === 'occupied'
                 ? 'bg-red-50 text-red-700 border border-red-100'
-                : displayStatus === 'reserved'
+                : effectiveDisplayStatus === 'reserved'
                   ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                  : displayStatus === 'maintenance'
+                  : effectiveDisplayStatus === 'maintenance'
                     ? 'bg-yellow-50 text-yellow-700 border border-yellow-100'
                     : 'bg-green-50 text-green-700 border border-green-100';
 

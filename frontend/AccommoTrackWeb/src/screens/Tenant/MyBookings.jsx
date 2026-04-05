@@ -34,6 +34,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
+import ReservationPolicyNotice from './components/ReservationPolicyNotice';
 
 const MyBookings = () => {
   const navigate = useNavigate();
@@ -290,6 +291,25 @@ const MyBookings = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!Array.isArray(activeStays) || activeStays.length === 0) {
+      if (selectedStayIndex !== 0) {
+        setSelectedStayIndex(0);
+      }
+      return;
+    }
+
+    if (selectedStayIndex < 0) {
+      setSelectedStayIndex(0);
+      return;
+    }
+
+    const lastIndex = activeStays.length - 1;
+    if (selectedStayIndex > lastIndex) {
+      setSelectedStayIndex(lastIndex);
+    }
+  }, [activeStays, selectedStayIndex]);
 
   useEffect(() => {
     const handleFocusRefresh = () => {
@@ -592,6 +612,20 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
+
+  useEffect(() => {
+    if (hasStays && !hasPending && viewMode !== 'active') {
+      setViewMode('active');
+      return;
+    }
+
+    if (!hasStays && hasPending && viewMode !== 'pending') {
+      setViewMode('pending');
+    }
+  }, [hasStays, hasPending, viewMode]);
+
+  const showActiveView = hasStays && (viewMode === 'active' || !hasPending);
+  const showPendingView = hasPending && (viewMode === 'pending' || !hasStays);
   
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -697,7 +731,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
         ) : <div />}
 
         {/* Adaptive Stay Selector */}
-        {viewMode === 'active' && hasStays && (
+        {showActiveView && (
           <StaySelector 
             stays={stays} 
             selectedIndex={selectedIndex} 
@@ -707,7 +741,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       </div>
 
       {/* PENDING VIEW */}
-      {viewMode === 'pending' && (hasPending || (pendingCheckIns && pendingCheckIns.length > 0)) && (
+      {showPendingView && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {pendingCheckIns.map(pc => (
               <div key={pc.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
@@ -779,6 +813,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                                           <p className="text-xs opacity-80 font-medium mt-0.5">
                                                             {daysUntil !== null ? `Tentative start: ${formatDate(pb.start_date)}` : 'Awaiting approval'}
                                                           </p>
+                                                          <ReservationPolicyNotice policy={pb?.reservation_policy} compact />
                                                         </div>
                                                       </div>
                                                       
@@ -819,7 +854,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       )}
 
       {/* ACTIVE STAY VIEW */}
-      {viewMode === 'active' && hasStays && (
+      {showActiveView && (
         <div className="space-y-6">
           {(() => {
             const data = stays[selectedIndex] || stays[0];
@@ -1474,6 +1509,8 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
               );
             })()}
 
+            <ReservationPolicyNotice policy={booking.reservation_policy} />
+
             {/* Activity Timeline */}
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
               <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Activity Timeline</h5>
@@ -1644,47 +1681,68 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const AddonItem = ({ addon, status, onCancel }) => (
-  <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-    status === 'active' 
-      ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30' 
-      : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
-  }`}>
-    <div className="flex items-center gap-4">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${status === 'active' ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400'}`}>
-        <Sparkles className="w-5 h-5" />
+const resolveAddonDisplayPrice = (addon) => {
+  const candidates = [
+    addon?.pivot?.price_at_booking,
+    addon?.price_at_booking,
+    addon?.price,
+  ];
+
+  for (const candidate of candidates) {
+    const numericValue = Number(candidate);
+    if (Number.isFinite(numericValue) && numericValue > 0) {
+      return numericValue;
+    }
+  }
+
+  return 0;
+};
+
+const AddonItem = ({ addon, status, onCancel }) => {
+  const displayPrice = resolveAddonDisplayPrice(addon);
+
+  return (
+    <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+      status === 'active'
+        ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30'
+        : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
+    }`}>
+      <div className="flex items-center gap-4">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${status === 'active' ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400'}`}>
+          <Sparkles className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-base font-bold text-gray-900 dark:text-white leading-tight">{addon?.name || 'Add-on'}</p>
+          <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-2">
+            {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-2 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Usage Fee'}
+          </p>
+        </div>
       </div>
-      <div>
-        <p className="text-base font-bold text-gray-900 dark:text-white leading-tight">{addon?.name || 'Add-on'}</p>
-        <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-2">
-          {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-2 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Usage Fee'}
-        </p>
+      <div className="flex items-center gap-4">
+        <span className="text-base font-bold text-gray-900 dark:text-white">
+          ₱{displayPrice.toLocaleString()}
+          {addon?.price_type === 'monthly' && <span className="text-[10px] text-gray-500 font-medium ml-0.5">/mo</span>}
+        </span>
+        <div className="flex items-center gap-2">
+          {addon?.pivot?.cancellation_effective_at && (
+            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+              Ends {new Date(addon.pivot.cancellation_effective_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            </span>
+          )}
+          {onCancel && !addon?.pivot?.cancellation_effective_at && (
+            <button
+              onClick={onCancel}
+              className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+              title={status === 'active' ? 'Remove next month' : 'Cancel request'}
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
-    <div className="flex items-center gap-4">
-      <span className="text-base font-bold text-gray-900 dark:text-white">
-        ₱{parseFloat(addon?.price || 0).toLocaleString()}
-        {addon?.price_type === 'monthly' && <span className="text-[10px] text-gray-500 font-medium ml-0.5">/mo</span>}
-      </span>
-      <div className="flex items-center gap-2">
-        {addon?.pivot?.cancellation_effective_at && (
-          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-            Ends {new Date(addon.pivot.cancellation_effective_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-          </span>
-        )}
-        {onCancel && !addon?.pivot?.cancellation_effective_at && (
-          <button
-            onClick={onCancel}
-            className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-            title={status === 'active' ? 'Remove next month' : 'Cancel request'}
-          >
-            <XCircle className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requestingId }) => {
   const [showCustomForm, setShowCustomForm] = useState(false);

@@ -210,6 +210,15 @@ class BookingService
                 ? ($priceResult['breakdown']['months'] ?? intdiv($days, 30))
                 : 1;
 
+            $effectiveMoveInDate = $startDate->copy()->startOfDay();
+            $bookingIssuedDate = Carbon::today();
+            $daysUntilMoveIn = max(0, $bookingIssuedDate->diffInDays($effectiveMoveInDate, false));
+            $reservationFeeEnabled = (bool) ($room->property->require_reservation_fee ?? false);
+            $reservationFeeAmount = (float) ($room->property->reservation_fee ?? 0);
+            $requiresReservationFee = $reservationFeeEnabled
+                && $reservationFeeAmount > 0
+                && $daysUntilMoveIn > 3;
+
             $requestedPaymentPlan = $data['payment_plan'] ?? 'full';
             if ($contractMode === 'daily') {
                 $requestedPaymentPlan = 'full';
@@ -224,12 +233,12 @@ class BookingService
             $receiptImagePath = null;
             $reservationRef = null;
 
-            if (isset($data['receipt_image'])) {
+            if ($requiresReservationFee && isset($data['receipt_image'])) {
                 $status = 'pending_reservation';
                 // Store image in public disk
                 $receiptImagePath = $data['receipt_image']->store('receipts', 'public');
                 $reservationRef = 'RES-'.strtoupper(Str::random(8));
-            } elseif ($room->property->require_reservation_fee && $room->property->reservation_fee > 0) {
+            } elseif ($requiresReservationFee) {
                // If property requires reservation but no image was provided 
                // (handled loosely here, can depend on UI strictness)
             }
@@ -246,7 +255,7 @@ class BookingService
                 'booking_group_reference' => $data['booking_group_reference'] ?? null,
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate?->format('Y-m-d'),
-                'move_in_date' => isset($data['move_in_date']) ? Carbon::parse($data['move_in_date'])->format('Y-m-d') : null,
+                'move_in_date' => $effectiveMoveInDate->format('Y-m-d'),
                 'total_months' => max(1, $totalMonths),
                 'monthly_rent' => $room->monthly_rate ?? 0.00,
                 'total_amount' => $totalAmount,
@@ -282,7 +291,7 @@ class BookingService
             }
 
             // GENERATE RESERVATION FEE INVOICE IF REQUIRED
-            if ($room->property->require_reservation_fee && $room->property->reservation_fee > 0) {
+            if ($requiresReservationFee) {
                 $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
 
                 $reservationInvoice = \App\Models\Invoice::create([
@@ -293,7 +302,7 @@ class BookingService
                     'tenant_id' => $tenantId,
                     'description' => 'Reservation Fee for booking '.$bookingReference,
                     'invoice_type' => 'reservation_fee',
-                    'amount_cents' => (int) round($room->property->reservation_fee * 100),
+                    'amount_cents' => (int) round($reservationFeeAmount * 100),
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),

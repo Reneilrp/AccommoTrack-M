@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,6 +13,8 @@ class BookingResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $reservationPolicy = $this->buildReservationPolicy();
+
         return [
             'id' => $this->id,
             'booking_reference' => $this->booking_reference,
@@ -63,6 +66,7 @@ class BookingResource extends JsonResource
             'receipt_image_path' => $this->receipt_image_path ? (str_starts_with($this->receipt_image_path, 'http') ? $this->receipt_image_path : asset('storage/'.ltrim($this->receipt_image_path, '/'))) : null,
             'reference_number' => $this->reference_number,
             'move_in_date' => $this->move_in_date,
+            'reservation_policy' => $reservationPolicy,
             'can_request_addon' => $this->payment_status !== 'refunded' && !in_array($this->status, ['cancelled', 'rejected']),
             'notes' => $this->notes,
             'cancellation_reason' => $this->cancellation_reason,
@@ -129,6 +133,46 @@ class BookingResource extends JsonResource
                 'email' => $this->landlord->email,
                 'phone' => $this->landlord->phone,
             ]),
+        ];
+    }
+
+    private function buildReservationPolicy(): ?array
+    {
+        if (! $this->relationLoaded('property') || ! $this->property) {
+            return null;
+        }
+
+        $thresholdDays = 3;
+        $issuedDate = ($this->created_at ?? now())->copy()->startOfDay();
+        $moveInDate = $this->start_date
+            ? Carbon::parse($this->start_date)->startOfDay()
+            : null;
+        $daysGap = $moveInDate
+            ? max(0, $issuedDate->diffInDays($moveInDate, false))
+            : 0;
+
+        $reservationFeeEnabled = (bool) ($this->property->require_reservation_fee ?? false);
+        $reservationFeeAmount = (float) ($this->property->reservation_fee ?? 0);
+        $reservationFeeConfigured = $reservationFeeEnabled && $reservationFeeAmount > 0;
+        $feeRequired = $reservationFeeConfigured && $daysGap > $thresholdDays;
+
+        if (! $reservationFeeConfigured) {
+            $message = 'No reservation fee is configured for this property.';
+        } elseif ($feeRequired) {
+            $message = "Reservation fee is required because move-in is {$daysGap} days after booking date.";
+        } else {
+            $message = 'No reservation fee is required because move-in is within 3 days from booking date.';
+        }
+
+        return [
+            'fee_required' => $feeRequired,
+            'fee_amount' => $reservationFeeAmount,
+            'days_gap' => $daysGap,
+            'threshold_days' => $thresholdDays,
+            'comparator' => 'days_gap > threshold_days',
+            'booking_issued_date' => $issuedDate->toDateString(),
+            'move_in_date' => $moveInDate?->toDateString(),
+            'message' => $message,
         ];
     }
 }

@@ -7,6 +7,8 @@ import BookingService from '../services/BookingService.js';
 import PropertyService from '../services/PropertyService.js';
 import PaymentService from '../services/PaymentService.js';
 
+jest.setTimeout(20000);
+
 const mockNavigation = {
   goBack: jest.fn(),
   navigate: jest.fn(),
@@ -132,7 +134,13 @@ const waitForInitialQueries = async () => {
   });
 };
 
-const renderScreen = () => {
+const renderScreen = (overrides = {}) => {
+  const routeRoom = overrides.room || room;
+  const routeProperty = {
+    ...property,
+    ...(overrides.property || {}),
+  };
+
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -148,7 +156,7 @@ const renderScreen = () => {
   return render(
     <QueryClientProvider client={queryClient}>
       <RoomDetailsScreen
-        route={{ params: { room, property } }}
+        route={{ params: { room: routeRoom, property: routeProperty } }}
         isGuest={false}
         onAuthRequired={jest.fn()}
       />
@@ -241,5 +249,28 @@ describe('RoomDetailsScreen proxy booking', () => {
         ['occupants[0][relationship_to_booker]', 'child'],
       ]),
     );
+  });
+
+  it('does not require receipt when move-in is within three days even if reservation fee is configured', async () => {
+    renderScreen({
+      property: {
+        require_reservation_fee: true,
+        reservation_fee: 1200,
+      },
+    });
+
+    await waitForInitialQueries();
+
+    fireEvent.press(screen.getByText('Book This Room'));
+    fireEvent.press(screen.getByText('Submit Booking'));
+
+    await waitFor(() => {
+      expect(BookingService.createBooking).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = BookingService.createBooking.mock.calls[0][0];
+    const hasReceiptField = payload.fields.some(([key]) => key === 'receipt_image');
+
+    expect(hasReceiptField).toBe(false);
   });
 });

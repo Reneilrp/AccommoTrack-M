@@ -86,6 +86,25 @@ export default function RoomDetailsModal({
     return fallback;
   };
 
+  const toLocalDate = (value) => {
+    if (!value) return null;
+    const [year, month, day] = String(value).split("-").map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  };
+
+  const toBooleanFlag = (value) => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value === 1;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (["1", "true", "yes", "on"].includes(normalized)) return true;
+      if (["0", "false", "no", "off", ""].includes(normalized)) return false;
+    }
+    return null;
+  };
+
   const formatMoney = (value) => {
     const amount = toMoneyNumber(value, 0);
     return `₱${amount.toLocaleString()}`;
@@ -138,6 +157,26 @@ export default function RoomDetailsModal({
 
   const primaryRate = isDailyContract ? dailyRate : monthlyRate;
   const primaryRateLabel = isDailyContract ? "Daily Rate" : "Monthly Rate";
+  const reservationFeeAmount = toMoneyNumber(
+    property?.reservation_fee_amount ?? property?.reservation_fee,
+    0,
+  );
+  const reservationFeeSetting =
+    property?.require_reservation_fee ?? property?.requireReservationFee;
+  const normalizedReservationFeeSetting = toBooleanFlag(reservationFeeSetting);
+  const isReservationFeeEnabled = reservationFeeSetting === undefined || reservationFeeSetting === null
+    ? reservationFeeAmount > 0
+    : (normalizedReservationFeeSetting ?? reservationFeeAmount > 0);
+  const isReservationFeeConfigured = isReservationFeeEnabled && reservationFeeAmount > 0;
+  const reservationFeeThresholdDays = 3;
+  const moveInDate = toLocalDate(startDate);
+  const bookingIssuedDate = new Date();
+  bookingIssuedDate.setHours(0, 0, 0, 0);
+  const daysUntilMoveIn = moveInDate
+    ? Math.max(0, Math.floor((moveInDate.getTime() - bookingIssuedDate.getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+  const isReservationFeeRequired =
+    isReservationFeeConfigured && daysUntilMoveIn > reservationFeeThresholdDays;
 
   useEffect(() => {
     if (billingPolicy === "daily") {
@@ -520,7 +559,7 @@ export default function RoomDetailsModal({
   // Use the API-provided flags if available, otherwise fallback to local logic
   const isGenderCompatible = room.is_gender_compatible !== undefined ? room.is_gender_compatible : true;
   const isRoomAvailable = room.is_available !== undefined ? room.is_available : (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
-  
+
   const canBook = displayStatus === "available" && isRoomAvailable && isGenderCompatible;
 
   return (
@@ -950,6 +989,19 @@ export default function RoomDetailsModal({
                           ? 'Bookings can be made up to 3 months in advance'
                           : 'Move-ins can be scheduled up to 3 months in advance'}
                       </p>
+                      {isReservationFeeConfigured && (
+                        <p
+                          className={`text-xs mt-1 ${
+                            isReservationFeeRequired
+                              ? "text-amber-700 dark:text-amber-400"
+                              : "text-green-700 dark:text-green-400"
+                          }`}
+                        >
+                          {isReservationFeeRequired
+                            ? `Reservation fee is required because move-in is ${daysUntilMoveIn} days after booking date.`
+                            : 'No reservation fee for move-in within 3 days from booking date.'}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -1103,14 +1155,21 @@ export default function RoomDetailsModal({
                         </span>
                       </div>
                       {/* Reservation Fee UI Details */}
-                      {(property?.require_reservation_fee || Number(property?.require_reservation_fee) === 1) && (
+                      {isReservationFeeRequired && (
                         <div className="mt-4 p-4 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
                           <div className="flex justify-between text-amber-800 dark:text-amber-300 font-semibold mb-2">
                             <span>Instant Reservation Fee:</span>
-                            <span>₱{(property?.reservation_fee_amount || 0).toLocaleString()}</span>
+                            <span>₱{reservationFeeAmount.toLocaleString()}</span>
                           </div>
                           <p className="text-xs text-amber-700 dark:text-amber-400">
                             A non-refundable reservation fee is required to secure this booking. You will be redirected to PayMongo to pay this amount immediately.
+                          </p>
+                        </div>
+                      )}
+                      {isReservationFeeConfigured && !isReservationFeeRequired && (
+                        <div className="mt-4 p-4 bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-800 rounded-lg">
+                          <p className="text-xs text-green-700 dark:text-green-400">
+                            No reservation fee is required because move-in is within 3 days from booking date.
                           </p>
                         </div>
                       )}
@@ -1241,8 +1300,8 @@ export default function RoomDetailsModal({
                       >
                         {isSubmitting
                           ? "Processing..."
-                          : ((property?.require_reservation_fee || Number(property?.require_reservation_fee) === 1)
-                              ? `Pay ₱${(property?.reservation_fee_amount || 0).toLocaleString()} to Reserve`
+                          : (isReservationFeeRequired
+                              ? `Pay ₱${reservationFeeAmount.toLocaleString()} to Reserve`
                               : "Confirm Booking Request")}
                       </button>
                     ) : (

@@ -250,15 +250,22 @@ function PropertyDashboard({ propertyId, navigate }) {
     }
   };
 
-  const handleAddonRequestAction = async (requestId, bookingId, addonId, action, note = null) => {
+  const handleAddonRequestAction = async (requestId, bookingId, addonId, action, note = null, approvedPrice = null) => {
     const key = `addon_${requestId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
     const toastId = toast.loading(action === 'approve' ? 'Approving add-on...' : 'Rejecting add-on...');
     try {
-      await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, {
+      const payload = {
         action,
         note: typeof note === 'string' && note.trim() ? note.trim() : null,
-      });
+      };
+
+      const normalizedApprovedPrice = normalizeAmount(approvedPrice);
+      if (action === 'approve' && normalizedApprovedPrice !== null && normalizedApprovedPrice > 0) {
+        payload.approved_price = normalizedApprovedPrice;
+      }
+
+      await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, payload);
       setDashData(p => ({
         ...p,
         pendingAddonRequests: p.pendingAddonRequests.filter(r => r.requestId !== requestId),
@@ -489,7 +496,7 @@ function PropertyDashboard({ propertyId, navigate }) {
       return (
         <div className="inline-flex items-center gap-1.5">
           <button
-            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve', savedActionNote)}
+            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve', savedActionNote, item.amount)}
             className="px-2 py-1 text-[11px] font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
           >
             {actionLoading[`addon_${item.id}_approve`] ? '...' : 'Approve'}

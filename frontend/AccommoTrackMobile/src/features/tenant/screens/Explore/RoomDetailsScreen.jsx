@@ -59,6 +59,18 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { room, property } = route.params;
+
+  const toBooleanFlag = (value) => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+      if (['0', 'false', 'no', 'off', ''].includes(normalized)) return false;
+    }
+    return null;
+  };
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -113,8 +125,17 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     placeholderData: (previousData) => previousData,
   });
 
-  const reservationFee = propertyData?.reservation_fee || activeRoom?.property?.reservation_fee || 0;
-  const isReservationRequired = Number(reservationFee) > 0;
+  const reservationFeeAmount = Number(
+    propertyData?.reservation_fee ?? activeRoom?.property?.reservation_fee ?? 0,
+  ) || 0;
+  const reservationFeeSetting =
+    propertyData?.require_reservation_fee ?? activeRoom?.property?.require_reservation_fee;
+  const normalizedReservationFeeSetting = toBooleanFlag(reservationFeeSetting);
+  const isReservationFeeEnabled = reservationFeeSetting === undefined || reservationFeeSetting === null
+    ? reservationFeeAmount > 0
+    : (normalizedReservationFeeSetting ?? reservationFeeAmount > 0);
+  const isReservationConfigured = isReservationFeeEnabled && reservationFeeAmount > 0;
+  const reservationFeeThresholdDays = 3;
   const gcashName = propertyData?.gcash_name || activeRoom?.property?.gcash_name || '';
   const gcashNumber = propertyData?.gcash_number || activeRoom?.property?.gcash_number || '';
   const gcashQrPath = propertyData?.gcash_qr_path || activeRoom?.property?.gcash_qr_path || '';
@@ -179,6 +200,21 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     payment_method: 'cash',
     payment_plan: 'full',
   });
+
+  const daysUntilMoveIn = React.useMemo(() => {
+    if (!bookingData.start_date) return 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const moveInDate = new Date(bookingData.start_date);
+    moveInDate.setHours(0, 0, 0, 0);
+
+    return Math.max(0, Math.floor((moveInDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+  }, [bookingData.start_date]);
+
+  const isReservationRequired =
+    isReservationConfigured && daysUntilMoveIn > reservationFeeThresholdDays;
 
   const roomBillingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
   const roomPricingModel = String(activeRoom?.pricing_model || 'full_room').toLowerCase();
@@ -1081,6 +1117,21 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   maximumDate={getAllowedMaxDate()}
                 />
               )}
+              {isReservationConfigured && (
+                <Text
+                  style={[
+                    styles.summaryNote,
+                    {
+                      marginTop: 8,
+                      color: isReservationRequired ? (theme.colors.warning || '#f59e0b') : (theme.colors.success || '#16a34a'),
+                    },
+                  ]}
+                >
+                  {isReservationRequired
+                    ? `Reservation fee required: move-in is ${daysUntilMoveIn} days after booking date.`
+                    : 'No reservation fee for move-in within 3 days from booking date.'}
+                </Text>
+              )}
             </View>
 
             {/* End Date Picker */}
@@ -1287,7 +1338,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Reservation Fee</Text>
                     <Text style={styles.summaryValue}>
-                      ₱{Number(reservationFee).toLocaleString()}
+                      ₱{reservationFeeAmount.toLocaleString()}
                     </Text>
                   </View>
                 )}
@@ -1296,10 +1347,30 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <Text style={styles.summaryLabelBold}>Total Amount</Text>
                   <Text style={styles.summaryValueBold}>
                     {isPricingLoading ? '...' : `₱${(
-                      (Number(totalPrice) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? Number(reservationFee) : 0)
+                      (Number(totalPrice) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? reservationFeeAmount : 0)
                     ).toLocaleString()}`}
                   </Text>
                 </View>
+
+                {isReservationConfigured && !isReservationRequired && (
+                  <View
+                    style={{
+                      marginTop: 16,
+                      padding: 12,
+                      backgroundColor: theme.colors.surface || '#f8fafc',
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border || '#e2e8f0',
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.success || '#16a34a' }}>
+                      No Reservation Fee Required
+                    </Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
+                      Move-in is within 3 days from booking date.
+                    </Text>
+                  </View>
+                )}
 
                 {isReservationRequired && (
                   <View style={{ marginTop: 24, padding: 12, backgroundColor: theme.colors.surface || '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border || '#e2e8f0' }}>
@@ -1307,7 +1378,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       <Ionicons name="warning-outline" size={14} /> Reservation Payment Required
                     </Text>
                     <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 16 }}>
-                      This property requires a ₱{Number(reservationFee).toLocaleString()} reservation fee paid manually via GCash.
+                      This property requires a ₱{reservationFeeAmount.toLocaleString()} reservation fee paid manually via GCash.
                     </Text>
                     
                     <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8, marginBottom: 16 }}>

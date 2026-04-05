@@ -36,6 +36,25 @@ export default function Addons() {
     return numericValue;
   };
 
+  const resolveAddonRequestPrice = (request) => {
+    const candidates = [
+      request?.price_at_booking,
+      request?.pivot?.price_at_booking,
+      request?.addon?.pivot?.price_at_booking,
+      request?.price,
+      request?.addon?.price,
+    ];
+
+    for (const candidate of candidates) {
+      const numericValue = Number(candidate);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+
+    return 0;
+  };
+
   const loadAddons = async () => {
     setLoading(true);
     try {
@@ -175,40 +194,44 @@ export default function Addons() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Requests</h3>
           <div className="space-y-4">
-            {requests.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{r.addon?.name || 'Add-on'}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Qty: {r.quantity || 1} • {r.addon?.price ? `₱${Number(r.addon.price).toLocaleString()}` : 'Free'}
-                  </p>
+            {requests.map((r) => {
+              const requestPrice = resolveAddonRequestPrice(r);
+
+              return (
+                <div key={r.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{r.addon?.name || 'Add-on'}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Qty: {r.quantity || 1} • {requestPrice > 0 ? `₱${requestPrice.toLocaleString()}` : 'Free'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className={`px-2.5 py-2 rounded-full text-xs font-semibold uppercase ${STATUS_BADGE[r.status] || STATUS_BADGE.pending}`}>
+                      {r.status || 'pending'}
+                    </span>
+                    {(r.status === 'pending') && (
+                      <button
+                        onClick={() => onCancelRequest(r)}
+                        disabled={cancelingId === r.id}
+                        className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                      >
+                        {cancelingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                      </button>
+                    )}
+                    {(r.status === 'active' || r.status === 'approved') && (
+                      <button
+                        onClick={() => onCancelRequest(r)}
+                        disabled={cancelingId === r.id}
+                        title="Cancel for next month"
+                        className="text-xs px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-700 transition-colors font-semibold"
+                      >
+                        {cancelingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cancel (Next Month)'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className={`px-2.5 py-2 rounded-full text-xs font-semibold uppercase ${STATUS_BADGE[r.status] || STATUS_BADGE.pending}`}>
-                    {r.status || 'pending'}
-                  </span>
-                  {(r.status === 'pending') && (
-                    <button
-                      onClick={() => onCancelRequest(r)}
-                      disabled={cancelingId === r.id}
-                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                    >
-                      {cancelingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                    </button>
-                  )}
-                  {(r.status === 'active' || r.status === 'approved') && (
-                    <button
-                      onClick={() => onCancelRequest(r)}
-                      disabled={cancelingId === r.id}
-                      title="Cancel for next month"
-                      className="text-xs px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-700 transition-colors font-semibold"
-                    >
-                      {cancelingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cancel (Next Month)'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

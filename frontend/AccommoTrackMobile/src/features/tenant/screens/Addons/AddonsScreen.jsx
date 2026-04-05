@@ -59,6 +59,25 @@ export default function AddonsScreen({ hideHeader = false }) {
     return numericValue;
   };
 
+  const resolveAddonRequestPrice = (request) => {
+    const candidates = [
+      request?.price_at_booking,
+      request?.pivot?.price_at_booking,
+      request?.addon?.pivot?.price_at_booking,
+      request?.price,
+      request?.addon?.price,
+    ];
+
+    for (const candidate of candidates) {
+      const numericValue = Number(candidate);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+
+    return 0;
+  };
+
   const addonsBundleQuery = useQuery({
     queryKey: tenantQueryKeys.addonsBundle({ bookingId, propertyId }),
     queryFn: async () => {
@@ -241,28 +260,32 @@ export default function AddonsScreen({ hideHeader = false }) {
                 {requests.length > 0 && (
                     <View style={styles.section}>
                         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Your Requests</Text>
-                        {requests.map(r => (
-                            <View key={r.id} style={[styles.requestCard, { backgroundColor: theme.colors.surface }]}>
-                                <View style={styles.requestHeader}>
-                                    <Text style={[styles.requestName, { color: theme.colors.text }]}>{r.addon?.name || 'Add-on'}</Text>
-                                    <View style={[styles.statusBadge, { backgroundColor: theme.colors.primary + '15' }]}>
-                                        <Text style={[styles.statusText, { color: theme.colors.primary }]}>{(r.status || 'pending').toUpperCase()}</Text>
-                                    </View>
-                                </View>
-                                <Text style={[styles.requestSub, { color: theme.colors.textSecondary }]}>
-                                    Quantity: {r.quantity || 1} • {r.addon?.price ? `₱${Number(r.addon.price).toLocaleString()}` : 'Free'}
-                                </Text>
-                                {r.status === 'pending' && (
-                                    <TouchableOpacity 
-                                        onPress={() => onCancelRequest(r)}
-                                        disabled={cancelingId === r.id}
-                                        style={styles.cancelBtn}
-                                    >
-                                        {cancelingId === r.id ? <ActivityIndicator size="small" color="#EF4444" /> : <Text style={styles.cancelBtnText}>Cancel</Text>}
-                                    </TouchableOpacity>
-                                )}
+                    {requests.map((r) => {
+                      const requestPrice = resolveAddonRequestPrice(r);
+
+                      return (
+                        <View key={r.id} style={[styles.requestCard, { backgroundColor: theme.colors.surface }]}>
+                          <View style={styles.requestHeader}>
+                            <Text style={[styles.requestName, { color: theme.colors.text }]}>{r.addon?.name || 'Add-on'}</Text>
+                            <View style={[styles.statusBadge, { backgroundColor: theme.colors.primary + '15' }]}>
+                              <Text style={[styles.statusText, { color: theme.colors.primary }]}>{(r.status || 'pending').toUpperCase()}</Text>
                             </View>
-                        ))}
+                          </View>
+                          <Text style={[styles.requestSub, { color: theme.colors.textSecondary }]}>
+                            Quantity: {r.quantity || 1} • {requestPrice > 0 ? `₱${requestPrice.toLocaleString()}` : 'Free'}
+                          </Text>
+                          {r.status === 'pending' && (
+                            <TouchableOpacity
+                              onPress={() => onCancelRequest(r)}
+                              disabled={cancelingId === r.id}
+                              style={styles.cancelBtn}
+                            >
+                              {cancelingId === r.id ? <ActivityIndicator size="small" color="#EF4444" /> : <Text style={styles.cancelBtnText}>Cancel</Text>}
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      );
+                    })}
                     </View>
                 )}
 

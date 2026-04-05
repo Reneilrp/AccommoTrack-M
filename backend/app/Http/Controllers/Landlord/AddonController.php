@@ -16,6 +16,26 @@ class AddonController extends Controller
 {
     protected AddonService $addonService;
 
+    private function extractSuggestedPriceFromNote(?string $note): ?float
+    {
+        if (! is_string($note) || trim($note) === '') {
+            return null;
+        }
+
+        if (! preg_match('/suggested\s*price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i', $note, $matches)) {
+            return null;
+        }
+
+        $rawValue = str_replace(',', '', $matches[1] ?? '');
+        if ($rawValue === '' || ! is_numeric($rawValue)) {
+            return null;
+        }
+
+        $price = (float) $rawValue;
+
+        return $price > 0 ? $price : null;
+    }
+
     public function __construct(AddonService $addonService)
     {
         $this->addonService = $addonService;
@@ -243,8 +263,18 @@ class AddonController extends Controller
             return response()->json([
                 'pendingRequests' => $pendingRequests->map(function ($request) {
                     $price = (float) $request->price_at_booking;
-                    if ($price <= 0 && $request->current_price > 0) {
-                        $price = (float) $request->current_price;
+                    if ($price <= 0) {
+                        $currentPrice = (float) ($request->current_price ?? 0);
+                        if ($currentPrice > 0) {
+                            $price = $currentPrice;
+                        }
+                    }
+
+                    if ($price <= 0) {
+                        $suggestedPrice = $this->extractSuggestedPriceFromNote($request->request_note ?? null);
+                        if (! is_null($suggestedPrice) && $suggestedPrice > 0) {
+                            $price = $suggestedPrice;
+                        }
                     }
 
                     return [
@@ -286,6 +316,7 @@ class AddonController extends Controller
             $validated = $request->validate([
                 'action' => 'required|in:approve,reject',
                 'note' => 'nullable|string|max:500',
+                'approved_price' => 'nullable|numeric|min:0',
             ]);
 
             // Get booking and verify access
@@ -295,7 +326,18 @@ class AddonController extends Controller
                 })
                 ->firstOrFail();
 
-            $result = $this->addonService->handleRequest($booking, $addonId, $validated['action'], $validated['note'] ?? null, $user->id);
+            $approvedPrice = array_key_exists('approved_price', $validated)
+                ? (float) $validated['approved_price']
+                : null;
+
+            $result = $this->addonService->handleRequest(
+                $booking,
+                $addonId,
+                $validated['action'],
+                $validated['note'] ?? null,
+                $user->id,
+                $approvedPrice
+            );
 
             return response()->json($result, 200);
         } catch (\Illuminate\Validation\ValidationException $e) {

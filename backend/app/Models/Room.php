@@ -331,8 +331,8 @@ class Room extends Model
      *
      * Rules:
      * - maintenance stays maintenance
-     * - if there are confirmed occupants, show occupied
-     * - if pending requests consume all remaining slots, show reserved
+    * - if pending requests consume all remaining slots, show reserved
+    * - if the room is fully occupied, show occupied
      * - otherwise use canonical status
      */
     public function getDisplayStatusAttribute()
@@ -344,13 +344,14 @@ class Room extends Model
         $occupiedCount = (int) $this->occupied;
         $pendingBeds = (int) $this->pending_beds;
         $availableAfterPending = max(0, $this->capacity - ($occupiedCount + $pendingBeds));
-
-        if ($occupiedCount > 0 || $this->status === 'occupied') {
-            return 'occupied';
-        }
+        $isFullyOccupied = $occupiedCount >= (int) $this->capacity;
 
         if ($pendingBeds > 0 && $availableAfterPending === 0) {
             return 'reserved';
+        }
+
+        if ($isFullyOccupied || $this->status === 'occupied') {
+            return 'occupied';
         }
 
         return $this->status ?: 'available';

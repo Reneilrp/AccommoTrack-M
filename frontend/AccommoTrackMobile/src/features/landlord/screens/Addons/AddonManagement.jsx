@@ -187,7 +187,7 @@ export default function AddonManagement({ route, navigation }) {
     );
   };
 
-  const handleRequest = (bookingId, addonId, action) => {
+  const handleRequest = (bookingId, addonId, action, approvedPrice = null) => {
     if (action === 'reject') {
       setRejectContext({ bookingId, addonId });
       setRejectNote('');
@@ -200,7 +200,7 @@ export default function AddonManagement({ route, navigation }) {
           { text: 'Cancel', style: 'cancel' },
           { 
             text: 'Approve', 
-            onPress: () => processRequestAction(bookingId, addonId, 'approve')
+            onPress: () => processRequestAction(bookingId, addonId, 'approve', null, approvedPrice)
           }
         ]
       );
@@ -216,8 +216,8 @@ export default function AddonManagement({ route, navigation }) {
     setRejectNote('');
   };
 
-  const processRequestAction = async (bookingId, addonId, action, note = null) => {
-    const res = await AddonService.handleAddonRequest(bookingId, addonId, action, note);
+  const processRequestAction = async (bookingId, addonId, action, note = null, approvedPrice = null) => {
+    const res = await AddonService.handleAddonRequest(bookingId, addonId, action, note, approvedPrice);
     if (res.success) {
       await refetchLandlordQueries(addonRefetchers);
     } else {
@@ -367,7 +367,7 @@ export default function AddonManagement({ route, navigation }) {
             <View style={styles.requestActions}>
               <TouchableOpacity 
                 style={styles.approveButton}
-                onPress={() => handleRequest(request.bookingId, request.addonId, 'approve')}
+                onPress={() => handleRequest(request.bookingId, request.addonId, 'approve', request.price)}
               >
                 <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                 <Text style={styles.approveButtonText}>Approve</Text>

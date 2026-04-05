@@ -7,9 +7,54 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class AddonService
 {
+    private function extractSuggestedPriceFromNote(?string $note): ?float
+    {
+        if (! is_string($note) || trim($note) === '') {
+            return null;
+        }
+
+        if (! preg_match('/suggested\s*price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i', $note, $matches)) {
+            return null;
+        }
+
+        $rawValue = str_replace(',', '', $matches[1] ?? '');
+        if ($rawValue === '' || ! is_numeric($rawValue)) {
+            return null;
+        }
+
+        $price = (float) $rawValue;
+
+        return $price > 0 ? $price : null;
+    }
+
+    private function resolveApprovedPrice($addonRequest, Addon $addon, ?float $approvedPrice = null): float
+    {
+        if (is_numeric($approvedPrice) && (float) $approvedPrice > 0) {
+            return (float) $approvedPrice;
+        }
+
+        $pivotPrice = (float) ($addonRequest->pivot->price_at_booking ?? 0);
+        if ($pivotPrice > 0) {
+            return $pivotPrice;
+        }
+
+        $addonPrice = (float) ($addon->price ?? 0);
+        if ($addonPrice > 0) {
+            return $addonPrice;
+        }
+
+        $suggestedPrice = $this->extractSuggestedPriceFromNote($addonRequest->pivot->request_note ?? null);
+        if (! is_null($suggestedPrice) && $suggestedPrice > 0) {
+            return $suggestedPrice;
+        }
+
+        return 0.0;
+    }
+
     public function createAddon(int $propertyId, array $data): Addon
     {
         return Addon::create(array_merge($data, ['property_id' => $propertyId]));
@@ -37,7 +82,7 @@ class AddonService
         $addon->delete();
     }
 
-    public function handleRequest(Booking $booking, int $addonId, string $action, ?string $note, int $userId): array
+    public function handleRequest(Booking $booking, int $addonId, string $action, ?string $note, int $userId, ?float $approvedPrice = null): array
     {
         $addonRequest = $booking->addons()
             ->where('addon_id', $addonId)
@@ -59,19 +104,21 @@ class AddonService
 
             DB::beginTransaction();
             try {
+                $resolvedPrice = $this->resolveApprovedPrice($addonRequest, $addon, $approvedPrice);
+                if ($resolvedPrice <= 0) {
+                    throw ValidationException::withMessages([
+                        'approved_price' => ['Cannot approve add-on without a valid price. Set an approved price before approving.'],
+                    ]);
+                }
+
                 $updateData = [
                     'status' => $newStatus,
                     'response_note' => $note,
                     'approved_at' => now(),
                     'approved_by' => $userId,
+                    'price_at_booking' => $resolvedPrice,
                     'updated_at' => now(),
                 ];
-
-                // If price_at_booking is 0 (common for custom requests or newly updated prices),
-                // snap the current addon price into the booking record upon approval.
-                if ((float) ($addonRequest->pivot->price_at_booking ?? 0) <= 0) {
-                    $updateData['price_at_booking'] = $addon->price;
-                }
 
                 $booking->addons()->updateExistingPivot($addonId, $updateData);
 
@@ -79,12 +126,7 @@ class AddonService
                     $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
                 }
 
-                $priceToUse = (float) ($addonRequest->pivot->price_at_booking ?? 0);
-                if ($priceToUse <= 0) {
-                    $priceToUse = (float) $addon->price;
-                }
-
-                $amountCents = (int) round($priceToUse * ($addonRequest->pivot->quantity ?? 1) * 100);
+                $amountCents = (int) round($resolvedPrice * ($addonRequest->pivot->quantity ?? 1) * 100);
 
                 // Check for existing PENDING invoice for this booking
                 $latestInvoice = $booking->invoices()

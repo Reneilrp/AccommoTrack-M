@@ -57,11 +57,22 @@ const getTomorrowDateValue = () => {
   return toDateInputValue(tomorrow);
 };
 
-const renderBookingForm = (bookingService) => {
+const getDateValueFromToday = (daysFromToday) => {
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() + daysFromToday);
+  return toDateInputValue(targetDate);
+};
+
+const renderBookingForm = (bookingService, propertyOverrides = {}) => {
+  const property = {
+    ...baseProperty,
+    ...propertyOverrides,
+  };
+
   return render(
     <RoomDetailsModal
       room={baseRoom}
-      property={baseProperty}
+      property={property}
       onClose={jest.fn()}
       isAuthenticated
       onLoginRequired={jest.fn()}
@@ -160,5 +171,59 @@ describe('RoomDetailsModal proxy booking', () => {
         email: '',
       },
     ]);
+  });
+
+  it('keeps booking CTA as no-fee when move-in is within three days', async () => {
+    const createBooking = jest.fn();
+
+    const { container } = renderBookingForm(
+      { createBooking },
+      {
+        require_reservation_fee: true,
+        reservation_fee_amount: 1500,
+      },
+    );
+
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateInputs[0], {
+      target: { value: getDateValueFromToday(2) },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Confirm Booking Request' }),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getAllByText('No reservation fee for move-in within 3 days from booking date.').length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('switches CTA to reservation payment when move-in is more than three days away', async () => {
+    const createBooking = jest.fn();
+
+    const { container } = renderBookingForm(
+      { createBooking },
+      {
+        require_reservation_fee: true,
+        reservation_fee_amount: 1500,
+      },
+    );
+
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateInputs[0], {
+      target: { value: getDateValueFromToday(4) },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Pay ₱1,500 to Reserve' }),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText('Reservation fee is required because move-in is 4 days after booking date.'),
+    ).toBeInTheDocument();
   });
 });

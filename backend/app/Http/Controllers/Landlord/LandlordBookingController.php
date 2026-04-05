@@ -13,6 +13,7 @@ use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\BookingDepositSettlement;
 use App\Services\BookingService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -102,10 +103,14 @@ class LandlordBookingController extends Controller
                 ->where('status', 'pending')
                 ->first();
 
+            $bookingPayload = $booking->load(['property', 'tenant', 'room']);
+            $reservationPolicy = $this->buildReservationPolicy($bookingPayload);
+
             return response()->json([
                 'message' => 'Booking created successfully',
-                'booking' => (new BookingResource($booking->load(['property', 'tenant', 'room'])))->resolve(),
+                'booking' => (new BookingResource($bookingPayload))->resolve(),
                 'reservation_invoice' => $reservationInvoice,
+                'reservation_policy' => $reservationPolicy,
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed', ['errors' => $e->errors()]);
@@ -137,6 +142,38 @@ class LandlordBookingController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function buildReservationPolicy(Booking $booking): array
+    {
+        $thresholdDays = 3;
+        $issuedDate = ($booking->created_at ?? now())->copy()->startOfDay();
+        $moveInDate = $booking->start_date ? Carbon::parse($booking->start_date)->startOfDay() : null;
+        $daysGap = $moveInDate ? max(0, $issuedDate->diffInDays($moveInDate, false)) : 0;
+
+        $reservationFeeAmount = (float) ($booking->property?->reservation_fee ?? 0);
+        $reservationFeeEnabled = (bool) ($booking->property?->require_reservation_fee ?? false);
+        $reservationFeeConfigured = $reservationFeeEnabled && $reservationFeeAmount > 0;
+        $feeRequired = $reservationFeeConfigured && $daysGap > $thresholdDays;
+
+        if (! $reservationFeeConfigured) {
+            $message = 'No reservation fee is configured for this property.';
+        } elseif ($feeRequired) {
+            $message = "Reservation fee is required because move-in is {$daysGap} days after booking date.";
+        } else {
+            $message = 'No reservation fee is required because move-in is within 3 days from booking date.';
+        }
+
+        return [
+            'fee_required' => $feeRequired,
+            'fee_amount' => $reservationFeeAmount,
+            'days_gap' => $daysGap,
+            'threshold_days' => $thresholdDays,
+            'comparator' => 'days_gap > threshold_days',
+            'booking_issued_date' => $issuedDate->toDateString(),
+            'move_in_date' => $moveInDate?->toDateString(),
+            'message' => $message,
+        ];
     }
 
     /**
