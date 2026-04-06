@@ -71,15 +71,20 @@ const getDateValueFromToday = (daysFromToday) => {
   return toDateInputValue(targetDate);
 };
 
-const renderBookingForm = (bookingService, propertyOverrides = {}) => {
+const renderBookingForm = (bookingService, propertyOverrides = {}, roomOverrides = {}) => {
   const property = {
     ...baseProperty,
     ...propertyOverrides,
   };
 
+  const room = {
+    ...baseRoom,
+    ...roomOverrides,
+  };
+
   return render(
     <RoomDetailsModal
-      room={baseRoom}
+      room={room}
       property={property}
       onClose={jest.fn()}
       isAuthenticated
@@ -125,6 +130,62 @@ describe('RoomDetailsModal proxy booking', () => {
     expect(createBooking).not.toHaveBeenCalled();
   });
 
+  it('defaults proxy occupant gender to room restriction', async () => {
+    const createBooking = jest.fn().mockResolvedValue({
+      data: {
+        booking: {
+          id: 556,
+          status: 'pending',
+        },
+      },
+    });
+
+    const { container } = renderBookingForm(
+      { createBooking },
+      {},
+      { gender_restriction: 'female' },
+    );
+
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateInputs[0], {
+      target: { value: getTomorrowDateValue() },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
+
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Default Gender Occupant' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
+      target: { value: 'sister' },
+    });
+
+    const occupantDateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(occupantDateInputs[occupantDateInputs.length - 1], {
+      target: { value: '1992-05-01' },
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Booking Request' }));
+
+    await waitFor(() => {
+      expect(createBooking).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = createBooking.mock.calls[0][0];
+    expect(payload.booking_mode).toBe('proxy');
+    expect(payload.occupants).toEqual([
+      {
+        full_name: 'Default Gender Occupant',
+        date_of_birth: '1992-05-01',
+        gender: 'female',
+        relationship_to_booker: 'sister',
+        phone: '',
+        email: '',
+      },
+    ]);
+  });
+
   it('submits proxy payload with booking_mode and occupants', async () => {
     const createBooking = jest.fn().mockResolvedValue({
       data: {
@@ -144,16 +205,16 @@ describe('RoomDetailsModal proxy booking', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
 
-    fireEvent.change(screen.getByPlaceholderText('Full name*'), {
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
       target: { value: 'Jane Occupant' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Relationship to booker*'), {
+    fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
       target: { value: 'child' },
     });
 
     const occupantDateInputs = container.querySelectorAll('input[type="date"]');
     fireEvent.change(occupantDateInputs[occupantDateInputs.length - 1], {
-      target: { value: '2010-05-01' },
+      target: { value: '1990-05-01' },
     });
 
     fireEvent.change(screen.getByRole('combobox'), {
@@ -173,13 +234,51 @@ describe('RoomDetailsModal proxy booking', () => {
     expect(payload.occupants).toEqual([
       {
         full_name: 'Jane Occupant',
-        date_of_birth: '2010-05-01',
+        date_of_birth: '1990-05-01',
         gender: 'female',
         relationship_to_booker: 'child',
         phone: '',
         email: '',
       },
     ]);
+  });
+
+  it('blocks submit when proxy occupant is below 18 years old', async () => {
+    const createBooking = jest.fn();
+
+    const { container } = renderBookingForm({ createBooking });
+
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateInputs[0], {
+      target: { value: getTomorrowDateValue() },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
+
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Young Occupant' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
+      target: { value: 'child' },
+    });
+
+    const occupantDateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(occupantDateInputs[occupantDateInputs.length - 1], {
+      target: { value: '2012-05-01' },
+    });
+
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'female' },
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Booking Request' }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Occupant 1 must be at least 18 years old.');
+    });
+
+    expect(createBooking).not.toHaveBeenCalled();
   });
 
   it('keeps booking CTA as no-fee when move-in is within three days', async () => {

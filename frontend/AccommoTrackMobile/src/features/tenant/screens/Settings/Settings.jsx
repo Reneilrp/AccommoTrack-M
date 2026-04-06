@@ -9,7 +9,6 @@ import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
-import { WEB_BASE_URL } from '../../../../config/index.js';
 import { navigate as rootNavigate, triggerForcedLogout, triggerRoleSwitch } from '../../../../navigation/RootNavigation.js';
 import { useAuthStore } from '../../../../stores/auth/authStore.js';
 import {
@@ -256,6 +255,11 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   };
 
   const handleSwitchRole = async () => {
+    if (isGuestMode) {
+      navigation.navigate('LandlordRegister');
+      return;
+    }
+
     const newRole = userRole === 'landlord' ? 'tenant' : 'landlord';
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
 
@@ -268,7 +272,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       } else if (landlordVerificationStatus === 'pending') {
         Alert.alert('Registration Pending', 'Your landlord registration is still under review. Please wait for approval before switching.');
       } else {
-        Alert.alert('Register as Landlord', 'Complete landlord registration first by submitting your valid ID and business permit.', [
+        Alert.alert('Register as Landlord', 'Complete landlord registration first by submitting your valid ID and business permit in the app.', [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Proceed', onPress: () => navigation.navigate('VerificationStatus') },
         ]);
@@ -319,7 +323,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           title: "Account",
           items: [
             { id: 1, label: "Login / Sign Up", icon: "log-in-outline", arrow: true, highlight: true },
-            { id: 2, label: "Become a Landlord", icon: "business-outline", arrow: true },
+            { id: 2, label: "Register as Landlord", icon: "business-outline", arrow: true },
             { 
               id: 3, 
               label: "Dark Mode", 

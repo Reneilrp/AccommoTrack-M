@@ -262,16 +262,58 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   const handleBack = () => { setError(''); setStep(prev => prev - 1); };
 
   // ——— Image picker ———
-  const pickImage = async (field) => {
+  const applySelectedAsset = (field, result) => {
+    if (result.canceled || !result.assets || result.assets.length === 0) return;
+    setForm(prev => ({ ...prev, [field]: result.assets[0] }));
+    setFieldErrors(prev => ({ ...prev, [field]: '' }));
+  };
+
+  const pickImageFromLibrary = async (field) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please allow photo library access to upload documents.');
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
-    if (!result.canceled) {
-      setForm(prev => ({ ...prev, [field]: result.assets[0] }));
-      setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    applySelectedAsset(field, result);
+  };
+
+  const takePhotoWithCamera = async (field) => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please allow camera access to capture documents.');
+      return;
     }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    applySelectedAsset(field, result);
+  };
+
+  const pickImage = (field) => {
+    Alert.alert(
+      'Upload Document',
+      'Choose a source for your document image.',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => { void takePhotoWithCamera(field); },
+        },
+        {
+          text: 'Choose from Library',
+          onPress: () => { void pickImageFromLibrary(field); },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
   };
 
   // ——— Submit ———

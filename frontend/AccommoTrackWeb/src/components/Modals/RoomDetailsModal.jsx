@@ -30,6 +30,7 @@ export default function RoomDetailsModal({
   onBookingSuccess,
   bookingService,
 }) {
+  const PROXY_MINIMUM_AGE = 18;
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
   const [bedCount, setBedCount] = useState(1);
@@ -56,10 +57,10 @@ export default function RoomDetailsModal({
   const [proxyOccupants, setProxyOccupants] = useState([]);
   const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(DEFAULT_TOGGLES.reservationFeeDisabled);
 
-  const createEmptyOccupant = () => ({
+  const createEmptyOccupant = (defaultGender = "") => ({
     full_name: "",
     date_of_birth: "",
-    gender: "",
+    gender: defaultGender,
     relationship_to_booker: "",
     phone: "",
     email: "",
@@ -75,6 +76,22 @@ export default function RoomDetailsModal({
     if (["male", "boy", "boys"].includes(normalized)) return "male";
     if (["female", "girl", "girls"].includes(normalized)) return "female";
     return null;
+  };
+
+  const normalizeRoomRestriction = (restriction) => {
+    const normalized = String(restriction || "mixed").toLowerCase().trim();
+    if (["male", "boy", "boys"].includes(normalized)) return "male";
+    if (["female", "girl", "girls"].includes(normalized)) return "female";
+    return "mixed";
+  };
+
+  const normalizeProxyOccupantGender = (gender) => {
+    const normalized = String(gender || "").toLowerCase().trim();
+    if (!normalized) return "";
+    if (["male", "boy", "boys"].includes(normalized)) return "male";
+    if (["female", "girl", "girls"].includes(normalized)) return "female";
+    if (["other", "prefer_not_to_say"].includes(normalized)) return normalized;
+    return normalized;
   };
 
   const resolveStoredTenantGender = () => {
@@ -128,6 +145,54 @@ export default function RoomDetailsModal({
     return new Date(year, month - 1, day);
   };
 
+  const parseIsoDateOnly = (value) => {
+    const trimmed = String(value || "").trim();
+    const matches = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!matches) return null;
+
+    const year = Number(matches[1]);
+    const month = Number(matches[2]);
+    const day = Number(matches[3]);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      Number.isNaN(parsed.getTime()) ||
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const getAgeInYears = (dateOfBirth, referenceDate = new Date()) => {
+    const dob = new Date(dateOfBirth);
+    const ref = new Date(referenceDate);
+    let age = ref.getFullYear() - dob.getFullYear();
+    const monthDiff = ref.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < dob.getDate())) {
+      age -= 1;
+    }
+    return age;
+  };
+
+  const toDateInputValue = (dateValue) => {
+    const year = dateValue.getFullYear();
+    const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+    const day = String(dateValue.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const latestAllowedAdultDob = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    today.setFullYear(today.getFullYear() - PROXY_MINIMUM_AGE);
+    return toDateInputValue(today);
+  })();
+
   const toBooleanFlag = (value) => {
     if (value === undefined || value === null) return null;
     if (typeof value === "boolean") return value;
@@ -177,6 +242,10 @@ export default function RoomDetailsModal({
     .toLowerCase()
     .replace(/[\s_-]/g, "");
   const isBedSpacerRoom = normalizedRoomType === "bedspacer";
+  const roomGender = normalizeRoomRestriction(room?.gender_restriction);
+  const requiredProxyGender = roomGender === "male" || roomGender === "female"
+    ? roomGender
+    : "";
   const occupantLimit =
     pricingModel === "per_bed"
       ? Math.max(1, bedCount)
@@ -316,10 +385,19 @@ export default function RoomDetailsModal({
     }
 
     setProxyOccupants((prev) => {
-      const base = prev.length > 0 ? prev : [createEmptyOccupant()];
-      return base.slice(0, occupantLimit);
+      const base = prev.length > 0 ? prev : [createEmptyOccupant(requiredProxyGender)];
+      const limited = base.slice(0, occupantLimit);
+
+      if (!requiredProxyGender) {
+        return limited;
+      }
+
+      return limited.map((occupant) => ({
+        ...occupant,
+        gender: requiredProxyGender,
+      }));
     });
-  }, [bookingMode, occupantLimit]);
+  }, [bookingMode, occupantLimit, requiredProxyGender]);
 
   if (!room) return null;
 
@@ -343,21 +421,26 @@ export default function RoomDetailsModal({
   const handleAddProxyOccupant = () => {
     setProxyOccupants((prev) => {
       if (prev.length >= occupantLimit) return prev;
-      return [...prev, createEmptyOccupant()];
+      return [...prev, createEmptyOccupant(requiredProxyGender)];
     });
   };
 
   const handleRemoveProxyOccupant = (index) => {
     setProxyOccupants((prev) => {
       const next = prev.filter((_, idx) => idx !== index);
-      return next.length > 0 ? next : [createEmptyOccupant()];
+      return next.length > 0 ? next : [createEmptyOccupant(requiredProxyGender)];
     });
   };
 
   const handleProxyOccupantChange = (index, field, value) => {
+    let nextValue = value;
+    if (field === "gender") {
+      nextValue = requiredProxyGender || normalizeProxyOccupantGender(value);
+    }
+
     setProxyOccupants((prev) =>
       prev.map((occupant, idx) =>
-        idx === index ? { ...occupant, [field]: value } : occupant,
+        idx === index ? { ...occupant, [field]: nextValue } : occupant,
       ),
     );
   };
@@ -426,7 +509,7 @@ export default function RoomDetailsModal({
       .map((occupant) => ({
         full_name: String(occupant.full_name || "").trim(),
         date_of_birth: String(occupant.date_of_birth || "").trim(),
-        gender: String(occupant.gender || "").trim().toLowerCase(),
+        gender: normalizeProxyOccupantGender(occupant.gender),
         relationship_to_booker: String(
           occupant.relationship_to_booker || "",
         ).trim(),
@@ -450,6 +533,9 @@ export default function RoomDetailsModal({
         return;
       }
 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       for (let i = 0; i < normalizedOccupants.length; i += 1) {
         const occupant = normalizedOccupants[i];
         if (
@@ -460,6 +546,30 @@ export default function RoomDetailsModal({
         ) {
           toast.error(
             `Occupant ${i + 1} is missing required information (name, birth date, gender, relationship).`,
+          );
+          return;
+        }
+
+        const parsedDob = parseIsoDateOnly(occupant.date_of_birth);
+        if (!parsedDob) {
+          toast.error(`Occupant ${i + 1}: enter a valid date of birth in YYYY-MM-DD format.`);
+          return;
+        }
+
+        if (parsedDob >= today) {
+          toast.error(`Occupant ${i + 1}: date of birth must be before today.`);
+          return;
+        }
+
+        const age = getAgeInYears(parsedDob, today);
+        if (age < PROXY_MINIMUM_AGE) {
+          toast.error(`Occupant ${i + 1} must be at least ${PROXY_MINIMUM_AGE} years old.`);
+          return;
+        }
+
+        if (requiredProxyGender && occupant.gender !== requiredProxyGender) {
+          toast.error(
+            `Occupant ${i + 1} must be ${requiredProxyGender}. This room is ${requiredProxyGender === "male" ? "for boys" : "for girls"} only.`,
           );
           return;
         }
@@ -603,7 +713,6 @@ export default function RoomDetailsModal({
   const genderMeta = getGenderRestrictionMeta(room.gender_restriction);
   const propertyType = String(property?.property_type || "").toLowerCase().trim();
   const normalizedPropertyType = normalizePropertyTypeToken(property?.property_type);
-  const roomGender = String(room?.gender_restriction || "mixed").toLowerCase().trim();
   const showGenderBadge = !(propertyType === "apartment" && roomGender === "mixed");
   const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
 
@@ -1118,6 +1227,9 @@ export default function RoomDetailsModal({
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         Provide details of the people who will actually stay in this room.
                       </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Fields marked with <span className="text-red-500">*</span> are required.
+                      </p>
 
                       {proxyOccupants.map((occupant, index) => (
                         <div
@@ -1140,67 +1252,120 @@ export default function RoomDetailsModal({
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <input
-                              type="text"
-                              value={occupant.full_name}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "full_name", e.target.value)
-                              }
-                              placeholder="Full name*"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <input
-                              type="date"
-                              value={occupant.date_of_birth}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "date_of_birth", e.target.value)
-                              }
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <select
-                              value={occupant.gender}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "gender", e.target.value)
-                              }
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            >
-                              <option value="">Gender*</option>
-                              <option value="male">Male</option>
-                              <option value="female">Female</option>
-                              <option value="other">Other</option>
-                              <option value="prefer_not_to_say">Prefer not to say</option>
-                            </select>
-                            <input
-                              type="text"
-                              value={occupant.relationship_to_booker}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(
-                                  index,
-                                  "relationship_to_booker",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Relationship to booker*"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <input
-                              type="text"
-                              value={occupant.phone}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "phone", e.target.value)
-                              }
-                              placeholder="Phone (optional)"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <input
-                              type="email"
-                              value={occupant.email}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "email", e.target.value)
-                              }
-                              placeholder="Email (optional)"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Full Name <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={occupant.full_name}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "full_name", e.target.value)
+                                }
+                                placeholder="Full name"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Date of Birth (DOB) <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="date"
+                                value={occupant.date_of_birth}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "date_of_birth", e.target.value)
+                                }
+                                max={latestAllowedAdultDob}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                Birth date only, not move-in date. Occupant must be at least 18 years old.
+                              </p>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Gender <span className="text-red-500">*</span>
+                              </label>
+                              <select
+                                value={occupant.gender}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "gender", e.target.value)
+                                }
+                                disabled={Boolean(requiredProxyGender)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              >
+                                {requiredProxyGender ? (
+                                  <option value={requiredProxyGender}>
+                                    {requiredProxyGender === "male" ? "Male" : "Female"}
+                                  </option>
+                                ) : (
+                                  <>
+                                    <option value="">Select gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                    <option value="prefer_not_to_say">Prefer not to say</option>
+                                  </>
+                                )}
+                              </select>
+                              {requiredProxyGender ? (
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                  This room is restricted to {requiredProxyGender === "male" ? "boys" : "girls"} only.
+                                </p>
+                              ) : null}
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Relationship to Booker <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={occupant.relationship_to_booker}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(
+                                    index,
+                                    "relationship_to_booker",
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="Relationship to booker"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Phone (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={occupant.phone}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "phone", e.target.value)
+                                }
+                                placeholder="Phone"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Email (Optional)
+                              </label>
+                              <input
+                                type="email"
+                                value={occupant.email}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "email", e.target.value)
+                                }
+                                placeholder="Email"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
                           </div>
                         </div>
                       ))}

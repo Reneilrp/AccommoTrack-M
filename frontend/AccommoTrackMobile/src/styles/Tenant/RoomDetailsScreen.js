@@ -392,6 +392,32 @@ summaryNote: {
   color: theme.colors.textTertiary,
   marginTop: 8,
 },
+requiredAsterisk: {
+  color: '#ef4444',
+},
+proxyFieldLabel: {
+  fontSize: 12,
+  fontWeight: '600',
+  color: theme.colors.text,
+  marginBottom: 6,
+},
+proxyFieldHelp: {
+  fontSize: 11,
+  color: theme.colors.textTertiary,
+  marginTop: -4,
+  marginBottom: 10,
+},
+proxyGenderPickerWrapper: {
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  backgroundColor: theme.colors.background,
+  borderRadius: 8,
+  marginBottom: 10,
+  overflow: 'hidden',
+},
+proxyGenderPicker: {
+  color: theme.colors.text,
+},
 
 // Update existing submitButtonDisabled style
   submitButtonDisabled: {

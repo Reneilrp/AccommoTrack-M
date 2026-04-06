@@ -136,7 +136,7 @@ class ProxyBookingModeLimitTest extends TestCase
             'occupants' => [
                 [
                     'full_name' => 'Child One',
-                    'date_of_birth' => '2010-01-01',
+                    'date_of_birth' => '1990-01-01',
                     'gender' => 'female',
                     'relationship_to_booker' => 'child',
                     'phone' => '09171234567',
@@ -144,7 +144,7 @@ class ProxyBookingModeLimitTest extends TestCase
                 ],
                 [
                     'full_name' => 'Child Two',
-                    'date_of_birth' => '2012-06-01',
+                    'date_of_birth' => '1992-06-01',
                     'gender' => 'male',
                     'relationship_to_booker' => 'child',
                 ],
@@ -271,13 +271,13 @@ class ProxyBookingModeLimitTest extends TestCase
             'occupants' => [
                 [
                     'full_name' => 'Occupant One',
-                    'date_of_birth' => '2010-01-01',
+                    'date_of_birth' => '1990-01-01',
                     'gender' => 'female',
                     'relationship_to_booker' => 'child',
                 ],
                 [
                     'full_name' => 'Occupant Two',
-                    'date_of_birth' => '2011-01-01',
+                    'date_of_birth' => '1991-01-01',
                     'gender' => 'male',
                     'relationship_to_booker' => 'child',
                 ],
@@ -286,6 +286,34 @@ class ProxyBookingModeLimitTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonPath('error', 'Occupant count cannot exceed requested bed slots for this booking.');
+    }
+
+    public function test_proxy_booking_rejects_when_occupant_gender_mismatches_room_restriction(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id);
+        $room = $this->createRoom($property->id, '501', 1, 'per_bed', 'female');
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'booking_mode' => 'proxy',
+            'bed_count' => 1,
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(40)->toDateString(),
+            'occupants' => [
+                [
+                    'full_name' => 'Occupant One',
+                    'date_of_birth' => '1990-01-01',
+                    'gender' => 'male',
+                    'relationship_to_booker' => 'child',
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error', 'Occupant 1 gender must match the room restriction (female).');
     }
 
     private function createUsers(): array
@@ -336,7 +364,13 @@ class ProxyBookingModeLimitTest extends TestCase
         ]);
     }
 
-    private function createRoom(int $propertyId, string $roomNumber, int $capacity = 1, string $pricingModel = 'full_room'): Room
+    private function createRoom(
+        int $propertyId,
+        string $roomNumber,
+        int $capacity = 1,
+        string $pricingModel = 'full_room',
+        string $genderRestriction = 'mixed',
+    ): Room
     {
         return Room::create([
             'property_id' => $propertyId,
@@ -347,6 +381,7 @@ class ProxyBookingModeLimitTest extends TestCase
             'daily_rate' => 600,
             'capacity' => $capacity,
             'pricing_model' => $pricingModel,
+            'gender_restriction' => $genderRestriction,
             'status' => 'available',
             'billing_policy' => 'monthly',
         ]);

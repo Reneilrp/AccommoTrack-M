@@ -20,6 +20,13 @@ const DEFAULT_PAYMENT_SETTINGS = {
   details: {},
 };
 
+const REFUND_SETTLED_STATUSES = new Set([
+  'succeeded',
+  'paid',
+  'partially_refunded',
+  'refunded',
+]);
+
 const parseJsonIfNeeded = (value, fallback) => {
   if (value == null) return fallback;
   if (typeof value === 'string') {
@@ -48,6 +55,64 @@ const normalizePaymentSettings = (value) => {
     allowed: normalizeArray(parsed.allowed, ['cash']),
     details: parsed.details && typeof parsed.details === 'object' ? parsed.details : {},
   };
+};
+
+const toPositiveInteger = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.round(parsed);
+};
+
+const normalizeInvoiceAddonLines = (invoice) => {
+  const lines = [];
+
+  const metadataAddonsRaw = invoice?.metadata?.addons;
+  const metadataAddons = Array.isArray(metadataAddonsRaw)
+    ? metadataAddonsRaw
+    : (metadataAddonsRaw && typeof metadataAddonsRaw === 'object' ? Object.values(metadataAddonsRaw) : []);
+
+  const metadataAddonIds = new Set();
+
+  metadataAddons.forEach((addon, idx) => {
+    const amountCents = toPositiveInteger(addon?.amount_cents ?? addon?.price_cents ?? addon?.price);
+    if (!amountCents) return;
+
+    const quantity = Math.max(1, toPositiveInteger(addon?.quantity) || 1);
+    const addonId = addon?.addon_id ?? addon?.id ?? null;
+    if (addonId !== null && addonId !== undefined) {
+      metadataAddonIds.add(String(addonId));
+    }
+
+    lines.push({
+      key: `meta-${addonId ?? idx}`,
+      addonId: addonId ?? null,
+      name: addon?.addon_name || addon?.name || 'Add-on',
+      quantity,
+      amountCents,
+    });
+  });
+
+  const bookingAddons = Array.isArray(invoice?.booking?.addons) ? invoice.booking.addons : [];
+  bookingAddons.forEach((addon, idx) => {
+    const addonId = addon?.id ?? addon?.addon_id ?? null;
+    if (addonId !== null && addonId !== undefined && metadataAddonIds.has(String(addonId))) {
+      return;
+    }
+
+    const quantity = Math.max(1, toPositiveInteger(addon?.pivot?.quantity ?? addon?.quantity) || 1);
+    const unitPrice = Number(addon?.pivot?.price_at_booking ?? addon?.price_at_booking ?? addon?.price ?? 0);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) return;
+
+    lines.push({
+      key: `booking-${addon?.pivot?.id ?? addonId ?? idx}`,
+      addonId: addonId ?? null,
+      name: addon?.name || addon?.addon_name || 'Add-on',
+      quantity,
+      amountCents: Math.round(unitPrice * 100 * quantity),
+    });
+  });
+
+  return lines;
 };
 
 export default function PaymentDetail() {
@@ -119,6 +184,12 @@ export default function PaymentDetail() {
     Alert.alert('Error', paymentDetailQuery.error.message || 'Failed to load invoice');
   }, [paymentDetailQuery.error]);
 
+  const addonLines = React.useMemo(() => normalizeInvoiceAddonLines(invoice), [invoice]);
+  const addonTotalCents = React.useMemo(
+    () => addonLines.reduce((sum, line) => sum + line.amountCents, 0),
+    [addonLines],
+  );
+
   const remainingBalance = React.useMemo(() => {
     if (!invoice) return 0;
 
@@ -128,9 +199,19 @@ export default function PaymentDetail() {
 
     const paidAmount =
       invoice.transactions
-        ?.filter((tx) => tx.status === 'succeeded' || tx.status === 'paid')
+        ?.filter((tx) => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
         .reduce(
-          (sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)),
+          (sum, tx) => {
+            const txAmountCents = Number(tx?.amount_cents ?? 0);
+            const txRefundedCents = Number(tx?.refunded_amount_cents ?? 0);
+
+            if (Number.isFinite(txAmountCents) && txAmountCents > 0) {
+              return sum + Math.max(0, (txAmountCents - Math.max(0, txRefundedCents)) / 100);
+            }
+
+            const txAmount = Number(tx?.amount || 0);
+            return Number.isFinite(txAmount) && txAmount > 0 ? sum + txAmount : sum;
+          },
           0,
         ) || 0;
 
@@ -368,6 +449,22 @@ export default function PaymentDetail() {
               <Text style={{ color: theme.colors.textSecondary }}>Tax</Text>
               <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.tax_cents ?? 0)/100).toLocaleString()}</Text>
             </View>
+            {addonTotalCents > 0 && (
+              <>
+                {addonLines.map((line) => (
+                  <View key={line.key} style={[homeStyles.rowBetween, { marginTop: 8 }]}> 
+                    <Text style={{ color: theme.colors.textSecondary }}>
+                      {line.name}{line.quantity > 1 ? ` x ${line.quantity}` : ''}
+                    </Text>
+                    <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{(line.amountCents / 100).toLocaleString()}</Text>
+                  </View>
+                ))}
+                <View style={[homeStyles.rowBetween, { marginTop: 8 }]}> 
+                  <Text style={{ color: theme.colors.textSecondary }}>Add-ons Total</Text>
+                  <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{(addonTotalCents / 100).toLocaleString()}</Text>
+                </View>
+              </>
+            )}
             <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
             <View style={homeStyles.rowBetween}>
               <Text style={[styles.totalText, { color: theme.colors.text }]}>Total</Text>

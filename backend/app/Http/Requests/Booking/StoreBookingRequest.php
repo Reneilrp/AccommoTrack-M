@@ -71,6 +71,7 @@ class StoreBookingRequest extends FormRequest
                 }
             },
         ];
+        $minimumAdultDob = Carbon::today()->subYears(18)->toDateString();
 
         $rules = [
             'room_id' => 'required|exists:rooms,id',
@@ -101,7 +102,7 @@ class StoreBookingRequest extends FormRequest
             'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             'occupants' => 'required_if:booking_mode,proxy|array|min:1',
             'occupants.*.full_name' => 'required_with:occupants|string|max:255',
-            'occupants.*.date_of_birth' => 'required_with:occupants|date|before:today',
+            'occupants.*.date_of_birth' => ['required_with:occupants', 'date', 'before_or_equal:'.$minimumAdultDob],
             'occupants.*.gender' => 'required_with:occupants|string|in:male,female,other,prefer_not_to_say|max:32',
             'occupants.*.relationship_to_booker' => 'required_with:occupants|string|max:64',
             'occupants.*.phone' => 'nullable|string|max:32',
@@ -154,6 +155,7 @@ class StoreBookingRequest extends FormRequest
             'occupants.min' => 'Proxy booking requires at least one occupant.',
             'occupants.*.full_name.required_with' => 'Each occupant must include a full name.',
             'occupants.*.date_of_birth.required_with' => 'Each occupant must include a date of birth.',
+            'occupants.*.date_of_birth.before_or_equal' => 'Each occupant must be at least 18 years old.',
             'occupants.*.gender.required_with' => 'Each occupant must include a gender.',
             'occupants.*.gender.in' => 'Each occupant gender must be one of: male, female, other, prefer_not_to_say.',
             'occupants.*.relationship_to_booker.required_with' => 'Each occupant must include relationship to booker.',

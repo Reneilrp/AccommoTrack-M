@@ -120,6 +120,8 @@ class BookingService
                 throw new \DomainException('Room is temporarily locked for new bookings due to a pending eviction process.');
             }
 
+            $roomRestriction = $this->normalizeRoomRestriction((string) ($room->gender_restriction ?? 'mixed'));
+
             // Check Gender Compatibility
             $tenant = $tenantId ? User::find($tenantId) : null;
             if ($tenant && $tenant->role === 'tenant') {
@@ -131,7 +133,6 @@ class BookingService
                 // Only enforce for specific property types
                 if ($propertyType !== 'apartment' && in_array($propertyType, $targetTypes)) {
                     $tenantGender = $this->normalizeGender($tenant->gender);
-                    $roomRestriction = strtolower((string) ($room->gender_restriction ?? 'mixed'));
 
                     if ($roomRestriction !== 'mixed') {
                         if (! $tenantGender) {
@@ -140,6 +141,16 @@ class BookingService
                         if ($roomRestriction !== $tenantGender) {
                             throw new \DomainException("Sorry, this room is only for specifically {$roomRestriction} only");
                         }
+                    }
+                }
+            }
+
+            if ($bookingMode === 'proxy' && $roomRestriction !== 'mixed') {
+                foreach ($occupantsPayload as $index => $occupant) {
+                    $occupantGender = $this->normalizeGender((string) ($occupant['gender'] ?? ''));
+
+                    if ($occupantGender !== $roomRestriction) {
+                        throw new \DomainException('Occupant '.($index + 1).' gender must match the room restriction ('.$roomRestriction.').');
                     }
                 }
             }
@@ -998,5 +1009,16 @@ class BookingService
             'female', 'girl', 'girls' => 'female',
             default => null,
         };
+    }
+
+    protected function normalizeRoomRestriction(?string $restriction): string
+    {
+        $normalized = strtolower(trim((string) $restriction));
+
+        if ($normalized === '' || $normalized === 'mixed') {
+            return 'mixed';
+        }
+
+        return $this->normalizeGender($normalized) ?? 'mixed';
     }
 }

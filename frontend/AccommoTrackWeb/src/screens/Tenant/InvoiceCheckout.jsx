@@ -8,6 +8,71 @@ import systemToggleService from '../../services/systemToggleService';
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
+const REFUND_SETTLED_STATUSES = new Set([
+  'succeeded',
+  'paid',
+  'partially_refunded',
+  'refunded',
+]);
+
+const toPositiveInteger = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.round(parsed);
+};
+
+const normalizeInvoiceAddonLines = (invoice) => {
+  const lines = [];
+
+  const metadataAddonsRaw = invoice?.metadata?.addons;
+  const metadataAddons = Array.isArray(metadataAddonsRaw)
+    ? metadataAddonsRaw
+    : (metadataAddonsRaw && typeof metadataAddonsRaw === 'object' ? Object.values(metadataAddonsRaw) : []);
+
+  const metadataAddonIds = new Set();
+
+  metadataAddons.forEach((addon, idx) => {
+    const amountCents = toPositiveInteger(addon?.amount_cents ?? addon?.price_cents ?? addon?.price);
+    if (!amountCents) return;
+
+    const quantity = Math.max(1, toPositiveInteger(addon?.quantity) || 1);
+    const addonId = addon?.addon_id ?? addon?.id ?? null;
+    if (addonId !== null && addonId !== undefined) {
+      metadataAddonIds.add(String(addonId));
+    }
+
+    lines.push({
+      key: `meta-${addonId ?? idx}`,
+      addonId: addonId ?? null,
+      name: addon?.addon_name || addon?.name || 'Add-on',
+      quantity,
+      amountCents,
+    });
+  });
+
+  const bookingAddons = Array.isArray(invoice?.booking?.addons) ? invoice.booking.addons : [];
+  bookingAddons.forEach((addon, idx) => {
+    const addonId = addon?.id ?? addon?.addon_id ?? null;
+    if (addonId !== null && addonId !== undefined && metadataAddonIds.has(String(addonId))) {
+      return;
+    }
+
+    const quantity = Math.max(1, toPositiveInteger(addon?.pivot?.quantity ?? addon?.quantity) || 1);
+    const unitPrice = Number(addon?.pivot?.price_at_booking ?? addon?.price_at_booking ?? addon?.price ?? 0);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) return;
+
+    lines.push({
+      key: `booking-${addon?.pivot?.id ?? addonId ?? idx}`,
+      addonId: addonId ?? null,
+      name: addon?.name || addon?.addon_name || 'Add-on',
+      quantity,
+      amountCents: Math.round(unitPrice * 100 * quantity),
+    });
+  });
+
+  return lines;
+};
+
 export default function InvoiceCheckout() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -47,8 +112,18 @@ export default function InvoiceCheckout() {
       // Only count verified/succeeded transactions toward remaining balance shown at top
       // pending_offline is shown separately as a notice, not deducted from accessible balance
       const paidAmount = invData.transactions
-        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
-        .reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)), 0) || 0;
+        ?.filter(tx => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
+        .reduce((sum, tx) => {
+          const txAmountCents = Number(tx?.amount_cents ?? 0);
+          const txRefundedCents = Number(tx?.refunded_amount_cents ?? 0);
+
+          if (Number.isFinite(txAmountCents) && txAmountCents > 0) {
+            return sum + Math.max(0, (txAmountCents - Math.max(0, txRefundedCents)) / 100);
+          }
+
+          const txAmount = Number(tx?.amount || 0);
+          return Number.isFinite(txAmount) && txAmount > 0 ? sum + txAmount : sum;
+        }, 0) || 0;
       
       const pendingOfflineAmount = invData.transactions
         ?.filter(tx => tx.status === 'pending_offline')
@@ -179,16 +254,8 @@ export default function InvoiceCheckout() {
   const showCash = !tenantPaymentsTempDisabled && acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
   const showManualGcash = !tenantPaymentsTempDisabled && globalSettings.allowed?.includes('gcash');
 
-  const addonTotalCents = Array.isArray(invoice?.metadata?.addons)
-    ? invoice.metadata.addons.reduce((sum, addon) => {
-        const rawPrice = Number(addon?.price ?? addon?.amount_cents ?? 0);
-        if (!Number.isFinite(rawPrice) || rawPrice <= 0) return sum;
-
-        // Newer invoice metadata stores add-on price in cents. Some legacy rows may store pesos.
-        const normalizedCents = rawPrice >= 1000 ? Math.round(rawPrice) : Math.round(rawPrice * 100);
-        return sum + normalizedCents;
-      }, 0)
-    : 0;
+  const addonLines = normalizeInvoiceAddonLines(invoice);
+  const addonTotalCents = addonLines.reduce((sum, line) => sum + line.amountCents, 0);
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4">
@@ -489,12 +556,27 @@ export default function InvoiceCheckout() {
                 </span>
               </div>
               {addonTotalCents > 0 && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">Add-ons</span>
-                  <span className="text-gray-900 dark:text-white font-bold">
-                    <PriceRow amount={addonTotalCents / 100} />
-                  </span>
-                </div>
+                <>
+                  <div className="space-y-2">
+                    {addonLines.map((line) => (
+                      <div key={line.key} className="flex justify-between items-start text-sm">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">
+                          {line.name}
+                          {line.quantity > 1 ? ` x ${line.quantity}` : ''}
+                        </span>
+                        <span className="text-gray-900 dark:text-white font-bold">
+                          <PriceRow amount={line.amountCents / 100} />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between items-center text-sm pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Add-ons Total</span>
+                    <span className="text-gray-900 dark:text-white font-bold">
+                      <PriceRow amount={addonTotalCents / 100} />
+                    </span>
+                  </div>
+                </>
               )}
               {(invoice.booking.room?.require_1month_advance || 
                 invoice.booking.property?.require_1month_advance ||

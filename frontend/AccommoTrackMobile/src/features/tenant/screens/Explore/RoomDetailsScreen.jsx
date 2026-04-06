@@ -18,6 +18,7 @@ import {
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
@@ -30,6 +31,7 @@ import PropertyService from '../../../../services/PropertyService.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import SystemToggleService from '../../../../services/SystemToggleService.js';
+import { showError } from '../../../../utils/toast.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import {
   tenantQueryKeys,
@@ -56,6 +58,7 @@ const getRoomImageUrl = (imageUrl) => {
 };
 
 export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequired }) {
+  const PROXY_MINIMUM_AGE = 18;
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -72,6 +75,21 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     }
     return null;
   };
+
+  const normalizeGenderValue = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return '';
+    if (['male', 'boy', 'boys'].includes(normalized)) return 'male';
+    if (['female', 'girl', 'girls'].includes(normalized)) return 'female';
+    if (['other', 'prefer_not_to_say'].includes(normalized)) return normalized;
+    return normalized;
+  };
+
+  const normalizeRoomRestriction = (value) => {
+    const normalized = normalizeGenderValue(value);
+    return ['male', 'female'].includes(normalized) ? normalized : 'mixed';
+  };
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,14 +101,50 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(
     SystemToggleService.getDefaults().reservationFeeDisabled,
   );
-  const createEmptyOccupant = () => ({
+  const createEmptyOccupant = (defaultGender = '') => ({
     full_name: '',
     date_of_birth: '',
-    gender: '',
+    gender: defaultGender,
     relationship_to_booker: '',
     phone: '',
     email: '',
   });
+
+  const parseIsoDateOnly = (rawDate) => {
+    const trimmed = String(rawDate || '').trim();
+    const datePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+    const matches = trimmed.match(datePattern);
+    if (!matches) return null;
+
+    const year = Number(matches[1]);
+    const month = Number(matches[2]);
+    const day = Number(matches[3]);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      Number.isNaN(parsed.getTime())
+      || parsed.getFullYear() !== year
+      || parsed.getMonth() !== month - 1
+      || parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const getAgeInYears = (dateOfBirth, referenceDate = new Date()) => {
+    const dob = new Date(dateOfBirth);
+    const ref = new Date(referenceDate);
+    let age = ref.getFullYear() - dob.getFullYear();
+    const monthDiff = ref.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < dob.getDate())) {
+      age -= 1;
+    }
+    return age;
+  };
+
   const [proxyOccupants, setProxyOccupants] = useState([createEmptyOccupant()]);
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param
@@ -236,6 +290,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   const roomBillingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
   const roomPricingModel = String(activeRoom?.pricing_model || 'full_room').toLowerCase();
+  const roomGenderRestriction = normalizeRoomRestriction(activeRoom?.gender_restriction);
+  const requiredProxyGender = roomGenderRestriction !== 'mixed' ? roomGenderRestriction : '';
   const occupantLimit = Math.max(1, Number(activeRoom?.available_slots ?? activeRoom?.capacity ?? 1));
   const supportsContractModeSwitch = roomBillingPolicy === 'monthly_with_daily';
   const isDailyContract = roomBillingPolicy === 'daily' || (supportsContractModeSwitch && bookingData.contract_mode === 'daily');
@@ -244,10 +300,18 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (bookingMode !== 'proxy') return;
 
     setProxyOccupants((prev) => {
-      const next = prev.length > 0 ? prev : [createEmptyOccupant()];
-      return next.slice(0, occupantLimit);
+      const next = (prev.length > 0 ? prev : [createEmptyOccupant(requiredProxyGender)]).slice(0, occupantLimit);
+
+      if (!requiredProxyGender) {
+        return next;
+      }
+
+      return next.map((occupant) => ({
+        ...occupant,
+        gender: requiredProxyGender,
+      }));
     });
-  }, [bookingMode, occupantLimit]);
+  }, [bookingMode, occupantLimit, requiredProxyGender]);
 
   const pricingStartDate = bookingData.start_date
     ? bookingData.start_date.toISOString().split('T')[0]
@@ -492,12 +556,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   const validateDates = () => {
     if (!bookingData.start_date) {
-      Alert.alert('Missing Information', 'Please select a check-in date.');
+      showError('Missing Information', 'Please select a check-in date.');
       return false;
     }
 
     if (isDailyContract && !bookingData.end_date) {
-      Alert.alert('Missing Information', 'Please select both check-in and check-out dates for daily contracts.');
+      showError('Missing Information', 'Please select both check-in and check-out dates for daily contracts.');
       return false;
     }
 
@@ -507,17 +571,17 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     today.setHours(0, 0, 0, 0);
 
     if (start < today) {
-      Alert.alert('Invalid Date', 'Check-in date cannot be in the past.');
+      showError('Invalid Date', 'Check-in date cannot be in the past.');
       return false;
     }
     if (end && end <= start) {
-      Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
+      showError('Invalid Date', 'Check-out date must be after check-in date.');
       return false;
     }
 
     // Ensure start is within allowed range (3 months)
     if (!isStartWithinAllowedRange(start)) {
-      Alert.alert('Invalid Date', 'Check-in must be within the next 3 months.');
+      showError('Invalid Date', 'Check-in must be within the next 3 months.');
       return false;
     }
 
@@ -529,20 +593,26 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const handleAddProxyOccupant = () => {
     setProxyOccupants((prev) => {
       if (prev.length >= occupantLimit) return prev;
-      return [...prev, createEmptyOccupant()];
+      return [...prev, createEmptyOccupant(requiredProxyGender)];
     });
   };
 
   const handleRemoveProxyOccupant = (index) => {
     setProxyOccupants((prev) => {
       const next = prev.filter((_, idx) => idx !== index);
-      return next.length > 0 ? next : [createEmptyOccupant()];
+      return next.length > 0 ? next : [createEmptyOccupant(requiredProxyGender)];
     });
   };
 
   const handleProxyOccupantChange = (index, field, value) => {
+    let nextValue = value;
+    if (field === 'gender') {
+      const normalizedGender = normalizeGenderValue(value);
+      nextValue = requiredProxyGender || normalizedGender;
+    }
+
     setProxyOccupants((prev) => prev.map((occupant, idx) => (
-      idx === index ? { ...occupant, [field]: value } : occupant
+      idx === index ? { ...occupant, [field]: nextValue } : occupant
     )));
   };
 
@@ -566,7 +636,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         .map((occupant) => ({
           full_name: String(occupant.full_name || '').trim(),
           date_of_birth: String(occupant.date_of_birth || '').trim(),
-          gender: String(occupant.gender || '').trim().toLowerCase(),
+          gender: normalizeGenderValue(occupant.gender),
           relationship_to_booker: String(occupant.relationship_to_booker || '').trim(),
           phone: String(occupant.phone || '').trim(),
           email: String(occupant.email || '').trim(),
@@ -575,26 +645,57 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
       if (bookingMode === 'proxy') {
         if (normalizedOccupants.length === 0) {
-          Alert.alert('Missing Information', 'Proxy booking requires at least one occupant.');
+          showError('Missing Information', 'Proxy booking requires at least one occupant.');
           return;
         }
 
         if (normalizedOccupants.length > occupantLimit) {
-          Alert.alert('Occupant Limit', `This booking can only hold up to ${occupantLimit} occupant${occupantLimit > 1 ? 's' : ''}.`);
+          showError('Occupant Limit', `This booking can only hold up to ${occupantLimit} occupant${occupantLimit > 1 ? 's' : ''}.`);
           return;
         }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
         for (let i = 0; i < normalizedOccupants.length; i += 1) {
           const occupant = normalizedOccupants[i];
           if (!occupant.full_name || !occupant.date_of_birth || !occupant.gender || !occupant.relationship_to_booker) {
-            Alert.alert('Missing Information', `Occupant ${i + 1} is missing required information.`);
+            showError(
+              'Missing Information',
+              `Occupant ${i + 1} is missing required information (full name, date of birth, gender, relationship).`,
+            );
+            return;
+          }
+
+          const parsedDateOfBirth = parseIsoDateOnly(occupant.date_of_birth);
+          if (!parsedDateOfBirth) {
+            showError('Invalid Date of Birth', `Occupant ${i + 1}: enter date of birth in YYYY-MM-DD format.`);
+            return;
+          }
+
+          if (parsedDateOfBirth >= today) {
+            showError('Invalid Date of Birth', `Occupant ${i + 1}: date of birth must be before today.`);
+            return;
+          }
+
+          const occupantAge = getAgeInYears(parsedDateOfBirth, today);
+          if (occupantAge < PROXY_MINIMUM_AGE) {
+            showError('Age Restriction', `Occupant ${i + 1} must be at least ${PROXY_MINIMUM_AGE} years old.`);
+            return;
+          }
+
+          if (requiredProxyGender && occupant.gender !== requiredProxyGender) {
+            showError(
+              'Gender Restriction',
+              `Occupant ${i + 1} must be ${requiredProxyGender}. This room is ${requiredProxyGender === 'male' ? 'for boys' : 'for girls'} only.`,
+            );
             return;
           }
         }
       }
 
       if (isReservationRequired && !receiptImage) {
-        Alert.alert('Required', 'Please attach your GCash receipt to confirm your reservation.');
+        showError('Required', 'Please attach your GCash receipt to confirm your reservation.');
         return;
       }
 
@@ -1192,6 +1293,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.summaryNote}>Provide details of the people who will actually stay in this room.</Text>
+                <Text style={styles.summaryNote}>Fields marked with <Text style={styles.requiredAsterisk}>*</Text> are required.</Text>
 
                 {proxyOccupants.map((occupant, index) => (
                   <View
@@ -1207,34 +1309,68 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       )}
                     </View>
 
+                    <Text style={styles.proxyFieldLabel}>Full Name <Text style={styles.requiredAsterisk}>*</Text></Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="Full name*"
+                      placeholder="Full name"
                       placeholderTextColor="#999"
                       value={occupant.full_name}
                       onChangeText={(text) => handleProxyOccupantChange(index, 'full_name', text)}
                     />
+
+                    <Text style={styles.proxyFieldLabel}>Date of Birth (DOB) <Text style={styles.requiredAsterisk}>*</Text></Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="Date of birth (YYYY-MM-DD)*"
+                      placeholder="YYYY-MM-DD"
                       placeholderTextColor="#999"
                       value={occupant.date_of_birth}
                       onChangeText={(text) => handleProxyOccupantChange(index, 'date_of_birth', text)}
+                      keyboardType="numbers-and-punctuation"
+                      maxLength={10}
                     />
+                    <Text style={styles.proxyFieldHelp}>Use birth date only (not move-in date). Occupant must be at least 18 years old.</Text>
+
+                    <Text style={styles.proxyFieldLabel}>Gender <Text style={styles.requiredAsterisk}>*</Text></Text>
+                    <View style={styles.proxyGenderPickerWrapper}>
+                      <Picker
+                        testID={`proxy-occupant-gender-${index}`}
+                        selectedValue={occupant.gender || requiredProxyGender || ''}
+                        onValueChange={(value) => handleProxyOccupantChange(index, 'gender', value)}
+                        enabled={!requiredProxyGender}
+                        style={styles.proxyGenderPicker}
+                      >
+                        {requiredProxyGender ? (
+                          <Picker.Item
+                            label={requiredProxyGender === 'male' ? 'Male' : 'Female'}
+                            value={requiredProxyGender}
+                          />
+                        ) : (
+                          <>
+                            <Picker.Item label="Select gender" value="" />
+                            <Picker.Item label="Male" value="male" />
+                            <Picker.Item label="Female" value="female" />
+                            <Picker.Item label="Other" value="other" />
+                            <Picker.Item label="Prefer not to say" value="prefer_not_to_say" />
+                          </>
+                        )}
+                      </Picker>
+                    </View>
+                    {requiredProxyGender ? (
+                      <Text style={styles.proxyFieldHelp}>
+                        This room is restricted to {requiredProxyGender === 'male' ? 'boys' : 'girls'} only.
+                      </Text>
+                    ) : null}
+
+                    <Text style={styles.proxyFieldLabel}>Relationship to Booker <Text style={styles.requiredAsterisk}>*</Text></Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="Gender (male/female/other/prefer_not_to_say)*"
-                      placeholderTextColor="#999"
-                      value={occupant.gender}
-                      onChangeText={(text) => handleProxyOccupantChange(index, 'gender', text)}
-                    />
-                    <TextInput
-                      style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="Relationship to booker*"
+                      placeholder="Relationship to booker"
                       placeholderTextColor="#999"
                       value={occupant.relationship_to_booker}
                       onChangeText={(text) => handleProxyOccupantChange(index, 'relationship_to_booker', text)}
                     />
+
+                    <Text style={styles.proxyFieldLabel}>Phone (Optional)</Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 10 }]}
                       placeholder="Phone (optional)"
@@ -1242,6 +1378,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       value={occupant.phone}
                       onChangeText={(text) => handleProxyOccupantChange(index, 'phone', text)}
                     />
+
+                    <Text style={styles.proxyFieldLabel}>Email (Optional)</Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 0 }]}
                       placeholder="Email (optional)"

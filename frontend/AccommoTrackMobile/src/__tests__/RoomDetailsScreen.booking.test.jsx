@@ -6,6 +6,7 @@ import RoomDetailsScreen from '../features/tenant/screens/Explore/RoomDetailsScr
 import BookingService from '../services/BookingService.js';
 import PropertyService from '../services/PropertyService.js';
 import PaymentService from '../services/PaymentService.js';
+import { showError } from '../utils/toast.js';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -94,6 +95,14 @@ jest.mock('../services/PaymentService.js', () => ({
     generateCashInvoice: jest.fn(),
     createPaymentLink: jest.fn(),
   },
+}));
+
+jest.mock('../utils/toast.js', () => ({
+  showSuccess: jest.fn(),
+  showError: jest.fn(),
+  showInfo: jest.fn(),
+  showWarning: jest.fn(),
+  hideToast: jest.fn(),
 }));
 
 const originalFormData = global.FormData;
@@ -216,7 +225,7 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Submit Booking'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
+      expect(showError).toHaveBeenCalledWith(
         'Missing Information',
         'Proxy booking requires at least one occupant.',
       );
@@ -232,10 +241,10 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Book This Room'));
     fireEvent.press(screen.getByText('Proxy'));
 
-    fireEvent.changeText(screen.getByPlaceholderText('Full name*'), 'Jane Proxy');
-    fireEvent.changeText(screen.getByPlaceholderText('Date of birth (YYYY-MM-DD)*'), '2011-06-01');
-    fireEvent.changeText(screen.getByPlaceholderText('Gender (male/female/other/prefer_not_to_say)*'), 'female');
-    fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker*'), 'child');
+    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Jane Proxy');
+    fireEvent.changeText(screen.getByPlaceholderText('YYYY-MM-DD'), '1995-06-01');
+    fireEvent(screen.getByTestId('proxy-occupant-gender-0'), 'valueChange', 'female');
+    fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'child');
 
     fireEvent.press(screen.getByText('Submit Booking'));
 
@@ -248,9 +257,62 @@ describe('RoomDetailsScreen proxy booking', () => {
       expect.arrayContaining([
         ['booking_mode', 'proxy'],
         ['occupants[0][full_name]', 'Jane Proxy'],
-        ['occupants[0][date_of_birth]', '2011-06-01'],
+        ['occupants[0][date_of_birth]', '1995-06-01'],
         ['occupants[0][gender]', 'female'],
         ['occupants[0][relationship_to_booker]', 'child'],
+      ]),
+    );
+  });
+
+  it('blocks proxy submit when occupant age is below 18', async () => {
+    renderScreen();
+    await waitForInitialQueries();
+
+    fireEvent.press(screen.getByText('Book This Room'));
+    fireEvent.press(screen.getByText('Proxy'));
+
+    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Young Occupant');
+    fireEvent.changeText(screen.getByPlaceholderText('YYYY-MM-DD'), '2012-06-01');
+    fireEvent(screen.getByTestId('proxy-occupant-gender-0'), 'valueChange', 'female');
+    fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
+
+    fireEvent.press(screen.getByText('Submit Booking'));
+
+    await waitFor(() => {
+      expect(showError).toHaveBeenCalledWith('Age Restriction', 'Occupant 1 must be at least 18 years old.');
+    });
+
+    expect(BookingService.createBooking).not.toHaveBeenCalled();
+  });
+
+  it('defaults proxy occupant gender to room restriction for restricted rooms', async () => {
+    renderScreen({
+      room: {
+        ...room,
+        gender_restriction: 'female',
+      },
+    });
+
+    await waitForInitialQueries();
+
+    fireEvent.press(screen.getByText('Book This Room'));
+    fireEvent.press(screen.getByText('Proxy'));
+
+    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Default Gender Occupant');
+    fireEvent.changeText(screen.getByPlaceholderText('YYYY-MM-DD'), '1994-06-01');
+    fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
+
+    fireEvent.press(screen.getByText('Submit Booking'));
+
+    await waitFor(() => {
+      expect(BookingService.createBooking).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = BookingService.createBooking.mock.calls[0][0];
+    expect(payload.fields).toEqual(
+      expect.arrayContaining([
+        ['booking_mode', 'proxy'],
+        ['occupants[0][gender]', 'female'],
       ]),
     );
   });

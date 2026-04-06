@@ -295,6 +295,58 @@ class TenantAddonRequestTest extends TestCase
         $this->assertSame($addonInvoice->id, (int) $pivot->invoice_id);
     }
 
+    public function test_tenant_payment_detail_includes_booking_addons_relation(): void
+    {
+        [$tenant, $booking, $addon] = $this->buildScenario();
+
+        $invoice = Invoice::create([
+            'reference' => 'INV-'.now()->format('Ymd').'-ADDPAY',
+            'landlord_id' => $booking->landlord_id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $booking->tenant_id,
+            'description' => 'Monthly rent with add-ons',
+            'invoice_type' => 'rent',
+            'amount_cents' => 130000,
+            'currency' => 'PHP',
+            'status' => 'partial',
+            'issued_at' => now()->subDay(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'metadata' => [
+                'addons' => [
+                    [
+                        'addon_id' => $addon->id,
+                        'addon_name' => $addon->name,
+                        'quantity' => 1,
+                        'price' => 30000,
+                    ],
+                ],
+            ],
+        ]);
+
+        $booking->addons()->attach($addon->id, [
+            'quantity' => 1,
+            'price_at_booking' => 300,
+            'status' => 'active',
+            'invoice_id' => $invoice->id,
+            'approved_at' => now(),
+        ]);
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->getJson("/api/tenant/payments/{$invoice->id}");
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('id', $invoice->id)
+            ->assertJsonPath('booking.id', $booking->id)
+            ->assertJsonCount(1, 'booking.addons')
+            ->assertJsonPath('booking.addons.0.id', $addon->id)
+            ->assertJsonPath('booking.addons.0.name', $addon->name)
+            ->assertJsonPath('booking.addons.0.pivot.status', 'active')
+            ->assertJsonPath('booking.addons.0.pivot.invoice_id', $invoice->id);
+    }
+
     private function buildScenario(): array
     {
         $suffix = uniqid();

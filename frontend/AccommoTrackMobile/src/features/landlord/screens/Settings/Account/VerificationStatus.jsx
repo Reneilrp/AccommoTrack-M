@@ -92,37 +92,79 @@ export default function VerificationStatus({ navigation }) {
     console.error("Error fetching verification data:", fetchError);
   }, [fetchError]);
 
-  const handlePickDocument = async (field) => {
+  const updatePickedDocument = (field, asset) => {
+    const filename = asset.uri.split("/").pop();
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : "image/jpeg";
+
+    setFormData((prev) => ({
+      ...prev,
+      [field]: {
+        uri: asset.uri,
+        name: filename,
+        type,
+      },
+    }));
+  };
+
+  const pickDocumentFromLibrary = async (field) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(
-        "Permission Denied",
-        "Sorry, we need camera roll permissions to upload documents.",
+        "Permission Required",
+        "Please allow photo library access to upload documents.",
       );
       return;
     }
 
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const asset = result.assets[0];
-      const filename = asset.uri.split("/").pop();
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : "image/jpeg";
-
-      setFormData((prev) => ({
-        ...prev,
-        [field]: {
-          uri: asset.uri,
-          name: filename,
-          type: type,
-        },
-      }));
+      updatePickedDocument(field, result.assets[0]);
     }
+  };
+
+  const takeDocumentPhoto = async (field) => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "Please allow camera access to capture documents.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      updatePickedDocument(field, result.assets[0]);
+    }
+  };
+
+  const handlePickDocument = (field) => {
+    Alert.alert("Upload Document", "Choose a source for your document image.", [
+      {
+        text: "Take Photo",
+        onPress: () => {
+          void takeDocumentPhoto(field);
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: () => {
+          void pickDocumentFromLibrary(field);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   const handleSubmit = async () => {

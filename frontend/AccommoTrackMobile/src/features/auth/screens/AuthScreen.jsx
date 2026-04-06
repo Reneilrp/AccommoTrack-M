@@ -1187,18 +1187,6 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             </TouchableOpacity>
           </View>
 
-          {/* Register as Landlord */}
-          {isLogin && (
-            <View style={{ alignItems: 'center', marginBottom: 8 }}>
-              <TouchableOpacity onPress={() => navigation.navigate('LandlordRegister')}>
-                <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
-                  Want to list your property?{' '}
-                  <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Register as Landlord</Text>
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
           {/* Continue as Guest Button - Only show when user logged out */}
           {onContinueAsGuest && (
             <View style={styles.guestOptionContainer}>
@@ -1218,6 +1206,18 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               <Text style={styles.guestHintText}>
                 Browse properties without signing in
               </Text>
+            </View>
+          )}
+
+          {/* Register as Landlord */}
+          {isLogin && (
+            <View style={{ alignItems: 'center', marginTop: onContinueAsGuest ? 16 : 8, marginBottom: 12 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('LandlordRegister')}>
+                <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
+                  Want to list your property?{' '}
+                  <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Register as Landlord</Text>
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
