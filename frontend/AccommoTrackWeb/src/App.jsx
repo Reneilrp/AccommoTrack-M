@@ -32,8 +32,16 @@ function App() {
         "/register",
         "/help",
         "/become-landlord",
+        "/browse-properties",
       ]);
-      const currentPath = window.location.pathname;
+      const normalizePath = (path) => {
+        if (!path || path === "/") return "/";
+        return path.replace(/\/+$/, "");
+      };
+      const currentPath = normalizePath(window.location.pathname);
+      const isGuestPropertyRoute = /^\/property\/[^/]+$/.test(currentPath);
+      const isGuestPublicRoute =
+        publicRoutes.has(currentPath) || isGuestPropertyRoute;
 
       if (!shouldUseBearerForRequest()) {
         localStorage.removeItem("authToken");
@@ -53,10 +61,8 @@ function App() {
         }
       }
 
-      const shouldProbeSession =
-        !!token ||
-        !!userData ||
-        !publicRoutes.has(currentPath);
+      // Skip auth probing on guest-public routes to avoid expected 401 noise.
+      const shouldProbeSession = !isGuestPublicRoute;
 
       if (!shouldProbeSession) {
         if (isActive) setIsLoading(false);
