@@ -794,7 +794,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
           ))}
           {pendingBookings.map(pb => {
             const startDate = pb?.start_date ? new Date(pb.start_date) : null;
-            const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
+            if (startDate) startDate.setHours(0, 0, 0, 0);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - now) / (1000 * 60 * 60 * 24))) : null;
             
             return (
               <div key={pb.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
@@ -877,6 +880,21 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                   </div>
                                 </div>
                               )}
+
+                              {/* Move-out Notice Banner */}
+                              {(booking.notice_given_at || booking.noticeGivenAt) && (
+                                <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 p-4 rounded-xl flex items-start gap-4">
+                                  <DoorOpen className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-sm font-bold text-teal-900 dark:text-teal-200">Move-out Notice Submitted</p>
+                                    <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">
+                                      Your move-out notice was received. Planned departure:{' '}
+                                      <span className="font-bold">{booking.endDate ? formatDate(booking.endDate) : 'TBD'}</span>.
+                                      The landlord will confirm your checkout and finalize any billing adjustments.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
                 
                               {/* Room Details Card */}                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
                     <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
@@ -934,6 +952,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         />
                         {(() => {
                           const start = new Date(booking.startDate);
+                          start.setHours(0, 0, 0, 0);
                           const now = new Date();
                           now.setHours(0, 0, 0, 0);
                           const isFuture = start > now;
@@ -1066,9 +1085,22 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           {(() => {
                             const bookingStatus = String(booking.status || '').toLowerCase();
                             const canRequestMoveOut = ['confirmed', 'active'].includes(bookingStatus);
+                            const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
 
                             if (!canRequestMoveOut) {
                               return null;
+                            }
+
+                            if (hasNotice) {
+                              return (
+                                <div
+                                  title="Move-out notice already submitted. The landlord will finalize your checkout."
+                                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 cursor-default"
+                                >
+                                  <DoorOpen className="w-4 h-4" />
+                                  Notice Submitted
+                                </div>
+                              );
                             }
 
                             return (

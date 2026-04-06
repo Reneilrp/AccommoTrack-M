@@ -134,6 +134,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     return parsed;
   };
 
+  const toIsoDateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const getAgeInYears = (dateOfBirth, referenceDate = new Date()) => {
     const dob = new Date(dateOfBirth);
     const ref = new Date(referenceDate);
@@ -146,6 +153,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   };
 
   const [proxyOccupants, setProxyOccupants] = useState([createEmptyOccupant()]);
+  const [activeProxyDobPickerIndex, setActiveProxyDobPickerIndex] = useState(null);
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param
   const activeRoom = roomData || room;
@@ -263,6 +271,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   // Date picker states
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const latestAllowedAdultDob = React.useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setFullYear(cutoff.getFullYear() - PROXY_MINIMUM_AGE);
+    return cutoff;
+  }, []);
 
   const [bookingData, setBookingData] = useState({
     start_date: new Date(),
@@ -312,6 +326,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       }));
     });
   }, [bookingMode, occupantLimit, requiredProxyGender]);
+
+  useEffect(() => {
+    if (bookingMode !== 'proxy') {
+      setActiveProxyDobPickerIndex(null);
+    }
+  }, [bookingMode]);
 
   const pricingStartDate = bookingData.start_date
     ? bookingData.start_date.toISOString().split('T')[0]
@@ -520,6 +540,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     });
     setBookingMode('normal');
     setProxyOccupants([createEmptyOccupant()]);
+    setActiveProxyDobPickerIndex(null);
     setReceiptImage(null);
 
     setBookingModalVisible(true);
@@ -602,6 +623,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       const next = prev.filter((_, idx) => idx !== index);
       return next.length > 0 ? next : [createEmptyOccupant(requiredProxyGender)];
     });
+
+    setActiveProxyDobPickerIndex((prevIndex) => {
+      if (prevIndex === null) return null;
+      if (prevIndex === index) return null;
+      if (prevIndex > index) return prevIndex - 1;
+      return prevIndex;
+    });
   };
 
   const handleProxyOccupantChange = (index, field, value) => {
@@ -614,6 +642,24 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setProxyOccupants((prev) => prev.map((occupant, idx) => (
       idx === index ? { ...occupant, [field]: nextValue } : occupant
     )));
+  };
+
+  const getProxyDobPickerValue = (index) => {
+    const existingDate = parseIsoDateOnly(proxyOccupants[index]?.date_of_birth);
+    return existingDate || latestAllowedAdultDob;
+  };
+
+  const handleProxyDobChange = (index, event, selectedDate) => {
+    setActiveProxyDobPickerIndex(Platform.OS === 'ios' ? index : null);
+
+    if (!selectedDate || event?.type === 'dismissed') {
+      return;
+    }
+
+    const normalizedDate = new Date(selectedDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+
+    handleProxyOccupantChange(index, 'date_of_birth', toIsoDateString(normalizedDate));
   };
 
     const pickReceiptImage = async () => {
@@ -669,7 +715,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
           const parsedDateOfBirth = parseIsoDateOnly(occupant.date_of_birth);
           if (!parsedDateOfBirth) {
-            showError('Invalid Date of Birth', `Occupant ${i + 1}: enter date of birth in YYYY-MM-DD format.`);
+            showError('Invalid Date of Birth', `Occupant ${i + 1}: please select a valid date of birth.`);
             return;
           }
 
@@ -1318,17 +1364,34 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       onChangeText={(text) => handleProxyOccupantChange(index, 'full_name', text)}
                     />
 
-                    <Text style={styles.proxyFieldLabel}>Date of Birth (DOB) <Text style={styles.requiredAsterisk}>*</Text></Text>
-                    <TextInput
-                      style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor="#999"
-                      value={occupant.date_of_birth}
-                      onChangeText={(text) => handleProxyOccupantChange(index, 'date_of_birth', text)}
-                      keyboardType="numbers-and-punctuation"
-                      maxLength={10}
-                    />
-                    <Text style={styles.proxyFieldHelp}>Use birth date only (not move-in date). Occupant must be at least 18 years old.</Text>
+                    <Text style={styles.proxyFieldLabel}>Date of Birth <Text style={styles.requiredAsterisk}>*</Text></Text>
+                    <TouchableOpacity
+                      testID={`proxy-occupant-dob-button-${index}`}
+                      style={styles.proxyDateButton}
+                      onPress={() => setActiveProxyDobPickerIndex(index)}
+                      disabled={isSubmitting}
+                    >
+                      <Ionicons name="calendar-outline" size={20} color={theme.colors.textTertiary} />
+                      <Text
+                        style={[
+                          styles.proxyDateButtonText,
+                          !occupant.date_of_birth && styles.proxyDateButtonTextPlaceholder,
+                        ]}
+                      >
+                        {occupant.date_of_birth || 'Select date of birth'}
+                      </Text>
+                    </TouchableOpacity>
+                    {activeProxyDobPickerIndex === index && (
+                      <DateTimePicker
+                        testID={`proxy-occupant-dob-picker-${index}`}
+                        value={getProxyDobPickerValue(index)}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        maximumDate={latestAllowedAdultDob}
+                        onChange={(event, selectedDate) => handleProxyDobChange(index, event, selectedDate)}
+                      />
+                    )}
+                    <Text style={styles.proxyFieldHelp}>Birth date only, not move-in date. Occupant must be at least 18 years old.</Text>
 
                     <Text style={styles.proxyFieldLabel}>Gender <Text style={styles.requiredAsterisk}>*</Text></Text>
                     <View style={styles.proxyGenderPickerWrapper}>

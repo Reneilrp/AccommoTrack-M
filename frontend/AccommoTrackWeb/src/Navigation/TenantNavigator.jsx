@@ -17,7 +17,6 @@ import Notifications from '../screens/Tenant/Notifications';
 import Addons from '../screens/Tenant/Addons';
 import Reviews from '../screens/Tenant/Reviews';
 import VerificationStatus from '../screens/Landlord/VerificationStatus';
-import TenantSupport from '../screens/Tenant/TenantSupport';
 
 export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
   return (
@@ -36,7 +35,6 @@ export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/addons" element={<Addons />} />
           <Route path="/reviews" element={<Reviews />} />
-          <Route path="/support" element={<TenantSupport />} />
           <Route path="/verification" element={<VerificationStatus />} />
           
           {/* Default redirect */}

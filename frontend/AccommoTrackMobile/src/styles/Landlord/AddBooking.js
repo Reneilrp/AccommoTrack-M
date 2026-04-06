@@ -26,6 +26,11 @@ export const getStyles = (theme) => StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
+  requiredHint: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    marginBottom: 12,
+  },
   sectionCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
@@ -118,6 +123,24 @@ export const getStyles = (theme) => StyleSheet.create({
     height: 44,
     width: '100%',
     color: theme.colors.text
+  },
+  staticInfoBox: {
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  staticInfoText: {
+    fontSize: 15,
+    color: theme.colors.text,
+    fontWeight: '600',
+  },
+  fieldHelpText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: theme.colors.textSecondary,
   },
   row: {
     flexDirection: 'row',

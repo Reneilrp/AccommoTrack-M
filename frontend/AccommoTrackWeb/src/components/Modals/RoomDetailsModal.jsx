@@ -242,6 +242,12 @@ export default function RoomDetailsModal({
     .toLowerCase()
     .replace(/[\s_-]/g, "");
   const isBedSpacerRoom = normalizedRoomType === "bedspacer";
+  const maxBookableBeds = isBedSpacerRoom
+    ? Math.max(
+        1,
+        resolvedAvailableSlots >= 0 ? resolvedAvailableSlots : resolvedCapacity,
+      )
+    : 1;
   const roomGender = normalizeRoomRestriction(room?.gender_restriction);
   const requiredProxyGender = roomGender === "male" || roomGender === "female"
     ? roomGender
@@ -399,6 +405,12 @@ export default function RoomDetailsModal({
     });
   }, [bookingMode, occupantLimit, requiredProxyGender]);
 
+  useEffect(() => {
+    if (bedCount > maxBookableBeds) {
+      setBedCount(maxBookableBeds);
+    }
+  }, [bedCount, maxBookableBeds]);
+
   if (!room) return null;
 
   const handleStartDateChange = (e) => {
@@ -552,7 +564,7 @@ export default function RoomDetailsModal({
 
         const parsedDob = parseIsoDateOnly(occupant.date_of_birth);
         if (!parsedDob) {
-          toast.error(`Occupant ${i + 1}: enter a valid date of birth in YYYY-MM-DD format.`);
+          toast.error(`Occupant ${i + 1}: please select a valid date of birth.`);
           return;
         }
 
@@ -1110,19 +1122,25 @@ export default function RoomDetailsModal({
                     {isBedSpacerRoom && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Number of Beds
+                          Number of Beds <span className="text-red-500">*</span>
                         </label>
-                        <select
-                          value={bedCount}
-                          onChange={(e) => setBedCount(parseInt(e.target.value))}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                          {[...Array(Math.max(1, room.available_slots || 1))].map((_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                              {i + 1} {i === 0 ? 'Bed' : 'Beds'}
-                            </option>
-                          ))}
-                        </select>
+                        {maxBookableBeds > 1 ? (
+                          <select
+                            value={bedCount}
+                            onChange={(e) => setBedCount(parseInt(e.target.value, 10))}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            {[...Array(maxBookableBeds)].map((_, i) => (
+                              <option key={i + 1} value={i + 1}>
+                                {i + 1} {i === 0 ? 'Bed' : 'Beds'}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/70 text-gray-700 dark:text-gray-200">
+                            1 Bed
+                          </div>
+                        )}
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
                           Occupied: {resolvedOccupiedCount} / {resolvedCapacity}
                         </p>
@@ -1156,7 +1174,7 @@ export default function RoomDetailsModal({
                         </div>
                       )}
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {isDailyContract ? 'Check-in Date' : 'Move-in Date'}
+                        {isDailyContract ? 'Check-in Date' : 'Move-in Date'} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
@@ -1189,7 +1207,13 @@ export default function RoomDetailsModal({
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {isDailyContract ? 'Check-out Date' : 'Planned Move-out Date (Optional)'}
+                        {isDailyContract ? (
+                          <>
+                            Check-out Date <span className="text-red-500">*</span>
+                          </>
+                        ) : (
+                          'Planned Move-out Date (Optional)'
+                        )}
                       </label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
@@ -1269,7 +1293,7 @@ export default function RoomDetailsModal({
 
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Date of Birth (DOB) <span className="text-red-500">*</span>
+                                Date of Birth <span className="text-red-500">*</span>
                               </label>
                               <input
                                 type="date"
@@ -1277,12 +1301,12 @@ export default function RoomDetailsModal({
                                 onChange={(e) =>
                                   handleProxyOccupantChange(index, "date_of_birth", e.target.value)
                                 }
+                                onKeyDown={(e) => e.preventDefault()}
+                                onClick={(e) => e.currentTarget.showPicker?.()}
+                                onFocus={(e) => e.currentTarget.showPicker?.()}
                                 max={latestAllowedAdultDob}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer"
                               />
-                              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                Birth date only, not move-in date. Occupant must be at least 18 years old.
-                              </p>
                             </div>
 
                             <div>

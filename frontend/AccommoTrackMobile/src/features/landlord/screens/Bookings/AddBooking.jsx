@@ -7,7 +7,6 @@ import {
   TextInput,
   StatusBar,
   ActivityIndicator,
-  Alert,
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import BookingService from '../../../../services/BookingService.js';
+import { showError, showSuccess } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Landlord/AddBooking.js';
 import {
   landlordQueryKeys,
@@ -39,6 +39,7 @@ export default function AddBooking({ navigation }) {
     phone: '',
     propertyId: '',
     roomId: '',
+    bedCount: 1,
     checkIn: new Date(),
     checkOut: new Date(new Date().setMonth(new Date().getMonth() + 1)),
     amount: '',
@@ -85,6 +86,16 @@ export default function AddBooking({ navigation }) {
 
   const properties = propertiesQuery.data || EMPTY_PROPERTIES;
   const rooms = roomsQuery.data || EMPTY_ROOMS;
+  const selectedRoom = useMemo(
+    () => rooms.find((room) => String(room.id) === String(formData.roomId)),
+    [rooms, formData.roomId],
+  );
+  const selectedRoomType = String(selectedRoom?.room_type || selectedRoom?.type_label || '').toLowerCase();
+  const isBedSpacerRoom = selectedRoomType.replace(/[\s_-]/g, '') === 'bedspacer';
+  const maxSelectableBeds = Math.max(
+    1,
+    Number(selectedRoom?.available_slots ?? selectedRoom?.capacity ?? 1),
+  );
   const loading = propertiesQuery.isPending && properties.length === 0;
   const loadingRooms = Boolean(formData.propertyId) && roomsQuery.isFetching;
   const fetchError = propertiesQuery.error?.message || roomsQuery.error?.message || '';
@@ -105,8 +116,8 @@ export default function AddBooking({ navigation }) {
   useEffect(() => {
     if (!formData.propertyId) {
       setFormData((prev) =>
-        prev.roomId || prev.amount
-          ? { ...prev, roomId: '', amount: '' }
+        prev.roomId || prev.amount || prev.bedCount !== 1
+          ? { ...prev, roomId: '', amount: '', bedCount: 1 }
           : prev,
       );
       return;
@@ -114,8 +125,8 @@ export default function AddBooking({ navigation }) {
 
     if (rooms.length === 0) {
       setFormData((prev) =>
-        prev.roomId || prev.amount
-          ? { ...prev, roomId: '', amount: '' }
+        prev.roomId || prev.amount || prev.bedCount !== 1
+          ? { ...prev, roomId: '', amount: '', bedCount: 1 }
           : prev,
       );
       return;
@@ -127,8 +138,14 @@ export default function AddBooking({ navigation }) {
       const activeRoom = selectedRoom || fallbackRoom;
       const nextRoomId = activeRoom?.id ?? '';
       const nextAmount = activeRoom?.monthly_rate?.toString() || '';
+      const nextMaxBeds = Math.max(1, Number(activeRoom?.available_slots ?? activeRoom?.capacity ?? 1));
+      const nextBedCount = Math.min(Math.max(1, Number(prev.bedCount || 1)), nextMaxBeds);
 
-      if (String(prev.roomId) === String(nextRoomId) && prev.amount === nextAmount) {
+      if (
+        String(prev.roomId) === String(nextRoomId)
+        && prev.amount === nextAmount
+        && prev.bedCount === nextBedCount
+      ) {
         return prev;
       }
 
@@ -136,9 +153,20 @@ export default function AddBooking({ navigation }) {
         ...prev,
         roomId: nextRoomId,
         amount: nextAmount,
+        bedCount: nextBedCount,
       };
     });
   }, [formData.propertyId, rooms]);
+
+  useEffect(() => {
+    if (!selectedRoom) return;
+    if (formData.bedCount > maxSelectableBeds) {
+      setFormData((prev) => ({
+        ...prev,
+        bedCount: maxSelectableBeds,
+      }));
+    }
+  }, [formData.bedCount, maxSelectableBeds, selectedRoom]);
 
   useEffect(() => {
     if (!guestSearch || guestSearch.trim().length < 2 || selectedGuest) {
@@ -167,15 +195,18 @@ export default function AddBooking({ navigation }) {
       propertyId: propId,
       roomId: '',
       amount: '',
+      bedCount: 1,
     }));
   };
 
   const handleRoomChange = (roomId) => {
     const selectedRoom = rooms.find((room) => String(room.id) === String(roomId));
+    const nextMaxBeds = Math.max(1, Number(selectedRoom?.available_slots ?? selectedRoom?.capacity ?? 1));
     setFormData(prev => ({ 
       ...prev, 
       roomId: roomId, 
-      amount: selectedRoom?.monthly_rate?.toString() || prev.amount 
+      amount: selectedRoom?.monthly_rate?.toString() || prev.amount,
+      bedCount: Math.min(Math.max(1, Number(prev.bedCount || 1)), nextMaxBeds),
     }));
   };
 
@@ -194,13 +225,28 @@ export default function AddBooking({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if ((!selectedGuest && !formData.guestName) || !formData.propertyId || !formData.roomId) {
-      Alert.alert('Validation', 'Please fill in all required fields.');
+    if ((!selectedGuest && !formData.guestName.trim()) || !formData.propertyId || !formData.roomId) {
+      showError('Validation', 'Please fill in all required fields.');
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInDate = new Date(formData.checkIn);
+    checkInDate.setHours(0, 0, 0, 0);
+
+    if (checkInDate < today) {
+      showError('Validation', 'Check-in date cannot be in the past.');
       return;
     }
 
     if (formData.checkOut <= formData.checkIn) {
-      Alert.alert('Validation', 'Check-out date must be after check-in date.');
+      showError('Validation', 'Check-out date must be after check-in date.');
+      return;
+    }
+
+    if (isBedSpacerRoom && formData.bedCount > maxSelectableBeds) {
+      showError('Validation', `This room only allows up to ${maxSelectableBeds} bed${maxSelectableBeds > 1 ? 's' : ''}.`);
       return;
     }
 
@@ -209,6 +255,7 @@ export default function AddBooking({ navigation }) {
       const payload = {
         property_id: formData.propertyId,
         room_id: formData.roomId,
+        bed_count: isBedSpacerRoom ? formData.bedCount : 1,
         start_date: formData.checkIn.toISOString().split('T')[0],
         end_date: formData.checkOut.toISOString().split('T')[0],
         payment_plan: formData.paymentPlan,
@@ -222,14 +269,13 @@ export default function AddBooking({ navigation }) {
 
       const res = await BookingService.createBooking(payload);
       if (res.success) {
-        Alert.alert('Success', 'Booking created successfully!', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+        showSuccess('Success', 'Booking created successfully!');
+        navigation.goBack();
       } else {
-        Alert.alert('Error', res.error || 'Failed to create booking');
+        showError('Error', res.error || 'Failed to create booking');
       }
     } catch (_error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      showError('Error', 'An unexpected error occurred');
     } finally {
       setSubmitting(false);
     }
@@ -258,6 +304,10 @@ export default function AddBooking({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.requiredHint}>
+          Fields marked with <Text style={styles.requiredAsterisk}>*</Text> are required.
+        </Text>
+
         {fetchError ? (
           <View
             style={{
@@ -353,6 +403,7 @@ export default function AddBooking({ navigation }) {
             <Text style={styles.label}>Select Property <Text style={styles.requiredAsterisk}>*</Text></Text>
             <View style={styles.pickerWrapper}>
               <Picker
+                  testID="add-booking-property-picker"
                 selectedValue={formData.propertyId}
                 onValueChange={(value) => handlePropertyChange(value)}
                 style={styles.picker}
@@ -372,6 +423,7 @@ export default function AddBooking({ navigation }) {
                 <ActivityIndicator size="small" color="#16a34a" style={{ padding: 8 }} />
               ) : (
                 <Picker
+                    testID="add-booking-room-picker"
                   selectedValue={formData.roomId}
                   onValueChange={(value) => handleRoomChange(value)}
                   style={styles.picker}
@@ -381,7 +433,7 @@ export default function AddBooking({ navigation }) {
                   {rooms.map((room) => (
                     <Picker.Item 
                       key={room.id} 
-                      label={`Room ${room.room_number} (${room.type_label})`} 
+                      label={`Room ${room.room_number} (${room.type_label})${room.gender_restriction && room.gender_restriction !== 'mixed' ? ` - ${String(room.gender_restriction).toUpperCase()} ONLY` : ''}`} 
                       value={room.id} 
                     />
                   ))}
@@ -389,6 +441,40 @@ export default function AddBooking({ navigation }) {
               )}
             </View>
           </View>
+
+          {selectedRoom && isBedSpacerRoom && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Number of Beds <Text style={styles.requiredAsterisk}>*</Text></Text>
+              {maxSelectableBeds > 1 ? (
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    testID="add-booking-bed-count-picker"
+                    selectedValue={formData.bedCount}
+                    onValueChange={(value) => setFormData((prev) => ({
+                      ...prev,
+                      bedCount: Number(value),
+                    }))}
+                    style={styles.picker}
+                  >
+                    {[...Array(maxSelectableBeds)].map((_, index) => (
+                      <Picker.Item
+                        key={`bed-count-${index + 1}`}
+                        label={`${index + 1} ${index === 0 ? 'Bed' : 'Beds'}`}
+                        value={index + 1}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              ) : (
+                <View testID="add-booking-bed-count-static" style={styles.staticInfoBox}>
+                  <Text style={styles.staticInfoText}>1 Bed</Text>
+                </View>
+              )}
+              <Text style={styles.fieldHelpText}>
+                Available: {selectedRoom.available_slots ?? selectedRoom.capacity ?? 1} / {selectedRoom.capacity ?? selectedRoom.available_slots ?? 1}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Schedule & Payment */}
@@ -399,6 +485,7 @@ export default function AddBooking({ navigation }) {
             <View style={[styles.inputGroup, styles.flex1]}>
               <Text style={styles.label}>Check-in Date <Text style={styles.requiredAsterisk}>*</Text></Text>
               <TouchableOpacity 
+                testID="add-booking-checkin-button"
                 style={styles.dateButton} 
                 onPress={() => setShowCheckIn(true)}
               >
@@ -407,6 +494,7 @@ export default function AddBooking({ navigation }) {
               </TouchableOpacity>
               {showCheckIn && (
                 <DateTimePicker
+                    testID="add-booking-checkin-picker"
                   value={formData.checkIn}
                   mode="date"
                   display="default"
@@ -419,6 +507,7 @@ export default function AddBooking({ navigation }) {
             <View style={[styles.inputGroup, styles.flex1]}>
               <Text style={styles.label}>Check-out Date <Text style={styles.requiredAsterisk}>*</Text></Text>
               <TouchableOpacity 
+                testID="add-booking-checkout-button"
                 style={styles.dateButton} 
                 onPress={() => setShowCheckOut(true)}
               >
@@ -427,6 +516,7 @@ export default function AddBooking({ navigation }) {
               </TouchableOpacity>
               {showCheckOut && (
                 <DateTimePicker
+                    testID="add-booking-checkout-picker"
                   value={formData.checkOut}
                   mode="date"
                   display="default"
@@ -464,6 +554,7 @@ export default function AddBooking({ navigation }) {
         </View>
 
         <TouchableOpacity 
+          testID="add-booking-submit-button"
           style={[styles.submitButton, submitting && styles.disabledButton]} 
           onPress={handleSubmit}
           disabled={submitting}

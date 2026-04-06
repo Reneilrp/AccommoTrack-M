@@ -147,6 +147,17 @@ const waitForInitialQueries = async () => {
   });
 };
 
+const selectProxyDateOfBirth = (index, year, month, day) => {
+  fireEvent.press(screen.getByTestId(`proxy-occupant-dob-button-${index}`));
+  const selectedDate = new Date(year, month - 1, day);
+  fireEvent(
+    screen.getByTestId(`proxy-occupant-dob-picker-${index}`),
+    'onChange',
+    { type: 'set' },
+    selectedDate,
+  );
+};
+
 const renderScreen = (overrides = {}) => {
   const routeRoom = overrides.room || room;
   const routeProperty = {
@@ -242,7 +253,7 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Proxy'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Jane Proxy');
-    fireEvent.changeText(screen.getByPlaceholderText('YYYY-MM-DD'), '1995-06-01');
+    selectProxyDateOfBirth(0, 1995, 6, 1);
     fireEvent(screen.getByTestId('proxy-occupant-gender-0'), 'valueChange', 'female');
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'child');
 
@@ -272,7 +283,7 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Proxy'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Young Occupant');
-    fireEvent.changeText(screen.getByPlaceholderText('YYYY-MM-DD'), '2012-06-01');
+    selectProxyDateOfBirth(0, 2012, 6, 1);
     fireEvent(screen.getByTestId('proxy-occupant-gender-0'), 'valueChange', 'female');
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
 
@@ -283,6 +294,23 @@ describe('RoomDetailsScreen proxy booking', () => {
     });
 
     expect(BookingService.createBooking).not.toHaveBeenCalled();
+  });
+
+  it('opens proxy DOB picker with 18+ cutoff as default and max date', async () => {
+    renderScreen();
+    await waitForInitialQueries();
+
+    fireEvent.press(screen.getByText('Book This Room'));
+    fireEvent.press(screen.getByText('Proxy'));
+    fireEvent.press(screen.getByTestId('proxy-occupant-dob-button-0'));
+
+    const dobPicker = screen.getByTestId('proxy-occupant-dob-picker-0');
+    const expectedAdultCutoff = new Date();
+    expectedAdultCutoff.setHours(0, 0, 0, 0);
+    expectedAdultCutoff.setFullYear(expectedAdultCutoff.getFullYear() - 18);
+
+    expect(dobPicker.props.value.toDateString()).toBe(expectedAdultCutoff.toDateString());
+    expect(dobPicker.props.maximumDate.toDateString()).toBe(expectedAdultCutoff.toDateString());
   });
 
   it('defaults proxy occupant gender to room restriction for restricted rooms', async () => {
@@ -299,7 +327,7 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Proxy'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Default Gender Occupant');
-    fireEvent.changeText(screen.getByPlaceholderText('YYYY-MM-DD'), '1994-06-01');
+    selectProxyDateOfBirth(0, 1994, 6, 1);
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
 
     fireEvent.press(screen.getByText('Submit Booking'));

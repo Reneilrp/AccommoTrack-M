@@ -808,16 +808,36 @@ export default function MyBookings() {
             )}
 
             {!booking.isPending && (
-              <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 8 }]}> 
-                <TouchableOpacity
-                  style={[styles.reviewBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : '#4F46E5' }]}
-                  disabled={submittingMoveOut}
-                  onPress={() => handleRequestMoveOut(booking)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                    {submittingMoveOut ? 'Submitting...' : 'Request Move-out'}
-                  </Text>
-                </TouchableOpacity>
+              <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 8 }]}>
+                {(booking.notice_given_at || booking.noticeGivenAt) ? (
+                  <View style={{ backgroundColor: '#F0FDFA', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: '#99F6E4', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="exit-outline" size={16} color="#0D9488" />
+                    <Text style={{ color: '#0D9488', fontWeight: '700', fontSize: 13 }}>Move-out Notice Submitted</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.reviewBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : '#4F46E5' }]}
+                    disabled={submittingMoveOut}
+                    onPress={() => handleRequestMoveOut(booking)}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                      {submittingMoveOut ? 'Submitting...' : 'Request Move-out'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* Move-out notice detail banner */}
+            {!booking.isPending && (booking.notice_given_at || booking.noticeGivenAt) && (
+              <View style={{ backgroundColor: '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#99F6E4' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 }}>
+                  <Ionicons name="exit-outline" size={18} color="#0D9488" />
+                  <Text style={{ color: '#0D9488', fontWeight: '700', fontSize: 13 }}>Move-out Notice Pending</Text>
+                </View>
+                <Text style={{ color: '#134E4A', fontSize: 12, lineHeight: 18 }}>
+                  Your move-out notice was submitted.{booking.endDate ? ` Planned departure: ${formatDate(booking.endDate)}.` : ''} The landlord will confirm your checkout and finalize billing.
+                </Text>
               </View>
             )}
 

@@ -22,7 +22,9 @@ const TenantSupport = () => {
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-8">
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-4">
       {/* Header Section */}
       <div className="text-center">
         <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -38,7 +40,7 @@ const TenantSupport = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <a 
           href="mailto:support@accommotrack.com"
-          className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group block"
+          className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group block"
         >
           <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -48,7 +50,7 @@ const TenantSupport = () => {
           <span className="text-green-600 dark:text-green-500 text-sm font-medium">support@accommotrack.com</span>
         </a>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group">
+        <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group">
           <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <MessageCircle className="w-6 h-6 text-green-600 dark:text-green-500" />
           </div>
@@ -59,7 +61,7 @@ const TenantSupport = () => {
       </div>
 
       {/* FAQ Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <BookOpen className="w-5 h-5 text-green-600 dark:text-green-500" />
@@ -84,6 +86,8 @@ const TenantSupport = () => {
           <Clock className="w-4 h-4" />
           <span>We are here to help you 24/7!</span>
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );

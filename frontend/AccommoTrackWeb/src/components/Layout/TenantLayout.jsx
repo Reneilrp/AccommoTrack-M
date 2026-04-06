@@ -55,11 +55,6 @@ export default function TenantLayout({ user, onLogout, children }) {
       icon: <MessageSquare className="w-5 h-5" />
     },
     {
-      path: '/support',
-      label: 'Help & Support',
-      icon: <HelpCircle className="w-5 h-5" />
-    },
-    {
       path: '/settings',
       label: 'Settings',
       icon: <SettingsIcon className="w-5 h-5" />

@@ -71,6 +71,11 @@ const getDateValueFromToday = (daysFromToday) => {
   return toDateInputValue(targetDate);
 };
 
+const agreeToRulesAndSubmit = () => {
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: /Confirm Booking Request|Pay/ }));
+};
+
 const renderBookingForm = (bookingService, propertyOverrides = {}, roomOverrides = {}) => {
   const property = {
     ...baseProperty,
@@ -278,6 +283,188 @@ describe('RoomDetailsModal proxy booking', () => {
       expect(toast.error).toHaveBeenCalledWith('Occupant 1 must be at least 18 years old.');
     });
 
+    expect(createBooking).not.toHaveBeenCalled();
+  });
+
+  it('shows static 1 bed info when only one bed can be booked', () => {
+    const createBooking = jest.fn();
+
+    const { container } = renderBookingForm(
+      { createBooking },
+      {},
+      {
+        room_type: 'bedspacer',
+        pricing_model: 'per_bed',
+        available_slots: 1,
+        capacity: 1,
+      },
+    );
+
+    expect(screen.getByText('1 Bed')).toBeInTheDocument();
+    expect(container.querySelectorAll('select')).toHaveLength(0);
+  });
+
+  it('shows bed selector options when room allows more than one bed', () => {
+    const createBooking = jest.fn();
+
+    const { container } = renderBookingForm(
+      { createBooking },
+      {},
+      {
+        room_type: 'bedspacer',
+        pricing_model: 'per_bed',
+        available_slots: 2,
+        capacity: 2,
+      },
+    );
+
+    expect(container.querySelectorAll('select')).toHaveLength(1);
+    expect(screen.getByRole('option', { name: '1 Bed' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '2 Beds' })).toBeInTheDocument();
+  });
+
+  it('smoke: shows normal booking validation toasts', async () => {
+    const createBooking = jest.fn();
+
+    const { container, unmount } = renderBookingForm({ createBooking });
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+
+    fireEvent.change(dateInputs[0], { target: { value: '' } });
+    agreeToRulesAndSubmit();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Please select a move-in date.');
+    });
+    expect(createBooking).not.toHaveBeenCalled();
+
+    unmount();
+    jest.clearAllMocks();
+    api.get.mockResolvedValue({
+      data: {
+        total: 12000,
+        days: 30,
+        breakdown: { months: 1, remaining_days: 0 },
+      },
+    });
+
+    const second = renderBookingForm({ createBooking });
+    const secondDateInputs = second.container.querySelectorAll('input[type="date"]');
+    const tomorrow = getTomorrowDateValue();
+    fireEvent.change(secondDateInputs[0], { target: { value: tomorrow } });
+    fireEvent.change(secondDateInputs[1], { target: { value: tomorrow } });
+    agreeToRulesAndSubmit();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Check-out date must be after check-in date.');
+    });
+    expect(createBooking).not.toHaveBeenCalled();
+
+    second.unmount();
+    jest.clearAllMocks();
+    api.get.mockResolvedValue({
+      data: {
+        total: 12000,
+        days: 30,
+        breakdown: { months: 1, remaining_days: 0 },
+      },
+    });
+
+    const third = renderBookingForm({ createBooking });
+    const thirdDateInputs = third.container.querySelectorAll('input[type="date"]');
+    const nextDay = getDateValueFromToday(2);
+    fireEvent.change(thirdDateInputs[0], { target: { value: getTomorrowDateValue() } });
+    fireEvent.change(thirdDateInputs[1], { target: { value: nextDay } });
+    agreeToRulesAndSubmit();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('The minimum stay for this room is 30 days.');
+    });
+    expect(createBooking).not.toHaveBeenCalled();
+
+    third.unmount();
+    jest.clearAllMocks();
+    api.get.mockResolvedValue({
+      data: {
+        total: 12000,
+        days: 30,
+        breakdown: { months: 1, remaining_days: 0 },
+      },
+    });
+
+    const fourth = renderBookingForm({ createBooking });
+    const fourthDateInputs = fourth.container.querySelectorAll('input[type="date"]');
+    fireEvent.change(fourthDateInputs[0], {
+      target: { value: getDateValueFromToday(120) },
+    });
+    agreeToRulesAndSubmit();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('You cannot book a room more than 3 months in advance.');
+    });
+    expect(createBooking).not.toHaveBeenCalled();
+  });
+
+  it('smoke: shows proxy booking validation toasts', async () => {
+    const createBooking = jest.fn();
+
+    const { container, unmount } = renderBookingForm({ createBooking });
+
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateInputs[0], {
+      target: { value: getTomorrowDateValue() },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Toast Occupant' },
+    });
+
+    agreeToRulesAndSubmit();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        'Occupant 1 is missing required information (name, birth date, gender, relationship).',
+      );
+    });
+    expect(createBooking).not.toHaveBeenCalled();
+
+    unmount();
+    jest.clearAllMocks();
+    api.get.mockResolvedValue({
+      data: {
+        total: 12000,
+        days: 30,
+        breakdown: { months: 1, remaining_days: 0 },
+      },
+    });
+
+    const second = renderBookingForm({ createBooking });
+    const secondDateInputs = second.container.querySelectorAll('input[type="date"]');
+    fireEvent.change(secondDateInputs[0], {
+      target: { value: getTomorrowDateValue() },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Future DOB Occupant' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
+      target: { value: 'child' },
+    });
+
+    const occupantDateInputs = second.container.querySelectorAll('input[type="date"]');
+    fireEvent.change(occupantDateInputs[occupantDateInputs.length - 1], {
+      target: { value: toDateInputValue(new Date()) },
+    });
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'female' },
+    });
+
+    agreeToRulesAndSubmit();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Occupant 1: date of birth must be before today.');
+    });
     expect(createBooking).not.toHaveBeenCalled();
   });
 

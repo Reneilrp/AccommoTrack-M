@@ -407,6 +407,25 @@ proxyFieldHelp: {
   marginTop: -4,
   marginBottom: 10,
 },
+proxyDateButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  backgroundColor: theme.colors.background,
+  borderRadius: 8,
+  padding: 12,
+  gap: 8,
+  marginBottom: 10,
+},
+proxyDateButtonText: {
+  color: theme.colors.text,
+  fontSize: 14,
+  flex: 1,
+},
+proxyDateButtonTextPlaceholder: {
+  color: theme.colors.textTertiary,
+},
 proxyGenderPickerWrapper: {
   borderWidth: 1,
   borderColor: theme.colors.border,
