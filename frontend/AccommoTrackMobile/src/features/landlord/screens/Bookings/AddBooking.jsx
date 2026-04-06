@@ -239,7 +239,7 @@ export default function AddBooking({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#059669" />
+          <ActivityIndicator size="large" color="#16a34a" />
         </View>
       </SafeAreaView>
     );
@@ -247,7 +247,7 @@ export default function AddBooking({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -294,7 +294,7 @@ export default function AddBooking({ navigation }) {
             />
             {isSearchingGuests && (
               <View style={styles.searchingContainer}>
-                <ActivityIndicator size="small" color="#059669" />
+                <ActivityIndicator size="small" color="#16a34a" />
                 <Text style={styles.searchingText}>Searching...</Text>
               </View>
             )}
@@ -369,7 +369,7 @@ export default function AddBooking({ navigation }) {
             <Text style={styles.label}>Select Room <Text style={styles.requiredAsterisk}>*</Text></Text>
             <View style={styles.pickerWrapper}>
               {loadingRooms ? (
-                <ActivityIndicator size="small" color="#059669" style={{ padding: 8 }} />
+                <ActivityIndicator size="small" color="#16a34a" style={{ padding: 8 }} />
               ) : (
                 <Picker
                   selectedValue={formData.roomId}
@@ -403,7 +403,7 @@ export default function AddBooking({ navigation }) {
                 onPress={() => setShowCheckIn(true)}
               >
                 <Text style={styles.dateButtonText}>{formData.checkIn.toLocaleDateString()}</Text>
-                <Ionicons name="calendar-outline" size={20} color="#059669" />
+                <Ionicons name="calendar-outline" size={20} color="#16a34a" />
               </TouchableOpacity>
               {showCheckIn && (
                 <DateTimePicker
@@ -423,7 +423,7 @@ export default function AddBooking({ navigation }) {
                 onPress={() => setShowCheckOut(true)}
               >
                 <Text style={styles.dateButtonText}>{formData.checkOut.toLocaleDateString()}</Text>
-                <Ionicons name="calendar-outline" size={20} color="#059669" />
+                <Ionicons name="calendar-outline" size={20} color="#16a34a" />
               </TouchableOpacity>
               {showCheckOut && (
                 <DateTimePicker

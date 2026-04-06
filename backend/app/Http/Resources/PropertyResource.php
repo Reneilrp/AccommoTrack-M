@@ -103,6 +103,7 @@ class PropertyResource extends JsonResource
             'require_1month_advance' => (bool) $this->require_1month_advance,
             'require_reservation_fee' => (bool) $this->require_reservation_fee,
             'reservation_fee_amount' => (float) $this->reservation_fee,
+            'reservation_fee_gap_days' => (int) ($this->reservation_fee_gap_days ?? 3),
             'gcash_name' => $this->gcash_name,
             'gcash_number' => $this->gcash_number,
             'gcash_qr_path' => $this->gcash_qr_path ? (str_starts_with($this->gcash_qr_path, 'http') ? $this->gcash_qr_path : asset('storage/'.ltrim($this->gcash_qr_path, '/'))) : null,

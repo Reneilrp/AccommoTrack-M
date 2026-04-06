@@ -26,8 +26,6 @@ import PropertyService from "../../../../services/PropertyService.js";
 import ReviewService from "../../../../services/ReviewService.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import IconWithBadge from '../../../../components/IconWithBadge.jsx';
 import {
   tenantQueryKeys,
   useTenantFocusRefetch,
@@ -35,12 +33,6 @@ import {
 } from "../../hooks/useTenantQueryHelpers.js";
 
 const REVIEWS_PAGE_SIZE = 5;
-const DEFAULT_NOTIFICATION_COUNTS = {
-  addons: 0,
-  maintenance: 0,
-  activity: 0,
-  reviews: 0,
-};
 
 const transformPropertyDetailsPayload = (rawData) => {
   const detailedAccommodation = {
@@ -80,36 +72,30 @@ const transformPropertyDetailsPayload = (rawData) => {
   };
 };
 
-export default function PropertyDetailsScreen({ route }) {
+export default function PropertyDetailsScreen({
+  route,
+  isGuest: isGuestProp = false,
+  onAuthRequired: onAuthRequiredProp,
+}) {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const [user, setUser] = useState(null);
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const routeParams = route?.params || {};
   const {
     accommodation,
     propertyId,
-    isGuest = false,
-    onAuthRequired,
+    isGuest: routeIsGuest,
+    onAuthRequired: routeOnAuthRequired,
     landlordPreview = false,
-  } = route.params || {};
+  } = routeParams;
+  const isGuest = routeIsGuest ?? isGuestProp;
+  const onAuthRequired = routeOnAuthRequired || onAuthRequiredProp;
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [videoVisible, setVideoVisible] = useState(false);
   const [reviewPage, setReviewPage] = useState(1);
 
   const effectiveId = accommodation?.id || propertyId;
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const userString = await AsyncStorage.getItem('user');
-        if (userString) {
-          setUser(JSON.parse(userString));
-        }
-      } catch (e) {}
-    };
-    loadUser();
-  }, []);
 
   const propertyDetailsQuery = useQuery({
     queryKey: tenantQueryKeys.explorePropertyDetails(effectiveId, landlordPreview),
@@ -150,23 +136,6 @@ export default function PropertyDetailsScreen({ route }) {
     placeholderData: (previousData) => previousData,
   });
 
-  const propertyStatsQuery = useQuery({
-    queryKey: tenantQueryKeys.explorePropertyStats(effectiveId, user?.id || null),
-    enabled: Boolean(effectiveId && user && !isGuest && !landlordPreview),
-    queryFn: async () => {
-      const result = await PropertyService.getPropertyStats(effectiveId);
-      if (!result?.success || !result?.data) {
-        return DEFAULT_NOTIFICATION_COUNTS;
-      }
-
-      return {
-        ...DEFAULT_NOTIFICATION_COUNTS,
-        ...result.data,
-      };
-    },
-    placeholderData: (previousData) => previousData || DEFAULT_NOTIFICATION_COUNTS,
-  });
-
   const detailedAccommodation = propertyDetailsQuery.data?.detailedAccommodation || null;
   const rooms = propertyDetailsQuery.data?.rooms || [];
   const roomsLoading = propertyDetailsQuery.isLoading && !propertyDetailsQuery.data;
@@ -177,23 +146,18 @@ export default function PropertyDetailsScreen({ route }) {
     ? null
     : (propertyReviewsQuery.data?.summary || null);
   const reviewsLoading = !landlordPreview && propertyReviewsQuery.isLoading && !propertyReviewsQuery.data;
-  const notificationCounts = propertyStatsQuery.data || DEFAULT_NOTIFICATION_COUNTS;
 
   const refetchPropertyDetails = propertyDetailsQuery.refetch;
   const refetchPropertyReviews = propertyReviewsQuery.refetch;
-  const refetchPropertyStats = propertyStatsQuery.refetch;
   const propertyDetailsRefetchers = React.useMemo(
     () => [
       refetchPropertyDetails,
       !landlordPreview ? refetchPropertyReviews : null,
-      !isGuest && !landlordPreview ? refetchPropertyStats : null,
     ],
     [
       refetchPropertyDetails,
       refetchPropertyReviews,
-      refetchPropertyStats,
       landlordPreview,
-      isGuest,
     ],
   );
 
@@ -339,6 +303,7 @@ export default function PropertyDetailsScreen({ route }) {
     navigation.navigate("RoomDetails", {
       room,
       property: propertyData,
+      isGuest,
       hideLayout: true,
     });
   };
@@ -733,6 +698,9 @@ export default function PropertyDetailsScreen({ route }) {
             visible={videoVisible}
             transparent={true}
             animationType="slide"
+            statusBarTranslucent={true}
+            navigationBarTranslucent={true}
+            presentationStyle="overFullScreen"
             onRequestClose={() => setVideoVisible(false)}
           >
             <View style={styles.videoModalContainer}>
@@ -786,34 +754,6 @@ export default function PropertyDetailsScreen({ route }) {
               <Text style={styles.description}>{active.description}</Text>
             </View>
           )}
-
-          {/* Features Section */}
-          <View style={styles.featuresContainer}>
-            <IconWithBadge
-              iconName="add-circle-outline"
-              label="Add-ons"
-              badgeCount={notificationCounts.addons}
-              onPress={() => navigation.navigate("Addons")}
-            />
-            <IconWithBadge
-              iconName="build-outline"
-              label="Maintenance"
-              badgeCount={notificationCounts.maintenance}
-              onPress={() => navigation.navigate("MyMaintenanceRequests")}
-            />
-            <IconWithBadge
-              iconName="list-outline"
-              label="Activity"
-              badgeCount={notificationCounts.activity}
-              onPress={() => navigation.navigate("Dashboard")}
-            />
-            <IconWithBadge
-              iconName="star-outline"
-              label="Reviews"
-              badgeCount={notificationCounts.reviews}
-              onPress={() => navigation.navigate("MyReviews")}
-            />
-          </View>
 
           {/* Amenities */}
           {active && active.amenities && active.amenities.length > 0 && (
@@ -1001,7 +941,7 @@ export default function PropertyDetailsScreen({ route }) {
 
           <View style={styles.section}>
             <View style={styles.reviewsHeader}>
-              <Text style={styles.sectionTitle}>Guest Reviews</Text>
+              <Text style={styles.sectionTitle}>Reviews</Text>
               {publicReviewSummary?.average_rating ? (
                 <View style={styles.reviewsSummaryBadge}>
                   <Ionicons name="star" size={14} color="#D97706" />

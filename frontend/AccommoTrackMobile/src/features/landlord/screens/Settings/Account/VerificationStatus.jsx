@@ -193,7 +193,7 @@ export default function VerificationStatus({ navigation }) {
       case "approved":
         return {
           icon: "checkmark-circle",
-          color: "#059669",
+          color: "#16a34a",
           bg: "#DCFCE7",
           border: "#86EFAC",
           label: "Verified",
@@ -239,7 +239,7 @@ export default function VerificationStatus({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#059669" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.loadingText}>Loading status...</Text>
         </View>
       </SafeAreaView>
@@ -248,7 +248,7 @@ export default function VerificationStatus({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -267,7 +267,7 @@ export default function VerificationStatus({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={["#059669"]}
+            colors={["#16a34a"]}
           />
         }
       >
@@ -325,7 +325,7 @@ export default function VerificationStatus({ navigation }) {
             <View style={styles.documentGrid}>
               <View style={styles.documentCard}>
                 <View style={styles.documentHeader}>
-                  <Ionicons name="image-outline" size={18} color="#059669" />
+                  <Ionicons name="image-outline" size={18} color="#16a34a" />
                   <Text style={styles.documentLabel}>
                     Valid ID Front ({verification.valid_id_type})
                   </Text>
@@ -344,7 +344,7 @@ export default function VerificationStatus({ navigation }) {
 
               <View style={styles.documentCard}>
                 <View style={styles.documentHeader}>
-                  <Ionicons name="image-outline" size={18} color="#059669" />
+                  <Ionicons name="image-outline" size={18} color="#16a34a" />
                   <Text style={styles.documentLabel}>
                     Valid ID Back ({verification.valid_id_type})
                   </Text>
@@ -504,6 +504,9 @@ export default function VerificationStatus({ navigation }) {
         visible={showResubmitForm}
         animationType="slide"
         transparent={true}
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={() => setShowResubmitForm(false)}
       >
         <View style={styles.modalOverlay}>
@@ -572,7 +575,7 @@ export default function VerificationStatus({ navigation }) {
                   style={styles.uploadBox}
                   onPress={() => handlePickDocument("validIdFront")}
                 >
-                  <Ionicons name="camera-outline" size={32} color="#059669" />
+                  <Ionicons name="camera-outline" size={32} color="#16a34a" />
                   <Text style={styles.uploadBoxText}>
                     Capture or Pick Front Image
                   </Text>
@@ -592,7 +595,7 @@ export default function VerificationStatus({ navigation }) {
                   style={styles.uploadBox}
                   onPress={() => handlePickDocument("validIdBack")}
                 >
-                  <Ionicons name="camera-outline" size={32} color="#059669" />
+                  <Ionicons name="camera-outline" size={32} color="#16a34a" />
                   <Text style={styles.uploadBoxText}>
                     Capture or Pick Back Image
                   </Text>
@@ -616,7 +619,7 @@ export default function VerificationStatus({ navigation }) {
                   <Ionicons
                     name="document-attach-outline"
                     size={32}
-                    color="#059669"
+                    color="#16a34a"
                   />
                   <Text style={styles.uploadBoxText}>
                     Upload Permit Document

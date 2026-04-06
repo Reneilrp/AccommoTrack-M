@@ -44,6 +44,15 @@ class PropertyService
 
             $propertyType = $this->normalizePropertyTypeValue($validated['property_type'] ?? '');
 
+            $reservationFeeAmountRaw = $validated['reservation_fee_amount']
+                ?? $validated['reservation_fee']
+                ?? 0;
+            $reservationFeeAmount = is_numeric($reservationFeeAmountRaw)
+                ? (float) $reservationFeeAmountRaw
+                : 0.0;
+            $reservationFeeGapDaysRaw = $validated['reservation_fee_gap_days'] ?? 3;
+            $reservationFeeGapDays = max(0, (int) $reservationFeeGapDaysRaw);
+
             $property = Property::create([
                 'landlord_id' => $user->id,
                 'title' => $validated['title'],
@@ -71,6 +80,9 @@ class PropertyService
                 'is_published' => $isPublished,
                 'is_available' => $isAvailable,
                 'is_eligible' => $validated['is_eligible'] ?? false,
+                'require_reservation_fee' => (bool) ($validated['require_reservation_fee'] ?? false),
+                'reservation_fee' => $reservationFeeAmount,
+                'reservation_fee_gap_days' => $reservationFeeGapDays,
                 'accepted_payments' => $validated['accepted_payments'] ?? null,
             ]);
 
@@ -134,6 +146,20 @@ class PropertyService
                 $validated['property_type'] = $this->normalizePropertyTypeValue($validated['property_type']);
             }
 
+            if (array_key_exists('require_reservation_fee', $validated)) {
+                $validated['require_reservation_fee'] = (bool) $validated['require_reservation_fee'];
+            }
+
+            if (array_key_exists('reservation_fee_amount', $validated) && ! array_key_exists('reservation_fee', $validated)) {
+                $validated['reservation_fee'] = (float) $validated['reservation_fee_amount'];
+            } elseif (array_key_exists('reservation_fee', $validated)) {
+                $validated['reservation_fee'] = (float) $validated['reservation_fee'];
+            }
+
+            if (array_key_exists('reservation_fee_gap_days', $validated)) {
+                $validated['reservation_fee_gap_days'] = max(0, (int) $validated['reservation_fee_gap_days']);
+            }
+
             $property->update($validated);
 
             if ($request->has('is_eligible')) {
@@ -191,6 +217,18 @@ class PropertyService
                         [$normalizedType]
                     );
             });
+        }
+
+        if ($request->filled('gender_policy')) {
+            $genderPolicy = strtolower(trim((string) $request->input('gender_policy')));
+
+            if (in_array($genderPolicy, ['male', 'boys', 'boy'], true)) {
+                $query->whereIn('gender_restriction', ['male', 'boys']);
+            } elseif (in_array($genderPolicy, ['female', 'girls', 'girl'], true)) {
+                $query->whereIn('gender_restriction', ['female', 'girls']);
+            } elseif ($genderPolicy === 'mixed') {
+                $query->where('gender_restriction', 'mixed');
+            }
         }
 
         if ($request->has('min_price') || $request->has('max_price')) {

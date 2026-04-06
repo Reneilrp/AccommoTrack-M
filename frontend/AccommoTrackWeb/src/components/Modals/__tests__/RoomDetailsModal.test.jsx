@@ -22,6 +22,14 @@ jest.mock('../../../utils/api', () => ({
   },
 }));
 
+jest.mock('../../../services/systemToggleService', () => ({
+  __esModule: true,
+  default: {
+    getDefaults: () => ({ reservationFeeDisabled: false }),
+    getToggles: jest.fn().mockResolvedValue({}),
+  },
+}));
+
 jest.mock('../../Shared/ImageCarousel', () => () => <div data-testid="image-carousel" />);
 jest.mock('../../Shared/ImagePlaceholder', () => () => <div data-testid="image-placeholder" />);
 
@@ -86,6 +94,7 @@ const renderBookingForm = (bookingService, propertyOverrides = {}) => {
 describe('RoomDetailsModal proxy booking', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.clear();
     api.get.mockResolvedValue({
       data: {
         total: 12000,
@@ -225,5 +234,40 @@ describe('RoomDetailsModal proxy booking', () => {
     expect(
       screen.getByText('Reservation fee is required because move-in is 4 days after booking date.'),
     ).toBeInTheDocument();
+  });
+
+  it('blocks incompatible gender-restricted room booking when API compatibility flag is absent', async () => {
+    const createBooking = jest.fn();
+
+    window.localStorage.setItem(
+      'userData',
+      JSON.stringify({ gender: 'female' }),
+    );
+
+    render(
+      <RoomDetailsModal
+        room={{ ...baseRoom, gender_restriction: 'male' }}
+        property={{ ...baseProperty, property_type: 'dormitory' }}
+        onClose={jest.fn()}
+        isAuthenticated
+        onLoginRequired={jest.fn()}
+        initialView="booking"
+        onBookingSuccess={jest.fn()}
+        bookingService={{ createBooking }}
+      />,
+    );
+
+    expect(
+      screen.getByText('This room is restricted to boys only.'),
+    ).toBeInTheDocument();
+
+    const submitButton = screen.getByRole('button', {
+      name: 'Confirm Booking Request',
+    });
+
+    expect(submitButton).toBeDisabled();
+    fireEvent.click(submitButton);
+
+    expect(createBooking).not.toHaveBeenCalled();
   });
 });

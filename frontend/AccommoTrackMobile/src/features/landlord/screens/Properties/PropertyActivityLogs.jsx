@@ -125,7 +125,7 @@ export default function PropertyActivityLogs({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -171,13 +171,13 @@ export default function PropertyActivityLogs({ route, navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#059669']}
+            colors={['#16a34a']}
           />
         }
         ListEmptyComponent={
           logsQuery.isPending ? (
             <View style={styles.emptyState}>
-              <ActivityIndicator size="large" color="#059669" />
+              <ActivityIndicator size="large" color="#16a34a" />
               <Text style={styles.emptySubtitle}>Loading activity logs...</Text>
             </View>
           ) : (

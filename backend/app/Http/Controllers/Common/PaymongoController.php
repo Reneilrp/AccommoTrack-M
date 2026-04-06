@@ -31,6 +31,7 @@ class PaymongoController extends Controller
     public function createSource(Request $request, $invoiceId)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
 
         $validated = $request->validate([
             'method' => 'required|string',
@@ -40,6 +41,10 @@ class PaymongoController extends Controller
         $invoice = Invoice::findOrFail($invoiceId);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $invoice->property_id);
         }
 
         $method = $validated['method'];
@@ -286,6 +291,7 @@ class PaymongoController extends Controller
     public function createPayment(Request $request, $invoiceId)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
         $validated = $request->validate([
             'payment_method_id' => 'nullable|string',
             'source_id' => 'nullable|string',
@@ -294,6 +300,10 @@ class PaymongoController extends Controller
         $invoice = Invoice::findOrFail($invoiceId);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $invoice->property_id);
         }
 
         $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;

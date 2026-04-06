@@ -316,6 +316,8 @@ class User extends Authenticatable
                 'tenants' => true,
                 'rooms' => true,
                 'properties' => true,
+                'maintenance' => true,
+                'payments' => true,
             ];
         }
 
@@ -332,6 +334,8 @@ class User extends Authenticatable
             'tenants' => (bool) optional($assignment)->can_view_tenants,
             'rooms' => (bool) optional($assignment)->can_view_rooms,
             'properties' => (bool) optional($assignment)->can_view_properties,
+            'maintenance' => (bool) optional($assignment)->can_manage_maintenance,
+            'payments' => (bool) optional($assignment)->can_manage_payments,
         ];
     }
 }

@@ -73,7 +73,7 @@ export default function LandlordLayout({ onLogout }) {
       Notifications: 'Notifications',
       Payments: 'Payments',
       MaintenanceRequests: 'Maintenance',
-      Reviews: 'Guest Reviews',
+      Reviews: 'Reviews',
       Caretakers: 'Caretakers',
     };
 

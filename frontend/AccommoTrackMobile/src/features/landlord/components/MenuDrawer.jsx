@@ -18,7 +18,7 @@ const menuItems = [
     id: 1,
     title: "My Properties",
     icon: "business-outline",
-    color: "#059669",
+    color: "#16a34a",
     screen: "MyProperties",
   },
   {
@@ -115,6 +115,8 @@ export default function MenuDrawer({
       visible={visible}
       onRequestClose={onClose}
       statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+      presentationStyle="overFullScreen"
     >
       <View style={styles.modalOverlay}>
         <View style={styles.menuDrawer}>

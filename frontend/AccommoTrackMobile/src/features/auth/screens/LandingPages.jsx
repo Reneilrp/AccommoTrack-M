@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getStyles } from '../../../styles/LandingPages.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
@@ -17,6 +18,7 @@ const { width } = Dimensions.get('window');
 
 export default function LandingPages({ onFinish }) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -78,7 +80,10 @@ export default function LandingPages({ onFinish }) {
         
         {/* Skip Button */}
         {currentIndex < slides.length - 1 && (
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+          <TouchableOpacity
+            style={[styles.skipButton, { top: Math.max(insets.top, 8) }]}
+            onPress={handleSkip}
+          >
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
         )}

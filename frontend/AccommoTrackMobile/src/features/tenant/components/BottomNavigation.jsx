@@ -54,7 +54,7 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
   const tabs = [
     { id: 'Explore', icon: 'search', label: 'Explore', route: 'TenantHome' },
     { id: 'Dashboard', icon: 'grid', label: 'Dashboard', route: 'Dashboard' },
-    { id: 'Bookings', icon: 'calendar', label: 'My Booking', route: 'MyBookings' },
+    { id: 'Bookings', icon: 'calendar', label: 'My Bookings', route: 'MyBookings' },
     { id: 'Messages', icon: 'chatbubbles', label: 'Messages', route: 'Messages' },
     { id: 'Settings', icon: 'settings', label: 'Settings', route: 'Settings' },
   ];

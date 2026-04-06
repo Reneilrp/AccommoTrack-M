@@ -142,7 +142,7 @@ class BookingResource extends JsonResource
             return null;
         }
 
-        $thresholdDays = 3;
+        $thresholdDays = max(0, (int) ($this->property->reservation_fee_gap_days ?? 3));
         $issuedDate = ($this->created_at ?? now())->copy()->startOfDay();
         $moveInDate = $this->start_date
             ? Carbon::parse($this->start_date)->startOfDay()
@@ -161,7 +161,7 @@ class BookingResource extends JsonResource
         } elseif ($feeRequired) {
             $message = "Reservation fee is required because move-in is {$daysGap} days after booking date.";
         } else {
-            $message = 'No reservation fee is required because move-in is within 3 days from booking date.';
+            $message = "No reservation fee is required because move-in is within {$thresholdDays} days from booking date.";
         }
 
         return [

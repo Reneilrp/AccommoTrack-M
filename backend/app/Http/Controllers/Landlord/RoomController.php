@@ -11,7 +11,9 @@ use App\Models\Property;
 use App\Models\Room;
 use App\Services\RoomService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class RoomController extends Controller
 {
@@ -247,6 +249,7 @@ class RoomController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_rooms');
 
             $validated = $request->validate([
                 'tenant_id' => 'required|exists:users,id',
@@ -262,6 +265,7 @@ class RoomController extends Controller
 
             $room = Room::whereHas('property', fn ($q) => $q->where('landlord_id', $context['landlord_id']))
                 ->findOrFail($id);
+            $this->checkPropertyAccess($context, (int) $room->property_id);
 
             $result = $this->roomService->extendStay($room, $validated['tenant_id'], $type, $value);
 
@@ -269,6 +273,8 @@ class RoomController extends Controller
                 'message' => 'Stay extended successfully',
                 'data' => $result,
             ]);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to extend stay', 'error' => $e->getMessage()], 500);
         }

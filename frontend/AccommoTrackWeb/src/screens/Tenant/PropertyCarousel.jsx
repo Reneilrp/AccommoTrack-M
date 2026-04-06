@@ -209,7 +209,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       {/* Carousel */}
       <div
         ref={carouselRef}
-        className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-2"
+        className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide px-2"
       >
         {(Array.isArray(property?.rooms) ? property.rooms : [])
           .map(normalizeRoom)
@@ -246,9 +246,6 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               : displayStatus;
             const isOccupied = effectiveDisplayStatus === 'occupied';
             const hasAdjustedDisplayStatus = effectiveDisplayStatus !== displayStatus;
-            const hasAlternatePrice =
-              room.billingPolicy !== 'monthly' &&
-              Number.isFinite(Number(room.alternatePrice)) && Number(room.alternatePrice) > 0;
             const statusBadgeText = room.reserved_by_me
               ? 'Reserved by you (Pending)'
               : (hasAdjustedDisplayStatus
@@ -272,10 +269,10 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             return (
           <div
             key={room.id}
-            className={`flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isOccupied ? 'opacity-50' : ''}`}
+            className={`flex-none w-[210px] sm:w-[200px] md:w-[190px] lg:w-[calc((100%-2.25rem)/4.25)] xl:w-[calc((100%-3rem)/4.25)] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isOccupied ? 'opacity-50' : ''}`}
           >
             {/* Image Click -> Open Room Details */}
-            <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
+            <div className="relative h-32 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
               {getImageUrl(room.imageSource) ? (
                 <img
                   src={getImageUrl(room.imageSource)}
@@ -286,13 +283,13 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               ) : (
                 <ImagePlaceholder className="w-full h-full" />
               )}
-              <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
-                <span className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm max-w-[70%] ${statusBadgeClassName}`}>
+              <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">
+                <span className={`px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide shadow-sm max-w-[72%] ${statusBadgeClassName}`}>
                   {statusBadgeText}
                 </span>
                 {showGenderBadge && (
                   <span
-                    className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
+                    className={`px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
                   >
                     {genderBadge.label}
                   </span>
@@ -300,58 +297,53 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               </div>
             </div>
 
-            <div className="p-6 flex-1 flex flex-col">
-              <div className="flex justify-between items-start mb-2">
+            <div className="p-3 flex-1 flex flex-col">
+              <div className="flex items-center justify-between gap-1.5 mb-1">
                 <h4
-                  className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                  className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"
                   title={room.displayName}
                   onClick={() => onOpenDetails(room, property)}
                 >
                   {room.displayName}
                 </h4>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="inline-flex items-center px-2.5 py-2 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                  {room.roomTypeLabel}
-                </span>
-                <span className="inline-flex items-center px-2.5 py-2 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-700 border border-gray-200 whitespace-nowrap shrink-0">
                   {room.occupancyLabel}
                 </span>
               </div>
 
+              <div className="flex flex-wrap gap-1 mb-2">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                  {room.roomTypeLabel}
+                </span>
+              </div>
+
               {room.amenityLabels.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-1 mb-2">
                   {room.amenityLabels.slice(0, 3).map((label, idx) => (
                     <span
                       key={`${label}-${idx}`}
-                      className="inline-flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100"
+                      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100"
                       title={label}
                     >
                       {label}
                     </span>
                   ))}
                   {room.amenityLabels.length > 3 && (
-                    <span className="inline-flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
                       +{room.amenityLabels.length - 3} more
                     </span>
                   )}
                 </div>
               )}
 
-              <div className="flex items-end justify-between mt-auto pt-4">
+              <div className="flex items-end justify-between mt-auto pt-2">
                 <div className="flex flex-col">
-                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">{room.primaryLabel}</span>
-                  <span className="text-lg font-extrabold text-green-600">{formatCurrency(room.primaryPrice)}</span>
-                  {hasAlternatePrice && (
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                      {room.alternateLabel}: {formatCurrency(room.alternatePrice)}
-                    </span>
-                  )}
+                  <span className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight">{room.primaryLabel}</span>
+                  <span className="text-sm font-extrabold text-green-600 leading-tight">{formatCurrency(room.primaryPrice)}</span>
                 </div>
                 <button
                   onClick={() => onOpenDetails(room, property)}
-                  className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm whitespace-nowrap shrink-0"
+                  className="px-2.5 py-1 rounded-md bg-gray-900 text-white text-[11px] font-semibold hover:bg-green-600 transition-colors shadow-sm whitespace-nowrap shrink-0"
                 >
                   View Details
                 </button>

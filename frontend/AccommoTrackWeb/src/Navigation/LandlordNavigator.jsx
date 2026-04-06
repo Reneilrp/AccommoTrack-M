@@ -27,6 +27,8 @@ import TransferRequests from '../screens/Landlord/TransferRequests.jsx';
 export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
   if (user?.role === 'caretaker') {
     const caretakerPermissions = user?.caretaker_permissions || {};
+    const canManageMaintenance = Boolean(caretakerPermissions.maintenance ?? caretakerPermissions.rooms);
+    const canManagePayments = Boolean(caretakerPermissions.payments);
     const caretakerHome = getDefaultLandingRoute(user);
     return (
       <SidebarProvider>
@@ -35,13 +37,16 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
             <Route index element={<Navigate to={caretakerHome} replace />} />
             <Route path="dashboard" element={<CaretakerDashboard user={user} />} />
             {caretakerPermissions.rooms && (
-              <>
-                <Route path="rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
-                <Route path="maintenance" element={<LandlordMaintenance user={user} accessRole="caretaker" />} />
-              </>
+              <Route path="rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
+            )}
+            {canManageMaintenance && (
+              <Route path="maintenance" element={<LandlordMaintenance user={user} accessRole="caretaker" />} />
             )}
             {caretakerPermissions.bookings && (
               <Route path="bookings" element={<Bookings user={user} accessRole="caretaker" />} />
+            )}
+            {canManagePayments && (
+              <Route path="payments" element={<Payments user={user} accessRole="caretaker" />} />
             )}
             {caretakerPermissions.tenants && (
               <Route path="tenants" element={<Tenants user={user} accessRole="caretaker" />} />

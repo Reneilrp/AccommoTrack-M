@@ -155,6 +155,7 @@ class Property extends Model
         'allow_partial_payments',
         'require_reservation_fee',
         'reservation_fee',
+        'reservation_fee_gap_days',
         'gcash_name',
         'gcash_number',
         'gcash_qr_path',
@@ -178,6 +179,7 @@ class Property extends Model
         'allow_partial_payments' => 'boolean',
         'require_reservation_fee' => 'boolean',
         'reservation_fee' => 'decimal:2',
+        'reservation_fee_gap_days' => 'integer',
         'property_rules' => 'array',
         'accepted_payments' => 'array',
     ];

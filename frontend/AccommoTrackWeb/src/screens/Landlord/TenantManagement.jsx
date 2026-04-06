@@ -55,8 +55,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(selectedPropertyId && !cachedTenants);
 
-  // New state for bulk actions & modals
-  const [selectedTenants, setSelectedTenants] = useState([]);
+  // Tenant action modals
   const [showEvictModal, setShowEvictModal] = useState(false);
   const [evictingTenant, setEvictingTenant] = useState(null);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('tenantViewMode') || 'card');
@@ -155,11 +154,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     if (!selectedPropertyId) return;
     loadTenants();
   }, [selectedPropertyId, loadTenants]);
-
-  useEffect(() => {
-    // Clear selections when filters change
-    setSelectedTenants([]);
-  }, [searchQuery, filter, selectedPropertyId]);
 
   const handleTransferInitiate = async (tenant) => {
     const defaultFee = tenant?.room?.property?.transfer_fee ?? 0;
@@ -380,14 +374,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     }
   };
 
-  const handleSelectTenant = (tenantId) => {
-    setSelectedTenants(prev => 
-      prev.includes(tenantId)
-        ? prev.filter(id => id !== tenantId)
-        : [...prev, tenantId]
-    );
-  };
-
   const filteredTenants = tenants.filter(tenant => {
     const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
     const email = (tenant.email || '').toLowerCase();
@@ -405,15 +391,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     
     return true;
   });
-
-  const handleSelectAll = () => {
-    if (selectedTenants.length === filteredTenants.length) {
-      setSelectedTenants([]);
-    } else {
-      setSelectedTenants(filteredTenants.map(t => t.id));
-    }
-  };
-
 
   const stats = {
     total: tenants.length,
@@ -486,16 +463,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
           </div>
         </div>
 
-        {selectedTenants.length > 0 && (
-          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-700 mb-6 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-            <input type="checkbox" checked={selectedTenants.length === filteredTenants.length} onChange={handleSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
-            <span className="text-sm font-bold text-green-700 dark:text-green-300 flex-1">{selectedTenants.length} tenant{selectedTenants.length !== 1 ? 's' : ''} selected</span>
-            <button onClick={() => setSelectedTenants([])} className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-800 rounded-lg" title="Clear selection">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
         {viewMode === 'card' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTenants.length === 0 ? (
@@ -505,34 +472,27 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
               </div>
             ) : (
               filteredTenants.map(tenant => (
-                <div key={tenant.id} className="relative">
-                  <div className="absolute top-3 left-3 z-10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-2 rounded-full">
-                    <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => handleSelectTenant(tenant.id)} className="w-4 h-4 text-green-600 rounded-full border-gray-300 focus:ring-green-500" />
-                  </div>
-                  <TenantCard
-                    tenant={tenant}
-                    onTransfer={handleTransferInitiate}
-                    onAssign={handleAssignInitiate}
-                    onUnassign={handleUnassignInitiate}
-                    onEvict={handleEvictInitiate}
-                    onEvictionFinalize={handleEvictionFinalize}
-                    onEvictionCancel={handleEvictionCancel}
-                    onEvictionUndo={handleEvictionUndo}
-                    onApproveReservation={handleApproveReservation}
-                    onCheckIn={handleCheckInTenant}
-                    canTransfer={!isCaretaker}
-                    isEvictionDue={isEvictionDue(tenant)}
-                  />
-                </div>
+                <TenantCard
+                  key={tenant.id}
+                  tenant={tenant}
+                  onTransfer={handleTransferInitiate}
+                  onAssign={handleAssignInitiate}
+                  onUnassign={handleUnassignInitiate}
+                  onEvict={handleEvictInitiate}
+                  onEvictionFinalize={handleEvictionFinalize}
+                  onEvictionCancel={handleEvictionCancel}
+                  onEvictionUndo={handleEvictionUndo}
+                  onApproveReservation={handleApproveReservation}
+                  onCheckIn={handleCheckInTenant}
+                  canTransfer={!isCaretaker}
+                  isEvictionDue={isEvictionDue(tenant)}
+                />
               ))
             )}
           </div>
         ) : (
           <TenantListView
             tenants={filteredTenants}
-            selectedTenants={selectedTenants}
-            onSelect={handleSelectTenant}
-            onSelectAll={handleSelectAll}
             onTransfer={handleTransferInitiate}
             onAssign={handleAssignInitiate}
             onUnassign={handleUnassignInitiate}
@@ -817,9 +777,6 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
 
 const TenantListView = ({
   tenants,
-  selectedTenants,
-  onSelect,
-  onSelectAll,
   onTransfer,
   onAssign,
   onUnassign,
@@ -878,8 +835,6 @@ const TenantListView = ({
     return map[status] || 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800';
   };
 
-  const allSelected = tenants.length > 0 && selectedTenants.length === tenants.length;
-
   if (tenants.length === 0) {
     return (
       <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
@@ -895,9 +850,6 @@ const TenantListView = ({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
-              <th className="px-4 py-3 text-left">
-                <input type="checkbox" checked={allSelected} onChange={onSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
-              </th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Full Name</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Email</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Room</th>
@@ -920,11 +872,6 @@ const TenantListView = ({
               return (
                 <React.Fragment key={tenant.id}>
                   <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group">
-                    {/* Checkbox */}
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => onSelect(tenant.id)} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
-                    </td>
-
                     {/* Full Name + behavioral badges */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1110,7 +1057,7 @@ const TenantListView = ({
                   {/* Emergency Contact Expandable Row */}
                   {showEmergency && profile && (
                     <tr key={`${tenant.id}-emergency`} className="bg-purple-50 dark:bg-purple-900/10">
-                      <td colSpan={7} className="px-8 py-3">
+                      <td colSpan={6} className="px-8 py-3">
                         <div className="flex items-center gap-6 text-xs text-gray-700 dark:text-gray-300">
                           <span className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-400 uppercase text-[10px]">
                             <ShieldAlert className="w-3 h-3" /> Emergency Contact

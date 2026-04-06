@@ -221,6 +221,10 @@ export default function DormProfileSettings({
         allow_partial_payments: data.allow_partial_payments !== undefined ? Boolean(data.allow_partial_payments) : true,
         require_reservation_fee: Boolean(data.require_reservation_fee),
         reservation_fee_amount: data.reservation_fee_amount || '',
+        reservation_fee_gap_days:
+          data.reservation_fee_gap_days !== undefined
+            ? String(data.reservation_fee_gap_days)
+            : "3",
         gcash_name: data.gcash_name || '',
         gcash_number: data.gcash_number || '',
         gcash_qr_path: data.gcash_qr_path || '',
@@ -632,6 +636,10 @@ export default function DormProfileSettings({
       );
 
       const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type);
+      const parsedGapDays = Number.parseInt(dormData.reservation_fee_gap_days, 10);
+      const reservationFeeGapDays = Number.isNaN(parsedGapDays)
+        ? 3
+        : Math.max(0, parsedGapDays);
 
       const updateData = {
         title: dormData.name,
@@ -655,6 +663,7 @@ export default function DormProfileSettings({
         allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
         require_reservation_fee: dormData.require_reservation_fee ? 1 : 0,
         reservation_fee_amount: dormData.require_reservation_fee ? dormData.reservation_fee_amount : 0,
+        reservation_fee_gap_days: reservationFeeGapDays,
         gcash_name: dormData.require_reservation_fee ? dormData.gcash_name : "",
         gcash_number: dormData.require_reservation_fee ? dormData.gcash_number : "",
         transfer_fee: parseFloat(dormData.transfer_fee) || 0,
@@ -1309,6 +1318,24 @@ export default function DormProfileSettings({
                                     className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
                                     placeholder="e.g. 500"
                                   />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Require fee when move-in is more than (days)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    disabled={!isEditing}
+                                    value={dormData.reservation_fee_gap_days ?? "3"}
+                                    onChange={(e) => handleInputChange("reservation_fee_gap_days", e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                    placeholder="3"
+                                  />
+                                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    Default is 3 days. Reservation fee applies only when the booking gap is above this value.
+                                  </p>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                   <div>

@@ -53,7 +53,7 @@ class TenantDashboardController extends Controller
 
     private function buildReservationPolicyPayload($booking): array
     {
-        $thresholdDays = 3;
+        $thresholdDays = max(0, (int) ($booking->property->reservation_fee_gap_days ?? 3));
         $issuedDate = ($booking->created_at ?? now())->copy()->startOfDay();
         $moveInDate = $booking->start_date
             ? $booking->start_date->copy()->startOfDay()
@@ -72,7 +72,7 @@ class TenantDashboardController extends Controller
         } elseif ($feeRequired) {
             $message = "Reservation fee is required because move-in is {$daysGap} days after booking date.";
         } else {
-            $message = 'No reservation fee is required because move-in is within 3 days from booking date.';
+            $message = "No reservation fee is required because move-in is within {$thresholdDays} days from booking date.";
         }
 
         return [

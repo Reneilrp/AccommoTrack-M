@@ -105,6 +105,7 @@ class UpdatePropertyRequest extends FormRequest
             'require_1month_advance' => 'sometimes|boolean',
             'require_reservation_fee' => 'sometimes|boolean',
             'reservation_fee_amount' => 'nullable|numeric|min:0',
+            'reservation_fee_gap_days' => 'nullable|integer|min:0|max:365',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',

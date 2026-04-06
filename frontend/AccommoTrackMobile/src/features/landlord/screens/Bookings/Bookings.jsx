@@ -69,14 +69,6 @@ export default function BookingsScreen({ navigation, route }) {
   const [cancelForm, setCancelForm] = useState({ reason: '', shouldRefund: false, refundAmount: '' });
   const [actionLoading, setActionLoading] = useState(false);
   const [requestActionLoading, setRequestActionLoading] = useState(false);
-  const [approvingTransferRequestId, setApprovingTransferRequestId] = useState(null);
-  const [rejectingTransferRequestId, setRejectingTransferRequestId] = useState(null);
-  const [rejectNotes, setRejectNotes] = useState('');
-  const [transferApprovalData, setTransferApprovalData] = useState({
-    damage_charge: '',
-    damage_description: '',
-    landlord_notes: ''
-  });
   const [settlementHistory, setSettlementHistory] = useState([]);
   const [settlementHistoryLoading, setSettlementHistoryLoading] = useState(false);
   const [submittingSettlement, setSubmittingSettlement] = useState(false);
@@ -138,35 +130,19 @@ export default function BookingsScreen({ navigation, route }) {
     placeholderData: (previousData) => previousData,
   });
 
-  const transferRequestsQuery = useQuery({
-    queryKey: landlordQueryKeys.transferRequests(),
-    queryFn: async () => {
-      const response = await PropertyService.getTransferRequests();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load transfer requests');
-      }
-
-      return Array.isArray(response.data) ? response.data : EMPTY_REQUESTS;
-    },
-    placeholderData: (previousData) => previousData,
-  });
-
   const bookings = bookingsQuery.data || EMPTY_BOOKINGS;
   const stats = statsQuery.data || DEFAULT_STATS;
   const extensionRequests = extensionRequestsQuery.data || EMPTY_REQUESTS;
-  const transferRequests = transferRequestsQuery.data || EMPTY_REQUESTS;
   const loading = bookingsQuery.isPending && bookings.length === 0;
   const loadingExtensions = extensionRequestsQuery.isPending && extensionRequests.length === 0;
-  const loadingTransfers = transferRequestsQuery.isPending && transferRequests.length === 0;
   const error = bookingsQuery.error?.message || statsQuery.error?.message || '';
 
   const refetchBookings = bookingsQuery.refetch;
   const refetchStats = statsQuery.refetch;
   const refetchExtensionRequests = extensionRequestsQuery.refetch;
-  const refetchTransferRequests = transferRequestsQuery.refetch;
   const bookingRefetchers = useMemo(
-    () => [refetchBookings, refetchStats, refetchExtensionRequests, refetchTransferRequests],
-    [refetchBookings, refetchStats, refetchExtensionRequests, refetchTransferRequests],
+    () => [refetchBookings, refetchStats, refetchExtensionRequests],
+    [refetchBookings, refetchStats, refetchExtensionRequests],
   );
 
   useLandlordFocusRefetch({ refetchers: bookingRefetchers });
@@ -235,33 +211,6 @@ export default function BookingsScreen({ navigation, route }) {
     }
   };
 
-  const handleTransferRequestAction = async (requestId, action, transferData = {}) => {
-    try {
-      setRequestActionLoading(true);
-      const response = await PropertyService.handleTransferRequest(requestId, {
-        action,
-        ...transferData
-      });
-      if (!response.success) throw new Error(response.error || 'Unable to update transfer request');
-      setActionError('');
-      await refetchLandlordQueries([refetchTransferRequests]);
-      if (action === 'approve') {
-        setApprovingTransferRequestId(null);
-        setTransferApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
-      }
-      if (action === 'reject') {
-        setRejectingTransferRequestId(null);
-        setRejectNotes('');
-      }
-      Alert.alert('Transfer Request', `Request ${action}d successfully.`);
-    } catch (err) {
-      setActionError(err.message || 'Unable to process transfer request');
-      Alert.alert('Transfer Request', err.message || 'Unable to process transfer request');
-    } finally {
-      setRequestActionLoading(false);
-    }
-  };
-
   const renderExtensionRequestCard = (item) => {
     const tenantName = item.tenant?.full_name || [item.tenant?.first_name, item.tenant?.last_name].filter(Boolean).join(' ') || 'Tenant';
     return (
@@ -293,157 +242,6 @@ export default function BookingsScreen({ navigation, route }) {
               <Text style={styles.requestRejectText}>Reject</Text>
             </TouchableOpacity>
           </View>
-        ) : null}
-      </View>
-    );
-  };
-
-  const renderTransferRequestCard = (item) => {
-    const tenantName = item.tenant?.full_name || [item.tenant?.first_name, item.tenant?.last_name].filter(Boolean).join(' ') || 'Tenant';
-    const isApprovingCurrent = approvingTransferRequestId === item.id;
-    const isRejectingCurrent = rejectingTransferRequestId === item.id;
-    return (
-      <View key={`trf-${item.id}`} style={styles.requestCard}>
-        <View style={styles.requestCardTop}>
-          <Text style={styles.requestTitle}>{tenantName}</Text>
-          <Text style={styles.requestStatus}>{item.status || 'pending'}</Text>
-        </View>
-        <Text style={styles.requestSubtitle}>{item.requested_room?.property?.title || 'Property'}</Text>
-        <Text style={styles.requestMeta}>Current Room: {item.current_room?.room_number || '—'}</Text>
-        <Text style={styles.requestMeta}>Requested Room: {item.requested_room?.room_number || '—'}</Text>
-        <Text style={styles.requestNote}>"{item.reason || 'No reason provided'}"</Text>
-        {item.status === 'pending' ? (
-          isApprovingCurrent ? (
-            <View style={styles.transferApprovalWrap}>
-              <Text style={styles.transferApprovalLabel}>Damage Charge (optional)</Text>
-              <TextInput
-                value={transferApprovalData.damage_charge}
-                onChangeText={(value) => setTransferApprovalData((current) => ({ ...current, damage_charge: value }))}
-                placeholder="0.00"
-                style={styles.transferApprovalInput}
-                keyboardType="numeric"
-              />
-
-              {Number(transferApprovalData.damage_charge || 0) > 0 ? (
-                <>
-                  <Text style={styles.transferApprovalLabel}>Damage Description *</Text>
-                  <TextInput
-                    value={transferApprovalData.damage_description}
-                    onChangeText={(value) => setTransferApprovalData((current) => ({ ...current, damage_description: value }))}
-                    placeholder="What was damaged?"
-                    style={styles.transferApprovalInput}
-                  />
-                </>
-              ) : null}
-
-              <Text style={styles.transferApprovalLabel}>Landlord Notes</Text>
-              <TextInput
-                value={transferApprovalData.landlord_notes}
-                onChangeText={(value) => setTransferApprovalData((current) => ({ ...current, landlord_notes: value }))}
-                placeholder="Any notes for the tenant..."
-                style={styles.transferApprovalTextArea}
-                multiline
-              />
-
-              <View style={styles.requestActionsRow}>
-                <TouchableOpacity
-                  style={styles.requestApproveBtn}
-                  disabled={requestActionLoading}
-                  onPress={() => {
-                    const damageCharge = Number(transferApprovalData.damage_charge || 0);
-                    if (damageCharge > 0 && !transferApprovalData.damage_description.trim()) {
-                      Alert.alert('Transfer Request', 'Please provide a damage description.');
-                      return;
-                    }
-                    handleTransferRequestAction(item.id, 'approve', {
-                      damage_charge: damageCharge > 0 ? damageCharge : undefined,
-                      damage_description: transferApprovalData.damage_description.trim() || undefined,
-                      landlord_notes: transferApprovalData.landlord_notes.trim() || undefined
-                    });
-                  }}
-                >
-                  <Text style={styles.requestApproveText}>Confirm Transfer</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.requestNeutralBtn}
-                  disabled={requestActionLoading}
-                  onPress={() => {
-                    setApprovingTransferRequestId(null);
-                    setTransferApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
-                  }}
-                >
-                  <Text style={styles.requestNeutralText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : isRejectingCurrent ? (
-            <View style={styles.transferApprovalWrap}>
-              <Text style={styles.transferApprovalLabel}>Rejection Reason *</Text>
-              <TextInput
-                value={rejectNotes}
-                onChangeText={setRejectNotes}
-                placeholder="Why are you rejecting this transfer?"
-                style={styles.transferApprovalTextArea}
-                multiline
-              />
-              <View style={styles.requestActionsRow}>
-                <TouchableOpacity
-                  style={styles.requestRejectBtn}
-                  disabled={requestActionLoading}
-                  onPress={() => {
-                    const notes = rejectNotes.trim();
-                    if (!notes) {
-                      Alert.alert('Transfer Request', 'Please provide a rejection reason.');
-                      return;
-                    }
-
-                    handleTransferRequestAction(item.id, 'reject', {
-                      landlord_notes: notes
-                    });
-                  }}
-                >
-                  <Text style={styles.requestRejectText}>Confirm Reject</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.requestNeutralBtn}
-                  disabled={requestActionLoading}
-                  onPress={() => {
-                    setRejectingTransferRequestId(null);
-                    setRejectNotes('');
-                  }}
-                >
-                  <Text style={styles.requestNeutralText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.requestActionsRow}>
-              <TouchableOpacity
-                style={styles.requestApproveBtn}
-                disabled={requestActionLoading}
-                onPress={() => {
-                  setApprovingTransferRequestId(item.id);
-                  setRejectingTransferRequestId(null);
-                  setRejectNotes('');
-                  setTransferApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
-                }}
-              >
-                <Text style={styles.requestApproveText}>Approve</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.requestRejectBtn}
-                disabled={requestActionLoading}
-                onPress={() => {
-                  setApprovingTransferRequestId(null);
-                  setTransferApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
-                  setRejectingTransferRequestId(item.id);
-                  setRejectNotes('');
-                }}
-              >
-                <Text style={styles.requestRejectText}>Reject</Text>
-              </TouchableOpacity>
-            </View>
-          )
         ) : null}
       </View>
     );
@@ -827,27 +625,15 @@ export default function BookingsScreen({ navigation, route }) {
         ))}
       </ScrollView>
 
-      <View style={styles.requestSection}>
-        <Text style={styles.requestSectionTitle}>Extension Requests</Text>
-        {loadingExtensions ? (
-          <ActivityIndicator size="small" color={theme.colors.primary} />
-        ) : extensionRequests.length > 0 ? (
-          extensionRequests.map(renderExtensionRequestCard)
-        ) : (
-          <Text style={styles.requestEmptyText}>No extension requests.</Text>
-        )}
-      </View>
-
-      <View style={styles.requestSection}>
-        <Text style={styles.requestSectionTitle}>Transfer Requests</Text>
-        {loadingTransfers ? (
-          <ActivityIndicator size="small" color={theme.colors.primary} />
-        ) : transferRequests.length > 0 ? (
-          transferRequests.map(renderTransferRequestCard)
-        ) : (
-          <Text style={styles.requestEmptyText}>No transfer requests.</Text>
-        )}
-      </View>
+      {loadingExtensions || extensionRequests.length > 0 ? (
+        <View style={styles.requestSection}>
+          {loadingExtensions ? (
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          ) : (
+            extensionRequests.map(renderExtensionRequestCard)
+          )}
+        </View>
+      ) : null}
     </View>
   );
 

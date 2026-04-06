@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CaretakerController extends Controller
 {
@@ -90,11 +91,17 @@ class CaretakerController extends Controller
             'property_ids.*' => 'integer|exists:properties,id',
         ]);
 
-        // ... validation logic ...
+        $propertyIds = collect($validated['property_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->assertPropertyIdsBelongToLandlord($propertyIds, (int) $context['landlord_id']);
 
         $temporaryPassword = $validated['password'] ?? Str::random(12);
 
-        $created = DB::transaction(function () use ($validated, $context, $temporaryPassword) {
+        $created = DB::transaction(function () use ($validated, $context, $temporaryPassword, $propertyIds) {
             $caretaker = User::create([
                 'first_name' => $validated['first_name'],
                 'middle_name' => $validated['middle_name'] ?? null,
@@ -126,8 +133,8 @@ class CaretakerController extends Controller
                 $permissions
             ));
 
-            if (! empty($validated['property_ids'])) {
-                $assignment->syncProperties($validated['property_ids']);
+            if ($propertyIds !== []) {
+                $assignment->syncProperties($propertyIds);
             }
 
             $assignment->load('properties:id,title');
@@ -201,6 +208,17 @@ class CaretakerController extends Controller
             'property_ids.*' => 'integer|exists:properties,id',
         ]);
 
+        $propertyIds = null;
+        if (array_key_exists('property_ids', $validated)) {
+            $propertyIds = collect($validated['property_ids'])
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            $this->assertPropertyIdsBelongToLandlord($propertyIds, (int) $context['landlord_id']);
+        }
+
         // ... caretaker details update ...
 
         // Update permissions if provided
@@ -234,7 +252,9 @@ class CaretakerController extends Controller
             $assignment->update($updates);
         }
 
-        // ... property assignments update ...
+        if (is_array($propertyIds)) {
+            $assignment->syncProperties($propertyIds);
+        }
 
         $assignment->refresh();
         $assignment->load('properties:id,title');
@@ -303,5 +323,22 @@ class CaretakerController extends Controller
             'message' => 'Caretaker password reset.',
             'temporary_password' => $temporaryPassword,
         ]);
+    }
+
+    protected function assertPropertyIdsBelongToLandlord(array $propertyIds, int $landlordId): void
+    {
+        if ($propertyIds === []) {
+            return;
+        }
+
+        $ownedCount = Property::where('landlord_id', $landlordId)
+            ->whereIn('id', $propertyIds)
+            ->count();
+
+        if ($ownedCount !== count($propertyIds)) {
+            throw ValidationException::withMessages([
+                'property_ids' => ['One or more selected properties are not owned by this landlord.'],
+            ]);
+        }
     }
 }

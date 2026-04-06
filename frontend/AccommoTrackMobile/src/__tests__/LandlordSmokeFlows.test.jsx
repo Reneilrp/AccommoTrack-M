@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Switch } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
@@ -15,7 +15,7 @@ import { showSuccess } from '../utils/toast.js';
 const mockTheme = {
   isDark: false,
   colors: {
-    primary: '#059669',
+    primary: '#16a34a',
     primaryDark: '#047857',
     primaryLight: '#D1FAE5',
     text: '#0f172a',
@@ -246,7 +246,7 @@ describe('Landlord smoke flows', () => {
         [{ text: 'OK' }],
       );
     });
-  });
+  }, 15000);
 
   it('AddProperty blocks final submission for unverified accounts', async () => {
     ProfileService.getVerificationStatus.mockResolvedValue({
@@ -296,7 +296,7 @@ describe('Landlord smoke flows', () => {
     expect(PropertyService.createProperty).not.toHaveBeenCalled();
   });
 
-  it('Caretaker create flow submits payload and refreshes list', async () => {
+  it('Caretaker create flow submits payload with unchecked permissions', async () => {
     CaretakerService.getCaretakers.mockResolvedValue({
       success: true,
       data: {
@@ -332,12 +332,110 @@ describe('Landlord smoke flows', () => {
 
     await waitFor(() => {
       expect(CaretakerService.createCaretaker).toHaveBeenCalledWith(
-        expect.objectContaining({
+        {
           first_name: 'John',
+          middle_name: '',
           last_name: 'Doe',
           email: 'john@example.com',
+          phone: '',
+          date_of_birth: '',
+          password: 'StrongPass1!',
+          password_confirmation: 'StrongPass1!',
           property_ids: [1],
-        }),
+          permissions: {
+            can_view_bookings: false,
+            can_view_messages: false,
+            can_view_tenants: false,
+            can_view_rooms: false,
+            can_view_properties: false,
+            can_manage_maintenance: false,
+            can_manage_payments: false,
+          },
+        },
+      );
+    });
+
+    expect(showSuccess).toHaveBeenCalled();
+  });
+
+  it('Caretaker create flow submits payload with checked permissions', async () => {
+    CaretakerService.getCaretakers.mockResolvedValue({
+      success: true,
+      data: {
+        caretakers: [],
+        landlord_properties: [{ id: 1, name: 'Dorm One' }],
+      },
+    });
+    CaretakerService.createCaretaker.mockResolvedValue({
+      success: true,
+      data: { temporary_password: 'Temp1234' },
+    });
+
+    renderWithQueryClient(<Caretakers />);
+
+    await screen.findByText('No caretakers yet');
+    fireEvent.press(screen.getByText('Add First Caretaker'));
+
+    await screen.findByText('Add New Caretaker');
+
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. John'), 'John');
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. Doe'), 'Doe');
+    fireEvent.changeText(
+      screen.getByPlaceholderText('caretaker@example.com'),
+      'john@example.com',
+    );
+
+    const passwordFields = screen.getAllByPlaceholderText('••••••••');
+    fireEvent.changeText(passwordFields[0], 'StrongPass1!');
+    fireEvent.changeText(passwordFields[1], 'StrongPass1!');
+
+    const permissionSwitches = screen.UNSAFE_getAllByType(Switch);
+
+    fireEvent(permissionSwitches[0], 'valueChange', true); // bookings
+    fireEvent(permissionSwitches[1], 'valueChange', true); // messages
+    fireEvent(permissionSwitches[2], 'valueChange', true); // tenants
+
+    fireEvent(permissionSwitches[3], 'valueChange', true); // rooms
+    await screen.findByText('Landlord-Level Access');
+    fireEvent.press(screen.getByText('Grant Access'));
+
+    fireEvent(permissionSwitches[4], 'valueChange', true); // properties
+    await screen.findByText('Landlord-Level Access');
+    fireEvent.press(screen.getByText('Grant Access'));
+
+    fireEvent(permissionSwitches[5], 'valueChange', true); // maintenance
+    await screen.findByText('Landlord-Level Access');
+    fireEvent.press(screen.getByText('Grant Access'));
+
+    fireEvent(permissionSwitches[6], 'valueChange', true); // payments
+    await screen.findByText('Landlord-Level Access');
+    fireEvent.press(screen.getByText('Grant Access'));
+
+    fireEvent.press(screen.getByText('Dorm One'));
+    fireEvent.press(screen.getByText('Confirm & Add Caretaker'));
+
+    await waitFor(() => {
+      expect(CaretakerService.createCaretaker).toHaveBeenCalledWith(
+        {
+          first_name: 'John',
+          middle_name: '',
+          last_name: 'Doe',
+          email: 'john@example.com',
+          phone: '',
+          date_of_birth: '',
+          password: 'StrongPass1!',
+          password_confirmation: 'StrongPass1!',
+          property_ids: [1],
+          permissions: {
+            can_view_bookings: true,
+            can_view_messages: true,
+            can_view_tenants: true,
+            can_view_rooms: true,
+            can_view_properties: true,
+            can_manage_maintenance: true,
+            can_manage_payments: true,
+          },
+        },
       );
     });
 

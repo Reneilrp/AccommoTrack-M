@@ -1,5 +1,5 @@
 workstream: G
-date: 2026-04-02
+date: 2026-04-05
 status: pass
 
 uat_scenarios:
@@ -33,6 +33,13 @@ uat_scenarios:
       - backend_test: test_non_admin_user_cannot_access_admin_oversight_or_audit_endpoints
 
 release_checklist:
+  branch_protection_policy_required_checks:
+    status: pass
+    required_checks:
+      - backend-pest
+      - backend-smoke-contracts
+      - web-jest
+    notes: backend-smoke-contracts is now part of the required status checks for release gating.
   migrations_up_to_date:
     status: pass
     command: cd backend && php artisan migrate:status
@@ -82,6 +89,10 @@ broader_pre_release_sweep:
     command: cd backend && composer test:pest
     result: pass
     details: 49 tests, 245 assertions
+  - gate: backend_smoke_contracts
+    command: cd backend && php artisan test --filter='AnalyticsExportCsvTest|CashPaymentFlowTest'
+    result: pass
+    details: 7 tests, 59 assertions
   - gate: web_full_jest
     command: cd frontend/AccommoTrackWeb && npm test -- --runInBand
     result: pass
@@ -89,7 +100,11 @@ broader_pre_release_sweep:
   - gate: web_lint
     command: cd frontend/AccommoTrackWeb && npm run lint
     result: pass_with_warnings
-    details: 32 react-hooks/exhaustive-deps warnings, 0 errors
+    details: 33 warnings, 0 errors
+  - gate: mobile_lint
+    command: cd frontend/AccommoTrackMobile && npx expo lint
+    result: pass_with_warnings
+    details: 120 warnings, 0 errors
   - gate: web_build
     command: cd frontend/AccommoTrackWeb && npm run build
     result: pass

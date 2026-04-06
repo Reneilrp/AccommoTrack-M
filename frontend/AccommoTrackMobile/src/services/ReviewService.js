@@ -19,9 +19,9 @@ import { API_BASE_URL as API_URL } from '../config/index.js';
   /**
    * Get all reviews for landlord's properties
    */
-  async getLandlordReviews() {
+  async getLandlordReviews(params = {}) {
     try {
-      const response = await api.get(`/landlord/reviews`);
+      const response = await api.get(`/landlord/reviews`, { params });
       return { success: true, data: response.data.data || response.data };
     } catch (error) {
       console.error('Error fetching landlord reviews:', error);

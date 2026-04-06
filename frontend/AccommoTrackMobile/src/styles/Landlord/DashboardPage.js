@@ -1,6 +1,6 @@
 import { StyleSheet, Dimensions } from 'react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const actionCardSize = 80;
 
 export const getStyles = (theme) => StyleSheet.create({
@@ -107,13 +107,13 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 16
   },
-  statsGrid: {
+  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
+    gap: 10,
+    paddingRight: 6
   },
   statCard: {
-    width: '48%',
+    width: Math.min(230, Math.max(185, screenWidth * 0.62)),
     backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
@@ -126,6 +126,7 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 2,
+    marginRight: 2,
   },
   statCardLeft: {
     alignItems: 'center',
@@ -285,6 +286,72 @@ export const getStyles = (theme) => StyleSheet.create({
   quickActionsSection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
+  },
+  quickActionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quickActionsMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  quickActionsMoreText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  quickActionsModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  quickActionsModalCard: {
+    width: Math.min(screenWidth - 32, 380),
+    maxHeight: Math.min(screenHeight * 0.7 + 10, screenHeight - 32),
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  quickActionsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  quickActionsModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  quickActionsModalClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  quickActionsModalBody: {
+    paddingHorizontal: 8,
+  },
+  quickActionsModalGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 5,
   },
   actionArrow: {
     marginTop: 2

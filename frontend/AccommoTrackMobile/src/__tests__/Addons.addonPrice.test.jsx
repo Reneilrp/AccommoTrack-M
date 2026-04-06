@@ -8,7 +8,7 @@ jest.mock('../contexts/ThemeContext.jsx', () => ({
     theme: {
       isDark: false,
       colors: {
-        primary: '#059669',
+        primary: '#16a34a',
         text: '#0f172a',
         textSecondary: '#475569',
         textTertiary: '#94a3b8',

@@ -223,9 +223,10 @@ class BookingService
             $reservationFeeEnabled = ! $reservationFeeTemporarilyDisabled
                 && (bool) ($room->property->require_reservation_fee ?? false);
             $reservationFeeAmount = (float) ($room->property->reservation_fee ?? 0);
+            $reservationFeeThresholdDays = max(0, (int) ($room->property->reservation_fee_gap_days ?? 3));
             $requiresReservationFee = $reservationFeeEnabled
                 && $reservationFeeAmount > 0
-                && $daysUntilMoveIn > 3;
+                && $daysUntilMoveIn > $reservationFeeThresholdDays;
 
             $requestedPaymentPlan = $data['payment_plan'] ?? 'full';
             if ($contractMode === 'daily') {

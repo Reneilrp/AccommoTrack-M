@@ -109,8 +109,13 @@ export default function MessagesPage({ navigation, route }) {
             case 'My Bookings':
                 rootNavigate('MyBookings');
                 break;
+            case 'Billing & Payments':
             case 'Payments':
                 rootNavigate('Payments');
+                break;
+            case 'Maintenance & Add-ons':
+            case 'Service Requests':
+                rootNavigate('ServiceRequests');
                 break;
             case 'Settings':
                 rootNavigate('Settings');

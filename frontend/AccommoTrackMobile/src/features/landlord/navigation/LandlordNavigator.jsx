@@ -5,6 +5,7 @@ import LandlordBottomNavigation from '../components/LandlordBottomNavigation.jsx
 
 // Import screens
 import LandlordDashboard from '../screens/Dashboard/DashboardPage.jsx';
+import CaretakerDashboard from '../screens/Dashboard/CaretakerDashboard.jsx';
 import RoomManagement from '../screens/Rooms/RoomManagement.jsx';
 import Tenants from '../screens/Tenants/TenantManagement.jsx';
 import ChatScreen from '../screens/Messages/ChatScreen.jsx';
@@ -51,22 +52,27 @@ export default function LandlordNavigator({ onLogout }) {
           setUser(parsedUser);
           setUserRole(parsedUser.role || 'landlord');
         }
-      } catch (e) {}
+      } catch (_error) {}
     };
     checkRole();
   }, []);
 
   const isCaretaker = userRole === 'caretaker';
-  const permissions = user?.caretaker_permissions || {};
+  const permissions = React.useMemo(() => user?.caretaker_permissions || {}, [user?.caretaker_permissions]);
   const hasPermission = React.useCallback(
     (key) => {
       if (!isCaretaker) return true;
-      return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
+      return Boolean(
+        permissions?.[key]
+        || permissions?.[`can_view_${key}`]
+        || permissions?.[`can_manage_${key}`]
+      );
     },
     [isCaretaker, permissions]
   );
 
   const canAccessRooms = hasPermission('rooms');
+  const canAccessMaintenance = hasPermission('maintenance');
   const canAccessBookings = hasPermission('bookings');
   const canAccessTenants = hasPermission('tenants');
   const canAccessMessages = hasPermission('messages');
@@ -74,12 +80,13 @@ export default function LandlordNavigator({ onLogout }) {
   const canAccessPropertyManagement = !isCaretaker || hasPermission('properties');
   const canAccessMyProperties = canAccessPropertyManagement;
   const canAccessAnalytics = !isCaretaker;
-  const canAccessPayments = !isCaretaker;
+  const canAccessPayments = !isCaretaker || hasPermission('payments');
   const canAccessReviews = !isCaretaker;
   const canAccessAddonManagement = !isCaretaker;
   const canAccessNotifications = !isCaretaker;
   const canAccessPropertyActivityLogs = !isCaretaker;
   const canAccessPropertyPaymentSettings = !isCaretaker;
+  const dashboardComponent = isCaretaker ? CaretakerDashboard : LandlordDashboard;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -92,7 +99,10 @@ export default function LandlordNavigator({ onLogout }) {
       {canAccessMyProperties && (
         <Stack.Screen name="MyProperties" component={MyProperties} options={{ animation: 'none' }}/>
       )}
-      <Stack.Screen name="DashboardPage" component={LandlordDashboard} options={{ animation: 'none' }}/>
+      <Stack.Screen name="DashboardPage" component={dashboardComponent} options={{ animation: 'none' }}/>
+      {isCaretaker && (
+        <Stack.Screen name="CaretakerDashboard" component={CaretakerDashboard} options={{ animation: 'none' }}/>
+      )}
       {canAccessTenants && (
         <Stack.Screen name="Tenants" component={Tenants} options={{ animation: 'none' }}/>
       )}
@@ -139,7 +149,7 @@ export default function LandlordNavigator({ onLogout }) {
       {canAccessTenants && (
         <Stack.Screen name="TransferRequests" component={TransferRequests} options={{ animation: 'none' }} />
       )}
-      {canAccessRooms && (
+      {canAccessMaintenance && (
         <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />
       )}
       {canAccessReviews && (

@@ -276,12 +276,40 @@ export default function PropertyDetails({ propertyId, onBack }) {
     try {
       setLoading(true);
 
-      // --- FIX: USE PUBLIC ROUTE ---
-      // Changed from '/landlord/properties/...' to '/public/properties/...'
-      // This allows guests to view data without being redirected to login.
-      const res = await api.get(`/public/properties/${propertyId}`);
+      // Authenticated tenants should use protected tenant endpoint so room
+      // resources include auth-aware compatibility flags (e.g., gender).
+      const endpointCandidates = isAuthenticated
+        ? [`/properties/${propertyId}`, `/public/properties/${propertyId}`]
+        : [`/public/properties/${propertyId}`];
 
-      const data = res.data;
+      let data = null;
+      let lastError = null;
+
+      for (let i = 0; i < endpointCandidates.length; i += 1) {
+        const endpoint = endpointCandidates[i];
+        try {
+          const res = await api.get(endpoint);
+          data = res.data;
+          break;
+        } catch (error) {
+          lastError = error;
+          const status = error?.response?.status;
+          const isLastAttempt = i === endpointCandidates.length - 1;
+
+          if (isLastAttempt) {
+            throw error;
+          }
+
+          // Fallback from protected endpoint to public endpoint only for auth errors.
+          if (status !== 401 && status !== 403) {
+            throw error;
+          }
+        }
+      }
+
+      if (!data && lastError) {
+        throw lastError;
+      }
 
       const images = (data.images || [])
         .map((img) => {
@@ -814,7 +842,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
     <div className="animate-in fade-in duration-300">
       <div className="flex items-center gap-2 mb-6">
         <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-          Guest Reviews
+          Reviews
         </h3>
         {reviews.summary?.average_rating && (
           <span className="px-2 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs font-bold rounded-full flex items-center gap-2">

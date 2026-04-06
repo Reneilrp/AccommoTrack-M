@@ -509,7 +509,7 @@ export default function Payments({ navigation, route }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#059669" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.loadingText}>Loading payments...</Text>
         </View>
       </SafeAreaView>
@@ -518,7 +518,7 @@ export default function Payments({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -598,9 +598,9 @@ export default function Payments({ navigation, route }) {
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
             {[
-              { label: statsRange === 'month' ? 'Collected (Month)' : 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
+              { label: statsRange === 'month' ? 'Collected (Month)' : 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
               { label: statsRange === 'month' ? 'Outstanding (Month)' : 'Outstanding', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
-              { label: statsRange === 'month' ? 'Paid (Month)' : 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#059669', bg: '#DCFCE7' },
+              { label: statsRange === 'month' ? 'Paid (Month)' : 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
               { label: statsRange === 'month' ? 'Pending (Month)' : 'Pending', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
               { label: statsRange === 'month' ? 'Overdue (Month)' : 'Overdue', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
             ].map((card, i) => (
@@ -623,8 +623,8 @@ export default function Payments({ navigation, route }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#059669']}
-            tintColor="#059669"
+            colors={['#16a34a']}
+            tintColor="#16a34a"
           />
         }
         ListEmptyComponent={
@@ -641,6 +641,9 @@ export default function Payments({ navigation, route }) {
         visible={showModal}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={() => setShowModal(false)}
       >
         <KeyboardAvoidingView
@@ -667,7 +670,7 @@ export default function Payments({ navigation, route }) {
                   </View>
                   <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Invoice Total</Text>
-                    <Text style={[styles.summaryValue, { color: '#059669' }]}>
+                    <Text style={[styles.summaryValue, { color: '#16a34a' }]}>
                       ₱{parseFloat(selectedInvoice?.amount || ((selectedInvoice?.amount_cents ?? 0) / 100)).toLocaleString()}
                     </Text>
                   </View>

@@ -9,6 +9,19 @@ class SystemToggle
 {
     public static function getBool(string $key, bool $default = false): bool
     {
+        if (app()->runningUnitTests()) {
+            try {
+                $setting = SystemSetting::query()->where('key', $key)->first();
+                if (! $setting) {
+                    return $default;
+                }
+
+                return self::normalizeBool($setting->value, $default);
+            } catch (\Throwable $e) {
+                return $default;
+            }
+        }
+
         $cacheKey = "system_setting_bool:{$key}";
 
         return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($key, $default) {

@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Platform,
   StatusBar,
   ActivityIndicator,
   Alert,
   RefreshControl,
   Modal
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { useQuery } from '@tanstack/react-query';
@@ -23,18 +24,23 @@ import {
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
 import AddonService from '../../../../services/AddonService.js';
+import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/AddonManagement.js';
 
 const EMPTY_ADDONS = [];
 const EMPTY_PENDING_REQUESTS = [];
 const EMPTY_ACTIVE_ADDONS_DATA = { activeAddons: [], summary: {} };
+const EMPTY_PROPERTIES = [];
 
 export default function AddonManagement({ route, navigation }) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const { propertyId, propertyTitle } = route.params || {};
+  const routePropertyId = route.params?.propertyId || route.params?.property?.id;
+  const routePropertyTitle = route.params?.propertyTitle || route.params?.property?.title || route.params?.property?.name;
 
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedPropertyId, setSelectedPropertyId] = useState(routePropertyId ? String(routePropertyId) : 'all');
   const [activeTab, setActiveTab] = useState('manage'); // 'manage', 'requests', 'active'
   const [showModal, setShowModal] = useState(false);
   const [showRejectNoteModal, setShowRejectNoteModal] = useState(false);
@@ -53,49 +59,200 @@ export default function AddonManagement({ route, navigation }) {
     is_active: true
   });
 
-  const addonsQuery = useQuery({
-    queryKey: landlordQueryKeys.propertyAddons(propertyId),
-    enabled: Boolean(propertyId),
+  const minFabDistance = Platform.OS === 'android' ? 72 : 30;
+  const fabBottomOffset = Math.max(insets.bottom + 18, minFabDistance);
+  const scrollBottomPadding = fabBottomOffset + 86;
+
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
     queryFn: async () => {
-      const response = await AddonService.getPropertyAddons(propertyId);
+      const response = await PropertyService.getMyProperties();
       if (!response.success) {
-        throw new Error(response.error || 'Failed to load add-ons');
+        throw new Error(response.error || 'Failed to load properties');
       }
 
-      return Array.isArray(response.data?.addons) ? response.data.addons : EMPTY_ADDONS;
+      return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const propertyLabelMap = useMemo(
+    () => new Map(properties.map((property) => [String(property.id), property.title || property.name || `Property ${property.id}`])),
+    [properties],
+  );
+  const propertyIds = useMemo(
+    () => properties
+      .map((property) => Number(property.id))
+      .filter((id) => Number.isFinite(id))
+      .sort((left, right) => left - right),
+    [properties],
+  );
+  const propertyIdsKey = useMemo(() => propertyIds.join(','), [propertyIds]);
+  const singlePropertyId = properties.length === 1 ? String(properties[0].id) : null;
+  const effectivePropertyScope = singlePropertyId || selectedPropertyId;
+  const showPropertySelector = properties.length > 1;
+  const canCreateAddon = properties.length > 0 && effectivePropertyScope !== 'all';
+  const selectedPropertyLabel = useMemo(() => {
+    if (effectivePropertyScope === 'all') return 'All Properties';
+    return propertyLabelMap.get(String(effectivePropertyScope)) || routePropertyTitle || 'Property';
+  }, [effectivePropertyScope, propertyLabelMap, routePropertyTitle]);
+
+  useEffect(() => {
+    if (singlePropertyId && selectedPropertyId !== singlePropertyId) {
+      setSelectedPropertyId(singlePropertyId);
+    }
+  }, [singlePropertyId, selectedPropertyId]);
+
+  useEffect(() => {
+    const nextRoutePropertyId = route?.params?.propertyId || route?.params?.property?.id;
+    if (!nextRoutePropertyId || singlePropertyId) return;
+    setSelectedPropertyId(String(nextRoutePropertyId));
+  }, [route?.params?.propertyId, route?.params?.property?.id, singlePropertyId]);
+
+  useEffect(() => {
+    if (singlePropertyId || selectedPropertyId === 'all') return;
+    const hasMatch = properties.some((property) => String(property.id) === String(selectedPropertyId));
+    if (!hasMatch) {
+      setSelectedPropertyId('all');
+    }
+  }, [properties, selectedPropertyId, singlePropertyId]);
+
+  const scopedPropertyIds = useMemo(() => {
+    if (propertyIds.length === 0) return [];
+    if (effectivePropertyScope === 'all') return propertyIds;
+
+    const parsed = Number(effectivePropertyScope);
+    if (!Number.isFinite(parsed)) return [];
+    return [parsed];
+  }, [effectivePropertyScope, propertyIds]);
+
+  const addonsQuery = useQuery({
+    queryKey: landlordQueryKeys.propertyAddons({ propertyScope: effectivePropertyScope, propertyIdsKey }),
+    enabled: !propertiesQuery.isPending,
+    queryFn: async () => {
+      if (scopedPropertyIds.length === 0) return EMPTY_ADDONS;
+
+      const results = await Promise.all(
+        scopedPropertyIds.map(async (currentPropertyId) => ({
+          propertyId: currentPropertyId,
+          response: await AddonService.getPropertyAddons(currentPropertyId),
+        })),
+      );
+
+      const successful = results.filter((item) => item.response?.success);
+      if (successful.length === 0) {
+        const firstError = results.find((item) => !item.response?.success)?.response?.error;
+        throw new Error(firstError || 'Failed to load add-ons');
+      }
+
+      return successful
+        .flatMap(({ propertyId: currentPropertyId, response }) => {
+          const list = Array.isArray(response.data?.addons) ? response.data.addons : EMPTY_ADDONS;
+          const propertyLabel = propertyLabelMap.get(String(currentPropertyId)) || `Property ${currentPropertyId}`;
+          return list.map((addon) => ({
+            ...addon,
+            propertyId: currentPropertyId,
+            propertyTitle: propertyLabel,
+          }));
+        })
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
     },
     placeholderData: (previousData) => previousData,
   });
 
   const pendingRequestsQuery = useQuery({
-    queryKey: landlordQueryKeys.addonPendingRequests(propertyId),
-    enabled: Boolean(propertyId),
+    queryKey: landlordQueryKeys.addonPendingRequests({ propertyScope: effectivePropertyScope, propertyIdsKey }),
+    enabled: !propertiesQuery.isPending,
     queryFn: async () => {
-      const response = await AddonService.getPendingRequests(propertyId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load pending add-on requests');
+      if (scopedPropertyIds.length === 0) return EMPTY_PENDING_REQUESTS;
+
+      const results = await Promise.all(
+        scopedPropertyIds.map(async (currentPropertyId) => ({
+          propertyId: currentPropertyId,
+          response: await AddonService.getPendingRequests(currentPropertyId),
+        })),
+      );
+
+      const successful = results.filter((item) => item.response?.success);
+      if (successful.length === 0) {
+        const firstError = results.find((item) => !item.response?.success)?.response?.error;
+        throw new Error(firstError || 'Failed to load pending add-on requests');
       }
 
-      return Array.isArray(response.data?.pendingRequests)
-        ? response.data.pendingRequests
-        : EMPTY_PENDING_REQUESTS;
+      return successful
+        .flatMap(({ propertyId: currentPropertyId, response }) => {
+          const list = Array.isArray(response.data?.pendingRequests)
+            ? response.data.pendingRequests
+            : EMPTY_PENDING_REQUESTS;
+          const propertyLabel = propertyLabelMap.get(String(currentPropertyId)) || `Property ${currentPropertyId}`;
+          return list.map((request) => ({
+            ...request,
+            propertyId: currentPropertyId,
+            propertyTitle: propertyLabel,
+          }));
+        })
+        .sort((a, b) => {
+          const left = new Date(a.requestedAt || a.requested_at || 0).getTime();
+          const right = new Date(b.requestedAt || b.requested_at || 0).getTime();
+          return right - left;
+        });
     },
     placeholderData: (previousData) => previousData,
   });
 
   const activeAddonsQuery = useQuery({
-    queryKey: landlordQueryKeys.addonActiveAddons(propertyId),
-    enabled: Boolean(propertyId),
+    queryKey: landlordQueryKeys.addonActiveAddons({ propertyScope: effectivePropertyScope, propertyIdsKey }),
+    enabled: !propertiesQuery.isPending,
     queryFn: async () => {
-      const response = await AddonService.getActiveAddons(propertyId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load active add-ons');
+      if (scopedPropertyIds.length === 0) return EMPTY_ACTIVE_ADDONS_DATA;
+
+      const results = await Promise.all(
+        scopedPropertyIds.map(async (currentPropertyId) => ({
+          propertyId: currentPropertyId,
+          response: await AddonService.getActiveAddons(currentPropertyId),
+        })),
+      );
+
+      const successful = results.filter((item) => item.response?.success);
+      if (successful.length === 0) {
+        const firstError = results.find((item) => !item.response?.success)?.response?.error;
+        throw new Error(firstError || 'Failed to load active add-ons');
       }
 
-      const payload = response.data || EMPTY_ACTIVE_ADDONS_DATA;
+      let totalActive = 0;
+      let monthlyRevenue = 0;
+
+      const activeAddons = successful
+        .flatMap(({ propertyId: currentPropertyId, response }) => {
+          const payload = response.data || EMPTY_ACTIVE_ADDONS_DATA;
+          const currentSummary = payload.summary || EMPTY_ACTIVE_ADDONS_DATA.summary;
+          const list = Array.isArray(payload.activeAddons)
+            ? payload.activeAddons
+            : EMPTY_ACTIVE_ADDONS_DATA.activeAddons;
+
+          totalActive += Number(currentSummary.totalActive ?? list.length) || 0;
+          monthlyRevenue += Number(currentSummary.monthlyRevenue || 0) || 0;
+
+          const propertyLabel = propertyLabelMap.get(String(currentPropertyId)) || `Property ${currentPropertyId}`;
+          return list.map((item) => ({
+            ...item,
+            propertyId: currentPropertyId,
+            propertyTitle: propertyLabel,
+          }));
+        })
+        .sort((a, b) => {
+          const left = new Date(a.approvedAt || 0).getTime();
+          const right = new Date(b.approvedAt || 0).getTime();
+          return right - left;
+        });
+
       return {
-        activeAddons: Array.isArray(payload.activeAddons) ? payload.activeAddons : EMPTY_ACTIVE_ADDONS_DATA.activeAddons,
-        summary: payload.summary || EMPTY_ACTIVE_ADDONS_DATA.summary,
+        activeAddons,
+        summary: {
+          totalActive,
+          monthlyRevenue,
+        },
       };
     },
     placeholderData: (previousData) => previousData,
@@ -105,34 +262,71 @@ export default function AddonManagement({ route, navigation }) {
   const pendingRequests = pendingRequestsQuery.data || EMPTY_PENDING_REQUESTS;
   const activeAddonsData = activeAddonsQuery.data || EMPTY_ACTIVE_ADDONS_DATA;
   const loading =
+    (propertiesQuery.isPending && properties.length === 0)
+    ||
     (addonsQuery.isPending && addons.length === 0)
     || (pendingRequestsQuery.isPending && pendingRequests.length === 0)
     || (activeAddonsQuery.isPending && !activeAddonsQuery.data);
   const errorMessage =
+    propertiesQuery.error?.message
+    ||
     addonsQuery.error?.message
     || pendingRequestsQuery.error?.message
     || activeAddonsQuery.error?.message
     || '';
 
+  const refetchProperties = propertiesQuery.refetch;
   const refetchAddons = addonsQuery.refetch;
   const refetchPendingRequests = pendingRequestsQuery.refetch;
   const refetchActiveAddons = activeAddonsQuery.refetch;
-  const addonRefetchers = React.useMemo(
-    () => [refetchAddons, refetchPendingRequests, refetchActiveAddons],
-    [refetchAddons, refetchPendingRequests, refetchActiveAddons],
+  const addonRefetchers = useMemo(
+    () => [refetchProperties, refetchAddons, refetchPendingRequests, refetchActiveAddons],
+    [refetchProperties, refetchAddons, refetchPendingRequests, refetchActiveAddons],
   );
 
-  useLandlordFocusRefetch({ enabled: Boolean(propertyId), refetchers: addonRefetchers });
+  useLandlordFocusRefetch({ refetchers: addonRefetchers });
 
   const handleRefresh = useLandlordRefreshHandler({
-    enabled: Boolean(propertyId),
     setRefreshing,
     refetchers: addonRefetchers,
   });
 
+  const resolveMutationPropertyId = () => {
+    if (editingAddon?.propertyId) {
+      const parsedEditingPropertyId = Number(editingAddon.propertyId);
+      return Number.isFinite(parsedEditingPropertyId) ? parsedEditingPropertyId : null;
+    }
+
+    if (effectivePropertyScope === 'all') return null;
+
+    const parsedScope = Number(effectivePropertyScope);
+    return Number.isFinite(parsedScope) ? parsedScope : null;
+  };
+
+  const handleOpenCreateModal = () => {
+    if (properties.length === 0) {
+      Alert.alert('No Properties', 'Create a property first before adding usage fees.');
+      return;
+    }
+
+    if (effectivePropertyScope === 'all') {
+      Alert.alert('Select Property', 'Select a specific property before creating a new add-on.');
+      return;
+    }
+
+    resetForm();
+    setShowModal(true);
+  };
+
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.price) {
       Alert.alert('Validation', 'Name and Price are required.');
+      return;
+    }
+
+    const targetPropertyId = resolveMutationPropertyId();
+    if (!targetPropertyId) {
+      Alert.alert('Select Property', 'Select a specific property before saving this add-on.');
       return;
     }
 
@@ -146,9 +340,9 @@ export default function AddonManagement({ route, navigation }) {
 
       let res;
       if (editingAddon) {
-        res = await AddonService.updateAddon(propertyId, editingAddon.id, data);
+        res = await AddonService.updateAddon(targetPropertyId, editingAddon.id, data);
       } else {
-        res = await AddonService.createAddon(propertyId, data);
+        res = await AddonService.createAddon(targetPropertyId, data);
       }
 
       if (res.success) {
@@ -165,7 +359,13 @@ export default function AddonManagement({ route, navigation }) {
     }
   };
 
-  const handleDelete = (addonId) => {
+  const handleDelete = (addon) => {
+    const targetPropertyId = Number(addon?.propertyId);
+    if (!Number.isFinite(targetPropertyId)) {
+      Alert.alert('Error', 'Unable to determine the property for this add-on.');
+      return;
+    }
+
     Alert.alert(
       'Delete Add-on',
       'Are you sure you want to delete this add-on? This action cannot be undone.',
@@ -175,7 +375,7 @@ export default function AddonManagement({ route, navigation }) {
           text: 'Delete', 
           style: 'destructive',
           onPress: async () => {
-            const res = await AddonService.deleteAddon(propertyId, addonId);
+            const res = await AddonService.deleteAddon(targetPropertyId, addon.id);
             if (res.success) {
               await refetchLandlordQueries(addonRefetchers);
             } else {
@@ -270,6 +470,9 @@ export default function AddonManagement({ route, navigation }) {
             <View style={styles.addonHeader}>
               <View style={styles.addonNameContainer}>
                 <Text style={styles.addonName}>{addon.name}</Text>
+                {effectivePropertyScope === 'all' ? (
+                  <Text style={[styles.tenantRoom, { marginTop: 2 }]}>{addon.propertyTitle}</Text>
+                ) : null}
                 {!addon.is_active && (
                   <View style={styles.inactiveBadge}>
                     <Text style={styles.inactiveBadgeText}>Inactive</Text>
@@ -285,7 +488,7 @@ export default function AddonManagement({ route, navigation }) {
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.actionIconButton, styles.deleteIconButton]}
-                  onPress={() => handleDelete(addon.id)}
+                  onPress={() => handleDelete(addon)}
                 >
                   <Ionicons name="trash-outline" size={16} color="#DC2626" />
                 </TouchableOpacity>
@@ -343,6 +546,9 @@ export default function AddonManagement({ route, navigation }) {
                   <Text style={styles.tenantName}>{request.tenant.name}</Text>
                   <Text style={styles.tenantRoom}>Room {request.roomNumber}</Text>
                 </View>
+                {effectivePropertyScope === 'all' ? (
+                  <Text style={[styles.tenantRoom, { marginTop: 2 }]}>{request.propertyTitle}</Text>
+                ) : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.addonPrice}>₱{parseFloat(request.price).toLocaleString()}</Text>
@@ -409,6 +615,9 @@ export default function AddonManagement({ route, navigation }) {
                 <Text style={styles.addonName}>{item.addonName}</Text>
                 <Text style={styles.tenantName}>{item.tenantName}</Text>
                 <Text style={styles.tenantRoom}>Room {item.roomNumber}</Text>
+                {effectivePropertyScope === 'all' ? (
+                  <Text style={[styles.tenantRoom, { marginTop: 2 }]}>{item.propertyTitle}</Text>
+                ) : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.addonPrice}>
@@ -435,9 +644,9 @@ export default function AddonManagement({ route, navigation }) {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#059669" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.loadingText}>Loading add-on data...</Text>
         </View>
       </SafeAreaView>
@@ -446,7 +655,7 @@ export default function AddonManagement({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -454,20 +663,58 @@ export default function AddonManagement({ route, navigation }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add-on Management</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.headerSubtitle}>
         <Text style={styles.subtitleText}>
-          {propertyTitle || 'Manage usage fees'} • Extra usage fees and rentals
+          {selectedPropertyLabel} • Extra usage fees and rentals
         </Text>
-        <TouchableOpacity 
-          style={styles.addServiceButton}
-          onPress={() => { resetForm(); setShowModal(true); }}
-        >
-          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-          <Text style={styles.addServiceButtonText}>Add New Usage Fee</Text>
-        </TouchableOpacity>
       </View>
+
+      {showPropertySelector ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            <TouchableOpacity
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: selectedPropertyId === 'all' ? theme.colors.primary : theme.colors.border,
+                backgroundColor: selectedPropertyId === 'all' ? theme.colors.primary : theme.colors.surface,
+              }}
+              onPress={() => setSelectedPropertyId('all')}
+            >
+              <Text style={{ color: selectedPropertyId === 'all' ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                All Properties
+              </Text>
+            </TouchableOpacity>
+            {properties.map((property) => {
+              const propertyKey = String(property.id);
+              const isActive = propertyKey === selectedPropertyId;
+              return (
+                <TouchableOpacity
+                  key={property.id}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: isActive ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: isActive ? theme.colors.primary : theme.colors.surface,
+                  }}
+                  onPress={() => setSelectedPropertyId(propertyKey)}
+                >
+                  <Text style={{ color: isActive ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                    {property.title || property.name || `Property ${property.id}`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
@@ -501,13 +748,13 @@ export default function AddonManagement({ route, navigation }) {
       </View>
 
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#059669']}
-            tintColor="#059669"
+            colors={['#16a34a']}
+            tintColor="#16a34a"
           />
         }
       >
@@ -523,11 +770,22 @@ export default function AddonManagement({ route, navigation }) {
         {activeTab === 'active' && renderActiveTab()}
       </ScrollView>
 
+      <TouchableOpacity
+        style={[styles.fabButton, { bottom: fabBottomOffset }, !canCreateAddon && styles.fabButtonMuted]}
+        onPress={handleOpenCreateModal}
+        activeOpacity={0.88}
+      >
+        <Ionicons name="add" size={30} color="#FFFFFF" />
+      </TouchableOpacity>
+
       {/* Form Modal */}
       <Modal
         visible={showModal}
         animationType="slide"
         transparent={true}
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={() => setShowModal(false)}
       >
         <View style={styles.modalOverlay}>
@@ -578,6 +836,9 @@ export default function AddonManagement({ route, navigation }) {
                     <Picker
                       selectedValue={formData.price_type}
                       onValueChange={(value) => setFormData({ ...formData, price_type: value })}
+                      mode="dropdown"
+                      itemStyle={styles.pickerItem}
+                      dropdownIconColor={theme.colors.textSecondary}
                       style={styles.picker}
                     >
                       <Picker.Item label="Monthly" value="monthly" />
@@ -594,6 +855,9 @@ export default function AddonManagement({ route, navigation }) {
                     <Picker
                       selectedValue={formData.addon_type}
                       onValueChange={(value) => setFormData({ ...formData, addon_type: value })}
+                      mode="dropdown"
+                      itemStyle={styles.pickerItem}
+                      dropdownIconColor={theme.colors.textSecondary}
                       style={styles.picker}
                     >
                       <Picker.Item label="Usage Fee" value="fee" />
@@ -652,6 +916,9 @@ export default function AddonManagement({ route, navigation }) {
         visible={showRejectNoteModal}
         animationType="fade"
         transparent={true}
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={() => {
           setShowRejectNoteModal(false);
           setRejectContext(null);

@@ -971,7 +971,13 @@ export default function MyBookings() {
                     }
                   ]}
                   disabled={booking.paymentStatus === 'refunded'}
-                  onPress={() => navigation.navigate('Addons', { bookingId: booking.id })}
+                  onPress={() =>
+                    navigation.navigate('ServiceRequests', {
+                      initialTab: 'Add-ons',
+                      bookingId: booking.id,
+                      propertyId: property.id,
+                    })
+                  }
                 >
                    <Text style={styles.stayHeaderBtnText}>+ Request</Text>
                 </TouchableOpacity>
@@ -1233,6 +1239,9 @@ export default function MyBookings() {
         visible={showTransferModal}
         animationType="fade"
         transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={closeTransferModal}
       >
         <View style={{
@@ -1458,7 +1467,7 @@ export default function MyBookings() {
                                 padding: 10, borderRadius: 8,
                                 backgroundColor: theme.isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5',
                               }}>
-                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#16a34a' }}>
                                   ✅ Estimated Credit: {formatCurrency(Math.abs(transferPreview.suggested_adjustment))}
                                 </Text>
                                 <Text style={{ fontSize: 11, color: '#047857', marginTop: 2 }}>

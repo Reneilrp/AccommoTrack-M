@@ -10,19 +10,30 @@ export const getStyles = (theme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    justifyContent: 'space-between',
+    height: 60,
+    paddingHorizontal: 8,
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textInverse,
-    marginLeft: 16,
+    textAlign: 'center',
+    marginHorizontal: 0,
+  },
+  headerSpacer: {
+    width: 48,
+    height: 48,
   },
   headerSubtitle: {
     paddingHorizontal: 16,
@@ -34,21 +45,6 @@ export const getStyles = (theme) => StyleSheet.create({
   subtitleText: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-  },
-  addServiceButton: {
-    marginTop: 16,
-    backgroundColor: theme.colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 8,
-  },
-  addServiceButtonText: {
-    color: theme.colors.textInverse,
-    fontWeight: '700',
-    fontSize: 14,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -98,7 +94,26 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 24,
+  },
+  fabButton: {
+    position: 'absolute',
+    right: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: theme.isDark ? 0.38 : 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 12,
+  },
+  fabButtonMuted: {
+    opacity: 0.68,
   },
   loadingContainer: {
     flex: 1,
@@ -459,11 +474,16 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 8,
-    overflow: 'hidden',
+    minHeight: 52,
+    justifyContent: 'center',
   },
   picker: {
-    height: 44,
+    height: 52,
     width: '100%',
+    color: theme.colors.text,
+  },
+  pickerItem: {
+    fontSize: 15,
     color: theme.colors.text,
   },
   checkboxContainer: {

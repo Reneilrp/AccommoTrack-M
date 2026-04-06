@@ -48,39 +48,34 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingBottom: 40
   },
   propertySelector: {
-    marginTop: 16,
+    marginTop: 0,
   },
   propertyScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 16
+    paddingTop: 12,
+    gap: 8,
   },
   propertyChip: {
-    width: 150,
-    padding: 16,
-    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
-    marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: theme.isDark ? 0.3 : 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: theme.isDark ? 1 : 0,
-    borderColor: theme.colors.border
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   propertyChipActive: {
-    borderWidth: 2,
-    borderColor: theme.colors.primary
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   propertyChipTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.text
-  },
-  propertyChipMeta: {
     fontSize: 12,
+    fontWeight: '600',
     color: theme.colors.textSecondary,
-    marginTop: 8
+  },
+  propertyChipTitleActive: {
+    color: '#FFFFFF',
   },
   statsRow: {
     flexDirection: 'row',
@@ -168,13 +163,27 @@ export const getStyles = (theme) => StyleSheet.create({
     height: 190,
     backgroundColor: theme.colors.backgroundTertiary
   },
-  statusBadge: {
+  imageOverlayRow: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 14,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    zIndex: 30
+  },
+  statusBadge: {
     borderRadius: 999,
     paddingHorizontal: 14,
-    paddingVertical: 6
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.75)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3
   },
   statusText: {
     fontSize: 12,
@@ -210,6 +219,57 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 11,
     color: theme.colors.textTertiary,
     marginTop: 2
+  },
+  roomMenuAnchor: {
+    position: 'relative',
+    alignItems: 'flex-end'
+  },
+  roomMenuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border
+  },
+  roomMenuButtonActive: {
+    backgroundColor: theme.isDark ? '#334155' : '#E2E8F0'
+  },
+  roomMenuSheet: {
+    position: 'absolute',
+    top: 38,
+    right: 0,
+    minWidth: 168,
+    borderRadius: 12,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: theme.isDark ? 0.35 : 0.12,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: 'hidden',
+    zIndex: 20
+  },
+  roomMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight
+  },
+  roomMenuItemLast: {
+    borderBottomWidth: 0
+  },
+  roomMenuItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text
   },
   capacityRow: {
     flexDirection: 'row',

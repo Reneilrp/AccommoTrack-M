@@ -5,6 +5,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import TransferRequests from '../features/landlord/screens/Tenants/TransferRequests.jsx';
 import PropertyService from '../services/PropertyService.js';
 
+jest.setTimeout(20000);
+
 const mockNavigation = {
   goBack: jest.fn(),
   navigate: jest.fn(),
@@ -25,7 +27,7 @@ jest.mock('../contexts/ThemeContext.jsx', () => ({
     theme: {
       isDark: false,
       colors: {
-        primary: '#059669',
+        primary: '#16a34a',
         text: '#0f172a',
         textSecondary: '#475569',
         textTertiary: '#94a3b8',
@@ -53,6 +55,7 @@ jest.mock('@expo/vector-icons', () => ({
 jest.mock('../services/PropertyService.js', () => ({
   __esModule: true,
   default: {
+    getMyProperties: jest.fn(),
     getTransferRequests: jest.fn(),
     getTransferProration: jest.fn(),
     handleTransferRequest: jest.fn(),
@@ -97,6 +100,11 @@ const renderWithQueryClient = (ui) => {
 describe('TransferRequests screen (mobile)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    PropertyService.getMyProperties.mockResolvedValue({
+      success: true,
+      data: [{ id: 1, title: 'Dorm One' }],
+    });
 
     PropertyService.getTransferRequests.mockResolvedValue({
       success: true,

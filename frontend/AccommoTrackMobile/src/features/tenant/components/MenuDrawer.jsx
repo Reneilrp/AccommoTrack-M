@@ -59,7 +59,7 @@ export default function MenuDrawer({
     },
     {
       id: 5,
-      title: "Payments",
+      title: "Billing & Payments",
       icon: "wallet-outline",
       color: theme.colors.primary,
     },
@@ -149,7 +149,7 @@ export default function MenuDrawer({
 
     // If guest, exclude protected modules, but KEEP 'Settings' in the list if it's there
     if (isGuest) {
-      const protectedTitles = ["Notifications", "Service Requests", "Payments"];
+      const protectedTitles = ["Notifications", "Service Requests", "Maintenance & Add-ons", "Billing & Payments"];
       if (protectedTitles.includes(item.title)) return false;
       return true; // includes Settings if it's in allMenuItems and not excluded
     }
@@ -171,6 +171,8 @@ export default function MenuDrawer({
       visible={modalVisible}
       onRequestClose={handleClose}
       statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+      presentationStyle="overFullScreen"
     >
       <View style={styles.fullFlex}>
         {/* Backdrop with fade animation */}
@@ -246,7 +248,7 @@ export default function MenuDrawer({
                 <Ionicons name={item.icon} size={24} color={item.color} />
                 <Text style={styles.menuItemText}>{item.title}</Text>
                 {/* Render compact badge for specific menu items */}
-                {item.title === "Payments" && (
+                {item.title === "Billing & Payments" && (
                   <NotificationBadge type="payments" compact={true} />
                 )}
                 {item.title === "My Bookings" && (

@@ -636,6 +636,9 @@ export default function AddProperty({ navigation }) {
       visible={successModal.visible}
       transparent
       animationType="fade"
+      statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+      presentationStyle="overFullScreen"
       onRequestClose={() => {
         setSuccessModal({ visible: false, isDraft: false });
         navigation.goBack();
@@ -647,7 +650,7 @@ export default function AddProperty({ navigation }) {
             <Ionicons
               name={successModal.isDraft ? "document-text" : "checkmark-circle"}
               size={48}
-              color="#059669"
+              color="#16a34a"
             />
           </View>
           <Text style={styles.successTitle}>
@@ -1163,7 +1166,7 @@ export default function AddProperty({ navigation }) {
                       <Ionicons
                         name="checkmark-circle"
                         size={18}
-                        color="#059669"
+                        color="#16a34a"
                       />
                       <Text style={[styles.inputHalf, { fontSize: 14 }]}>
                         {rule}
@@ -1424,7 +1427,7 @@ export default function AddProperty({ navigation }) {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#059669" />
+              <ActivityIndicator size="small" color="#16a34a" />
             ) : (
               <Text style={[styles.buttonText, styles.buttonTextDraft]}>
                 Save Draft

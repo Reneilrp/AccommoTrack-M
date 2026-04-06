@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,10 +72,55 @@ const isEvictionDue = (tenant) => {
   return new Date(scheduledFor).getTime() <= Date.now();
 };
 
+const parseAmount = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+};
+
+const resolveTenantMonthlyRent = (tenant, room) => {
+  const monthlyCandidates = [
+    tenant?.latestBooking?.monthly_rent,
+    tenant?.latestBooking?.monthlyRent,
+    tenant?.latestBooking?.room?.monthly_rate,
+    tenant?.latestBooking?.room?.price,
+    tenant?.latestBooking?.room?.unit_price,
+    room?.monthly_rate,
+    room?.price,
+    room?.unit_price,
+  ];
+
+  for (const candidate of monthlyCandidates) {
+    const amount = parseAmount(candidate);
+    if (amount !== null && amount > 0) {
+      return { amount, estimated: false };
+    }
+  }
+
+  const dailyCandidates = [
+    tenant?.latestBooking?.room?.daily_rate,
+    room?.daily_rate,
+  ];
+
+  for (const candidate of dailyCandidates) {
+    const dailyRate = parseAmount(candidate);
+    if (dailyRate !== null && dailyRate > 0) {
+      return { amount: dailyRate * 30, estimated: true };
+    }
+  }
+
+  return { amount: null, estimated: false };
+};
+
 export default function TenantsScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const { width: screenWidth } = useWindowDimensions();
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
+  const statCardWidth = useMemo(() => {
+    const visibleArea = Math.max(240, screenWidth - 48);
+    return Math.max(132, Math.round(visibleArea / 2.25));
+  }, [screenWidth]);
 
   const [selectedPropertyId, setSelectedPropertyId] = useState(preselectedPropertyId || null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,7 +131,7 @@ export default function TenantsScreen({ navigation, route }) {
   const [detailTenant, setDetailTenant] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
 
-  const [selectedTenants, setSelectedTenants] = useState([]);
+  const [openActionsTenantId, setOpenActionsTenantId] = useState(null);
 
   const [transferVisible, setTransferVisible] = useState(false);
   const [transferringTenant, setTransferringTenant] = useState(null);
@@ -120,10 +166,6 @@ export default function TenantsScreen({ navigation, route }) {
   const [evictionReason, setEvictionReason] = useState('');
   const [evictionGraceHours, setEvictionGraceHours] = useState('24');
   const [isEvicting, setIsEvicting] = useState(false);
-
-  const [broadcastVisible, setBroadcastVisible] = useState(false);
-  const [broadcastMessage, setBroadcastMessage] = useState('');
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -208,7 +250,7 @@ export default function TenantsScreen({ navigation, route }) {
   }, [tenants, searchQuery, filter]);
 
   useEffect(() => {
-    setSelectedTenants([]);
+    setOpenActionsTenantId(null);
   }, [searchQuery, filter, selectedPropertyId]);
 
   useEffect(() => {
@@ -216,22 +258,6 @@ export default function TenantsScreen({ navigation, route }) {
       setSelectedPropertyId(normalizeId(properties[0].id));
     }
   }, [selectedPropertyId, properties]);
-
-  const handleSelectTenant = (tenantId) => {
-    setSelectedTenants((current) => (
-      current.includes(tenantId)
-        ? current.filter((id) => id !== tenantId)
-        : [...current, tenantId]
-    ));
-  };
-
-  const handleSelectAll = () => {
-    if (selectedTenants.length === filteredTenants.length) {
-      setSelectedTenants([]);
-      return;
-    }
-    setSelectedTenants(filteredTenants.map((tenant) => tenant.id));
-  };
 
   const handleTransferInitiate = async (tenant) => {
     const propertyId = tenant.room?.property_id || selectedPropertyId;
@@ -484,32 +510,11 @@ export default function TenantsScreen({ navigation, route }) {
     }
   };
 
-  const handleSendBroadcast = async () => {
-    if (!broadcastMessage.trim()) {
-      Alert.alert('Required', 'Message cannot be empty.');
-      return;
-    }
-    if (selectedTenants.length === 0) {
-      Alert.alert('No selection', 'Please select at least one tenant.');
-      return;
-    }
-
-    setIsBroadcasting(true);
-    try {
-      const response = await PropertyService.broadcastToTenants(selectedTenants, broadcastMessage.trim());
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to send broadcast.');
-      }
-      setBroadcastVisible(false);
-      setBroadcastMessage('');
-      setActionError('');
-      Alert.alert('Success', `Message sent to ${selectedTenants.length} tenant(s).`);
-    } catch (broadcastError) {
-      setActionError(broadcastError.message || 'Failed to send broadcast.');
-      Alert.alert('Error', broadcastError.message || 'Failed to send broadcast.');
-    } finally {
-      setIsBroadcasting(false);
-    }
+  const openTenantLogs = (tenant) => {
+    navigation.navigate('TenantLogs', {
+      tenantId: tenant.id,
+      tenantName: `${tenant.first_name} ${tenant.last_name}`,
+    });
   };
 
   const renderTenantCard = ({ item }) => {
@@ -518,145 +523,217 @@ export default function TenantsScreen({ navigation, route }) {
     const initials = (item.first_name?.[0] || '') + (item.last_name?.[0] || '');
 
     const currentRoom = item.room || (item.roomAssignments && item.roomAssignments.length > 0 ? item.roomAssignments[0] : null);
+    const monthlyRent = resolveTenantMonthlyRent(item, currentRoom);
     const hasPendingEviction = Boolean(item.pending_eviction);
     const canUndoEviction = Boolean(item.can_undo_eviction);
     const evictionDue = isEvictionDue(item);
+    const isActionMenuOpen = openActionsTenantId === item.id;
 
     return (
       <View style={styles.tenantCard}>
-        <TouchableOpacity style={styles.selectCheckbox} onPress={() => handleSelectTenant(item.id)}>
-          <Ionicons
-            name={selectedTenants.includes(item.id) ? 'checkbox' : 'square-outline'}
-            size={20}
-            color={selectedTenants.includes(item.id) ? '#059669' : '#94A3B8'}
-          />
-        </TouchableOpacity>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>{initials || 'TN'}</Text>
-        </View>
-        <View style={styles.tenantContent}>
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.tenantName}>{item.first_name} {item.last_name}</Text>
-              <Text style={styles.tenantEmail}>{item.email}</Text>
+        <View style={styles.tenantMenuAnchor}>
+          <TouchableOpacity
+            style={[styles.moreActionsTrigger, isActionMenuOpen ? styles.moreActionsTriggerActive : null]}
+            onPress={() => setOpenActionsTenantId((current) => (current === item.id ? null : item.id))}
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+
+          {isActionMenuOpen && (
+            <View style={styles.moreActionsMenu}>
+              <TouchableOpacity
+                style={styles.moreActionItem}
+                onPress={() => {
+                  setOpenActionsTenantId(null);
+                  setDetailTenant(item);
+                  setDetailVisible(true);
+                }}
+              >
+                <Ionicons name="eye-outline" size={16} color="#475569" />
+                <Text style={styles.moreActionLabel}>View Profile</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.moreActionItem, (currentRoom || hasPendingEviction) ? styles.moreActionItemDisabled : null]}
+                onPress={() => {
+                  setOpenActionsTenantId(null);
+                  handleAssignInitiate(item);
+                }}
+                disabled={!!currentRoom || hasPendingEviction}
+              >
+                <Ionicons name="person-add-outline" size={16} color="#16a34a" />
+                <Text style={styles.moreActionLabel}>Assign Room</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.moreActionItem, (!currentRoom || hasPendingEviction) ? styles.moreActionItemDisabled : null]}
+                onPress={() => {
+                  setOpenActionsTenantId(null);
+                  handleUnassignInitiate(item);
+                }}
+                disabled={!currentRoom || hasPendingEviction}
+              >
+                <Ionicons name="person-outline" size={16} color="#B45309" />
+                <Text style={styles.moreActionLabel}>Unassign Room</Text>
+              </TouchableOpacity>
+
+              {!hasPendingEviction && (
+                <TouchableOpacity
+                  style={styles.moreActionItem}
+                  onPress={() => {
+                    setOpenActionsTenantId(null);
+                    handleEvictionInitiate(item);
+                  }}
+                >
+                  <Ionicons name="person-remove-outline" size={16} color="#DC2626" />
+                  <Text style={styles.moreActionLabel}>Schedule Eviction</Text>
+                </TouchableOpacity>
+              )}
+
+              {hasPendingEviction && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.moreActionItem, !evictionDue ? styles.moreActionItemDisabled : null]}
+                    onPress={() => {
+                      setOpenActionsTenantId(null);
+                      Alert.alert(
+                        'Finalize eviction',
+                        `Finalize eviction for ${item.first_name} ${item.last_name}?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Finalize', style: 'destructive', onPress: () => handleFinalizeEviction(item) },
+                        ]
+                      );
+                    }}
+                    disabled={!evictionDue}
+                  >
+                    <Ionicons name="checkmark-done-outline" size={16} color="#DC2626" />
+                    <Text style={styles.moreActionLabel}>Finalize Eviction</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.moreActionItem}
+                    onPress={() => {
+                      setOpenActionsTenantId(null);
+                      Alert.alert(
+                        'Cancel eviction schedule',
+                        `Cancel pending eviction for ${item.first_name} ${item.last_name}?`,
+                        [
+                          { text: 'Keep schedule', style: 'cancel' },
+                          { text: 'Cancel schedule', style: 'destructive', onPress: () => handleCancelEviction(item) },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="close-circle-outline" size={16} color="#D97706" />
+                    <Text style={styles.moreActionLabel}>Cancel Eviction</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {canUndoEviction && !hasPendingEviction && (
+                <TouchableOpacity
+                  style={styles.moreActionItem}
+                  onPress={() => {
+                    setOpenActionsTenantId(null);
+                    Alert.alert(
+                      'Undo eviction',
+                      `Restore tenancy for ${item.first_name} ${item.last_name}?`,
+                      [
+                        { text: 'No', style: 'cancel' },
+                        { text: 'Undo', onPress: () => handleUndoEviction(item) },
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="refresh-outline" size={16} color="#2563EB" />
+                  <Text style={styles.moreActionLabel}>Undo Eviction</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
-          <View style={styles.roomRow}>
-            <Ionicons name="bed-outline" size={16} color="#059669" />
-            <Text style={styles.roomText}>
-              {currentRoom ? `Room ${currentRoom.room_number}` : 'No room assigned'}
-            </Text>
-          </View>
-          {hasPendingEviction && (
-            <Text style={[styles.helperText, { marginTop: 6, color: '#B91C1C' }]}>
-              Eviction scheduled for {new Date(item.pending_eviction.scheduled_for).toLocaleString()}
-            </Text>
           )}
-          <View style={styles.metaRow}>
-            <View>
-              <Text style={styles.metaLabel}>Monthly Rent</Text>
-              <Text style={styles.metaValue}>{currentRoom ? formatCurrency(currentRoom.monthly_rate) : '—'}</Text>
+        </View>
+
+        <View style={styles.tenantTopRow}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{initials || 'TN'}</Text>
+          </View>
+          <View style={styles.tenantIdentity}>
+            <Text style={styles.tenantName} numberOfLines={1}>{item.first_name} {item.last_name}</Text>
+            <Text style={styles.tenantEmail} numberOfLines={1}>{item.email}</Text>
+            <View style={styles.roomRow}>
+              <Ionicons name="bed-outline" size={16} color="#16a34a" />
+              <Text style={styles.roomText} numberOfLines={1}>
+                {currentRoom ? `Room ${currentRoom.room_number}` : 'No room assigned'}
+              </Text>
             </View>
+          </View>
+        </View>
+
+        <View style={styles.metaRow}>
+          <View style={styles.metaColumn}>
+            <Text style={styles.metaLabel}>Monthly Rent</Text>
+            <Text style={styles.metaValue}>
+              {monthlyRent.amount !== null ? formatCurrency(monthlyRent.amount) : '—'}
+              {monthlyRent.estimated ? ' (est.)' : ''}
+            </Text>
+          </View>
+          <View style={styles.metaStatusColumn}>
+            <Text style={styles.metaLabel}>Status</Text>
             <View style={[styles.paymentBadge, { backgroundColor: payment.bg }]}>
               <Text style={[styles.paymentText, { color: payment.color }]}>{payment.label}</Text>
             </View>
           </View>
-          <View style={styles.cardActions}>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={() => { setDetailTenant(item); setDetailVisible(true); }}>
-              <Ionicons name="eye-outline" size={16} color="#475569" />
-              <Text style={styles.secondaryBtnText}>View Profile</Text>
+        </View>
+
+        {hasPendingEviction && (
+          <Text style={[styles.helperText, { marginTop: 8, color: '#B91C1C' }]}>
+            Eviction scheduled for {new Date(item.pending_eviction.scheduled_for).toLocaleString()}
+          </Text>
+        )}
+
+        <View style={styles.cardActions}>
+          <View style={styles.primaryActionsRow}>
+            <TouchableOpacity
+              style={[styles.secondaryBtn, styles.primaryActionBtn]}
+              onPress={() => {
+                setOpenActionsTenantId(null);
+                openTenantLogs(item);
+              }}
+            >
+              <Ionicons name="receipt-outline" size={16} color="#475569" />
+              <Text style={styles.secondaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>View Logs</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.primaryBtn} 
-              onPress={() => navigation.navigate('Messages', { startConversation: true, tenant: item, propertyId: selectedPropertyId })}
+            <TouchableOpacity
+              style={[styles.primaryBtn, styles.primaryActionBtn]}
+              onPress={() => {
+                setOpenActionsTenantId(null);
+                navigation.navigate('Messages', { startConversation: true, tenant: item, propertyId: selectedPropertyId });
+              }}
             >
               <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText}>Message</Text>
+              <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>Message</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.successBtn, (currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null]}
-              onPress={() => handleAssignInitiate(item)}
-              disabled={!!currentRoom || hasPendingEviction}
-            >
-              <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.successBtnText}>Assign</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.warningBtn, hasPendingEviction ? styles.actionDisabledBtn : null]}
-              onPress={() => handleTransferInitiate(item)}
-              disabled={hasPendingEviction}
-            >
-              <Ionicons name="swap-horizontal-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.warningBtnText}>Transfer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.unassignBtn, (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null]}
-              onPress={() => handleUnassignInitiate(item)}
+              style={[styles.warningBtn, styles.primaryActionBtn, (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null]}
+              onPress={() => {
+                setOpenActionsTenantId(null);
+                handleTransferInitiate(item);
+              }}
               disabled={!currentRoom || hasPendingEviction}
             >
-              <Ionicons name="person-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.unassignBtnText}>Unassign</Text>
+              <Ionicons name="swap-horizontal-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.warningBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>Transfer</Text>
             </TouchableOpacity>
-            {!hasPendingEviction && (
-              <TouchableOpacity style={styles.dangerBtn} onPress={() => handleEvictionInitiate(item)}>
-                <Ionicons name="person-remove-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.dangerBtnText}>Schedule Eviction</Text>
-              </TouchableOpacity>
-            )}
-            {hasPendingEviction && (
-              <>
-                <TouchableOpacity
-                  style={[styles.dangerBtn, !evictionDue ? styles.actionDisabledBtn : null]}
-                  onPress={() => Alert.alert(
-                    'Finalize eviction',
-                    `Finalize eviction for ${item.first_name} ${item.last_name}?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Finalize', style: 'destructive', onPress: () => handleFinalizeEviction(item) },
-                    ]
-                  )}
-                  disabled={!evictionDue}
-                >
-                  <Ionicons name="checkmark-done-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.dangerBtnText}>Finalize Eviction</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.warningBtn}
-                  onPress={() => Alert.alert(
-                    'Cancel eviction schedule',
-                    `Cancel pending eviction for ${item.first_name} ${item.last_name}?`,
-                    [
-                      { text: 'Keep schedule', style: 'cancel' },
-                      { text: 'Cancel schedule', style: 'destructive', onPress: () => handleCancelEviction(item) },
-                    ]
-                  )}
-                >
-                  <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.warningBtnText}>Cancel Eviction</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {canUndoEviction && !hasPendingEviction && (
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={() => Alert.alert(
-                  'Undo eviction',
-                  `Restore tenancy for ${item.first_name} ${item.last_name}?`,
-                  [
-                    { text: 'No', style: 'cancel' },
-                    { text: 'Undo', onPress: () => handleUndoEviction(item) },
-                  ]
-                )}
-              >
-                <Ionicons name="refresh-outline" size={16} color="#475569" />
-                <Text style={styles.secondaryBtnText}>Undo Eviction</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
       </View>
     );
   };
+
+  const detailMonthlyRent = detailTenant
+    ? resolveTenantMonthlyRent(detailTenant, detailTenant.room)
+    : { amount: null, estimated: false };
 
   if (loading && !refreshing && tenants.length === 0) {
     return (
@@ -731,28 +808,32 @@ export default function TenantsScreen({ navigation, route }) {
               </View>
             ) : null}
 
-            <View style={styles.propertySelector}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propertyScroll}>
-                {properties.map(p => (
-                  <TouchableOpacity 
-                    key={p.id} 
-                    style={[styles.propertyChip, normalizeId(p.id) === selectedPropertyId && styles.propertyChipActive]}
-                    onPress={() => setSelectedPropertyId(normalizeId(p.id))}
-                  >
-                    <Text style={styles.propertyChipTitle}>{p.title}</Text>
-                    <Text style={styles.propertyChipMeta}>{p.city}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+            {properties.length > 1 ? (
+              <View style={styles.propertySelector}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propertyScroll}>
+                  {properties.map((p) => {
+                    const isActive = normalizeId(p.id) === selectedPropertyId;
+                    return (
+                      <TouchableOpacity 
+                        key={p.id} 
+                        style={[styles.propertyChip, isActive && styles.propertyChipActive]}
+                        onPress={() => setSelectedPropertyId(normalizeId(p.id))}
+                      >
+                        <Text style={[styles.propertyChipTitle, isActive && styles.propertyChipTitleActive]}>{p.title}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ) : null}
 
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}><Text style={styles.statLabel}>Total</Text><Text style={styles.statValue}>{stats.total}</Text></View>
-              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#059669'}]}>Active</Text><Text style={[styles.statValue, {color: '#059669'}]}>{stats.active}</Text></View>
-              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#2563EB'}]}>Paid</Text><Text style={[styles.statValue, {color: '#2563EB'}]}>{stats.paid}</Text></View>
-              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#D97706'}]}>Pending</Text><Text style={[styles.statValue, {color: '#D97706'}]}>{stats.pending}</Text></View>
-              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#DC2626'}]}>Overdue</Text><Text style={[styles.statValue, {color: '#DC2626'}]}>{stats.overdue}</Text></View>
-            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScroll} contentContainerStyle={styles.statsRow}>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={styles.statLabel}>Total</Text><Text style={styles.statValue}>{stats.total}</Text></View>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, {color: '#16a34a'}]}>Active</Text><Text style={[styles.statValue, {color: '#16a34a'}]}>{stats.active}</Text></View>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, {color: '#2563EB'}]}>Paid</Text><Text style={[styles.statValue, {color: '#2563EB'}]}>{stats.paid}</Text></View>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, {color: '#D97706'}]}>Pending</Text><Text style={[styles.statValue, {color: '#D97706'}]}>{stats.pending}</Text></View>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, {color: '#DC2626'}]}>Overdue</Text><Text style={[styles.statValue, {color: '#DC2626'}]}>{stats.overdue}</Text></View>
+            </ScrollView>
 
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color="#94A3B8" />
@@ -767,27 +848,6 @@ export default function TenantsScreen({ navigation, route }) {
               ))}
             </ScrollView>
 
-            {selectedTenants.length > 0 && (
-              <View style={styles.bulkActionsBar}>
-                <View style={styles.bulkSelectionRow}>
-                  <TouchableOpacity style={styles.selectAllButton} onPress={handleSelectAll}>
-                    <Ionicons
-                      name={selectedTenants.length === filteredTenants.length ? 'checkbox' : 'square-outline'}
-                      size={18}
-                      color="#059669"
-                    />
-                    <Text style={styles.selectAllText}>Select All</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.bulkCountText}>{selectedTenants.length} selected</Text>
-                </View>
-                <View style={styles.bulkButtonsRow}>
-                  <TouchableOpacity style={styles.bulkPrimaryBtn} onPress={() => setBroadcastVisible(true)}>
-                    <Ionicons name="send-outline" size={16} color="#FFFFFF" />
-                    <Text style={styles.bulkPrimaryBtnText}>Broadcast</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
           </View>
         )}
         contentContainerStyle={styles.listContent}
@@ -834,7 +894,9 @@ export default function TenantsScreen({ navigation, route }) {
                   <View style={styles.assignmentCard}>
                     <Text style={styles.assignmentTitle}>Room {detailTenant.room.room_number}</Text>
                     <Text style={styles.assignmentMeta}>{detailTenant.room.type_label}</Text>
-                    <Text style={[styles.assignmentMeta, {color: '#059669', fontWeight: '700'}]}>{formatCurrency(detailTenant.room.monthly_rate)} / month</Text>
+                    <Text style={[styles.assignmentMeta, {color: '#16a34a', fontWeight: '700'}]}>
+                      {detailMonthlyRent.amount !== null ? formatCurrency(detailMonthlyRent.amount) : '—'} / month
+                    </Text>
                   </View>
                 ) : <Text style={styles.helperText}>No room assigned</Text>}
               </View>
@@ -1081,37 +1143,6 @@ export default function TenantsScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      <Modal visible={broadcastVisible} transparent animationType="fade" onRequestClose={() => setBroadcastVisible(false)}>
-        <View style={styles.overlayContainer}>
-          <View style={styles.actionModalCard}>
-            <Text style={styles.actionModalTitle}>Send Broadcast</Text>
-            <Text style={styles.actionModalSubtitle}>
-              This message will be sent to {selectedTenants.length} selected tenant(s).
-            </Text>
-
-            <TextInput
-              value={broadcastMessage}
-              onChangeText={setBroadcastMessage}
-              placeholder="Type your message here..."
-              style={styles.actionTextAreaLarge}
-              multiline
-            />
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setBroadcastVisible(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalSuccessBtn, (isBroadcasting || !broadcastMessage.trim()) && styles.modalDisabledBtn]}
-                onPress={handleSendBroadcast}
-                disabled={isBroadcasting || !broadcastMessage.trim()}
-              >
-                <Text style={styles.modalConfirmText}>{isBroadcasting ? 'Sending...' : 'Send'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

@@ -181,12 +181,16 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       case "Preferences & Lifestyle":
         rootNavigate('PreferencesLifestyle');
         break;
+      case "My Reviews":
+        rootNavigate('ServiceRequests', { initialTab: 'Reviews' });
+        break;
       case "Notification Preferences":
         // Scroll to notifications or navigate if separate
         break;
       case "Account Security":
         rootNavigate('UpdatePassword');
         break;
+      case "Help & Support":
       case "Help Center":
         rootNavigate('HelpSupport');
         break;
@@ -329,7 +333,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         {
           title: "Support",
           items: [
-            { id: 12, label: "Help Center", icon: "help-circle-outline", arrow: true },
+            { id: 12, label: "Help & Support", icon: "help-circle-outline", arrow: true },
             { id: 13, label: "Report a Problem", icon: "flag-outline", arrow: true },
             { id: 14, label: "Terms of Service", icon: "document-text-outline", arrow: true },
             { id: 15, label: "Privacy Policy", icon: "shield-outline", arrow: true },
@@ -341,10 +345,11 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     // Logged in user - full options
     return [
       {
-        title: "Account",
+        title: "Account & Preferences",
         items: [
           { id: 1, label: "Profile", icon: "person-outline", arrow: true },
           { id: 16, label: "Preferences & Lifestyle", icon: "options-outline", arrow: true },
+          { id: 17, label: "My Reviews", icon: "star-outline", arrow: true },
           { id: 2, label: "Account Security", icon: "lock-closed-outline", arrow: true },
           { 
             id: 3, 
@@ -371,7 +376,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         items: [
           { 
             id: 8, 
-            label: "Push Notifications", 
+            label: "Push", 
             icon: "notifications-outline", 
             toggle: true, 
             value: notificationSettings.pushNotifications,
@@ -379,7 +384,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           },
           { 
             id: 9, 
-            label: "Email Notifications", 
+            label: "Email", 
             icon: "mail-outline", 
             toggle: true, 
             value: notificationSettings.emailNotifications,
@@ -390,7 +395,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       {
         title: "Support",
         items: [
-          { id: 12, label: "Help Center", icon: "help-circle-outline", arrow: true },
+          { id: 12, label: "Help & Support", icon: "help-circle-outline", arrow: true },
           { id: 13, label: "Report a Problem", icon: "flag-outline", arrow: true },
           { id: 14, label: "Terms of Service", icon: "document-text-outline", arrow: true },
           { id: 15, label: "Privacy Policy", icon: "shield-outline", arrow: true },

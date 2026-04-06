@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../../styles/Tenant/ReviewStyles.js';
 import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
 
-export default function MyReviews() {
+export default function MyReviews({ hideHeader = false }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const navigation = useNavigation();
@@ -109,16 +109,30 @@ export default function MyReviews() {
     </View>
   );
 
-  if (loading) return (
-    <SafeAreaView style={[styles.centered, { backgroundColor: theme.colors.background }]}>
-      <ActivityIndicator />
-    </SafeAreaView>
+  if (loading) {
+    const loadingView = (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator />
+      </View>
+    );
+
+    if (hideHeader) return loadingView;
+
+    return (
+      <SafeAreaView style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator />
+      </SafeAreaView>
+    );
+  }
+
+  const content = (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {!hideHeader && <Text style={[styles.title, { color: theme.colors.text }]}>My Reviews</Text>}
+      <FlatList data={reviews} keyExtractor={(i) => String(i.id)} renderItem={renderItem} />
+    </View>
   );
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>My Reviews</Text>
-      <FlatList data={reviews} keyExtractor={(i) => String(i.id)} renderItem={renderItem} />
-    </SafeAreaView>
-  );
+  if (hideHeader) return content;
+
+  return <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>{content}</SafeAreaView>;
 }

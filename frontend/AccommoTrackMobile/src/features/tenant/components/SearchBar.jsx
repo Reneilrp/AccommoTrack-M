@@ -10,6 +10,7 @@ export default function SearchBar({
   onSearchChange, 
   onSearchPress,
   onMapPress,
+  onFilterPress,
   properties = [],
   userRole = 'guest',
   onSelectProperty
@@ -30,13 +31,19 @@ export default function SearchBar({
           onSubmitEditing={onSearchPress}
         /> 
         <TouchableOpacity 
-          style={styles.mapButton}
+          style={{ padding: 8 }}
           onPress={() => {
             if (onMapPress) return onMapPress();
             setMapOpen(true);
           }}
         >
           <Ionicons name="map-outline" size={20} color={theme.colors.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ padding: 8, marginLeft: 2 }}
+          onPress={() => onFilterPress && onFilterPress()}
+        >
+          <Ionicons name="options-outline" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
       <MapModal 

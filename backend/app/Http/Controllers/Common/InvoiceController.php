@@ -923,6 +923,7 @@ class InvoiceController extends Controller
         $normalized = str_replace(['-', ' '], '_', $normalized);
 
         return match ($normalized) {
+            'cash_on_site', 'cash_onsite', 'cashonsite' => 'cash',
             'maya' => 'paymaya',
             default => $normalized,
         };

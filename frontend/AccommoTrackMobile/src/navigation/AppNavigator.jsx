@@ -80,6 +80,9 @@ export default function AppNavigator() {
   const enterGuestMode = async () => {
     try {
       clearAuthSession();
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('user_id');
       await AsyncStorage.setItem('hasLaunched', 'true');
       await AsyncStorage.setItem('isGuest', 'true');
       setAuthContext(null);

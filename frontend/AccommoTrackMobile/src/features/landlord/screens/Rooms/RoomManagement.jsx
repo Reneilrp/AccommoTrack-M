@@ -156,6 +156,7 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [tenantModalVisible, setTenantModalVisible] = useState(false);
   const [assignTargetRoom, setAssignTargetRoom] = useState(null);
   const [assigningTenant, setAssigningTenant] = useState(false);
+  const [activeMenuRoomId, setActiveMenuRoomId] = useState(null);
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -344,31 +345,6 @@ export default function RoomManagementScreen({ navigation, route }) {
       setSelectedPropertyId(normalizeId(properties[0].id));
     }
   }, [preselectedPropertyId, properties, selectedPropertyId]);
-
-  const handleRemoveTenant = (room) => {
-    Alert.alert(
-      "Remove Tenant",
-      `Are you sure you want to remove the tenant from Room ${room.room_number}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            const res = await PropertyService.removeTenantFromRoom(room.id);
-            if (res.success) {
-              setActionError("");
-              Alert.alert("Success", "Tenant removed successfully");
-              await refetchLandlordQueries(roomAndTenantRefetchers);
-            } else {
-              setActionError(res.error || "Failed to remove tenant");
-              Alert.alert("Error", res.error || "Failed to remove tenant");
-            }
-          },
-        },
-      ],
-    );
-  };
 
   const handleSelectTenant = async (tenantId) => {
     if (!assignTargetRoom) return;
@@ -649,6 +625,13 @@ export default function RoomManagementScreen({ navigation, route }) {
 
   const renderRoomCard = ({ item }) => {
     const badge = statusTokens[item.status] || statusTokens.available;
+    const hasExistingTenant = Boolean(
+      item.tenant_id ||
+        item.current_tenant_id ||
+        item.tenant?.id ||
+        item.current_tenant?.id ||
+        Number(item.occupied || 0) > 0,
+    );
     const cover = item.images?.[0]
       ? {
           uri: getImageUrl(
@@ -673,11 +656,94 @@ export default function RoomManagementScreen({ navigation, route }) {
             <Ionicons name="bed-outline" size={40} color="#94A3B8" />
           </View>
         )}
-        <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.statusText, { color: badge.color }]}>
-            {badge.label}
-          </Text>
+        <View style={styles.imageOverlayRow}>
+          <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}> 
+            <Text style={[styles.statusText, { color: badge.color }]}> 
+              {badge.label}
+            </Text>
+          </View>
+
+          <View style={styles.roomMenuAnchor}>
+            <TouchableOpacity
+              style={[
+                styles.roomMenuButton,
+                activeMenuRoomId === item.id ? styles.roomMenuButtonActive : null,
+              ]}
+              onPress={() =>
+                setActiveMenuRoomId((prev) =>
+                  prev === item.id ? null : item.id,
+                )
+              }
+            >
+              <Ionicons
+                name="ellipsis-vertical"
+                size={18}
+                color={theme.colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            {activeMenuRoomId === item.id && (
+              <View style={styles.roomMenuSheet}>
+                <TouchableOpacity
+                  style={styles.roomMenuItem}
+                  onPress={() => {
+                    setActiveMenuRoomId(null);
+                    openEditModal(item);
+                  }}
+                >
+                  <Ionicons name="create-outline" size={16} color="#0369A1" />
+                  <Text style={styles.roomMenuItemText}>Edit</Text>
+                </TouchableOpacity>
+
+                {item.status === "available" && (
+                  <TouchableOpacity
+                    style={styles.roomMenuItem}
+                    onPress={() => {
+                      setActiveMenuRoomId(null);
+                      setAssignTargetRoom(item);
+                      setTenantModalVisible(true);
+                    }}
+                  >
+                    <Ionicons name="person-add-outline" size={16} color="#15803D" />
+                    <Text style={styles.roomMenuItemText}>Assign</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.roomMenuItem,
+                    !hasExistingTenant && styles.roomMenuItemLast,
+                  ]}
+                  onPress={() => {
+                    setActiveMenuRoomId(null);
+                    setStatusTarget(item);
+                    setStatusModalVisible(true);
+                  }}
+                >
+                  <Ionicons name="swap-horizontal" size={16} color="#B45309" />
+                  <Text style={styles.roomMenuItemText}>Status</Text>
+                </TouchableOpacity>
+
+                {hasExistingTenant && (
+                  <TouchableOpacity
+                    style={[styles.roomMenuItem, styles.roomMenuItemLast]}
+                    onPress={() => {
+                      setActiveMenuRoomId(null);
+                      setExtendTarget(item);
+                      setExtendType("months");
+                      setExtendValue("1");
+                      setExtendModalVisible(true);
+                    }}
+                  >
+                    <Ionicons name="time-outline" size={16} color="#7E22CE" />
+                    <Text style={styles.roomMenuItemText}>Extend</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
         </View>
+
         <View style={styles.roomContent}>
           <View style={styles.roomTopRow}>
             <View>
@@ -694,70 +760,6 @@ export default function RoomManagementScreen({ navigation, route }) {
                 {item.billing_policy === "daily" ? "per day" : "per month"}
               </Text>
             </View>
-          </View>
-          <View style={styles.roomActions}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => openEditModal(item)}
-            >
-              <Ionicons name="create-outline" size={18} color="#0369A1" />
-              <Text style={styles.actionText}>Edit</Text>
-            </TouchableOpacity>
-
-            {item.status === 'available' ? (
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#DCFCE7" }]}
-                onPress={() => {
-                  setAssignTargetRoom(item);
-                  setTenantModalVisible(true);
-                }}
-              >
-                <Ionicons name="person-add-outline" size={18} color="#15803D" />
-                <Text style={[styles.actionText, { color: "#15803D" }]}>
-                  Assign
-                </Text>
-              </TouchableOpacity>
-            ) : item.status === 'occupied' ? (
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#FEE2E2" }]}
-                onPress={() => handleRemoveTenant(item)}
-              >
-                <Ionicons name="person-remove-outline" size={18} color="#B91C1C" />
-                <Text style={[styles.actionText, { color: "#B91C1C" }]}>
-                  Remove
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: "#FEF3C7" }]}
-              onPress={() => {
-                setStatusTarget(item);
-                setStatusModalVisible(true);
-              }}
-            >
-              <Ionicons name="swap-horizontal" size={18} color="#B45309" />
-              <Text style={[styles.actionText, { color: "#B45309" }]}>
-                Status
-              </Text>
-            </TouchableOpacity>
-
-            {item.status === 'occupied' && (
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#F3E8FF" }]}
-                onPress={() => {
-                  setExtendTarget(item);
-                  setExtendType('months');
-                  setExtendValue('1');
-                  setExtendModalVisible(true);
-                }}
-              >
-                <Ionicons name="time-outline" size={18} color="#7E22CE" />
-                <Text style={[styles.actionText, { color: "#7E22CE" }]}>
-                  Extend
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
       </View>
@@ -812,26 +814,26 @@ export default function RoomManagementScreen({ navigation, route }) {
               </View>
             ) : null}
 
-            {!preselectedPropertyId && (
+            {!preselectedPropertyId && properties.length > 1 && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.propertyScroll}
               >
-                {properties.map((p) => (
-                  <TouchableOpacity
-                    key={p.id}
-                    style={[
-                      styles.propertyChip,
-                      normalizeId(p.id) === selectedPropertyId &&
-                        styles.propertyChipActive,
-                    ]}
-                    onPress={() => setSelectedPropertyId(normalizeId(p.id))}
-                  >
-                    <Text style={styles.propertyChipTitle}>{p.title}</Text>
-                    <Text style={styles.propertyChipMeta}>{p.city}</Text>
-                  </TouchableOpacity>
-                ))}
+                {properties.map((p) => {
+                  const isActive = normalizeId(p.id) === selectedPropertyId;
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={[styles.propertyChip, isActive && styles.propertyChipActive]}
+                      onPress={() => setSelectedPropertyId(normalizeId(p.id))}
+                    >
+                      <Text style={[styles.propertyChipTitle, isActive && styles.propertyChipTitleActive]}>
+                        {p.title}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             )}
 
@@ -873,7 +875,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                   <Text
                     style={[
                       styles.filterText,
-                      filter === f.value && { color: "#059669" },
+                      filter === f.value && { color: "#16a34a" },
                     ]}
                   >
                     {f.label}
@@ -1109,7 +1111,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                       size={20}
                       color={
                         formData.pricingModel === "full_room"
-                          ? "#059669"
+                          ? "#16a34a"
                           : "#6B7280"
                       }
                     />
@@ -1118,7 +1120,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                         style={[
                           styles.pricingCardTitle,
                           formData.pricingModel === "full_room" && {
-                            color: "#059669",
+                            color: "#16a34a",
                           },
                         ]}
                       >
@@ -1154,7 +1156,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                       size={20}
                       color={
                         formData.pricingModel === "per_bed"
-                          ? "#059669"
+                          ? "#16a34a"
                           : "#6B7280"
                       }
                     />
@@ -1163,7 +1165,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                         style={[
                           styles.pricingCardTitle,
                           formData.pricingModel === "per_bed" && {
-                            color: "#059669",
+                            color: "#16a34a",
                           },
                         ]}
                       >
@@ -1200,7 +1202,7 @@ export default function RoomManagementScreen({ navigation, route }) {
               <Switch
                 value={formData.require1MonthAdvance ?? (selectedProperty?.require_1month_advance ?? false)}
                 onValueChange={(v) => handleInputChange("require1MonthAdvance", v)}
-                trackColor={{ true: "#059669", false: "#CBD5E1" }}
+                trackColor={{ true: "#16a34a", false: "#CBD5E1" }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -1252,12 +1254,12 @@ export default function RoomManagementScreen({ navigation, route }) {
                   {
                     paddingVertical: 0,
                     justifyContent: "center",
-                    borderColor: "#059669",
+                    borderColor: "#16a34a",
                   },
                 ]}
                 onPress={handleAddRule}
               >
-                <Ionicons name="add" size={20} color="#059669" />
+                <Ionicons name="add" size={20} color="#16a34a" />
               </TouchableOpacity>
             </View>
             <Text style={[styles.helperText, { marginTop: 8 }]}>
@@ -1293,12 +1295,12 @@ export default function RoomManagementScreen({ navigation, route }) {
                   {
                     paddingVertical: 0,
                     justifyContent: "center",
-                    borderColor: "#059669",
+                    borderColor: "#16a34a",
                   },
                 ]}
                 onPress={handleAddAmenity}
               >
-                <Ionicons name="add" size={20} color="#059669" />
+                <Ionicons name="add" size={20} color="#16a34a" />
               </TouchableOpacity>
             </View>
             <Text style={[styles.helperText, { marginTop: 8 }]}>
@@ -1320,7 +1322,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                         position: "absolute",
                         left: 6,
                         top: 6,
-                        backgroundColor: "#059669",
+                        backgroundColor: "#16a34a",
                         paddingHorizontal: 6,
                         paddingVertical: 2,
                         borderRadius: 4,
@@ -1394,7 +1396,14 @@ export default function RoomManagementScreen({ navigation, route }) {
       </Modal>
 
       {/* Status Modal */}
-      <Modal visible={statusModalVisible} transparent animationType="fade">
+      <Modal
+        visible={statusModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
         <View style={styles.statusModalOverlay}>
           <View style={styles.statusSheet}>
             <Text
@@ -1438,7 +1447,14 @@ export default function RoomManagementScreen({ navigation, route }) {
       </Modal>
 
       {/* Extend Stay Modal */}
-      <Modal visible={extendModalVisible} transparent animationType="fade">
+      <Modal
+        visible={extendModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
         <View style={styles.statusModalOverlay}>
           <View style={[styles.statusSheet, { padding: 16 }]}>
             <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 8 }]}>
@@ -1525,7 +1541,14 @@ export default function RoomManagementScreen({ navigation, route }) {
       </Modal>
 
       {/* Tenant Selection Modal */}
-      <Modal visible={tenantModalVisible} transparent animationType="slide">
+      <Modal
+        visible={tenantModalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
         <View style={styles.statusModalOverlay}>
           <View
             style={[

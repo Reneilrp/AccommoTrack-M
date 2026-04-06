@@ -17,7 +17,9 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingHorizontal: 16,
   },
   skipButton: {
-    alignSelf: 'flex-end',
+    position: 'absolute',
+    right: 16,
+    zIndex: 2,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },

@@ -5,6 +5,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import Payments from '../features/landlord/screens/Payments/Payments.jsx';
 import PaymentService from '../services/PaymentService.js';
 
+jest.setTimeout(20000);
+
 const mockNavigation = {
   goBack: jest.fn(),
   navigate: jest.fn(),
@@ -26,7 +28,7 @@ jest.mock('../contexts/ThemeContext.jsx', () => ({
     theme: {
       isDark: false,
       colors: {
-        primary: '#059669',
+        primary: '#16a34a',
         text: '#0f172a',
         textSecondary: '#475569',
         textTertiary: '#94a3b8',

@@ -48,10 +48,12 @@ export default function Caretakers() {
   const [permissionPrompt, setPermissionPrompt] = useState({ visible: false, key: null });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
 
-  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties']);
+  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments']);
   const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
     rooms: 'Enabling Room Management allows caretakers to modify availability and tenant placements.',
     properties: 'Enabling Properties allows caretakers to update core property details and settings.',
+    maintenance: 'Enabling Maintenance allows caretakers to process and update maintenance workflows.',
+    payments: 'Enabling Payments allows caretakers to manage sensitive billing and payment operations.',
   };
 
   // Form State
@@ -71,6 +73,8 @@ export default function Caretakers() {
       tenants: false,
       rooms: false,
       properties: false,
+      maintenance: false,
+      payments: false,
     },
     propertyIds: []
   });
@@ -137,6 +141,8 @@ export default function Caretakers() {
             tenants: false,
             rooms: false,
             properties: false,
+            maintenance: false,
+            payments: false,
           },      propertyIds: []
     });
     setFieldErrors({});
@@ -179,6 +185,8 @@ export default function Caretakers() {
         tenants: permMap.tenants || permMap.can_view_tenants || false,
         rooms: permMap.rooms || permMap.can_view_rooms || false,
         properties: permMap.properties || permMap.can_view_properties || false,
+        maintenance: permMap.maintenance || permMap.can_manage_maintenance || false,
+        payments: permMap.payments || permMap.can_manage_payments || false,
       },
       propertyIds: item.assigned_property_ids || []
     });
@@ -247,6 +255,8 @@ export default function Caretakers() {
           can_view_tenants: formData.permissions.tenants,
           can_view_rooms: formData.permissions.rooms,
           can_view_properties: formData.permissions.properties,
+          can_manage_maintenance: formData.permissions.maintenance,
+          can_manage_payments: formData.permissions.payments,
         }
       };
 
@@ -601,7 +611,9 @@ export default function Caretakers() {
                        key === 'tenants' ? 'Access profiles and room assignments' : 
                        key === 'messages' ? 'Chat with prospects and residents' : 
                        key === 'rooms' ? 'Full control over room availability' :
-                       'View and manage property details'}
+                       key === 'properties' ? 'View and manage property details' :
+                       key === 'maintenance' ? 'Handle repairs and upkeep requests' :
+                       'Track and verify rental transactions'}
                     </Text>
                   </View>
                   <Switch
@@ -635,7 +647,14 @@ export default function Caretakers() {
       </Modal>
 
       {/* Security Alert Modal for Landlord-Level Permissions */}
-      <Modal visible={permissionPrompt.visible} transparent animationType="fade">
+      <Modal
+        visible={permissionPrompt.visible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
         <View style={styles.alertOverlay}>
           <View style={[styles.alertBox, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.alertIconContainer}>
@@ -659,7 +678,14 @@ export default function Caretakers() {
       </Modal>
 
       {/* Revoke Access Modal */}
-      <Modal visible={revocationModal.show} transparent animationType="fade">
+      <Modal
+        visible={revocationModal.show}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
         <View style={styles.alertOverlay}>
           <View style={[styles.alertBox, { backgroundColor: theme.colors.surface }]}>
             <View style={[styles.alertIconContainer, { backgroundColor: '#FEE2E2' }]}>

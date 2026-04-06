@@ -22,9 +22,14 @@ class TransactionController extends Controller
     public function show(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
         $tx = PaymentTransaction::with('invoice')->findOrFail($id);
         if ($tx->invoice && $tx->invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($tx->invoice && $tx->invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $tx->invoice->property_id);
         }
 
         return response()->json($tx, 200);
@@ -36,10 +41,15 @@ class TransactionController extends Controller
     public function refund(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
         $tx = PaymentTransaction::with(['invoice.booking.room', 'invoice.transactions'])->findOrFail($id);
         $invoice = $tx->invoice;
         if ($invoice && $invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['success' => false, 'data' => null, 'message' => 'Unauthorized'], 403);
+        }
+
+        if ($invoice && $invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $invoice->property_id);
         }
 
         if ($tx->amount_cents <= 0) {

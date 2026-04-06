@@ -37,6 +37,8 @@ export default function LandlordLayout({
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
   const caretakerPermissions = user?.caretaker_permissions || {};
+  const canManageMaintenance = Boolean(caretakerPermissions.maintenance ?? caretakerPermissions.rooms);
+  const canManagePayments = Boolean(caretakerPermissions.payments);
 
   const landlordMenu = [
     { 
@@ -86,8 +88,9 @@ export default function LandlordLayout({
   const caretakerAllowedPaths = new Set([
     '/dashboard',
     caretakerPermissions.rooms ? '/rooms' : null,
-    caretakerPermissions.rooms ? '/maintenance' : null,
+    canManageMaintenance ? '/maintenance' : null,
     caretakerPermissions.bookings ? '/bookings' : null,
+    canManagePayments ? '/payments' : null,
     caretakerPermissions.tenants ? '/tenants' : null,
     caretakerPermissions.messages ? '/messages' : null,
     '/settings',

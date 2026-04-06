@@ -6,24 +6,19 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
-  Modal,
   ActivityIndicator,
   Alert,
-  Linking,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import PaymentService from '../../../../services/PaymentService.js';
-import { API_BASE_URL } from '../../../../config/index.js';
 import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
 import { showError } from '../../../../utils/toast.js';
-import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { getStyles } from '../../../../styles/Tenant/WalletStyles.js';
 import createEcho from '../../../../services/echo.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,6 +39,7 @@ export default function PaymentsScreen() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('1m');
   const [refreshing, setRefreshing] = useState(false);
+  const [resolvingPaymentId, setResolvingPaymentId] = useState(null);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
     SystemToggleService.getDefaults().tenantPaymentsDisabled,
   );
@@ -62,7 +58,7 @@ export default function PaymentsScreen() {
 
         const storedId = await AsyncStorage.getItem('user_id');
         return storedId ? String(storedId) : null;
-      } catch (e) {
+      } catch (_error) {
         return null;
       }
     },
@@ -171,28 +167,50 @@ export default function PaymentsScreen() {
     };
   }, [userId, triggerPaymentDataRefresh]);
 
-  // --- Payment / Checkout flow (merged from Payments.jsx) ---
-  const paymentMethods = [
-    { id: 1, name: 'GCash', key: 'gcash', enabled: true },
-    { id: 2, name: 'Cash on site', key: 'cash', enabled: true },
-  ];
-
-  const [checkoutVisible, setCheckoutVisible] = useState(false);
-  const [checkoutItem, setCheckoutItem] = useState(null);
-  const [checkoutMethod, setCheckoutMethod] = useState('gcash');
-  const [offlineDetails, setOfflineDetails] = useState({ reference: '', notes: '' });
-  const [processingPayment, setProcessingPayment] = useState(false);
-
-  const openCheckout = (payment) => {
+  const openCheckout = async (payment) => {
     if (tenantPaymentsTempDisabled) {
       Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
     }
 
-    setCheckoutItem(payment);
-    setCheckoutMethod('gcash');
-    setOfflineDetails({ reference: '', notes: '' });
-    setCheckoutVisible(true);
+    const item = typeof payment === 'object'
+      ? payment
+      : (payments.find((entry) => entry.id === payment) || { id: payment });
+
+    let invoiceId = item?.invoiceId || item?.invoice_id || item?.id || null;
+
+    if (!invoiceId) {
+      const bookingId = item?.bookingId || item?.booking_id || null;
+      if (!bookingId) {
+        Alert.alert('Payment Error', 'No booking or invoice linked to this payment. Please contact the landlord.');
+        return;
+      }
+
+      try {
+        setResolvingPaymentId(item?.id || bookingId);
+
+        const response = await PaymentService.createBookingInvoice(bookingId);
+        if (!response.success || !response.data) {
+          Alert.alert('Payment Error', response.error || 'Failed to prepare invoice checkout.');
+          return;
+        }
+
+        invoiceId = response.data?.id || response.data?.data?.id || null;
+      } catch (error) {
+        console.error('Invoice resolution error:', error);
+        Alert.alert('Payment Error', 'Failed to prepare invoice checkout.');
+        return;
+      } finally {
+        setResolvingPaymentId(null);
+      }
+    }
+
+    if (!invoiceId) {
+      Alert.alert('Payment Error', 'Unable to resolve invoice checkout for this payment.');
+      return;
+    }
+
+    navigation.navigate('PaymentDetail', { invoiceId });
   };
 
   const isPayable = (payment) => {
@@ -202,111 +220,6 @@ export default function PaymentsScreen() {
     const payableBookingStatus = ['unpaid', 'partial', 'refunded'];
     return payableStatus.includes(status) || payableBookingStatus.includes(paymentStatus);
   };
-
-  const handlePayInvoice = async (paymentItem, paymentMethod = 'gcash', details = {}) => {
-    if (tenantPaymentsTempDisabled) {
-      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
-      return;
-    }
-
-    try {
-      setProcessingPayment(true);
-
-      const item = typeof paymentItem === 'object' ? paymentItem : payments.find(p => p.id === paymentItem) || { id: paymentItem };
-
-      let invoiceId = item.invoiceId || item.invoice_id || null;
-
-      if (!invoiceId) {
-        const bookingId = item.bookingId || item.booking_id || null;
-        if (!bookingId) {
-          Alert.alert('Payment Error', 'No booking or invoice linked to this payment. Please contact landlord.');
-          return;
-        }
-
-        try {
-          const token = await PaymentService.getAuthToken();
-          if (!token) {
-            Alert.alert('Authentication', 'Please login to continue');
-            return;
-          }
-
-          const resp = await fetch(`${API_BASE_URL}/tenant/bookings/${bookingId}/invoice`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            }
-          });
-
-          const body = await resp.json();
-          if (!resp.ok) {
-            console.error('Create invoice failed', body);
-            Alert.alert('Payment Error', body.message || 'Failed to create invoice');
-            return;
-          }
-
-          invoiceId = body.data?.id || body.id || null;
-          if (!invoiceId) {
-            Alert.alert('Payment Error', 'Invoice creation succeeded but no invoice id returned');
-            return;
-          }
-        } catch (err) {
-          console.error('Invoice creation error:', err);
-          Alert.alert('Payment Error', 'Failed to create invoice for this booking');
-          return;
-        }
-      }
-
-      if (paymentMethod !== 'cash' && paymentMethod !== 'cash_on_site') {
-        const res = await PaymentService.createPaymongoSource(invoiceId, paymentMethod, null);
-        if (!res.success) {
-          Alert.alert('Payment Error', res.error || 'Failed to create payment source');
-          return;
-        }
-
-        const sourceBody = res.data?.source || res.data;
-        const checkoutUrl = sourceBody?.data?.attributes?.redirect?.checkout_url || sourceBody?.data?.attributes?.redirect_url || sourceBody?.redirect_url || null;
-        if (checkoutUrl) {
-          await Linking.openURL(checkoutUrl);
-        } else {
-          Alert.alert('Payment', 'No checkout URL returned.');
-        }
-      } else {
-        const amountToPay = paymentItem.remainingBalance !== undefined ? paymentItem.remainingBalance : (paymentItem.amount || 0);
-        const amountCents = Math.round(amountToPay * 100);
-        const resp = await PaymentService.createOfflineRecord(invoiceId, { 
-          amount_cents: amountCents, 
-          method: 'cash_on_site', 
-          reference: details.reference || null,
-          notes: details.notes || 'Tenant indicated cash on site payment' 
-        });
-        if (!resp.success) {
-          Alert.alert('Payment Error', resp.error || 'Failed to request cash payment');
-        } else {
-          Alert.alert('Request Sent', 'Your landlord has been notified to expect a cash payment.');
-        }
-      }
-    } catch (error) {
-      console.error('Error initiating payment:', error);
-      Alert.alert('Payment Error', 'Failed to initiate payment.');
-    } finally {
-      setProcessingPayment(false);
-      setCheckoutVisible(false);
-      await triggerPaymentDataRefresh();
-    }
-  };
-
-  const confirmCheckout = async () => {
-    if (!checkoutItem) return;
-    setCheckoutVisible(false);
-    if (checkoutMethod === 'cash') {
-      await handlePayInvoice(checkoutItem, 'cash', offlineDetails);
-    } else {
-      await handlePayInvoice(checkoutItem, checkoutMethod);
-    }
-  };
-  // --- end payment flow ---
 
   const filterOptions = [
     { value: 'all', label: 'All' },
@@ -622,10 +535,21 @@ export default function PaymentsScreen() {
 
                 {!tenantPaymentsTempDisabled && isPayable(payment) && (
                   <TouchableOpacity
+                    disabled={resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId)}
                     onPress={() => openCheckout(payment)}
-                    style={[styles.payBtn, { backgroundColor: theme.colors.primary }]}
+                    style={[
+                      styles.payBtn,
+                      {
+                        backgroundColor: theme.colors.primary,
+                        opacity: resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId) ? 0.65 : 1,
+                      },
+                    ]}
                   >
-                    <Text style={styles.payBtnText}>Pay</Text>
+                    {resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId) ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.payBtnText}>Pay</Text>
+                    )}
                   </TouchableOpacity>
                 )}
               </View>
@@ -633,98 +557,6 @@ export default function PaymentsScreen() {
           ))
         )}
       </View>
-
-      {/* Checkout Modal */}
-      <Modal visible={checkoutVisible} animationType="slide" transparent onRequestClose={() => setCheckoutVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Checkout</Text>
-            {checkoutItem ? (
-              <View style={styles.checkoutInfo}>
-                <Text style={[styles.checkoutPropName, { color: theme.colors.text }]}>{checkoutItem.propertyName || checkoutItem.description || `Payment #${checkoutItem.id}`}</Text>
-                <Text style={[styles.checkoutRoom, { color: theme.colors.textSecondary }]}>{checkoutItem.roomNumber ? `Room ${checkoutItem.roomNumber}` : ''}</Text>
-                <Text style={[styles.checkoutAmount, { color: theme.colors.text }]}>
-                  ₱{Number(checkoutItem.remainingBalance !== undefined ? checkoutItem.remainingBalance : checkoutItem.amount || 0).toLocaleString()}
-                </Text>
-                {checkoutItem.remainingBalance !== undefined && checkoutItem.remainingBalance < checkoutItem.amount && (
-                  <Text style={[styles.checkoutRoom, { color: theme.colors.textSecondary, fontSize: 12 }]}>
-                    Remaining balance of ₱{Number(checkoutItem.amount).toLocaleString()}
-                  </Text>
-                )}
-              </View>
-            ) : null}
-
-            <Text style={[styles.methodTitle, { color: theme.colors.text }]}>Choose payment method</Text>
-            <View style={styles.methodsRow}>
-              {paymentMethods.map((m, i) => (
-                <TouchableOpacity 
-                    key={m.key} 
-                    onPress={() => setCheckoutMethod(m.key)} 
-                    style={[
-                        styles.methodBtn, 
-                        { backgroundColor: checkoutMethod === m.key ? theme.colors.primary : theme.colors.backgroundSecondary }
-                    ]}
-                >
-                  <Text style={[styles.methodName, { color: checkoutMethod === m.key ? '#fff' : theme.colors.text }]}>{m.name}</Text>
-                  <Text style={[styles.methodDesc, { color: checkoutMethod === m.key ? 'rgba(255,255,255,0.8)' : theme.colors.textSecondary }]}>
-                      {m.key === 'gcash' ? 'Pay via GCash (online)' : 'Pay with cash upon arrival'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {checkoutMethod === 'cash' && (
-              <View style={{ marginTop: 16 }}>
-                <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 8 }}>Additional Details (Optional)</Text>
-                <TextInput
-                  placeholder="Reference Number (if bank transfer)"
-                  placeholderTextColor="#9CA3AF"
-                  style={{
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: 10,
-                    padding: 16,
-                    color: theme.colors.text,
-                    backgroundColor: theme.colors.backgroundSecondary,
-                    marginBottom: 8,
-                    fontSize: 14
-                  }}
-                  value={offlineDetails.reference}
-                  onChangeText={(v) => setOfflineDetails(prev => ({ ...prev, reference: v }))}
-                />
-                <TextInput
-                  placeholder="Additional Notes"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                  numberOfLines={3}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: 10,
-                    padding: 16,
-                    color: theme.colors.text,
-                    backgroundColor: theme.colors.backgroundSecondary,
-                    height: 80,
-                    textAlignVertical: 'top',
-                    fontSize: 14
-                  }}
-                  value={offlineDetails.notes}
-                  onChangeText={(v) => setOfflineDetails(prev => ({ ...prev, notes: v }))}
-                />
-              </View>
-            )}
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity onPress={() => setCheckoutVisible(false)} style={[styles.cancelBtn, { backgroundColor: theme.colors.backgroundSecondary }]}>
-                <Text style={[styles.btnText, { color: theme.colors.text }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={confirmCheckout} style={[styles.confirmBtn, { backgroundColor: theme.colors.primary }]}>
-                {processingPayment ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Pay Now</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
       </ScrollView>
     </SafeAreaView>
   );

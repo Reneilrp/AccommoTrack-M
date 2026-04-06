@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Animated, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // Global Header removed — screens should use TopNavigation when needed
 import BottomNavigation from '../components/BottomNavigation.jsx';
@@ -11,6 +11,8 @@ import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
 export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired }) {
   const { theme } = useTheme();
+  const [headerMeasuredHeight, setHeaderMeasuredHeight] = React.useState(0);
+  const headerVisibility = React.useRef(new Animated.Value(1)).current;
 
   const [activeRouteName, setActiveRouteName] = React.useState(() => {
     // Prefer the full root state so we can descend into nested navigators reliably
@@ -106,14 +108,45 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   ]);
   
   // Also respect explicit route param hideLayout=true
-  const hideLayoutParam = activeRouteParams?.hideLayout === true;
+  const liveCurrentRoute = navigationRef?.isReady() && navigationRef.getCurrentRoute
+    ? navigationRef.getCurrentRoute()
+    : null;
+  const effectiveRouteName = liveCurrentRoute?.name || activeRouteName;
+  const effectiveRouteParams =
+    liveCurrentRoute?.name === effectiveRouteName
+      ? (liveCurrentRoute?.params || activeRouteParams || {})
+      : (activeRouteParams || {});
+
+  const hideLayoutParam = effectiveRouteParams?.hideLayout === true;
+  const hideLayoutChromeParam = effectiveRouteParams?.hideLayoutChrome === true;
+  const hideTopHeaderParam = effectiveRouteName === 'TenantHome' && effectiveRouteParams?.hideTopHeader === true;
 
   // Defensive: treat any route name containing "detail", "chat", "maintenance", or "addon" (case-insensitive)
   // as a full-screen route to ensure layout elements are hidden.
-  const isFullScreenRoute = typeof activeRouteName === 'string' && /(detail|chat|maintenance|addon)/i.test(activeRouteName);
+  const isFullScreenRoute = typeof effectiveRouteName === 'string' && /(detail|chat|maintenance|addon)/i.test(effectiveRouteName);
   
-  const showHeader = !hideHeaderRoutes.has(activeRouteName) && !hideLayoutParam && !isFullScreenRoute;
-  const showBottom = !hideBottomRoutes.has(activeRouteName) && !hideLayoutParam && !isFullScreenRoute;
+  const canShowHeader = !hideHeaderRoutes.has(effectiveRouteName) && !hideLayoutParam && !hideLayoutChromeParam && !isFullScreenRoute;
+  const animateHeaderVisibility = effectiveRouteName === 'TenantHome' && canShowHeader;
+  const showHeader = canShowHeader && (!animateHeaderVisibility || !hideTopHeaderParam);
+  const showBottom = !hideBottomRoutes.has(effectiveRouteName) && !hideLayoutParam && !hideLayoutChromeParam && !isFullScreenRoute;
+
+  React.useEffect(() => {
+    if (!canShowHeader) {
+      headerVisibility.setValue(0);
+      return;
+    }
+
+    if (!animateHeaderVisibility) {
+      headerVisibility.setValue(1);
+      return;
+    }
+
+    Animated.timing(headerVisibility, {
+      toValue: hideTopHeaderParam ? 0 : 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [animateHeaderVisibility, canShowHeader, headerVisibility, hideTopHeaderParam]);
 
   // Compute a friendly title for the header based on route params or name
   const title = React.useMemo(() => {
@@ -122,7 +155,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
       Dashboard: 'Dashboard',
       MyBookings: 'My Bookings',
       Messages: 'Messages',
-      Payments: 'Payments',
+      Payments: 'Billing & Payments',
       Settings: 'Settings',
     };
 
@@ -167,7 +200,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   }, [activeRouteName, activeRouteParams, showBottom]);
 
   // Determine header right button icon and action
-  const isProfileRoute = activeRouteName === 'TenantHome' || activeRouteName === 'Messages';
+  const isProfileRoute = effectiveRouteName === 'TenantHome' || effectiveRouteName === 'Messages';
   
   const handleRightPress = () => {
     if (isProfileRoute) {
@@ -188,13 +221,38 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      {showHeader && (
-        <Header
-          title={title}
-          onMenuPress={() => navigate('MenuModal')}
-          rightIcon={isProfileRoute ? 'person-outline' : 'notifications-outline'}
-          onRightPress={handleRightPress}
-        />
+      {canShowHeader && (
+        <Animated.View
+          style={
+            animateHeaderVisibility
+              ? {
+                  height: headerVisibility.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, headerMeasuredHeight || 1],
+                  }),
+                  opacity: headerVisibility,
+                  overflow: 'hidden',
+                }
+              : undefined
+          }
+          pointerEvents={showHeader ? 'auto' : 'none'}
+        >
+          <View
+            onLayout={(event) => {
+              const nextHeight = event?.nativeEvent?.layout?.height || 0;
+              if (nextHeight > 0 && nextHeight !== headerMeasuredHeight) {
+                setHeaderMeasuredHeight(nextHeight);
+              }
+            }}
+          >
+            <Header
+              title={title}
+              onMenuPress={() => navigate('MenuModal')}
+              rightIcon={isProfileRoute ? 'person-outline' : 'notifications-outline'}
+              onRightPress={handleRightPress}
+            />
+          </View>
+        </Animated.View>
       )}
 
       <View style={{ flex: 1 }}>

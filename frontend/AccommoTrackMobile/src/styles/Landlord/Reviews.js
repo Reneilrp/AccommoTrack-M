@@ -8,20 +8,30 @@ export const getStyles = (theme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    justifyContent: 'space-between',
+    height: 60,
+    paddingHorizontal: 8,
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
     color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center',
+    marginHorizontal: 0,
+  },
+  headerSpacer: {
+    width: 48,
+    height: 48,
   },
   center: {
     flex: 1,
@@ -32,6 +42,36 @@ export const getStyles = (theme) => StyleSheet.create({
   listContent: {
     padding: 16,
     gap: 16,
+  },
+  ratingFilterContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  ratingFilterScroll: {
+    gap: 8,
+  },
+  ratingFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  ratingFilterChipActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
+  },
+  ratingFilterChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  ratingFilterChipTextActive: {
+    color: '#FFFFFF',
   },
   card: {
     backgroundColor: theme.colors.surface,

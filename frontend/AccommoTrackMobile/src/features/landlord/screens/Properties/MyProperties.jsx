@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   StatusBar,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -17,7 +16,6 @@ import { useQuery } from "@tanstack/react-query";
 import PropertyService from "../../../../services/PropertyService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 import { getStyles } from "../../../../styles/Landlord/MyProperties.js";
-import MapModal from "../../../tenant/components/MapModal.jsx";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import {
   landlordQueryKeys,
@@ -49,9 +47,7 @@ export default function MyPropertiesScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [mapOpen, setMapOpen] = useState(false);
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -101,13 +97,9 @@ export default function MyPropertiesScreen({ navigation }) {
   const filteredProperties = useMemo(() => {
     return properties.filter((property) => {
       const status = (property.current_status || "pending").toLowerCase();
-      const matchesStatus = statusFilter === "all" || status === statusFilter;
-      const haystack =
-        `${property.title || ""} ${property.street_address || ""} ${property.city || ""}`.toLowerCase();
-      const matchesSearch = haystack.includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesSearch;
+      return statusFilter === "all" || status === statusFilter;
     });
-  }, [properties, statusFilter, searchQuery]);
+  }, [properties, statusFilter]);
 
   const formatAddress = (property) => {
     const parts = [
@@ -276,26 +268,6 @@ export default function MyPropertiesScreen({ navigation }) {
       </ScrollView>
 
       <View style={{ marginTop: 8 }}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#9CA3AF" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name or address"
-            placeholderTextColor="#9CA3AF"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          <TouchableOpacity
-            style={styles.mapButton}
-            onPress={() => setMapOpen(true)}
-          >
-            <Ionicons
-              name="map-outline"
-              size={20}
-              color={theme.colors.primary}
-            />
-          </TouchableOpacity>
-        </View>
         <View style={styles.filtersRow}>
           {STATUS_TABS.map((tab) => {
             const active = statusFilter === tab.key;
@@ -385,25 +357,6 @@ export default function MyPropertiesScreen({ navigation }) {
           />
         }
         showsVerticalScrollIndicator={false}
-      />
-
-      <MapModal
-        visible={mapOpen}
-        onClose={() => setMapOpen(false)}
-        properties={properties.map((p) => ({
-          ...p,
-          image: getCoverImage(p),
-          address: formatAddress(p),
-        }))}
-        userRole="landlord"
-        onSelectProperty={(data) => {
-          if (data.action === "open_property" && data.property) {
-            setMapOpen(false);
-            navigation.navigate("PropertySummary", {
-              propertyId: data.property.id,
-            });
-          }
-        }}
       />
     </SafeAreaView>
   );

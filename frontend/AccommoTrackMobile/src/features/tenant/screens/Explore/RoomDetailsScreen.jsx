@@ -1004,6 +1004,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         animationType="fade"
         transparent={true}
         statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={() => !isSubmitting && setBookingModalVisible(false)}
       >
         <View style={styles.modalOverlay}>

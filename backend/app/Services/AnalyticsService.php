@@ -33,8 +33,8 @@ class AnalyticsService
         $revenue = $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange, $timeRange);
         $payments = $this->calculatePaymentAnalytics($landlordId, $propertyId);
         $tenants = $this->calculateTenantAnalytics($landlordId, $propertyId, $dateRange);
-        $properties = $this->calculatePropertyComparison($landlordId, $propertyId);
-        $roomPerformance = $propertyId ? $this->calculateRoomPerformance($landlordId, $propertyId) : [];
+        $properties = $this->calculatePropertyComparison($landlordId, $propertyId, $dateRange);
+        $roomPerformance = $propertyId ? $this->calculateRoomPerformance($landlordId, $propertyId, $dateRange) : [];
 
         return [
             'overview' => $overview,
@@ -376,22 +376,23 @@ class AnalyticsService
     /**
      * Calculate Room Performance for a specific property
      */
-    public function calculateRoomPerformance(int $landlordId, int $propertyId): array
+    public function calculateRoomPerformance(int $landlordId, int $propertyId, ?array $dateRange = null): array
     {
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        $dateRange = $dateRange ?: $this->getDateRange('month');
+        $periodStart = $dateRange['start']->copy()->startOfDay();
+        $periodEnd = $dateRange['end']->copy()->endOfDay();
 
-        $monthlyRevenueByRoom = PaymentTransaction::where('payment_transactions.status', 'succeeded')
-            ->whereMonth('payment_transactions.created_at', $currentMonth)
-            ->whereYear('payment_transactions.created_at', $currentYear)
-            ->join('invoices', 'payment_transactions.invoice_id', '=', 'invoices.id')
-            ->join('bookings', 'invoices.booking_id', '=', 'bookings.id')
-            ->where('invoices.property_id', $propertyId)
+        $periodRevenueByRoom = Invoice::query()
             ->where('invoices.landlord_id', $landlordId)
+            ->where('invoices.property_id', $propertyId)
+            ->where('invoices.status', 'paid')
+            ->whereNotNull('invoices.paid_at')
+            ->whereBetween('invoices.paid_at', [$periodStart, $periodEnd])
+            ->join('bookings', 'invoices.booking_id', '=', 'bookings.id')
             ->whereNotNull('bookings.room_id')
-            ->select('bookings.room_id', DB::raw('SUM(payment_transactions.amount_cents) as monthly_revenue_cents'))
+            ->select('bookings.room_id', DB::raw('SUM(invoices.amount_cents) as period_revenue_cents'))
             ->groupBy('bookings.room_id')
-            ->pluck('monthly_revenue_cents', 'room_id');
+            ->pluck('period_revenue_cents', 'room_id');
 
         return Room::forLandlord($landlordId)
             ->where('property_id', $propertyId)
@@ -399,8 +400,8 @@ class AnalyticsService
                 $q->where('room_tenant_assignments.status', 'active');
             }])
             ->get()
-            ->map(function ($room) use ($monthlyRevenueByRoom) {
-                $monthlyRevenue = (float) (($monthlyRevenueByRoom[$room->id] ?? 0) / 100);
+            ->map(function ($room) use ($periodRevenueByRoom) {
+                $periodRevenue = (float) (($periodRevenueByRoom[$room->id] ?? 0) / 100);
 
                 return [
                     'id' => $room->id,
@@ -408,8 +409,8 @@ class AnalyticsService
                     'type' => $this->getRoomTypeLabel($room->room_type),
                     'capacity' => (int) $room->capacity,
                     'occupied' => (int) $room->active_tenants,
-                    'revenue' => round($monthlyRevenue, 2),
-                    'revpar' => $room->capacity > 0 ? round($monthlyRevenue / $room->capacity, 2) : 0,
+                    'revenue' => round($periodRevenue, 2),
+                    'revpar' => $room->capacity > 0 ? round($periodRevenue / $room->capacity, 2) : 0,
                     'occupancy_rate' => $room->capacity > 0 ? round(($room->active_tenants / $room->capacity) * 100, 1) : 0,
                 ];
             })
@@ -421,10 +422,11 @@ class AnalyticsService
     /**
      * Calculate Property Comparison
      */
-    public function calculatePropertyComparison(int $landlordId, ?int $propertyId = null): array
+    public function calculatePropertyComparison(int $landlordId, ?int $propertyId = null, ?array $dateRange = null): array
     {
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        $dateRange = $dateRange ?: $this->getDateRange('month');
+        $periodStart = $dateRange['start']->copy()->startOfDay();
+        $periodEnd = $dateRange['end']->copy()->endOfDay();
 
         $query = Property::where('landlord_id', $landlordId);
 
@@ -440,23 +442,21 @@ class AnalyticsService
                 $q->withCount('tenants');
             }])
             ->get()
-            ->map(function ($property) use ($currentMonth, $currentYear) {
+            ->map(function ($property) use ($periodStart, $periodEnd) {
                 // We need to get total slots and available rooms separately as they can't be done in one go with withCount
                 $totalSlots = (int) $property->rooms->sum('capacity');
                 $occupiedSlots = (int) $property->rooms->sum('tenants_count');
                 $availableRooms = (int) $property->rooms->where('status', 'available')->count();
-                
-                $totalRevenueCents = (int) PaymentTransaction::where('status', 'succeeded')
-                    ->whereHas('invoice', function ($q) use ($property) {
-                        $q->where('property_id', $property->id);
-                    })->sum('amount_cents');
 
-                $monthlyRevenueCents = (int) PaymentTransaction::where('status', 'succeeded')
-                    ->whereMonth('created_at', $currentMonth)
-                    ->whereYear('created_at', $currentYear)
-                    ->whereHas('invoice', function ($q) use ($property) {
-                        $q->where('property_id', $property->id);
-                    })->sum('amount_cents');
+                $baseCollectedInvoiceQuery = Invoice::query()
+                    ->where('property_id', $property->id)
+                    ->where('status', 'paid')
+                    ->whereNotNull('paid_at');
+
+                $totalRevenueCents = (int) (clone $baseCollectedInvoiceQuery)->sum('amount_cents');
+                $periodRevenueCents = (int) (clone $baseCollectedInvoiceQuery)
+                    ->whereBetween('paid_at', [$periodStart, $periodEnd])
+                    ->sum('amount_cents');
 
                 return [
                     'id' => $property->id,
@@ -467,9 +467,9 @@ class AnalyticsService
                     'occupied_slots' => $occupiedSlots,
                     'available_rooms' => $availableRooms,
                     'occupancy_rate' => $totalSlots > 0 ? round(($occupiedSlots / $totalSlots) * 100, 1) : 0,
-                    'monthly_revenue' => round($monthlyRevenueCents / 100, 2),
+                    'monthly_revenue' => round($periodRevenueCents / 100, 2),
                     'total_revenue' => round($totalRevenueCents / 100, 2),
-                    'revpar' => $property->rooms_count > 0 ? round(($monthlyRevenueCents / 100) / $property->rooms_count, 2) : 0,
+                    'revpar' => $property->rooms_count > 0 ? round(($periodRevenueCents / 100) / $property->rooms_count, 2) : 0,
                 ];
             })
             ->toArray();

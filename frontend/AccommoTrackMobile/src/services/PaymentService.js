@@ -70,6 +70,27 @@ class PaymentService {
   }
 
   /**
+   * Ensure an invoice exists for a booking and return it.
+   * Matches: POST /api/tenant/bookings/{id}/invoice
+   */
+  async createBookingInvoice(bookingId) {
+    try {
+      const response = await api.post(`/tenant/bookings/${bookingId}/invoice`);
+
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+      };
+    } catch (error) {
+      console.error("Error creating booking invoice:", error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to create invoice for booking",
+      };
+    }
+  }
+
+  /**
    * Create a PayMongo source (redirect/QR) for an invoice
    */
   async createPaymongoSource(invoiceId, method = "gcash", returnUrl = null, amount = null) {

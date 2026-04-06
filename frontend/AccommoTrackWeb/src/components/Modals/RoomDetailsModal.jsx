@@ -65,6 +65,37 @@ export default function RoomDetailsModal({
     email: "",
   });
 
+  const normalizePropertyTypeToken = (propertyType) =>
+    String(propertyType || "")
+      .toLowerCase()
+      .replace(/[\s_-]/g, "");
+
+  const normalizeTenantGender = (gender) => {
+    const normalized = String(gender || "").toLowerCase().trim();
+    if (["male", "boy", "boys"].includes(normalized)) return "male";
+    if (["female", "girl", "girls"].includes(normalized)) return "female";
+    return null;
+  };
+
+  const resolveStoredTenantGender = () => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const raw = window.localStorage?.getItem("userData");
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw);
+      return (
+        parsed?.gender ||
+        parsed?.user?.gender ||
+        parsed?.data?.gender ||
+        null
+      );
+    } catch {
+      return null;
+    }
+  };
+
   const toMoneyNumber = (value, fallback = 0) => {
     if (typeof value === "number") {
       return Number.isFinite(value) ? value : fallback;
@@ -571,12 +602,25 @@ export default function RoomDetailsModal({
 
   const genderMeta = getGenderRestrictionMeta(room.gender_restriction);
   const propertyType = String(property?.property_type || "").toLowerCase().trim();
+  const normalizedPropertyType = normalizePropertyTypeToken(property?.property_type);
   const roomGender = String(room?.gender_restriction || "mixed").toLowerCase().trim();
   const showGenderBadge = !(propertyType === "apartment" && roomGender === "mixed");
   const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
-  
-  // Use the API-provided flags if available, otherwise fallback to local logic
-  const isGenderCompatible = room.is_gender_compatible !== undefined ? room.is_gender_compatible : true;
+
+  const isTargetGenderRestrictedType = ["dormitory", "boardinghouse", "bedspacer"].includes(normalizedPropertyType);
+  const tenantGender = normalizeTenantGender(resolveStoredTenantGender());
+  const fallbackGenderCompatible = (() => {
+    if (!isAuthenticated) return true;
+    if (normalizedPropertyType === "apartment" || !isTargetGenderRestrictedType) return true;
+    if (roomGender === "mixed") return true;
+    if (!tenantGender) return false;
+    return roomGender === tenantGender;
+  })();
+
+  // Use backend compatibility when provided; otherwise derive it from local tenant profile.
+  const isGenderCompatible = room.is_gender_compatible !== undefined
+    ? Boolean(room.is_gender_compatible)
+    : fallbackGenderCompatible;
   const isRoomAvailable = room.is_available !== undefined ? room.is_available : (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
 
   const canBook = displayStatus === "available" && isRoomAvailable && isGenderCompatible;
@@ -881,6 +925,17 @@ export default function RoomDetailsModal({
                 </div>
               ) : (
                 <div className="max-w-xl mx-auto space-y-6">
+                  {isAuthenticated && !isGenderCompatible && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-xl">
+                      <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                        This room is restricted to {genderMeta.label.toLowerCase()}.
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                        Choose a compatible room or update your profile gender before booking this room type.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                     <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
                       Booking Type

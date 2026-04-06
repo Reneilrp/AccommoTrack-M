@@ -13,7 +13,7 @@ export const lightTheme = {
   isDark: false,
   colors: {
     // Brand/Primary colors (Emerald palette - matching web guest brand colors)
-    primary: '#047857', // emerald-700 (Increased for contrast)
+    primary: '#16a34a', // brand-600 (web parity)
     primaryDark: '#047857', // emerald-700
     primaryLight: '#d1fae5', // emerald-100
     brand50: '#ecfdf5', // emerald-50
@@ -22,7 +22,7 @@ export const lightTheme = {
     brand300: '#6ee7b7', // emerald-300
     brand400: '#34d399', // emerald-400
     brand500: '#10b981', // emerald-500
-    brand600: '#059669', // emerald-600
+    brand600: '#16a34a', // emerald-600
     brand700: '#047857', // emerald-700
     brand800: '#065f46', // emerald-800
     brand900: '#064e3b', // emerald-900
@@ -47,7 +47,7 @@ export const lightTheme = {
     borderLight: '#f3f4f6', // --border-light / gray-100
     
     // Status colors (matching web app usage)
-    success: '#047857', // emerald-700 (Increased for contrast)
+    success: '#16a34a', // brand-600 (web parity)
     successLight: '#d1fae5', // emerald-100
     successDark: '#047857', // emerald-700
     error: '#ef4444', // red-500
@@ -78,7 +78,7 @@ export const darkTheme = {
   isDark: true,
   colors: {
     // Brand/Primary colors (Emerald palette - matching web guest brand colors)
-    primary: '#34d399', // emerald-400 (Lighter for dark mode contrast)
+    primary: '#16a34a', // brand-600 (web parity)
     primaryDark: '#047857', // emerald-700
     primaryLight: '#064e3b', // emerald-900
     brand50: '#ecfdf5', // emerald-50
@@ -87,7 +87,7 @@ export const darkTheme = {
     brand300: '#6ee7b7', // emerald-300
     brand400: '#34d399', // emerald-400
     brand500: '#10b981', // emerald-500
-    brand600: '#059669', // emerald-600
+    brand600: '#16a34a', // emerald-600
     brand700: '#047857', // emerald-700
     brand800: '#065f46', // emerald-800
     brand900: '#064e3b', // emerald-900
@@ -112,7 +112,7 @@ export const darkTheme = {
     borderLight: '#4b5563', // --border-light / gray-600
     
     // Status colors (matching web app usage)
-    success: '#34d399', // emerald-400 (Lighter for dark mode contrast)
+    success: '#16a34a', // brand-600 (web parity)
     successLight: '#064e3b', // emerald-900 (dark mode)
     successDark: '#047857', // emerald-700
     error: '#ef4444', // red-500

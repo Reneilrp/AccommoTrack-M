@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class LandlordBookingController extends Controller
 {
@@ -82,10 +83,22 @@ class LandlordBookingController extends Controller
     public function store(StoreBookingRequest $request)
     {
         try {
-            Log::info('Booking request received', $request->validated());
+            $validated = $request->validated();
+            Log::info('Booking request received', $validated);
 
             $user = $request->user();
             $tenantId = $request->input('tenant_id');
+
+            if ($user && in_array($user->role, ['landlord', 'caretaker'], true)) {
+                $context = $this->resolveLandlordContext($request);
+                $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+                $room = \App\Models\Room::query()
+                    ->select('id', 'property_id')
+                    ->findOrFail($validated['room_id']);
+
+                $this->checkPropertyAccess($context, (int) $room->property_id);
+            }
 
             // If a tenant is logged in and creating a booking, use their ID
             if (! $tenantId && $user && $user->role === 'tenant') {
@@ -93,7 +106,7 @@ class LandlordBookingController extends Controller
             }
 
             $booking = $this->bookingService->createBooking(
-                $request->validated(),
+                $validated,
                 $tenantId
             );
 
@@ -131,6 +144,10 @@ class LandlordBookingController extends Controller
                 'message' => 'Room not found',
                 'error' => $e->getMessage(),
             ], 404);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             Log::error('Failed to create booking', [
                 'error' => $e->getMessage(),
@@ -146,7 +163,7 @@ class LandlordBookingController extends Controller
 
     private function buildReservationPolicy(Booking $booking): array
     {
-        $thresholdDays = 3;
+        $thresholdDays = max(0, (int) ($booking->property?->reservation_fee_gap_days ?? 3));
         $issuedDate = ($booking->created_at ?? now())->copy()->startOfDay();
         $moveInDate = $booking->start_date ? Carbon::parse($booking->start_date)->startOfDay() : null;
         $daysGap = $moveInDate ? max(0, $issuedDate->diffInDays($moveInDate, false)) : 0;
@@ -161,7 +178,7 @@ class LandlordBookingController extends Controller
         } elseif ($feeRequired) {
             $message = "Reservation fee is required because move-in is {$daysGap} days after booking date.";
         } else {
-            $message = 'No reservation fee is required because move-in is within 3 days from booking date.';
+            $message = "No reservation fee is required because move-in is within {$thresholdDays} days from booking date.";
         }
 
         return [

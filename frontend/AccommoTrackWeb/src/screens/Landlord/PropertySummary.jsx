@@ -1007,7 +1007,7 @@ export default function PropertySummary() {
               <button
                 onClick={() => navigate(`/reviews?property_id=${id}`)}
                 className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Guest Reviews"
+                title="Reviews"
               >
                 <Star className="w-5 h-5" />
               </button>

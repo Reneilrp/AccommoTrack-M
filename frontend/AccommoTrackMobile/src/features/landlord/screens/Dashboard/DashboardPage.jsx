@@ -7,7 +7,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert
+  Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -90,6 +92,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [moreActionsVisible, setMoreActionsVisible] = useState(false);
 
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -145,18 +148,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     },
   });
 
-  const propertiesQuery = useQuery({
-    queryKey: landlordQueryKeys.properties(),
-    queryFn: async () => {
-      const response = await PropertyService.getMyProperties();
-      if (!response.success || !Array.isArray(response.data)) {
-        return EMPTY_LIST;
-      }
-
-      return response.data;
-    },
-  });
-
   const dashboardData = dashboardQuery.data ?? cachedDashboard ?? EMPTY_DASHBOARD;
   const hasDashboardData = Boolean(
     dashboardData?.stats
@@ -170,28 +161,134 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const verificationStatus = verificationQuery.data || null;
   const unreadNotificationCount = unreadCountQuery.data ?? 0;
   const pendingTransferCount = pendingTransfersQuery.data ?? 0;
-  const firstProperty = propertiesQuery.data?.[0] || null;
-  const loadingProperty = propertiesQuery.isPending;
 
   const isCaretaker = user?.role === 'caretaker';
   const hasPermission = useCallback((key) => {
     if (!isCaretaker) return true;
     const permissions = user?.caretaker_permissions;
-    return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
+    return Boolean(
+      permissions?.[key]
+      || permissions?.[`can_view_${key}`]
+      || permissions?.[`can_manage_${key}`]
+    );
   }, [isCaretaker, user?.caretaker_permissions]);
 
-  const quickActions = [
-    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties', show: !isCaretaker || hasPermission('properties') || hasPermission('rooms') || hasPermission('tenants') },
-    { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement', show: !isCaretaker || hasPermission('rooms') },
-    { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants', show: !isCaretaker || hasPermission('tenants') },
-    { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings', show: !isCaretaker || hasPermission('bookings') },
-    { id: 5, title: 'Payments', icon: 'cash', color: '#059669', screen: 'Payments', show: !isCaretaker },
-    { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics', show: !isCaretaker },
-    { id: 7, title: 'Transfers', icon: 'swap-horizontal', color: '#F43F5E', screen: 'TransferRequests', show: !isCaretaker || hasPermission('tenants'), badgeCount: pendingTransferCount },
-    { id: 8, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages', show: !isCaretaker || hasPermission('messages') },
-    { id: 9, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests', show: !isCaretaker || hasPermission('rooms') },
-    { id: 10, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews', show: !isCaretaker }
+  const majorQuickActions = [
+    {
+      id: 1,
+      title: 'Properties',
+      icon: 'business',
+      color: theme.colors.primary,
+      screen: 'Properties',
+      show: !isCaretaker || hasPermission('properties') || hasPermission('rooms') || hasPermission('tenants'),
+    },
+    {
+      id: 2,
+      title: 'Rooms',
+      icon: 'bed',
+      color: '#8B5CF6',
+      screen: 'RoomManagement',
+      show: !isCaretaker || hasPermission('rooms'),
+    },
+    {
+      id: 3,
+      title: 'Tenants',
+      icon: 'people',
+      color: '#2196F3',
+      screen: 'Tenants',
+      show: !isCaretaker || hasPermission('tenants'),
+    },
+    {
+      id: 4,
+      title: 'Bookings',
+      icon: 'calendar',
+      color: '#FF9800',
+      screen: 'Bookings',
+      show: !isCaretaker || hasPermission('bookings'),
+    },
+    {
+      id: 5,
+      title: 'Payments',
+      icon: 'cash',
+      color: '#16a34a',
+      screen: 'Payments',
+      show: !isCaretaker || hasPermission('payments'),
+    },
+    {
+      id: 6,
+      title: 'Analytics',
+      icon: 'bar-chart',
+      color: '#9C27B0',
+      screen: 'Analytics',
+      show: !isCaretaker,
+    },
   ];
+
+  const minorQuickActions = [
+    {
+      id: 7,
+      title: 'Transfers',
+      icon: 'swap-horizontal',
+      color: '#F43F5E',
+      screen: 'TransferRequests',
+      show: !isCaretaker || hasPermission('tenants'),
+      badgeCount: pendingTransferCount,
+    },
+    {
+      id: 8,
+      title: 'Add-ons',
+      icon: 'sparkles-outline',
+      color: '#14B8A6',
+      screen: 'AddonManagement',
+      show: !isCaretaker,
+    },
+    {
+      id: 9,
+      title: 'Maintenance',
+      icon: 'construct',
+      color: '#F59E0B',
+      screen: 'MaintenanceRequests',
+      show: !isCaretaker || hasPermission('maintenance'),
+    },
+    {
+      id: 10,
+      title: 'Reviews',
+      icon: 'star',
+      color: '#FCD34D',
+      screen: 'Reviews',
+      show: !isCaretaker,
+    },
+    {
+      id: 11,
+      title: 'Messages',
+      icon: 'chatbubbles',
+      color: theme.colors.primary,
+      screen: 'Messages',
+      show: !isCaretaker || hasPermission('messages'),
+    },
+    {
+      id: 12,
+      title: 'Settings',
+      icon: 'settings',
+      color: '#64748B',
+      screen: 'Settings',
+      show: true,
+    },
+  ];
+
+  const visibleMajorQuickActions = majorQuickActions.filter((action) => action.show);
+  const allQuickActions = [
+    ...visibleMajorQuickActions,
+    ...minorQuickActions.filter((action) => action.show),
+  ];
+
+  const handleQuickActionPress = useCallback((action, closeMore = false) => {
+    if (closeMore) {
+      setMoreActionsVisible(false);
+    }
+
+    navigation.navigate(action.screen);
+  }, [navigation]);
 
   useEffect(() => {
     if (dashboardQuery.data) {
@@ -215,7 +312,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   }, [user]);
 
   const refetchDashboard = dashboardQuery.refetch;
-  const refetchProperties = propertiesQuery.refetch;
   const refetchVerification = verificationQuery.refetch;
   const refetchUnreadCount = unreadCountQuery.refetch;
   const refetchPendingTransfers = pendingTransfersQuery.refetch;
@@ -223,14 +319,12 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const dashboardRefetchers = React.useMemo(
     () => [
       refetchDashboard,
-      refetchProperties,
       refetchVerification,
       refetchUnreadCount,
       refetchPendingTransfers,
     ],
     [
       refetchDashboard,
-      refetchProperties,
       refetchVerification,
       refetchUnreadCount,
       refetchPendingTransfers,
@@ -279,18 +373,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     ]);
   };
 
-  const getFullAddress = (prop) => {
-    if (!prop) return 'Location not set';
-    const parts = [];
-    if (prop.street_address) parts.push(prop.street_address);
-    if (prop.barangay) parts.push(prop.barangay);
-    if (prop.city) parts.push(prop.city);
-    if (prop.province) parts.push(prop.province);
-    if (prop.postal_code) parts.push(prop.postal_code);
-    if (parts.length > 0) return parts.join(', ');
-    return 'Location not set';
-  };
-
   const stats = dashboardData.stats;
   const activities = dashboardData.activities || [];
   const upcomingCheckouts = dashboardData.upcomingPayments?.upcomingCheckouts || [];
@@ -306,32 +388,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     overdueInvoices: [],
     dueSoonInvoices: [],
   };
-  const propertyPerformance = dashboardData.propertyPerformance || [];
-
-  const findPropertyPerformance = () => {
-    if (!propertyPerformance.length) return null;
-    if (firstProperty) {
-      return propertyPerformance.find((perf) => perf.id === firstProperty.id) || propertyPerformance[0];
-    }
-    return propertyPerformance[0];
-  };
-
-  const firstPropertyPerformance = findPropertyPerformance();
-  const occupancyRate = firstPropertyPerformance?.occupancyRate;
-  const occupiedRooms = firstPropertyPerformance?.occupiedRooms ?? (
-    (firstProperty?.total_rooms || 0) - (firstProperty?.available_rooms || 0)
-  );
-  const totalRooms = firstPropertyPerformance?.totalRooms ?? firstProperty?.total_rooms;
-  const derivedAvailableRooms = firstProperty?.available_rooms ?? (
-    totalRooms && occupiedRooms != null ? totalRooms - occupiedRooms : 0
-  );
-  const derivedOccupancyPercent = totalRooms
-    ? Math.round(((totalRooms - derivedAvailableRooms) / totalRooms) * 100)
-    : 0;
-  const occupancyLabel = typeof occupancyRate === 'number'
-    ? `${occupancyRate}% Full`
-    : `${derivedOccupancyPercent}% Full`;
-  const tenantCount = occupiedRooms ?? 0;
   
   const renderVerificationBanner = () => {
     if (!verificationStatus || verificationStatus.status === 'approved') return null;
@@ -445,69 +501,11 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={styles.statsGrid}>
-            {/* Total Properties */}
-            <View style={[styles.statCard, styles.statCardBlue]}>
-              <View style={styles.statCardLeft}>
-                <View style={[styles.statIconContainer, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="business" size={18} color="#1D4ED8" />
-                </View>
-                <View style={[styles.statBadge, { backgroundColor: '#DBEAFE' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#1D4ED8' }]}>
-                    {stats?.properties?.active ?? 0} Active
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.statCardRight}>
-                <Text style={styles.statValue}>{stats?.properties?.total ?? 0}</Text>
-                <Text style={styles.statLabel}>Total Properties</Text>
-              </View>
-            </View>
-
-            {/* Total Rooms */}
-            <View style={[styles.statCard, styles.statCardGreen]}>
-              <View style={styles.statCardLeft}>
-                <View style={[styles.statIconContainer, { backgroundColor: '#DCFCE7' }]}>
-                  <Ionicons name="home" size={18} color="#166534" />
-                </View>
-                <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#166534' }]}>
-                    {stats?.rooms?.occupancyRate ?? 0}% Occ
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.statCardRight}>
-                <Text style={styles.statValue}>{stats?.rooms?.total ?? 0}</Text>
-                <Text style={styles.statLabel}>Total Rooms</Text>
-              </View>
-            </View>
-
-            {/* Bookings */}
-            <View style={[styles.statCard, styles.statCardPurple]}>
-              <View style={styles.statCardLeft}>
-                <View style={[styles.statIconContainer, { backgroundColor: '#F3E8FF' }]}>
-                  <Ionicons name="calendar" size={18} color="#7E22CE" />
-                </View>
-                {(stats?.bookings?.pending ?? 0) > 0 ? (
-                  <View style={[styles.statBadge, { backgroundColor: '#FEF3C7' }]}>
-                    <Text style={[styles.statBadgeText, { color: '#D97706' }]}>
-                      {stats?.bookings?.pending ?? 0} Pend
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
-                    <Text style={[styles.statBadgeText, { color: '#166534' }]}>
-                      {stats?.bookings?.confirmed ?? 0} Conf
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.statCardRight}>
-                <Text style={styles.statValue}>{(stats?.bookings?.pending ?? 0) + (stats?.bookings?.confirmed ?? 0)}</Text>
-                <Text style={styles.statLabel}>Total Bookings</Text>
-              </View>
-            </View>
-
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.statsRow}
+          >
             {!isCaretaker && (
               <View style={[styles.statCard, styles.statCardAmber]}>
                 <View style={styles.statCardLeft}>
@@ -524,18 +522,86 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                 </View>
               </View>
             )}
-          </View>
+
+            <View style={[styles.statCard, styles.statCardPurple]}>
+              <View style={styles.statCardLeft}>
+                <View style={[styles.statIconContainer, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="calendar" size={18} color="#7E22CE" />
+                </View>
+                {(stats?.bookings?.pending ?? 0) > 0 ? (
+                  <View style={[styles.statBadge, { backgroundColor: '#FEF3C7' }]}>
+                    <Text style={[styles.statBadgeText, { color: '#D97706' }]}> 
+                      {stats?.bookings?.pending ?? 0} Pend
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={[styles.statBadgeText, { color: '#166534' }]}> 
+                      {stats?.bookings?.confirmed ?? 0} Conf
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.statCardRight}>
+                <Text style={styles.statValue}>{(stats?.bookings?.pending ?? 0) + (stats?.bookings?.confirmed ?? 0)}</Text>
+                <Text style={styles.statLabel}>Total Bookings</Text>
+              </View>
+            </View>
+
+            <View style={[styles.statCard, styles.statCardGreen]}>
+              <View style={styles.statCardLeft}>
+                <View style={[styles.statIconContainer, { backgroundColor: '#DCFCE7' }]}>
+                  <Ionicons name="home" size={18} color="#166534" />
+                </View>
+                <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
+                  <Text style={[styles.statBadgeText, { color: '#166534' }]}> 
+                    {stats?.rooms?.occupancyRate ?? 0}% Occ
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.statCardRight}>
+                <Text style={styles.statValue}>{stats?.rooms?.total ?? 0}</Text>
+                <Text style={styles.statLabel}>Total Rooms</Text>
+              </View>
+            </View>
+
+            <View style={[styles.statCard, styles.statCardBlue]}>
+              <View style={styles.statCardLeft}>
+                <View style={[styles.statIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="business" size={18} color="#1D4ED8" />
+                </View>
+                <View style={[styles.statBadge, { backgroundColor: '#DBEAFE' }]}>
+                  <Text style={[styles.statBadgeText, { color: '#1D4ED8' }]}> 
+                    {stats?.properties?.active ?? 0} Active
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.statCardRight}>
+                <Text style={styles.statValue}>{stats?.properties?.total ?? 0}</Text>
+                <Text style={styles.statLabel}>Total Properties</Text>
+              </View>
+            </View>
+          </ScrollView>
         </View>
 
         {/* Quick Actions */}
         <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsHeader}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <TouchableOpacity
+              style={styles.quickActionsMoreButton}
+              onPress={() => setMoreActionsVisible(true)}
+            >
+              <Text style={styles.quickActionsMoreText}>More</Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
           <View style={styles.actionsGrid}>
-            {quickActions.filter(a => a.show).map((action) => (
+            {visibleMajorQuickActions.map((action) => (
               <Button
                 key={action.id}
                 style={styles.actionCard}
-                onPress={() => navigation.navigate(action.screen)}
+                onPress={() => handleQuickActionPress(action)}
                 type="transparent"
               >
                 {action.badgeCount > 0 && (
@@ -551,6 +617,59 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
             ))}
           </View>
         </View>
+
+        <Modal
+          transparent
+          visible={moreActionsVisible}
+          animationType="fade"
+          statusBarTranslucent
+          navigationBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => setMoreActionsVisible(false)}
+        >
+          <Pressable
+            style={styles.quickActionsModalBackdrop}
+            onPress={() => setMoreActionsVisible(false)}
+          >
+            <Pressable style={styles.quickActionsModalCard} onPress={() => {}}>
+              <View style={styles.quickActionsModalHeader}>
+                <Text style={styles.quickActionsModalTitle}>All Quick Actions</Text>
+                <TouchableOpacity
+                  style={styles.quickActionsModalClose}
+                  onPress={() => setMoreActionsVisible(false)}
+                >
+                  <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.quickActionsModalBody}
+              >
+                <View style={styles.quickActionsModalGrid}>
+                  {allQuickActions.map((action) => (
+                    <Button
+                      key={`more-${action.id}`}
+                      style={styles.actionCard}
+                      onPress={() => handleQuickActionPress(action, true)}
+                      type="transparent"
+                    >
+                      {action.badgeCount > 0 && (
+                        <View style={styles.actionBadge}>
+                          <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                        </View>
+                      )}
+                      <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}> 
+                        <Ionicons name={action.icon} size={20} color={action.color} />
+                      </View>
+                      <Text style={styles.actionTitle}>{action.title}</Text>
+                    </Button>
+                  ))}
+                </View>
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {/* Recent Activity */}
         <View style={styles.section}>
@@ -793,97 +912,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           </View>
         )}
 
-        {/* Property Overview */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Property Overview</Text>
-
-          {loadingProperty ? (
-            <View style={{ padding: 16, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            </View>
-          ) : firstProperty ? (
-            <Button
-              style={styles.propertyCard}
-              onPress={() => navigation.navigate('Properties')}
-              type="transparent"
-            >
-              <View style={styles.propertyHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.propertyName} numberOfLines={1}>{firstProperty.name || firstProperty.title}</Text>
-                  <Text style={styles.propertyAddress} numberOfLines={2}>{getFullAddress(firstProperty)}</Text>
-                </View>
-                <View style={styles.occupancyBadge}>
-                  <Text style={styles.occupancyText}>{occupancyLabel}</Text>
-                </View>
-              </View>
-              <View style={styles.propertyStats}>
-                <View style={styles.propertyStatItem}>
-                  <Ionicons name="bed" size={20} color={theme.colors.primary} />
-                  <Text style={styles.propertyStatText}>{totalRooms || 0} Rooms</Text>
-                </View>
-                <View style={styles.propertyStatItem}>
-                  <Ionicons name="people" size={20} color={theme.colors.primary} />
-                  <Text style={styles.propertyStatText}>{tenantCount} Tenants</Text>
-                </View>
-              </View>
-            </Button>
-          ) : (
-            <View style={{ padding: 16 }}>
-              <Text>No properties yet. Create one to get started.</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Property Performance */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Property Performance</Text>
-          <View style={styles.cardContainer}>
-            {propertyPerformance.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="business-outline" size={36} color="#9CA3AF" />
-                <Text style={styles.emptyStateText}>Add a property to see performance</Text>
-              </View>
-            ) : (
-              propertyPerformance.map((property) => (
-                <TouchableOpacity 
-                  key={property.id} 
-                  style={styles.performanceCard}
-                  onPress={() => navigation.navigate('RoomManagement', { 
-                    propertyId: property.id, 
-                    filter: 'occupied' 
-                  })}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.performanceHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.performanceTitle}>{property.title}</Text>
-                      <Text style={styles.performanceSubtitle}>{property.status}</Text>
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: '#E0F2FE' }]}> 
-                      <Text style={[styles.statusBadgeText, { color: '#0369A1' }]}>Occ {property.occupancyRate}%</Text>
-                    </View>
-                  </View>
-                  <View style={styles.progressBar}>
-                    <View style={[styles.progressBarFill, { width: `${property.occupancyRate}%` }]} />
-                  </View>
-                  <View style={styles.performanceRow}>
-                    <View>
-                      <Text style={styles.performanceStatLabel}>Occupied</Text>
-                      <Text style={styles.performanceStatValue}>{property.occupiedRooms}/{property.totalRooms}</Text>
-                    </View>
-                    {!isCaretaker && (
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.performanceStatLabel}>Revenue</Text>
-                        <Text style={styles.performanceStatValue}>₱{(property.actualRevenue ?? 0).toLocaleString()}</Text>
-                      </View>
-                    )}
-                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                  </View>
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );

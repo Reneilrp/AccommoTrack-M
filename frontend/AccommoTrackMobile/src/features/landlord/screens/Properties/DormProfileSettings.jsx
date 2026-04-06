@@ -101,6 +101,7 @@ const buildEmptyForm = () => ({
   allowPartialPayments: true,
   requireReservationFee: false,
   reservationFeeAmount: '',
+  reservationFeeGapDays: '3',
 });
 
 const normalizeSettings = (data) => {
@@ -161,6 +162,9 @@ const normalizeSettings = (data) => {
     allowPartialPayments: data?.allow_partial_payments !== undefined ? !!data.allow_partial_payments : true,
     requireReservationFee: !!data?.require_reservation_fee,
     reservationFeeAmount: data?.reservation_fee_amount ? String(data.reservation_fee_amount) : '',
+    reservationFeeGapDays: data?.reservation_fee_gap_days !== undefined
+      ? String(data.reservation_fee_gap_days)
+      : '3',
   };
 };
 
@@ -371,6 +375,9 @@ export default function DormProfileSettings({ route, navigation }) {
       payload.append('allow_partial_payments', form.allowPartialPayments ? '1' : '0');
       payload.append('require_reservation_fee', form.requireReservationFee ? '1' : '0');
       payload.append('reservation_fee_amount', form.reservationFeeAmount);
+      const parsedGapDays = Number.parseInt(form.reservationFeeGapDays, 10);
+      const reservationFeeGapDays = Number.isNaN(parsedGapDays) ? 3 : Math.max(0, parsedGapDays);
+      payload.append('reservation_fee_gap_days', String(reservationFeeGapDays));
       
       // Add amenities individually (PHP handles multiple values with the same name if it ends in [])
       form.amenities.forEach(amenity => {
@@ -887,6 +894,16 @@ export default function DormProfileSettings({ route, navigation }) {
                 value={form.reservationFeeAmount}
                 onChangeText={(val) => updateForm('reservationFeeAmount', val)}
               />
+
+              <Text style={styles.label}>Require fee when move-in is more than (days)</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="number-pad"
+                placeholder="3"
+                value={form.reservationFeeGapDays}
+                onChangeText={(val) => updateForm('reservationFeeGapDays', val.replace(/[^0-9]/g, ''))}
+              />
+              <Text style={styles.switchHelpText}>Default is 3 days. Fee is required only when gap is above this value.</Text>
             </View>
           )}
         </View>
@@ -930,7 +947,15 @@ export default function DormProfileSettings({ route, navigation }) {
         </View>
       </ScrollView>
 
-      <Modal visible={passwordModalVisible} transparent animationType="fade" onRequestClose={() => setPasswordModalVisible(false)}>
+      <Modal
+        visible={passwordModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setPasswordModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Confirm Deletion</Text>

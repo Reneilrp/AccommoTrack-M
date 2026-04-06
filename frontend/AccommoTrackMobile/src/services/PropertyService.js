@@ -1349,9 +1349,11 @@ const PropertyService = {
    * Fetch tenant transfer requests for landlord
    * Matches: GET /api/landlord/transfers
    */
-  async getTransferRequests() {
+  async getTransferRequests(params = {}) {
     try {
-      const response = await api.get(`/landlord/transfers`);
+      const response = await api.get(`/landlord/transfers`, {
+        params,
+      });
       return {
         success: true,
         data: response.data?.data || response.data || [],

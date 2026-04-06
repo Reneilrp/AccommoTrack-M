@@ -238,6 +238,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/tenants', [AnalyticsController::class, 'getTenantAnalytics']);
         Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
         Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
+        Route::get('/analytics/export-csv', [AnalyticsController::class, 'exportAnalyticsCsv']);
 
         // Reports (Tenant)
         Route::post('/reports', [ReportController::class, 'store']);

@@ -12,7 +12,7 @@ jest.mock('../contexts/ThemeContext.jsx', () => ({
     theme: {
       isDark: false,
       colors: {
-        primary: '#059669',
+        primary: '#16a34a',
       },
     },
   }),

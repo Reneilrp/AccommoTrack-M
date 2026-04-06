@@ -8,6 +8,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\User;
+use App\Support\SystemToggle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -161,11 +162,66 @@ class CashPaymentFlowTest extends TestCase
         ]);
     }
 
+    public function test_tenant_offline_payment_response_contract_and_cash_alias_normalization(): void
+    {
+        Notification::fake();
+
+        [, $tenant, $invoice] = $this->createCashPaymentScenario();
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->postJson("/api/tenant/invoices/{$invoice->id}/record-offline", [
+            'amount_cents' => 25000,
+            'method' => 'cash_on_site',
+            'reference' => 'ALIAS-CASH-001',
+            'notes' => 'Alias method contract test',
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('transaction.status', 'pending_offline')
+            ->assertJsonPath('transaction.method', 'cash')
+            ->assertJsonPath('transaction.amount_cents', 25000)
+            ->assertJsonPath('transaction.gateway_reference', 'ALIAS-CASH-001')
+            ->assertJsonStructure([
+                'success',
+                'transaction' => [
+                    'id',
+                    'invoice_id',
+                    'tenant_id',
+                    'amount_cents',
+                    'currency',
+                    'status',
+                    'method',
+                    'gateway_reference',
+                    'gateway_response',
+                    'created_at',
+                    'updated_at',
+                ],
+            ]);
+
+        $invoice->refresh();
+        $this->assertSame('pending_verification', $invoice->status);
+
+        $this->assertDatabaseHas('payment_transactions', [
+            'invoice_id' => $invoice->id,
+            'tenant_id' => $tenant->id,
+            'status' => 'pending_offline',
+            'method' => 'cash',
+            'amount_cents' => 25000,
+            'gateway_reference' => 'ALIAS-CASH-001',
+        ]);
+    }
+
     /**
      * @return array{User, User, Invoice, Booking}
      */
     private function createCashPaymentScenario(array $propertyOverrides = []): array
     {
+        // Keep this suite deterministic regardless of global admin payment-control defaults.
+        SystemToggle::setBool('tenant_payments_disabled', false, null);
+
         $suffix = uniqid();
 
         $landlord = User::create([

@@ -19,6 +19,9 @@ const BlockedUserModal = ({ visible, onClose }) => {
       animationType="fade"
       transparent={true}
       visible={visible}
+      statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>

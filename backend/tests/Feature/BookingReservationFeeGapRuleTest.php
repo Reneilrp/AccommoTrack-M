@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\User;
+use App\Support\SystemToggle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
@@ -15,6 +16,13 @@ use Tests\TestCase;
 class BookingReservationFeeGapRuleTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        SystemToggle::setBool('reservation_fee_disabled', false, null);
+    }
 
     public function test_reservation_fee_is_not_required_within_two_days(): void
     {
@@ -134,6 +142,68 @@ class BookingReservationFeeGapRuleTest extends TestCase
             ->assertJsonValidationErrors(['move_in_date']);
     }
 
+    public function test_reservation_fee_is_not_required_when_gap_is_within_custom_threshold(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id, true, 1600, 5);
+        $room = $this->createRoom($property->id, '104A');
+
+        Sanctum::actingAs($tenant);
+
+        $startDate = now()->addDays(5)->toDateString();
+
+        $response = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'start_date' => $startDate,
+            'end_date' => now()->addDays(35)->toDateString(),
+            'contract_mode' => 'monthly',
+            'payment_plan' => 'full',
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('reservation_invoice', null)
+            ->assertJsonPath('reservation_policy.fee_required', false)
+            ->assertJsonPath('reservation_policy.days_gap', 5)
+            ->assertJsonPath('reservation_policy.threshold_days', 5)
+            ->assertJsonPath('reservation_policy.move_in_date', $startDate);
+    }
+
+    public function test_reservation_fee_is_required_when_gap_exceeds_custom_threshold(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id, true, 1900, 5);
+        $room = $this->createRoom($property->id, '104B');
+
+        Sanctum::actingAs($tenant);
+
+        $startDate = now()->addDays(6)->toDateString();
+
+        $response = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'start_date' => $startDate,
+            'end_date' => now()->addDays(36)->toDateString(),
+            'contract_mode' => 'monthly',
+            'payment_plan' => 'full',
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('reservation_policy.fee_required', true)
+            ->assertJsonPath('reservation_policy.days_gap', 6)
+            ->assertJsonPath('reservation_policy.threshold_days', 5)
+            ->assertJsonPath('reservation_policy.move_in_date', $startDate)
+            ->assertJsonPath('reservation_invoice.invoice_type', 'reservation_fee');
+
+        $bookingId = (int) $response->json('booking.id');
+        $invoice = Invoice::where('booking_id', $bookingId)
+            ->where('invoice_type', 'reservation_fee')
+            ->first();
+
+        $this->assertNotNull($invoice);
+        $this->assertSame(190000, $invoice->amount_cents);
+    }
+
     public function test_tenant_bookings_list_includes_reservation_policy_payload(): void
     {
         [$landlord, $tenant] = $this->createUsers();
@@ -226,7 +296,12 @@ class BookingReservationFeeGapRuleTest extends TestCase
         return [$landlord, $tenant];
     }
 
-    private function createProperty(int $landlordId, bool $requireReservationFee, float $reservationFee): Property
+    private function createProperty(
+        int $landlordId,
+        bool $requireReservationFee,
+        float $reservationFee,
+        int $reservationFeeGapDays = 3
+    ): Property
     {
         return Property::create([
             'landlord_id' => $landlordId,
@@ -244,6 +319,7 @@ class BookingReservationFeeGapRuleTest extends TestCase
             'is_available' => true,
             'require_reservation_fee' => $requireReservationFee,
             'reservation_fee' => $reservationFee,
+            'reservation_fee_gap_days' => $reservationFeeGapDays,
         ]);
     }
 

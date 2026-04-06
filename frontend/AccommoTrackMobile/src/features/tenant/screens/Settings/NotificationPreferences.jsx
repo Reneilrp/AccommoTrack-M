@@ -117,7 +117,7 @@ export default function NotificationPreferences() {
                 <Switch value={prefs.email_booking_updates} onValueChange={() => toggle('email_booking_updates')} trackColor={{ false: '#D1D5DB', true: '#86EFAC' }} thumbColor={prefs.email_booking_updates ? theme.colors.primary : '#F3F4F6'} />
               </View>
               <View style={[homeStyles.rowSpaceBetweenCenter, settingsStyles.switchRow]}>
-                <Text style={{ color: theme.colors.text }}>Payment Notifications</Text>
+                <Text style={{ color: theme.colors.text }}>Payment Reminders</Text>
                 <Switch value={prefs.email_payment_reminders} onValueChange={() => toggle('email_payment_reminders')} trackColor={{ false: '#D1D5DB', true: '#86EFAC' }} thumbColor={prefs.email_payment_reminders ? theme.colors.primary : '#F3F4F6'} />
               </View>
               <View style={[homeStyles.rowSpaceBetweenCenter, settingsStyles.switchRow]}>

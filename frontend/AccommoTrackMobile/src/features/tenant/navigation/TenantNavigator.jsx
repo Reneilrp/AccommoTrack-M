@@ -69,6 +69,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <AccommodationDetails 
               {...props}
               isGuest={isGuest}
+              onAuthRequired={onAuthRequired}
             />
           )}
         </MainStack.Screen>

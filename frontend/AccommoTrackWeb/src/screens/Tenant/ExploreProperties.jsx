@@ -4,7 +4,6 @@ import PropertyCarousel from "./PropertyCarousel";
 import PropertyMap from "../../components/Shared/PropertyMap";
 import {
   X,
-  Check,
   MapPin,
   Star,
   Shield,
@@ -39,6 +38,14 @@ const FALLBACK_TYPE_OPTIONS = [
   { value: "apartment", label: "Apartment", count: 0 },
   { value: "boardingHouse", label: "Boarding House", count: 0 },
   { value: "bedSpacer", label: "Bed Spacer", count: 0 },
+];
+
+const DEFAULT_FILTER_AMENITIES = [
+  "WiFi",
+  "Parking",
+  "CR",
+  "Air Condition/AC",
+  "CCTV",
 ];
 
 const normalizeTypeToken = (value) =>
@@ -130,6 +137,7 @@ const ExploreProperties = () => {
     availabilityOnly: false,
     amenities: [],
     rating: 0,
+    genderPolicy: "All",
   });
   const [propertyTypeOptions, setPropertyTypeOptions] = useState(
     FALLBACK_TYPE_OPTIONS,
@@ -180,9 +188,16 @@ const ExploreProperties = () => {
   const activeFilterCount =
     (normalizedSelectedType !== "All" ? 1 : 0) +
     (advancedFilters.priceMin || advancedFilters.priceMax ? 1 : 0) +
-    (advancedFilters.availabilityOnly ? 1 : 0) +
     (advancedFilters.rating > 0 ? 1 : 0) +
+    (advancedFilters.genderPolicy && advancedFilters.genderPolicy !== "All" ? 1 : 0) +
     (advancedFilters.amenities.length > 0 ? 1 : 0);
+
+  const normalizeGenderPolicy = (value) => {
+    const normalized = String(value || "mixed").toLowerCase().trim();
+    if (["male", "boys", "boy"].includes(normalized)) return "male";
+    if (["female", "girls", "girl"].includes(normalized)) return "female";
+    return "mixed";
+  };
 
   const openFullGallery = (property) => {
     if (!property) return;
@@ -318,6 +333,10 @@ const ExploreProperties = () => {
           price_max: advancedFilters.priceMax || undefined,
           availability: advancedFilters.availabilityOnly ? "1" : undefined,
           min_rating: advancedFilters.rating > 0 ? advancedFilters.rating : undefined,
+          gender_policy:
+            advancedFilters.genderPolicy && advancedFilters.genderPolicy !== "All"
+              ? advancedFilters.genderPolicy
+              : undefined,
           amenities: advancedFilters.amenities,
         };
 
@@ -336,10 +355,24 @@ const ExploreProperties = () => {
 
   const safeProperties = Array.isArray(properties) ? properties : [];
 
-  const mapDisplayProperties = safeProperties.map(mapProperty).filter(Boolean);
+  const mapDisplayProperties = safeProperties
+    .map((property) => {
+      const mapped = mapProperty(property);
+      if (!mapped) return null;
+      return {
+        ...mapped,
+        gender_restriction: property?.gender_restriction || mapped?.gender_restriction || "mixed",
+      };
+    })
+    .filter(Boolean);
 
-  // Filtering is handled by backend query params.
-  const filteredProperties = mapDisplayProperties;
+  // Most filtering is handled by backend query params; gender policy is applied client-side.
+  const filteredProperties = mapDisplayProperties.filter((property) => {
+    const selectedGender = String(advancedFilters.genderPolicy || "All").toLowerCase().trim();
+    if (!selectedGender || selectedGender === "all") return true;
+    const propertyGender = normalizeGenderPolicy(property?.gender_restriction);
+    return propertyGender === selectedGender;
+  });
 
   const availableAmenities = Array.from(
     new Set(
@@ -558,13 +591,13 @@ const ExploreProperties = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border border-gray-300 dark:border-gray-700 flex flex-col items-center gap-4 md:gap-6">
             {/* Search Row */}
-            <div className="w-full flex items-center gap-4 md:gap-4">
+            <div className="w-full flex items-center gap-3 md:gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-500 dark:text-gray-500" />
+                <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search properties, locations..."
-                  className="w-full pl-10 md:pl-12 pr-4 md:pr-6 py-2.5 md:py-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800 rounded-xl transition-all outline-none text-sm md:text-base text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 font-bold shadow-sm"
+                  className="w-full pl-10 md:pl-11 pr-4 py-2 md:py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800 rounded-xl transition-all outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 font-semibold shadow-sm"
                   value={search}
                   onChange={handleSearchChange}
                 />
@@ -572,10 +605,10 @@ const ExploreProperties = () => {
 
                             <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`relative p-2.5 md:p-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group ${isFilterOpen ? 'bg-green-50 dark:bg-green-900/30 !border-green-300 dark:!border-green-600' : ''}`}
+                className={`relative p-2.5 md:p-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group ${isFilterOpen ? 'bg-green-50 dark:bg-green-900/30 !border-green-300 dark:!border-green-600' : ''}`}
                 aria-label="Toggle Filters"
               >
-                <SlidersHorizontal className={`w-5 h-5 md:w-6 md:h-6 group-hover:text-green-600 transition-colors ${isFilterOpen ? 'text-green-600' : ''}`} />
+                <SlidersHorizontal className={`w-5 h-5 group-hover:text-green-600 transition-colors ${isFilterOpen ? 'text-green-600' : ''}`} />
                 {activeFilterCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">
                     {activeFilterCount}
@@ -587,10 +620,10 @@ const ExploreProperties = () => {
                 onClick={() =>
                   updateScreenState("explore", { showMapModal: true })
                 }
-                className="p-2.5 md:p-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group"
+                className="p-2.5 md:p-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group"
                 aria-label="View Map"
               >
-                <Map className="w-5 h-5 md:w-6 md:h-6 group-hover:text-green-600 transition-colors" />
+                <Map className="w-5 h-5 group-hover:text-green-600 transition-colors" />
               </button>
             </div>
 
@@ -608,15 +641,15 @@ const ExploreProperties = () => {
                 </span>
               )}
 
-              {advancedFilters.availabilityOnly && (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700">
-                  Available Only
-                </span>
-              )}
-
               {advancedFilters.rating > 0 && (
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700">
                   {advancedFilters.rating}+ Stars
+                </span>
+              )}
+
+              {advancedFilters.genderPolicy && advancedFilters.genderPolicy !== "All" && (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-700">
+                  Gender: {advancedFilters.genderPolicy === "male" ? "Boys only" : advancedFilters.genderPolicy === "female" ? "Girls only" : "Mixed"}
                 </span>
               )}
 
@@ -628,10 +661,31 @@ const ExploreProperties = () => {
 
               {activeFilterCount === 0 && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                  Use the filter button to set property type, price range, availability, rating, and amenities.
+                  Use the filter button to set property type, price range, minimum rating, gender policy, and amenities.
                 </p>
               )}
             </div>
+
+            <FilterSidebar
+              isOpen={isFilterOpen}
+              filters={advancedFilters}
+              amenities={availableAmenities}
+              onApply={(nextFilters) => {
+                setAdvancedFilters(nextFilters);
+                updateScreenState("explore", { currentPage: 1 });
+              }}
+              onClear={(clearedFilters) => {
+                setAdvancedFilters(clearedFilters);
+                updateScreenState("explore", { currentPage: 1 });
+              }}
+              onClose={() => setIsFilterOpen(false)}
+              propertyTypes={propertyTypeOptions}
+              selectedType={normalizedSelectedType}
+              onSelectType={(type) =>
+                updateScreenState("explore", { selectedType: type, currentPage: 1 })
+              }
+              inlineDesktop
+            />
           </div>
         </div>
       </header>
@@ -639,27 +693,8 @@ const ExploreProperties = () => {
       {/* MOBILE SEARCH REMOVED (Now consolidated in header) */}
 
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="relative md:flex md:items-start md:gap-6">
-          <FilterSidebar
-            isOpen={isFilterOpen}
-            filters={advancedFilters}
-            amenities={availableAmenities}
-            onApply={(nextFilters) => {
-              setAdvancedFilters(nextFilters);
-              updateScreenState("explore", { currentPage: 1 });
-            }}
-            onClear={(clearedFilters) => {
-              setAdvancedFilters(clearedFilters);
-              updateScreenState("explore", { currentPage: 1 });
-            }}
-            onClose={() => setIsFilterOpen(false)}
-            propertyTypes={propertyTypeOptions}
-            selectedType={normalizedSelectedType}
-            onSelectType={(type) =>
-              updateScreenState("explore", { selectedType: type, currentPage: 1 })
-            }
-          />
-          <main className="flex-1 min-w-0">
+        <div className="relative">
+          <main className="min-w-0">
             {/* Helper Text */}
             <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
               <Filter className="w-4 h-4" />
@@ -721,6 +756,7 @@ const ExploreProperties = () => {
                       availabilityOnly: false,
                       amenities: [],
                       rating: 0,
+                      genderPolicy: "All",
                     });
                   }}
                   className="mt-4 text-green-600 dark:text-green-500 font-bold hover:underline"
@@ -1568,9 +1604,11 @@ const FilterSidebar = ({
   propertyTypes = [],
   selectedType = "All",
   onSelectType,
+  inlineDesktop = false,
 }) => {
   const [localFilters, setLocalFilters] = useState(filters);
   const [propertyTypeSearch, setPropertyTypeSearch] = useState("");
+  const [amenityDraft, setAmenityDraft] = useState("");
 
   useEffect(() => {
     setLocalFilters(filters);
@@ -1579,6 +1617,7 @@ const FilterSidebar = ({
   useEffect(() => {
     if (!isOpen) {
       setPropertyTypeSearch("");
+      setAmenityDraft("");
     }
   }, [isOpen]);
 
@@ -1628,27 +1667,53 @@ const FilterSidebar = ({
     );
   });
 
-  const fallbackAmenities = [
-    "WiFi",
-    "Air Conditioning",
-    "Parking",
-    "Kitchen",
-    "Balcony",
-    "Security",
-  ];
+  const amenityOptions = Array.from(
+    new globalThis.Map(
+      [...DEFAULT_FILTER_AMENITIES, ...(Array.isArray(amenities) ? amenities : [])]
+        .map((amenity) => {
+          const label =
+            typeof amenity === "string"
+              ? amenity.trim()
+              : String(amenity?.name ?? amenity?.label ?? "").trim();
+          return [label.toLowerCase(), label];
+        })
+        .filter((entry) => entry[0]),
+    ).values(),
+  ).sort((a, b) => a.localeCompare(b));
 
-  const amenityOptions =
-    Array.isArray(amenities) && amenities.length > 0
-      ? amenities
-      : fallbackAmenities;
+  const amenitySuggestions = amenityOptions
+    .filter((amenity) =>
+      !localFilters.amenities.some(
+        (selected) => selected.toLowerCase() === amenity.toLowerCase(),
+      ),
+    )
+    .filter((amenity) =>
+      amenity.toLowerCase().includes((amenityDraft || "").toLowerCase()),
+    )
+    .slice(0, 12);
 
   const toggleAmenity = (amenity) => {
+    const normalizedAmenity = String(amenity || "").trim().toLowerCase();
     setLocalFilters((prev) => ({
       ...prev,
-      amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter((item) => item !== amenity)
-        : [...prev.amenities, amenity],
+      amenities: prev.amenities.some(
+        (item) => item.toLowerCase() === normalizedAmenity,
+      )
+        ? prev.amenities.filter(
+            (item) => item.toLowerCase() !== normalizedAmenity,
+          )
+        : [...prev.amenities, String(amenity).trim()],
     }));
+  };
+
+  const addAmenityFromInput = () => {
+    const cleaned = String(amenityDraft || "").trim();
+    if (!cleaned) {
+      return;
+    }
+
+    toggleAmenity(cleaned);
+    setAmenityDraft("");
   };
 
   const handleApply = () => {
@@ -1663,6 +1728,7 @@ const FilterSidebar = ({
       availabilityOnly: false,
       amenities: [],
       rating: 0,
+      genderPolicy: "All",
     };
     setLocalFilters(cleared);
     onClear(cleared);
@@ -1684,15 +1750,15 @@ const FilterSidebar = ({
           transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
 
-          md:static md:z-auto md:h-auto
-          md:translate-x-0
-          md:rounded-xl md:border md:border-gray-300 dark:md:border-gray-700 md:shadow-md md:h-fit
-
-          md:transition-all md:duration-300
-          ${isOpen ? "md:w-64 md:p-4 md:opacity-100" : "md:w-0 md:p-0 md:opacity-0 md:border-0 md:overflow-hidden"}
+          md:relative md:top-auto md:left-auto md:bottom-auto md:w-full md:translate-x-0
+          md:rounded-xl md:border md:border-gray-300 dark:md:border-gray-700 md:shadow-sm md:bg-gray-50/40 dark:md:bg-gray-900/20
+          md:transition-all md:duration-300 md:ease-in-out
+          ${isOpen
+            ? `md:max-h-[480px] md:opacity-100 ${inlineDesktop ? "md:mt-1" : "md:mt-0"}`
+            : "md:max-h-0 md:opacity-0 md:mt-0 md:overflow-hidden md:border-transparent md:shadow-none"}
         `}
       >
-        <div className="p-4 md:p-0 h-full overflow-y-auto">
+        <div className="p-4 md:p-4 h-full overflow-y-auto">
           {/* Mobile header */}
           <div className="flex justify-between items-center md:hidden mb-4">
             <h2 className="text-lg font-bold">Filters</h2>
@@ -1704,12 +1770,11 @@ const FilterSidebar = ({
             </button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-4 md:gap-4 md:items-start">
 
             {/* Property Type */}
             {propertyTypes.length > 0 && (
-              <>
-                <div>
+                <div className="md:col-span-1">
                   <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                     Property Type
                   </h3>
@@ -1755,135 +1820,187 @@ const FilterSidebar = ({
                     )}
                   </div>
                 </div>
-                <div className="border-t border-gray-200 dark:border-gray-700"></div>
-              </>
             )}
 
-            {/* Price Range */}
-            <div>
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                Price Range (Monthly)
-              </h3>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Min"
-                  value={localFilters.priceMin}
-                  onChange={(e) =>
-                    setLocalFilters((prev) => ({ ...prev, priceMin: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-                />
-                <span className="text-gray-500 text-sm">-</span>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Max"
-                  value={localFilters.priceMax}
-                  onChange={(e) =>
-                    setLocalFilters((prev) => ({ ...prev, priceMax: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-            </div>
+            {propertyTypes.length > 0 && (
+              <div className="border-t border-gray-200 dark:border-gray-700 md:hidden"></div>
+            )}
 
-            <div className="border-t border-gray-200 dark:border-gray-700"></div>
-
-            {/* Availability */}
-            <div>
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                Availability
-              </h3>
-              <button
-                type="button"
-                onClick={() =>
-                  setLocalFilters((prev) => ({
-                    ...prev,
-                    availabilityOnly: !prev.availabilityOnly,
-                  }))
-                }
-                className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md border-2 transition-all ${
-                  localFilters.availabilityOnly
-                    ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                    : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
-                }`}
-              >
-                <span className="font-semibold">Available rooms only</span>
-                {localFilters.availabilityOnly && <Check className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-gray-700"></div>
-
-            {/* Minimum Rating */}
-            <div>
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                Minimum Rating
-              </h3>
-              <div className="flex items-center justify-center gap-1 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() =>
-                      setLocalFilters((prev) => ({
-                        ...prev,
-                        rating: prev.rating === star ? 0 : star,
-                      }))
+            <div className="md:col-span-1 space-y-4">
+              {/* Price Range */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                  Price Range (Monthly)
+                </h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Min"
+                    value={localFilters.priceMin}
+                    onChange={(e) =>
+                      setLocalFilters((prev) => ({ ...prev, priceMin: e.target.value }))
                     }
-                  >
-                    <Star
-                      className={`w-6 h-6 transition-colors ${
-                        star <= localFilters.rating
-                          ? "text-yellow-400 fill-current"
-                          : "text-gray-300 dark:text-gray-600 hover:text-yellow-300"
-                      }`}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                  />
+                  <span className="text-gray-500 text-sm">-</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Max"
+                    value={localFilters.priceMax}
+                    onChange={(e) =>
+                      setLocalFilters((prev) => ({ ...prev, priceMax: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 md:hidden"></div>
+
+              {/* Amenities */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                  Amenities
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={amenityDraft}
+                      onChange={(e) => setAmenityDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addAmenityFromInput();
+                        }
+                      }}
+                      placeholder="Type amenity then press Enter"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                     />
-                  </button>
-                ))}
+                    <button
+                      type="button"
+                      onClick={addAmenityFromInput}
+                      className="px-3 py-2 text-xs font-semibold rounded-md border border-green-500 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/40"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {localFilters.amenities.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {localFilters.amenities.map((amenity) => (
+                        <button
+                          key={`selected-${amenity}`}
+                          type="button"
+                          onClick={() => toggleAmenity(amenity)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold border border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                          title="Click to remove"
+                        >
+                          <span className="truncate max-w-[110px]">{amenity}</span>
+                          <X className="w-3 h-3" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {amenitySuggestions.length > 0 ? (
+                      amenitySuggestions.map((amenity) => (
+                        <button
+                          key={`suggestion-${amenity}`}
+                          type="button"
+                          onClick={() => toggleAmenity(amenity)}
+                          className="px-2 py-1 rounded-md text-[11px] font-medium border border-gray-200 dark:border-gray-600 hover:border-green-400 text-gray-700 dark:text-gray-300"
+                        >
+                          {amenity}
+                        </button>
+                      ))
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="border-t border-gray-200 dark:border-gray-700"></div>
+            <div className="md:col-span-1 space-y-4">
+              {/* Minimum Rating */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                  Minimum Rating
+                </h3>
+                <div className="flex items-center justify-center gap-1 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() =>
+                        setLocalFilters((prev) => ({
+                          ...prev,
+                          rating: prev.rating === star ? 0 : star,
+                        }))
+                      }
+                    >
+                      <Star
+                        className={`w-6 h-6 transition-colors ${
+                          star <= localFilters.rating
+                            ? "text-yellow-400 fill-current"
+                            : "text-gray-300 dark:text-gray-600 hover:text-yellow-300"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            {/* Amenities */}
-            <div>
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                Amenities
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {amenityOptions.slice(0, 6).map((amenity) => (
-                  <button
-                    key={amenity}
-                    type="button"
-                    onClick={() => toggleAmenity(amenity)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
-                      localFilters.amenities.includes(amenity)
-                        ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300 text-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {amenity}
-                  </button>
-                ))}
+              <div className="border-t border-gray-200 dark:border-gray-700 md:hidden"></div>
+
+              {/* Gender Policy */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                  Gender Policy
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: "All", label: "All" },
+                    { value: "male", label: "Boys" },
+                    { value: "female", label: "Girls" },
+                    { value: "mixed", label: "Mixed" },
+                  ].map((policy) => (
+                    <button
+                      key={policy.value}
+                      type="button"
+                      onClick={() =>
+                        setLocalFilters((prev) => ({
+                          ...prev,
+                          genderPolicy: policy.value,
+                        }))
+                      }
+                      className={`px-2.5 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
+                        (localFilters.genderPolicy || "All") === policy.value
+                          ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400"
+                          : "border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                      }`}
+                    >
+                      {policy.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-
-            <div className="border-t border-gray-200 dark:border-gray-700"></div>
 
             {/* Actions */}
-            <div className="pt-2">
+            <div className="pt-2 md:pt-0 md:col-span-1 md:flex md:flex-col md:justify-center md:items-center md:h-full">
+              <div className="border-t border-gray-200 dark:border-gray-700 md:hidden mb-2"></div>
               <button
                 onClick={handleApply}
-                className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors"
+                className="w-full md:w-40 px-3 py-2 bg-green-600 text-white text-sm rounded-lg font-semibold hover:bg-green-700 transition-colors"
               >
                 Apply Filters
               </button>
               <button
                 onClick={handleClear}
-                className="w-full mt-2 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 font-bold hover:underline"
+                className="w-full md:w-40 mt-2 px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 font-semibold hover:underline"
               >
                 Clear All
               </button>

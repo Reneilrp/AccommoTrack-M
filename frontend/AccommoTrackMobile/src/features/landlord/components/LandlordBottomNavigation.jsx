@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
 import LandlordDashboard from '../screens/Dashboard/DashboardPage.jsx';
+import CaretakerDashboard from '../screens/Dashboard/CaretakerDashboard.jsx';
 import MyProperties from '../screens/Properties/MyProperties.jsx';
 import Messages from '../screens/Messages/MessagesPage.jsx';
 import Settings from '../screens/Settings/SettingsHub.jsx';
@@ -54,19 +55,6 @@ const CustomTabBarButton = ({ children, onPress, theme }) => (
   </TouchableOpacity>
 );
 
-const styles = StyleSheet.create({
-  shadow: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 8,
-  }
-});
-
 export default function LandlordBottomNavigation({ onLogout }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -80,7 +68,7 @@ export default function LandlordBottomNavigation({ onLogout }) {
         if (userString) {
           setUser(JSON.parse(userString));
         }
-      } catch (e) {}
+      } catch (_error) {}
     };
     loadUser();
   }, []);
@@ -91,7 +79,7 @@ export default function LandlordBottomNavigation({ onLogout }) {
       try {
         const count = await AsyncStorage.getItem('messages_unread_count');
         setUnreadCount(parseInt(count || '0', 10));
-      } catch (e) {}
+      } catch (_error) {}
     };
     
     checkUnreadCount();
@@ -100,17 +88,23 @@ export default function LandlordBottomNavigation({ onLogout }) {
   }, []);
 
   const isCaretaker = user?.role === 'caretaker';
-  const permissions = user?.caretaker_permissions || {};
+  const permissions = React.useMemo(() => user?.caretaker_permissions || {}, [user?.caretaker_permissions]);
   const hasPermission = React.useCallback((key) => {
     if (!isCaretaker) return true;
-    return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
+    return Boolean(
+      permissions?.[key]
+      || permissions?.[`can_view_${key}`]
+      || permissions?.[`can_manage_${key}`]
+    );
   }, [isCaretaker, permissions]);
+
+  const homeComponent = isCaretaker ? CaretakerDashboard : LandlordDashboard;
 
   // Define tabs with permission checks
   const tabs = [
     {
       name: 'Home',
-      component: LandlordDashboard,
+      component: homeComponent,
       label: 'Home',
       icon: (focused) => focused ? 'home' : 'home-outline',
       show: true, // Home always visible

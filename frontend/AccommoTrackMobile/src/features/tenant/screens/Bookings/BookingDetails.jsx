@@ -9,8 +9,7 @@ import {
     Alert, 
     RefreshControl,
     StatusBar,
-    Dimensions,
-    Modal
+    Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -94,50 +93,6 @@ const RoomDetails = ({ room, theme, styles }) => {
     );
 };
 
-const MaintenanceRequestModal = ({ visible, onClose, theme }) => {
-    const styles = getStyles(theme);
-    return (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={visible}
-            onRequestClose={onClose}
-        >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalInner}>
-                    <Text style={styles.modalTitle}>Request Maintenance</Text>
-                    {/* Form will go here */}
-                    <TouchableOpacity onPress={onClose} style={styles.modalFooter}>
-                        <Text style={styles.modalCloseBtn}>Close</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Modal>
-    );
-};
-
-const AddonModal = ({ visible, onClose, theme }) => {
-    const styles = getStyles(theme);
-    return (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={visible}
-            onRequestClose={onClose}
-        >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalInner}>
-                    <Text style={styles.modalTitle}>Request Addon</Text>
-                    {/* Form will go here */}
-                    <TouchableOpacity onPress={onClose} style={styles.modalFooter}>
-                        <Text style={styles.modalCloseBtn}>Close</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Modal>
-    );
-};
-
 export default function BookingDetails() {
     const route = useRoute();
     const navigation = useNavigation();
@@ -149,8 +104,6 @@ export default function BookingDetails() {
     const [refreshing, setRefreshing] = useState(false);
     const [isCanceling, setIsCanceling] = useState(false);
     const [cancelingAddonId, setCancelingAddonId] = useState(null);
-    const [maintenanceModalVisible, setMaintenanceModalVisible] = useState(false);
-    const [addonModalVisible, setAddonModalVisible] = useState(false);
 
     const bookingDetailsQuery = useQuery({
         queryKey: tenantQueryKeys.bookingDetails(bookingId),
@@ -548,18 +501,6 @@ export default function BookingDetails() {
                 </View>
             </ScrollView>
 
-            <MaintenanceRequestModal 
-                visible={maintenanceModalVisible} 
-                onClose={() => setMaintenanceModalVisible(false)}
-                theme={theme}
-            />
-
-            <AddonModal 
-                visible={addonModalVisible} 
-                onClose={() => setAddonModalVisible(false)}
-                theme={theme}
-            />
-
             {/* Bottom Action Footer */}
             <SafeAreaView edges={['bottom']} style={[styles.footer, {
                 backgroundColor: theme.colors.surface,
@@ -610,7 +551,12 @@ export default function BookingDetails() {
                     ) : (
                         <>
                             <TouchableOpacity
-                                onPress={() => setMaintenanceModalVisible(true)}
+                                onPress={() => navigation.navigate('ServiceRequests', {
+                                    initialTab: 'Maintenance',
+                                    bookingId: booking.id,
+                                    propertyId: property.id,
+                                    roomId: booking.room?.id || booking.room_id || null,
+                                })}
                                 style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
                             >
                                 <Ionicons name="build-outline" size={18} color={theme.colors.primary} />
@@ -618,7 +564,11 @@ export default function BookingDetails() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                onPress={() => setAddonModalVisible(true)}
+                                onPress={() => navigation.navigate('ServiceRequests', {
+                                    initialTab: 'Add-ons',
+                                    bookingId: booking.id,
+                                    propertyId: property.id,
+                                })}
                                 style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
                             >
                                 <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />

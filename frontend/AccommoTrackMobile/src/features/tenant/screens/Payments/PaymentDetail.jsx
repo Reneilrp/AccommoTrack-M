@@ -15,6 +15,41 @@ import {
   useTenantFocusRefetch,
 } from '../../hooks/useTenantQueryHelpers.js';
 
+const DEFAULT_PAYMENT_SETTINGS = {
+  allowed: ['cash'],
+  details: {},
+};
+
+const parseJsonIfNeeded = (value, fallback) => {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch (_error) {
+      return fallback;
+    }
+  }
+  return value;
+};
+
+const normalizeArray = (value, fallback = []) => {
+  const parsed = parseJsonIfNeeded(value, value);
+  if (Array.isArray(parsed)) return parsed;
+  return fallback;
+};
+
+const normalizePaymentSettings = (value) => {
+  const parsed = parseJsonIfNeeded(value, null);
+  if (!parsed || typeof parsed !== 'object') {
+    return DEFAULT_PAYMENT_SETTINGS;
+  }
+
+  return {
+    allowed: normalizeArray(parsed.allowed, ['cash']),
+    details: parsed.details && typeof parsed.details === 'object' ? parsed.details : {},
+  };
+};
+
 export default function PaymentDetail() {
   const route = useRoute();
   const navigation = useNavigation();
@@ -24,6 +59,7 @@ export default function PaymentDetail() {
 
   const [isPaying, setIsPaying] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [offlineDetails, setOfflineDetails] = useState({ reference: '', notes: '' });
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
     SystemToggleService.getDefaults().tenantPaymentsDisabled,
   );
@@ -42,6 +78,18 @@ export default function PaymentDetail() {
   });
 
   const invoice = paymentDetailQuery.data || null;
+
+  const property = invoice?.property || invoice?.booking?.property || null;
+  const landlordSettings = normalizePaymentSettings(
+    property?.landlord?.payment_methods_settings || invoice?.landlord?.payment_methods_settings,
+  );
+  const acceptedPayments = normalizeArray(property?.accepted_payments, ['cash']);
+  const allowPartialPayments = property?.allow_partial_payments !== 0 && property?.allow_partial_payments !== false;
+  const showOnline = acceptedPayments.includes('online') && landlordSettings.allowed.includes('online');
+  const showCash = acceptedPayments.includes('cash') && landlordSettings.allowed.includes('cash');
+  const showManualGcash = landlordSettings.allowed.includes('gcash');
+  const manualPaymentDetails = landlordSettings.details || {};
+
   const refetchPaymentDetail = paymentDetailQuery.refetch;
   const paymentDetailRefetchers = React.useMemo(
     () => [refetchPaymentDetail],
@@ -92,6 +140,8 @@ export default function PaymentDetail() {
   useEffect(() => {
     if (!invoice) return;
     setPaymentAmount((previousAmount) => {
+      if (!allowPartialPayments) return remainingBalance.toString();
+
       if (!previousAmount) return remainingBalance.toString();
 
       const numericAmount = Number(previousAmount);
@@ -101,9 +151,32 @@ export default function PaymentDetail() {
 
       return previousAmount;
     });
-  }, [invoice?.id, remainingBalance]);
+  }, [invoice, remainingBalance, allowPartialPayments]);
 
   const loading = paymentDetailQuery.isLoading || isPaying;
+
+  const resolveAmountToPay = () => {
+    const parsed = Number(paymentAmount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return { amount: null, error: 'Please enter a valid payment amount.' };
+    }
+
+    if (parsed > remainingBalance) {
+      return {
+        amount: null,
+        error: `Amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString()}`,
+      };
+    }
+
+    if (!allowPartialPayments && parsed !== remainingBalance) {
+      return {
+        amount: null,
+        error: 'Partial payments are disabled for this property. Please pay the exact remaining balance.',
+      };
+    }
+
+    return { amount: parsed, error: null };
+  };
 
   const handleGCashPay = async () => {
     if (tenantPaymentsTempDisabled) {
@@ -111,13 +184,15 @@ export default function PaymentDetail() {
       return;
     }
 
-    if (!invoice) return;
-    const amountToPay = Number(paymentAmount);
-    if (isNaN(amountToPay) || amountToPay <= 0) {
-      return Alert.alert('Invalid Amount', 'Please enter a valid payment amount.');
+    if (!showOnline) {
+      Alert.alert('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
+      return;
     }
-    if (amountToPay > remainingBalance) {
-      return Alert.alert('Error', `Amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString()}`);
+
+    if (!invoice) return;
+    const { amount: amountToPay, error } = resolveAmountToPay();
+    if (error) {
+      return Alert.alert('Invalid Amount', error);
     }
 
     try {
@@ -146,11 +221,76 @@ export default function PaymentDetail() {
       return;
     }
 
+    if (!showOnline) {
+      Alert.alert('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
+      return;
+    }
+
+    const { amount: amountToPay, error } = resolveAmountToPay();
+    if (error) {
+      Alert.alert('Invalid Amount', error);
+      return;
+    }
+
     // Note: If using a custom tokenization view, it might need the amount passed in the URL.
     // For now, passing standard tokenizeUrl. If partial is needed for cards, backend updates for tokenization route might be required.
     const apiUrl = BASE_URL;
-    const tokenizeUrl = `${apiUrl}/payments/tokenize/${invoice.id}`;
-    navigation.navigate('PaymentCardWebview', { tokenizeUrl, invoiceId: invoice.id });
+    const tokenizeUrl = `${apiUrl}/payments/tokenize/${invoice.id}?amount=${encodeURIComponent(amountToPay)}`;
+    navigation.navigate('PaymentCardWebview', { tokenizeUrl, invoiceId: invoice.id, amount: amountToPay });
+  };
+
+  const handleOfflinePayment = async (method) => {
+    if (tenantPaymentsTempDisabled) {
+      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
+
+    if (method === 'cash' && !showCash) {
+      Alert.alert('Payment Method Unavailable', 'Cash payments are currently not enabled for this property.');
+      return;
+    }
+
+    if (method === 'gcash' && !showManualGcash) {
+      Alert.alert('Payment Method Unavailable', 'Manual GCash transfer is currently not enabled.');
+      return;
+    }
+
+    const { amount: amountToPay, error } = resolveAmountToPay();
+    if (error) {
+      Alert.alert('Invalid Amount', error);
+      return;
+    }
+
+    if (method === 'gcash' && !offlineDetails.reference.trim()) {
+      Alert.alert('Reference Required', 'Please provide the GCash transfer reference number.');
+      return;
+    }
+
+    try {
+      setIsPaying(true);
+      const response = await PaymentService.createOfflineRecord(invoice.id, {
+        amount_cents: Math.round(amountToPay * 100),
+        method,
+        reference: offlineDetails.reference.trim() || null,
+        notes: offlineDetails.notes.trim() || (method === 'gcash' ? 'Manual GCash transfer submitted by tenant' : 'Cash payment request submitted by tenant'),
+      });
+
+      if (!response.success) {
+        Alert.alert('Payment Error', response.error || 'Failed to submit offline payment details.');
+        return;
+      }
+
+      Alert.alert('Submitted', method === 'gcash'
+        ? 'Manual GCash transfer details submitted. Waiting for landlord verification.'
+        : 'Cash payment request submitted. Waiting for landlord confirmation.');
+      setOfflineDetails({ reference: '', notes: '' });
+      await refetchPaymentDetail();
+    } catch (error) {
+      console.error('Offline payment submit error', error);
+      Alert.alert('Payment Error', 'Failed to submit offline payment details.');
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   if (loading) {
@@ -274,19 +414,110 @@ export default function PaymentDetail() {
                 onChangeText={setPaymentAmount}
                 placeholder="0.00"
                 placeholderTextColor={theme.colors.textTertiary}
+                editable={allowPartialPayments}
               />
               <Text style={{ fontSize: 12, color: theme.colors.textTertiary, marginBottom: 24 }}>
-                You can pay the full remaining balance of ₱{remainingBalance.toLocaleString()} or enter a partial amount.
+                {allowPartialPayments
+                  ? `You can pay the full remaining balance of ₱${remainingBalance.toLocaleString()} or enter a partial amount.`
+                  : `Partial payments are disabled by the landlord. Please pay the exact remaining balance of ₱${remainingBalance.toLocaleString()}.`}
               </Text>
 
-              <View style={styles.actionsRow}>
-                  <TouchableOpacity onPress={handleGCashPay} disabled={tenantPaymentsTempDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}> 
-                  <Text style={styles.payBtnText}>Pay with GCash</Text>
-                </TouchableOpacity>
-                  <TouchableOpacity onPress={handleCardPay} disabled={tenantPaymentsTempDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}> 
-                  <Text style={styles.payBtnText}>Pay with Card</Text>
-                </TouchableOpacity>
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text, marginBottom: 8 }}>
+                  Available Methods
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                  {showOnline ? 'Online' : null}
+                  {showOnline && (showCash || showManualGcash) ? ' • ' : ''}
+                  {showCash ? 'Cash' : null}
+                  {showCash && showManualGcash ? ' • ' : ''}
+                  {showManualGcash ? 'Manual GCash Transfer' : null}
+                  {!showOnline && !showCash && !showManualGcash ? 'No payment method is currently enabled for this property.' : ''}
+                </Text>
               </View>
+
+              {showOnline && (
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity onPress={handleGCashPay} disabled={tenantPaymentsTempDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}> 
+                    <Text style={styles.payBtnText}>Pay with GCash</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleCardPay} disabled={tenantPaymentsTempDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}> 
+                    <Text style={styles.payBtnText}>Pay with Card</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {(showCash || showManualGcash) && (
+                <View style={{ marginTop: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>
+                    Manual / Offline Submission
+                  </Text>
+                  {showManualGcash && manualPaymentDetails?.gcash_info ? (
+                    <View style={{ padding: 10, borderRadius: 8, backgroundColor: theme.colors.primaryLight, marginTop: 8, marginBottom: 8 }}>
+                      <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 12 }}>GCash Details</Text>
+                      <Text style={{ color: theme.colors.textSecondary, marginTop: 4, fontSize: 12 }}>{manualPaymentDetails.gcash_info}</Text>
+                    </View>
+                  ) : null}
+
+                  <TextInput
+                    placeholder="Reference Number (required for manual GCash)"
+                    placeholderTextColor="#9CA3AF"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      borderRadius: 10,
+                      padding: 14,
+                      color: theme.colors.text,
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      fontSize: 14,
+                      marginBottom: 8
+                    }}
+                    value={offlineDetails.reference}
+                    onChangeText={(value) => setOfflineDetails((prev) => ({ ...prev, reference: value }))}
+                  />
+
+                  <TextInput
+                    placeholder="Notes (optional)"
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                    numberOfLines={3}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      borderRadius: 10,
+                      padding: 14,
+                      color: theme.colors.text,
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      minHeight: 80,
+                      textAlignVertical: 'top',
+                      fontSize: 14,
+                      marginBottom: 8
+                    }}
+                    value={offlineDetails.notes}
+                    onChangeText={(value) => setOfflineDetails((prev) => ({ ...prev, notes: value }))}
+                  />
+
+                  {showManualGcash && (
+                    <TouchableOpacity
+                      onPress={() => handleOfflinePayment('gcash')}
+                      disabled={tenantPaymentsTempDisabled}
+                      style={[styles.payBtn, { backgroundColor: '#2563EB', opacity: tenantPaymentsTempDisabled ? 0.6 : 1, marginBottom: 8 }]}
+                    >
+                      <Text style={styles.payBtnText}>Submit Manual GCash Transfer</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {showCash && (
+                    <TouchableOpacity
+                      onPress={() => handleOfflinePayment('cash')}
+                      disabled={tenantPaymentsTempDisabled}
+                      style={[styles.payBtn, { backgroundColor: '#16a34a', opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}
+                    >
+                      <Text style={styles.payBtnText}>Request Cash Payment</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
           )}
         </View>

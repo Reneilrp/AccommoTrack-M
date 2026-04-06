@@ -69,44 +69,49 @@ export default function MessagesList({
 
                     {/* Property Filters */}
                     {!loading && properties.length > 0 && (
-                        <View style={{ marginBottom: 16 }}>
+                        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 }}>
                             <ScrollView 
                                 horizontal 
                                 showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+                                contentContainerStyle={{ gap: 8 }}
                             >
                                 <TouchableOpacity
-                                    style={[
-                                        { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
-                                        !selectedPropertyId 
-                                            ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } 
-                                            : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
-                                    ]}
+                                    style={{
+                                        paddingHorizontal: 14,
+                                        paddingVertical: 8,
+                                        borderRadius: 999,
+                                        borderWidth: 1,
+                                        borderColor: !selectedPropertyId ? theme.colors.primary : theme.colors.border,
+                                        backgroundColor: !selectedPropertyId ? theme.colors.primary : theme.colors.surface,
+                                    }}
                                     onPress={() => setSelectedPropertyId(null)}
                                 >
-                                    <Text style={{ 
-                                        color: !selectedPropertyId ? '#FFF' : theme.colors.textSecondary,
-                                        fontWeight: !selectedPropertyId ? '600' : '400'
-                                    }}>All</Text>
+                                    <Text style={{ color: !selectedPropertyId ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                                        All Properties
+                                    </Text>
                                 </TouchableOpacity>
 
-                                {properties.map((prop) => (
-                                    <TouchableOpacity
-                                        key={prop.id}
-                                        style={[
-                                            { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
-                                            selectedPropertyId === prop.id 
-                                                ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } 
-                                                : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
-                                        ]}
-                                        onPress={() => setSelectedPropertyId(prop.id)}
-                                    >
-                                        <Text style={{ 
-                                            color: selectedPropertyId === prop.id ? '#FFF' : theme.colors.textSecondary,
-                                            fontWeight: selectedPropertyId === prop.id ? '600' : '400'
-                                        }}>{prop.title}</Text>
-                                    </TouchableOpacity>
-                                ))}
+                                {properties.map((prop) => {
+                                    const isActive = selectedPropertyId === prop.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={prop.id}
+                                            style={{
+                                                paddingHorizontal: 14,
+                                                paddingVertical: 8,
+                                                borderRadius: 999,
+                                                borderWidth: 1,
+                                                borderColor: isActive ? theme.colors.primary : theme.colors.border,
+                                                backgroundColor: isActive ? theme.colors.primary : theme.colors.surface,
+                                            }}
+                                            onPress={() => setSelectedPropertyId(prop.id)}
+                                        >
+                                            <Text style={{ color: isActive ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                                                {prop.title || prop.name || `Property ${prop.id}`}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </ScrollView>
                         </View>
                     )}
