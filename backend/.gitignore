@@ -13,6 +13,7 @@ backend/vendor/
 dist/
 build/
 out/
+*.apk
 
 # Laravel/Symfony specific
 backend/storage/*.key
