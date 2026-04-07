@@ -483,14 +483,14 @@ export default function RoomDetailsModal({
         }
     } else {
         if (start < today) {
-            toast.error("Check-in date cannot be in the past.");
+            toast.error(`${isDailyContract ? 'Check-in' : 'Move-in'} date cannot be in the past.`);
             return;
         }
     }
 
     const hasCheckout = Boolean(endDate) && new Date(endDate) > start;
     if (endDate && !hasCheckout) {
-      toast.error("Check-out date must be after check-in date.");
+      toast.error(`${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
       return;
     }
 

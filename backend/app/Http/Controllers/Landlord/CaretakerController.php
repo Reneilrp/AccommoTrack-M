@@ -51,6 +51,7 @@ class CaretakerController extends Controller
                         'properties' => $assignment->can_view_properties,
                         'maintenance' => $assignment->can_manage_maintenance,
                         'payments' => $assignment->can_manage_payments,
+                        'analytics' => $assignment->can_view_analytics,
                     ],
                     'assigned_properties' => $assignment->properties->map(fn ($p) => [
                         'id' => $p->id,
@@ -87,6 +88,7 @@ class CaretakerController extends Controller
             'permissions.can_view_properties' => 'sometimes|boolean',
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
             'permissions.can_manage_payments' => 'sometimes|boolean',
+            'permissions.can_view_analytics' => 'sometimes|boolean',
             'property_ids' => 'sometimes|array',
             'property_ids.*' => 'integer|exists:properties,id',
         ]);
@@ -123,6 +125,7 @@ class CaretakerController extends Controller
                 'can_view_properties' => data_get($validated, 'permissions.can_view_properties', false),
                 'can_manage_maintenance' => data_get($validated, 'permissions.can_manage_maintenance', false),
                 'can_manage_payments' => data_get($validated, 'permissions.can_manage_payments', false),
+                 'can_view_analytics' => data_get($validated, 'permissions.can_view_analytics', false),
             ];
 
             $assignment = CaretakerAssignment::create(array_merge(
@@ -169,6 +172,7 @@ class CaretakerController extends Controller
                     'properties' => $permissions['can_view_properties'],
                     'maintenance' => $permissions['can_manage_maintenance'],
                     'payments' => $permissions['can_manage_payments'],
+                      'analytics' => $permissions['can_view_analytics'],
                 ],
                 'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,
@@ -204,6 +208,7 @@ class CaretakerController extends Controller
             'permissions.can_view_properties' => 'sometimes|boolean',
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
             'permissions.can_manage_payments' => 'sometimes|boolean',
+            'permissions.can_view_analytics' => 'sometimes|boolean',
             'property_ids' => 'sometimes|array|min:1',
             'property_ids.*' => 'integer|exists:properties,id',
         ]);
@@ -241,6 +246,9 @@ class CaretakerController extends Controller
                 'can_view_properties' => array_key_exists('can_view_properties', $payload)
                     ? (bool) $payload['can_view_properties']
                     : $assignment->can_view_properties,
+                'can_view_analytics' => array_key_exists('can_view_analytics', $payload)
+                    ? (bool) $payload['can_view_analytics']
+                    : $assignment->can_view_analytics,
                 'can_manage_maintenance' => array_key_exists('can_manage_maintenance', $payload)
                     ? (bool) $payload['can_manage_maintenance']
                     : $assignment->can_manage_maintenance,
@@ -277,6 +285,7 @@ class CaretakerController extends Controller
                     'properties' => $assignment->can_view_properties,
                     'maintenance' => $assignment->can_manage_maintenance,
                     'payments' => $assignment->can_manage_payments,
+                      'analytics' => $assignment->can_view_analytics,
                 ],
                 'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,

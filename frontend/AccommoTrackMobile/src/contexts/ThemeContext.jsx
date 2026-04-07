@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Appearance } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -142,22 +141,31 @@ export const darkTheme = {
 const THEME_STORAGE_KEY = 'theme_store';
 const LEGACY_THEME_STORAGE_KEY = 'theme';
 
-const getSystemDarkPreference = () => Appearance.getColorScheme() === 'dark';
-
 export const useThemeStore = create(
   persist(
     (set) => ({
-      isDarkMode: getSystemDarkPreference(),
+      // Default to light theme for first launch/guest mode unless user explicitly toggles.
+      isDarkMode: false,
+      hasExplicitPreference: false,
       hasHydrated: false,
 
       setHydrated: (value) => set({ hasHydrated: Boolean(value) }),
-      toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
-      setTheme: (themeMode) => set({ isDarkMode: themeMode === 'dark' }),
+      toggleTheme: () => set((state) => ({
+        isDarkMode: !state.isDarkMode,
+        hasExplicitPreference: true,
+      })),
+      setTheme: (themeMode, markExplicit = true) => set({
+        isDarkMode: themeMode === 'dark',
+        hasExplicitPreference: Boolean(markExplicit),
+      }),
     }),
     {
       name: THEME_STORAGE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ isDarkMode: state.isDarkMode }),
+      partialize: (state) => ({
+        isDarkMode: state.isDarkMode,
+        hasExplicitPreference: state.hasExplicitPreference,
+      }),
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.error('Error loading theme preference:', error);
@@ -171,6 +179,7 @@ export const useThemeStore = create(
 
 export const ThemeProvider = ({ children }) => {
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  const hasExplicitPreference = useThemeStore((state) => state.hasExplicitPreference);
   const hasHydrated = useThemeStore((state) => state.hasHydrated);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -200,6 +209,25 @@ export const ThemeProvider = ({ children }) => {
 
     migrateLegacyThemePreference();
   }, [hasHydrated, setTheme]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    const enforceGuestDefaultTheme = async () => {
+      try {
+        const userJson = await AsyncStorage.getItem('user');
+        const isGuestSession = !userJson;
+
+        if (isGuestSession && !hasExplicitPreference && isDarkMode) {
+          setTheme('light', false);
+        }
+      } catch (error) {
+        console.error('Error enforcing guest default theme:', error);
+      }
+    };
+
+    enforceGuestDefaultTheme();
+  }, [hasHydrated, hasExplicitPreference, isDarkMode, setTheme]);
 
   const theme = isDarkMode ? darkTheme : lightTheme;
 

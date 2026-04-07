@@ -48,12 +48,13 @@ export default function Caretakers() {
   const [permissionPrompt, setPermissionPrompt] = useState({ visible: false, key: null });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
 
-  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments']);
+  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics']);
   const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
     rooms: 'Enabling Room Management allows caretakers to modify availability and tenant placements.',
     properties: 'Enabling Properties allows caretakers to update core property details and settings.',
     maintenance: 'Enabling Maintenance allows caretakers to process and update maintenance workflows.',
     payments: 'Enabling Payments allows caretakers to manage sensitive billing and payment operations.',
+    analytics: 'Enabling Analytics allows caretakers to view occupancy, revenue, and trend insights.',
   };
 
   // Form State
@@ -75,6 +76,7 @@ export default function Caretakers() {
       properties: false,
       maintenance: false,
       payments: false,
+      analytics: false,
     },
     propertyIds: []
   });
@@ -135,15 +137,17 @@ export default function Caretakers() {
       dateOfBirth: '',
       password: '',
       passwordConfirmation: '',
-          permissions: {
-            bookings: false,
-            messages: false,
-            tenants: false,
-            rooms: false,
-            properties: false,
-            maintenance: false,
-            payments: false,
-          },      propertyIds: []
+      permissions: {
+        bookings: false,
+        messages: false,
+        tenants: false,
+        rooms: false,
+        properties: false,
+        maintenance: false,
+        payments: false,
+        analytics: false,
+      },
+      propertyIds: []
     });
     setFieldErrors({});
     setIsEditing(false);
@@ -187,6 +191,7 @@ export default function Caretakers() {
         properties: permMap.properties || permMap.can_view_properties || false,
         maintenance: permMap.maintenance || permMap.can_manage_maintenance || false,
         payments: permMap.payments || permMap.can_manage_payments || false,
+        analytics: permMap.analytics || permMap.can_view_analytics || false,
       },
       propertyIds: item.assigned_property_ids || []
     });
@@ -257,6 +262,7 @@ export default function Caretakers() {
           can_view_properties: formData.permissions.properties,
           can_manage_maintenance: formData.permissions.maintenance,
           can_manage_payments: formData.permissions.payments,
+          can_view_analytics: formData.permissions.analytics,
         }
       };
 
@@ -613,7 +619,8 @@ export default function Caretakers() {
                        key === 'rooms' ? 'Full control over room availability' :
                        key === 'properties' ? 'View and manage property details' :
                        key === 'maintenance' ? 'Handle repairs and upkeep requests' :
-                       'Track and verify rental transactions'}
+                       key === 'payments' ? 'Track and verify rental transactions' :
+                       'View occupancy and revenue insights'}
                     </Text>
                   </View>
                   <Switch

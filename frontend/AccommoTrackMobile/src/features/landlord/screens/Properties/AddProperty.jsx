@@ -119,43 +119,49 @@ export default function AddProperty({ navigation }) {
   const addPropertyVerificationQuery = useQuery({
     queryKey: landlordQueryKeys.addPropertyVerification(),
     queryFn: async () => {
+      let isCaretaker = false;
       let isVerified = false;
       let isPayMongoVerified = false;
 
       try {
-        const [verificationRes, userString] = await Promise.all([
-          ProfileService.getVerificationStatus(),
-          AsyncStorage.getItem("user"),
-        ]);
-
-        if (verificationRes?.success) {
-          isVerified =
-            verificationRes.data?.status === "approved" ||
-            verificationRes.data?.user?.is_verified === true;
-        }
+        const userString = await AsyncStorage.getItem("user");
 
         if (userString) {
           try {
             const user = JSON.parse(userString);
+            isCaretaker = user?.role === "caretaker";
             isPayMongoVerified =
               user?.paymongo_verification_status === "verified";
           } catch (_parseError) {
             isPayMongoVerified = false;
           }
         }
+
+        if (isCaretaker) {
+          isVerified = true;
+          return { isCaretaker, isVerified, isPayMongoVerified };
+        }
+
+        const verificationRes = await ProfileService.getVerificationStatus();
+
+        if (verificationRes?.success) {
+          isVerified =
+            verificationRes.data?.status === "approved" ||
+            verificationRes.data?.user?.is_verified === true;
+        }
       } catch (_error) {
         isVerified = false;
       }
 
-      return { isVerified, isPayMongoVerified };
+      return { isCaretaker, isVerified, isPayMongoVerified };
     },
-    placeholderData: (previousData) => previousData,
   });
 
+  const isCaretaker = addPropertyVerificationQuery.data?.isCaretaker === true;
   const isVerified = addPropertyVerificationQuery.data?.isVerified ?? null;
   const isPayMongoVerified =
     addPropertyVerificationQuery.data?.isPayMongoVerified ?? false;
-  const canSubmitForApproval = isVerified === true;
+  const canSubmitForApproval = isCaretaker || isVerified === true;
   const refetchAddPropertyVerification = addPropertyVerificationQuery.refetch;
   const addPropertyVerificationRefetchers = useMemo(
     () => [refetchAddPropertyVerification],
@@ -718,7 +724,7 @@ export default function AddProperty({ navigation }) {
           </View>
         ) : null}
 
-        {isVerified === false && (
+        {!isCaretaker && isVerified === false && (
           <View style={styles.verificationWarning}>
             <Ionicons name="shield-alert" size={24} color="#D97706" />
             <View style={styles.inputHalf}>

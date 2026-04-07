@@ -5,14 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Dimensions,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
 import PaymentService from '../../../../services/PaymentService.js';
 import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useNavigation } from '@react-navigation/native';
@@ -30,14 +28,11 @@ import {
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 
-const { width } = Dimensions.get('window');
-
 export default function PaymentsScreen() {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const navigation = useNavigation();
   const [statusFilter, setStatusFilter] = useState('all');
-  const [timeRange, setTimeRange] = useState('1m');
   const [refreshing, setRefreshing] = useState(false);
   const [resolvingPaymentId, setResolvingPaymentId] = useState(null);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
@@ -228,52 +223,30 @@ export default function PaymentsScreen() {
     { value: 'overdue', label: 'Overdue' },
   ];
 
-  const timeRanges = [
-    { value: '1w', label: '1W' },
-    { value: '1m', label: '1M' },
-    { value: '1y', label: '1Y' },
-    { value: 'all', label: 'All' },
-  ];
-
-  const getThresholdDate = (range) => {
-    if (!range || range === 'all') return null;
-    const now = new Date();
-    switch (range) {
-      case '1w':
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      case '1m':
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      case '1y':
-        return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-      default:
-        return null;
-    }
-  };
-
-  const getFilteredPayments = () => {
-    const threshold = getThresholdDate(timeRange);
-    const list = payments.filter((p) => {
-      if (!threshold) return true;
-      const d = new Date(p.date);
-      return !isNaN(d) && d >= threshold;
-    });
-    return list.sort((a, b) => new Date(b.date) - new Date(a.date));
-  };
-
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'PHP',
-    }).format(amount || 0);
+    const value = Number(amount) || 0;
+    return `₱${new Intl.NumberFormat('en-PH', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value)}`;
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return 'None';
+
+    const parsedDate = new Date(dateString);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return 'None';
+    }
+
+    return parsedDate.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
   };
+
+  const nextDueDateValue = stats?.nextDueDate ?? stats?.next_due_date ?? null;
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -294,38 +267,10 @@ export default function PaymentsScreen() {
     }
   };
 
-  // Generate chart data
-  const getChartData = () => {
-    const filtered = getFilteredPayments();
-    if (filtered.length === 0) {
-      return {
-        labels: ['No Data'],
-        datasets: [{ data: [0] }],
-      };
-    }
-
-    // Group by month for display
-    const monthlyData = {};
-    filtered.forEach((payment) => {
-      if (payment.status?.toLowerCase() === 'paid' || payment.status?.toLowerCase() === 'completed') {
-        const date = new Date(payment.date);
-        const monthKey = `${date.getMonth() + 1}/${date.getFullYear()}`;
-        monthlyData[monthKey] = (monthlyData[monthKey] || 0) + (payment.amount || 0);
-      }
-    });
-
-    const labels = Object.keys(monthlyData).slice(-6);
-    const data = labels.map((label) => monthlyData[label]);
-
-    return {
-      labels: labels.map((l) => l.split('/')[0]), // Just show month number
-      datasets: [{ data: data.length > 0 ? data : [0] }],
-    };
-  };
-
-  const chartData = getChartData();
-
-  const filteredPayments = getFilteredPayments();
+  const filteredPayments = React.useMemo(
+    () => [...payments].sort((a, b) => new Date(b.date) - new Date(a.date)),
+    [payments],
+  );
   const loading = paymentsLoading || statsLoading;
 
   return (
@@ -338,97 +283,36 @@ export default function PaymentsScreen() {
       {/* Stats Cards */}
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
-          <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary} />
-          <Text style={[styles.statValue, { color: '#166534' }]}>
+          <Ionicons name="checkmark-circle" size={26} color={theme.colors.primary} />
+          <Text numberOfLines={1} style={[styles.statValue, { color: '#166534' }]}>
             {formatCurrency(stats?.totalPaidThisMonth || 0)}
           </Text>
           <Text style={[styles.statLabel, { color: '#15803D' }]}>Paid This Month</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: '#FEF3C7' }]}>
-          <Ionicons name="time" size={32} color="#F59E0B" />
-          <Text style={[styles.statValue, { color: '#92400E' }]}>
+          <Ionicons name="time" size={26} color="#F59E0B" />
+          <Text numberOfLines={1} style={[styles.statValue, { color: '#92400E' }]}>
             {formatCurrency(stats?.pendingAmount || 0)}
           </Text>
           <Text style={[styles.statLabel, { color: '#B45309' }]}>Pending</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: '#DBEAFE' }]}>
-          <Ionicons name="calendar" size={32} color="#3B82F6" />
-          <Text style={[styles.statValue, { color: '#1E3A8A' }]}>
-            {stats?.nextDueDate ? formatDate(stats.nextDueDate) : 'N/A'}
+          <Ionicons name="calendar" size={26} color="#3B82F6" />
+          <Text numberOfLines={1} style={[styles.statValue, { color: '#1E3A8A' }]}>
+            {formatDate(nextDueDateValue)}
           </Text>
           <Text style={[styles.statLabel, { color: '#1E40AF' }]}>Next Due</Text>
         </View>
       </View>
 
-      {/* Payment Chart */}
-      <View style={[styles.chartCard, { backgroundColor: theme.colors.surface }]}>
-        <View style={styles.chartHeader}>
-          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Payment History</Text>
-          <View style={styles.timeRangeContainer}>
-            {timeRanges.map((range) => (
-              <TouchableOpacity
-                key={range.value}
-                style={[
-                  styles.timeRangeButton,
-                  {
-                    backgroundColor:
-                      timeRange === range.value ? theme.colors.primary : theme.colors.backgroundSecondary,
-                  },
-                ]}
-                onPress={() => setTimeRange(range.value)}
-              >
-                <Text
-                  style={[
-                    styles.timeRangeText,
-                    { color: timeRange === range.value ? '#fff' : theme.colors.text },
-                  ]}
-                >
-                  {range.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {chartData.datasets[0].data.length > 0 && chartData.datasets[0].data[0] > 0 ? (
-          <LineChart
-            data={chartData}
-            width={width - 64}
-            height={200}
-            chartConfig={{
-              backgroundColor: theme.colors.surface,
-              backgroundGradientFrom: theme.colors.surface,
-              backgroundGradientTo: theme.colors.surface,
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
-              labelColor: (opacity = 1) =>
-                theme.isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-              style: {
-                borderRadius: 16,
-              },
-              propsForDots: {
-                r: '6',
-                strokeWidth: '2',
-                stroke: theme.colors.primary,
-              },
-            }}
-            bezier
-            style={styles.chart}
-          />
-        ) : (
-          <View style={styles.noDataContainer}>
-            <Ionicons name="bar-chart-outline" size={48} color={theme.colors.textTertiary} />
-            <Text style={[styles.noDataText, { color: theme.colors.textSecondary }]}>
-              No payment data for selected period
-            </Text>
-          </View>
-        )}
-      </View>
-
       {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterContainer}
+      >
         {filterOptions.map((option) => (
           <TouchableOpacity
             key={option.value}
@@ -443,6 +327,7 @@ export default function PaymentsScreen() {
             onPress={() => setStatusFilter(option.value)}
           >
             <Text
+              numberOfLines={1}
               style={[
                 styles.filterText,
                 { color: statusFilter === option.value ? '#fff' : theme.colors.text },
@@ -452,7 +337,7 @@ export default function PaymentsScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Payment List */}
       <View style={[styles.listCard, { backgroundColor: theme.colors.surface }]}>

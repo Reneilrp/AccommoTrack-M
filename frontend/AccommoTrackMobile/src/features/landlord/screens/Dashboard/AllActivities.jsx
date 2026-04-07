@@ -65,6 +65,7 @@ export default function AllActivities({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const routeActivities = Array.isArray(route.params?.activities) ? route.params.activities : EMPTY_LIST;
+  const isCaretaker = route.params?.isCaretaker === true;
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -72,7 +73,9 @@ export default function AllActivities({ navigation, route }) {
   const dashboardQuery = useQuery({
     queryKey: landlordQueryKeys.dashboardBundle(),
     queryFn: async () => {
-      const response = await LandlordDashboardService.fetchDashboard();
+      const response = await LandlordDashboardService.fetchDashboard({
+        includeRevenueChart: !isCaretaker,
+      });
       if (!response.success) {
         throw new Error(response.error || 'Failed to load activities');
       }

@@ -33,6 +33,8 @@ export default function MenuDrawer({
   const [userEmail, setUserEmail] = useState("guest@example.com");
   const [userProfileImage, setUserProfileImage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLogoutProcessing, setIsLogoutProcessing] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -97,6 +99,8 @@ export default function MenuDrawer({
       }
     } else {
       // Slide out to left
+      setShowLogoutConfirm(false);
+      setIsLogoutProcessing(false);
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: -DRAWER_WIDTH,
@@ -164,6 +168,36 @@ export default function MenuDrawer({
     onClose();
   };
 
+  const handleMenuAction = (title) => {
+    if (!title) return;
+
+    if (title === "Logout" && !isGuest) {
+      setShowLogoutConfirm(true);
+      return;
+    }
+
+    onMenuItemPress(title);
+  };
+
+  const closeLogoutConfirm = () => {
+    if (isLogoutProcessing) return;
+    setShowLogoutConfirm(false);
+  };
+
+  const confirmLogout = async () => {
+    if (isLogoutProcessing) return;
+
+    setIsLogoutProcessing(true);
+    try {
+      await Promise.resolve(onMenuItemPress?.("Logout"));
+      setShowLogoutConfirm(false);
+    } catch (error) {
+      console.error("Logout action failed:", error);
+    } finally {
+      setIsLogoutProcessing(false);
+    }
+  };
+
   return (
     <Modal
       animationType="none"
@@ -225,16 +259,18 @@ export default function MenuDrawer({
                   />
                 )}
               </View>
-              <View>
-                <Text style={styles.menuUserName}>{userName}</Text>
-                <Text style={styles.menuUserEmail}>{userEmail}</Text>
+              <View style={styles.menuUserTextWrap}>
+                <Text style={styles.menuUserName} numberOfLines={1}>
+                  {userName}
+                </Text>
+                <Text style={styles.menuUserEmail} numberOfLines={1} ellipsizeMode="tail">
+                  {userEmail}
+                </Text>
               </View>
             </View>
-            <View style={styles.headerSide}>
-              <TouchableOpacity onPress={handleClose} style={styles.headerIcon}>
-                <Ionicons name="close" size={28} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity onPress={handleClose} style={styles.menuHeaderClose}>
+              <Ionicons name="close" size={22} color={theme.colors.text} />
+            </TouchableOpacity>
           </View>
 
           {/* Menu Items */}
@@ -243,7 +279,7 @@ export default function MenuDrawer({
               <TouchableOpacity
                 key={item.id}
                 style={styles.menuItem}
-                onPress={() => onMenuItemPress(item.title)} // title maps to navigator routes
+                onPress={() => handleMenuAction(item.title)} // title maps to navigator routes
               >
                 <Ionicons name={item.icon} size={24} color={item.color} />
                 <Text style={styles.menuItemText}>{item.title}</Text>
@@ -274,7 +310,7 @@ export default function MenuDrawer({
             {!isGuest && settingsItem && (
               <TouchableOpacity
                 style={styles.drawerFooterItem}
-                onPress={() => onMenuItemPress(settingsItem.title)}
+                onPress={() => handleMenuAction(settingsItem.title)}
               >
                 <Ionicons
                   name={settingsItem.icon}
@@ -295,7 +331,7 @@ export default function MenuDrawer({
             {!isGuest && logoutItem && (
               <TouchableOpacity
                 style={styles.drawerFooterItem}
-                onPress={() => onMenuItemPress(logoutItem.title)}
+                onPress={() => handleMenuAction(logoutItem.title)}
               >
                 <Ionicons
                   name={logoutItem.icon}
@@ -311,6 +347,39 @@ export default function MenuDrawer({
             )}
           </SafeAreaView>
         </Animated.View>
+
+        {showLogoutConfirm && (
+          <View style={styles.drawerConfirmOverlay}>
+            <TouchableOpacity
+              style={styles.drawerConfirmBackdrop}
+              activeOpacity={1}
+              onPress={closeLogoutConfirm}
+            />
+            <View style={styles.drawerConfirmCard}>
+              <Text style={styles.drawerConfirmTitle}>Logout</Text>
+              <Text style={styles.drawerConfirmMessage}>Are you sure you want to logout?</Text>
+
+              <View style={styles.drawerConfirmActions}>
+                <TouchableOpacity
+                  style={[styles.drawerConfirmButton, styles.drawerConfirmCancelButton]}
+                  onPress={closeLogoutConfirm}
+                  disabled={isLogoutProcessing}
+                >
+                  <Text style={styles.drawerConfirmCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.drawerConfirmButton, styles.drawerConfirmLogoutButton]}
+                  onPress={confirmLogout}
+                  disabled={isLogoutProcessing}
+                >
+                  <Text style={styles.drawerConfirmLogoutText}>
+                    {isLogoutProcessing ? "Logging out..." : "Logout"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     </Modal>
   );

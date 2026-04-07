@@ -190,7 +190,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       if ((!selectedGuest && !formData.guestName.trim()) || !formData.roomId || !formData.checkIn || (requiresCheckOut && !formData.checkOut)) {
         const msg = requiresCheckOut
           ? 'Please complete all required fields: guest/tenant, room, check-in, and check-out.'
-          : 'Please complete all required fields: guest/tenant, room, and check-in.';
+          : 'Please complete all required fields: guest/tenant, room, and move-in.';
         setError(msg);
         toast.error(msg);
         return;
@@ -205,14 +205,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
       const today = getTodayDate();
       if (formData.checkIn < today) {
-        const msg = 'Check-in date cannot be in the past.';
+        const msg = `${requiresCheckOut ? 'Check-in' : 'Move-in'} date cannot be in the past.`;
         setError(msg);
         toast.error(msg);
         return;
       }
 
       if (formData.checkOut && formData.checkOut <= formData.checkIn) {
-        const msg = 'Check-out date must be after check-in date.';
+        const msg = `${requiresCheckOut ? 'Check-out' : 'Move-out'} date must be after ${requiresCheckOut ? 'check-in' : 'move-in'} date.`;
         setError(msg);
         toast.error(msg);
         return;
@@ -417,7 +417,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                  Check-in <span className="text-red-500">*</span>
+                  {requiresCheckOut ? 'Check-in' : 'Move-in'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -439,7 +439,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                       Check-out <span className="text-red-500">*</span>
                     </>
                   ) : (
-                    'Check-out (Optional)'
+                    'Move-out (Optional)'
                   )}
                 </label>
                 <input

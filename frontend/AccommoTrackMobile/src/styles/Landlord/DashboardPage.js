@@ -1,7 +1,7 @@
 import { StyleSheet, Dimensions } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const actionCardSize = 80;
+const actionCardSize = Math.min(84, Math.max(72, (screenWidth - 56) / 3));
 
 export const getStyles = (theme) => StyleSheet.create({
   container: {
@@ -231,8 +231,9 @@ export const getStyles = (theme) => StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    gap: 6,
+    justifyContent: 'space-between',
+    rowGap: 12,
+    columnGap: 8,
     marginTop: 8
   },
   actionCard: {
@@ -250,6 +251,22 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     position: 'relative',
+  },
+  actionCardRestricted: {
+    opacity: 0.82,
+    borderColor: '#F59E0B',
+    backgroundColor: theme.isDark ? '#1F2937' : '#FFFBEB',
+  },
+  actionRestrictedBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#B45309',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionBadge: {
     position: 'absolute',
@@ -349,9 +366,65 @@ export const getStyles = (theme) => StyleSheet.create({
   quickActionsModalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    rowGap: 12,
+    columnGap: 8,
     marginBottom: 5,
+  },
+  permissionModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  permissionModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    alignItems: 'center',
+  },
+  permissionModalIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  permissionModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  permissionModalMessage: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  permissionModalButton: {
+    marginTop: 18,
+    minWidth: 120,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  permissionModalButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   actionArrow: {
     marginTop: 2

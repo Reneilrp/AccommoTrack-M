@@ -461,7 +461,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (selectedDate) {
       // Ensure selected start date is within allowed range
       if (!isStartWithinAllowedRange(selectedDate)) {
-        Alert.alert('Invalid Check-in', 'Check-in must be within the next 3 months.');
+        Alert.alert(
+          `Invalid ${isDailyContract ? 'Check-in' : 'Move-in'}`,
+          `${isDailyContract ? 'Check-in' : 'Move-in'} must be within the next 3 months.`
+        );
         return;
       }
 
@@ -488,7 +491,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (selectedDate) {
       // Ensure end date is after start date
       if (bookingData.start_date && selectedDate <= bookingData.start_date) {
-        Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
+        Alert.alert('Invalid Date', `${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
         return;
       }
       setBookingData(prev => ({ ...prev, end_date: selectedDate }));
@@ -577,7 +580,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   const validateDates = () => {
     if (!bookingData.start_date) {
-      showError('Missing Information', 'Please select a check-in date.');
+      showError('Missing Information', `Please select a ${isDailyContract ? 'check-in' : 'move-in'} date.`);
       return false;
     }
 
@@ -592,17 +595,17 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     today.setHours(0, 0, 0, 0);
 
     if (start < today) {
-      showError('Invalid Date', 'Check-in date cannot be in the past.');
+      showError('Invalid Date', `${isDailyContract ? 'Check-in' : 'Move-in'} date cannot be in the past.`);
       return false;
     }
     if (end && end <= start) {
-      showError('Invalid Date', 'Check-out date must be after check-in date.');
+      showError('Invalid Date', `${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
       return false;
     }
 
     // Ensure start is within allowed range (3 months)
     if (!isStartWithinAllowedRange(start)) {
-      showError('Invalid Date', 'Check-in must be within the next 3 months.');
+      showError('Invalid Date', `${isDailyContract ? 'Check-in' : 'Move-in'} must be within the next 3 months.`);
       return false;
     }
 
@@ -1257,14 +1260,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.summaryNote}>
-                  Monthly contracts may leave check-out blank for open-ended stay.
+                  Monthly contracts may leave move-out blank for open-ended stay.
                 </Text>
               </View>
             )}
 
             {/* Start Date Picker */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Check-in Date <Text style={{color: '#ef4444'}}>*</Text></Text>
+              <Text style={styles.inputLabel}>{isDailyContract ? 'Check-in Date' : 'Move-in Date'} <Text style={{color: '#ef4444'}}>*</Text></Text>
               <TouchableOpacity
                 style={styles.dateButton}
                 onPress={() => setShowStartDatePicker(true)}

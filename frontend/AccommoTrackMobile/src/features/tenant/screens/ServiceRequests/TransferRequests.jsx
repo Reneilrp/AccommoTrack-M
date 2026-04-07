@@ -69,7 +69,7 @@ const resolvePropertyLabel = (request) => {
   );
 };
 
-export default function TransferRequests({ hideHeader = false }) {
+export default function TransferRequests({ hideHeader = false, historyOnly = false }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
@@ -168,39 +168,41 @@ export default function TransferRequests({ hideHeader = false }) {
         </Text>
       )}
 
-      <View
-        style={{
-          backgroundColor: theme.colors.surface,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          padding: 14,
-          marginBottom: 14,
-        }}
-      >
-        <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '700', marginBottom: 6 }}>
-          Request New Transfer
-        </Text>
-        <Text style={{ fontSize: 12, color: theme.colors.textSecondary, lineHeight: 18, marginBottom: 10 }}>
-          Transfer requests need booking context (current room and target room). Start from My Bookings to submit one.
-        </Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('MyBookings')}
+      {!historyOnly && (
+        <View
           style={{
-            alignSelf: 'flex-start',
-            backgroundColor: theme.colors.primary,
-            borderRadius: 10,
-            paddingHorizontal: 14,
-            paddingVertical: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
+            backgroundColor: theme.colors.surface,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: 14,
+            marginBottom: 14,
           }}
         >
-          <Ionicons name="swap-horizontal-outline" size={16} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Open My Bookings</Text>
-        </TouchableOpacity>
-      </View>
+          <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '700', marginBottom: 6 }}>
+            Request New Transfer
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.colors.textSecondary, lineHeight: 18, marginBottom: 10 }}>
+            Transfer requests need booking context (current room and target room). Start from My Bookings to submit one.
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('MyBookings')}
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: theme.colors.primary,
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Ionicons name="swap-horizontal-outline" size={16} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Open My Bookings</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {[{ title: 'Pending Transfers', data: pendingRequests }, { title: 'Transfer History', data: processedRequests }].map((section) => (
         <View key={section.title} style={{ marginBottom: 16 }}>
@@ -276,7 +278,7 @@ export default function TransferRequests({ hideHeader = false }) {
                     </Text>
                   ) : null}
 
-                  {status === 'pending' && (
+                  {!historyOnly && status === 'pending' && (
                     <TouchableOpacity
                       onPress={() => handleCancelTransfer(request)}
                       disabled={cancellingId === request?.id}

@@ -69,6 +69,7 @@ export default function MenuDrawer({
   const [userName, setUserName] = useState("User");
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("landlord");
+  const [userPermissions, setUserPermissions] = useState({});
   const [userProfileImage, setUserProfileImage] = useState(null);
 
   useEffect(() => {
@@ -89,6 +90,7 @@ export default function MenuDrawer({
         setUserName(fullName);
         setUserEmail(user.email || "");
         setUserRole(user.role || "landlord");
+        setUserPermissions(user.caretaker_permissions || {});
         setUserProfileImage(getImageUrl(user.profile_image) || null);
       }
     } catch (error) {
@@ -105,8 +107,56 @@ export default function MenuDrawer({
     }
   };
 
-  // Filter menu items based on role if needed in the future
-  const filteredMenuItems = menuItems;
+  const normalizePermissionValue = (value) => {
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "allowed";
+    }
+    return Boolean(value);
+  };
+
+  const buildPermissionCandidates = (key, aliases = []) => {
+    const base = String(key || "").trim();
+    const singular = base.endsWith("ies")
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith("s")
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith("s")
+      ? base
+      : singular === "property"
+        ? "properties"
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  };
+
+  const hasPermission = (key, aliases = []) => {
+    if (userRole !== "caretaker") return true;
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(userPermissions?.[candidate]),
+    );
+  };
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (userRole !== "caretaker") return true;
+
+    if (item.screen === "MyProperties") return hasPermission("properties", ["property", "property_management"]);
+    if (item.screen === "RoomManagement") return hasPermission("rooms");
+    if (item.screen === "Tenants") return hasPermission("tenants");
+    if (item.screen === "Payments") return hasPermission("payments");
+    if (item.screen === "Analytics") return hasPermission("analytics");
+
+    return true;
+  });
 
   return (
     <Modal

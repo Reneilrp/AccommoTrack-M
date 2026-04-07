@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, MoreVertical, RefreshCw, CheckCircle, Clock3, FileText } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, RefreshCw, CheckCircle, Clock3, FileText, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TenantCard({
@@ -136,35 +136,41 @@ export default function TenantCard({
       
       {/* Footer Actions */}
       <div className="flex flex-col gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
-        <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => navigate(`/tenants/${tenant.id}`)}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent"
+            className="min-w-0 flex items-center justify-center gap-1.5 px-2 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-[11px] sm:text-xs font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent whitespace-nowrap"
           >
-            <FileText className="w-3.5 h-3.5" /> View Logs
+            <FileText className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">View Logs</span>
           </button>
           <button
             onClick={handleMessageTenant}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
+            className="min-w-0 flex items-center justify-center gap-1.5 px-2 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] sm:text-xs font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
-            <MessageSquare className="w-3.5 h-3.5" /> Message
+            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Message</span>
           </button>
           <button
             onClick={() => onTransfer?.(tenant)}
             disabled={!canTransfer || !tenant.room || hasPendingEviction}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="min-w-0 flex items-center justify-center gap-1.5 px-2 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] sm:text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
-            <Shuffle className="w-3.5 h-3.5" /> Transfer
-          </button>
-          <button
-            onClick={() => setShowMoreActions(!showMoreActions)}
-            aria-label="More actions"
-            className={`inline-flex items-center justify-center w-9 rounded-lg text-xs font-bold transition-all border active:scale-95
-              ${showMoreActions ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white border-gray-300' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
-          >
-            <MoreVertical className="w-4 h-4" />
+            <Shuffle className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Transfer</span>
           </button>
         </div>
+
+        <button
+          onClick={() => setShowMoreActions(!showMoreActions)}
+          className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition-all border active:scale-95
+            ${showMoreActions
+              ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white border-gray-300'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
+        >
+          <span>{showMoreActions ? 'Hide more actions' : 'View more actions'}</span>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreActions ? 'rotate-180' : ''}`} />
+        </button>
 
         {showMoreActions && (
           <div className="flex flex-col gap-2 mt-1 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-1 duration-200">

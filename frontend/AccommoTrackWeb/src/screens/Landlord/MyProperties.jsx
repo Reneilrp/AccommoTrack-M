@@ -20,16 +20,79 @@ import { Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+};
+
+const extractCaretakerAssignedPropertyIds = (user) => {
+  if (!user || user.role !== 'caretaker') return [];
+
+  const ids = new Set();
+  const pushId = (value) => {
+    const normalized = normalizeId(value);
+    if (normalized) ids.add(normalized);
+  };
+
+  pushId(user.assigned_property_id);
+  pushId(user.property_id);
+
+  if (Array.isArray(user.assigned_property_ids)) {
+    user.assigned_property_ids.forEach(pushId);
+  }
+
+  if (Array.isArray(user.assigned_properties)) {
+    user.assigned_properties.forEach((property) => {
+      if (property && typeof property === 'object') {
+        pushId(property.id ?? property.property_id);
+      }
+    });
+  }
+
+  return [...ids];
+};
+
+const scopePropertiesForCaretaker = (properties, user) => {
+  if (!Array.isArray(properties)) return [];
+  if (!user || user.role !== 'caretaker') return properties;
+
+  const assignedIds = extractCaretakerAssignedPropertyIds(user);
+  if (!assignedIds.length) {
+    return properties.slice(0, 1);
+  }
+
+  const assignedSet = new Set(assignedIds);
+  const filtered = properties.filter((property) =>
+    assignedSet.has(normalizeId(property?.id)),
+  );
+
+  if (filtered.length > 0) {
+    return filtered;
+  }
+
+  return properties.slice(0, 1);
+};
+
 export default function MyProperties({ __user }) {
   const { uiState, updateData } = useUIState();
   const cachedProperties = uiState.data?.landlord_properties || cacheManager.get('landlord_properties');
+  const activeUser = (() => {
+    if (__user) return __user;
+    try {
+      return JSON.parse(localStorage.getItem('userData') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  const isCaretaker = activeUser?.role === 'caretaker';
+  const scopedCachedProperties = scopePropertiesForCaretaker(cachedProperties || [], activeUser);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentView, setCurrentView] = useState(uiState.data?.landlord_property_view || 'list');
   const [__selectedPropertyId, _setSelectedPropertyId] = useState(null);
   const navigate = useNavigate();
   const { collapse, _setIsSidebarOpen, _open } = useSidebar();
-  const [properties, setProperties] = useState(cachedProperties || []);
+  const [properties, setProperties] = useState(scopedCachedProperties || []);
   const [loading, setLoading] = useState(!cachedProperties);
   const [error, setError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, property: null });
@@ -37,11 +100,15 @@ export default function MyProperties({ __user }) {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [verifying, setVerifying] = useState(false);
-  const [isVerified, setIsVerified] = useState(null);
+  const [isVerified, setIsVerified] = useState(isCaretaker ? true : null);
 
   useEffect(() => {
     fetchProperties();
-    checkVerificationStatus();
+    if (isCaretaker) {
+      setIsVerified(true);
+    } else {
+      checkVerificationStatus();
+    }
 
     const handleOpenAdd = () => {
       setCurrentView('add');
@@ -49,7 +116,7 @@ export default function MyProperties({ __user }) {
     };
     window.addEventListener('open-add-property', handleOpenAdd);
     return () => window.removeEventListener('open-add-property', handleOpenAdd);
-  }, []);
+  }, [isCaretaker]);
 
   useEffect(() => {
     // Sync local state if global state changes from elsewhere
@@ -74,14 +141,21 @@ export default function MyProperties({ __user }) {
 
       // Using the axios instance
       const response = await api.get('/landlord/properties');
-      const data = response.data;
-      setProperties(data);
-      updateData('landlord_properties', data);
-      cacheManager.set('landlord_properties', data);
+      const payload = response.data;
+      const propertiesData = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+      const scopedProperties = scopePropertiesForCaretaker(propertiesData, activeUser);
+
+      setProperties(scopedProperties);
+      updateData('landlord_properties', scopedProperties);
+      cacheManager.set('landlord_properties', scopedProperties);
 
       // Pre-cache individual property summaries to enable instant transition to PropertySummary
-      if (Array.isArray(data)) {
-        data.forEach(prop => {
+      if (Array.isArray(scopedProperties)) {
+        scopedProperties.forEach(prop => {
           const summaryKey = `property_summary_${prop.id}`;
           const existingSummary = uiState.data?.[summaryKey] || cacheManager.get(summaryKey);
           
@@ -241,7 +315,7 @@ export default function MyProperties({ __user }) {
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900">
       {/* Verification Warning Banner */}
-      {isVerified === false && (
+      {!isCaretaker && isVerified === false && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">

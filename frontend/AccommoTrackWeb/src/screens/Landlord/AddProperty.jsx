@@ -35,6 +35,7 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 export default function AddProperty({ onBack, onSave }) {
   const { effectiveTheme } = usePreferences();
   const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
+  const isCaretaker = user?.role === 'caretaker';
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -122,6 +123,11 @@ export default function AddProperty({ onBack, onSave }) {
   useEffect(() => {
     // Check verification status
     const checkVerification = async () => {
+      if (isCaretaker) {
+        setIsVerified(true);
+        return;
+      }
+
       try {
         const res = await api.get('/landlord/my-verification');
         setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
@@ -131,7 +137,7 @@ export default function AddProperty({ onBack, onSave }) {
       }
     };
     checkVerification();
-  }, []);
+  }, [isCaretaker]);
 
   // Auto-fill address fields when latitude/longitude changes
   useEffect(() => {
@@ -589,7 +595,7 @@ export default function AddProperty({ onBack, onSave }) {
       )}
 
       {/* Verification Warning Banner */}
-      {isVerified === false && (
+      {!isCaretaker && isVerified === false && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-4">
             <ShieldAlert className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />

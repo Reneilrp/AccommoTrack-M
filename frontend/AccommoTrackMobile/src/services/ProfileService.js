@@ -127,6 +127,45 @@ const ProfileService = {
   },
 
   /**
+   * Update tenant preferences and lifestyle using the same payload shape as web.
+   * @param {Object} preferenceData
+   */
+  async updateTenantPreferences(preferenceData) {
+    try {
+      const formData = new FormData();
+      formData.append('preference[room_preference]', preferenceData?.room_preference || '');
+      formData.append('preference[budget_range]', preferenceData?.budget_range || '');
+      formData.append('preference[attitude]', preferenceData?.attitude || '');
+      formData.append('preference[behavior]', preferenceData?.behavior || '');
+      formData.append('preference[lifestyle_notes]', preferenceData?.lifestyle_notes || '');
+      formData.append(
+        'preference[custom_preferences]',
+        JSON.stringify(Array.isArray(preferenceData?.custom_preferences) ? preferenceData.custom_preferences : []),
+      );
+      formData.append('_method', 'PUT');
+
+      const response = await api.post('/tenant/profile', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return {
+        success: true,
+        data: response.data.user || response.data,
+        message: response.data.message || 'Preferences updated successfully',
+      };
+    } catch (error) {
+      console.error('Error updating tenant preferences:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to update preferences',
+        errors: error.response?.data?.errors || {},
+      };
+    }
+  },
+
+  /**
    * Change password
    * @param {Object} passwordData - { current_password, new_password, new_password_confirmation }
    */

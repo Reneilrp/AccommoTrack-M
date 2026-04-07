@@ -1,24 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import {
   Home,
   Calendar,
   Building2,
   AlertCircle,
-  Clock,
   Wrench,
   PlusCircle,
-  FileWarning,
-  ShieldAlert,
   XCircle,
-  Loader2,
 } from 'lucide-react';
 import api from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 
 export default function CaretakerDashboard({ __user }) {
-  const __navigate = useNavigate();
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.caretaker_dashboard || cacheManager.get('caretaker_dashboard');
 
@@ -26,21 +20,9 @@ export default function CaretakerDashboard({ __user }) {
   const [activities, setActivities] = useState(cachedData?.activities || []);
   const [upcomingCheckouts, setUpcomingCheckouts] = useState(cachedData?.upcomingCheckouts || []);
   const [propertyPerformance, setPropertyPerformance] = useState(cachedData?.propertyPerformance || []);
-  const [verificationStatus, setVerificationStatus] = useState(null);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
   const initialLoadRef = React.useRef(!cachedData);
-
-  const fetchVerificationStatus = React.useCallback(async () => {
-    try {
-      const res = await api.get('/landlord/my-verification');
-      setVerificationStatus(res.data);
-    } catch (err) {
-      if (err.response?.status === 404) {
-        setVerificationStatus({ status: 'not_submitted' });
-      }
-    }
-  }, []);
 
   const fetchDashboardData = React.useCallback(async () => {
     try {
@@ -85,8 +67,7 @@ export default function CaretakerDashboard({ __user }) {
 
   useEffect(() => {
     fetchDashboardData();
-    fetchVerificationStatus();
-  }, [fetchDashboardData, fetchVerificationStatus]);
+  }, [fetchDashboardData]);
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -198,25 +179,6 @@ export default function CaretakerDashboard({ __user }) {
 
   return (
     <div className="space-y-6">
-      {/* Verification Status Banner (Landlord Status) */}
-      {verificationStatus && verificationStatus.status !== 'approved' && (
-        <div className={`rounded-xl border p-4 ${
-          verificationStatus.status === 'rejected' ? 'bg-red-50 border-red-200' : 
-          verificationStatus.status === 'pending' ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {verificationStatus.status === 'rejected' ? <FileWarning className="w-6 h-6 text-red-600" /> : 
-               verificationStatus.status === 'pending' ? <Clock className="w-6 h-6 text-yellow-600" /> : <ShieldAlert className="w-6 h-6 text-orange-600" />}
-              <div>
-                <h3 className="font-semibold text-gray-900">Landlord Account Status: {verificationStatus.status.replace('_', ' ').toUpperCase()}</h3>
-                <p className="text-sm text-gray-600">The landlord's account is currently being verified. Some features may be restricted.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">

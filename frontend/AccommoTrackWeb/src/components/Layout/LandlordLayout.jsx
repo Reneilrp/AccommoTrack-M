@@ -37,8 +37,51 @@ export default function LandlordLayout({
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
   const caretakerPermissions = user?.caretaker_permissions || {};
-  const canManageMaintenance = Boolean(caretakerPermissions.maintenance ?? caretakerPermissions.rooms);
-  const canManagePayments = Boolean(caretakerPermissions.payments);
+
+  const normalizePermissionValue = (value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+    return Boolean(value);
+  };
+
+  const buildPermissionCandidates = (key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  };
+
+  const hasCaretakerPermission = (key, aliases = []) => {
+    if (!isCaretaker) return true;
+
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(caretakerPermissions?.[candidate]),
+    );
+  };
+
+  const canManageMaintenance = hasCaretakerPermission('maintenance', ['rooms']);
+  const canManagePayments = hasCaretakerPermission('payments');
+  const canManageProperties = hasCaretakerPermission('properties', ['property', 'property_management']);
+  const canManageAnalytics = hasCaretakerPermission('analytics');
 
   const landlordMenu = [
     { 
@@ -87,12 +130,14 @@ export default function LandlordLayout({
 
   const caretakerAllowedPaths = new Set([
     '/dashboard',
-    caretakerPermissions.rooms ? '/rooms' : null,
+    canManageProperties ? '/properties' : null,
+    hasCaretakerPermission('rooms') ? '/rooms' : null,
     canManageMaintenance ? '/maintenance' : null,
-    caretakerPermissions.bookings ? '/bookings' : null,
+    hasCaretakerPermission('bookings') ? '/bookings' : null,
     canManagePayments ? '/payments' : null,
-    caretakerPermissions.tenants ? '/tenants' : null,
-    caretakerPermissions.messages ? '/messages' : null,
+    hasCaretakerPermission('tenants') ? '/tenants' : null,
+    hasCaretakerPermission('messages') ? '/messages' : null,
+    canManageAnalytics ? '/analytics' : null,
     '/settings',
   ].filter(Boolean));
 

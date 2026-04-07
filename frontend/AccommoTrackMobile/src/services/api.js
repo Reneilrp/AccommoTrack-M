@@ -132,6 +132,18 @@ api.interceptors.response.use(
     }
 
     const fullUrl = buildRequestUrl(error.config?.baseURL, error.config?.url);
+    const requestPath = String(error.config?.url || '');
+    const serverMessage = String(error.response?.data?.message || '').toLowerCase();
+    const serverStatus = String(error.response?.data?.status || '').toLowerCase();
+
+    const isExpectedNoVerificationRecord =
+      error.response?.status === 404 &&
+      requestPath.includes('/landlord/my-verification') &&
+      (serverStatus === 'not_submitted' || serverMessage.includes('no verification record'));
+
+    if (isExpectedNoVerificationRecord) {
+      return Promise.reject(error);
+    }
 
     // Log detailed error info for debugging
     console.error('[api] Request failed:', {

@@ -28,7 +28,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
@@ -54,7 +54,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
 
@@ -78,7 +78,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
@@ -106,7 +106,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
 
@@ -130,7 +130,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
 
@@ -154,7 +154,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
@@ -181,7 +181,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
@@ -208,7 +208,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
 
@@ -232,7 +232,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
@@ -259,7 +259,7 @@ class AnalyticsController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCan($context, 'can_view_analytics');
 
             $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = strtolower((string) $request->query('time_range', 'month'));

@@ -155,20 +155,23 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const settingsQuery = useQuery({
     queryKey: landlordQueryKeys.settingsHub(),
     queryFn: async () => {
-      const [profileRes, verificationRes] = await Promise.all([
-        ProfileService.getProfile(),
-        ProfileService.getVerificationStatus(),
-      ]);
+      const profileRes = await ProfileService.getProfile();
 
       if (!profileRes.success || !profileRes.data) {
         throw new Error(profileRes.error || "Failed to load settings");
       }
 
+      let verificationStatus = null;
+      if (profileRes.data.role !== "caretaker") {
+        const verificationRes = await ProfileService.getVerificationStatus();
+        verificationStatus = verificationRes.success
+          ? (verificationRes.data?.status || "not_submitted")
+          : null;
+      }
+
       return {
         profile: profileRes.data,
-        verificationStatus: verificationRes.success
-          ? (verificationRes.data?.status || "not_submitted")
-          : null,
+        verificationStatus,
       };
     },
     placeholderData: (previousData) => previousData,
@@ -206,9 +209,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
       });
     }
 
-    if (settingsQuery.data.verificationStatus !== null) {
-      setVerificationStatus(settingsQuery.data.verificationStatus);
-    }
+    setVerificationStatus(settingsQuery.data.verificationStatus);
   }, [settingsQuery.data, setActiveRole]);
 
   useEffect(() => {
@@ -541,17 +542,18 @@ export default function SettingsScreen({ navigation, onLogout }) {
           {
             id: "report",
             label: "Report a Problem",
+            description: "Send technical issue details",
             icon: "flag-outline",
             type: "action",
-            action: () => handleUnavailable("Report a Problem"),
+            action: () => navigation.navigate('HelpSupport', { openResource: 'report' }),
           },
           {
-            id: "about",
-            label: "About AccommoTrack",
-            description: "Release notes, dev team, and terms",
-            icon: "information-circle-outline",
-            type: "navigate",
-            target: "About",
+            id: "terms",
+            label: "Terms & Conditions",
+            description: "Landlord terms and policies",
+            icon: "document-text-outline",
+            type: "action",
+            action: () => navigation.navigate('HelpSupport', { openResource: 'terms' }),
           },
         ],
       },

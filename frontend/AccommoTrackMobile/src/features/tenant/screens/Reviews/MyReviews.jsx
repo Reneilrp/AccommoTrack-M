@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../../styles/Tenant/ReviewStyles.js';
 import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
 
-export default function MyReviews({ hideHeader = false }) {
+export default function MyReviews({ hideHeader = false, historyOnly = false }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const navigation = useNavigation();
@@ -90,22 +90,24 @@ export default function MyReviews({ hideHeader = false }) {
       </View>
       {item.comment ? <Text style={[styles.commentText, { color: theme.colors.text }]}>{item.comment}</Text> : null}
 
-      <View style={styles.actionRow}>
-        <TouchableOpacity 
-            onPress={() => navigation.navigate('LeaveReview', { 
-                reviewId: item.id, 
-                initialRating: item.rating, 
-                initialComment: item.comment, 
-                propertyId: item.property_id 
-            })} 
-            style={[styles.editBtn, { backgroundColor: theme.colors.primary }]}
-        >
-          <Text style={[styles.btnText, { color: theme.colors.textInverse }]}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
-          {deletingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Delete</Text>}
-        </TouchableOpacity>
-      </View>
+      {!historyOnly && (
+        <View style={styles.actionRow}>
+          <TouchableOpacity 
+              onPress={() => navigation.navigate('LeaveReview', { 
+                  reviewId: item.id, 
+                  initialRating: item.rating, 
+                  initialComment: item.comment, 
+                  propertyId: item.property_id 
+              })} 
+              style={[styles.editBtn, { backgroundColor: theme.colors.primary }]}
+          >
+            <Text style={[styles.btnText, { color: theme.colors.textInverse }]}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
+            {deletingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Delete</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 

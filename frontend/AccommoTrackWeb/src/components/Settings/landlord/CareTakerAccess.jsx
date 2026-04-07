@@ -123,13 +123,20 @@ export default function CareTakerAccess({
       description: 'Track and verify rental transactions.',
       icon: <Users className="w-4 h-4" />,
     },
+    {
+      key: 'analytics',
+      label: 'Analytics',
+      description: 'View performance dashboards and trends.',
+      icon: <Shield className="w-4 h-4" />,
+    },
   ];
-  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments']);
+  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics']);
   const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
     rooms: 'Enabling this allows caretakers to modify room availability and tenant placements.',
     properties: 'Enabling this allows caretakers to edit core property details and settings.',
     maintenance: 'Enabling this allows caretakers to process and update maintenance workflows.',
     payments: 'Enabling this allows caretakers to manage sensitive billing and payment operations.',
+    analytics: 'Enabling this allows caretakers to view occupancy, revenue, and trend insights.',
   };
 
   const isLandlordLevelPermission = (key) => LANDLORD_LEVEL_PERMISSION_KEYS.has(key);
@@ -167,6 +174,7 @@ export default function CareTakerAccess({
         properties: !!c.permissions.properties,
         maintenance: !!c.permissions.maintenance,
         payments: !!c.permissions.payments,
+        analytics: !!c.permissions.analytics,
       },
       property_ids: (c.assigned_properties || []).map(p => p.id)
     });
@@ -233,7 +241,8 @@ export default function CareTakerAccess({
         can_view_rooms: !!editFormData.permissions.rooms,
         can_view_properties: !!editFormData.permissions.properties,
         can_manage_maintenance: !!editFormData.permissions.maintenance,
-        can_manage_payments: !!editFormData.permissions.payments
+        can_manage_payments: !!editFormData.permissions.payments,
+        can_view_analytics: !!editFormData.permissions.analytics,
       };
 
       const updateData = {

@@ -68,6 +68,8 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   // Hide header/bottom nav on routes that implement their own header/navigation
   const hideHeaderRoutes = new Set([
     'Profile', 
+    'PreferencesLifestyle',
+    'VerificationStatus',
     'UpdatePassword', 
     'NotificationPreferences', 
     'HelpSupport', 
@@ -89,6 +91,8 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   
   const hideBottomRoutes = new Set([
     'Profile', 
+    'PreferencesLifestyle',
+    'VerificationStatus',
     'UpdatePassword', 
     'NotificationPreferences', 
     'HelpSupport', 
@@ -201,6 +205,12 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
 
   // Determine header right button icon and action
   const isProfileRoute = effectiveRouteName === 'TenantHome' || effectiveRouteName === 'Messages';
+  const isPaymentsRoute = effectiveRouteName === 'Payments';
+  const rightHeaderIcon = isProfileRoute
+    ? 'person-outline'
+    : isPaymentsRoute
+      ? 'time-outline'
+      : 'notifications-outline';
   
   const handleRightPress = () => {
     if (isProfileRoute) {
@@ -208,6 +218,12 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
         onAuthRequired?.();
       } else {
         navigate('Profile');
+      }
+    } else if (isPaymentsRoute) {
+      if (isGuest) {
+        onAuthRequired?.();
+      } else {
+        navigate('PaymentHistory');
       }
     } else {
       // Default to notifications for Dashboard and MyBookings
@@ -248,7 +264,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
             <Header
               title={title}
               onMenuPress={() => navigate('MenuModal')}
-              rightIcon={isProfileRoute ? 'person-outline' : 'notifications-outline'}
+              rightIcon={rightHeaderIcon}
               onRightPress={handleRightPress}
             />
           </View>

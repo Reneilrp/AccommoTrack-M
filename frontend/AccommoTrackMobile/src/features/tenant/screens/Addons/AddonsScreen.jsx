@@ -22,7 +22,7 @@ import { getStyles } from '../../../../styles/Tenant/AddonsStyles.js';
 import Header from '../../components/Header.jsx';
 import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
 
-export default function AddonsScreen({ hideHeader = false }) {
+export default function AddonsScreen({ hideHeader = false, historyOnly = false }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const route = useRoute();
@@ -219,6 +219,75 @@ export default function AddonsScreen({ hideHeader = false }) {
       <ActivityIndicator size="large" color={theme.colors.primary} />
     </View>
   );
+
+  if (historyOnly) {
+    const historyContent = (
+      <View style={{ flex: 1 }}>
+        <FlatList
+          data={requests}
+          keyExtractor={(item) => (item.id || item.request_id || String(item.created_at || Math.random())).toString()}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}
+          ListHeaderComponent={() => (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-on History</Text>
+            </View>
+          )}
+          renderItem={({ item }) => {
+            const requestPrice = resolveAddonRequestPrice(item);
+
+            return (
+              <View style={[styles.requestCard, { backgroundColor: theme.colors.surface }]}>
+                <View style={styles.requestHeader}>
+                  <Text style={[styles.requestName, { color: theme.colors.text }]}>
+                    {item.addon?.name || item.name || 'Add-on'}
+                  </Text>
+                  <View style={[styles.statusBadge, { backgroundColor: theme.colors.primary + '15' }]}>
+                    <Text style={[styles.statusText, { color: theme.colors.primary }]}>
+                      {(item.status || 'pending').toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.requestSub, { color: theme.colors.textSecondary }]}>
+                  Quantity: {item.quantity || 1} • {requestPrice > 0 ? `₱${requestPrice.toLocaleString()}` : 'Free'}
+                </Text>
+                {item.created_at ? (
+                  <Text style={[styles.requestSub, { color: theme.colors.textTertiary }]}>
+                    Submitted: {new Date(item.created_at).toLocaleString()}
+                  </Text>
+                ) : null}
+                {item.note ? (
+                  <Text style={[styles.requestSub, { color: theme.colors.textSecondary }]}>Note: {item.note}</Text>
+                ) : null}
+              </View>
+            );
+          }}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              <Ionicons name="cube-outline" size={64} color={theme.colors.textTertiary} />
+              <Text style={[styles.emptyTitle, { color: theme.colors.textSecondary, textAlign: 'center' }]}>No add-on history found</Text>
+              <Text style={[styles.emptySub, { color: theme.colors.textTertiary, textAlign: 'center' }]}>Create add-on requests from MyBookings MyStay.</Text>
+            </View>
+          )}
+        />
+      </View>
+    );
+
+    if (hideHeader) return historyContent;
+
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+
+        <Header
+          title="Add-ons & Usage Fees"
+          onBack={() => navigation.goBack()}
+          showProfile={false}
+        />
+        {historyContent}
+      </View>
+    );
+  }
 
   if (noBooking) {
     const noBookingContent = (

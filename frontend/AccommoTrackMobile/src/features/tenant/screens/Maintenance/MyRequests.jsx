@@ -12,7 +12,7 @@ import {
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 
-export default function MyRequests({ hideHeader = false }) {
+export default function MyRequests({ hideHeader = false, historyOnly = false }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,7 +74,11 @@ export default function MyRequests({ hideHeader = false }) {
             <View style={styles.emptyState}>
                 <Ionicons name="construct-outline" size={64} color={theme.colors.textTertiary} />
                 <Text style={[styles.emptyTitle, { color: theme.colors.textSecondary, textAlign: 'center' }]}>No maintenance requests found</Text>
-                <Text style={[styles.emptySub, { color: theme.colors.textTertiary, textAlign: 'center' }]}>If you have any issues with your room, feel free to submit a request.</Text>
+                <Text style={[styles.emptySub, { color: theme.colors.textTertiary, textAlign: 'center' }]}>
+                  {historyOnly
+                    ? 'No maintenance request history yet. Create new requests in MyBookings MyStay.'
+                    : 'If you have any issues with your room, feel free to submit a request.'}
+                </Text>
             </View>
           )}
       />

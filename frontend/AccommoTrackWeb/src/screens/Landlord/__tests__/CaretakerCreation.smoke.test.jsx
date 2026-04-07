@@ -136,6 +136,7 @@ describe('Landlord caretaker creation smoke', () => {
             can_view_properties: false,
             can_manage_maintenance: false,
             can_manage_payments: false,
+            can_view_analytics: false,
           },
         },
       );
@@ -166,6 +167,9 @@ describe('Landlord caretaker creation smoke', () => {
     fireEvent.click(screen.getByLabelText(/Payments/i));
     fireEvent.click(await screen.findByRole('button', { name: 'Grant Access' }));
 
+    fireEvent.click(screen.getByLabelText(/Analytics/i));
+    fireEvent.click(await screen.findByRole('button', { name: 'Grant Access' }));
+
     fireEvent.click(screen.getByText('Dorm One'));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm & Add Caretaker' }));
 
@@ -190,6 +194,7 @@ describe('Landlord caretaker creation smoke', () => {
             can_view_properties: true,
             can_manage_maintenance: true,
             can_manage_payments: true,
+            can_view_analytics: true,
           },
         },
       );

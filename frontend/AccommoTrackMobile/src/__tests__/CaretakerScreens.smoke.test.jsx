@@ -9,11 +9,24 @@ const landlordBottomNavPath = path.resolve(
   __dirname,
   '../features/landlord/components/LandlordBottomNavigation.jsx',
 );
+const dashboardPath = path.resolve(
+  __dirname,
+  '../features/landlord/screens/Dashboard/DashboardPage.jsx',
+);
 
 const readSource = (filePath) => fs.readFileSync(filePath, 'utf8');
 
 const extractStackScreenNames = (source) => (
   Array.from(source.matchAll(/<Stack\.Screen\s+name="([^"]+)"/g), (match) => match[1])
+);
+
+const extractMajorQuickActionsSection = (source) => {
+  const match = source.match(/const majorQuickActions = \[(.|\n|\r)*?\n\s*\];/);
+  return match ? match[0] : '';
+};
+
+const countMajorQuickActions = (section) => (
+  Array.from(section.matchAll(/\bid:\s*\d+/g)).length
 );
 
 describe('Caretaker screens smoke coverage', () => {
@@ -22,8 +35,8 @@ describe('Caretaker screens smoke coverage', () => {
 
     expect(source).toContain("const isCaretaker = userRole === 'caretaker'");
     expect(source).toContain('const hasPermission = React.useCallback');
-    expect(source).toContain("permissions?.[`can_view_${key}`]");
-    expect(source).toContain("permissions?.[`can_manage_${key}`]");
+    expect(source).toContain('const buildPermissionCandidates = React.useCallback');
+    expect(source).toContain('expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`)');
 
     expect(source).toContain("const canAccessRooms = hasPermission('rooms')");
     expect(source).toContain("const canAccessMaintenance = hasPermission('maintenance')");
@@ -31,6 +44,7 @@ describe('Caretaker screens smoke coverage', () => {
     expect(source).toContain("const canAccessTenants = hasPermission('tenants')");
     expect(source).toContain("const canAccessMessages = hasPermission('messages')");
     expect(source).toContain("const canAccessPayments = !isCaretaker || hasPermission('payments')");
+    expect(source).toContain("const canAccessAnalytics = !isCaretaker || hasPermission('analytics')");
   });
 
   it('routes caretaker dashboard and gated stack screens correctly', () => {
@@ -76,10 +90,31 @@ describe('Caretaker screens smoke coverage', () => {
 
     expect(source).toContain("const isCaretaker = user?.role === 'caretaker'");
     expect(source).toContain("show: true, // Home always visible");
-    expect(source).toContain("show: !isCaretaker || hasPermission('properties')");
+    expect(source).toContain("show: !isCaretaker || hasPermission('properties', ['property', 'property_management'])");
     expect(source).toContain("show: !isCaretaker || hasPermission('bookings')");
     expect(source).toContain("show: !isCaretaker || hasPermission('messages')");
     expect(source).toContain("show: true, // Settings always visible");
     expect(source).toContain('const homeComponent = isCaretaker ? CaretakerDashboard : LandlordDashboard');
+  });
+
+  it('keeps six quick actions visible and guards restricted caretaker taps with a permission modal', () => {
+    const source = readSource(dashboardPath);
+    const majorQuickActionsSection = extractMajorQuickActionsSection(source);
+
+    expect(countMajorQuickActions(majorQuickActionsSection)).toBe(6);
+    expect(majorQuickActionsSection).toContain("title: 'Properties'");
+    expect(majorQuickActionsSection).toContain("title: 'Rooms'");
+    expect(majorQuickActionsSection).toContain("title: 'Tenants'");
+    expect(majorQuickActionsSection).toContain("title: 'Bookings'");
+    expect(majorQuickActionsSection).toContain("title: 'Payments'");
+    expect(majorQuickActionsSection).toContain("title: 'Analytics'");
+    expect(majorQuickActionsSection).toContain("requiredPermission: { key: 'analytics' }");
+
+    expect(source).toContain('const visibleMajorQuickActions = majorQuickActions');
+    expect(source).toContain('const hasQuickActionAccess = useCallback((action) => {');
+    expect(source).toContain('if (!hasQuickActionAccess(action)) {');
+    expect(source).toContain("setPermissionModal({ visible: true, actionTitle: action?.title || 'this module' });");
+    expect(source).toContain('Permission Required');
+    expect(source).toContain('You do not have permission to access');
   });
 });

@@ -12,7 +12,7 @@ import {
   RefreshControl,
   Modal,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
@@ -33,6 +33,7 @@ const EMPTY_ID_TYPES = [];
 export default function VerificationStatus({ navigation }) {
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showResubmitForm, setShowResubmitForm] = useState(false);
@@ -289,7 +290,7 @@ export default function VerificationStatus({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
 
       {/* Header */}
@@ -522,7 +523,7 @@ export default function VerificationStatus({ navigation }) {
       {/* Fixed Footer with Action Button */}
       {(verification?.status === "rejected" ||
         verification?.status === "not_submitted") && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 20, 28) }]}>
           <TouchableOpacity
             style={styles.resubmitButton}
             onPress={() => setShowResubmitForm(true)}
@@ -547,7 +548,7 @@ export default function VerificationStatus({ navigation }) {
         animationType="slide"
         transparent={true}
         statusBarTranslucent={true}
-        navigationBarTranslucent={true}
+        navigationBarTranslucent={false}
         presentationStyle="overFullScreen"
         onRequestClose={() => setShowResubmitForm(false)}
       >
@@ -674,7 +675,7 @@ export default function VerificationStatus({ navigation }) {
                 )}
               </View>
 
-              <View style={styles.formActions}>
+              <View style={[styles.formActions, { marginBottom: Math.max(insets.bottom + 16, 32) }]}>
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={() => setShowResubmitForm(false)}

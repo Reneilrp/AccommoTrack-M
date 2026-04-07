@@ -1,138 +1,389 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  StatusBar,
-  Alert,
-  Linking,
   TouchableOpacity,
+  ScrollView,
+  TextInput,
+  StatusBar,
+  Linking,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getStyles } from '../../../../../styles/Landlord/HelpSupport.js';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { getStyles } from '../../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../../contexts/ThemeContext.jsx';
-import Button from '../../../components/Button.jsx';
+import Header from '../../../components/Header.jsx';
+import Toast from 'react-native-toast-message';
+import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../../../shared/LegalContent.js';
 
-export default function HelpSupportScreen({ navigation }) {
+const LANDLORD_FAQS = [
+  {
+    id: 'landlord-faq-1',
+    question: 'How do I verify my landlord account?',
+    answer: 'Go to Settings > Verification Status and submit your valid ID plus business permit. Our team reviews submissions as quickly as possible.',
+  },
+  {
+    id: 'landlord-faq-2',
+    question: 'How can I reduce failed or delayed rent collections?',
+    answer: 'Enable both online and manual methods in your payment settings, and keep reminder notifications on for due and overdue invoices.',
+  },
+  {
+    id: 'landlord-faq-3',
+    question: 'Where can I monitor booking and occupancy performance?',
+    answer: 'Open Analytics for trends, and use Dashboard cards for upcoming checkouts, vacating notices, and billing health snapshots.',
+  },
+  {
+    id: 'landlord-faq-4',
+    question: 'How do I report a technical issue?',
+    answer: 'Open Report a Problem and send details like affected module, exact steps, expected result, and actual result.',
+  },
+];
+
+export default function HelpSupportScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  
-  const faqs = [
-    { question: "How do I add a new room type to my Dorm Profile?", screen: 'FAQDetail', detail: "To add a new room type, navigate to 'Dorm Profile' in Settings, find the 'Room Inventory' section, and tap 'Add New Type'. Fill in the required details like capacity and base rent." },
-    { question: "My Tenants list isn't updating. What should I do?", screen: 'FAQDetail', detail: "First, pull down on the Tenants screen to refresh the list. If the issue persists, please contact technical support with the time the issue occurred." },
-    { question: "How can I change my payment notification settings?", screen: 'Settings', detail: "Go to Settings > Notifications, and toggle the switch next to 'Payment Notifications'." },
-    { question: "Where can I view past monthly revenue reports?", screen: 'Analytics', detail: "Navigate to the 'Analytics' screen. You can change the time range filter (Week, Month, Year) at the top of the screen to view historical data." },
+
+  const [expandedFAQ, setExpandedFAQ] = useState(null);
+  const [message, setMessage] = useState('');
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [legalType, setLegalType] = useState('terms');
+  const scrollRef = useRef(null);
+
+  const supportEmail = 'support@accommotrack.com';
+  const supportPhone = '+631234567890';
+  const supportFacebookUrl = 'https://www.facebook.com/AccommoTrack';
+
+  useEffect(() => {
+    const openResource = route.params?.openResource;
+    if (openResource !== 'terms' && openResource !== 'privacy' && openResource !== 'report') {
+      return;
+    }
+
+    handleResourcePress(openResource);
+    navigation.setParams({ openResource: undefined });
+  }, [navigation, route.params?.openResource]);
+
+  const contactOptions = [
+    {
+      id: 1,
+      icon: 'mail',
+      title: 'Email Support',
+      subtitle: 'support@accommotrack.com',
+      color: theme.colors.info,
+    },
+    {
+      id: 2,
+      icon: 'call',
+      title: 'Phone Support',
+      subtitle: '+63 123 456 7890',
+      color: theme.colors.primary,
+    },
+    {
+      id: 3,
+      icon: 'logo-facebook',
+      title: 'Facebook',
+      subtitle: '@AccommoTrack',
+      color: theme.colors.info,
+    },
+    {
+      id: 4,
+      icon: 'chatbubbles',
+      title: 'Live Chat',
+      subtitle: 'Open landlord messages',
+      color: theme.colors.warning,
+    },
   ];
 
-  const supportOptions = [
-    { 
-      id: 'email', 
-      title: 'Email Support Team', 
-      subtitle: 'Average response time: 24 hours', 
-      icon: 'mail-outline', 
-      color: '#2196F3', 
-      action: () => Linking.openURL('mailto:support@landlordapp.com?subject=App%20Support%20Request') 
-    },
-    { 
-      id: 'chat', 
-      title: 'Live Chat (9am - 5pm PST)', 
-      subtitle: 'Connect with a live agent instantly', 
-      icon: 'chatbubbles-outline', 
-      color: '#16a34a',
-      action: () => Alert.alert("Live Chat", "Connecting you to a support agent...") 
-    },
-    { 
-      id: 'call', 
-      title: 'Emergency Bug Hotline', 
-      subtitle: 'For critical bugs only', 
-      icon: 'call-outline', 
-      color: '#FF9800',
-      action: () => Linking.openURL('tel:+1234567890')
-    },
-  ];
-
-  const navigateToFAQDetail = (faq) => {
-    Alert.alert(faq.question, faq.detail); 
+  const toggleFAQ = (id) => {
+    setExpandedFAQ(expandedFAQ === id ? null : id);
   };
-  
-  // Custom back button handler
-  const handleBack = () => {
-    navigation.goBack();
-  }
 
-  // --- Reusable Component for Support Links ---
-  const SupportOption = ({ title, subtitle, icon, color, action }) => (
-    <Button style={styles.supportOptionItem} onPress={action} type="transparent">
-      <View style={styles.supportLeft}>
-        <Ionicons name={icon} size={26} color={color} />
-        <View style={styles.supportTextContainer}>
-          <Text style={styles.supportTitle}>{title}</Text>
-          <Text style={styles.supportSubtitle}>{subtitle}</Text>
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-    </Button>
-  );
+  const openExternalLink = async (url, errorText) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) throw new Error('Unsupported link');
+      await Linking.openURL(url);
+      return true;
+    } catch (_error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Action unavailable',
+        text2: errorText,
+      });
+      return false;
+    }
+  };
+
+  const handleContactPress = async (option) => {
+    switch (option.id) {
+      case 1:
+        await openExternalLink(
+          `mailto:${supportEmail}?subject=${encodeURIComponent('AccommoTrack Landlord Support Request')}`,
+          'Unable to open your email app.',
+        );
+        break;
+      case 2:
+        await openExternalLink(`tel:${supportPhone}`, 'Unable to start a phone call on this device.');
+        break;
+      case 3:
+        await openExternalLink(supportFacebookUrl, 'Unable to open AccommoTrack Facebook page.');
+        break;
+      case 4:
+        navigation.navigate('Messages');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleSubmit = async () => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Please enter a message.',
+      });
+      return;
+    }
+
+    const opened = await openExternalLink(
+      `mailto:${supportEmail}?subject=${encodeURIComponent('AccommoTrack Landlord Concern')}&body=${encodeURIComponent(trimmedMessage)}`,
+      'Unable to open your email app.',
+    );
+
+    if (opened) {
+      Toast.show({
+        type: 'success',
+        text1: 'Draft Ready',
+        text2: 'Your support message was prepared in your email app.',
+      });
+      setMessage('');
+    }
+  };
+
+  const openLegalModal = (type) => {
+    setLegalType(type);
+    setShowLegalModal(true);
+  };
+
+  const handleResourcePress = (resource) => {
+    switch (resource) {
+      case 'guide':
+        Toast.show({
+          type: 'info',
+          text1: 'Guide coming soon',
+          text2: 'Landlord guide content is being prepared.',
+        });
+        break;
+      case 'report':
+        setMessage((previous) => previous || 'Issue type:\nModule:\nSteps to reproduce:\nExpected result:\nActual result:\nAttachments (if any):');
+        Toast.show({
+          type: 'info',
+          text1: 'Report template ready',
+          text2: 'Complete the details, then tap Send Message.',
+        });
+        setTimeout(() => {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+        break;
+      case 'privacy':
+        openLegalModal('privacy');
+        break;
+      case 'terms':
+        openLegalModal('terms');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const legalSections = React.useMemo(() => {
+    if (legalType === 'privacy') {
+      return UNIFIED_TERMS_AND_CONDITIONS.sections.filter((section) => /privacy/i.test(section.title));
+    }
+
+    return UNIFIED_TERMS_AND_CONDITIONS.sections.filter((section) => !/tenant responsibilities/i.test(section.title));
+  }, [legalType]);
+
+  const legalTitle = legalType === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions';
+  const legalIntro =
+    legalType === 'privacy'
+      ? 'This policy explains how AccommoTrack handles landlord and property-related data securely.'
+      : 'These terms cover landlord responsibilities for listings, operations, and payments on AccommoTrack.';
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Help & Support</Text>
-      </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        
-        {/* Support Channels Section */}
-        <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contact Support</Text>
-            <View style={styles.card}>
-                {supportOptions.map((option, index) => (
-                    <SupportOption
-                        key={option.id}
-                        title={option.title}
-                        subtitle={option.subtitle}
-                        icon={option.icon}
-                        color={option.color}
-                        action={option.action}
-                    />
-                ))}
-            </View>
+      <Header
+        title="Help & Support"
+        onBack={() => navigation.goBack()}
+      />
+
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
+        <View style={styles.welcomeSection}>
+          <Ionicons name="help-circle" size={64} color={theme.colors.warning} />
+          <Text style={[styles.welcomeTitle, { color: theme.colors.text }]}>How can we help you?</Text>
+          <Text style={[styles.welcomeSubtitle, { color: theme.colors.textSecondary }]}>Landlord support for operations, billing, listings, and verification.</Text>
         </View>
 
-        {/* FAQ Section */}
         <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
-            <View style={styles.card}>
-                {faqs.map((faq, index) => (
-                  <Button
-                    key={index}
-                    style={[
-                      styles.faqItem,
-                      index < faqs.length - 1 && styles.faqItemBorder
-                    ]}
-                    onPress={() => navigateToFAQDetail(faq)}
-                    type="transparent"
-                  >
-                    <Text style={styles.faqQuestion}>{faq.question}</Text>
-                    <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                  </Button>
-                ))}
+          <Text style={styles.sectionTitle}>Contact Us</Text>
+          <View style={styles.contactGrid}>
+            {contactOptions.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                style={styles.contactCard}
+                onPress={() => handleContactPress(option)}
+              >
+                <View style={[styles.contactIconContainer, { backgroundColor: `${option.color}20` }]}>
+                  <Ionicons name={option.icon} size={28} color={option.color} />
+                </View>
+                <Text style={styles.contactTitle}>{option.title}</Text>
+                <Text style={styles.contactSubtitle}>{option.subtitle}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+          {LANDLORD_FAQS.map((faq) => (
+            <TouchableOpacity
+              key={faq.id}
+              style={styles.faqCard}
+              onPress={() => toggleFAQ(faq.id)}
+            >
+              <View style={styles.faqHeader}>
+                <Text style={[styles.faqQuestion, { color: theme.colors.text }]}>{faq.question}</Text>
+                <Ionicons
+                  name={expandedFAQ === faq.id ? 'chevron-up' : 'chevron-down'}
+                  size={24}
+                  color={theme.colors.textSecondary}
+                />
+              </View>
+              {expandedFAQ === faq.id && (
+                <Text style={[styles.faqAnswer, { color: theme.colors.textSecondary }]}>{faq.answer}</Text>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Send us a message</Text>
+          <View style={styles.messageCard}>
+            <TextInput
+              style={[
+                styles.messageInput,
+                {
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+              placeholder="Type your message here..."
+              placeholderTextColor={theme.colors.textTertiary}
+              multiline
+              numberOfLines={4}
+              value={message}
+              onChangeText={setMessage}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity style={[styles.sendButton, { backgroundColor: theme.colors.primary }]} onPress={handleSubmit}>
+              <Ionicons name="send" size={20} color={theme.colors.textInverse} />
+              <Text style={[styles.sendButtonText, { color: theme.colors.textInverse }]}>Send Message</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={[styles.section, { marginBottom: 40 }]}>
+          <Text style={styles.sectionTitle}>Additional Resources</Text>
+          <TouchableOpacity
+            style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleResourcePress('report')}
+          >
+            <Ionicons name="flag" size={24} color={theme.colors.error} />
+            <View style={styles.resourceContent}>
+              <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Report a Problem</Text>
+              <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>Send technical or billing issue details</Text>
             </View>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} style={styles.resourceArrow} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleResourcePress('terms')}
+          >
+            <Ionicons name="newspaper" size={24} color={theme.colors.warning} />
+            <View style={styles.resourceContent}>
+              <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Terms & Conditions</Text>
+              <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>Landlord platform terms and obligations</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} style={styles.resourceArrow} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleResourcePress('privacy')}
+          >
+            <Ionicons name="shield-checkmark" size={24} color={theme.colors.info} />
+            <View style={styles.resourceContent}>
+              <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Privacy Policy</Text>
+              <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>How landlord and tenant data is protected</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} style={styles.resourceArrow} />
+          </TouchableOpacity>
         </View>
-        
-        {/* Version Info */}
-        <View style={styles.versionContainer}>
-            <Text style={styles.versionText}>Landlord App v1.2.0</Text>
-            <Text style={styles.versionText}>Need to report a specific bug? Use the Emergency Bug Hotline.</Text>
-        </View>
-        
       </ScrollView>
+
+      <Modal
+        visible={showLegalModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowLegalModal(false)}
+      >
+        <View style={[styles.legalModalContainer, { backgroundColor: theme.colors.background }]}> 
+          <View style={[styles.legalModalHeader, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}> 
+            <View style={styles.legalModalTitleWrap}>
+              <Text style={[styles.legalModalTitle, { color: theme.colors.text }]}>{legalTitle}</Text>
+              <Text style={[styles.legalModalUpdated, { color: theme.colors.textSecondary }]}>Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</Text>
+            </View>
+            <TouchableOpacity style={styles.legalModalClose} onPress={() => setShowLegalModal(false)}>
+              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.legalModalBody} contentContainerStyle={styles.legalModalBodyContent}>
+            <View style={[styles.legalIntroCard, { backgroundColor: `${theme.colors.primary}15`, borderLeftColor: theme.colors.primary }]}> 
+              <Text style={[styles.legalIntroText, { color: theme.colors.textSecondary }]}>{legalIntro}</Text>
+            </View>
+
+            {legalSections.map((section, index) => (
+              <View
+                key={`${section.title}-${index}`}
+                style={[styles.legalSectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              >
+                <Text style={[styles.legalSectionTitle, { color: theme.colors.text }]}>{section.title}</Text>
+
+                {Array.isArray(section.content) ? (
+                  section.content.map((item, itemIndex) => (
+                    <View key={`${section.title}-${itemIndex}`} style={styles.legalBulletRow}>
+                      <Text style={[styles.legalBulletMark, { color: theme.colors.primary }]}>-</Text>
+                      <Text style={[styles.legalBulletText, { color: theme.colors.textSecondary }]}>{item}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[styles.legalParagraph, { color: theme.colors.textSecondary }]}>{section.content}</Text>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -8,10 +8,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
 import Header from '../../components/Header.jsx';
@@ -29,19 +31,29 @@ const DEFAULT_FORM = {
   behavior: '',
   lifestyle_notes: '',
   custom_preferences: [],
-  cleanliness_level: 'moderate',
-  noise_tolerance: 'moderate',
-  guest_policy: 'occasional',
-  sleep_schedule: 'regular',
-  work_study_hours: 'flexible',
 };
 
-const ROOM_OPTIONS = ['Solo', 'Shared', 'Any'];
-const CLEANLINESS_OPTIONS = ['Very Clean', 'Moderate', 'Relaxed'];
-const NOISE_OPTIONS = ['Very Quiet', 'Moderate', 'Tolerant'];
-const GUEST_OPTIONS = ['No Guests', 'Occasional', 'Frequent'];
-const SLEEP_OPTIONS = ['Early Bird', 'Regular', 'Night Owl'];
-const WORK_STUDY_OPTIONS = ['Morning', 'Afternoon', 'Evening', 'Flexible'];
+const ROOM_OPTIONS = [
+  { label: 'Single Room', value: 'Single' },
+  { label: 'Double Room', value: 'Double' },
+  { label: 'Suite', value: 'Suite' },
+  { label: 'Dormitory', value: 'Dormitory' },
+  { label: 'Any', value: 'Any' },
+];
+
+const BUDGET_OPTIONS = [
+  { label: 'Below ₱2,000', value: '<2000' },
+  { label: '₱2,000 - ₱4,000', value: '2000-4000' },
+  { label: '₱4,000 - ₱6,000', value: '4000-6000' },
+  { label: 'Above ₱6,000', value: '6000+' },
+];
+
+const cloneFormState = (formState) => ({
+  ...formState,
+  custom_preferences: Array.isArray(formState?.custom_preferences)
+    ? [...formState.custom_preferences]
+    : [],
+});
 
 const normalizePreference = (rawPreference) => {
   if (!rawPreference) return { ...DEFAULT_FORM };
@@ -62,22 +74,21 @@ const normalizePreference = (rawPreference) => {
     behavior: pref.behavior || '',
     lifestyle_notes: pref.lifestyle_notes || pref.lifestyle || '',
     custom_preferences: Array.isArray(pref.custom_preferences) ? pref.custom_preferences : [],
-    cleanliness_level: pref.cleanliness_level || 'moderate',
-    noise_tolerance: pref.noise_tolerance || 'moderate',
-    guest_policy: pref.guest_policy || 'occasional',
-    sleep_schedule: pref.sleep_schedule || 'regular',
-    work_study_hours: pref.work_study_hours || 'flexible',
   };
 };
 
 export default function PreferencesLifestyle() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const themedHomeStyles = useMemo(() => homeStyles(theme), [theme]);
 
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({ ...DEFAULT_FORM });
+  const [savedForm, setSavedForm] = useState({ ...DEFAULT_FORM });
   const [newPreference, setNewPreference] = useState('');
 
   const lifestylePreferencesQuery = useQuery({
@@ -103,8 +114,9 @@ export default function PreferencesLifestyle() {
 
   useEffect(() => {
     if (!lifestylePreferencesQuery.data && lifestylePreferencesQuery.data !== null) return;
-    const pref = normalizePreference(lifestylePreferencesQuery.data);
+    const pref = cloneFormState(normalizePreference(lifestylePreferencesQuery.data));
     setForm(pref);
+    setSavedForm(pref);
   }, [lifestylePreferencesQuery.data]);
 
   useEffect(() => {
@@ -116,52 +128,95 @@ export default function PreferencesLifestyle() {
   const loading = lifestylePreferencesQuery.isLoading;
 
   const setField = (field, value) => {
+    if (!isEditing) return;
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const addCustomPreference = () => {
-    if (newPreference.trim()) {
-      setForm((prev) => ({
-        ...prev,
-        custom_preferences: [...prev.custom_preferences, newPreference.trim()],
-      }));
-      setNewPreference('');
-    }
+    if (!isEditing) return;
+
+    const trimmed = newPreference.trim();
+    if (!trimmed) return;
+
+    setForm((prev) => ({
+      ...prev,
+      custom_preferences: [...prev.custom_preferences, trimmed],
+    }));
+    setNewPreference('');
   };
 
   const removeCustomPreference = (index) => {
+    if (!isEditing) return;
+
     setForm((prev) => ({
       ...prev,
       custom_preferences: prev.custom_preferences.filter((_, i) => i !== index),
     }));
   };
 
+  const cancelEditing = () => {
+    if (saving) return;
+    setForm(cloneFormState(savedForm));
+    setNewPreference('');
+    setIsEditing(false);
+  };
+
+  const handleBack = () => {
+    if (!isEditing) {
+      navigation.goBack();
+      return;
+    }
+
+    Alert.alert(
+      'Discard changes?',
+      'You have unsaved preference changes.',
+      [
+        { text: 'Keep Editing', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            cancelEditing();
+            navigation.goBack();
+          },
+        },
+      ],
+    );
+  };
+
+  const handleEditPress = () => {
+    if (saving) return;
+
+    if (isEditing) {
+      cancelEditing();
+      return;
+    }
+
+    setIsEditing(true);
+  };
+
   const handleSave = async () => {
+    if (!isEditing || saving) return;
+
     try {
       setSaving(true);
 
-      const payload = {
-        preference: {
-          room_preference: form.room_preference,
-          budget_range: form.budget_range,
-          attitude: form.attitude,
-          behavior: form.behavior,
-          lifestyle_notes: form.lifestyle_notes,
-          custom_preferences: form.custom_preferences,
-          cleanliness_level: form.cleanliness_level,
-          noise_tolerance: form.noise_tolerance,
-          guest_policy: form.guest_policy,
-          sleep_schedule: form.sleep_schedule,
-          work_study_hours: form.work_study_hours,
-        },
-      };
-
-      const res = await ProfileService.updateProfile(payload);
+      const res = await ProfileService.updateTenantPreferences({
+        room_preference: form.room_preference,
+        budget_range: form.budget_range,
+        attitude: form.attitude,
+        behavior: form.behavior,
+        lifestyle_notes: form.lifestyle_notes,
+        custom_preferences: form.custom_preferences,
+      });
 
       if (res.success) {
-        queryClient.setQueryData(tenantQueryKeys.lifestylePreferences(), payload.preference);
+        const nextSavedState = cloneFormState(form);
+        queryClient.setQueryData(tenantQueryKeys.lifestylePreferences(), nextSavedState);
+        setSavedForm(nextSavedState);
+        setForm(nextSavedState);
+        setIsEditing(false);
         showSuccess('Preferences updated successfully');
-        navigation.goBack();
       } else {
         showError('Error', res.error || 'Failed to update preferences');
       }
@@ -173,14 +228,27 @@ export default function PreferencesLifestyle() {
     }
   };
 
+  const headerActions = [
+    {
+      icon: isEditing ? 'close-outline' : 'create-outline',
+      onPress: handleEditPress,
+      disabled: saving,
+    },
+    {
+      icon: saving ? 'sync-outline' : 'save-outline',
+      onPress: handleSave,
+      disabled: !isEditing || saving,
+    },
+  ];
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar barStyle="light-content" />
         <Header
           title="Preferences & Lifestyle"
-          onBack={() => navigation.goBack()}
-          showProfile={false}
+          onBack={handleBack}
+          rightActions={headerActions}
         />
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -194,36 +262,67 @@ export default function PreferencesLifestyle() {
       <StatusBar barStyle="light-content" />
       <Header
         title="Preferences & Lifestyle"
-        onBack={() => navigation.goBack()}
-        showProfile={false}
+        onBack={handleBack}
+        rightActions={headerActions}
       />
 
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={homeStyles.contentContainerPadding}
+        contentContainerStyle={[
+          themedHomeStyles.contentContainerPadding,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
       >
+        <View
+          style={[
+            styles.editStateBanner,
+            {
+              backgroundColor: isEditing ? `${theme.colors.primary}15` : theme.colors.backgroundSecondary,
+              borderColor: isEditing ? `${theme.colors.primary}60` : theme.colors.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={isEditing ? 'create-outline' : 'eye-outline'}
+            size={16}
+            color={isEditing ? theme.colors.primary : theme.colors.textSecondary}
+          />
+          <Text
+            style={[
+              styles.editStateText,
+              { color: isEditing ? theme.colors.primary : theme.colors.textSecondary },
+            ]}
+          >
+            {isEditing
+              ? 'Editing enabled. Tap save icon to apply your changes.'
+              : 'Read-only mode. Tap edit icon to update your preferences.'}
+          </Text>
+        </View>
+
         <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Room Preference</Text>
           <View style={styles.optionRow}>
             {ROOM_OPTIONS.map((option) => {
-              const selected = form.room_preference === option;
+              const selected = form.room_preference === option.value;
               return (
                 <TouchableOpacity
-                  key={option}
+                  key={option.value}
                   style={[
                     styles.optionChip,
                     {
                       backgroundColor: selected ? theme.colors.primary : theme.colors.background,
                       borderColor: selected ? theme.colors.primary : theme.colors.border,
+                      opacity: isEditing ? 1 : 0.7,
                     },
                   ]}
-                  onPress={() => setField('room_preference', option)}
+                  onPress={() => setField('room_preference', option.value)}
+                  disabled={!isEditing}
                 >
                   <Text
                     style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}
                   >
-                    {option}
+                    {option.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -231,21 +330,47 @@ export default function PreferencesLifestyle() {
           </View>
 
           <Text style={[styles.label, { color: theme.colors.text }]}>Budget Range (Monthly)</Text>
-          <TextInput
-            value={form.budget_range}
-            onChangeText={(text) => setField('budget_range', text)}
-            style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
-            placeholder="e.g. 5000-8000"
-            placeholderTextColor={theme.colors.textTertiary}
-          />
+          <View style={styles.optionRow}>
+            {BUDGET_OPTIONS.map((option) => {
+              const selected = form.budget_range === option.value;
+
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.optionChip,
+                    {
+                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
+                      borderColor: selected ? theme.colors.primary : theme.colors.border,
+                      opacity: isEditing ? 1 : 0.7,
+                    },
+                  ]}
+                  onPress={() => setField('budget_range', option.value)}
+                  disabled={!isEditing}
+                >
+                  <Text
+                    style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Personal Traits (Optional)</Text>
+          <Text style={[styles.helperText, { color: theme.colors.textSecondary }]}>Help landlords get to know you better by describing your habits and personality.</Text>
 
           <Text style={[styles.label, { color: theme.colors.text }]}>Attitude</Text>
           <TextInput
             value={form.attitude}
             onChangeText={(text) => setField('attitude', text)}
             style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
-            placeholder="Friendly, independent, etc."
+            placeholder="e.g., Friendly, Introverted, Outgoing"
             placeholderTextColor={theme.colors.textTertiary}
+            editable={isEditing}
           />
 
           <Text style={[styles.label, { color: theme.colors.text }]}>Behavior</Text>
@@ -253,8 +378,9 @@ export default function PreferencesLifestyle() {
             value={form.behavior}
             onChangeText={(text) => setField('behavior', text)}
             style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
-            placeholder="Daily habits and routines"
+            placeholder="e.g., Quiet, Clean, Early Riser"
             placeholderTextColor={theme.colors.textTertiary}
+            editable={isEditing}
           />
 
           <Text style={[styles.label, { color: theme.colors.text }]}>Lifestyle Notes</Text>
@@ -266,18 +392,17 @@ export default function PreferencesLifestyle() {
               styles.textArea,
               { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background },
             ]}
-            placeholder="Describe your lifestyle and living preferences"
+            placeholder="Tell us about your daily routine, work/study schedule, or hobbies..."
             placeholderTextColor={theme.colors.textTertiary}
             multiline
             numberOfLines={4}
+            editable={isEditing}
           />
         </View>
 
         <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Living Preferences</Text>
-          <Text style={[styles.helperText, { color: theme.colors.textSecondary }]}>
-            Add your own lifestyle preferences (e.g., "No smoking", "Pet friendly", "Quiet hours after 10pm")
-          </Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Lifestyle Preferences</Text>
+          <Text style={[styles.helperText, { color: theme.colors.textSecondary }]}>Add your own lifestyle preferences (e.g., "No smoking", "Pet friendly", "Quiet hours after 10pm")</Text>
 
           <View style={styles.addPreferenceRow}>
             <TextInput
@@ -286,11 +411,15 @@ export default function PreferencesLifestyle() {
               style={[styles.addInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
               placeholder="Type a preference..."
               placeholderTextColor={theme.colors.textTertiary}
-              onSubmitEditing={addCustomPreference}
+              onSubmitEditing={() => {
+                if (isEditing) addCustomPreference();
+              }}
+              editable={isEditing}
             />
             <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+              style={[styles.addButton, { backgroundColor: isEditing ? theme.colors.primary : theme.colors.textTertiary }]}
               onPress={addCustomPreference}
+              disabled={!isEditing || !newPreference.trim()}
             >
               <Ionicons name="add" size={24} color={theme.colors.textInverse} />
             </TouchableOpacity>
@@ -303,154 +432,15 @@ export default function PreferencesLifestyle() {
                 style={[styles.preferenceChip, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
               >
                 <Text style={[styles.preferenceText, { color: theme.colors.text }]}>{pref}</Text>
-                <TouchableOpacity onPress={() => removeCustomPreference(index)}>
-                  <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
+                {isEditing && (
+                  <TouchableOpacity onPress={() => removeCustomPreference(index)}>
+                    <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </View>
         </View>
-
-        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Lifestyle Habits</Text>
-
-          <Text style={[styles.label, { color: theme.colors.text }]}>Cleanliness Level</Text>
-          <View style={styles.optionRow}>
-            {CLEANLINESS_OPTIONS.map((option) => {
-              const value = option.toLowerCase().replace(' ', '_');
-              const selected = form.cleanliness_level === value;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionChip,
-                    {
-                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
-                      borderColor: selected ? theme.colors.primary : theme.colors.border,
-                    },
-                  ]}
-                  onPress={() => setField('cleanliness_level', value)}
-                >
-                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={[styles.label, { color: theme.colors.text }]}>Noise Tolerance</Text>
-          <View style={styles.optionRow}>
-            {NOISE_OPTIONS.map((option) => {
-              const value = option.toLowerCase().replace(' ', '_');
-              const selected = form.noise_tolerance === value;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionChip,
-                    {
-                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
-                      borderColor: selected ? theme.colors.primary : theme.colors.border,
-                    },
-                  ]}
-                  onPress={() => setField('noise_tolerance', value)}
-                >
-                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={[styles.label, { color: theme.colors.text }]}>Guest Policy</Text>
-          <View style={styles.optionRow}>
-            {GUEST_OPTIONS.map((option) => {
-              const value = option.toLowerCase().replace(' ', '_');
-              const selected = form.guest_policy === value;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionChip,
-                    {
-                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
-                      borderColor: selected ? theme.colors.primary : theme.colors.border,
-                    },
-                  ]}
-                  onPress={() => setField('guest_policy', value)}
-                >
-                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={[styles.label, { color: theme.colors.text }]}>Sleep Schedule</Text>
-          <View style={styles.optionRow}>
-            {SLEEP_OPTIONS.map((option) => {
-              const value = option.toLowerCase().replace(' ', '_');
-              const selected = form.sleep_schedule === value;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionChip,
-                    {
-                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
-                      borderColor: selected ? theme.colors.primary : theme.colors.border,
-                    },
-                  ]}
-                  onPress={() => setField('sleep_schedule', value)}
-                >
-                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={[styles.label, { color: theme.colors.text }]}>Work/Study Hours</Text>
-          <View style={styles.optionRow}>
-            {WORK_STUDY_OPTIONS.map((option) => {
-              const value = option.toLowerCase();
-              const selected = form.work_study_hours === value;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionChip,
-                    {
-                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
-                      borderColor: selected ? theme.colors.primary : theme.colors.border,
-                    },
-                  ]}
-                  onPress={() => setField('work_study_hours', value)}
-                >
-                  <Text style={{ color: selected ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: '600' }}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: theme.colors.primary }, saving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color={theme.colors.textInverse} />
-          ) : (
-            <Text style={[styles.saveButtonText, { color: theme.colors.textInverse }]}>Save Preferences</Text>
-          )}
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -476,6 +466,22 @@ const getStyles = () =>
       fontSize: 16,
       fontWeight: '700',
       marginBottom: 16,
+    },
+    editStateBanner: {
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    editStateText: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: '600',
+      lineHeight: 18,
     },
     optionRow: {
       flexDirection: 'row',
@@ -506,12 +512,6 @@ const getStyles = () =>
     textArea: {
       minHeight: 90,
       textAlignVertical: 'top',
-    },
-    switchRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 16,
-      borderBottomWidth: 1,
     },
     helperText: {
       fontSize: 13,
@@ -554,20 +554,5 @@ const getStyles = () =>
     },
     preferenceText: {
       fontSize: 14,
-    },
-    saveButton: {
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 8,
-      marginBottom: 24,
-    },
-    saveButtonDisabled: {
-      opacity: 0.7,
-    },
-    saveButtonText: {
-      fontSize: 15,
-      fontWeight: '700',
     },
   });

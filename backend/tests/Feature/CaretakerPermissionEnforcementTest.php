@@ -500,6 +500,7 @@ class CaretakerPermissionEnforcementTest extends TestCase
             'can_view_properties' => true,
             'can_manage_maintenance' => true,
             'can_manage_payments' => true,
+            'can_view_analytics' => true,
         ], $permissionOverrides);
 
         $assignment = CaretakerAssignment::create([

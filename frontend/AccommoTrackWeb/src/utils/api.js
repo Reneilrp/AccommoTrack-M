@@ -117,6 +117,99 @@ const ensureJsonApiResponse = (response) => {
   throw error;
 };
 
+const normalizePropertyId = (value) => {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+};
+
+const getCaretakerAssignedPropertyIds = () => {
+  if (typeof window === "undefined") return null;
+
+  let userData = null;
+  try {
+    userData = JSON.parse(localStorage.getItem("userData") || "null");
+  } catch {
+    return null;
+  }
+
+  if (!userData || userData.role !== "caretaker") {
+    return null;
+  }
+
+  const ids = new Set();
+  const pushId = (value) => {
+    const normalized = normalizePropertyId(value);
+    if (normalized) ids.add(normalized);
+  };
+
+  pushId(userData.assigned_property_id);
+  pushId(userData.property_id);
+
+  if (Array.isArray(userData.assigned_property_ids)) {
+    userData.assigned_property_ids.forEach(pushId);
+  }
+
+  if (Array.isArray(userData.assigned_properties)) {
+    userData.assigned_properties.forEach((property) => {
+      if (property && typeof property === "object") {
+        pushId(property.id ?? property.property_id);
+      }
+    });
+  }
+
+  return [...ids];
+};
+
+const isLandlordPropertiesCollectionRequest = (requestUrl) => {
+  if (!requestUrl) return false;
+
+  try {
+    const path = new URL(requestUrl, API_BASE_URL).pathname.replace(/\/+$/, "");
+    return path.endsWith("/landlord/properties");
+  } catch {
+    return false;
+  }
+};
+
+const scopePropertiesToCaretaker = (properties, assignedIds) => {
+  if (!Array.isArray(properties)) return properties;
+
+  if (!assignedIds?.length) {
+    return properties.slice(0, 1);
+  }
+
+  const allowedIds = new Set(assignedIds);
+  const filtered = properties.filter((property) =>
+    allowedIds.has(normalizePropertyId(property?.id)),
+  );
+
+  if (filtered.length > 0) {
+    return filtered;
+  }
+
+  return properties.slice(0, 1);
+};
+
+const applyCaretakerPropertyScope = (response) => {
+  const assignedIds = getCaretakerAssignedPropertyIds();
+  if (assignedIds === null) return response;
+  if (!isLandlordPropertiesCollectionRequest(response?.config?.url)) return response;
+
+  if (Array.isArray(response?.data)) {
+    response.data = scopePropertiesToCaretaker(response.data, assignedIds);
+    return response;
+  }
+
+  if (response?.data && Array.isArray(response.data.data)) {
+    response.data = {
+      ...response.data,
+      data: scopePropertiesToCaretaker(response.data.data, assignedIds),
+    };
+  }
+
+  return response;
+};
+
 // ---------------------------------------------------------------------------
 // Hybrid auth helper
 // ---------------------------------------------------------------------------
@@ -213,7 +306,7 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => ensureJsonApiResponse(response),
+  (response) => applyCaretakerPropertyScope(ensureJsonApiResponse(response)),
   async (error) => {
     if (error.response?.status === 419 && !error.config?._csrfRetried) {
       try {

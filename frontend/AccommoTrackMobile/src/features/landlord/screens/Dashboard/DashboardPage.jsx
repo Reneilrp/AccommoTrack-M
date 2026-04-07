@@ -93,15 +93,62 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [moreActionsVisible, setMoreActionsVisible] = useState(false);
+  const [permissionModal, setPermissionModal] = useState({
+    visible: false,
+    actionTitle: '',
+  });
 
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const cachedDashboard = uiState.data?.[BUCKET];
+  const isCaretaker = user?.role === 'caretaker';
+
+  const normalizePermissionValue = useCallback((value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+    return Boolean(value);
+  }, []);
+
+  const buildPermissionCandidates = useCallback((key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  }, []);
+
+  const hasPermission = useCallback((key, aliases = []) => {
+    if (!isCaretaker) return true;
+    const permissions = user?.caretaker_permissions;
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(permissions?.[candidate]),
+    );
+  }, [buildPermissionCandidates, isCaretaker, normalizePermissionValue, user?.caretaker_permissions]);
 
   const dashboardQuery = useQuery({
     queryKey: landlordQueryKeys.dashboardBundle(),
     queryFn: async () => {
-      const response = await LandlordDashboardService.fetchDashboard();
+      const response = await LandlordDashboardService.fetchDashboard({
+        includeRevenueChart: !isCaretaker,
+      });
       if (!response.success) {
         throw new Error(response.error || 'Failed to load dashboard');
       }
@@ -117,6 +164,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       const response = await ProfileService.getVerificationStatus();
       return response.success ? response.data : null;
     },
+    enabled: Boolean(user) && !isCaretaker,
   });
 
   const unreadCountQuery = useQuery({
@@ -158,20 +206,9 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const dashboardError = !hasDashboardData && dashboardQuery.error
     ? dashboardQuery.error.message || 'Failed to load dashboard'
     : '';
-  const verificationStatus = verificationQuery.data || null;
+  const verificationStatus = isCaretaker ? null : (verificationQuery.data || null);
   const unreadNotificationCount = unreadCountQuery.data ?? 0;
   const pendingTransferCount = pendingTransfersQuery.data ?? 0;
-
-  const isCaretaker = user?.role === 'caretaker';
-  const hasPermission = useCallback((key) => {
-    if (!isCaretaker) return true;
-    const permissions = user?.caretaker_permissions;
-    return Boolean(
-      permissions?.[key]
-      || permissions?.[`can_view_${key}`]
-      || permissions?.[`can_manage_${key}`]
-    );
-  }, [isCaretaker, user?.caretaker_permissions]);
 
   const majorQuickActions = [
     {
@@ -180,7 +217,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'business',
       color: theme.colors.primary,
       screen: 'Properties',
-      show: !isCaretaker || hasPermission('properties') || hasPermission('rooms') || hasPermission('tenants'),
+      requiredPermission: { key: 'properties', aliases: ['property', 'property_management'] },
     },
     {
       id: 2,
@@ -188,7 +225,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'bed',
       color: '#8B5CF6',
       screen: 'RoomManagement',
-      show: !isCaretaker || hasPermission('rooms'),
+      requiredPermission: { key: 'rooms' },
     },
     {
       id: 3,
@@ -196,7 +233,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'people',
       color: '#2196F3',
       screen: 'Tenants',
-      show: !isCaretaker || hasPermission('tenants'),
+      requiredPermission: { key: 'tenants' },
     },
     {
       id: 4,
@@ -204,7 +241,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'calendar',
       color: '#FF9800',
       screen: 'Bookings',
-      show: !isCaretaker || hasPermission('bookings'),
+      requiredPermission: { key: 'bookings' },
     },
     {
       id: 5,
@@ -212,7 +249,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'cash',
       color: '#16a34a',
       screen: 'Payments',
-      show: !isCaretaker || hasPermission('payments'),
+      requiredPermission: { key: 'payments' },
     },
     {
       id: 6,
@@ -220,7 +257,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'bar-chart',
       color: '#9C27B0',
       screen: 'Analytics',
-      show: !isCaretaker,
+      requiredPermission: { key: 'analytics' },
     },
   ];
 
@@ -276,7 +313,20 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     },
   ];
 
-  const visibleMajorQuickActions = majorQuickActions.filter((action) => action.show);
+  const hasQuickActionAccess = useCallback((action) => {
+    if (!isCaretaker) return true;
+
+    if (!action?.requiredPermission) {
+      return true;
+    }
+
+    return hasPermission(
+      action.requiredPermission.key,
+      action.requiredPermission.aliases || [],
+    );
+  }, [hasPermission, isCaretaker]);
+
+  const visibleMajorQuickActions = majorQuickActions;
   const allQuickActions = [
     ...visibleMajorQuickActions,
     ...minorQuickActions.filter((action) => action.show),
@@ -287,8 +337,13 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       setMoreActionsVisible(false);
     }
 
+    if (!hasQuickActionAccess(action)) {
+      setPermissionModal({ visible: true, actionTitle: action?.title || 'this module' });
+      return;
+    }
+
     navigation.navigate(action.screen);
-  }, [navigation]);
+  }, [hasQuickActionAccess, navigation]);
 
   useEffect(() => {
     if (dashboardQuery.data) {
@@ -390,10 +445,14 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   };
   
   const renderVerificationBanner = () => {
-    if (!verificationStatus || verificationStatus.status === 'approved') return null;
+    if (isCaretaker) return null;
+    if (!verificationStatus) return null;
 
-    const isRejected = verificationStatus.status === 'rejected';
-    const isPending = verificationStatus.status === 'pending';
+    const verificationState = String(verificationStatus?.status || 'not_submitted').toLowerCase();
+    if (verificationState === 'approved') return null;
+
+    const isRejected = verificationState === 'rejected';
+    const isPending = verificationState === 'pending';
 
     return (
       <TouchableOpacity 
@@ -410,7 +469,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         />
         <View style={{ flex: 1, marginLeft: 16 }}>
           <Text style={[styles.bannerTitle, { color: isRejected ? "#991B1B" : isPending ? "#92400E" : "#9A3412" }]}>
-            Verification: {verificationStatus.status.replace('_', ' ').toUpperCase()}
+            Verification: {verificationState.replace('_', ' ').toUpperCase()}
           </Text>
           <Text style={styles.bannerText}>
             {isRejected ? (verificationStatus.rejection_reason || "Your documents were rejected. Tap to view reason.") : 
@@ -597,24 +656,35 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
             </TouchableOpacity>
           </View>
           <View style={styles.actionsGrid}>
-            {visibleMajorQuickActions.map((action) => (
-              <Button
-                key={action.id}
-                style={styles.actionCard}
-                onPress={() => handleQuickActionPress(action)}
-                type="transparent"
-              >
-                {action.badgeCount > 0 && (
-                  <View style={styles.actionBadge}>
-                    <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+            {visibleMajorQuickActions.map((action) => {
+              const hasAccess = hasQuickActionAccess(action);
+              return (
+                <Button
+                  key={action.id}
+                  style={[
+                    styles.actionCard,
+                    !hasAccess && styles.actionCardRestricted,
+                  ]}
+                  onPress={() => handleQuickActionPress(action)}
+                  type="transparent"
+                >
+                  {!hasAccess && (
+                    <View style={styles.actionRestrictedBadge}>
+                      <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
+                    </View>
+                  )}
+                  {action.badgeCount > 0 && (
+                    <View style={styles.actionBadge}>
+                      <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                    </View>
+                  )}
+                  <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
+                    <Ionicons name={action.icon} size={20} color={action.color} />
                   </View>
-                )}
-                <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
-                  <Ionicons name={action.icon} size={20} color={action.color} />
-                </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-              </Button>
-            ))}
+                  <Text style={styles.actionTitle}>{action.title}</Text>
+                </Button>
+              );
+            })}
           </View>
         </View>
 
@@ -647,26 +717,68 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                 contentContainerStyle={styles.quickActionsModalBody}
               >
                 <View style={styles.quickActionsModalGrid}>
-                  {allQuickActions.map((action) => (
-                    <Button
-                      key={`more-${action.id}`}
-                      style={styles.actionCard}
-                      onPress={() => handleQuickActionPress(action, true)}
-                      type="transparent"
-                    >
-                      {action.badgeCount > 0 && (
-                        <View style={styles.actionBadge}>
-                          <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                  {allQuickActions.map((action) => {
+                    const hasAccess = hasQuickActionAccess(action);
+                    return (
+                      <Button
+                        key={`more-${action.id}`}
+                        style={[
+                          styles.actionCard,
+                          !hasAccess && styles.actionCardRestricted,
+                        ]}
+                        onPress={() => handleQuickActionPress(action, true)}
+                        type="transparent"
+                      >
+                        {!hasAccess && (
+                          <View style={styles.actionRestrictedBadge}>
+                            <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
+                          </View>
+                        )}
+                        {action.badgeCount > 0 && (
+                          <View style={styles.actionBadge}>
+                            <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                          </View>
+                        )}
+                        <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}> 
+                          <Ionicons name={action.icon} size={20} color={action.color} />
                         </View>
-                      )}
-                      <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}> 
-                        <Ionicons name={action.icon} size={20} color={action.color} />
-                      </View>
-                      <Text style={styles.actionTitle}>{action.title}</Text>
-                    </Button>
-                  ))}
+                        <Text style={styles.actionTitle}>{action.title}</Text>
+                      </Button>
+                    );
+                  })}
                 </View>
               </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        <Modal
+          transparent
+          visible={permissionModal.visible}
+          animationType="fade"
+          statusBarTranslucent
+          navigationBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => setPermissionModal({ visible: false, actionTitle: '' })}
+        >
+          <Pressable
+            style={styles.permissionModalBackdrop}
+            onPress={() => setPermissionModal({ visible: false, actionTitle: '' })}
+          >
+            <Pressable style={styles.permissionModalCard} onPress={() => {}}>
+              <View style={styles.permissionModalIconWrap}>
+                <Ionicons name="lock-closed" size={22} color="#B45309" />
+              </View>
+              <Text style={styles.permissionModalTitle}>Permission Required</Text>
+              <Text style={styles.permissionModalMessage}>
+                You do not have permission to access {permissionModal.actionTitle || 'this module'}. Please contact the landlord.
+              </Text>
+              <TouchableOpacity
+                style={styles.permissionModalButton}
+                onPress={() => setPermissionModal({ visible: false, actionTitle: '' })}
+              >
+                <Text style={styles.permissionModalButtonText}>Okay</Text>
+              </TouchableOpacity>
             </Pressable>
           </Pressable>
         </Modal>
@@ -677,7 +789,10 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
             <Text style={styles.sectionTitle}>Recent Activity</Text>
             <Button 
               type="transparent"
-              onPress={() => navigation.navigate('AllActivities', { activities })}
+              onPress={() => navigation.navigate('AllActivities', {
+                activities,
+                isCaretaker,
+              })}
             >
               <Text style={styles.seeAllText}>See All</Text>
             </Button>

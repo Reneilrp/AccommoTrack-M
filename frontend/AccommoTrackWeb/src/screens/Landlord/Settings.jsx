@@ -23,7 +23,8 @@ const createCaretakerPermissionDefaults = () => ({
   rooms: false,
   properties: false,
   maintenance: false,
-  payments: false
+  payments: false,
+  analytics: false,
 });
 
 const DEFAULT_SECURITY_PREFERENCES = {
@@ -282,7 +283,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_view_rooms: !!caretakerPermissions.rooms,
         can_view_properties: !!caretakerPermissions.properties,
         can_manage_maintenance: !!caretakerPermissions.maintenance,
-        can_manage_payments: !!caretakerPermissions.payments
+        can_manage_payments: !!caretakerPermissions.payments,
+        can_view_analytics: !!caretakerPermissions.analytics,
       };
 
       await api.post('/landlord/caretakers', {
@@ -314,7 +316,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_view_rooms: !!caretakerPermissions.rooms,
         can_view_properties: !!caretakerPermissions.properties,
         can_manage_maintenance: !!caretakerPermissions.maintenance,
-        can_manage_payments: !!caretakerPermissions.payments
+        can_manage_payments: !!caretakerPermissions.payments,
+        can_view_analytics: !!caretakerPermissions.analytics,
       };
 
       const response = await api.patch(`/landlord/caretakers/${id}`, {

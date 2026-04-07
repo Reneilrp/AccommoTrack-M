@@ -53,7 +53,6 @@ describe('Web tenant screens smoke coverage', () => {
       '/notifications',
       '/addons',
       '/reviews',
-      '/support',
       '/verification',
     ];
 

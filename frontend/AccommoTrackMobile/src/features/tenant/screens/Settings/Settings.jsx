@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Switch, Alert, StatusBar, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Switch, StatusBar, RefreshControl, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
 import { navigate as rootNavigate, triggerForcedLogout, triggerRoleSwitch } from '../../../../navigation/RootNavigation.js';
 import { useAuthStore } from '../../../../stores/auth/authStore.js';
+import { showError, showSuccess } from '../../../../utils/toast.js';
 import {
   tenantQueryKeys,
   useTenantFocusRefetch,
@@ -63,6 +64,16 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('tenant');
   const [landlordVerificationStatus, setLandlordVerificationStatus] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [roleModalTitle, setRoleModalTitle] = useState('');
+  const [roleModalMessage, setRoleModalMessage] = useState('');
+  const [roleModalConfirmLabel, setRoleModalConfirmLabel] = useState('OK');
+  const [roleModalConfirmTone, setRoleModalConfirmTone] = useState('primary');
+  const [roleModalShowCancel, setRoleModalShowCancel] = useState(false);
+  const [roleModalProcessing, setRoleModalProcessing] = useState(false);
+  const [roleModalAction, setRoleModalAction] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,9 +108,13 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const settingsBundleQuery = useQuery({
     queryKey: tenantQueryKeys.settingsBundle(),
     queryFn: async () => {
+      const verificationPromise = userRole === 'landlord'
+        ? ProfileService.getVerificationStatus()
+        : Promise.resolve({ success: true, data: { status: 'not_submitted' } });
+
       const [profileRes, verificationRes] = await Promise.all([
         ProfileService.getProfile(),
-        ProfileService.getVerificationStatus(),
+        verificationPromise,
       ]);
 
       return {
@@ -107,7 +122,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         landlordVerificationStatus: verificationRes?.success ? verificationRes?.data?.status : null,
       };
     },
-    enabled: !isGuestMode,
+    enabled: !isGuestMode && !loading,
     placeholderData: (previousData) => previousData,
   });
 
@@ -180,9 +195,6 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       case "Preferences & Lifestyle":
         rootNavigate('PreferencesLifestyle');
         break;
-      case "My Reviews":
-        rootNavigate('ServiceRequests', { initialTab: 'Reviews' });
-        break;
       case "Notification Preferences":
         // Scroll to notifications or navigate if separate
         break;
@@ -194,13 +206,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         rootNavigate('HelpSupport');
         break;
       case "Report a Problem":
-        Alert.alert('Report a Problem', 'This feature will be implemented soon');
+        rootNavigate('HelpSupport');
         break;
+      case "Terms & Conditions":
       case "Terms of Service":
-        Alert.alert('Terms of Service', 'This feature will be implemented soon');
+        rootNavigate('HelpSupport', { openResource: 'terms' });
         break;
       case "Privacy Policy":
-        Alert.alert('Privacy Policy', 'This feature will be implemented soon');
+        rootNavigate('HelpSupport', { openResource: 'privacy' });
         break;
       case "Login / Sign Up":
         handleLoginPress();
@@ -243,14 +256,57 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         return true;
       }
 
-      Alert.alert('Error', res.error || 'Failed to switch role');
+      showError('Role switch failed', res.error || 'Failed to switch role');
       return false;
     } catch (error) {
       console.error('Role switch error:', error);
-      Alert.alert('Error', 'An unexpected error occurred while switching roles.');
+      showError('Role switch failed', 'An unexpected error occurred while switching roles.');
       return false;
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openRoleModal = ({
+    title,
+    message,
+    confirmLabel = 'OK',
+    confirmTone = 'primary',
+    showCancel = false,
+    onConfirm = null,
+  }) => {
+    setRoleModalTitle(title);
+    setRoleModalMessage(message);
+    setRoleModalConfirmLabel(confirmLabel);
+    setRoleModalConfirmTone(confirmTone);
+    setRoleModalShowCancel(showCancel);
+    setRoleModalAction(() => onConfirm);
+    setShowRoleModal(true);
+  };
+
+  const closeRoleModal = () => {
+    if (roleModalProcessing) return;
+    setShowRoleModal(false);
+    setRoleModalAction(null);
+  };
+
+  const confirmRoleModalAction = async () => {
+    if (roleModalProcessing) return;
+
+    if (typeof roleModalAction !== 'function') {
+      closeRoleModal();
+      return;
+    }
+
+    setRoleModalProcessing(true);
+    try {
+      const result = await roleModalAction();
+      if (result !== false) {
+        setShowRoleModal(false);
+        setRoleModalAction(null);
+      }
+    } finally {
+      setRoleModalProcessing(false);
     }
   };
 
@@ -265,54 +321,76 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
     if (userRole === 'tenant' && newRole === 'landlord') {
       if (landlordVerificationStatus === 'approved') {
-        Alert.alert('Switch to Landlord', 'Your landlord registration is approved. Switch to landlord mode now?', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Switch', onPress: () => performRoleSwitch('landlord') },
-        ]);
+        openRoleModal({
+          title: 'Switch to Landlord',
+          message: 'Your landlord registration is approved. Switch to landlord mode now?',
+          confirmLabel: 'Switch',
+          showCancel: true,
+          onConfirm: () => performRoleSwitch('landlord'),
+        });
       } else if (landlordVerificationStatus === 'pending') {
-        Alert.alert('Registration Pending', 'Your landlord registration is still under review. Please wait for approval before switching.');
+        openRoleModal({
+          title: 'Registration Pending',
+          message: 'Your landlord registration is still under review. Please wait for approval before switching.',
+          confirmLabel: 'OK',
+        });
       } else {
-        Alert.alert('Register as Landlord', 'Complete landlord registration first by submitting your valid ID and business permit in the app.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Proceed', onPress: () => navigation.navigate('VerificationStatus') },
-        ]);
+        openRoleModal({
+          title: 'Register as Landlord',
+          message: 'Complete landlord registration first by submitting your valid ID and business permit in the app.',
+          confirmLabel: 'Proceed',
+          showCancel: true,
+          onConfirm: () => {
+            navigation.navigate('VerificationStatus');
+            return true;
+          },
+        });
       }
       return;
     }
 
     // Landlord switching to Tenant (or any other case)
-    Alert.alert(`Switch to ${roleName}`, `Are you sure you want to switch your account to ${roleName} mode?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Switch', onPress: () => performRoleSwitch(newRole) },
-    ]);
+    openRoleModal({
+      title: `Switch to ${roleName}`,
+      message: `Are you sure you want to switch your account to ${roleName} mode?`,
+      confirmLabel: 'Switch',
+      showCancel: true,
+      onConfirm: () => performRoleSwitch(newRole),
+    });
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (onLogout) {
-                await onLogout();
-              } else {
-                // Clear only auth-related data
-                clearAuthSession();
-                await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
-                triggerForcedLogout();
-              }
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          }
-        }
-      ]
-    );
+    setShowLogoutModal(true);
+  };
+
+  const closeLogoutModal = () => {
+    if (loggingOut) return;
+    setShowLogoutModal(false);
+  };
+
+  const confirmLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+    try {
+      if (onLogout) {
+        await onLogout();
+        showSuccess('Logged out successfully');
+      } else {
+        // Clear only auth-related data
+        clearAuthSession();
+        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
+        showSuccess('Logged out successfully');
+        triggerForcedLogout();
+      }
+
+      setShowLogoutModal(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+      showError('Logout failed', 'Please try again.');
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   // Settings sections - different for guests vs logged in users
@@ -338,8 +416,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           title: "Support",
           items: [
             { id: 12, label: "Help & Support", icon: "help-circle-outline", arrow: true },
-            { id: 13, label: "Report a Problem", icon: "flag-outline", arrow: true },
-            { id: 14, label: "Terms of Service", icon: "document-text-outline", arrow: true },
+            { id: 14, label: "Terms & Conditions", icon: "document-text-outline", arrow: true },
             { id: 15, label: "Privacy Policy", icon: "shield-outline", arrow: true },
           ]
         }
@@ -353,7 +430,6 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         items: [
           { id: 1, label: "Profile", icon: "person-outline", arrow: true },
           { id: 16, label: "Preferences & Lifestyle", icon: "options-outline", arrow: true },
-          { id: 17, label: "My Reviews", icon: "star-outline", arrow: true },
           { id: 2, label: "Account Security", icon: "lock-closed-outline", arrow: true },
           { 
             id: 3, 
@@ -400,8 +476,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         title: "Support",
         items: [
           { id: 12, label: "Help & Support", icon: "help-circle-outline", arrow: true },
-          { id: 13, label: "Report a Problem", icon: "flag-outline", arrow: true },
-          { id: 14, label: "Terms of Service", icon: "document-text-outline", arrow: true },
+          { id: 14, label: "Terms & Conditions", icon: "document-text-outline", arrow: true },
           { id: 15, label: "Privacy Policy", icon: "shield-outline", arrow: true },
         ]
       }
@@ -503,6 +578,101 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           </ScrollView>
         )}
       </View>
+
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closeLogoutModal}
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+      >
+        <View style={styles.logoutModalOverlay}>
+          <TouchableOpacity
+            style={styles.logoutModalBackdrop}
+            activeOpacity={1}
+            onPress={closeLogoutModal}
+          />
+
+          <View style={styles.logoutModalCard}>
+            <Text style={styles.logoutModalTitle}>Logout</Text>
+            <Text style={styles.logoutModalMessage}>Are you sure you want to logout?</Text>
+
+            <View style={styles.logoutModalActions}>
+              <TouchableOpacity
+                style={[styles.logoutModalButton, styles.logoutModalCancelButton]}
+                onPress={closeLogoutModal}
+                disabled={loggingOut}
+              >
+                <Text style={styles.logoutModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.logoutModalButton, styles.logoutModalConfirmButton]}
+                onPress={confirmLogout}
+                disabled={loggingOut}
+              >
+                <Text style={styles.logoutModalConfirmText}>
+                  {loggingOut ? 'Logging out...' : 'Logout'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showRoleModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closeRoleModal}
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+      >
+        <View style={styles.logoutModalOverlay}>
+          <TouchableOpacity
+            style={styles.logoutModalBackdrop}
+            activeOpacity={1}
+            onPress={closeRoleModal}
+          />
+
+          <View style={styles.logoutModalCard}>
+            <Text style={styles.logoutModalTitle}>{roleModalTitle}</Text>
+            <Text style={styles.logoutModalMessage}>{roleModalMessage}</Text>
+
+            <View style={styles.logoutModalActions}>
+              {roleModalShowCancel && (
+                <TouchableOpacity
+                  style={[styles.logoutModalButton, styles.logoutModalCancelButton]}
+                  onPress={closeRoleModal}
+                  disabled={roleModalProcessing}
+                >
+                  <Text style={styles.logoutModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.logoutModalButton,
+                  {
+                    backgroundColor: roleModalConfirmTone === 'danger'
+                      ? theme.colors.error
+                      : theme.colors.primary,
+                  },
+                ]}
+                onPress={confirmRoleModalAction}
+                disabled={roleModalProcessing}
+              >
+                <Text style={styles.logoutModalConfirmText}>
+                  {roleModalProcessing ? 'Processing...' : roleModalConfirmLabel}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
     </View>
   );

@@ -350,6 +350,7 @@ describe('Landlord smoke flows', () => {
             can_view_properties: false,
             can_manage_maintenance: false,
             can_manage_payments: false,
+            can_view_analytics: false,
           },
         },
       );
@@ -411,6 +412,10 @@ describe('Landlord smoke flows', () => {
     await screen.findByText('Landlord-Level Access');
     fireEvent.press(screen.getByText('Grant Access'));
 
+    fireEvent(permissionSwitches[7], 'valueChange', true); // analytics
+    await screen.findByText('Landlord-Level Access');
+    fireEvent.press(screen.getByText('Grant Access'));
+
     fireEvent.press(screen.getByText('Dorm One'));
     fireEvent.press(screen.getByText('Confirm & Add Caretaker'));
 
@@ -434,6 +439,7 @@ describe('Landlord smoke flows', () => {
             can_view_properties: true,
             can_manage_maintenance: true,
             can_manage_payments: true,
+            can_view_analytics: true,
           },
         },
       );

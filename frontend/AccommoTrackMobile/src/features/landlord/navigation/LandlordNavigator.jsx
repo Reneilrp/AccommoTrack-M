@@ -59,16 +59,47 @@ export default function LandlordNavigator({ onLogout }) {
 
   const isCaretaker = userRole === 'caretaker';
   const permissions = React.useMemo(() => user?.caretaker_permissions || {}, [user?.caretaker_permissions]);
+
+  const normalizePermissionValue = React.useCallback((value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+    return Boolean(value);
+  }, []);
+
+  const buildPermissionCandidates = React.useCallback((key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  }, []);
+
   const hasPermission = React.useCallback(
-    (key) => {
+    (key, aliases = []) => {
       if (!isCaretaker) return true;
-      return Boolean(
-        permissions?.[key]
-        || permissions?.[`can_view_${key}`]
-        || permissions?.[`can_manage_${key}`]
+      return buildPermissionCandidates(key, aliases).some((candidate) =>
+        normalizePermissionValue(permissions?.[candidate]),
       );
     },
-    [isCaretaker, permissions]
+    [buildPermissionCandidates, isCaretaker, normalizePermissionValue, permissions]
   );
 
   const canAccessRooms = hasPermission('rooms');
@@ -77,9 +108,9 @@ export default function LandlordNavigator({ onLogout }) {
   const canAccessTenants = hasPermission('tenants');
   const canAccessMessages = hasPermission('messages');
 
-  const canAccessPropertyManagement = !isCaretaker || hasPermission('properties');
+  const canAccessPropertyManagement = !isCaretaker || hasPermission('properties', ['property', 'property_management']);
   const canAccessMyProperties = canAccessPropertyManagement;
-  const canAccessAnalytics = !isCaretaker;
+  const canAccessAnalytics = !isCaretaker || hasPermission('analytics');
   const canAccessPayments = !isCaretaker || hasPermission('payments');
   const canAccessReviews = !isCaretaker;
   const canAccessAddonManagement = !isCaretaker;

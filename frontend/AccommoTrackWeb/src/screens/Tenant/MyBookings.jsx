@@ -916,6 +916,38 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
+                          {(() => {
+                            const rawStatus = String(booking.status || booking.status_raw || '').toLowerCase();
+                            const effectiveStatus = rawStatus || 'confirmed';
+                            const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
+                            const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
+
+                            if (!canRequestMoveOut) {
+                              return null;
+                            }
+
+                            if (hasNotice) {
+                              return (
+                                <div
+                                  title="Move-out notice already submitted. The landlord will finalize your checkout."
+                                  className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2"
+                                >
+                                  <DoorOpen className="w-4 h-4" />
+                                  Notice Submitted
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <button
+                                onClick={() => onRequestMoveOut?.()}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-indigo-500/20"
+                              >
+                                <DoorOpen className="w-4 h-4" />
+                                Move-out
+                              </button>
+                            );
+                          })()}
                           <button 
                             onClick={() => navigate('/maintenance', { state: { propertyId: property.id } })}
                             className="bg-orange-400 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-orange-500/20"
@@ -957,16 +989,19 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           now.setHours(0, 0, 0, 0);
                           const isFuture = start > now;
                           const daysUntil = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+                          const hasCheckoutDate = Boolean(booking.endDate);
+                          const daysStayedValue = Math.max(0, Math.floor(Number(booking?.daysStayed || 0)));
+                          const daysLeftValue = booking?.daysRemaining == null
+                            ? '-'
+                            : Math.max(0, Math.ceil(Number(booking.daysRemaining)));
 
                           return (
                             <StatCard
-                              label={isFuture ? "Starts In" : "Days Left"}
+                              label={isFuture ? "Starts In" : (hasCheckoutDate ? "Days Left" : "Days Stayed")}
                               value={
                                 isFuture 
                                   ? `${daysUntil} ${daysUntil === 1 ? 'Day' : 'Days'}`
-                                  : (booking?.daysRemaining == null
-                                      ? '-'
-                                      : Math.max(0, Math.ceil(Number(booking.daysRemaining))))
+                                  : (hasCheckoutDate ? daysLeftValue : daysStayedValue)
                               }
                               icon={CalendarDays}
                             />
@@ -1080,37 +1115,6 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                   </button>
                                 )}
                               </div>
-                            );
-                          })()}
-                          {(() => {
-                            const bookingStatus = String(booking.status || '').toLowerCase();
-                            const canRequestMoveOut = ['confirmed', 'active'].includes(bookingStatus);
-                            const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
-
-                            if (!canRequestMoveOut) {
-                              return null;
-                            }
-
-                            if (hasNotice) {
-                              return (
-                                <div
-                                  title="Move-out notice already submitted. The landlord will finalize your checkout."
-                                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 cursor-default"
-                                >
-                                  <DoorOpen className="w-4 h-4" />
-                                  Notice Submitted
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <button
-                                onClick={() => onRequestMoveOut?.()}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
-                              >
-                                <DoorOpen className="w-4 h-4" />
-                                Request Move-out
-                              </button>
                             );
                           })()}
                         </div>
@@ -1318,19 +1322,47 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
 
   const data = stays[selectedIndex] || stays[0];
   const { financials } = data;
+
+  const parseActivityTimestamp = (value) => {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+  };
   
   // Flatten all transactions from all invoices into a single sorted list
   const invoices = Array.isArray(financials?.invoices) ? financials.invoices : [];
   const allTransactions = invoices
-    .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ 
-      ...tx, 
-      date: tx.date || tx.created_at,
-      amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
-      invoiceRef: inv.id 
-    })))
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+    .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => {
+      const resolvedDate = tx.date || tx.created_at;
+      return {
+        ...tx,
+        date: resolvedDate,
+        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
+        invoiceRef: inv.id,
+        timestamp: parseActivityTimestamp(resolvedDate),
+        normalizedStatus: String(tx.status || '').toLowerCase(),
+      };
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp);
 
-  const recentTransactions = allTransactions.slice(0, 3);
+  // Hide outdated failed attempts when a newer transaction exists for the same invoice.
+  const newestTimestampByInvoice = new Map();
+  allTransactions.forEach((tx) => {
+    const key = String(tx.invoiceRef || tx.id || '');
+    if (!newestTimestampByInvoice.has(key)) {
+      newestTimestampByInvoice.set(key, tx.timestamp);
+    }
+  });
+
+  const recentTransactions = allTransactions
+    .filter((tx) => {
+      const key = String(tx.invoiceRef || tx.id || '');
+      const latestTimestamp = newestTimestampByInvoice.get(key) ?? tx.timestamp;
+      const hasNewerAttempt = latestTimestamp > tx.timestamp;
+      const isFailedAttempt = ['expired', 'failed', 'cancelled', 'voided'].includes(tx.normalizedStatus);
+
+      return !(hasNewerAttempt && isFailedAttempt);
+    })
+    .slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -1411,7 +1443,11 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
                     <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{(tx.amount || 0).toLocaleString()}</td>
                     <td className="py-4 px-6">
                       <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${
-                        tx.status === 'succeeded' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        ['succeeded', 'paid', 'completed', 'approved', 'verified'].includes(tx.normalizedStatus)
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : ['expired', 'failed', 'cancelled', 'voided'].includes(tx.normalizedStatus)
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                       }`}>
                         {tx.status}
                       </span>

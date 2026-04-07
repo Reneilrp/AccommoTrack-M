@@ -201,6 +201,7 @@ export default function BookingDetails() {
     const statusStyle = getStatusStyles(bookingStatus);
     const paymentStyle = getStatusStyles(booking.paymentStatus);
     const reservationPolicy = booking.reservation_policy || null;
+    const isDailyContract = String(booking.contract_mode || booking.contractMode || '').toLowerCase() === 'daily';
 
     const handleCancelAddon = (addon) => {
         const reqId = addon?.pivot?.id || addon?.request_id || addon?.id;
@@ -307,7 +308,7 @@ export default function BookingDetails() {
                     {/* Check-in/Out Dates */}
                     <View style={[styles.dateCard, { backgroundColor: theme.colors.surface }]}>
                         <View style={styles.dateBlock}>
-                            <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>CHECK-IN</Text>
+                            <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>{isDailyContract ? 'CHECK-IN' : 'MOVE-IN'}</Text>
                             <Text style={[styles.dateValue, { color: theme.colors.text }]}>{checkIn}</Text>
                         </View>
                         <View style={styles.dateDivider}>
@@ -316,7 +317,7 @@ export default function BookingDetails() {
                             <Text style={[styles.durationText, { color: theme.colors.textSecondary }]}>{booking.duration || 'N/A'}</Text>
                         </View>
                         <View style={styles.dateBlock}>
-                            <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>CHECK-OUT</Text>
+                            <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>{isDailyContract ? 'CHECK-OUT' : 'MOVE-OUT'}</Text>
                             <Text style={[styles.dateValue, { color: theme.colors.text }]}>{checkOut}</Text>
                         </View>
                     </View>
@@ -376,12 +377,12 @@ export default function BookingDetails() {
                                         color={booking.status === 'reserved' ? '#0D9488' : '#EA580C'}
                                     />
                                     <Text style={{ fontWeight: '700', fontSize: 14, color: booking.status === 'reserved' ? '#0D9488' : '#EA580C' }}>
-                                        {booking.status === 'reserved' ? 'Room Reserved — Awaiting Check-in' : 'Receipt Under Review'}
+                                        {booking.status === 'reserved' ? `Room Reserved — Awaiting ${isDailyContract ? 'Check-in' : 'Move-in'}` : 'Receipt Under Review'}
                                     </Text>
                                 </View>
                                 <Text style={{ fontSize: 13, color: booking.status === 'reserved' ? '#134E4A' : '#7C2D12', lineHeight: 20 }}>
                                     {booking.status === 'reserved'
-                                        ? 'Your GCash payment was verified. The landlord will check you in on your move-in date.'
+                                        ? `Your GCash payment was verified. The landlord will ${isDailyContract ? 'check you in on your check-in date' : 'check you in on your move-in date'}.`
                                         : 'Your GCash receipt was submitted and is being reviewed. You will be notified once confirmed.'}
                                 </Text>
                                 {booking.reference_number && (

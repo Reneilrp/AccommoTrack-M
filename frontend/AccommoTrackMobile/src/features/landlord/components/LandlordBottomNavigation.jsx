@@ -89,14 +89,45 @@ export default function LandlordBottomNavigation({ onLogout }) {
 
   const isCaretaker = user?.role === 'caretaker';
   const permissions = React.useMemo(() => user?.caretaker_permissions || {}, [user?.caretaker_permissions]);
-  const hasPermission = React.useCallback((key) => {
+
+  const normalizePermissionValue = React.useCallback((value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+    return Boolean(value);
+  }, []);
+
+  const buildPermissionCandidates = React.useCallback((key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  }, []);
+
+  const hasPermission = React.useCallback((key, aliases = []) => {
     if (!isCaretaker) return true;
-    return Boolean(
-      permissions?.[key]
-      || permissions?.[`can_view_${key}`]
-      || permissions?.[`can_manage_${key}`]
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(permissions?.[candidate]),
     );
-  }, [isCaretaker, permissions]);
+  }, [buildPermissionCandidates, isCaretaker, normalizePermissionValue, permissions]);
 
   const homeComponent = isCaretaker ? CaretakerDashboard : LandlordDashboard;
 
@@ -114,7 +145,7 @@ export default function LandlordBottomNavigation({ onLogout }) {
       component: MyProperties,
       label: 'Properties',
       icon: (focused) => focused ? 'business' : 'business-outline',
-      show: !isCaretaker || hasPermission('properties'),
+      show: !isCaretaker || hasPermission('properties', ['property', 'property_management']),
     },
     {
       name: 'Bookings',

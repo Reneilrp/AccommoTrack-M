@@ -29,6 +29,7 @@ import { PropertyCardSkeleton } from "../../../../components/Skeletons/index.jsx
 
 import PropertyService from "../../../../services/PropertyService.js";
 import { navigate as rootNavigate } from "../../../../navigation/RootNavigation.js";
+import { showError, showSuccess } from "../../../../utils/toast.js";
 import {
   tenantQueryKeys,
   useTenantFocusRefetch,
@@ -609,24 +610,17 @@ export default function TenantHomePage({
             onAuthRequired();
           }
         } else {
-          Alert.alert("Logout", "Are you sure you want to log out?", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Logout",
-              style: "destructive",
-              onPress: async () => {
-                try {
-                  await AsyncStorage.removeItem("token");
-                  await AsyncStorage.removeItem("user");
-                  if (onLogout) {
-                    onLogout();
-                  }
-                } catch (error) {
-                  console.error("Logout error:", error);
-                }
-              },
-            },
-          ]);
+          try {
+            await AsyncStorage.removeItem("token");
+            await AsyncStorage.removeItem("user");
+            showSuccess("Logged out successfully");
+            if (onLogout) {
+              onLogout();
+            }
+          } catch (error) {
+            console.error("Logout error:", error);
+            showError("Logout failed", "Please try again.");
+          }
         }
         break;
       default:

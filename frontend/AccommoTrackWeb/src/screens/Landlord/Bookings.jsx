@@ -801,12 +801,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-2">Check-In</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-2">{selectedBooking.contract_mode === 'daily' ? 'Check-In' : 'Move-In'}</p>
                   <p className="font-bold text-lg text-gray-900 dark:text-white">{formatDate(selectedBooking.checkIn)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold text-right tracking-wider mb-2">Check-Out</p>
-                  <p className="font-bold text-lg text-right text-gray-900 dark:text-white">{formatDate(selectedBooking.checkOut)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold text-right tracking-wider mb-2">{selectedBooking.contract_mode === 'daily' ? 'Check-Out' : (selectedBooking.checkOut ? 'Move-Out' : 'Planned Move-Out')}</p>
+                  <p className="font-bold text-lg text-right text-gray-900 dark:text-white">{formatDate(selectedBooking.checkOut) || 'Open-ended'}</p>
                 </div>
               </div>
               

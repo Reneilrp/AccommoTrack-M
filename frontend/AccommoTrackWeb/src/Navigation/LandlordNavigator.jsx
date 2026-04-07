@@ -27,8 +27,53 @@ import TransferRequests from '../screens/Landlord/TransferRequests.jsx';
 export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
   if (user?.role === 'caretaker') {
     const caretakerPermissions = user?.caretaker_permissions || {};
-    const canManageMaintenance = Boolean(caretakerPermissions.maintenance ?? caretakerPermissions.rooms);
-    const canManagePayments = Boolean(caretakerPermissions.payments);
+
+    const normalizePermissionValue = (value) => {
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+      }
+      return Boolean(value);
+    };
+
+    const buildPermissionCandidates = (key, aliases = []) => {
+      const base = String(key || '').trim();
+      const singular = base.endsWith('ies')
+        ? `${base.slice(0, -3)}y`
+        : base.endsWith('s')
+          ? base.slice(0, -1)
+          : base;
+      const plural = base.endsWith('s')
+        ? base
+        : singular === 'property'
+          ? 'properties'
+          : `${singular}s`;
+
+      const keys = new Set([base, singular, plural, ...aliases]);
+      const expanded = [];
+
+      keys.forEach((entry) => {
+        if (!entry) return;
+        expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+      });
+
+      return expanded;
+    };
+
+    const hasCaretakerPermission = (key, aliases = []) => {
+      return buildPermissionCandidates(key, aliases).some((candidate) =>
+        normalizePermissionValue(caretakerPermissions?.[candidate]),
+      );
+    };
+
+    const canManageProperties = hasCaretakerPermission('properties', ['property', 'property_management']);
+    const canManageMaintenance = hasCaretakerPermission('maintenance', ['rooms']);
+    const canManagePayments = hasCaretakerPermission('payments');
+    const canManageRooms = hasCaretakerPermission('rooms');
+    const canManageBookings = hasCaretakerPermission('bookings');
+    const canManageTenants = hasCaretakerPermission('tenants');
+    const canManageMessages = hasCaretakerPermission('messages');
+    const canManageAnalytics = hasCaretakerPermission('analytics');
     const caretakerHome = getDefaultLandingRoute(user);
     return (
       <SidebarProvider>
@@ -36,23 +81,33 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
           <Route element={<LandlordLayout user={user} onLogout={onLogout} accessRole="caretaker" />}>
             <Route index element={<Navigate to={caretakerHome} replace />} />
             <Route path="dashboard" element={<CaretakerDashboard user={user} />} />
-            {caretakerPermissions.rooms && (
+            {canManageProperties && (
+              <>
+                <Route path="properties" element={<MyProperties user={user} />} />
+                <Route path="properties/:id" element={<PropertySummary />} />
+                <Route path="properties/:id/edit" element={<PropertyDetailRoute />} />
+              </>
+            )}
+            {canManageRooms && (
               <Route path="rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
             )}
             {canManageMaintenance && (
               <Route path="maintenance" element={<LandlordMaintenance user={user} accessRole="caretaker" />} />
             )}
-            {caretakerPermissions.bookings && (
+            {canManageBookings && (
               <Route path="bookings" element={<Bookings user={user} accessRole="caretaker" />} />
             )}
             {canManagePayments && (
               <Route path="payments" element={<Payments user={user} accessRole="caretaker" />} />
             )}
-            {caretakerPermissions.tenants && (
+            {canManageTenants && (
               <Route path="tenants" element={<Tenants user={user} accessRole="caretaker" />} />
             )}
-            {caretakerPermissions.messages && (
+            {canManageMessages && (
               <Route path="messages" element={<Messages user={user} accessRole="caretaker" />} />
+            )}
+            {canManageAnalytics && (
+              <Route path="analytics" element={<Analytics user={user} accessRole="caretaker" />} />
             )}
             <Route
               path="settings"

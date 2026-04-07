@@ -213,6 +213,7 @@ class TenantDashboardController extends Controller
                 return [
                     'booking' => [
                         'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
+                        'status' => $booking->status,
                         'startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
                         'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
                         'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $booking->monthly_rent,
