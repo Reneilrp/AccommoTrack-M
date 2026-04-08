@@ -6,6 +6,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${BASE_URL}/api`;
 const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 const CLIENT_PLATFORM_HEADER = "X-Client-Platform";
 const AUTH_MODE_STORAGE_KEY = "authMode";
+export const TRUSTED_DEVICE_STORAGE_KEY = "trustedDevice";
+export const TRUSTED_DEVICE_HEADER = "X-Device-Trusted";
+export const ACCESS_TOKEN_STORAGE_KEY = "authToken";
+export const REFRESH_TOKEN_STORAGE_KEY = "refreshToken";
+export const ACCESS_TOKEN_EXPIRES_AT_STORAGE_KEY = "authTokenExpiresAt";
 
 // Production defaults to cookie auth.
 // Development defaults to bearer auth unless VITE_WEB_USE_BEARER_AUTH=false.
@@ -38,8 +43,94 @@ export const clearPersistedAuthMode = () => {
   setPersistedAuthMode(null);
 };
 
+const parseTrustedDevicePreference = (value) => {
+  if (value === true || value === "1" || value === "true") {
+    return true;
+  }
+
+  if (value === false || value === "0" || value === "false") {
+    return false;
+  }
+
+  return null;
+};
+
+export const getTrustedDevicePreference = () => {
+  try {
+    return parseTrustedDevicePreference(localStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+};
+
+export const setTrustedDevicePreference = (isTrusted) => {
+  try {
+    if (typeof isTrusted !== "boolean") {
+      localStorage.removeItem(TRUSTED_DEVICE_STORAGE_KEY);
+      return;
+    }
+
+    localStorage.setItem(TRUSTED_DEVICE_STORAGE_KEY, isTrusted ? "1" : "0");
+  } catch {
+    // ignore storage failures
+  }
+};
+
+const applyTrustedDeviceHeader = (headers) => {
+  if (!headers) {
+    return;
+  }
+
+  const trustedDevice = getTrustedDevicePreference();
+  if (trustedDevice === null) {
+    return;
+  }
+
+  if (
+    headers[TRUSTED_DEVICE_HEADER] === undefined &&
+    headers[TRUSTED_DEVICE_HEADER.toLowerCase()] === undefined
+  ) {
+    headers[TRUSTED_DEVICE_HEADER] = trustedDevice ? "true" : "false";
+  }
+};
+
 export const shouldUseBearerForRequest = () => {
   return SHOULD_USE_BEARER_AUTH || getPersistedAuthMode() === "token";
+};
+
+export const applyTokenAuthPayload = (payload = {}) => {
+  const accessToken = payload?.access_token || payload?.token || null;
+  const refreshToken = payload?.refresh_token || null;
+  const accessTokenExpiresAt = payload?.expires_at || null;
+
+  if (accessToken) {
+    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
+    api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+  } else {
+    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    delete api.defaults.headers.common["Authorization"];
+  }
+
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  }
+
+  if (accessTokenExpiresAt) {
+    localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT_STORAGE_KEY, accessTokenExpiresAt);
+  } else {
+    localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_STORAGE_KEY);
+  }
+
+  return accessToken;
+};
+
+export const clearStoredTokenAuth = () => {
+  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_STORAGE_KEY);
+  delete api.defaults.headers.common["Authorization"];
 };
 
 const getCookieValue = (name) => {
@@ -241,6 +332,51 @@ const api = axios.create({
   },
 });
 
+let refreshTokenRequestPromise = null;
+
+const isRefreshTokenRequest = (config) => {
+  if (config?._skipAuthRefresh) {
+    return true;
+  }
+
+  const url = String(config?.url || "");
+  return url.includes("/refresh-token");
+};
+
+const requestNewAccessToken = async () => {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  if (!refreshToken) {
+    throw new Error("Missing refresh token");
+  }
+
+  const trustedDevice = getTrustedDevicePreference();
+  const refreshHeaders = {
+    "X-Skip-Auth-Redirect": "1",
+    [CLIENT_PLATFORM_HEADER]: "web",
+  };
+
+  if (trustedDevice !== null) {
+    refreshHeaders[TRUSTED_DEVICE_HEADER] = trustedDevice ? "true" : "false";
+  }
+
+  const response = await api.post(
+    "/refresh-token",
+    { refresh_token: refreshToken },
+    {
+      _skipAuthRefresh: true,
+      headers: refreshHeaders,
+    },
+  );
+
+  setPersistedAuthMode("token");
+  const accessToken = applyTokenAuthPayload(response?.data || {});
+  if (!accessToken) {
+    throw new Error("Refresh endpoint did not return an access token");
+  }
+
+  return accessToken;
+};
+
 // Request interceptor — always attach Bearer token if available.
 // Token is stored in localStorage for persistence across page reloads.
 api.interceptors.request.use(
@@ -255,6 +391,8 @@ api.interceptors.request.use(
     if (!config.headers?.Accept) {
       config.headers.Accept = "application/json";
     }
+
+    applyTrustedDeviceHeader(config.headers);
 
     if (!config.headers?.["X-Requested-With"]) {
       config.headers["X-Requested-With"] = "XMLHttpRequest";
@@ -289,7 +427,7 @@ api.interceptors.request.use(
       return config;
     }
 
-    const token = localStorage.getItem("authToken");
+    const token = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
       if (config.url?.includes('/login') || config.url?.includes('/verify-otp')) {
@@ -332,6 +470,50 @@ api.interceptors.response.use(
       }
     }
 
+    const shouldTryRefresh =
+      error.response?.status === 401 &&
+      shouldUseBearerForRequest() &&
+      !isRefreshTokenRequest(error.config) &&
+      !error.config?._retryAfterRefresh;
+
+    if (shouldTryRefresh) {
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+
+      if (refreshToken) {
+        try {
+          if (!refreshTokenRequestPromise) {
+            refreshTokenRequestPromise = requestNewAccessToken().finally(() => {
+              refreshTokenRequestPromise = null;
+            });
+          }
+
+          const newAccessToken = await refreshTokenRequestPromise;
+          const retryConfig = {
+            ...error.config,
+            _retryAfterRefresh: true,
+            headers: {
+              ...(error.config?.headers || {}),
+              Authorization: `Bearer ${newAccessToken}`,
+            },
+          };
+
+          return api.request(retryConfig);
+        } catch {
+          try {
+            localStorage.removeItem("userData");
+            clearStoredTokenAuth();
+            clearPersistedAuthMode();
+            window.dispatchEvent(new CustomEvent("auth:refresh-failed"));
+            window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+          } catch (__e) {
+            // ignore
+          }
+
+          return Promise.reject(error);
+        }
+      }
+    }
+
     const skipAuthRedirect =
       error.config?.headers?.["X-Skip-Auth-Redirect"] === "1" ||
       error.config?.headers?.["x-skip-auth-redirect"] === "1" ||
@@ -362,9 +544,8 @@ api.interceptors.response.use(
     if (isBlocked) {
       try {
         localStorage.removeItem("userData");
-        localStorage.removeItem("authToken");
+        clearStoredTokenAuth();
         clearPersistedAuthMode();
-        delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:blocked"));
       } catch (__e) {
         // ignore
@@ -372,9 +553,8 @@ api.interceptors.response.use(
     } else if (error.response?.status === 401) {
       try {
         localStorage.removeItem("userData");
-        localStorage.removeItem("authToken");
+        clearStoredTokenAuth();
         clearPersistedAuthMode();
-        delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:unauthorized"));
       } catch (__e) {
         // ignore
@@ -393,11 +573,18 @@ api.interceptors.response.use(
  * @returns {Object} Headers object
  */
 export const getAuthHeaders = () => {
-  return {
+  const headers = {
     "Content-Type": "application/json",
     Accept: "application/json",
     [CLIENT_PLATFORM_HEADER]: "web",
   };
+
+  const trustedDevice = getTrustedDevicePreference();
+  if (trustedDevice !== null) {
+    headers[TRUSTED_DEVICE_HEADER] = trustedDevice ? "true" : "false";
+  }
+
+  return headers;
 };
 
 /**

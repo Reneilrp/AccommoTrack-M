@@ -30,6 +30,9 @@ import { useAuthStore } from '../../../stores/auth/authStore.js';
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
 
+const TRUSTED_DEVICE_STORAGE_KEY = 'trusted_device';
+const TRUSTED_DEVICE_HEADER = 'X-Device-Trusted';
+
 const TermsModal = ({ visible, onClose, theme }) => {
   const styles = getStyles(theme);
   return (
@@ -696,6 +699,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
   const [emailAvailable, setEmailAvailable] = useState(null);
   const [emailCheckMsg, setEmailCheckMsg] = useState('');
@@ -742,6 +746,9 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             gender: parsed.gender || '',
           }));
         }
+
+        const savedTrustedDevice = await AsyncStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY);
+        setRememberDevice(savedTrustedDevice === '1' || savedTrustedDevice === 'true');
       } catch { /* ignore */ }
     };
     restoreFormData();
@@ -917,6 +924,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'X-Client-Platform': 'mobile',
+          [TRUSTED_DEVICE_HEADER]: rememberDevice ? 'true' : 'false',
         },
         body: JSON.stringify({
           email: formData.email,
@@ -925,6 +933,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       });
 
       const data = await response.json();
+      const accessToken = data?.access_token || data?.token || data?.user?.token || null;
+      const refreshToken = data?.refresh_token || null;
 
       if (response.ok) {
         // If login succeeded but account is unverified landlord, we handle it
@@ -937,14 +947,24 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               reason: data.rejection_reason || 'No reason provided'
             });
             // Still save token because resubmit might need it
-            if (data.token) await AsyncStorage.setItem('token', data.token);
+            if (accessToken) {
+              await AsyncStorage.setItem('token', accessToken);
+            }
+            if (refreshToken) {
+              await AsyncStorage.setItem('refresh_token', refreshToken);
+            }
             setPendingModalVisible(true);
             return;
           }
         }
 
         // Persist token inside the user object for standardized access across the app
-        const userObj = { ...(data.user || {}), token: data.token || (data.user && data.user.token) };
+        const userObj = {
+          ...(data.user || {}),
+          token: accessToken,
+          refresh_token: refreshToken,
+          trusted_device: rememberDevice,
+        };
         
         // Restore previously switched role if any (helps for unverified landlords)
         let effectiveRole = data.user.role;
@@ -964,15 +984,24 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         }
 
         await AsyncStorage.setItem('user', JSON.stringify(userObj));
+        await AsyncStorage.setItem(TRUSTED_DEVICE_STORAGE_KEY, rememberDevice ? '1' : '0');
         // Keep legacy `token` key for backward compatibility
-        if (data.token) {
-          await AsyncStorage.setItem('token', data.token);
+        if (accessToken) {
+          await AsyncStorage.setItem('token', accessToken);
+        } else {
+          await AsyncStorage.removeItem('token');
+        }
+        if (refreshToken) {
+          await AsyncStorage.setItem('refresh_token', refreshToken);
+        } else {
+          await AsyncStorage.removeItem('refresh_token');
         }
         await AsyncStorage.setItem('user_id', String(data.user.id));
         await AsyncStorage.setItem('hasLaunched', 'true');
 
         setAuthSession({
-          authToken: data.token || data.user?.token || null,
+          authToken: accessToken,
+          refreshToken,
           userId: data.user?.id ?? null,
           activeRole: effectiveRole,
         });
@@ -1267,6 +1296,21 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                 </TouchableOpacity>
               </View>
               {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
+
+              <TouchableOpacity
+                onPress={() => setRememberDevice((prev) => !prev)}
+                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
+                disabled={loading}
+              >
+                <View style={[styles.checkbox, { marginRight: 10, marginTop: 0 }, rememberDevice && styles.checkboxChecked]}>
+                  {rememberDevice ? (
+                    <Ionicons name="checkmark" size={14} color={theme.colors.textInverse} />
+                  ) : null}
+                </View>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 13, fontWeight: '500' }}>
+                  Remember this device
+                </Text>
+              </TouchableOpacity>
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <TouchableOpacity onPress={() => setShowClaimModal(true)}>

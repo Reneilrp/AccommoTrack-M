@@ -20,9 +20,14 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
+    private const ACCESS_TOKEN_NAME = 'access_token';
+    private const REFRESH_TOKEN_NAME = 'refresh_token';
+    private const REFRESH_TOKEN_ABILITY = 'token:refresh';
+
     protected AuthService $authService;
     protected LegalConsentService $legalConsentService;
     protected AuditLogService $auditLogService;
@@ -77,6 +82,82 @@ class AuthController extends Controller
         return filter_var(env('AUTH_WEB_COOKIE_STRICT_MODE', false), FILTER_VALIDATE_BOOL);
     }
 
+    protected function isTrustedDeviceRequest(Request $request): bool
+    {
+        $headerValue = $request->header('X-Device-Trusted');
+
+        if ($headerValue === null) {
+            return false;
+        }
+
+        return filter_var($headerValue, FILTER_VALIDATE_BOOL);
+    }
+
+    protected function resolveAccessTokenTtlMinutes(Request $request, User $user): int
+    {
+        $ttlMinutes = max((int) config('sanctum.access_token_ttl_minutes', 15), 1);
+
+        if ($this->isTrustedDeviceRequest($request)) {
+            $ttlMinutes = max((int) config('sanctum.access_token_ttl_minutes_trusted_device', $ttlMinutes), 1);
+        }
+
+        if ($user->role === 'admin') {
+            $ttlMinutes = max((int) config('sanctum.access_token_ttl_minutes_admin', $ttlMinutes), 1);
+        }
+
+        return $ttlMinutes;
+    }
+
+    protected function resolveRefreshTokenTtlDays(Request $request, User $user): int
+    {
+        $ttlDays = max((int) config('sanctum.refresh_token_ttl_days', 30), 1);
+
+        if ($this->isTrustedDeviceRequest($request)) {
+            $ttlDays = max((int) config('sanctum.refresh_token_ttl_days_trusted_device', $ttlDays), 1);
+        }
+
+        if ($user->role === 'admin') {
+            $ttlDays = max((int) config('sanctum.refresh_token_ttl_days_admin', $ttlDays), 1);
+        }
+
+        return $ttlDays;
+    }
+
+    protected function issueTokenPair(Request $request, User $user): array
+    {
+        $accessExpiresAt = now()->addMinutes($this->resolveAccessTokenTtlMinutes($request, $user));
+        $refreshExpiresAt = now()->addDays($this->resolveRefreshTokenTtlDays($request, $user));
+
+        $accessToken = $user->createToken(self::ACCESS_TOKEN_NAME, ['*'], $accessExpiresAt)->plainTextToken;
+        $refreshToken = $user->createToken(self::REFRESH_TOKEN_NAME, [self::REFRESH_TOKEN_ABILITY], $refreshExpiresAt)->plainTextToken;
+
+        return [
+            // Backward compatibility for existing clients that read `token`.
+            'token' => $accessToken,
+            'access_token' => $accessToken,
+            'refresh_token' => $refreshToken,
+            'token_type' => 'Bearer',
+            'expires_in' => now()->diffInSeconds($accessExpiresAt),
+            'expires_at' => $accessExpiresAt->toISOString(),
+            'refresh_expires_in' => now()->diffInSeconds($refreshExpiresAt),
+            'refresh_expires_at' => $refreshExpiresAt->toISOString(),
+        ];
+    }
+
+    protected function isRefreshTokenRecord(?PersonalAccessToken $token): bool
+    {
+        if (! $token) {
+            return false;
+        }
+
+        if ($token->name === self::REFRESH_TOKEN_NAME) {
+            return true;
+        }
+
+        return is_array($token->abilities)
+            && in_array(self::REFRESH_TOKEN_ABILITY, $token->abilities, true);
+    }
+
     protected function buildAuthResponse(Request $request, User $user, string $message, array $extra = []): JsonResponse
     {
         $cookieRequested = $this->webCookieModeRequested($request);
@@ -121,14 +202,13 @@ class AuthController extends Controller
             ], $extra));
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $tokenPayload = $this->issueTokenPair($request, $user);
 
         return response()->json(array_merge([
             'user' => $user,
-            'token' => $token,
             'message' => $message,
             'auth_mode' => 'token',
-        ], $extra));
+        ], $tokenPayload, $extra));
     }
 
     private function normalizeGenderForStorage(?string $gender): ?string
@@ -406,11 +486,78 @@ class AuthController extends Controller
         }
     }
 
+    public function refreshToken(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'refresh_token' => 'required|string',
+        ]);
+
+        $refreshToken = PersonalAccessToken::findToken($validated['refresh_token']);
+
+        if (! $this->isRefreshTokenRecord($refreshToken)) {
+            return response()->json([
+                'message' => 'Invalid refresh token.',
+            ], 401);
+        }
+
+        if ($refreshToken->expires_at && $refreshToken->expires_at->isPast()) {
+            $refreshToken->delete();
+
+            return response()->json([
+                'message' => 'Refresh token has expired.',
+            ], 401);
+        }
+
+        $user = $refreshToken->tokenable;
+
+        if (! $user instanceof User) {
+            $refreshToken->delete();
+
+            return response()->json([
+                'message' => 'Invalid refresh token owner.',
+            ], 401);
+        }
+
+        if ($user->is_blocked) {
+            $refreshToken->delete();
+
+            return response()->json([
+                'status' => 'blocked',
+                'message' => 'Your account has been blocked by the administrator. Please contact support for assistance.',
+            ], 403);
+        }
+
+        if ($user->role === 'caretaker') {
+            $user->load('caretakerAssignment');
+        }
+
+        $refreshToken->delete();
+
+        return response()->json(array_merge([
+            'user' => $user,
+            'message' => 'Token refreshed successfully.',
+            'auth_mode' => 'token',
+        ], $this->issueTokenPair($request, $user)));
+    }
+
     public function logout(Request $request)
     {
         $currentToken = $request->user()?->currentAccessToken();
         if ($currentToken) {
             $currentToken->delete();
+        }
+
+        $providedRefreshToken = (string) $request->input('refresh_token', '');
+        if ($providedRefreshToken !== '') {
+            $refreshToken = PersonalAccessToken::findToken($providedRefreshToken);
+
+            if (
+                $this->isRefreshTokenRecord($refreshToken)
+                && $refreshToken->tokenable_type === User::class
+                && (int) $refreshToken->tokenable_id === (int) $request->user()?->id
+            ) {
+                $refreshToken->delete();
+            }
         }
 
         if ($this->shouldUseWebCookieAuth($request)) {

@@ -48,6 +48,7 @@ Route::post('/register', [AuthController::class, 'register'])->middleware('throt
 Route::post('/verify-email-otp', [AuthController::class, 'verifyEmailOtp'])->middleware('throttle:auth-attempts');
 Route::post('/resend-email-otp', [AuthController::class, 'resendEmailOtp'])->middleware('throttle:auth-attempts');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-attempts');
+Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('throttle:auth-attempts');
 Route::post('/inquiries', [InquiryController::class, 'store']);
 
 // Forgot Password Routes

@@ -20,11 +20,16 @@ import {
 } from "lucide-react";
 import Logo from "../../assets/Logo.png";
 import api, {
+  applyTokenAuthPayload,
+  clearStoredTokenAuth,
+  getTrustedDevicePreference,
   isCancel,
   rootApi,
   initCsrfCookie,
+  setTrustedDevicePreference,
   shouldUseBearerForRequest,
   setPersistedAuthMode,
+  TRUSTED_DEVICE_HEADER,
 } from "../../utils/api";
 import { getDefaultLandingRoute } from "../../utils/userRoutes";
 import toast, { Toaster } from "react-hot-toast";
@@ -760,6 +765,10 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const [otpInitialCooldown, setOtpInitialCooldown] = useState(0);
   const [__isMobileDevice, setIsMobileDevice] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(() => {
+    const storedPreference = getTrustedDevicePreference();
+    return storedPreference === null ? false : storedPreference;
+  });
 
   // Detect if user is on mobile device
   useEffect(() => {
@@ -1082,10 +1091,20 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
           api.defaults.headers?.common?.["X-Client-Platform"],
       });
 
-      const result = await api.post("/login", {
-        email: (formData.email || "").trim(),
-        password: formData.password,
-      });
+      const loginTrustedDevice = Boolean(rememberDevice);
+
+      const result = await api.post(
+        "/login",
+        {
+          email: (formData.email || "").trim(),
+          password: formData.password,
+        },
+        {
+          headers: {
+            [TRUSTED_DEVICE_HEADER]: loginTrustedDevice ? "true" : "false",
+          },
+        },
+      );
 
       const data = result.data;
 
@@ -1099,20 +1118,21 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
       const responseAuthMode = data?.auth_mode || (data?.token ? "token" : "cookie");
       setPersistedAuthMode(responseAuthMode);
+      setTrustedDevicePreference(loginTrustedDevice);
 
-      if (responseAuthMode === "token" && data?.token) {
+      if (responseAuthMode === "token") {
         try {
-          localStorage.setItem("authToken", data.token);
-          localStorage.setItem("lastLoginAt", Date.now().toString());
-          api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+          const accessToken = applyTokenAuthPayload(data);
+          if (accessToken) {
+            localStorage.setItem("lastLoginAt", Date.now().toString());
+          }
           console.log('[AUTH_DEBUG] Auth token stored, bearer auth enabled');
         } catch (__e) {
           // ignore
         }
       } else {
         // Cookie-auth response mode intentionally omits token.
-        localStorage.removeItem("authToken");
-        delete api.defaults.headers.common["Authorization"];
+        clearStoredTokenAuth();
         console.log('[AUTH_DEBUG] Cookie mode: bearer auth disabled, relying on session cookie');
       }
 
@@ -1407,12 +1427,13 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
     const responseAuthMode = data?.auth_mode || (data?.token ? "token" : "cookie");
     setPersistedAuthMode(responseAuthMode);
 
-    if (responseAuthMode === "token" && data?.token) {
-      localStorage.setItem("authToken", data.token);
-      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+    if (responseAuthMode === "token") {
+      const accessToken = applyTokenAuthPayload(data);
+      if (accessToken) {
+        localStorage.setItem("lastLoginAt", Date.now().toString());
+      }
     } else {
-      localStorage.removeItem("authToken");
-      delete api.defaults.headers.common["Authorization"];
+      clearStoredTokenAuth();
     }
     localStorage.setItem("userData", JSON.stringify(me));
     onLogin(me);
@@ -1620,6 +1641,19 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                 </div>
 
                 {/* Forgot Password */}
+                <div className="flex items-center justify-start">
+                  <label className="inline-flex items-center gap-2 text-sm text-green-900/90 dark:text-gray-300 select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberDevice}
+                      onChange={(e) => setRememberDevice(e.target.checked)}
+                      disabled={loading}
+                      className="h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span>Remember this device</span>
+                  </label>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <button
                     type="button"

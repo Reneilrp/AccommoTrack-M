@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api, {
+  clearStoredTokenAuth,
   clearPersistedAuthMode,
   shouldUseBearerForRequest,
 } from "./utils/api";
@@ -44,8 +45,7 @@ function App() {
         publicRoutes.has(currentPath) || isGuestPropertyRoute;
 
       if (!shouldUseBearerForRequest()) {
-        localStorage.removeItem("authToken");
-        delete api.defaults.headers.common["Authorization"];
+        clearStoredTokenAuth();
       } else if (token) {
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       } else {
@@ -82,9 +82,8 @@ function App() {
         const status = error?.response?.status;
         if (status === 401 || status === 403 || status === 419) {
           localStorage.removeItem("userData");
-          localStorage.removeItem("authToken");
+          clearStoredTokenAuth();
           clearPersistedAuthMode();
-          delete api.defaults.headers.common["Authorization"];
           if (isActive) setUser(null);
         }
       } finally {
@@ -114,9 +113,8 @@ function App() {
 
       setUser(null);
       localStorage.removeItem("userData");
-      localStorage.removeItem("authToken");
+      clearStoredTokenAuth();
       clearPersistedAuthMode();
-      delete api.defaults.headers.common["Authorization"];
       navigate("/login", { replace: true });
     };
 
@@ -131,9 +129,8 @@ function App() {
       setUser(null);
       localStorage.removeItem("userData");
       localStorage.removeItem("lastLoginAt");
-      localStorage.removeItem("authToken");
+      clearStoredTokenAuth();
       clearPersistedAuthMode();
-      delete api.defaults.headers.common["Authorization"];
       toast.error("Your account has been blocked. Please contact support.", {
         duration: 6000,
       });
@@ -147,9 +144,8 @@ function App() {
     setUser(null);
     localStorage.removeItem("userData");
     localStorage.removeItem("lastLoginAt");
-    localStorage.removeItem("authToken");
+    clearStoredTokenAuth();
     clearPersistedAuthMode();
-    delete api.defaults.headers.common["Authorization"];
   };
 
   const handleLogin = (userData) => {
