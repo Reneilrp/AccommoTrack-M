@@ -9,6 +9,7 @@ import {
   Alert,
   Image,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,9 +44,14 @@ const getRoomImageUrl = (imageUrl) => {
 };
 
 export default function RoomListScreen({ route }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const contentWrapStyle = React.useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
   const { property } = route.params;
 
   const [refreshing, setRefreshing] = useState(false);
@@ -186,24 +192,26 @@ export default function RoomListScreen({ route }) {
       </View>
 
       {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-        {[
-          { key: 'all', label: 'All' },
-          { key: 'available', label: 'Available' },
-          { key: 'occupied', label: 'Occupied' },
-          { key: 'maintenance', label: 'Maintenance' }
-        ].map(filter => (
-          <TouchableOpacity
-            key={filter.key}
-            style={[styles.filterButton, selectedFilter === filter.key && styles.filterButtonActive]}
-            onPress={() => setSelectedFilter(filter.key)}
-          >
-            <Text style={[styles.filterText, selectedFilter === filter.key && styles.filterTextActive]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={contentWrapStyle}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'available', label: 'Available' },
+            { key: 'occupied', label: 'Occupied' },
+            { key: 'maintenance', label: 'Maintenance' }
+          ].map(filter => (
+            <TouchableOpacity
+              key={filter.key}
+              style={[styles.filterButton, selectedFilter === filter.key && styles.filterButtonActive]}
+              onPress={() => setSelectedFilter(filter.key)}
+            >
+              <Text style={[styles.filterText, selectedFilter === filter.key && styles.filterTextActive]}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Room Cards Container */}
       <ScrollView
@@ -218,76 +226,78 @@ export default function RoomListScreen({ route }) {
           />
         }
       >
-        {filteredRooms.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="bed-outline" size={64} color={theme.colors.textTertiary} />
-            <Text style={[styles.emptyText, { color: theme.colors.text }]}>No rooms found</Text>
-            <Text style={[styles.emptySubtext, { color: theme.colors.textSecondary }]}>Try adjusting your filter</Text>
-          </View>
-        ) : (
-          <View style={styles.roomsContainer}>
-            {filteredRooms.map((room) => {
-              const isOccupied = room.status === 'occupied';
-              return (
-              <TouchableOpacity
-                key={room.id}
-                style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
-                onPress={() => navigation.navigate('RoomDetails', { room, property })}
-              >
-                {/* Left: Image + Price */}
-                <View style={styles.leftSection}>
-                  <View style={styles.roomImageContainer}>
-                    <Image
-                      source={{ uri: getRoomImageUrl(room.images?.[0]) }}
-                      style={styles.roomImage}
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <View style={styles.priceSection}>
-                    <Text style={styles.roomPrice}>₱{room.monthly_rate.toLocaleString()}</Text>
-                    <Text style={styles.priceLabel}>/month</Text>
-                  </View>
-                </View>
-
-                {/* Right: Room Info */}
-                <View style={styles.roomInfo}>
-                  <View style={styles.roomHeader}>
-                    <Text style={styles.roomNumber}>Room {room.room_number}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(room.status) + '20' }]}>
-                      <Ionicons name={getStatusIcon(room.status)} size={14} color={getStatusColor(room.status)} />
-                      <Text style={[styles.statusText, { color: getStatusColor(room.status) }]}>
-                        {capitalizeStatus(room.status)}
-                      </Text>
+        <View style={contentWrapStyle}>
+          {filteredRooms.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="bed-outline" size={64} color={theme.colors.textTertiary} />
+              <Text style={[styles.emptyText, { color: theme.colors.text }]}>No rooms found</Text>
+              <Text style={[styles.emptySubtext, { color: theme.colors.textSecondary }]}>Try adjusting your filter</Text>
+            </View>
+          ) : (
+            <View style={styles.roomsContainer}>
+              {filteredRooms.map((room) => {
+                const isOccupied = room.status === 'occupied';
+                return (
+                <TouchableOpacity
+                  key={room.id}
+                  style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
+                  onPress={() => navigation.navigate('RoomDetails', { room, property })}
+                >
+                  {/* Left: Image + Price */}
+                  <View style={styles.leftSection}>
+                    <View style={styles.roomImageContainer}>
+                      <Image
+                        source={{ uri: getRoomImageUrl(room.images?.[0]) }}
+                        style={styles.roomImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                    <View style={styles.priceSection}>
+                      <Text style={styles.roomPrice}>₱{room.monthly_rate.toLocaleString()}</Text>
+                      <Text style={styles.priceLabel}>/month</Text>
                     </View>
                   </View>
 
-                  <Text style={styles.roomType}>{room.type_label || room.room_type}</Text>
+                  {/* Right: Room Info */}
+                  <View style={styles.roomInfo}>
+                    <View style={styles.roomHeader}>
+                      <Text style={styles.roomNumber}>Room {room.room_number}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(room.status) + '20' }]}>
+                        <Ionicons name={getStatusIcon(room.status)} size={14} color={getStatusColor(room.status)} />
+                        <Text style={[styles.statusText, { color: getStatusColor(room.status) }]}>
+                          {capitalizeStatus(room.status)}
+                        </Text>
+                      </View>
+                    </View>
 
-                  <View style={styles.roomDetailsGrid}>
-                    <View style={styles.roomDetailItem}>
-                      <Ionicons name="layers-outline" size={16} color={theme.colors.textSecondary} />
-                      <Text style={[styles.roomDetailText, { color: theme.colors.textSecondary }]}>{room.floor_label || `Floor ${room.floor}`}</Text>
+                    <Text style={styles.roomType}>{room.type_label || room.room_type}</Text>
+
+                    <View style={styles.roomDetailsGrid}>
+                      <View style={styles.roomDetailItem}>
+                        <Ionicons name="layers-outline" size={16} color={theme.colors.textSecondary} />
+                        <Text style={[styles.roomDetailText, { color: theme.colors.textSecondary }]}>{room.floor_label || `Floor ${room.floor}`}</Text>
+                      </View>
+                      <View style={styles.roomDetailItem}>
+                        <Ionicons name="people-outline" size={16} color={theme.colors.textSecondary} />
+                        <Text style={[styles.roomDetailText, { color: theme.colors.textSecondary }]}>Capacity: {room.capacity}</Text>
+                      </View>
                     </View>
-                    <View style={styles.roomDetailItem}>
-                      <Ionicons name="people-outline" size={16} color={theme.colors.textSecondary} />
-                      <Text style={[styles.roomDetailText, { color: theme.colors.textSecondary }]}>Capacity: {room.capacity}</Text>
-                    </View>
+
+                    {/* View Details Button */}
+                    <TouchableOpacity
+                      style={styles.viewDetailsButton}
+                      onPress={() => navigation.navigate('RoomDetails', { room, property })}
+                    >
+                      <Text style={[styles.viewDetailsText, { color: theme.colors.primary }]}>View Details</Text>
+                      <Ionicons name="arrow-forward" size={16} color={theme.colors.primary} />
+                    </TouchableOpacity>
                   </View>
-
-                  {/* View Details Button */}
-                  <TouchableOpacity
-                    style={styles.viewDetailsButton}
-                    onPress={() => navigation.navigate('RoomDetails', { room, property })}
-                  >
-                    <Text style={[styles.viewDetailsText, { color: theme.colors.primary }]}>View Details</Text>
-                    <Ionicons name="arrow-forward" size={16} color={theme.colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
+                </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

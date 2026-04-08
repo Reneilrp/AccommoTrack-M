@@ -259,6 +259,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   modalCard: {
     width: '85%',
+    maxWidth: 560,
     backgroundColor: theme.colors.surface,
     borderRadius: 18,
     padding: 16,
@@ -517,6 +518,28 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSecondary,
     marginTop: 2
+  },
+  warningText: {
+    fontSize: 12,
+    color: theme.colors.error,
+    marginTop: 6,
+    lineHeight: 16,
+  },
+  qrPreviewContainer: {
+    width: 180,
+    height: 180,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    position: 'relative',
+  },
+  qrPreviewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
 });
 

@@ -27,7 +27,7 @@ import {
 import PaymentService from '../../../../services/PaymentService.js';
 import { getStyles } from '../../../../styles/Landlord/Payments.js';
 
-const STATUS_FILTERS = ['all', 'pending', 'paid', 'unpaid', 'partial', 'overdue', 'cancelled', 'refunded'];
+const STATUS_FILTERS = ['all', 'pending', 'pending_verification', 'paid', 'unpaid', 'partial', 'overdue', 'cancelled', 'refunded'];
 
 const REFUND_FIXED_PENALTY_CENTS = 0;
 const REFUND_ELIGIBLE_STATUSES = ['succeeded', 'paid', 'partially_refunded', 'refunded'];
@@ -49,6 +49,10 @@ const getInvoiceStatus = (invoice) => {
   const invStatus = (invoice?.status || '').toLowerCase();
   const bookingStatus = (invoice?.booking?.status || '').toLowerCase();
 
+  if (invStatus === 'pending_verification' || bookingPayStatus === 'pending_verification') {
+    return 'pending_verification';
+  }
+
   if (bookingPayStatus === 'refunded' || invStatus === 'refunded') return 'refunded';
   if (bookingPayStatus === 'cancelled' || invStatus === 'cancelled') return 'cancelled';
   if (bookingPayStatus === 'paid' || invStatus === 'paid') return 'paid';
@@ -63,6 +67,12 @@ const getInvoiceStatus = (invoice) => {
   if (bookingStatus === 'pending') return 'pending';
 
   return 'pending';
+};
+
+const getStatusLabel = (status) => {
+  if (!status) return 'Pending';
+  if (status === 'pending_verification') return 'Cash Verify';
+  return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
 const getRemainingAmount = (invoice) => Math.max(0, getInvoiceTotal(invoice) - getSettledAmount(invoice));
@@ -142,6 +152,7 @@ export default function Payments({ navigation, route }) {
   const [updating, setUpdating] = useState(false);
   const [recording, setRecording] = useState(false);
   const [refundingTxId, setRefundingTxId] = useState(null);
+  const [verifyingAction, setVerifyingAction] = useState(null);
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
   const [pendingFocusInvoiceId, setPendingFocusInvoiceId] = useState(null);
 
@@ -208,9 +219,12 @@ export default function Payments({ navigation, route }) {
   });
 
   useEffect(() => {
-    const requestedFilter = route?.params?.filter;
+    const requestedFilterRaw = route?.params?.filter;
+    const requestedFilter =
+      typeof requestedFilterRaw === 'string' ? requestedFilterRaw.toLowerCase() : null;
     const requestedSearch = route?.params?.searchQuery;
     const focusInvoiceId = route?.params?.focusInvoiceId;
+    const drilldownToken = route?.params?.drilldownToken;
 
     if (requestedFilter && STATUS_FILTERS.includes(requestedFilter)) {
       setActiveFilter(requestedFilter);
@@ -223,7 +237,25 @@ export default function Payments({ navigation, route }) {
     if (focusInvoiceId) {
       setPendingFocusInvoiceId(String(focusInvoiceId));
     }
-  }, [route?.params?.filter, route?.params?.searchQuery, route?.params?.focusInvoiceId, route?.params?.drilldownToken]);
+
+    // Consume one-shot drilldown params so they do not leak into later generic visits.
+    if (
+      typeof navigation?.setParams === 'function' &&
+      (requestedFilterRaw !== undefined || requestedSearch !== undefined || drilldownToken !== undefined)
+    ) {
+      navigation.setParams({
+        filter: undefined,
+        searchQuery: undefined,
+        drilldownToken: undefined,
+      });
+    }
+  }, [
+    route?.params?.filter,
+    route?.params?.searchQuery,
+    route?.params?.focusInvoiceId,
+    route?.params?.drilldownToken,
+    navigation,
+  ]);
 
   useEffect(() => {
     if (!pendingFocusInvoiceId || invoices.length === 0) return;
@@ -257,6 +289,32 @@ export default function Payments({ navigation, route }) {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleVerifyCash = async (action) => {
+    if (!selectedInvoice?.id) return;
+
+    setVerifyingAction(action);
+    try {
+      const response = await PaymentService.verifyCash(selectedInvoice.id, action);
+      if (!response.success) {
+        Alert.alert('Error', response.error || 'Failed to verify cash payment');
+        return;
+      }
+
+      setShowModal(false);
+      await refetchLandlordQueries(invoiceRefetchers);
+      Alert.alert(
+        'Success',
+        action === 'approve'
+          ? 'Cash payment approved successfully.'
+          : 'Cash payment rejected successfully.',
+      );
+    } catch {
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setVerifyingAction(null);
     }
   };
 
@@ -390,7 +448,14 @@ export default function Payments({ navigation, route }) {
 
   // ──── Payment Stats (W4) ────
   const fallbackStats = useMemo(() => {
-    const s = { totalPaid: 0, totalBalance: 0, paidCount: 0, pendingCount: 0, overdueCount: 0 };
+    const s = {
+      totalPaid: 0,
+      totalBalance: 0,
+      paidCount: 0,
+      pendingCount: 0,
+      overdueCount: 0,
+      pendingVerifCount: 0,
+    };
     statsSourceInvoices.forEach(inv => {
       const status = getInvoiceStatus(inv);
       const total = inv.amount_cents ? inv.amount_cents / 100 : Number(inv.amount || 0);
@@ -402,6 +467,7 @@ export default function Payments({ navigation, route }) {
       s.totalPaid += paid;
       s.totalBalance += Math.max(0, total - paid);
       if (status === 'paid') s.paidCount++;
+      else if (status === 'pending_verification') s.pendingVerifCount++;
       else if (['pending', 'unpaid', 'partial'].includes(status)) s.pendingCount++;
       else if (status === 'overdue') s.overdueCount++;
     });
@@ -435,12 +501,14 @@ export default function Payments({ navigation, route }) {
       paidCount: Number(totals.paid_count || 0),
       pendingCount: Number(totals.pending_count || 0),
       overdueCount: Number(totals.overdue_count || 0),
+      pendingVerifCount: Number(totals.pending_verification_count || 0),
     };
   }, [invoiceSummary, fallbackStats]);
 
   const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
       case 'paid': return { bg: '#DCFCE7', fg: '#166534' };
+      case 'pending_verification': return { bg: '#FFEDD5', fg: '#C2410C' };
       case 'pending':
       case 'partial': return { bg: '#FEF3C7', fg: '#92400E' };
       case 'unpaid':
@@ -464,7 +532,7 @@ export default function Payments({ navigation, route }) {
         <View style={styles.invoiceHeader}>
           <Text style={styles.invoiceId}>{item.reference || `INV-${item.id}`}</Text>
           <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-            <Text style={[styles.statusText, { color: statusStyle.fg }]}>{status}</Text>
+            <Text style={[styles.statusText, { color: statusStyle.fg }]}>{getStatusLabel(status)}</Text>
           </View>
         </View>
 
@@ -561,7 +629,7 @@ export default function Payments({ navigation, route }) {
               onPress={() => setActiveFilter(filter)}
             >
               <Text style={[styles.filterText, activeFilter === filter && styles.activeFilterText]}>
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                {getStatusLabel(filter)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -602,6 +670,7 @@ export default function Payments({ navigation, route }) {
               { label: statsRange === 'month' ? 'Outstanding (Month)' : 'Outstanding', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
               { label: statsRange === 'month' ? 'Paid (Month)' : 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
               { label: statsRange === 'month' ? 'Pending (Month)' : 'Pending', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
+              { label: statsRange === 'month' ? 'Cash Verify (Month)' : 'Cash Verify', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
               { label: statsRange === 'month' ? 'Overdue (Month)' : 'Overdue', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
             ].map((card, i) => (
               <View key={i} style={{ backgroundColor: theme.isDark ? theme.colors.surface : card.bg, borderRadius: 12, padding: 14, minWidth: 110, borderWidth: 1, borderColor: theme.isDark ? theme.colors.border : 'transparent' }}>
@@ -683,6 +752,54 @@ export default function Payments({ navigation, route }) {
                   const isSettled = ['paid', 'refunded', 'cancelled'].includes(status);
                   
                   if (isSettled) return null;
+
+                  if (status === 'pending_verification') {
+                    return (
+                      <View style={styles.verificationSection}>
+                        <View style={styles.verificationHeader}>
+                          <Ionicons name="shield-checkmark-outline" size={24} color="#C2410C" />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.verificationTitle}>Cash Payment Awaiting Verification</Text>
+                            <Text style={styles.verificationSubtitle}>
+                              The tenant reported this invoice as paid in cash. Approve or reject after checking proof.
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.verificationActionRow}>
+                          <TouchableOpacity
+                            style={[styles.verifyButton, styles.verifyApproveButton]}
+                            onPress={() => handleVerifyCash('approve')}
+                            disabled={Boolean(verifyingAction)}
+                          >
+                            {verifyingAction === 'approve' ? (
+                              <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                              <>
+                                <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                                <Text style={styles.verifyButtonText}>Approve Payment</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.verifyButton, styles.verifyRejectButton]}
+                            onPress={() => handleVerifyCash('reject')}
+                            disabled={Boolean(verifyingAction)}
+                          >
+                            {verifyingAction === 'reject' ? (
+                              <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                              <>
+                                <Ionicons name="close-circle-outline" size={18} color="#FFFFFF" />
+                                <Text style={styles.verifyButtonText}>Reject Payment</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  }
 
                   return (
                     <>

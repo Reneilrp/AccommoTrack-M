@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Dimensions,
   Modal,
   TextInput,
   Alert,
@@ -14,6 +13,7 @@ import {
   Platform,
   RefreshControl,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,8 +38,6 @@ import {
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 
-const { width } = Dimensions.get('window');
-
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {
   if (!imageUrl) return 'https://via.placeholder.com/400x280?text=No+Image';
@@ -60,8 +58,9 @@ const getRoomImageUrl = (imageUrl) => {
 export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequired }) {
   const PROXY_MINIMUM_AGE = 18;
   const navigation = useNavigation();
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
   const { room, property } = route.params;
 
   const toBooleanFlag = (value) => {

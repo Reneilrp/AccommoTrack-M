@@ -9,7 +9,7 @@ import {
     Alert, 
     RefreshControl,
     StatusBar,
-    Dimensions
+    useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -28,8 +28,6 @@ import {
     useTenantFocusRefetch,
     useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 const InfoRow = ({ icon, label, value, color, theme, styles }) => (
     <View style={styles.infoRow}>
@@ -96,8 +94,9 @@ const RoomDetails = ({ room, theme, styles }) => {
 export default function BookingDetails() {
     const route = useRoute();
     const navigation = useNavigation();
+    const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
-    const styles = React.useMemo(() => getStyles(theme), [theme]);
+    const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
     const insets = useSafeAreaInsets();
     const { bookingId } = route.params || {};
 

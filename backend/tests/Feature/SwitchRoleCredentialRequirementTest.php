@@ -129,6 +129,37 @@ class SwitchRoleCredentialRequirementTest extends TestCase
         ]);
     }
 
+    public function test_landlord_to_tenant_switch_succeeds(): void
+    {
+        $landlord = User::create([
+            'role' => 'landlord',
+            'email' => 'landlord-switch@example.com',
+            'password' => Hash::make('Password12!'),
+            'date_of_birth' => now()->subYears(30)->toDateString(),
+            'is_verified' => true,
+            'is_active' => true,
+            'first_name' => 'Landlord',
+            'middle_name' => null,
+            'last_name' => 'Switcher',
+        ]);
+
+        Sanctum::actingAs($landlord);
+
+        $response = $this->postJson('/api/switch-role', [
+            'role' => 'tenant',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', 'Role switched to tenant')
+            ->assertJsonPath('user.role', 'tenant');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $landlord->id,
+            'role' => 'tenant',
+        ]);
+    }
+
     private function createVerifiedTenantWithApprovedLandlordVerification(): User
     {
         $tenant = User::create([

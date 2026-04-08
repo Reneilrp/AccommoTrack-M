@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminPaymentOversightController;
 use App\Http\Controllers\Common\AuthController;
+use App\Http\Controllers\Common\ClaimAccountController;
 use App\Http\Controllers\Common\ForgotPasswordController;
 use App\Http\Controllers\Common\GeocodeController;
 use App\Http\Controllers\Common\InquiryController;
@@ -53,6 +54,12 @@ Route::post('/inquiries', [InquiryController::class, 'store']);
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendCode'])->middleware('throttle:auth-attempts');
 Route::post('/verify-code', [ForgotPasswordController::class, 'verifyCode'])->middleware('throttle:auth-attempts');
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->middleware('throttle:auth-attempts');
+
+// Claim Existing Tenant Account
+Route::post('/claim-account/verify-code', [ClaimAccountController::class, 'verifyCode'])->middleware('throttle:auth-attempts');
+Route::post('/claim-account/send-otp', [ClaimAccountController::class, 'sendOtp'])->middleware('throttle:auth-attempts');
+Route::post('/claim-account/resend-otp', [ClaimAccountController::class, 'resendOtp'])->middleware('throttle:auth-attempts');
+Route::post('/claim-account/verify-otp', [ClaimAccountController::class, 'verifyOtp'])->middleware('throttle:auth-attempts');
 
 // Public: check if email exists
 Route::get('/check-email', [AuthController::class, 'checkEmail'])->middleware('throttle:10,1');
@@ -246,6 +253,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/tenants', [TenantController::class, 'store']);
         Route::put('/tenants/{id}', [TenantController::class, 'update']);
         Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
+        Route::post('/tenants/{id}/claim-code', [TenantController::class, 'generateClaimCode']);
         Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
         Route::post('/tenants/{id}/transfer-room', [TenantController::class, 'transferRoom']);
         Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);

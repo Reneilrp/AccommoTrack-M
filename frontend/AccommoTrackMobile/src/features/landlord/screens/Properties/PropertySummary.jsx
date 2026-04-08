@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Modal,
   Pressable,
   RefreshControl,
@@ -9,7 +8,8 @@ import {
   StatusBar,
   Text,
   TouchableOpacity,
-  View
+  View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,8 +58,8 @@ const MENU_VERTICAL_GAP = 2;
 
 export default function PropertySummaryScreen({ route, navigation }) {
   const { theme } = useTheme();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const propertyId = route.params?.propertyId || route.params?.property?.id;
   const propertyTitle = route.params?.property?.title || route.params?.property?.name || 'Property';
 
@@ -472,7 +472,13 @@ export default function PropertySummaryScreen({ route, navigation }) {
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
                           <TouchableOpacity 
                             onPress={() => {
-                              if (item.type === 'payment') navigation.navigate('Payments');
+                              if (item.type === 'payment') {
+                                navigation.navigate('Payments', {
+                                  filter: 'overdue',
+                                  searchQuery: propertyTitle || '',
+                                  drilldownToken: Date.now(),
+                                });
+                              }
                               else if (item.type === 'maintenance') navigation.navigate('MaintenanceRequests', { propertyId: propertyId, propertyTitle: propertyTitle });
                               else if (item.type === 'review') navigation.navigate('Reviews', { propertyId: propertyId, propertyTitle: propertyTitle });
                               else if (item.type === 'transfer') navigation.navigate('TransferRequests', { propertyId: propertyId, propertyTitle: propertyTitle });

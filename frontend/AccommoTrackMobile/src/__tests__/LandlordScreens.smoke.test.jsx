@@ -13,6 +13,10 @@ const dashboardPath = path.resolve(
   __dirname,
   '../features/landlord/screens/Dashboard/DashboardPage.jsx',
 );
+const propertySummaryPath = path.resolve(
+  __dirname,
+  '../features/landlord/screens/Properties/PropertySummary.jsx',
+);
 
 const readSource = (filePath) => fs.readFileSync(filePath, 'utf8');
 
@@ -107,5 +111,15 @@ describe('Landlord screens smoke coverage', () => {
     quickActionTargets.forEach((target) => {
       expect(reachableScreens.has(target)).toBe(true);
     });
+  });
+
+  it('keeps PropertySummary payment activity drilldown params wired to Payments', () => {
+    const source = readSource(propertySummaryPath);
+
+    expect(source).toContain("if (item.type === 'payment') {");
+    expect(source).toContain("navigation.navigate('Payments', {");
+    expect(source).toContain("filter: 'overdue'");
+    expect(source).toContain("searchQuery: propertyTitle || ''");
+    expect(source).toContain('drilldownToken: Date.now()');
   });
 });

@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Modal
+  Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,9 +34,14 @@ const EMPTY_ACTIVE_ADDONS_DATA = { activeAddons: [], summary: {} };
 const EMPTY_PROPERTIES = [];
 
 export default function AddonManagement({ route, navigation }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const contentWrapStyle = useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
   const routePropertyId = route.params?.propertyId || route.params?.property?.id;
   const routePropertyTitle = route.params?.propertyTitle || route.params?.property?.title || route.params?.property?.name;
 
@@ -673,7 +679,7 @@ export default function AddonManagement({ route, navigation }) {
       </View>
 
       {showPropertySelector ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+        <View style={[{ paddingHorizontal: 16, paddingTop: 12 }, contentWrapStyle]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             <TouchableOpacity
               style={{
@@ -748,7 +754,7 @@ export default function AddonManagement({ route, navigation }) {
       </View>
 
       <ScrollView 
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
+        contentContainerStyle={[styles.scrollContent, contentWrapStyle, { paddingBottom: scrollBottomPadding }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

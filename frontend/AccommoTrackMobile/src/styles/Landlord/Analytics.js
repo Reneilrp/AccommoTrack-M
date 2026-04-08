@@ -1,8 +1,11 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-const { width } = Dimensions.get('window');
+export const getStyles = (theme, viewportWidth = 390) => {
+  const resolvedWidth = Math.max(320, viewportWidth || 390);
+  const isTablet = resolvedWidth >= 768;
+  const tableMinWidth = isTablet ? Math.max(700, resolvedWidth - 56) : 840;
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.primary
@@ -144,7 +147,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
-    width: Math.min(220, Math.max(180, width * 0.62)),
+    width: Math.min(isTablet ? 260 : 220, Math.max(180, resolvedWidth * 0.62)),
     borderWidth: 1,
     borderColor: theme.colors.border,
     elevation: 2,
@@ -253,10 +256,10 @@ export const getStyles = (theme) => StyleSheet.create({
     borderBottomColor: theme.colors.border
   },
   tableContentContainer: {
-    minWidth: 840
+    minWidth: tableMinWidth
   },
   tableGrid: {
-    minWidth: 840
+    minWidth: tableMinWidth
   },
   tableHeadRow: {
     flexDirection: 'row',
@@ -395,6 +398,9 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
     gap: 12
@@ -487,6 +493,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.textInverse
   }
-});
+  });
+};
 
 export default getStyles;

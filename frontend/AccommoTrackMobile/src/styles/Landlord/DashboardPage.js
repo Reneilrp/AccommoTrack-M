@@ -1,9 +1,11 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const actionCardSize = Math.min(84, Math.max(72, (screenWidth - 56) / 3));
+export const getStyles = (theme, viewportWidth = 390, viewportHeight = 844) => {
+  const screenWidth = Math.max(320, viewportWidth || 390);
+  const screenHeight = Math.max(480, viewportHeight || 844);
+  const actionCardSize = Math.min(84, Math.max(72, (screenWidth - 56) / 3));
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background
@@ -678,6 +680,7 @@ export const getStyles = (theme) => StyleSheet.create({
       color: theme.colors.textSecondary,
       lineHeight: 16,
     }
-  });
+    });
+  };
 
 export default getStyles;

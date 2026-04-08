@@ -8,7 +8,8 @@ import {
     TextInput, 
     Alert,
     Image,
-    StatusBar
+    StatusBar,
+    useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -23,11 +24,16 @@ import Header from '../../components/Header.jsx';
 import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
 
 export default function AddonsScreen({ hideHeader = false, historyOnly = false }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const contentWrapStyle = React.useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 860, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
   const { bookingId = null, propertyId = null } = route.params || {};
 
   const [qtys, setQtys] = useState({});
@@ -227,7 +233,7 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
           data={requests}
           keyExtractor={(item) => (item.id || item.request_id || String(item.created_at || Math.random())).toString()}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}
+          contentContainerStyle={[styles.listContent, contentWrapStyle, { paddingBottom: insets.bottom + 20 }]}
           ListHeaderComponent={() => (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-on History</Text>
@@ -323,7 +329,7 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
         data={addons}
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}
+        contentContainerStyle={[styles.listContent, contentWrapStyle, { paddingBottom: insets.bottom + 20 }]}
         ListHeaderComponent={() => (
             <>
                 {requests.length > 0 && (

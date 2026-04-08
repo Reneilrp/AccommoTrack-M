@@ -6,6 +6,7 @@ import {
   Modal,
   RefreshControl,
   ScrollView,
+  Share,
   StatusBar,
   Text,
   TextInput,
@@ -119,10 +120,14 @@ export default function TenantsScreen({ navigation, route }) {
   const activeRole = useAuthStore((state) => state.activeRole);
   const isCaretaker = activeRole === 'caretaker';
   const { width: screenWidth } = useWindowDimensions();
+  const isTablet = screenWidth >= 768;
+  const isLargeTablet = screenWidth >= 1024;
+  const tenantCardMaxWidth = isLargeTablet ? 920 : isTablet ? 760 : null;
+  const tenantCardWidth = tenantCardMaxWidth ? Math.min(tenantCardMaxWidth, screenWidth - 32) : null;
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
   const statCardWidth = useMemo(() => {
     const visibleArea = Math.max(240, screenWidth - 48);
-    return Math.max(132, Math.round(visibleArea / 2.25));
+    return Math.min(240, Math.max(132, Math.round(visibleArea / 2.25)));
   }, [screenWidth]);
 
   const [selectedPropertyId, setSelectedPropertyId] = useState(preselectedPropertyId || null);
@@ -130,6 +135,12 @@ export default function TenantsScreen({ navigation, route }) {
   const [filter, setFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [claimCodeModalVisible, setClaimCodeModalVisible] = useState(false);
+  const [claimCodePayload, setClaimCodePayload] = useState({
+    tenantName: '',
+    code: '',
+    expiresAt: '',
+  });
 
   const [detailTenant, setDetailTenant] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -649,6 +660,49 @@ export default function TenantsScreen({ navigation, route }) {
     });
   };
 
+  const handleGenerateClaimCode = async (tenant) => {
+    if (isCaretaker) {
+      Alert.alert('Access denied', 'Only landlord accounts can generate claim codes.');
+      return;
+    }
+
+    try {
+      const response = await PropertyService.generateTenantClaimCode(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to generate claim code.');
+      }
+
+      const payload = response.data || {};
+      const code = payload.claim_code || 'N/A';
+      const expiresAt = payload.expires_at
+        ? new Date(payload.expires_at).toLocaleString()
+        : 'Not available';
+
+      setClaimCodePayload({
+        tenantName: `${tenant.first_name} ${tenant.last_name}`,
+        code,
+        expiresAt,
+      });
+      setClaimCodeModalVisible(true);
+    } catch (error) {
+      setActionError(error.message || 'Failed to generate claim code.');
+      Alert.alert('Error', error.message || 'Failed to generate claim code.');
+    }
+  };
+
+  const handleShareClaimCode = async () => {
+    if (!claimCodePayload.code) return;
+
+    try {
+      await Share.share({
+        title: 'Tenant claim code',
+        message: `Tenant: ${claimCodePayload.tenantName}\nClaim code: ${claimCodePayload.code}\nExpires: ${claimCodePayload.expiresAt}\n\nUse Claim Existing Account on the auth screen.`,
+      });
+    } catch {
+      Alert.alert('Error', 'Unable to open share options right now.');
+    }
+  };
+
   const renderTenantCard = ({ item }) => {
     const paymentStatus = item.latestBooking?.payment_status || 'unpaid';
     const payment = PAYMENT_BADGES[paymentStatus] || PAYMENT_BADGES.unpaid;
@@ -662,7 +716,19 @@ export default function TenantsScreen({ navigation, route }) {
     const isActionMenuOpen = openActionsTenantId === item.id;
 
     return (
-      <View style={styles.tenantCard}>
+      <View
+        style={[
+          styles.tenantCard,
+          isTablet
+            ? {
+                width: tenantCardWidth,
+                maxWidth: tenantCardMaxWidth,
+                marginHorizontal: 0,
+                alignSelf: 'center',
+              }
+            : null,
+        ]}
+      >
         <View style={styles.tenantMenuAnchor}>
           <TouchableOpacity
             style={[styles.moreActionsTrigger, isActionMenuOpen ? styles.moreActionsTriggerActive : null]}
@@ -683,6 +749,18 @@ export default function TenantsScreen({ navigation, route }) {
               >
                 <Ionicons name="eye-outline" size={16} color="#475569" />
                 <Text style={styles.moreActionLabel}>View Profile</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.moreActionItem, isCaretaker ? styles.moreActionItemDisabled : null]}
+                onPress={() => {
+                  setOpenActionsTenantId(null);
+                  handleGenerateClaimCode(item);
+                }}
+                disabled={isCaretaker}
+              >
+                <Ionicons name="key-outline" size={16} color="#4338CA" />
+                <Text style={styles.moreActionLabel}>Generate Claim Code</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -825,9 +903,30 @@ export default function TenantsScreen({ navigation, route }) {
         )}
 
         <View style={styles.cardActions}>
-          <View style={styles.primaryActionsRow}>
+          <View
+            style={[
+              styles.primaryActionsRow,
+              isTablet
+                ? {
+                    flexWrap: 'wrap',
+                    justifyContent: 'flex-start',
+                    gap: 10,
+                  }
+                : null,
+            ]}
+          >
             <TouchableOpacity
-              style={[styles.secondaryBtn, styles.primaryActionBtn]}
+              style={[
+                styles.secondaryBtn,
+                styles.primaryActionBtn,
+                isTablet
+                  ? {
+                      flex: 0,
+                      minWidth: 152,
+                      paddingHorizontal: 14,
+                    }
+                  : null,
+              ]}
               onPress={() => {
                 setOpenActionsTenantId(null);
                 openTenantLogs(item);
@@ -837,7 +936,17 @@ export default function TenantsScreen({ navigation, route }) {
               <Text style={styles.secondaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>View Logs</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.primaryBtn, styles.primaryActionBtn]}
+              style={[
+                styles.primaryBtn,
+                styles.primaryActionBtn,
+                isTablet
+                  ? {
+                      flex: 0,
+                      minWidth: 152,
+                      paddingHorizontal: 14,
+                    }
+                  : null,
+              ]}
               onPress={() => {
                 setOpenActionsTenantId(null);
                 navigation.navigate('Messages', { startConversation: true, tenant: item, propertyId: selectedPropertyId });
@@ -847,7 +956,18 @@ export default function TenantsScreen({ navigation, route }) {
               <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>Message</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.warningBtn, styles.primaryActionBtn, (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null]}
+              style={[
+                styles.warningBtn,
+                styles.primaryActionBtn,
+                isTablet
+                  ? {
+                      flex: 0,
+                      minWidth: 152,
+                      paddingHorizontal: 14,
+                    }
+                  : null,
+                (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null,
+              ]}
               onPress={() => {
                 setOpenActionsTenantId(null);
                 handleTransferInitiate(item);
@@ -904,7 +1024,16 @@ export default function TenantsScreen({ navigation, route }) {
         keyExtractor={(item) => String(item.id)}
         renderItem={renderTenantCard}
         ListHeaderComponent={(
-          <View>
+          <View
+            style={
+              isTablet
+                ? {
+                    width: Math.min(isLargeTablet ? 1080 : 960, screenWidth - 16),
+                    alignSelf: 'center',
+                  }
+                : null
+            }
+          >
             {(fetchError || actionError) ? (
               <View
                 style={{
@@ -989,10 +1118,69 @@ export default function TenantsScreen({ navigation, route }) {
 
           </View>
         )}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          isTablet ? { alignItems: 'center' } : null,
+        ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#059669" />}
         ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#059669" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
       />
+
+      <Modal
+        visible={claimCodeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setClaimCodeModalVisible(false)}
+      >
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={styles.actionModalTitle}>Claim code generated</Text>
+            <Text style={styles.actionModalSubtitle}>
+              Share this code with {claimCodePayload.tenantName || 'the tenant'}. They should use Claim Existing Account on the auth screen.
+            </Text>
+
+            <Text style={styles.actionFieldLabel}>Claim Code</Text>
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                borderRadius: 10,
+                backgroundColor: theme.colors.backgroundSecondary,
+                paddingVertical: 12,
+                alignItems: 'center',
+                marginBottom: 10,
+              }}
+            >
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 28,
+                  fontWeight: '800',
+                  letterSpacing: 6,
+                }}
+              >
+                {claimCodePayload.code || '--------'}
+              </Text>
+              <Text style={{ marginTop: 6, color: theme.colors.textSecondary, fontSize: 12 }}>
+                Press and hold code to copy
+              </Text>
+            </View>
+
+            <Text style={[styles.actionFieldLabel, { marginTop: 0 }]}>Expires</Text>
+            <Text style={{ color: theme.colors.text, marginBottom: 8 }}>{claimCodePayload.expiresAt || 'Not available'}</Text>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setClaimCodeModalVisible(false)}>
+                <Text style={styles.modalCancelText}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSuccessBtn} onPress={handleShareClaimCode}>
+                <Text style={styles.modalConfirmText}>Share</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={detailVisible} animationType="slide" onRequestClose={() => setDetailVisible(false)}>
         <SafeAreaView style={styles.modalContainer}>

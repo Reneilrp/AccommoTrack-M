@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking } from 'react-native';
+import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,8 +19,13 @@ import {
 } from '../../hooks/useTenantQueryHelpers.js';
 
 export default function ChatScreen({ navigation, route }) {
+    const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
+    const contentWrapStyle = React.useMemo(
+        () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
+        [viewportWidth],
+    );
     const queryClient = useQueryClient();
     const conv = route.params?.conversation || null;
     const [messageText, setMessageText] = useState('');
@@ -145,9 +150,14 @@ export default function ChatScreen({ navigation, route }) {
         }
     };
 
-    const scrollToBottom = () => {
-        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    const scrollToBottom = (animated = true) => {
+        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated }), 100);
     };
+
+    useEffect(() => {
+        if (!messages.length) return;
+        scrollToBottom(false);
+    }, [messages.length]);
 
     const handlePickImage = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -229,8 +239,7 @@ export default function ChatScreen({ navigation, route }) {
         <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
             <KeyboardAvoidingView
                 style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={0}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <StatusBar barStyle="light-content" />
 
@@ -285,9 +294,10 @@ export default function ChatScreen({ navigation, route }) {
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.messagesContainer}
-                    contentContainerStyle={styles.messagesContent}
+                    contentContainerStyle={[styles.messagesContent, contentWrapStyle]}
                     showsVerticalScrollIndicator={false}
-                    onContentSizeChange={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100)}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
                 >
                     {conv?.property && (
@@ -347,7 +357,7 @@ export default function ChatScreen({ navigation, route }) {
 
                 {/* Selected Image Preview */}
                 {selectedImage && (
-                    <View style={{ padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <View style={[{ padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }, contentWrapStyle]}>
                         <View style={{ position: 'relative' }}>
                             <Image source={{ uri: selectedImage }} style={{ width: 80, height: 80, borderRadius: 8 }} />
                             <TouchableOpacity 
@@ -361,21 +371,19 @@ export default function ChatScreen({ navigation, route }) {
                 )}
 
                 {/* Input Area */}
-                <SafeAreaView edges={["bottom"]} style={{ backgroundColor: 'transparent' }}>
-                    <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
-                        <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickImage}>
-                            <Ionicons name="image" size={28} color={theme.colors.primary} />
-                        </TouchableOpacity>
-                        <TextInput style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text }]} placeholder="Type a message..." placeholderTextColor="#9CA3AF" value={messageText} onChangeText={setMessageText} multiline />
-                        <TouchableOpacity 
-                            style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && { backgroundColor: theme.colors.primary }]} 
-                            onPress={handleSendMessage} 
-                            disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending}
-                        >
-                            {sendMessageMutation.isPending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={20} color="#FFFFFF" />}
-                        </TouchableOpacity>
-                    </View>
-                </SafeAreaView>
+                <View style={[styles.inputContainer, contentWrapStyle, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, paddingBottom: Platform.OS === 'ios' ? 0 : 10 }]}> 
+                    <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickImage}>
+                        <Ionicons name="image" size={28} color={theme.colors.primary} />
+                    </TouchableOpacity>
+                    <TextInput style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text }]} placeholder="Type a message..." placeholderTextColor="#9CA3AF" value={messageText} onChangeText={setMessageText} multiline />
+                    <TouchableOpacity 
+                        style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && { backgroundColor: theme.colors.primary }]} 
+                        onPress={handleSendMessage} 
+                        disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending}
+                    >
+                        {sendMessageMutation.isPending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={20} color="#FFFFFF" />}
+                    </TouchableOpacity>
+                </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking } from 'react-native';
+import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,8 +18,13 @@ import {
 } from '../../hooks/useLandlordQueryHelpers.js';
 
 export default function ChatScreen({ navigation, route }) {
+    const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
+    const contentWrapStyle = React.useMemo(
+        () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
+        [viewportWidth],
+    );
     const queryClient = useQueryClient();
     const conv = route.params?.conversation || null;
     const [messageText, setMessageText] = useState('');
@@ -141,9 +146,14 @@ export default function ChatScreen({ navigation, route }) {
         }
     };
 
-    const scrollToBottom = () => {
-        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    const scrollToBottom = (animated = true) => {
+        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated }), 100);
     };
+
+    useEffect(() => {
+        if (!messages.length) return;
+        scrollToBottom(false);
+    }, [messages.length]);
 
     const handlePickImage = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -257,9 +267,10 @@ export default function ChatScreen({ navigation, route }) {
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.messagesContainer}
-                    contentContainerStyle={styles.messagesContent}
+                    contentContainerStyle={[styles.messagesContent, contentWrapStyle]}
                     showsVerticalScrollIndicator={false}
-                    onContentSizeChange={scrollToBottom}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
                 >
                     {propertyName && (
@@ -319,7 +330,7 @@ export default function ChatScreen({ navigation, route }) {
 
                 {/* Selected Image Preview */}
                 {selectedImage && (
-                    <View style={{ padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <View style={[{ padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }, contentWrapStyle]}>
                         <View style={{ position: 'relative' }}>
                             <Image source={{ uri: selectedImage }} style={{ width: 80, height: 80, borderRadius: 8 }} />
                             <TouchableOpacity 
@@ -333,7 +344,7 @@ export default function ChatScreen({ navigation, route }) {
                 )}
 
                 {/* Input Area */}
-                <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? 0 : 10 }]}>
+                <View style={[styles.inputContainer, contentWrapStyle, { paddingBottom: Platform.OS === 'ios' ? 0 : 10 }]}> 
                     <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickImage}>
                         <Ionicons name="image" size={28} color={theme.colors.primary} />
                     </TouchableOpacity>

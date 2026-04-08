@@ -49,6 +49,22 @@ export const landlordService = {
   },
 
   /**
+   * Generate a one-time claim code for an existing tenant account
+   * POST /landlord/tenants/:id/claim-code
+   */
+  async generateTenantClaimCode(tenantId) {
+    try {
+      const res = await api.post(`/landlord/tenants/${tenantId}/claim-code`);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.message || err.response?.data?.error || err.message,
+      };
+    }
+  },
+
+  /**
    * Delete a tenant account
    * DELETE /landlord/tenants/:id
    */

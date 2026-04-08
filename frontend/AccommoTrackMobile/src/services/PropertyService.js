@@ -1058,6 +1058,35 @@ const PropertyService = {
   },
 
   /**
+   * Generate one-time claim code for an existing tenant account
+   * Matches: POST /api/landlord/tenants/{id}/claim-code
+   */
+  async generateTenantClaimCode(tenantId) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/claim-code`,
+        {},
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error generating tenant claim code:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
    * Update tenant details
    * Matches: PUT /api/landlord/tenants/{id}
    */

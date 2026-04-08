@@ -472,6 +472,45 @@ export const getStyles = (theme) => StyleSheet.create({
   floorButtonTextActive: {
     color: theme.colors.textInverse
   },
+  switchSectionDivider: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
+    paddingTop: 16,
+  },
+  switchRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  switchRowLast: {
+    borderBottomWidth: 0,
+  },
+  switchTextBlock: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  switchTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  switchHelpText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    lineHeight: 17,
+    marginTop: 4,
+  },
+  switchWarningText: {
+    fontSize: 12,
+    color: theme.colors.error,
+    marginTop: 6,
+    lineHeight: 16,
+  },
 });
 
 export default getStyles;

@@ -6,8 +6,8 @@ import {
   Modal,
   ScrollView,
   Animated,
-  Dimensions,
   Image,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,17 +17,16 @@ import NotificationBadge from "./NotificationBadge.jsx";
 import { useTheme } from "../../../contexts/ThemeContext.jsx";
 import { getImageUrl } from "../../../utils/imageUtils.js";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
-
 export default function MenuDrawer({
   visible,
   onClose,
   onMenuItemPress,
   isGuest,
 }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const drawerWidth = React.useMemo(() => Math.min(viewportWidth * 0.8, 360), [viewportWidth]);
 
   const [userName, setUserName] = useState("Guest User");
   const [userEmail, setUserEmail] = useState("guest@example.com");
@@ -36,8 +35,14 @@ export default function MenuDrawer({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLogoutProcessing, setIsLogoutProcessing] = useState(false);
 
-  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const slideAnim = useRef(new Animated.Value(-drawerWidth)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      slideAnim.setValue(-drawerWidth);
+    }
+  }, [drawerWidth, visible, slideAnim]);
 
   // Menu items with theme colors
   const allMenuItems = [
@@ -103,7 +108,7 @@ export default function MenuDrawer({
       setIsLogoutProcessing(false);
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: -DRAWER_WIDTH,
+          toValue: -drawerWidth,
           duration: 200,
           useNativeDriver: true,
         }),
@@ -116,7 +121,7 @@ export default function MenuDrawer({
         setModalVisible(false);
       });
     }
-  }, [visible, isGuest]);
+  }, [visible, isGuest, drawerWidth, fadeAnim, slideAnim]);
 
   const loadUserData = async () => {
     try {
@@ -237,7 +242,7 @@ export default function MenuDrawer({
             styles.menuDrawer,
             {
               transform: [{ translateX: slideAnim }],
-              width: DRAWER_WIDTH,
+              width: drawerWidth,
             },
           ]}
         >

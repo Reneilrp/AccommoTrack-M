@@ -1,6 +1,5 @@
 import api from "./api.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_BASE_URL as API_URL } from "../config/index.js";
 
 class PaymentService {
   /**
@@ -311,6 +310,30 @@ class PaymentService {
           error.response?.data?.message ||
           error.message ||
           "Failed to refund transaction",
+      };
+    }
+  }
+
+  /**
+   * LANDLORD: Verify or reject a tenant-reported cash payment.
+   */
+  async verifyCash(invoiceId, payloadOrAction) {
+    try {
+      const payload =
+        typeof payloadOrAction === "string"
+          ? { action: payloadOrAction }
+          : payloadOrAction;
+
+      const response = await api.post(`/invoices/${invoiceId}/verify-cash`, payload);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error("Error verifying cash payment:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to verify cash payment",
       };
     }
   }

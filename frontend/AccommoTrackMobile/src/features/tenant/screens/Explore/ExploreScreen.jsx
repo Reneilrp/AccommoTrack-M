@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  useWindowDimensions,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
@@ -92,6 +93,7 @@ export default function TenantHomePage({
   isGuest = false,
   onAuthRequired,
 }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const navigation = useNavigation();
   const { uiState, updateData, invalidateData } = useUIState();
   const BUCKET = 'explore_properties';
@@ -124,6 +126,10 @@ export default function TenantHomePage({
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const contentWrapStyle = React.useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 980, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
   const searchSectionAnimatedHeight = searchSectionHeight + (isTopHeaderHidden ? insets.top : 0);
 
   const setTopHeaderHidden = useCallback((hidden) => {
@@ -739,7 +745,7 @@ export default function TenantHomePage({
 
         {renderFilterControls()}
 
-        <ScrollView contentContainerStyle={styles.contentContainerPadding}>
+        <ScrollView contentContainerStyle={[styles.contentContainerPadding, contentWrapStyle]}>
           <PropertyCardSkeleton />
           <PropertyCardSkeleton />
           <PropertyCardSkeleton />
@@ -842,7 +848,7 @@ export default function TenantHomePage({
             onLikePress={handleLikePress}
           />
         )}
-        contentContainerStyle={styles.contentContainerPadding}
+        contentContainerStyle={[styles.contentContainerPadding, contentWrapStyle]}
         refreshing={refreshing}
         onRefresh={onRefresh}
         onScroll={handleExploreScroll}
@@ -949,6 +955,7 @@ export default function TenantHomePage({
                 styles.modalView,
                 {
                   width: '100%',
+                  maxWidth: 760,
                   maxHeight: '86%',
                   margin: 0,
                   paddingTop: 12,
@@ -959,6 +966,7 @@ export default function TenantHomePage({
                   borderBottomLeftRadius: 0,
                   borderBottomRightRadius: 0,
                   alignItems: 'stretch',
+                  alignSelf: 'center',
                 },
               ]}
             >

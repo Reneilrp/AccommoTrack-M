@@ -1,8 +1,9 @@
-import { StyleSheet, Dimensions } from "react-native";
+import { StyleSheet } from "react-native";
 
-const { width } = Dimensions.get('window');
+export const getStyles = (theme, viewportWidth = 390) => {
+  const imageWidth = Math.max(280, viewportWidth || 390);
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -40,7 +41,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   roomImage: {
-    width: width,
+    width: imageWidth,
     height: 280,
     backgroundColor: theme.colors.backgroundTertiary,
   },
@@ -561,4 +562,5 @@ proxyGenderPicker: {
     borderWidth: 1, 
     borderColor: theme.colors.border
   },
-});
+  });
+};

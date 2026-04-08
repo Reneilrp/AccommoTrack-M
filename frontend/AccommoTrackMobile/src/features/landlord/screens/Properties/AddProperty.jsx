@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
   Modal,
+  Switch,
 } from "react-native";
 import {
   SafeAreaView,
@@ -85,6 +86,10 @@ const initialForm = {
   rules: [],
   isEligible: false,
   acceptedPayments: ["cash"],
+  require1MonthAdvance: false,
+  allowPartialPayments: true,
+  requireReservationFee: false,
+  reservationFeeAmount: "",
 };
 
 const STEPS = [
@@ -481,6 +486,9 @@ export default function AddProperty({ navigation }) {
     const payload = new FormData();
     const propertyType =
       form.propertyType === "others" ? form.otherType : form.propertyType;
+    const parsedTotalRooms = Number.parseInt(String(form.totalRooms || "").trim(), 10);
+    const parsedMaxOccupants = Number.parseInt(String(form.maxOccupants || "").trim(), 10);
+    const parsedTotalFloors = Number.parseInt(String(form.totalFloors || "").trim(), 10);
 
     const entries = {
       title: form.title.trim(),
@@ -497,13 +505,28 @@ export default function AddProperty({ navigation }) {
       latitude: form.latitude,
       longitude: form.longitude,
       nearby_landmarks: form.nearbyLandmarks.trim(),
-      total_rooms: form.totalRooms || 0,
-      max_occupants: form.maxOccupants || 0,
-      total_floors: form.totalFloors || 1,
+      total_rooms:
+        Number.isNaN(parsedTotalRooms) || parsedTotalRooms < 1
+          ? null
+          : parsedTotalRooms,
+      max_occupants:
+        Number.isNaN(parsedMaxOccupants) || parsedMaxOccupants < 1
+          ? null
+          : parsedMaxOccupants,
+      total_floors:
+        Number.isNaN(parsedTotalFloors) || parsedTotalFloors < 1
+          ? 1
+          : parsedTotalFloors,
       floor_level: form.floorLevel.length > 0 ? form.floorLevel.join(",") : "",
       property_rules: form.rules.length ? JSON.stringify(form.rules) : null,
       is_eligible: form.isEligible ? "1" : "0",
       is_draft: isDraft ? "1" : "0",
+      require_1month_advance: form.require1MonthAdvance ? "1" : "0",
+      allow_partial_payments: form.allowPartialPayments ? "1" : "0",
+      require_reservation_fee: form.requireReservationFee ? "1" : "0",
+      reservation_fee_amount: form.requireReservationFee
+        ? form.reservationFeeAmount || "0"
+        : "0",
     };
 
     Object.entries(entries).forEach(([key, value]) => {
@@ -883,6 +906,81 @@ export default function AddProperty({ navigation }) {
                   </View>
                 </View>
               )}
+
+              <View style={styles.switchSectionDivider}>
+                <View style={styles.switchRowContainer}>
+                  <View style={styles.switchTextBlock}>
+                    <Text style={styles.switchTitle}>Require 1-Month Advance Payment</Text>
+                    <Text style={styles.switchHelpText}>
+                      Tenant pays first month plus one advance month upon booking confirmation.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={form.require1MonthAdvance}
+                    onValueChange={(value) => updateForm("require1MonthAdvance", value)}
+                    trackColor={{ true: theme.colors.primary, false: "#CBD5E1" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={styles.switchRowContainer}>
+                  <View style={styles.switchTextBlock}>
+                    <Text style={styles.switchTitle}>Require Instant Reservation Fee</Text>
+                    <Text style={styles.switchHelpText}>
+                      Require a non-refundable reservation fee to secure the request.
+                    </Text>
+                    {!isPayMongoVerified ? (
+                      <Text style={styles.switchWarningText}>
+                        Complete PayMongo verification in Settings &gt; Payments to enable this.
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Switch
+                    value={form.requireReservationFee}
+                    onValueChange={(value) => {
+                      if (!isPayMongoVerified && value) {
+                        Alert.alert(
+                          "PayMongo Not Verified",
+                          "You need to complete PayMongo verification before enabling reservation fee.",
+                        );
+                        return;
+                      }
+                      updateForm("requireReservationFee", value);
+                    }}
+                    disabled={!isPayMongoVerified}
+                    trackColor={{ true: theme.colors.primary, false: "#CBD5E1" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                {form.requireReservationFee ? (
+                  <>
+                    <Text style={styles.label}>Reservation Fee Amount (PHP)</Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 500"
+                      value={form.reservationFeeAmount}
+                      onChangeText={(text) => updateForm("reservationFeeAmount", text)}
+                    />
+                  </>
+                ) : null}
+
+                <View style={[styles.switchRowContainer, styles.switchRowLast]}>
+                  <View style={styles.switchTextBlock}>
+                    <Text style={styles.switchTitle}>Allow Partial Payments</Text>
+                    <Text style={styles.switchHelpText}>
+                      Tenants can pay invoices in smaller increments instead of full one-time payment.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={form.allowPartialPayments}
+                    onValueChange={(value) => updateForm("allowPartialPayments", value)}
+                    trackColor={{ true: theme.colors.primary, false: "#CBD5E1" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              </View>
             </View>
 
             <View style={styles.sectionCard}>

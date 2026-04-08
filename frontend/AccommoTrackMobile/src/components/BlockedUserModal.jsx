@@ -24,8 +24,8 @@ const BlockedUserModal = ({ visible, onClose }) => {
       presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>
-        <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, padding: 25, width: '85%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5, borderWidth: theme.isDark ? 1 : 0, borderColor: theme.colors.border }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 16 }}>
+        <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, padding: 25, width: '85%', maxWidth: 520, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5, borderWidth: theme.isDark ? 1 : 0, borderColor: theme.colors.border }}>
           <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
             <Ionicons name="shield-half-outline" size={45} color={theme.colors.error} />
           </View>

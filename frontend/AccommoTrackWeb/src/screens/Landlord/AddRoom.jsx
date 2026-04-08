@@ -28,7 +28,7 @@ export default function AddRoomModal({
   const [formData, setFormData] = useState({
     roomNumber: "",
     roomType: initialRoomType,
-    genderRestriction: "male",
+    genderRestriction: "select",
     floor: "1",
     monthlyRate: "",
     // new billing related fields

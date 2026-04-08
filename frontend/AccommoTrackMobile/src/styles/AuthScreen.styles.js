@@ -330,6 +330,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 20,
     padding: 25,
     width: '85%',
+    maxWidth: 520,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

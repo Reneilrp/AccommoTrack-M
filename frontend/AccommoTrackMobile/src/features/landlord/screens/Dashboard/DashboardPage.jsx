@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -147,9 +148,12 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   });
 
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const styles = React.useMemo(() => getStyles(theme, screenWidth, screenHeight), [theme, screenWidth, screenHeight]);
   const cachedDashboard = uiState.data?.[BUCKET];
   const isCaretaker = user?.role === 'caretaker';
+  const isTablet = screenWidth >= 768;
+  const isLargeTablet = screenWidth >= 1024;
 
   const normalizePermissionValue = useCallback((value) => {
     if (typeof value === 'string') {
@@ -379,6 +383,53 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     ...visibleMajorQuickActions,
     ...minorQuickActions.filter((action) => action.show),
   ];
+  const quickActionColumns = isLargeTablet ? 5 : isTablet ? 4 : 3;
+  const quickActionGap = isTablet ? 12 : 8;
+  const quickActionAvailableWidth = Math.max(320, screenWidth - 32);
+  const quickActionRawSize = Math.floor(
+    (quickActionAvailableWidth - quickActionGap * (quickActionColumns - 1)) / quickActionColumns,
+  );
+  const quickActionTileSize = isTablet
+    ? Math.min(140, Math.max(104, quickActionRawSize))
+    : Math.min(84, Math.max(72, quickActionRawSize));
+  const quickActionsToRender = isTablet ? allQuickActions : visibleMajorQuickActions;
+  const showMoreQuickActions = !isTablet && allQuickActions.length > visibleMajorQuickActions.length;
+  const quickActionsSectionStyle = isTablet
+    ? { width: '100%', maxWidth: 1080, alignSelf: 'center' }
+    : null;
+  const quickActionsGridStyle = {
+    justifyContent: 'flex-start',
+    columnGap: quickActionGap,
+    rowGap: quickActionGap,
+  };
+  const quickActionCardStyle = isTablet
+    ? {
+        width: quickActionTileSize,
+        height: 102,
+        borderRadius: 18,
+        paddingHorizontal: 8,
+        paddingVertical: 10,
+      }
+    : {
+        width: quickActionTileSize,
+        height: quickActionTileSize,
+        borderRadius: quickActionTileSize / 2,
+      };
+  const quickActionIconStyle = isTablet
+    ? {
+        width: 34,
+        height: 34,
+        borderRadius: 12,
+        marginBottom: 6,
+      }
+    : null;
+  const quickActionTitleStyle = isTablet
+    ? {
+        fontSize: 12,
+        lineHeight: 14,
+        paddingHorizontal: 4,
+      }
+    : null;
 
   const handleQuickActionPress = useCallback((action, closeMore = false) => {
     if (closeMore) {
@@ -692,25 +743,28 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.quickActionsSection}>
+        <View style={[styles.quickActionsSection, quickActionsSectionStyle]}>
           <View style={styles.quickActionsHeader}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <TouchableOpacity
-              style={styles.quickActionsMoreButton}
-              onPress={() => setMoreActionsVisible(true)}
-            >
-              <Text style={styles.quickActionsMoreText}>More</Text>
-              <Ionicons name="chevron-forward" size={14} color={theme.colors.primary} />
-            </TouchableOpacity>
+            {showMoreQuickActions && (
+              <TouchableOpacity
+                style={styles.quickActionsMoreButton}
+                onPress={() => setMoreActionsVisible(true)}
+              >
+                <Text style={styles.quickActionsMoreText}>More</Text>
+                <Ionicons name="chevron-forward" size={14} color={theme.colors.primary} />
+              </TouchableOpacity>
+            )}
           </View>
-          <View style={styles.actionsGrid}>
-            {visibleMajorQuickActions.map((action) => {
+          <View style={[styles.actionsGrid, quickActionsGridStyle]}>
+            {quickActionsToRender.map((action) => {
               const hasAccess = hasQuickActionAccess(action);
               return (
                 <Button
                   key={action.id}
                   style={[
                     styles.actionCard,
+                    quickActionCardStyle,
                     !hasAccess && styles.actionCardRestricted,
                   ]}
                   onPress={() => handleQuickActionPress(action)}
@@ -726,79 +780,81 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                       <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
                     </View>
                   )}
-                  <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
+                  <View style={[styles.actionIcon, quickActionIconStyle, { backgroundColor: action.color + '20' }]}> 
                     <Ionicons name={action.icon} size={20} color={action.color} />
                   </View>
-                  <Text style={styles.actionTitle}>{action.title}</Text>
+                  <Text style={[styles.actionTitle, quickActionTitleStyle]}>{action.title}</Text>
                 </Button>
               );
             })}
           </View>
         </View>
 
-        <Modal
-          transparent
-          visible={moreActionsVisible}
-          animationType="fade"
-          statusBarTranslucent
-          navigationBarTranslucent
-          presentationStyle="overFullScreen"
-          onRequestClose={() => setMoreActionsVisible(false)}
-        >
-          <Pressable
-            style={styles.quickActionsModalBackdrop}
-            onPress={() => setMoreActionsVisible(false)}
+        {showMoreQuickActions && (
+          <Modal
+            transparent
+            visible={moreActionsVisible}
+            animationType="fade"
+            statusBarTranslucent
+            navigationBarTranslucent
+            presentationStyle="overFullScreen"
+            onRequestClose={() => setMoreActionsVisible(false)}
           >
-            <Pressable style={styles.quickActionsModalCard} onPress={() => {}}>
-              <View style={styles.quickActionsModalHeader}>
-                <Text style={styles.quickActionsModalTitle}>All Quick Actions</Text>
-                <TouchableOpacity
-                  style={styles.quickActionsModalClose}
-                  onPress={() => setMoreActionsVisible(false)}
-                >
-                  <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.quickActionsModalBody}
-              >
-                <View style={styles.quickActionsModalGrid}>
-                  {allQuickActions.map((action) => {
-                    const hasAccess = hasQuickActionAccess(action);
-                    return (
-                      <Button
-                        key={`more-${action.id}`}
-                        style={[
-                          styles.actionCard,
-                          !hasAccess && styles.actionCardRestricted,
-                        ]}
-                        onPress={() => handleQuickActionPress(action, true)}
-                        type="transparent"
-                      >
-                        {!hasAccess && (
-                          <View style={styles.actionRestrictedBadge}>
-                            <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
-                          </View>
-                        )}
-                        {action.badgeCount > 0 && (
-                          <View style={styles.actionBadge}>
-                            <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
-                          </View>
-                        )}
-                        <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}> 
-                          <Ionicons name={action.icon} size={20} color={action.color} />
-                        </View>
-                        <Text style={styles.actionTitle}>{action.title}</Text>
-                      </Button>
-                    );
-                  })}
+            <Pressable
+              style={styles.quickActionsModalBackdrop}
+              onPress={() => setMoreActionsVisible(false)}
+            >
+              <Pressable style={styles.quickActionsModalCard} onPress={() => {}}>
+                <View style={styles.quickActionsModalHeader}>
+                  <Text style={styles.quickActionsModalTitle}>All Quick Actions</Text>
+                  <TouchableOpacity
+                    style={styles.quickActionsModalClose}
+                    onPress={() => setMoreActionsVisible(false)}
+                  >
+                    <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
                 </View>
-              </ScrollView>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.quickActionsModalBody}
+                >
+                  <View style={styles.quickActionsModalGrid}>
+                    {allQuickActions.map((action) => {
+                      const hasAccess = hasQuickActionAccess(action);
+                      return (
+                        <Button
+                          key={`more-${action.id}`}
+                          style={[
+                            styles.actionCard,
+                            !hasAccess && styles.actionCardRestricted,
+                          ]}
+                          onPress={() => handleQuickActionPress(action, true)}
+                          type="transparent"
+                        >
+                          {!hasAccess && (
+                            <View style={styles.actionRestrictedBadge}>
+                              <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
+                            </View>
+                          )}
+                          {action.badgeCount > 0 && (
+                            <View style={styles.actionBadge}>
+                              <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                            </View>
+                          )}
+                          <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}> 
+                            <Ionicons name={action.icon} size={20} color={action.color} />
+                          </View>
+                          <Text style={styles.actionTitle}>{action.title}</Text>
+                        </Button>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </Pressable>
             </Pressable>
-          </Pressable>
-        </Modal>
+          </Modal>
+        )}
 
         <Modal
           transparent

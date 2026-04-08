@@ -12,7 +12,7 @@ import {
   Platform,
   RefreshControl,
   Modal,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -78,8 +78,9 @@ export default function PropertyDetailsScreen({
   onAuthRequired: onAuthRequiredProp,
 }) {
   const navigation = useNavigation();
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
   const routeParams = route?.params || {};
   const {
     accommodation,
@@ -657,11 +658,7 @@ export default function PropertyDetailsScreen({
                         getImageUrl(img) ||
                         "https://via.placeholder.com/800x400",
                     }}
-                    style={{
-                      width: Dimensions.get("window").width - 32,
-                      height: 250,
-                      borderRadius: 12,
-                    }}
+                    style={styles.mainImage}
                     resizeMode="cover"
                   />
                 ))

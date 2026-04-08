@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle } from 'lucide-react';
+import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle, KeyRound, Copy } from 'lucide-react';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUIState } from '../../contexts/UIStateContext';
@@ -77,6 +77,8 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [showEvictModal, setShowEvictModal] = useState(false);
   const [evictingTenant, setEvictingTenant] = useState(null);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('tenantViewMode') || 'card');
+  const [claimCodePayload, setClaimCodePayload] = useState(null);
+  const [isGeneratingClaimCode, setIsGeneratingClaimCode] = useState(false);
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -501,6 +503,49 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     }
   };
 
+  const handleGenerateClaimCode = async (tenant) => {
+    if (isCaretaker) {
+      toast.error('Only landlord accounts can generate claim codes.');
+      return;
+    }
+
+    if (!tenant?.id) {
+      toast.error('Invalid tenant selection.');
+      return;
+    }
+
+    setIsGeneratingClaimCode(true);
+    try {
+      const response = await landlordService.generateTenantClaimCode(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to generate claim code.');
+      }
+
+      const payload = response.data || {};
+      setClaimCodePayload({
+        tenantName: `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim(),
+        claimCode: payload.claim_code || '',
+        expiresAt: payload.expires_at || null,
+      });
+      toast.success('Claim code generated successfully.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to generate claim code.');
+    } finally {
+      setIsGeneratingClaimCode(false);
+    }
+  };
+
+  const handleCopyClaimCode = async () => {
+    if (!claimCodePayload?.claimCode) return;
+
+    try {
+      await navigator.clipboard.writeText(claimCodePayload.claimCode);
+      toast.success('Claim code copied.');
+    } catch {
+      toast.error('Unable to copy claim code automatically.');
+    }
+  };
+
   const filteredTenants = tenants.filter(tenant => {
     const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
     const email = (tenant.email || '').toLowerCase();
@@ -620,6 +665,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                   onEvictionFinalize={handleEvictionFinalize}
                   onEvictionCancel={handleEvictionCancel}
                   onEvictionUndo={handleEvictionUndo}
+                  onGenerateClaimCode={handleGenerateClaimCode}
                   onApproveReservation={handleApproveReservation}
                   onCheckIn={handleCheckInTenant}
                   canTransfer={!isCaretaker}
@@ -638,6 +684,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             onEvictionFinalize={handleEvictionFinalize}
             onEvictionCancel={handleEvictionCancel}
             onEvictionUndo={handleEvictionUndo}
+            onGenerateClaimCode={handleGenerateClaimCode}
             onApproveReservation={handleApproveReservation}
             onCheckIn={handleCheckInTenant}
             canTransfer={!isCaretaker}
@@ -681,6 +728,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         />
       )}
       {showEvictModal && <EvictionModal tenant={evictingTenant} onClose={() => setShowEvictModal(false)} onConfirm={loadTenants} />}
+      {claimCodePayload && (
+        <ClaimCodeModal
+          data={claimCodePayload}
+          isGenerating={isGeneratingClaimCode}
+          onCopy={handleCopyClaimCode}
+          onClose={() => setClaimCodePayload(null)}
+        />
+      )}
     </div>
   );
 }
@@ -703,6 +758,59 @@ const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
         </div>
         <div className={`w-10 h-10 ${colors[color].bg} rounded-lg flex items-center justify-center`}>
           <Icon className={`w-5 h-5 ${colors[color].text}`} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ClaimCodeModal = ({ data, isGenerating, onCopy, onClose }) => {
+  const expiryLabel = data?.expiresAt
+    ? new Date(data.expiresAt).toLocaleString()
+    : 'Not available';
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <KeyRound className="w-5 h-5 text-indigo-500" />
+            Claim Existing Account
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Share this code with <strong>{data?.tenantName || 'the tenant'}</strong>. The tenant should use the small <strong>Claim Existing Account</strong> entry on the auth screen.
+          </p>
+
+          <div className="rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/60 dark:bg-indigo-900/20 p-4 text-center">
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-300 mb-2">Claim Code</p>
+            <p className="text-3xl tracking-[0.25em] font-extrabold text-indigo-700 dark:text-indigo-200">{data?.claimCode || '--------'}</p>
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400">Expires: {expiryLabel}</p>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCopy}
+              disabled={isGenerating}
+              className="flex-1 px-4 py-3 rounded-lg border border-indigo-300 text-indigo-700 dark:text-indigo-300 font-semibold hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Copy className="w-4 h-4" /> Copy Code
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1113,6 +1221,7 @@ const TenantListView = ({
   onEvictionFinalize,
   onEvictionCancel,
   onEvictionUndo,
+  onGenerateClaimCode,
   onApproveReservation,
   onCheckIn,
   canTransfer,
@@ -1293,6 +1402,13 @@ const TenantListView = ({
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
                           >
                             <Users className="w-3.5 h-3.5 text-gray-500" /> View Logs
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); onGenerateClaimCode?.(tenant); }}
+                            disabled={!canTransfer}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" /> Generate Claim Code
                           </button>
                           <div className="border-t border-gray-100 dark:border-gray-700" />
                           {tenant.latestBooking?.status === 'pending_reservation' && (

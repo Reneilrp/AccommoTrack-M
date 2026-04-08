@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -29,9 +30,14 @@ import {
 } from '../../hooks/useTenantQueryHelpers.js';
 
 export default function PaymentsScreen() {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const navigation = useNavigation();
+  const contentWrapStyle = React.useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 860, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
   const [statusFilter, setStatusFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [resolvingPaymentId, setResolvingPaymentId] = useState(null);
@@ -280,6 +286,8 @@ export default function PaymentsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
       >
 
+      <View style={contentWrapStyle}>
+
       {/* Stats Cards */}
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
@@ -441,6 +449,7 @@ export default function PaymentsScreen() {
             </View>
           ))
         )}
+      </View>
       </View>
       </ScrollView>
     </SafeAreaView>

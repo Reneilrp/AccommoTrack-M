@@ -7,6 +7,7 @@ use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Room;
+use App\Models\TenantClaimCode;
 use App\Models\TenantEviction;
 use App\Models\User;
 use App\Services\BookingService;
@@ -24,6 +25,7 @@ class TenantController extends Controller
     use ResolvesLandlordAccess;
 
     private const EVICTION_UNDO_WINDOW_HOURS = 24;
+    private const CLAIM_CODE_TTL_HOURS = 24;
 
     protected $bookingService;
     protected $refundService;
@@ -463,6 +465,78 @@ class TenantController extends Controller
         $user->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Generate a one-time claim code so a tenant can claim this existing account.
+     */
+    public function generateClaimCode(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
+            $landlordId = (int) $context['landlord_id'];
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId);
+
+            if (! $tenant->date_of_birth) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => [],
+                    'message' => 'Tenant date of birth is required before generating a claim code.',
+                ], 422);
+            }
+
+            [$plainCode, $claim] = DB::transaction(function () use ($tenant, $landlordId) {
+                TenantClaimCode::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->whereNull('used_at')
+                    ->whereNull('revoked_at')
+                    ->update([
+                        'revoked_at' => now(),
+                    ]);
+
+                $plainCode = (string) random_int(10000000, 99999999);
+
+                $claim = TenantClaimCode::create([
+                    'tenant_id' => $tenant->id,
+                    'landlord_id' => $landlordId,
+                    'code_hash' => hash_hmac('sha256', $plainCode, (string) config('app.key')),
+                    'max_attempts' => 5,
+                    'attempts' => 0,
+                    'expires_at' => now()->addHours(self::CLAIM_CODE_TTL_HOURS),
+                ]);
+
+                return [$plainCode, $claim];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'claim_code' => $plainCode,
+                    'expires_at' => optional($claim->expires_at)->toISOString(),
+                    'tenant' => [
+                        'id' => $tenant->id,
+                        'first_name' => $tenant->first_name,
+                        'last_name' => $tenant->last_name,
+                    ],
+                    'guardrail_hint' => 'Tenant must enter claim code, exact last name, and date of birth before setting new credentials.',
+                ],
+                'message' => 'Claim code generated successfully.',
+            ]);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => [],
+                'message' => $e->getMessage(),
+            ], 403);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => [],
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

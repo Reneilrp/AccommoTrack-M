@@ -1,6 +1,4 @@
-import { StyleSheet, Dimensions } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { StyleSheet } from 'react-native';
 
 export const getStyles = (theme) => StyleSheet.create({
   container: {
@@ -416,6 +414,9 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
     maxHeight: '90%',
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border

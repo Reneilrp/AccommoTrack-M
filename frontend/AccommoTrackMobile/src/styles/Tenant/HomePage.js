@@ -1,9 +1,9 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-const { width } = Dimensions.get('window');
-const sideWidth = Math.max(56, Math.round(width * 0.05));
+export const getStyles = (theme, viewportWidth = 390) => {
+  const sideWidth = Math.max(56, Math.round((viewportWidth || 390) * 0.05));
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -52,6 +52,7 @@ export const getStyles = (theme) => StyleSheet.create({
     top: 0,
     bottom: 0,
     width: '80%',
+    maxWidth: 360,
     backgroundColor: theme.colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
@@ -589,6 +590,7 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     width: '80%',
+    maxWidth: 520,
   },
   modalText: {
     marginBottom: 15,
@@ -610,6 +612,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center"
   },
-});
+  });
+};
 
 export default getStyles;

@@ -16,11 +16,13 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/DormProfile.js';
+import { getImageUrl } from '../../../../utils/imageUtils.js';
 import {
   landlordQueryKeys,
   useLandlordRefreshHandler,
@@ -117,6 +119,11 @@ const buildEmptyForm = () => ({
   requireReservationFee: false,
   reservationFeeAmount: '',
   reservationFeeGapDays: '3',
+  gcashName: '',
+  gcashNumber: '',
+  gcashQr: null,
+  deleteExistingGcashQr: false,
+  transferFee: '',
 });
 
 const normalizeSettings = (data) => {
@@ -181,6 +188,13 @@ const normalizeSettings = (data) => {
     reservationFeeGapDays: data?.reservation_fee_gap_days !== undefined
       ? String(data.reservation_fee_gap_days)
       : '3',
+    gcashName: data?.gcash_name || '',
+    gcashNumber: data?.gcash_number || '',
+    gcashQr: data?.gcash_qr_path
+      ? { uri: getImageUrl(data.gcash_qr_path), isExisting: true }
+      : null,
+    deleteExistingGcashQr: false,
+    transferFee: data?.transfer_fee !== undefined ? String(data.transfer_fee) : '',
   };
 };
 
@@ -195,6 +209,7 @@ export default function DormProfileSettings({ route, navigation }) {
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [password, setPassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [isPayMongoVerified, setIsPayMongoVerified] = useState(false);
 
   const settingsQuery = useQuery({
     queryKey: landlordQueryKeys.propertySettings(propertyId),
@@ -234,6 +249,33 @@ export default function DormProfileSettings({ route, navigation }) {
       text2: fetchError,
     });
   }, [fetchError]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPayMongoStatus = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (!mounted || !userString) return;
+
+        const user = JSON.parse(userString);
+        const verified =
+          user?.paymongo_verification_status === 'verified' ||
+          user?.is_paymongo_ready === true;
+        setIsPayMongoVerified(Boolean(verified));
+      } catch (_error) {
+        if (mounted) {
+          setIsPayMongoVerified(false);
+        }
+      }
+    };
+
+    loadPayMongoStatus();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -362,6 +404,31 @@ export default function DormProfileSettings({ route, navigation }) {
     });
   };
 
+  const pickGcashQr = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      setForm((prev) => ({
+        ...prev,
+        gcashQr: { uri: asset.uri, isExisting: false },
+        deleteExistingGcashQr: false,
+      }));
+    }
+  };
+
+  const removeGcashQr = () => {
+    setForm((prev) => ({
+      ...prev,
+      gcashQr: null,
+      deleteExistingGcashQr: prev.gcashQr?.isExisting || prev.deleteExistingGcashQr,
+    }));
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -395,6 +462,9 @@ export default function DormProfileSettings({ route, navigation }) {
       const parsedGapDays = Number.parseInt(form.reservationFeeGapDays, 10);
       const reservationFeeGapDays = Number.isNaN(parsedGapDays) ? 3 : Math.max(0, parsedGapDays);
       payload.append('reservation_fee_gap_days', String(reservationFeeGapDays));
+      payload.append('transfer_fee', form.transferFee || '0');
+      payload.append('gcash_name', form.requireReservationFee ? form.gcashName : '');
+      payload.append('gcash_number', form.requireReservationFee ? form.gcashNumber : '');
       
       // Add amenities individually (PHP handles multiple values with the same name if it ends in [])
       form.amenities.forEach(amenity => {
@@ -408,6 +478,7 @@ export default function DormProfileSettings({ route, navigation }) {
       form.deletedImageIds.forEach(id => payload.append('deleted_images[]', id));
       form.deletedCredentialIds.forEach(id => payload.append('deleted_credentials[]', id));
       if (form.deleteExistingVideo) payload.append('delete_existing_video', '1');
+      if (form.deleteExistingGcashQr) payload.append('delete_gcash_qr', '1');
 
       // Upload New Images
       form.images.filter(img => !img.isExisting).forEach((img, idx) => {
@@ -424,6 +495,15 @@ export default function DormProfileSettings({ route, navigation }) {
           uri: form.video.uri,
           name: 'video_tour.mp4',
           type: 'video/mp4'
+        });
+      }
+
+      // Upload New GCash QR
+      if (form.gcashQr && !form.gcashQr.isExisting) {
+        payload.append('gcash_qr_path', {
+          uri: form.gcashQr.uri,
+          name: 'gcash_qr.jpg',
+          type: 'image/jpeg'
         });
       }
 
@@ -910,10 +990,24 @@ export default function DormProfileSettings({ route, navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Require Reservation Fee</Text>
               <Text style={styles.switchHelpText}>Deductible from the first month's rent.</Text>
+              {!isPayMongoVerified ? (
+                <Text style={styles.warningText}>PayMongo verification is required to enable this setting.</Text>
+              ) : null}
             </View>
             <Switch
               value={form.requireReservationFee}
-              onValueChange={(val) => updateForm('requireReservationFee', val)}
+              onValueChange={(val) => {
+                if (!isPayMongoVerified && val) {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'PayMongo Not Verified',
+                    text2: 'Complete PayMongo verification first from Settings > Payments.',
+                  });
+                  return;
+                }
+                updateForm('requireReservationFee', val);
+              }}
+              disabled={!isPayMongoVerified}
               trackColor={{ true: theme.colors.primary, false: '#CBD5E1' }}
               thumbColor="#FFFFFF"
             />
@@ -939,8 +1033,53 @@ export default function DormProfileSettings({ route, navigation }) {
                 onChangeText={(val) => updateForm('reservationFeeGapDays', val.replace(/[^0-9]/g, ''))}
               />
               <Text style={styles.switchHelpText}>Default is 3 days. Fee is required only when gap is above this value.</Text>
+
+              <Text style={[styles.label, { marginTop: 8 }]}>GCash Account Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., Juan Dela Cruz"
+                value={form.gcashName}
+                onChangeText={(val) => updateForm('gcashName', val)}
+              />
+
+              <Text style={styles.label}>GCash Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 09123456789"
+                value={form.gcashNumber}
+                onChangeText={(val) => updateForm('gcashNumber', val)}
+              />
+
+              <Text style={styles.label}>GCash QR Code</Text>
+              {form.gcashQr ? (
+                <View style={styles.qrPreviewContainer}>
+                  <Image source={{ uri: form.gcashQr.uri }} style={styles.qrPreviewImage} />
+                  <TouchableOpacity style={styles.imageRemove} onPress={removeGcashQr}>
+                    <Ionicons name="trash-outline" size={18} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <TouchableOpacity style={[styles.outlineBtn, styles.outlineBtnPrimary]} onPress={pickGcashQr}>
+                <Ionicons name="image-outline" size={20} color={theme.colors.primary} />
+                <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>
+                  {form.gcashQr ? 'Replace GCash QR' : 'Upload GCash QR'}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
+
+          <Text style={[styles.label, { marginTop: 16 }]}>Room Transfer Processing Fee (₱)</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            value={form.transferFee}
+            onChangeText={(val) => updateForm('transferFee', val)}
+          />
+          <Text style={styles.switchHelpText}>
+            Used as the quoted transfer fee for tenant transfer requests.
+          </Text>
         </View>
 
         <View style={styles.sectionCard}>

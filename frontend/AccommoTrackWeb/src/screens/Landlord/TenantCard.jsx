@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, RefreshCw, CheckCircle, Clock3, FileText, ChevronDown } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, RefreshCw, CheckCircle, Clock3, FileText, ChevronDown, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TenantCard({
@@ -11,6 +11,7 @@ export default function TenantCard({
   onEvictionFinalize,
   onEvictionCancel,
   onEvictionUndo,
+  onGenerateClaimCode,
   onApproveReservation,
   onCheckIn,
   canTransfer = true,
@@ -179,6 +180,13 @@ export default function TenantCard({
               className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors"
             >
               <CreditCard className="w-3.5 h-3.5 text-blue-600" /> Payments
+            </button>
+            <button
+              onClick={() => onGenerateClaimCode?.(tenant)}
+              disabled={!canTransfer}
+              className="flex items-center gap-2 px-3 py-2 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              <KeyRound className="w-3.5 h-3.5" /> Generate Claim Code
             </button>
             {isPendingReservation && (
               <button

@@ -11,7 +11,8 @@ import {
   Alert,
   Image,
   StatusBar,
-  Modal
+  Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -83,8 +84,13 @@ const TermsModal = ({ visible, onClose, theme }) => {
 
 // —————— Main Screen ——————
 export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme, isDarkMode } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const contentWrapStyle = useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 760, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
 
   // Wizard state
   const [step, setStep] = useState(1);
@@ -444,7 +450,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]}
+          contentContainerStyle={[styles.scrollContent, contentWrapStyle, { paddingBottom: 40 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

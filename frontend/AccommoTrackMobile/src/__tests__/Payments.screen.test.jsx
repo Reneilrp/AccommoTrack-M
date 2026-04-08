@@ -58,6 +58,7 @@ jest.mock('../services/PaymentService.js', () => ({
   default: {
     getInvoices: jest.fn(),
     getInvoiceSummary: jest.fn(),
+    verifyCash: jest.fn(),
     recordLandlordPayment: jest.fn(),
     updateBookingPayment: jest.fn(),
     refundTransaction: jest.fn(),
@@ -81,6 +82,71 @@ const baseInvoice = {
   booking: {
     room: {
       room_number: 'A-101',
+    },
+  },
+};
+
+const pendingVerificationInvoice = {
+  id: 2,
+  booking_id: 88,
+  reference: 'INV-1002',
+  status: 'pending_verification',
+  amount_cents: 15000,
+  transactions: [],
+  tenant: {
+    first_name: 'John',
+    last_name: 'Smith',
+  },
+  property: {
+    title: 'Sample Property',
+  },
+  booking: {
+    room: {
+      room_number: 'B-202',
+    },
+  },
+};
+
+const overdueInvoice = {
+  id: 3,
+  booking_id: 99,
+  reference: 'INV-OVERDUE',
+  status: 'pending',
+  due_date: '2000-01-01',
+  amount_cents: 20000,
+  transactions: [],
+  tenant: {
+    first_name: 'Over',
+    last_name: 'Due',
+  },
+  property: {
+    title: 'Target Property',
+  },
+  booking: {
+    room: {
+      room_number: 'C-303',
+    },
+  },
+};
+
+const upcomingInvoice = {
+  id: 4,
+  booking_id: 100,
+  reference: 'INV-UPCOMING',
+  status: 'pending',
+  due_date: '2099-12-31',
+  amount_cents: 20000,
+  transactions: [],
+  tenant: {
+    first_name: 'Next',
+    last_name: 'Due',
+  },
+  property: {
+    title: 'Target Property',
+  },
+  booking: {
+    room: {
+      room_number: 'D-404',
     },
   },
 };
@@ -127,6 +193,11 @@ describe('Payments screen (mobile)', () => {
     });
 
     PaymentService.recordLandlordPayment.mockResolvedValue({
+      success: true,
+      data: {},
+    });
+
+    PaymentService.verifyCash.mockResolvedValue({
       success: true,
       data: {},
     });
@@ -191,5 +262,124 @@ describe('Payments screen (mobile)', () => {
 
     expect(Alert.alert).toHaveBeenCalledWith('Validation', 'Please enter a valid amount.');
     expect(PaymentService.recordLandlordPayment).not.toHaveBeenCalled();
+  });
+
+  it('approves pending verification cash payment', async () => {
+    PaymentService.getInvoices.mockResolvedValue({
+      success: true,
+      data: [pendingVerificationInvoice],
+    });
+
+    renderWithQueryClient(
+      <Payments navigation={mockNavigation} route={{ params: {} }} />,
+    );
+
+    await screen.findByText('INV-1002');
+
+    fireEvent.press(screen.getByText('Manage'));
+    await screen.findByText('Manage Payment');
+
+    fireEvent.press(screen.getByText('Approve Payment'));
+
+    await waitFor(() => {
+      expect(PaymentService.verifyCash).toHaveBeenCalledWith(2, 'approve');
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Cash payment approved successfully.');
+    });
+  });
+
+  it('rejects pending verification cash payment', async () => {
+    PaymentService.getInvoices.mockResolvedValue({
+      success: true,
+      data: [pendingVerificationInvoice],
+    });
+
+    renderWithQueryClient(
+      <Payments navigation={mockNavigation} route={{ params: {} }} />,
+    );
+
+    await screen.findByText('INV-1002');
+
+    fireEvent.press(screen.getByText('Manage'));
+    await screen.findByText('Manage Payment');
+
+    fireEvent.press(screen.getByText('Reject Payment'));
+
+    await waitFor(() => {
+      expect(PaymentService.verifyCash).toHaveBeenCalledWith(2, 'reject');
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Cash payment rejected successfully.');
+    });
+  });
+
+  it('applies drilldown route params for overdue filter and search query', async () => {
+    PaymentService.getInvoices.mockResolvedValue({
+      success: true,
+      data: [overdueInvoice, upcomingInvoice],
+    });
+
+    renderWithQueryClient(
+      <Payments
+        navigation={mockNavigation}
+        route={{
+          params: {
+            filter: 'overdue',
+            searchQuery: 'Target Property',
+            drilldownToken: 12345,
+          },
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('INV-OVERDUE')).toBeTruthy();
+      expect(screen.queryByText('INV-UPCOMING')).toBeNull();
+    });
+
+    expect(mockNavigation.setParams).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: undefined,
+        searchQuery: undefined,
+        drilldownToken: undefined,
+      }),
+    );
+  });
+
+  it('shows Cash Verify as an available status filter', async () => {
+    renderWithQueryClient(
+      <Payments navigation={mockNavigation} route={{ params: {} }} />,
+    );
+
+    await screen.findByText('INV-1001');
+
+    expect(screen.getByText('Cash Verify')).toBeTruthy();
+  });
+
+  it('shows Cash Verify stats card with pending verification count', async () => {
+    PaymentService.getInvoiceSummary.mockResolvedValue({
+      success: true,
+      data: {
+        range: 'month',
+        totals: {
+          total_paid_cents: 0,
+          total_balance_cents: 10000,
+          paid_count: 0,
+          pending_count: 1,
+          overdue_count: 0,
+          pending_verification_count: 2,
+        },
+      },
+    });
+
+    renderWithQueryClient(
+      <Payments navigation={mockNavigation} route={{ params: {} }} />,
+    );
+
+    await screen.findByText('Cash Verify (Month)');
+    expect(screen.getByText('2')).toBeTruthy();
   });
 });

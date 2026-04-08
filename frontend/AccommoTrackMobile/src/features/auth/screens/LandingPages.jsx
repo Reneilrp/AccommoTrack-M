@@ -2,24 +2,24 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
-  Dimensions,
-  FlatList,
   Animated,
   StatusBar,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getStyles } from '../../../styles/LandingPages.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
-const { width } = Dimensions.get('window');
-
 export default function LandingPages({ onFinish }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const styles = React.useMemo(
+    () => getStyles(theme, viewportWidth, viewportHeight),
+    [theme, viewportWidth, viewportHeight],
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const slideColors = ['#16A34A', '#DC2626', '#EAB308'];
 
@@ -107,7 +107,7 @@ export default function LandingPages({ onFinish }) {
         {/* Pagination Dots */}
         <View style={styles.pagination}>
           {slides.map((_, i) => {
-            const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
+            const inputRange = [(i - 1) * viewportWidth, i * viewportWidth, (i + 1) * viewportWidth];
             
             const dotWidth = scrollX.interpolate({
               inputRange,

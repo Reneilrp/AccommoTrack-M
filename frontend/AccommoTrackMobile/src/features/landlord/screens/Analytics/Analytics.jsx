@@ -8,9 +8,9 @@ import {
   TouchableOpacity,
   View,
   Alert,
-  Dimensions,
   Modal,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +29,6 @@ import analyticsService from '../../../../services/AnalyticsService.js';
 
 const EMPTY_PROPERTIES = [];
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MONTH_MAP = {
   '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
   '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec',
@@ -100,8 +99,13 @@ const MetricCard = ({ label, value, subValue, tag, icon, color, bgColor, styles 
 );
 
 export default function Analytics({ navigation }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
+  const chartWidth = React.useMemo(
+    () => Math.max(260, Math.min(viewportWidth - 64, 920)),
+    [viewportWidth],
+  );
   const now = React.useMemo(() => new Date(), []);
   const [timeRange, setTimeRange] = useState('month');
   const [selectedProperty, setSelectedProperty] = useState('all');
@@ -568,7 +572,7 @@ export default function Analytics({ navigation }) {
           {chartData ? (
             <LineChart
               data={chartData}
-              width={SCREEN_WIDTH - 64}
+              width={chartWidth}
               height={220}
               yAxisLabel="₱"
               yAxisSuffix=""
@@ -603,7 +607,7 @@ export default function Analytics({ navigation }) {
             <Text style={styles.chartTitle}>Invoicing Health</Text>
             <BarChart
               data={paymentChartData}
-              width={SCREEN_WIDTH - 64}
+              width={chartWidth}
               height={220}
               yAxisLabel=""
               yAxisSuffix=""
@@ -633,7 +637,7 @@ export default function Analytics({ navigation }) {
             <>
               <PieChart
                 data={incomeBreakdownData}
-                width={SCREEN_WIDTH - 64}
+                width={chartWidth}
                 height={220}
                 chartConfig={{
                   color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
@@ -664,7 +668,7 @@ export default function Analytics({ navigation }) {
             <>
               <BarChart
                 data={incomePerformanceData}
-                width={SCREEN_WIDTH - 64}
+                width={chartWidth}
                 height={240}
                 yAxisLabel="₱"
                 yAxisSuffix=""

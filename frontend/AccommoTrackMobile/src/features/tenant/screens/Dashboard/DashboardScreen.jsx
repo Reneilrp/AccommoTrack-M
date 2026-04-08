@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   UIManager,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -109,9 +110,14 @@ const getPaymentStatusPalette = (status, theme) => {
 };
 
 const DashboardScreen = () => {
+  const { width: viewportWidth } = useWindowDimensions();
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const contentWrapStyle = useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState('');
@@ -610,7 +616,7 @@ const DashboardScreen = () => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.loadingContent}>
+        <ScrollView contentContainerStyle={[styles.loadingContent, contentWrapStyle]}>
           <DashboardStatSkeleton />
           <DashboardStatSkeleton />
           <DashboardStatSkeleton />
@@ -624,7 +630,7 @@ const DashboardScreen = () => {
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, contentWrapStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

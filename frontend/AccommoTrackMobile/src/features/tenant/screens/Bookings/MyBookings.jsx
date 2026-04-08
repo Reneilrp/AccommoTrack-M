@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Dimensions, Modal, TextInput, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Modal, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -69,6 +69,7 @@ const extractHistoryBookings = (payload, fallback = []) => {
 
 export default function MyBookings() {
   const navigation = useNavigation();
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { uiState, updateData, invalidateData } = useUIState();
@@ -1222,7 +1223,7 @@ export default function MyBookings() {
 
     const translateX = slideAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, (Dimensions.get('window').width - 40) / 2],
+      outputRange: [0, Math.max(viewportWidth - 40, 0) / 2],
     });
 
     return (
