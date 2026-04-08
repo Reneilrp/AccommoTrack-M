@@ -66,6 +66,20 @@ const parseAmenities = (amenitiesData) => {
   return [];
 };
 
+const parseBooleanFlag = (value, fallback = false) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off', ''].includes(normalized)) return false;
+  }
+
+  return fallback;
+};
+
 const buildEmptyForm = () => ({
   id: null,
   propertyType: '',
@@ -95,6 +109,7 @@ const buildEmptyForm = () => ({
   floorArea: '',
   totalFloors: '1',
   floorLevel: [],
+  isPublished: false,
   curfewTime: '',
   curfewPolicy: '',
   require1MonthAdvance: false,
@@ -156,11 +171,12 @@ const normalizeSettings = (data) => {
     floorArea: data?.floor_area ? String(data.floor_area) : '',
     totalFloors: data?.total_floors ? String(data.total_floors) : '1',
     floorLevel: data?.floor_level ? String(data.floor_level).split(',').filter(Boolean) : [],
+    isPublished: parseBooleanFlag(data?.is_published, false),
     curfewTime: data?.curfew_time || '',
     curfewPolicy: data?.curfew_policy || '',
-    require1MonthAdvance: !!data?.require_1month_advance,
-    allowPartialPayments: data?.allow_partial_payments !== undefined ? !!data.allow_partial_payments : true,
-    requireReservationFee: !!data?.require_reservation_fee,
+    require1MonthAdvance: parseBooleanFlag(data?.require_1month_advance, false),
+    allowPartialPayments: parseBooleanFlag(data?.allow_partial_payments, true),
+    requireReservationFee: parseBooleanFlag(data?.require_reservation_fee, false),
     reservationFeeAmount: data?.reservation_fee_amount ? String(data.reservation_fee_amount) : '',
     reservationFeeGapDays: data?.reservation_fee_gap_days !== undefined
       ? String(data.reservation_fee_gap_days)
@@ -355,6 +371,7 @@ export default function DormProfileSettings({ route, navigation }) {
       payload.append('property_type', form.propertyType);
       payload.append('gender_restriction', form.genderRestriction);
       payload.append('current_status', form.status);
+      payload.append('is_published', form.status === 'active' ? (form.isPublished ? '1' : '0') : '0');
       payload.append('street_address', form.streetAddress);
       payload.append('barangay', form.barangay);
       payload.append('city', form.city);
@@ -638,6 +655,24 @@ export default function DormProfileSettings({ route, navigation }) {
             >
               {STATUS_OPTIONS.map(o => <Picker.Item key={o.value} label={o.label} value={o.value} />)}
             </Picker>
+          </View>
+
+          <View style={styles.switchRowContainer}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Show on Public Listings</Text>
+              <Text style={styles.switchHelpText}>
+                {form.status === 'active'
+                  ? 'Control whether tenants can discover this property in Explore.'
+                  : 'Public visibility is available only when status is Active.'}
+              </Text>
+            </View>
+            <Switch
+              value={form.status === 'active' ? form.isPublished : false}
+              onValueChange={(val) => updateForm('isPublished', val)}
+              disabled={form.status !== 'active'}
+              trackColor={{ true: theme.colors.primary, false: '#CBD5E1' }}
+              thumbColor="#FFFFFF"
+            />
           </View>
 
           <View style={styles.actionRow}>

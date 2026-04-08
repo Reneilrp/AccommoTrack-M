@@ -136,6 +136,10 @@ export default function SwitchRoleTab({ user: userProp }) {
       return true;
     } catch (error) {
       console.error('Failed to switch role:', error);
+      if (error.response?.status === 401) {
+        toast.error('Your session has expired. Please log in again, then retry role switch.');
+        return false;
+      }
       toast.error(error.response?.data?.message || 'Failed to switch role. Please try again.');
       return false;
     } finally {

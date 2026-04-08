@@ -150,6 +150,32 @@ class LandlordDashboardRecentActivitiesTest extends TestCase
         );
     }
 
+    public function test_cancelled_booking_activity_uses_red_color(): void
+    {
+        [$landlord, $booking] = $this->createScenario('pending');
+
+        $this->withoutMiddleware(EnsureUserIsLandlord::class);
+
+        $booking->update([
+            'status' => 'cancelled',
+        ]);
+
+        Sanctum::actingAs($landlord);
+
+        $response = $this->getJson('/api/landlord/dashboard/recent-activities');
+
+        $response->assertStatus(200);
+
+        $cancelledActivity = collect($response->json())->first(function ($item) use ($booking) {
+            return ($item['type'] ?? null) === 'booking'
+                && (int) ($item['id'] ?? 0) === $booking->id;
+        });
+
+        $this->assertNotNull($cancelledActivity, 'Expected cancelled booking activity to be present in recent activities.');
+        $this->assertSame('cancelled', $cancelledActivity['status'] ?? null);
+        $this->assertSame('red', $cancelledActivity['color'] ?? null);
+    }
+
     /**
      * @return array{User, Booking, Invoice}
      */

@@ -305,34 +305,90 @@ class TenantController extends Controller
             'emergency_contact_relationship' => 'nullable|string|max:100',
             'current_address' => 'nullable|string',
             'preference' => 'nullable|string',
+            'room_id' => 'nullable|exists:rooms,id',
+            'move_in_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'notes' => 'nullable|string',
         ]);
 
         if (array_key_exists('gender', $validated)) {
             $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
         }
 
-        $user = User::create([
-            'first_name' => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? '',
-            'last_name' => $validated['last_name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-            'password' => bcrypt($validated['password']),
-            'role' => 'tenant',
-            'date_of_birth' => $validated['date_of_birth'] ?? null,
-            'gender' => $validated['gender'] ?? null,
-        ]);
+        $room = null;
+        if (! empty($validated['room_id'])) {
+            $room = Room::with('property')->findOrFail($validated['room_id']);
 
-        $user->tenantProfile()->create([
-            'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
-            'emergency_contact_phone' => $validated['emergency_contact_phone'] ?? null,
-            'emergency_contact_relationship' => $validated['emergency_contact_relationship'] ?? null,
-            'current_address' => $validated['current_address'] ?? null,
-            'preference' => $validated['preference'] ?? null,
-            'status' => 'inactive', // inactive until assigned to a room
-        ]);
+            if ($room->property->landlord_id !== $context['landlord_id']) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
 
-        return response()->json($user->load('tenantProfile'), 201);
+            if (! $room->isAvailable() || $room->available_slots <= 0) {
+                return response()->json([
+                    'error' => 'Room not available',
+                    'occupied_slots' => $room->occupied,
+                    'total_capacity' => $room->capacity,
+                    'available_slots' => $room->available_slots,
+                ], 400);
+            }
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $user = User::create([
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? '',
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'password' => bcrypt($validated['password']),
+                'role' => 'tenant',
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+            ]);
+
+            $user->tenantProfile()->create([
+                'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
+                'emergency_contact_phone' => $validated['emergency_contact_phone'] ?? null,
+                'emergency_contact_relationship' => $validated['emergency_contact_relationship'] ?? null,
+                'current_address' => $validated['current_address'] ?? null,
+                'preference' => $validated['preference'] ?? null,
+                'status' => 'inactive', // inactive until assigned to a room
+            ]);
+
+            if ($room) {
+                $moveInDate = $validated['move_in_date'] ?? now()->format('Y-m-d');
+                $endDate = $validated['end_date'] ?? Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
+
+                $booking = $this->bookingService->createBooking([
+                    'room_id' => $room->id,
+                    'start_date' => $moveInDate,
+                    'end_date' => $endDate,
+                    'notes' => $validated['notes'] ?? 'Manually assigned by landlord during tenant creation',
+                ], $user->id);
+
+                $this->bookingService->updateStatus($booking, ['status' => 'confirmed']);
+            }
+
+            DB::commit();
+
+            return response()->json($user->fresh()->load(['tenantProfile', 'room']), 201);
+        } catch (\DomainException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to create tenant: '.$e->getMessage());
+
+            return response()->json([
+                'error' => 'Failed to create tenant',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

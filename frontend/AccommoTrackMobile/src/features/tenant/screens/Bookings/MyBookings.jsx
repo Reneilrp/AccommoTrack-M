@@ -40,6 +40,33 @@ const MAINTENANCE_PRIORITIES = [
   { value: 'urgent', label: 'Urgent' },
 ];
 
+const extractHistoryBookings = (payload, fallback = []) => {
+  const candidates = [
+    payload?.bookings,
+    payload?.data?.bookings,
+    payload?.data,
+    payload,
+  ];
+
+  const rawBookings = candidates.find((candidate) => Array.isArray(candidate));
+  const source = Array.isArray(rawBookings) ? rawBookings : fallback;
+
+  const seenIds = new Set();
+  const deduped = [];
+
+  source.forEach((item, index) => {
+    if (!item || typeof item !== 'object') return;
+
+    const key = item.id ?? item.booking_reference ?? `history-${index}`;
+    if (seenIds.has(key)) return;
+
+    seenIds.add(key);
+    deduped.push(item);
+  });
+
+  return deduped;
+};
+
 export default function MyBookings() {
   const navigation = useNavigation();
   const { theme } = useTheme();
@@ -98,6 +125,19 @@ export default function MyBookings() {
   const [reportReason, setReportReason] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
+
+  const createDefaultAddonDraft = () => ({
+    name: '',
+    addon_type: 'rental',
+    price_type: 'monthly',
+    note: '',
+    suggested_price: '',
+  });
+  const [showAddonModal, setShowAddonModal] = useState(false);
+  const [addonContext, setAddonContext] = useState(null);
+  const [addonDraft, setAddonDraft] = useState(createDefaultAddonDraft);
+  const [addonRequestingId, setAddonRequestingId] = useState(null);
+  const [submittingCustomAddon, setSubmittingCustomAddon] = useState(false);
 
   const [showMoveOutModal, setShowMoveOutModal] = useState(false);
   const [moveOutContext, setMoveOutContext] = useState(null);
@@ -158,24 +198,27 @@ export default function MyBookings() {
     queryKey: tenantQueryKeys.myBookingsBundle(),
     queryFn: async () => {
       try {
-        const [stayRes, bookingsRes, transferRes] = await Promise.all([
+        const [stayRes, bookingsRes, historyRes, transferRes] = await Promise.all([
           TenantService.getCurrentStay(),
           BookingService.getMyBookings(),
+          TenantService.getHistory(),
           TenantService.getTransferRequests(),
         ]);
 
         const stayDataNext = stayRes.success ? stayRes.data : null;
         const allBookings = bookingsRes.success ? bookingsRes.data || [] : [];
+        const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked']);
         const pendingBookingsNext = allBookings.filter((bookingItem) =>
-          ['pending', 'pending_reservation', 'reserved'].includes(
-            bookingItem.status?.toLowerCase(),
+          pendingStatuses.has(String(bookingItem.status || '').toLowerCase()),
+        );
+
+        const historyPayload = historyRes.success ? (historyRes.data || {}) : {};
+        const fallbackHistory = allBookings.filter((bookingItem) =>
+          ['completed', 'partial-completed', 'cancelled', 'rejected', 'evicted'].includes(
+            String(bookingItem.status || '').toLowerCase(),
           ),
         );
-        const historyDataNext = allBookings.filter((bookingItem) =>
-          ['completed', 'confirmed', 'cancelled', 'rejected'].includes(
-            bookingItem.status?.toLowerCase(),
-          ),
-        );
+        const historyDataNext = extractHistoryBookings(historyPayload, fallbackHistory);
 
         let pendingTransferRequestsNext = [];
         let monthlyTransferCountNext = 0;
@@ -396,6 +439,108 @@ export default function MyBookings() {
     setReportReason('');
     setReportDescription('');
     setSubmittingReport(false);
+  };
+
+  const closeAddonModal = () => {
+    setShowAddonModal(false);
+    setAddonContext(null);
+    setAddonDraft(createDefaultAddonDraft());
+    setAddonRequestingId(null);
+    setSubmittingCustomAddon(false);
+  };
+
+  const normalizeSuggestedPrice = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+
+    const numericValue = Number(raw);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      return null;
+    }
+
+    return numericValue;
+  };
+
+  const openAddonModal = ({ booking, property, addons }) => {
+    if (!booking?.id) {
+      Alert.alert('Unavailable', 'Add-on request details are incomplete for this stay.');
+      return;
+    }
+
+    const paymentStatus = String(booking.paymentStatus || booking.payment_status || '').toLowerCase();
+    if (paymentStatus === 'refunded') {
+      Alert.alert('Action Disabled', 'Add-on requests are disabled until your room payment is re-settled.');
+      return;
+    }
+
+    setAddonContext({
+      bookingId: booking.id,
+      propertyId: property?.id || null,
+      propertyTitle: property?.title || 'your current stay',
+      availableAddons: Array.isArray(addons?.available) ? addons.available : [],
+    });
+    setAddonDraft(createDefaultAddonDraft());
+    setAddonRequestingId(null);
+    setSubmittingCustomAddon(false);
+    setShowAddonModal(true);
+  };
+
+  const submitAddonRequest = async (payload, requestKey) => {
+    if (!payload?.booking_id) {
+      Alert.alert('Unavailable', 'Booking reference is missing for this add-on request.');
+      return;
+    }
+
+    setAddonRequestingId(requestKey);
+    if (requestKey === 'custom') {
+      setSubmittingCustomAddon(true);
+    }
+
+    const result = await TenantService.requestAddon(payload);
+
+    if (result.success) {
+      Alert.alert('Request Submitted', 'Your add-on request was sent to the landlord for review.');
+      closeAddonModal();
+      invalidateData(BUCKET);
+      await refetchMyBookingsBundle();
+    } else {
+      Alert.alert('Unable to Submit', result.error || 'Failed to request add-on.');
+      setAddonRequestingId(null);
+      setSubmittingCustomAddon(false);
+    }
+  };
+
+  const submitCustomAddonRequest = async () => {
+    if (!addonContext?.bookingId) {
+      Alert.alert('Unavailable', 'Booking reference is missing for this add-on request.');
+      return;
+    }
+
+    const addonName = addonDraft.name.trim();
+    if (!addonName) {
+      Alert.alert('Name Required', 'Please enter a name for your custom add-on request.');
+      return;
+    }
+
+    const rawSuggestedPrice = String(addonDraft.suggested_price ?? '').trim();
+    const normalizedSuggestedPrice = normalizeSuggestedPrice(rawSuggestedPrice);
+    if (rawSuggestedPrice && normalizedSuggestedPrice === null) {
+      Alert.alert('Invalid Suggested Price', 'Suggested price must be a non-negative number.');
+      return;
+    }
+
+    const payload = {
+      booking_id: addonContext.bookingId,
+      is_custom: true,
+      name: addonName,
+      addon_type: addonDraft.addon_type,
+      price_type: addonDraft.price_type,
+      quantity: 1,
+      note: addonDraft.note.trim() || null,
+      ...(normalizedSuggestedPrice !== null ? { suggested_price: normalizedSuggestedPrice } : {}),
+    };
+
+    await submitAddonRequest(payload, 'custom');
   };
 
   const closeMoveOutModal = () => {
@@ -902,7 +1047,12 @@ export default function MyBookings() {
     const s = String(status || '').toLowerCase();
     if (s === 'pending_reservation') return 'Awaiting Verification';
     if (s === 'reserved') return 'Reserved';
-    return s.charAt(0).toUpperCase() + s.slice(1);
+
+    return s
+      .split(/[_-]+/)
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
   };
 
   // ==================== Sub-components for Tabs ====================
@@ -1454,13 +1604,7 @@ export default function MyBookings() {
                     }
                   ]}
                   disabled={booking.paymentStatus === 'refunded'}
-                  onPress={() =>
-                    navigation.navigate('ServiceRequests', {
-                      initialTab: 'Add-ons',
-                      bookingId: booking.id,
-                      propertyId: property.id,
-                    })
-                  }
+                  onPress={() => openAddonModal({ booking, property, addons })}
                 >
                    <Text style={styles.stayHeaderBtnText}>+ Request</Text>
                 </TouchableOpacity>
@@ -1655,7 +1799,7 @@ export default function MyBookings() {
                     </Text>
                     <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
                       <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status), fontSize: 10 }]}>
-                        {booking.isOverdue || booking.is_overdue ? 'Overdue' : booking.status}
+                        {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
                       </Text>
                     </View>
                  </View>
@@ -1768,6 +1912,291 @@ export default function MyBookings() {
           </ScrollView>
         </View>
       )}
+
+      <Modal
+        visible={showAddonModal}
+        animationType="fade"
+        transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={closeAddonModal}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+        }}>
+          <View style={{
+            maxHeight: '88%',
+            borderRadius: 14,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            overflow: 'hidden',
+          }}>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                  Request Add-on
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                  {addonContext?.propertyTitle ? `For ${addonContext.propertyTitle}` : 'For your current stay'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closeAddonModal} style={{ padding: 4 }}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 500 }} contentContainerStyle={{ padding: 16 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 10 }}>
+                Standard Add-ons
+              </Text>
+
+              {!Array.isArray(addonContext?.availableAddons) || addonContext.availableAddons.length === 0 ? (
+                <View style={{
+                  paddingVertical: 18,
+                  paddingHorizontal: 12,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  marginBottom: 14,
+                }}>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                    No standard add-ons are available right now.
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ gap: 10, marginBottom: 14 }}>
+                  {addonContext.availableAddons.map((addon) => {
+                    const addonPrice = Number(addon?.price || 0);
+                    const addonPriceLabel = addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time');
+                    const canRequest = addon?.has_stock !== false;
+                    const isSubmittingThisAddon = addonRequestingId === addon.id;
+
+                    return (
+                      <View
+                        key={addon.id}
+                        style={{
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          backgroundColor: theme.colors.surface,
+                          borderRadius: 10,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          gap: 8,
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
+                              {addon?.name || 'Add-on'}
+                            </Text>
+                            <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>
+                              {addonPriceLabel}
+                            </Text>
+                            {addon?.description ? (
+                              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
+                                {addon.description}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.primary }}>
+                            {formatCurrency(addonPrice)}{addon?.price_type === 'monthly' ? '/mo' : ''}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          disabled={!canRequest || isSubmittingThisAddon}
+                          onPress={() => submitAddonRequest({ booking_id: addonContext.bookingId, addon_id: addon.id, quantity: 1 }, addon.id)}
+                          style={{
+                            minHeight: 40,
+                            borderRadius: 8,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: !canRequest || isSubmittingThisAddon ? theme.colors.textTertiary : theme.colors.primary,
+                          }}
+                        >
+                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                            {isSubmittingThisAddon ? 'Submitting...' : (canRequest ? 'Request Add-on' : 'Out of Stock')}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Request a Custom Add-on
+              </Text>
+
+              <TextInput
+                value={addonDraft.name}
+                onChangeText={(value) => setAddonDraft((prev) => ({ ...prev, name: value }))}
+                placeholder="Item name (e.g., Extra chair, Desk lamp)"
+                placeholderTextColor={theme.colors.textTertiary}
+                style={{
+                  minHeight: 44,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.surface,
+                  marginBottom: 10,
+                }}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                {[
+                  { label: 'Rental', value: 'rental' },
+                  { label: 'Usage Fee', value: 'fee' },
+                ].map((item) => {
+                  const selected = addonDraft.addon_type === item.value;
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      onPress={() => setAddonDraft((prev) => ({ ...prev, addon_type: item.value }))}
+                      style={{
+                        flex: 1,
+                        minHeight: 38,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: selected ? theme.colors.primary : theme.colors.border,
+                        backgroundColor: selected ? theme.colors.primaryLight : theme.colors.surface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: selected ? theme.colors.primary : theme.colors.textSecondary }}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                {[
+                  { label: 'Monthly', value: 'monthly' },
+                  { label: 'One-time', value: 'one_time' },
+                ].map((item) => {
+                  const selected = addonDraft.price_type === item.value;
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      onPress={() => setAddonDraft((prev) => ({ ...prev, price_type: item.value }))}
+                      style={{
+                        flex: 1,
+                        minHeight: 38,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: selected ? theme.colors.primary : theme.colors.border,
+                        backgroundColor: selected ? theme.colors.primaryLight : theme.colors.surface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: selected ? theme.colors.primary : theme.colors.textSecondary }}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TextInput
+                value={addonDraft.suggested_price}
+                onChangeText={(value) => setAddonDraft((prev) => ({ ...prev, suggested_price: value }))}
+                placeholder="Suggested price (optional)"
+                placeholderTextColor={theme.colors.textTertiary}
+                keyboardType="decimal-pad"
+                style={{
+                  minHeight: 44,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.surface,
+                  marginBottom: 10,
+                }}
+              />
+
+              <TextInput
+                value={addonDraft.note}
+                onChangeText={(value) => setAddonDraft((prev) => ({ ...prev, note: value }))}
+                placeholder="Note for landlord (optional)"
+                placeholderTextColor={theme.colors.textTertiary}
+                multiline
+                style={{
+                  minHeight: 96,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  color: theme.colors.text,
+                  textAlignVertical: 'top',
+                  backgroundColor: theme.colors.surface,
+                }}
+              />
+            </ScrollView>
+
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              flexDirection: 'row',
+              gap: 10,
+            }}>
+              <TouchableOpacity
+                onPress={closeAddonModal}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={submitCustomAddonRequest}
+                disabled={submittingCustomAddon}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  backgroundColor: submittingCustomAddon ? theme.colors.textTertiary : '#2563EB',
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
+                  {submittingCustomAddon ? 'Submitting...' : 'Submit Custom'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showTransferModal}

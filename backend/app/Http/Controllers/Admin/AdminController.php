@@ -9,6 +9,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Notifications\LandlordApprovedNotification;
 use App\Notifications\LandlordRejectedNotification;
+use App\Services\AuditLogService;
 use App\Support\SystemToggle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,10 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
+    public function __construct(protected AuditLogService $auditLogService)
+    {
+    }
+
     /**
      * Get payment control system settings.
      */
@@ -281,11 +286,61 @@ class AdminController extends Controller
      */
     public function blockUser(Request $request, $id)
     {
+        $validated = $request->validate([
+            'block_mode' => 'nullable|in:immediate,after_discussion',
+            'discussion_summary' => 'nullable|string|max:2000',
+            'admin_notes' => 'nullable|string|max:2000',
+            'override_without_discussion' => 'nullable|boolean',
+        ]);
+
         $user = User::findOrFail($id);
+        $requestedMode = $validated['block_mode'] ?? 'immediate';
+        $discussionSummary = trim((string) ($validated['discussion_summary'] ?? ''));
+        $adminNotes = trim((string) ($validated['admin_notes'] ?? ''));
+        $overrideWithoutDiscussion = (bool) ($validated['override_without_discussion'] ?? false);
+
+        if ($requestedMode === 'after_discussion' && ! $overrideWithoutDiscussion && $discussionSummary === '') {
+            return response()->json([
+                'message' => 'Discussion summary is required unless the mediation step is explicitly overridden.',
+                'errors' => [
+                    'discussion_summary' => ['Discussion summary is required unless the mediation step is explicitly overridden.'],
+                ],
+            ], 422);
+        }
+
+        $statusBefore = $user->is_blocked ? 'blocked' : 'active';
         $user->is_blocked = true;
         $user->save();
 
-        return response()->json(['user' => $user, 'message' => 'User blocked']);
+        $this->auditLogService->log('user', 'user.blocked', [
+            'severity' => 'warning',
+            'subject_type' => 'user',
+            'subject_id' => $user->id,
+            'status_before' => $statusBefore,
+            'status_after' => 'blocked',
+            'summary' => sprintf('Admin blocked %s (%s).', $user->email ?? ('user#'.$user->id), $user->role ?? 'user'),
+            'metadata' => [
+                'mode' => $requestedMode,
+                'discussion_summary' => $discussionSummary !== '' ? $discussionSummary : null,
+                'admin_notes' => $adminNotes !== '' ? $adminNotes : null,
+                'override_without_discussion' => $overrideWithoutDiscussion,
+            ],
+            'tenant_id' => $user->role === 'tenant' ? $user->id : null,
+            'landlord_id' => in_array($user->role, ['landlord', 'caretaker'], true) ? $user->id : null,
+        ]);
+
+        return response()->json([
+            'user' => $user,
+            'mediation' => [
+                'mode' => $requestedMode,
+                'discussion_summary' => $discussionSummary !== '' ? $discussionSummary : null,
+                'admin_notes' => $adminNotes !== '' ? $adminNotes : null,
+                'override_without_discussion' => $overrideWithoutDiscussion,
+            ],
+            'message' => $requestedMode === 'after_discussion' && ! $overrideWithoutDiscussion
+                ? 'User blocked and mediation notes recorded.'
+                : 'User blocked',
+        ]);
     }
 
     /**
@@ -293,9 +348,30 @@ class AdminController extends Controller
      */
     public function unblockUser(Request $request, $id)
     {
+        $validated = $request->validate([
+            'admin_notes' => 'nullable|string|max:2000',
+        ]);
+
         $user = User::findOrFail($id);
+        $statusBefore = $user->is_blocked ? 'blocked' : 'active';
         $user->is_blocked = false;
         $user->save();
+
+        $adminNotes = trim((string) ($validated['admin_notes'] ?? ''));
+
+        $this->auditLogService->log('user', 'user.unblocked', [
+            'severity' => 'info',
+            'subject_type' => 'user',
+            'subject_id' => $user->id,
+            'status_before' => $statusBefore,
+            'status_after' => 'active',
+            'summary' => sprintf('Admin unblocked %s (%s).', $user->email ?? ('user#'.$user->id), $user->role ?? 'user'),
+            'metadata' => [
+                'admin_notes' => $adminNotes !== '' ? $adminNotes : null,
+            ],
+            'tenant_id' => $user->role === 'tenant' ? $user->id : null,
+            'landlord_id' => in_array($user->role, ['landlord', 'caretaker'], true) ? $user->id : null,
+        ]);
 
         return response()->json(['user' => $user, 'message' => 'User unblocked']);
     }

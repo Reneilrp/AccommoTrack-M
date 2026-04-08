@@ -42,6 +42,27 @@ const ProfileService = {
   },
 
   /**
+   * Get authenticated user payload from /me (includes canonical role)
+   */
+  async getCurrentUser() {
+    try {
+      const response = await api.get('/me');
+      return {
+        success: true,
+        data: response.data.user || response.data,
+        status: response.status,
+      };
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch current user',
+        status: error.response?.status || null,
+      };
+    }
+  },
+
+  /**
    * Update user profile
    * @param {Object} profileData - Profile data to update
    * @param {Object} image - Selected image from image picker (optional)
@@ -249,13 +270,15 @@ const ProfileService = {
       });
       return {
         success: true,
-        data: response.data
+        data: response.data,
+        status: response.status,
       };
     } catch (error) {
       console.error('Verification resubmission failed:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to resubmit verification'
+        error: error.response?.data?.message || 'Failed to resubmit verification',
+        status: error.response?.status || null,
       };
     }
   },
@@ -275,6 +298,7 @@ const ProfileService = {
         success: true,
         data: response.data,
         message: response.data.message || 'Landlord registration submitted successfully',
+        status: response.status,
       };
     } catch (error) {
       console.error('Tenant landlord registration failed:', error);
@@ -322,13 +346,15 @@ const ProfileService = {
       return {
         success: true,
         data: response.data.user || response.data,
-        message: response.data.message || 'Role switched successfully'
+        message: response.data.message || 'Role switched successfully',
+        status: response.status,
       };
     } catch (error) {
       console.error('Error switching role:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to switch role'
+        error: error.response?.data?.message || 'Failed to switch role',
+        status: error.response?.status || null,
       };
     }
   }

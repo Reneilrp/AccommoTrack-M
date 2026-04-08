@@ -80,6 +80,10 @@ class PropertyService
                 'is_published' => $isPublished,
                 'is_available' => $isAvailable,
                 'is_eligible' => $validated['is_eligible'] ?? false,
+                'require_1month_advance' => (bool) ($validated['require_1month_advance'] ?? false),
+                'allow_partial_payments' => array_key_exists('allow_partial_payments', $validated)
+                    ? (bool) $validated['allow_partial_payments']
+                    : true,
                 'require_reservation_fee' => (bool) ($validated['require_reservation_fee'] ?? false),
                 'reservation_fee' => $reservationFeeAmount,
                 'reservation_fee_gap_days' => $reservationFeeGapDays,
@@ -118,15 +122,45 @@ class PropertyService
                 }
             }
 
-            // Automatically handle visibility based on status
-            if (isset($validated['current_status'])) {
-                if ($validated['current_status'] === Property::STATUS_MAINTENANCE || $validated['current_status'] === Property::STATUS_INACTIVE) {
+            $hasStatusUpdate = array_key_exists('current_status', $validated);
+            $hasPublishUpdate = array_key_exists('is_published', $validated);
+            $hasAvailabilityUpdate = array_key_exists('is_available', $validated);
+
+            if ($hasPublishUpdate) {
+                $validated['is_published'] = (bool) $validated['is_published'];
+            }
+
+            if ($hasAvailabilityUpdate) {
+                $validated['is_available'] = (bool) $validated['is_available'];
+            }
+
+            // Keep status authoritative while still allowing explicit publish toggle for active properties.
+            if ($hasStatusUpdate) {
+                if (in_array($validated['current_status'], [
+                    Property::STATUS_MAINTENANCE,
+                    Property::STATUS_INACTIVE,
+                    Property::STATUS_DRAFT,
+                    Property::STATUS_PENDING,
+                ], true)) {
                     $validated['is_published'] = false;
                     $validated['is_available'] = false;
                 } elseif ($validated['current_status'] === Property::STATUS_ACTIVE) {
-                    $validated['is_published'] = true;
-                    $validated['is_available'] = true;
+                    if (! $hasPublishUpdate) {
+                        $validated['is_published'] = true;
+                    }
+
+                    if (! $hasAvailabilityUpdate) {
+                        $validated['is_available'] = true;
+                    }
                 }
+            }
+
+            $effectiveStatus = $hasStatusUpdate
+                ? $validated['current_status']
+                : $property->current_status;
+
+            if ($effectiveStatus !== Property::STATUS_ACTIVE) {
+                $validated['is_published'] = false;
             }
 
             if (isset($validated['property_rules']) && is_string($validated['property_rules'])) {
@@ -144,6 +178,14 @@ class PropertyService
 
             if (isset($validated['property_type'])) {
                 $validated['property_type'] = $this->normalizePropertyTypeValue($validated['property_type']);
+            }
+
+            if (array_key_exists('require_1month_advance', $validated)) {
+                $validated['require_1month_advance'] = (bool) $validated['require_1month_advance'];
+            }
+
+            if (array_key_exists('allow_partial_payments', $validated)) {
+                $validated['allow_partial_payments'] = (bool) $validated['allow_partial_payments'];
             }
 
             if (array_key_exists('require_reservation_fee', $validated)) {

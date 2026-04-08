@@ -50,10 +50,58 @@ const activityIconMap = {
 
 const statusBadgeMap = {
   pending: { bg: '#FEF3C7', fg: '#92400E' },
+  pending_offline: { bg: '#FEF3C7', fg: '#92400E' },
+  in_progress: { bg: '#FEF3C7', fg: '#92400E' },
+  partial: { bg: '#FEF3C7', fg: '#92400E' },
+  'partial-completed': { bg: '#FEF3C7', fg: '#92400E' },
+  processing: { bg: '#FEF3C7', fg: '#92400E' },
   confirmed: { bg: '#DCFCE7', fg: '#166534' },
+  completed: { bg: '#DCFCE7', fg: '#166534' },
+  paid: { bg: '#DCFCE7', fg: '#166534' },
+  approved: { bg: '#DCFCE7', fg: '#166534' },
+  active: { bg: '#DCFCE7', fg: '#166534' },
   available: { bg: '#DCFCE7', fg: '#166534' },
+  resolved: { bg: '#DCFCE7', fg: '#166534' },
+  succeeded: { bg: '#DCFCE7', fg: '#166534' },
+  verified: { bg: '#DCFCE7', fg: '#166534' },
   occupied: { bg: '#DBEAFE', fg: '#1D4ED8' },
-  cancelled: { bg: '#FEE2E2', fg: '#991B1B' }
+  updated: { bg: '#DBEAFE', fg: '#1D4ED8' },
+  changed: { bg: '#DBEAFE', fg: '#1D4ED8' },
+  cancelled: { bg: '#FEE2E2', fg: '#991B1B' },
+  canceled: { bg: '#FEE2E2', fg: '#991B1B' },
+  rejected: { bg: '#FEE2E2', fg: '#991B1B' },
+  failed: { bg: '#FEE2E2', fg: '#991B1B' },
+  declined: { bg: '#FEE2E2', fg: '#991B1B' },
+  overdue: { bg: '#FEE2E2', fg: '#991B1B' },
+  inactive: { bg: '#E5E7EB', fg: '#374151' },
+  maintenance: { bg: '#E5E7EB', fg: '#374151' },
+  draft: { bg: '#E5E7EB', fg: '#374151' }
+};
+
+const normalizeActivityStatus = (status) => String(status || '').toLowerCase();
+
+const resolveActivityColorKey = (activity) => {
+  const explicitColor = String(activity?.color || '').toLowerCase();
+  if (activityColorMap[explicitColor]) {
+    return explicitColor;
+  }
+
+  const status = normalizeActivityStatus(activity?.status);
+  const type = String(activity?.type || '').toLowerCase();
+
+  if (type === 'property' && (status === 'updated' || status === 'changed')) return 'blue';
+  if (type === 'room' && status === 'occupied') return 'blue';
+  if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'red';
+  if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
+  if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
+  if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
+
+  return 'gray';
+};
+
+const resolveStatusBadgeStyle = (activity) => {
+  const status = normalizeActivityStatus(activity?.status);
+  return statusBadgeMap[status] || activityColorMap[resolveActivityColorKey(activity)] || { bg: '#E5E7EB', fg: '#374151' };
 };
 
 const urgencyColorMap = {
@@ -806,9 +854,10 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
               </View>
             ) : (
               activities.slice(0, 5).map((activity, index) => {
-                const palette = activityColorMap[activity.color] || activityColorMap.gray;
+                const colorKey = resolveActivityColorKey(activity);
+                const palette = activityColorMap[colorKey] || activityColorMap.gray;
                 const iconName = activityIconMap[activity.type] || activityIconMap.default;
-                const statusStyle = statusBadgeMap[activity.status] || { bg: '#E5E7EB', fg: '#374151' };
+                const statusStyle = resolveStatusBadgeStyle(activity);
                 return (
                   <View key={`${activity.action}-${index}`} style={styles.activityItem}>
                     <View style={[styles.activityIcon, { backgroundColor: palette.bg }]}>

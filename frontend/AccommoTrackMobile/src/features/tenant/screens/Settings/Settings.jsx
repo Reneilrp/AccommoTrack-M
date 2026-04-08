@@ -108,18 +108,16 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const settingsBundleQuery = useQuery({
     queryKey: tenantQueryKeys.settingsBundle(),
     queryFn: async () => {
-      const verificationPromise = userRole === 'landlord'
-        ? ProfileService.getVerificationStatus()
-        : Promise.resolve({ success: true, data: { status: 'not_submitted' } });
-
       const [profileRes, verificationRes] = await Promise.all([
         ProfileService.getProfile(),
-        verificationPromise,
+        ProfileService.getVerificationStatus(),
       ]);
 
       return {
         notificationSettings: normalizeNotificationSettings(profileRes?.data?.notification_preferences),
-        landlordVerificationStatus: verificationRes?.success ? verificationRes?.data?.status : null,
+        landlordVerificationStatus: verificationRes?.success
+          ? verificationRes?.data?.status || 'not_submitted'
+          : null,
       };
     },
     enabled: !isGuestMode && !loading,
@@ -256,6 +254,11 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         return true;
       }
 
+      if (res.status === 401) {
+        showError('Session expired', 'Please log in again to switch roles.');
+        return false;
+      }
+
       showError('Role switch failed', res.error || 'Failed to switch role');
       return false;
     } catch (error) {
@@ -320,7 +323,23 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
 
     if (userRole === 'tenant' && newRole === 'landlord') {
-      if (landlordVerificationStatus === 'approved') {
+      let effectiveVerificationStatus = landlordVerificationStatus;
+
+      try {
+        const latestVerification = await ProfileService.getVerificationStatus();
+        if (latestVerification?.success) {
+          effectiveVerificationStatus = latestVerification?.data?.status || 'not_submitted';
+          setLandlordVerificationStatus(effectiveVerificationStatus);
+          queryClient.setQueryData(tenantQueryKeys.settingsBundle(), (previousBundle) => ({
+            ...(previousBundle || {}),
+            landlordVerificationStatus: effectiveVerificationStatus,
+          }));
+        }
+      } catch (verificationError) {
+        console.error('Failed to refresh verification status before role switch:', verificationError);
+      }
+
+      if (effectiveVerificationStatus === 'approved') {
         openRoleModal({
           title: 'Switch to Landlord',
           message: 'Your landlord registration is approved. Switch to landlord mode now?',
@@ -328,7 +347,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           showCancel: true,
           onConfirm: () => performRoleSwitch('landlord'),
         });
-      } else if (landlordVerificationStatus === 'pending') {
+      } else if (effectiveVerificationStatus === 'pending') {
         openRoleModal({
           title: 'Registration Pending',
           message: 'Your landlord registration is still under review. Please wait for approval before switching.',

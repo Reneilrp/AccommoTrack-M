@@ -388,6 +388,21 @@ class TenantDashboardController extends Controller
         try {
             $pastBookings = $this->dashboardService->getHistory(Auth::id());
             $formattedBookings = $pastBookings->getCollection()->map(function ($booking) {
+                $property = $booking->property;
+                $room = $booking->room;
+                $landlord = $booking->landlord;
+
+                $propertyId = $property?->id ?? $booking->property_id;
+                $propertyTitle = $property?->title ?? 'Property unavailable';
+                $propertyImage = $property?->image_url;
+                $roomId = $room?->id ?? $booking->room_id;
+                $roomNumber = $room?->room_number ?? 'N/A';
+                $landlordName = trim((string) ($landlord?->full_name ?? (($landlord?->first_name ?? '').' '.($landlord?->last_name ?? ''))));
+                $landlordName = $landlordName !== '' ? $landlordName : ($landlord?->name ?? 'Landlord');
+                $startDate = $booking->start_date ? $booking->start_date->format('Y-m-d') : null;
+                $endDate = $booking->end_date ? $booking->end_date->format('Y-m-d') : null;
+                $hasReview = ! is_null($booking->review);
+
                 $totalPaid = $booking->payments->where('status', 'completed')->sum('amount');
                 $addonTotal = $booking->addons->sum(function ($a) {
                     $price = $this->resolveAddonEffectivePrice($a);
@@ -403,7 +418,7 @@ class TenantDashboardController extends Controller
                     'type' => 'event',
                     'action' => 'Booking Requested',
                     'timestamp' => $booking->created_at,
-                    'description' => 'You submitted a booking request for '.$booking->property->title,
+                    'description' => 'You submitted a booking request for '.$propertyTitle,
                     'status' => 'pending',
                 ]);
 
@@ -448,14 +463,20 @@ class TenantDashboardController extends Controller
 
                 return [
                     'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
-                    'property' => ['id' => $booking->property->id, 'title' => $booking->property->title, 'image' => $booking->property->image_url],
-                    'room' => ['id' => $booking->room->id, 'roomNumber' => $booking->room->room_number],
-                    'landlord' => ['name' => $booking->landlord->name],
+                    'booking_reference' => $booking->booking_reference,
+                    'property_id' => $propertyId,
+                    'property_title' => $propertyTitle,
+                    'property_image' => $propertyImage,
+                    'property' => ['id' => $propertyId, 'title' => $propertyTitle, 'image' => $propertyImage],
+                    'room' => ['id' => $roomId, 'roomNumber' => $roomNumber],
+                    'landlord' => ['name' => $landlordName],
                     'period' => [
-                        'startDate' => $booking->start_date->format('Y-m-d'),
-                        'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                        'startDate' => $startDate,
+                        'endDate' => $endDate,
                         'totalMonths' => $booking->total_months,
                     ],
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
                     'status' => $booking->status,
                     'reservation_policy' => $this->buildReservationPolicyPayload($booking),
                     'billing_policy' => $booking->room?->billing_policy ?? 'monthly',
@@ -474,6 +495,8 @@ class TenantDashboardController extends Controller
                         ];
                     }),
                     'cancelledAt' => $booking->cancelled_at, 'cancellationReason' => $booking->cancellation_reason,
+                    'has_review' => $hasReview,
+                    'hasReview' => $hasReview,
                     'review' => $booking->review ? ['id' => $booking->review->id, 'rating' => $booking->review->rating] : null,
                 ];
             });

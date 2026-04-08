@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Tenants.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { useAuthStore } from '../../../../stores/auth/authStore.js';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -115,6 +116,8 @@ const resolveTenantMonthlyRent = (tenant, room) => {
 export default function TenantsScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const activeRole = useAuthStore((state) => state.activeRole);
+  const isCaretaker = activeRole === 'caretaker';
   const { width: screenWidth } = useWindowDimensions();
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
   const statCardWidth = useMemo(() => {
@@ -155,6 +158,24 @@ export default function TenantsScreen({ navigation, route }) {
     move_in_date: '',
     end_date: '',
     notes: ''
+  });
+
+  const [createTenantVisible, setCreateTenantVisible] = useState(false);
+  const [availableRoomsForCreate, setAvailableRoomsForCreate] = useState([]);
+  const [loadingRoomsForCreate, setLoadingRoomsForCreate] = useState(false);
+  const [isCreatingTenant, setIsCreatingTenant] = useState(false);
+  const [createTenantData, setCreateTenantData] = useState({
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirm_password: '',
+    room_id: '',
+    move_in_date: '',
+    end_date: '',
+    notes: '',
   });
 
   const [unassignVisible, setUnassignVisible] = useState(false);
@@ -388,6 +409,117 @@ export default function TenantsScreen({ navigation, route }) {
       Alert.alert('Error', assignError.message || 'Failed to assign room.');
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  const handleCreateTenantInitiate = async () => {
+    setOpenActionsTenantId(null);
+
+    if (isCaretaker) {
+      Alert.alert('Access denied', 'Only landlord accounts can add tenants.');
+      return;
+    }
+
+    if (!selectedPropertyId) {
+      Alert.alert('Property required', 'Please select a property before adding a tenant.');
+      return;
+    }
+
+    setCreateTenantData({
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirm_password: '',
+      room_id: '',
+      move_in_date: '',
+      end_date: '',
+      notes: '',
+    });
+    setAvailableRoomsForCreate([]);
+    setCreateTenantVisible(true);
+    setLoadingRoomsForCreate(true);
+
+    try {
+      const response = await PropertyService.getRoomsByProperty(selectedPropertyId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load available rooms.');
+      }
+
+      const rooms = (response.data || []).filter((room) => isRoomBookable(room));
+      setAvailableRoomsForCreate(rooms);
+    } catch (createInitError) {
+      Alert.alert('Error', createInitError.message || 'Failed to load available rooms.');
+    } finally {
+      setLoadingRoomsForCreate(false);
+    }
+  };
+
+  const handleCreateTenantSubmit = async () => {
+    const firstName = createTenantData.first_name.trim();
+    const lastName = createTenantData.last_name.trim();
+    const email = createTenantData.email.trim();
+    const phone = createTenantData.phone.trim();
+    const password = createTenantData.password;
+    const confirmPassword = createTenantData.confirm_password;
+
+    if (!firstName || !lastName || !email) {
+      Alert.alert('Required fields', 'First name, last name, and email are required.');
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+
+    if (!password || password.length < 8) {
+      Alert.alert('Invalid password', 'Password must be at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Password mismatch', 'Password and confirm password do not match.');
+      return;
+    }
+
+    if (!createTenantData.room_id) {
+      Alert.alert('Required fields', 'Please select a room for immediate assignment.');
+      return;
+    }
+
+    setIsCreatingTenant(true);
+
+    try {
+      const createPayload = {
+        first_name: firstName,
+        middle_name: createTenantData.middle_name.trim() || undefined,
+        last_name: lastName,
+        email,
+        phone: phone || undefined,
+        password,
+        room_id: Number(createTenantData.room_id),
+        move_in_date: createTenantData.move_in_date.trim() || undefined,
+        end_date: createTenantData.end_date.trim() || undefined,
+        notes: createTenantData.notes.trim() || undefined,
+      };
+
+      const createResponse = await PropertyService.createTenant(createPayload);
+      if (!createResponse.success) {
+        throw new Error(createResponse.error || 'Failed to add tenant.');
+      }
+
+      setCreateTenantVisible(false);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      Alert.alert('Success', 'Tenant added and assigned successfully.');
+    } catch (createError) {
+      setActionError(createError.message || 'Failed to add tenant.');
+      Alert.alert('Error', createError.message || 'Failed to add tenant.');
+    } finally {
+      setIsCreatingTenant(false);
     }
   };
 
@@ -755,9 +887,16 @@ export default function TenantsScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tenant Management</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={handleRefresh}>
-          <Ionicons name="refresh" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {!isCaretaker && (
+            <TouchableOpacity style={styles.iconButton} onPress={handleCreateTenantInitiate}>
+              <Ionicons name="person-add" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.iconButton} onPress={handleRefresh}>
+            <Ionicons name="refresh" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -921,6 +1060,135 @@ export default function TenantsScreen({ navigation, route }) {
             </ScrollView>
           )}
         </SafeAreaView>
+      </Modal>
+
+      <Modal visible={createTenantVisible} transparent animationType="fade" onRequestClose={() => setCreateTenantVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={styles.actionModalTitle}>Add Tenant</Text>
+            <Text style={styles.actionModalSubtitle}>Create a tenant account and assign them to a room in one step.</Text>
+
+            <Text style={styles.actionFieldLabel}>First Name *</Text>
+            <TextInput
+              value={createTenantData.first_name}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, first_name: value }))}
+              placeholder="Juan"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Middle Name</Text>
+            <TextInput
+              value={createTenantData.middle_name}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, middle_name: value }))}
+              placeholder="Santos"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Last Name *</Text>
+            <TextInput
+              value={createTenantData.last_name}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, last_name: value }))}
+              placeholder="Dela Cruz"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Email *</Text>
+            <TextInput
+              value={createTenantData.email}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, email: value }))}
+              placeholder="tenant@example.com"
+              style={styles.actionInput}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+
+            <Text style={styles.actionFieldLabel}>Phone</Text>
+            <TextInput
+              value={createTenantData.phone}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, phone: value }))}
+              placeholder="09XXXXXXXXX"
+              style={styles.actionInput}
+              keyboardType="phone-pad"
+            />
+
+            <Text style={styles.actionFieldLabel}>Password *</Text>
+            <TextInput
+              value={createTenantData.password}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, password: value }))}
+              placeholder="Minimum 8 characters"
+              style={styles.actionInput}
+              secureTextEntry
+            />
+
+            <Text style={styles.actionFieldLabel}>Confirm Password *</Text>
+            <TextInput
+              value={createTenantData.confirm_password}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, confirm_password: value }))}
+              placeholder="Retype password"
+              style={styles.actionInput}
+              secureTextEntry
+            />
+
+            <Text style={styles.actionFieldLabel}>Room Assignment *</Text>
+            <ScrollView style={styles.roomsPicker}>
+              {loadingRoomsForCreate && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
+              {!loadingRoomsForCreate && availableRoomsForCreate.length === 0 && (
+                <Text style={styles.helperText}>No available rooms found.</Text>
+              )}
+              {availableRoomsForCreate.map((room) => (
+                <TouchableOpacity
+                  key={room.id}
+                  style={[
+                    styles.roomOption,
+                    normalizeId(createTenantData.room_id) === normalizeId(room.id) && styles.roomOptionActive
+                  ]}
+                  onPress={() => setCreateTenantData((current) => ({ ...current, room_id: room.id }))}
+                >
+                  <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
+                  <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
+            <TextInput
+              value={createTenantData.move_in_date}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, move_in_date: value }))}
+              placeholder="2026-03-28"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
+            <TextInput
+              value={createTenantData.end_date}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, end_date: value }))}
+              placeholder="2026-09-28"
+              style={styles.actionInput}
+            />
+
+            <Text style={styles.actionFieldLabel}>Notes</Text>
+            <TextInput
+              value={createTenantData.notes}
+              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, notes: value }))}
+              placeholder="Optional assignment notes"
+              style={styles.actionTextArea}
+              multiline
+            />
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setCreateTenantVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSuccessBtn, (isCreatingTenant || availableRoomsForCreate.length === 0) && styles.modalDisabledBtn]}
+                onPress={handleCreateTenantSubmit}
+                disabled={isCreatingTenant || availableRoomsForCreate.length === 0}
+              >
+                <Text style={styles.modalConfirmText}>{isCreatingTenant ? 'Adding...' : 'Create & Assign'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       <Modal visible={transferVisible} transparent animationType="fade" onRequestClose={() => setTransferVisible(false)}>

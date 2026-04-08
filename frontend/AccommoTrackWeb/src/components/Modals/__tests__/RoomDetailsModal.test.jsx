@@ -355,7 +355,7 @@ describe('RoomDetailsModal proxy booking', () => {
     agreeToRulesAndSubmit();
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Check-out date must be after check-in date.');
+      expect(toast.error).toHaveBeenCalledWith('Move-out date must be after move-in date.');
     });
     expect(createBooking).not.toHaveBeenCalled();
 

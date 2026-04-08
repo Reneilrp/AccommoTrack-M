@@ -11,6 +11,16 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const createInitialBlockFlowState = () => ({
+    isOpen: false,
+    userId: null,
+    userName: '',
+    blockMode: 'after_discussion',
+    discussionSummary: '',
+    adminNotes: '',
+    overrideWithoutDiscussion: false,
+  });
+  const [blockFlowState, setBlockFlowState] = useState(createInitialBlockFlowState);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -30,36 +40,89 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
-  const confirmBlock = (userId, is_blocked) => {
-    const action = is_blocked ? 'unblock' : 'block';
+  const closeBlockFlowModal = () => {
+    setBlockFlowState(createInitialBlockFlowState());
+  };
+
+  const openBlockFlowModal = (user) => {
+    setBlockFlowState({
+      ...createInitialBlockFlowState(),
+      isOpen: true,
+      userId: user.id,
+      userName: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user.name || user.email || `User #${user.id}`),
+    });
+  };
+
+  const confirmBlock = (user) => {
+    if (!user) return;
+
+    if (!user.is_blocked) {
+      openBlockFlowModal(user);
+      return;
+    }
+
+    const action = 'unblock';
     setConfirmModalState({
       isOpen: true,
       title: `${action.charAt(0).toUpperCase() + action.slice(1)} User`,
       message: `Are you sure you want to ${action} this user?`,
-      onConfirm: () => handleBlock(userId, !is_blocked),
+      onConfirm: () => handleBlock(user.id, false),
       confirmText: `${action.charAt(0).toUpperCase() + action.slice(1)}`,
-      confirmButtonClass: is_blocked ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+      confirmButtonClass: 'bg-green-600 hover:bg-green-700'
     });
   };
 
-  const handleBlock = async (userId, block = true) => {
-    setConfirmModalState({ isOpen: false });
+  const handleBlock = async (userId, block = true, payload = {}) => {
+    setConfirmModalState((prev) => ({ ...prev, isOpen: false }));
     setActionLoading(userId + ':' + (block ? 'block' : 'unblock'));
     try {
+      const endpoint = block ? `/admin/users/${userId}/block` : `/admin/users/${userId}/unblock`;
+      const response = await api.post(endpoint, payload);
+
+      const isBlocked = Boolean(response?.data?.user?.is_blocked ?? block);
+
       if (block) {
-        await api.post(`/admin/users/${userId}/block`);
-        toast.success('User blocked successfully');
+        toast.success(response?.data?.message || 'User blocked successfully');
       } else {
-        await api.post(`/admin/users/${userId}/unblock`);
-        toast.success('User unblocked successfully');
+        toast.success(response?.data?.message || 'User unblocked successfully');
       }
 
-      setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_blocked: block } : u)));
+      setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_blocked: isBlocked } : u)));
+      setSelectedUser((prev) => (prev?.id === userId ? { ...prev, is_blocked: isBlocked } : prev));
+
+      return true;
     } catch (err) {
       console.error('Failed to update user block status', err);
       toast.error(err.response?.data?.message || err.message || 'User action failed');
+      return false;
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const submitBlockFlow = async () => {
+    if (!blockFlowState.userId) return;
+
+    const discussionSummary = blockFlowState.discussionSummary.trim();
+    const adminNotes = blockFlowState.adminNotes.trim();
+    const requiresDiscussionSummary = blockFlowState.blockMode === 'after_discussion' && !blockFlowState.overrideWithoutDiscussion;
+
+    if (requiresDiscussionSummary && !discussionSummary) {
+      toast.error('Please add discussion notes or enable immediate override.');
+      return;
+    }
+
+    const payload = {
+      block_mode: blockFlowState.blockMode,
+      override_without_discussion: blockFlowState.overrideWithoutDiscussion,
+      ...(discussionSummary ? { discussion_summary: discussionSummary } : {}),
+      ...(adminNotes ? { admin_notes: adminNotes } : {}),
+    };
+
+    const success = await handleBlock(blockFlowState.userId, true, payload);
+    if (success) {
+      closeBlockFlowModal();
+      setShowModal(false);
     }
   };
 
@@ -84,6 +147,113 @@ const UserManagement = () => {
         confirmText={confirmModalState.confirmText}
         confirmButtonClass={confirmModalState.confirmButtonClass}
       />
+      {blockFlowState.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-xl w-full border border-gray-200 dark:border-gray-700 shadow-2xl">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Block User</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Record mediation notes first, or use immediate override for urgent cases.
+                </p>
+              </div>
+              <button
+                onClick={closeBlockFlowModal}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-5">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300 px-4 py-3 text-sm">
+                You are about to block <span className="font-bold">{blockFlowState.userName}</span>.
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Block Mode</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBlockFlowState((prev) => ({ ...prev, blockMode: 'after_discussion' }))}
+                    className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
+                      blockFlowState.blockMode === 'after_discussion'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-500/70 dark:bg-emerald-900/25 dark:text-emerald-300'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300'
+                    }`}
+                  >
+                    Discuss First
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBlockFlowState((prev) => ({ ...prev, blockMode: 'immediate' }))}
+                    className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
+                      blockFlowState.blockMode === 'immediate'
+                        ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-500/70 dark:bg-red-900/25 dark:text-red-300'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-red-300'
+                    }`}
+                  >
+                    Immediate Block
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Discussion Summary</label>
+                <textarea
+                  value={blockFlowState.discussionSummary}
+                  onChange={(event) => setBlockFlowState((prev) => ({ ...prev, discussionSummary: event.target.value }))}
+                  rows={4}
+                  placeholder="What was discussed before applying the block?"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                  Required for discussion-first mode unless override is enabled.
+                </p>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={blockFlowState.overrideWithoutDiscussion}
+                  onChange={(event) => setBlockFlowState((prev) => ({ ...prev, overrideWithoutDiscussion: event.target.checked }))}
+                  className="mt-1"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Override mediation requirement and block immediately.
+                </span>
+              </label>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Admin Notes (Optional)</label>
+                <textarea
+                  value={blockFlowState.adminNotes}
+                  onChange={(event) => setBlockFlowState((prev) => ({ ...prev, adminNotes: event.target.value }))}
+                  rows={3}
+                  placeholder="Internal note for moderation audit trail"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={closeBlockFlowModal}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitBlockFlow}
+                disabled={actionLoading === `${blockFlowState.userId}:block`}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors text-sm font-semibold disabled:opacity-60"
+              >
+                {actionLoading === `${blockFlowState.userId}:block` ? 'Blocking...' : 'Block User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">User Management</h2>
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Manage registered users. View information or block/unblock users.</p>
 
@@ -386,7 +556,7 @@ const UserManagement = () => {
               </button>
               <button
                 onClick={() => {
-                  confirmBlock(selectedUser.id, selectedUser.is_blocked);
+                  confirmBlock(selectedUser);
                   setShowModal(false);
                 }}
                 disabled={actionLoading}

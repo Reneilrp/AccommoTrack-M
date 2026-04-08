@@ -26,6 +26,10 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   // Property Carousel
   propertySelector: {
     marginTop: 0

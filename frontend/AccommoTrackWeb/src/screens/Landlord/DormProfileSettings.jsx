@@ -62,6 +62,20 @@ const greenMarkerIcon = new L.Icon({
   popupAnchor: [0, -36],
 });
 
+const parseBooleanFlag = (value, fallback = false) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off", ""].includes(normalized)) return false;
+  }
+
+  return fallback;
+};
+
 export default function DormProfileSettings({
   propertyId,
   onBack,
@@ -217,9 +231,9 @@ export default function DormProfileSettings({
         floor_area: data.floor_area || 0,
         floor_level: data.floor_level || "",
         total_floors: data.total_floors || 1,
-        require_1month_advance: Boolean(data.require_1month_advance),
-        allow_partial_payments: data.allow_partial_payments !== undefined ? Boolean(data.allow_partial_payments) : true,
-        require_reservation_fee: Boolean(data.require_reservation_fee),
+        require_1month_advance: parseBooleanFlag(data.require_1month_advance, false),
+        allow_partial_payments: parseBooleanFlag(data.allow_partial_payments, true),
+        require_reservation_fee: parseBooleanFlag(data.require_reservation_fee, false),
         reservation_fee_amount: data.reservation_fee_amount || '',
         reservation_fee_gap_days:
           data.reservation_fee_gap_days !== undefined
@@ -228,6 +242,7 @@ export default function DormProfileSettings({
         gcash_name: data.gcash_name || '',
         gcash_number: data.gcash_number || '',
         gcash_qr_path: data.gcash_qr_path || '',
+        is_published: parseBooleanFlag(data.is_published, false),
         transfer_fee: data.transfer_fee || 0,
         latitude: data.latitude,
         longitude: data.longitude,
@@ -669,6 +684,7 @@ export default function DormProfileSettings({
         transfer_fee: parseFloat(dormData.transfer_fee) || 0,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
+        is_published: dormData.status === 'active' ? (dormData.is_published ? 1 : 0) : 0,
         current_status: dormData.status,
       };
 
@@ -1158,6 +1174,30 @@ export default function DormProfileSettings({
                     {isEditing && dormData.status === 'pending' && (
                       <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 italic">
                         * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
+                      </p>
+                    )}
+
+                    <label
+                      className={`mt-4 flex items-start space-x-3 ${
+                        !isEditing || dormData.status !== 'active'
+                          ? 'opacity-60 cursor-not-allowed'
+                          : 'cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={!isEditing || dormData.status !== 'active'}
+                        checked={dormData.status === 'active' && dormData.is_published !== false}
+                        onChange={(e) => handleInputChange('is_published', e.target.checked)}
+                        className="mt-1 w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Show this property on public listings
+                      </span>
+                    </label>
+                    {dormData.status !== 'active' && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Public visibility can only be enabled when property status is Active.
                       </p>
                     )}
                   </div>

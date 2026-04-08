@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { useQuery } from "@tanstack/react-query";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from "../../../../../contexts/ThemeContext.jsx";
 import ProfileService from "../../../../../services/ProfileService.js";
 import { getImageUrl } from "../../../../../utils/imageUtils.js";
@@ -52,19 +53,40 @@ export default function VerificationStatus({ navigation }) {
   const verificationBundleQuery = useQuery({
     queryKey: landlordQueryKeys.verificationStatusBundle(),
     queryFn: async () => {
-      const [statusRes, typesRes, profileRes] = await Promise.all([
+      const [statusRes, typesRes, profileRes, meRes, storedUserJson] = await Promise.all([
         ProfileService.getVerificationStatus(),
         ProfileService.getValidIdTypes(),
         ProfileService.getProfile(),
+        ProfileService.getCurrentUser(),
+        AsyncStorage.getItem('user'),
       ]);
+
+      let storedRole = null;
+      if (storedUserJson) {
+        try {
+          const parsedUser = JSON.parse(storedUserJson);
+          if (parsedUser?.role) {
+            storedRole = String(parsedUser.role).toLowerCase();
+          }
+        } catch {
+          storedRole = null;
+        }
+      }
+
+      const profileRole = profileRes?.success && profileRes?.data?.role
+        ? String(profileRes.data.role).toLowerCase()
+        : null;
+
+      const meRole = meRes?.success && meRes?.data?.role
+        ? String(meRes.data.role).toLowerCase()
+        : null;
+
+      const resolvedRole = meRole || profileRole || storedRole || 'tenant';
 
       return {
         verification: statusRes?.success ? statusRes.data : null,
         idTypes: Array.isArray(typesRes?.data) ? typesRes.data : EMPTY_ID_TYPES,
-        userRole:
-          profileRes?.success && profileRes.data
-            ? profileRes.data.role || "landlord"
-            : "landlord",
+        userRole: resolvedRole,
       };
     },
     placeholderData: (previousData) => previousData,
@@ -72,7 +94,7 @@ export default function VerificationStatus({ navigation }) {
 
   const verification = verificationBundleQuery.data?.verification || null;
   const idTypes = verificationBundleQuery.data?.idTypes || EMPTY_ID_TYPES;
-  const userRole = verificationBundleQuery.data?.userRole || "landlord";
+  const userRole = verificationBundleQuery.data?.userRole || "tenant";
   const loading = verificationBundleQuery.isPending && !verificationBundleQuery.data;
   const fetchError = verificationBundleQuery.error?.message || "";
   const refetchVerificationBundle = verificationBundleQuery.refetch;
@@ -169,10 +191,10 @@ export default function VerificationStatus({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!formData.validIdType || !formData.validIdFront || !formData.validIdBack || !formData.permit) {
+    if (!formData.validIdType || !formData.validIdFront || !formData.permit) {
       Alert.alert(
         "Validation",
-        "Please select an ID type and upload valid ID front/back images plus business/accommodation permit.",
+        "Please select an ID type and upload your valid ID plus business/accommodation permit.",
       );
       return;
     }
@@ -184,31 +206,56 @@ export default function VerificationStatus({ navigation }) {
 
     setSubmitting(true);
     try {
-      const submitData = new FormData();
+      const normalizedUserRole = String(userRole || '').toLowerCase();
       const idType =
         formData.validIdType === "other"
-          ? formData.validIdOther
+          ? formData.validIdOther.trim()
           : formData.validIdType;
 
-      submitData.append('valid_id_type', idType);
-      submitData.append("permit", formData.permit);
+      const buildTenantPayload = () => {
+        const payload = new FormData();
+        payload.append('valid_id_type', idType);
+        payload.append('permit', formData.permit);
+        payload.append('valid_id_front', formData.validIdFront);
+        if (formData.validIdBack) {
+          payload.append('valid_id_back', formData.validIdBack);
+        }
+        return payload;
+      };
+
+      const buildLandlordPayload = () => {
+        const payload = new FormData();
+        payload.append('valid_id_type', idType);
+        payload.append('permit', formData.permit);
+        payload.append('valid_id', formData.validIdFront);
+        if (formData.validIdBack) {
+          payload.append('valid_id_back', formData.validIdBack);
+        }
+        return payload;
+      };
 
       let res;
+      let usedTenantFlow = normalizedUserRole === 'tenant';
 
-      if (userRole === 'tenant') {
-        submitData.append('valid_id_front', formData.validIdFront);
-        submitData.append('valid_id_back', formData.validIdBack);
-        res = await ProfileService.registerAsLandlord(submitData);
+      if (usedTenantFlow) {
+        res = await ProfileService.registerAsLandlord(buildTenantPayload());
       } else {
-        submitData.append('valid_id', formData.validIdFront);
-        submitData.append('valid_id_back', formData.validIdBack);
-        res = await ProfileService.resubmitVerification(submitData);
+        res = await ProfileService.resubmitVerification(buildLandlordPayload());
+
+        // Fallback for stale role state: tenant account accidentally routed to landlord endpoint.
+        if (!res.success && (res.status === 401 || res.status === 403)) {
+          const tenantRetry = await ProfileService.registerAsLandlord(buildTenantPayload());
+          if (tenantRetry.success) {
+            res = tenantRetry;
+            usedTenantFlow = true;
+          }
+        }
       }
 
       if (res.success) {
         Alert.alert(
           "Success",
-          userRole === 'tenant'
+          usedTenantFlow
             ? "Landlord registration submitted! Please wait for admin review."
             : "Verification documents submitted! Please wait for admin review.",
         );
@@ -632,7 +679,7 @@ export default function VerificationStatus({ navigation }) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>
-                  Upload Valid ID Back <Text style={styles.required}>*</Text>
+                  Upload Valid ID Back
                 </Text>
                 <TouchableOpacity
                   style={styles.uploadBox}

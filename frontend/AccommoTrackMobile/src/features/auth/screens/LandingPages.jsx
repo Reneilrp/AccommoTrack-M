@@ -21,6 +21,7 @@ export default function LandingPages({ onFinish }) {
   const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const slideColors = ['#16A34A', '#DC2626', '#EAB308'];
 
   const slides = [
     {
@@ -28,21 +29,21 @@ export default function LandingPages({ onFinish }) {
       icon: 'home',
       title: 'Find Your Perfect Place',
       description: 'Browse through verified accommodations tailored to your needs. From cozy apartments to spacious homes.',
-      color: theme.colors.primary,
+      color: slideColors[0],
     },
     {
       id: '2',
       icon: 'people',
       title: 'Connect with Landlords',
       description: 'Communicate directly with property owners. Schedule viewings, ask questions, and negotiate terms seamlessly.',
-      color: theme.colors.info,
+      color: slideColors[1],
     },
     {
       id: '3',
       icon: 'shield-checkmark',
       title: 'Track Everything',
       description: 'Manage your rental journey from search to move-in. Keep track of payments, documents, and important dates all in one place.',
-      color: theme.colors.infoDark,
+      color: slideColors[2],
     },
   ];
 

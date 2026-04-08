@@ -109,6 +109,8 @@ export const authService = {
   },
 
   async switchRole(role, payload = {}) {
+    await ensureCsrfCookieOrFallback();
+
     const response = await api.post("/switch-role", { role, ...payload });
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));

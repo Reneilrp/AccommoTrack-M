@@ -47,6 +47,24 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [loadingRoomsForAssign, setLoadingRoomsForAssign] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [assignData, setAssignData] = useState({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+  const [showCreateTenantModal, setShowCreateTenantModal] = useState(false);
+  const [availableRoomsForCreate, setAvailableRoomsForCreate] = useState([]);
+  const [loadingRoomsForCreate, setLoadingRoomsForCreate] = useState(false);
+  const [isCreatingTenant, setIsCreatingTenant] = useState(false);
+  const [createTenantData, setCreateTenantData] = useState({
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirm_password: '',
+    gender: 'prefer_not_to_say',
+    room_id: '',
+    move_in_date: '',
+    end_date: '',
+    notes: '',
+  });
   const [showUnassignModal, setShowUnassignModal] = useState(false);
   const [unassigningTenant, setUnassigningTenant] = useState(null);
   const [isUnassigning, setIsUnassigning] = useState(false);
@@ -298,6 +316,115 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     }
   };
 
+  const handleCreateTenantInitiate = async () => {
+    if (isCaretaker) {
+      toast.error('Only landlord accounts can add tenants.');
+      return;
+    }
+
+    if (!selectedPropertyId) {
+      toast.error('Select a property before adding a tenant');
+      return;
+    }
+
+    setCreateTenantData({
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirm_password: '',
+      gender: 'prefer_not_to_say',
+      room_id: '',
+      move_in_date: '',
+      end_date: '',
+      notes: '',
+    });
+    setAvailableRoomsForCreate([]);
+    setShowCreateTenantModal(true);
+    setLoadingRoomsForCreate(true);
+
+    try {
+      const response = await roomService.getRoomsByProperty(selectedPropertyId);
+      const list = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
+      setAvailableRoomsForCreate(list.filter(r => isRoomBookable(r)));
+    } catch {
+      toast.error('Failed to load available rooms for new tenant assignment');
+    } finally {
+      setLoadingRoomsForCreate(false);
+    }
+  };
+
+  const handleCreateTenantSubmit = async (e) => {
+    e.preventDefault();
+
+    const firstName = createTenantData.first_name.trim();
+    const lastName = createTenantData.last_name.trim();
+    const email = createTenantData.email.trim();
+    const phone = createTenantData.phone.trim();
+    const password = createTenantData.password;
+    const confirmPassword = createTenantData.confirm_password;
+
+    if (!firstName || !lastName || !email) {
+      toast.error('First name, last name, and email are required.');
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password || password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+
+    if (!createTenantData.room_id) {
+      toast.error('Please select a room for immediate assignment.');
+      return;
+    }
+
+    setIsCreatingTenant(true);
+
+    try {
+      const createPayload = {
+        first_name: firstName,
+        middle_name: createTenantData.middle_name.trim() || undefined,
+        last_name: lastName,
+        email,
+        phone: phone || undefined,
+        password,
+        gender: createTenantData.gender || undefined,
+        room_id: Number(createTenantData.room_id),
+        move_in_date: createTenantData.move_in_date || undefined,
+        end_date: createTenantData.end_date || undefined,
+        notes: createTenantData.notes.trim() || undefined,
+      };
+
+      const createResponse = await landlordService.createTenant(createPayload);
+      if (!createResponse.success) {
+        throw new Error(createResponse.error || 'Failed to add tenant.');
+      }
+
+      toast.success('Tenant added and assigned successfully.');
+      setShowCreateTenantModal(false);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.message || 'Failed to add tenant.');
+    } finally {
+      setIsCreatingTenant(false);
+    }
+  };
+
   const handleAssignSubmit = async (e) => {
     e.preventDefault();
     if (!assigningTenant) return;
@@ -456,6 +583,17 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                 </button>
               </div>
 
+              {!isCaretaker && (
+                <button
+                  onClick={handleCreateTenantInitiate}
+                  disabled={loading || !selectedPropertyId}
+                  className="px-3 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-md shadow-emerald-500/20"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span className="text-sm font-bold hidden sm:inline">Add Tenant</span>
+                </button>
+              )}
+
               <button onClick={loadTenants} disabled={loading} title="Refresh" className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
               </button>
@@ -509,6 +647,18 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         )}
       </div>
 
+      {showCreateTenantModal && (
+        <CreateTenantModal
+          data={createTenantData}
+          setData={setCreateTenantData}
+          availableRooms={availableRoomsForCreate}
+          loading={loadingRoomsForCreate}
+          isSubmitting={isCreatingTenant}
+          onClose={() => setShowCreateTenantModal(false)}
+          onSubmit={handleCreateTenantSubmit}
+        />
+      )}
+
       {showAssignModal && (
         <AssignModal
           tenant={assigningTenant}
@@ -558,6 +708,185 @@ const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
     </div>
   );
 };
+
+const CreateTenantModal = ({ data, setData, availableRooms, loading, isSubmitting, onClose, onSubmit }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><UserPlus className="w-5 h-5 text-emerald-500" />Add Tenant</h2>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+      </div>
+
+      <form onSubmit={onSubmit} className="p-6 space-y-5">
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg text-sm text-emerald-800 dark:text-emerald-300">
+          New tenants are added with immediate room assignment so they appear in tenant management right away.
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">First Name *</label>
+            <input
+              required
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.first_name}
+              onChange={e => setData({ ...data, first_name: e.target.value })}
+              placeholder="Juan"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Middle Name</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.middle_name}
+              onChange={e => setData({ ...data, middle_name: e.target.value })}
+              placeholder="Santos"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Last Name *</label>
+            <input
+              required
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.last_name}
+              onChange={e => setData({ ...data, last_name: e.target.value })}
+              placeholder="Dela Cruz"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Email *</label>
+            <input
+              required
+              type="email"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.email}
+              onChange={e => setData({ ...data, email: e.target.value })}
+              placeholder="tenant@example.com"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Phone</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.phone}
+              onChange={e => setData({ ...data, phone: e.target.value })}
+              placeholder="09XXXXXXXXX"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Password *</label>
+            <input
+              required
+              type="password"
+              minLength={8}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.password}
+              onChange={e => setData({ ...data, password: e.target.value })}
+              placeholder="Minimum 8 characters"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Confirm Password *</label>
+            <input
+              required
+              type="password"
+              minLength={8}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.confirm_password}
+              onChange={e => setData({ ...data, confirm_password: e.target.value })}
+              placeholder="Retype password"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Gender</label>
+            <select
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.gender}
+              onChange={e => setData({ ...data, gender: e.target.value })}
+            >
+              <option value="prefer_not_to_say">Prefer Not to Say</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="rather_not_say">Rather Not Say</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Room Assignment *</label>
+            <select
+              required
+              disabled={loading}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.room_id}
+              onChange={e => setData({ ...data, room_id: e.target.value })}
+            >
+              <option value="">{loading ? 'Loading rooms...' : 'Select room'}</option>
+              {availableRooms.map(room => (
+                <option key={room.id} value={room.id}>
+                  Room {room.room_number} ({room.type_label || 'Room'})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {availableRooms.length === 0 && !loading && (
+          <p className="text-[11px] text-red-500 font-bold italic">No available rooms in this property. Add or free up a room before creating a tenant.</p>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Move-in Date</label>
+            <input
+              type="date"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.move_in_date}
+              onChange={e => setData({ ...data, move_in_date: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contract End Date</label>
+            <input
+              type="date"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.end_date}
+              onChange={e => setData({ ...data, end_date: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Notes</label>
+          <textarea
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none"
+            value={data.notes}
+            onChange={e => setData({ ...data, notes: e.target.value })}
+            placeholder="Optional assignment notes"
+          />
+        </div>
+
+        <div className="flex gap-4 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+          <button type="submit" disabled={isSubmitting || availableRooms.length === 0} className="flex-1 px-4 py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Adding...</> : 'Create & Assign'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+);
 
 const AssignModal = ({ tenant, availableRooms, loading, isSubmitting, data, setData, onClose, onSubmit }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">

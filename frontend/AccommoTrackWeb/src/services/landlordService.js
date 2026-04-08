@@ -33,6 +33,38 @@ export const landlordService = {
   },
 
   /**
+   * Create a tenant account
+   * POST /landlord/tenants
+   */
+  async createTenant(payload) {
+    try {
+      const res = await api.post('/landlord/tenants', payload);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.message || err.response?.data?.error || err.message,
+      };
+    }
+  },
+
+  /**
+   * Delete a tenant account
+   * DELETE /landlord/tenants/:id
+   */
+  async deleteTenant(tenantId) {
+    try {
+      await api.delete(`/landlord/tenants/${tenantId}`);
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.message || err.response?.data?.error || err.message,
+      };
+    }
+  },
+
+  /**
    * Assign a room to a tenant
    * POST /landlord/tenants/:id/assign-room
    */

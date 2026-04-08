@@ -78,8 +78,27 @@ export default function CaretakerDashboard({ __user }) {
     }
   };
 
-  const getActivityColor = (color) => {
-    switch (color) {
+  const resolveActivityColor = (activity) => {
+    const explicitColor = String(activity?.color || '').toLowerCase();
+    if (['green', 'blue', 'yellow', 'red', 'gray'].includes(explicitColor)) {
+      return explicitColor;
+    }
+
+    const status = String(activity?.status || '').toLowerCase();
+    const type = String(activity?.type || '').toLowerCase();
+
+    if (type === 'property' && (status === 'updated' || status === 'changed')) return 'blue';
+    if (type === 'room' && status === 'occupied') return 'blue';
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'red';
+    if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
+    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
+    if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
+
+    return 'gray';
+  };
+
+  const getActivityColor = (activity) => {
+    switch (resolveActivityColor(activity)) {
       case 'green': return 'bg-green-100 text-green-600';
       case 'blue': return 'bg-blue-100 text-blue-600';
       case 'yellow': return 'bg-yellow-100 text-yellow-600';
@@ -87,6 +106,18 @@ export default function CaretakerDashboard({ __user }) {
       case 'gray': return 'bg-gray-100 text-gray-600';
       default: return 'bg-gray-100 text-gray-600';
     }
+  };
+
+  const getStatusColor = (activity) => {
+    const status = String(activity?.status || '').toLowerCase();
+
+    if (status === 'updated' || status === 'changed') return 'bg-blue-100 text-blue-600';
+    if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'bg-yellow-100 text-yellow-600';
+    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'bg-green-100 text-green-600';
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'bg-red-100 text-red-600';
+    if (['inactive', 'maintenance', 'draft'].includes(status)) return 'bg-gray-100 text-gray-600';
+
+    return getActivityColor(activity);
   };
 
   const getUrgencyColor = (urgency) => {
@@ -217,13 +248,13 @@ export default function CaretakerDashboard({ __user }) {
             {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> : 
               activities.slice(0, 6).map((activity, index) => (
                 <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity.color)}`}>{getActivityIcon(activity.type)}</div>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity)}`}>{getActivityIcon(activity.type)}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{activity.description}</p>
                     <p className="text-xs text-gray-500 mt-2">{formatDate(activity.timestamp)}</p>
                   </div>
-                  <span className={`px-2 py-2 text-xs font-medium rounded-full capitalize ${getActivityColor(activity.color)}`}>{activity.status}</span>
+                  <span className={`px-2 py-2 text-xs font-medium rounded-full capitalize ${getStatusColor(activity)}`}>{activity.status}</span>
                 </div>
               ))
             }
