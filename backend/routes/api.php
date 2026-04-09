@@ -39,6 +39,7 @@ use App\Http\Middleware\EnsureUserIsLandlord;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
+use App\Http\Middleware\EdgeCacheMiddleware;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -65,16 +66,21 @@ Route::post('/claim-account/verify-otp', [ClaimAccountController::class, 'verify
 // Public: check if email exists
 Route::get('/check-email', [AuthController::class, 'checkEmail'])->middleware('throttle:10,1');
 
-Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
-Route::get('/public/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
-Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
-Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
+// --- Edge Cached Public Endpoints ---
+Route::middleware([EdgeCacheMiddleware::class])->group(function () {
+    Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
+    Route::get('/public/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
+    Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+    Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
 
-// --- Add aliases to match frontend Service calls that omit /public prefix ---
-Route::get('/properties', [PropertyController::class, 'getAllProperties']);
-Route::get('/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
+    // --- Add aliases to match frontend Service calls that omit /public prefix ---
+    Route::get('/properties', [PropertyController::class, 'getAllProperties']);
+    Route::get('/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
+    Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+});
+
+// Authenticated accessible properties (NOT edge cached)
 Route::middleware('auth:sanctum')->get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
-Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 // ---------------------------------------------------------------------------
 
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
