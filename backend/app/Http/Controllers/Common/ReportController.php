@@ -27,7 +27,7 @@ class ReportController extends Controller
         // (Active OR Completed)
         $hasBooking = Booking::where('tenant_id', $user->id)
             ->where('property_id', $request->property_id)
-            ->whereIn('status', ['confirmed', 'completed', 'cancelled']) // Allow even cancelled if they had a bad experience
+            ->whereIn('status', ['active', 'confirmed', 'completed', 'cancelled']) // Allow active/current and historical stays
             ->exists();
 
         if (! $hasBooking) {

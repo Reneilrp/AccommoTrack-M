@@ -31,7 +31,7 @@ export default function CreateRequest() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('normal');
+  const [priority, setPriority] = useState('medium');
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -188,7 +188,7 @@ export default function CreateRequest() {
                 <Text style={[styles.label, { color: theme.colors.textSecondary }]}>PRIORITY LEVEL</Text>
                 <View style={styles.priorityRow}>
                     <PriorityChip level="low" label="Low" />
-                    <PriorityChip level="normal" label="Normal" />
+                    <PriorityChip level="medium" label="Medium" />
                     <PriorityChip level="high" label="High" />
                 </View>
             </View>
