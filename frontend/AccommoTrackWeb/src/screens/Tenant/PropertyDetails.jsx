@@ -32,6 +32,8 @@ import {
   VenetianMask,
   Landmark,
   UserCircle,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import api, { getImageUrl } from "../../utils/api";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
@@ -48,7 +50,7 @@ import "leaflet/dist/leaflet.css";
 import RoomDetailsModal from "../../components/Modals/RoomDetailsModal";
 import bookingService from "../../services/bookingService";
 import NotFoundPage from "../NotFoundPage";
-import ReportPropertyModal from "../../components/Tenant/ReportPropertyModal";
+
 
 // --- CUSTOM HOUSE ICON ---
 const houseSvg = encodeURIComponent(`
@@ -82,8 +84,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
   const [galleryItems, setGalleryItems] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
-  // Report Modal State
-  const [showReportModal, setShowReportModal] = useState(false);
+  // Hero image carousel index
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
+
+
 
   const parseMoney = (value, fallback = 0) => {
     if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
@@ -949,20 +953,66 @@ export default function PropertyDetails({ propertyId, onBack }) {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Toaster />
       {/* HEADER */}
-      <div
-        className="relative w-full h-[350px] md:h-[450px] group cursor-pointer"
-        onClick={() => openFullGallery(0)}
-      >
-        {getImageUrl(property.images?.[0]) ? (
-          <img
-            src={getImageUrl(property.images?.[0])}
-            alt={property.title}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
+      <div className="relative w-full h-[350px] md:h-[450px]">
+        {/* Multi-image hero carousel */}
+        {(property.images || []).length > 1 ? (
+          <>
+            <img
+              key={heroImageIndex}
+              src={getImageUrl(property.images[heroImageIndex]) || ''}
+              alt={property.title}
+              className="w-full h-full object-cover transition-opacity duration-500"
+              onClick={() => openFullGallery(heroImageIndex)}
+              style={{ cursor: 'pointer' }}
+            />
+            {/* Prev / Next arrows */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setHeroImageIndex(i => (i - 1 + property.images.length) % property.images.length); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all"
+              aria-label="Previous photo"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setHeroImageIndex(i => (i + 1) % property.images.length); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all"
+              aria-label="Next photo"
+            >
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            {/* Dot indicator */}
+            <div className="absolute bottom-28 md:bottom-24 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+              {property.images.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); setHeroImageIndex(i); }}
+                  className={`rounded-full transition-all ${
+                    i === heroImageIndex
+                      ? 'w-5 h-2 bg-white'
+                      : 'w-2 h-2 bg-white/50 hover:bg-white/80'
+                  }`}
+                  aria-label={`Photo ${i + 1}`}
+                />
+              ))}
+            </div>
+            {/* Photo counter */}
+            <span className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/50 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full">
+              {heroImageIndex + 1} / {property.images.length}
+            </span>
+          </>
         ) : (
-          <ImagePlaceholder className="w-full h-full" />
+          getImageUrl(property.images?.[0]) ? (
+            <img
+              src={getImageUrl(property.images?.[0])}
+              alt={property.title}
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => openFullGallery(0)}
+            />
+          ) : (
+            <ImagePlaceholder className="w-full h-full" />
+          )
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
         <div className="absolute inset-0 flex flex-col justify-between px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full">
           <div className="mt-4 flex justify-between items-start">
@@ -978,34 +1028,42 @@ export default function PropertyDetails({ propertyId, onBack }) {
             </button>
 
             {/* Contact Landlord Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleContactLandlord();
-              }}
-              className="bg-white text-gray-900 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-gray-100 transition-colors"
-            >
-              <MessageCircle className="w-5 h-5 text-green-600" />
-              <span className="hidden sm:inline">Contact Landlord</span>
-            </button>
-
-            {/* Report Listing Button (authenticated tenants only) */}
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <button
-                onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
-                className="bg-red-500/80 hover:bg-red-600 text-white px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-colors backdrop-blur-sm"
-                title="Report Listing"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleContactLandlord();
+                }}
+                className="bg-white text-gray-900 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-gray-100 transition-colors"
               >
-                <Flag className="w-5 h-5" />
-                <span className="hidden sm:inline">Report</span>
+                <MessageCircle className="w-5 h-5 text-green-600" />
+                <span className="hidden sm:inline">Contact Landlord</span>
               </button>
+            ) : (
+              <a
+                href="/login"
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white/90 text-gray-800 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-white transition-colors border border-gray-200"
+                title="Login to message the landlord"
+              >
+                <Lock className="w-4 h-4 text-gray-500" />
+                <span className="hidden sm:inline text-sm">Login to Message</span>
+              </a>
             )}
+
+
           </div>
 
           <div className="text-white pb-6">
             <div className="flex flex-wrap items-center gap-4 mb-2">
               <span className="bg-green-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
-                {property.property_type || "Property"}
+                {(property.property_type || 'Property')
+                  .replace(/boardinghouse/i, 'Boarding House')
+                  .replace(/bedspacer/i, 'Bed Spacer')
+                  .replace(/([a-z])([A-Z])/g, '$1 $2')
+                  .split(/[-_\s]+/)
+                  .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                  .join(' ')}
               </span>
               {reviews.summary?.average_rating && (
                 <span className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-2 py-2 rounded-lg text-sm font-medium">
@@ -1013,6 +1071,19 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   {reviews.summary.average_rating}
                 </span>
               )}
+              {/* Starting price badge */}
+              {property.rooms && property.rooms.length > 0 && (() => {
+                const rates = property.rooms
+                  .map(r => parseFloat(r.monthly_rate || r.rate || 0))
+                  .filter(r => r > 0);
+                if (!rates.length) return null;
+                const minRate = Math.min(...rates);
+                return (
+                  <span className="bg-white/20 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-bold border border-white/30">
+                    From ₱{minRate.toLocaleString()} / M
+                  </span>
+                );
+              })()}
             </div>
             <h1 className="text-3xl md:text-5xl font-extrabold mb-2 tracking-tight">
               {property.title}
@@ -1238,13 +1309,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
         </div>
       )}
 
-      {/* Report Property Modal */}
-      <ReportPropertyModal
-        isOpen={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        propertyId={property?.id}
-        propertyTitle={property?.title}
-      />
+
     </div>
   );
 }

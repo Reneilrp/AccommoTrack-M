@@ -175,9 +175,7 @@ export default function PropertyDetailsScreen({
 
   useEffect(() => {
     if (!propertyDetailsQuery.error) return;
-
-    console.error("Failed to load rooms:", propertyDetailsQuery.error);
-    Alert.alert("Error", "Unable to load rooms for this property right now.");
+    console.error("Failed to load property:", propertyDetailsQuery.error);
   }, [propertyDetailsQuery.error]);
 
   useEffect(() => {
@@ -535,6 +533,86 @@ export default function PropertyDetailsScreen({
     publicReviews.length,
   );
 
+  // Property is unavailable / hidden / deleted — show a proper error screen
+  if (!active && propertyDetailsQuery.isError) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <StatusBar barStyle="light-content" />
+        <View
+          style={{
+            height: 56,
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            backgroundColor: theme.colors.primary,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{ padding: 8, marginRight: 8, justifyContent: "center", alignItems: "center" }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={26} color="#ffffff" />
+          </TouchableOpacity>
+          <Text
+            style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: "700", color: "#ffffff", marginRight: 46 }}
+          >
+            Property Details
+          </Text>
+        </View>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 32,
+            backgroundColor: theme.colors.background,
+          }}
+        >
+          <Ionicons name="home-outline" size={64} color={theme.colors.textTertiary} />
+          <Text
+            style={{
+              marginTop: 16,
+              fontSize: 20,
+              fontWeight: "700",
+              color: theme.colors.text,
+              textAlign: "center",
+            }}
+          >
+            Property Not Available
+          </Text>
+          <Text
+            style={{
+              marginTop: 8,
+              fontSize: 14,
+              color: theme.colors.textSecondary,
+              textAlign: "center",
+              lineHeight: 20,
+            }}
+          >
+            This property may have been removed or is temporarily unavailable.
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{
+              marginTop: 24,
+              paddingVertical: 12,
+              paddingHorizontal: 28,
+              backgroundColor: theme.colors.primary,
+              borderRadius: 10,
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 15 }}>
+              Go Back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Still loading
   if (!active) {
     return (
       <SafeAreaView style={styles.container}>
@@ -919,20 +997,7 @@ export default function PropertyDetailsScreen({
             </Text>
           </TouchableOpacity>
 
-          {!isGuest && !landlordPreview && (
-            <TouchableOpacity
-              style={styles.reportButton}
-              onPress={() =>
-                navigation.navigate('ReportProperty', {
-                  propertyId: active.id,
-                  propertyTitle: active.title || active.name,
-                })
-              }
-            >
-              <Ionicons name="flag-outline" size={18} color="#B91C1C" />
-              <Text style={styles.reportButtonText}>Report Listing</Text>
-            </TouchableOpacity>
-          )}
+
 
           {/* Report Maintenance removed from Property Details - only available via MyBookings */}
 

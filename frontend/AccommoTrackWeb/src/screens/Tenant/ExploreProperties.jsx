@@ -659,11 +659,7 @@ const ExploreProperties = () => {
                 </span>
               )}
 
-              {activeFilterCount === 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                  Use the filter button to set property type, price range, minimum rating, gender policy, and amenities.
-                </p>
-              )}
+              {activeFilterCount === 0 && null}
             </div>
 
             <FilterSidebar
@@ -739,10 +735,18 @@ const ExploreProperties = () => {
             )}
 
             {!loading && filteredProperties.length === 0 && (
-              <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 shadow-md">
-                <p className="text-gray-500 dark:text-gray-500 text-lg font-medium">
-                  No properties found matching your filters.
-                </p>
+              <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 shadow-md flex flex-col items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                  <Filter className="w-7 h-7 text-gray-400 dark:text-gray-500" />
+                </div>
+                <div>
+                  <p className="text-gray-800 dark:text-gray-200 text-lg font-bold mb-1">
+                    No properties found
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    Try adjusting your filters or search terms.
+                  </p>
+                </div>
                 <button
                   onClick={() => {
                     updateScreenState("explore", {
@@ -759,7 +763,7 @@ const ExploreProperties = () => {
                       genderPolicy: "All",
                     });
                   }}
-                  className="mt-4 text-green-600 dark:text-green-500 font-bold hover:underline"
+                  className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
                 >
                   Clear all filters
                 </button>
@@ -785,7 +789,13 @@ const ExploreProperties = () => {
                           <ArrowRight className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-green-600 dark:text-green-500" />
                         </h2>
                         <span className="px-2.5 py-0.5 rounded-md bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold uppercase tracking-wide border border-green-100 dark:border-green-800">
-                          {property.type}
+                          {(property.type || '')
+                            .replace(/([a-z])([A-Z])/g, '$1 $2')
+                            .replace(/boardinghouse/i, 'Boarding House')
+                            .replace(/bedspacer/i, 'Bed Spacer')
+                            .split(/[-_\s]+/)
+                            .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                            .join(' ')}
                         </span>
                       </div>
                       {property.location && (
@@ -797,24 +807,24 @@ const ExploreProperties = () => {
                         </div>
                       )}
                     </div>
-                    <div className="flex-shrink-0 flex items-center gap-2">
-                      {property.video_url && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/property/${property.id}`, {
-                              state: { openVideo: true },
-                            });
-                          }}
-                          className="flex items-center gap-2.5 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                        >
-                          <Play className="w-4 h-4 fill-current" /> Video Tour
-                        </button>
-                      )}
-                      <span className="px-4 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-bold rounded-lg group-hover:bg-green-100 dark:group-hover:bg-green-900/50 transition-colors">
-                        More Details
-                      </span>
-                    </div>
+                      <div className="flex-shrink-0 flex items-center gap-2">
+                        {property.video_url && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/property/${property.id}`, {
+                                state: { openVideo: true },
+                              });
+                            }}
+                            className="flex items-center gap-2.5 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                          >
+                            <Play className="w-4 h-4 fill-current" /> Video Tour
+                          </button>
+                        )}
+                        <span className="px-4 py-2 border border-green-600 dark:border-green-500 text-green-700 dark:text-green-400 text-sm font-bold rounded-lg group-hover:bg-green-50 dark:group-hover:bg-green-900/30 transition-colors">
+                          More Details →
+                        </span>
+                      </div>
                   </div>
 
                   {/* Carousel */}
