@@ -466,7 +466,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   ) : (
                     <ImagePlaceholder className="w-full h-full" />
                   )}
-                  <div className="absolute top-3 right-3 flex flex-col gap-2.5 items-end">
+                  <div className="absolute top-3 left-3 flex">
                     {room.reserved_by_me ? (
                       <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
                         Reserved by you (Pending)
@@ -485,6 +485,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
                           (room.display_status_label || displayStatus || "").toString().slice(1)}
                       </span>
                     )}
+                  </div>
+                  <div className="absolute top-3 right-3 flex">
                     {showGenderBadge && (
                       <span
                         className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
@@ -495,48 +497,68 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   </div>
                 </div>
                 <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                        Room {room.room_number}
-                      </h4>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/30 capitalize">
-                          {(
-                            room.type_label ||
-                            room.room_type ||
-                            "Standard Room"
-                          ).replace(/_/g, " ")}
-                        </span>
-                        {room.floor && (
-                          <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm">
-                            Flr {room.floor}
-                          </span>
-                        )}
-                        <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
-                          {(room.billing_policy || "Monthly")
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}{" "}
-                          Billing
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 flex-1 mr-2">
+                      Room {room.room_number}
+                    </h4>
+                    <div className="text-right flex items-baseline justify-end gap-1 shrink-0">
                       {(() => {
                         const pricing = getRoomPriceDisplay(room);
                         return (
                           <>
-                      <span className="block text-xl font-bold text-green-600">
+                      <span className="text-xl font-bold text-green-600 leading-none">
                         ₱{pricing.amount.toLocaleString()}
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {pricing.suffix}
+                      <span className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-none">
+                        / {pricing.suffix === '/day' ? 'D' : 'M'}
                       </span>
                           </>
                         );
                       })()}
                     </div>
                   </div>
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/30 capitalize">
+                      {(room.type_label || room.room_type || "Standard Room").replace(/_/g, " ")}
+                    </span>
+                    {room.floor && (
+                      <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm">
+                        Flr {room.floor}
+                      </span>
+                    )}
+                    <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
+                      {(room.billing_policy || "Monthly").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} Billing
+                    </span>
+                  </div>
+
+                  {(() => {
+                    const roomAmenities = (Array.isArray(room.amenities) ? room.amenities : [])
+                      .map((amenity) => (typeof amenity === 'string' ? amenity.trim() : String(amenity?.name || amenity?.title || '').trim()))
+                      .filter(Boolean);
+
+                    if (roomAmenities.length > 0) {
+                      return (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {roomAmenities.slice(0, 3).map((label, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/30"
+                              title={label}
+                            >
+                              {label}
+                            </span>
+                          ))}
+                          {roomAmenities.length > 3 && (
+                            <span className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                              +{roomAmenities.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
                   <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
                     {room.description || "No description available."}
@@ -547,7 +569,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
                       <Users className="w-4 h-4" />
                       <span>{room.capacity} Pax</span>
                     </div>
-                    {/* Add more details if available */}
                   </div>
 
                   <div className="mt-auto">

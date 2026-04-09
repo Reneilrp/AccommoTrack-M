@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getStyles } from "../../../../styles/Landlord/Settings.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { triggerForcedLogout, triggerRoleSwitch } from "../../../../navigation/RootNavigation.js";
+import { showError } from "../../../../utils/toast.js";
 import { useAuthStore } from "../../../../stores/auth/authStore.js";
 import {
   landlordQueryKeys,
@@ -146,7 +147,10 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
-  const [payMongoComingSoonVisible, setPayMongoComingSoonVisible] = useState(false);
+  const [comingSoonVisible, setComingSoonVisible] = useState(false);
+  const [comingSoonInfo, setComingSoonInfo] = useState({ title: "Coming Soon", message: "This option will be available soon." });
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState({ title: "", message: "", confirmText: "Confirm", onConfirm: () => {}, singleAction: false });
   const [notificationPrefs, setNotificationPrefs] = useState({
     payments: true,
     messages: true,
@@ -254,95 +258,110 @@ export default function SettingsScreen({ navigation, onLogout }) {
 
     if (userRole === 'tenant' && newRole === 'landlord') {
       if (verificationStatus === 'approved') {
-        Alert.alert('Switch to Landlord', 'Your landlord registration is approved. Switch to landlord mode now?', [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Switch',
-            onPress: async () => {
-              try {
-                setActionLoading(true);
-                const res = await ProfileService.switchRole('landlord');
-                if (res.success) {
-                  const userJson = await AsyncStorage.getItem('user');
-                  if (userJson) {
-                    const parsed = JSON.parse(userJson);
-                    parsed.role = 'landlord';
-                    await AsyncStorage.setItem('user', JSON.stringify(parsed));
-                    if (parsed.id) {
-                      await AsyncStorage.setItem(`user_role_${parsed.id}`, 'landlord');
-                    }
+        setConfirmModalConfig({
+          title: 'Switch to Landlord',
+          message: 'Your landlord registration is approved. Switch to landlord mode now?',
+          confirmText: 'Switch',
+          singleAction: false,
+          onConfirm: async () => {
+            setConfirmModalVisible(false);
+            try {
+              setActionLoading(true);
+              const res = await ProfileService.switchRole('landlord');
+              if (res.success) {
+                const userJson = await AsyncStorage.getItem('user');
+                if (userJson) {
+                  const parsed = JSON.parse(userJson);
+                  parsed.role = 'landlord';
+                  await AsyncStorage.setItem('user', JSON.stringify(parsed));
+                  if (parsed.id) {
+                    await AsyncStorage.setItem(`user_role_${parsed.id}`, 'landlord');
                   }
-                  setActiveRole('landlord');
-                  triggerRoleSwitch('landlord');
-                } else {
-                  Alert.alert('Error', res.error || 'Failed to switch role');
                 }
-              } catch (error) {
-                console.error('Role switch error:', error);
-                Alert.alert('Error', 'An unexpected error occurred while switching roles.');
-              } finally {
-                setActionLoading(false);
+                setActiveRole('landlord');
+                triggerRoleSwitch('landlord');
+              } else {
+                showError('Error', res.error || 'Failed to switch role');
               }
-            },
-          },
-        ]);
+            } catch (error) {
+              console.error('Role switch error:', error);
+              showError('Error', 'An unexpected error occurred while switching roles.');
+            } finally {
+              setActionLoading(false);
+            }
+          }
+        });
+        setConfirmModalVisible(true);
       } else if (verificationStatus === 'pending') {
-        Alert.alert('Registration Pending', 'Your landlord registration is still under review. Please wait for approval before switching.');
+        setConfirmModalConfig({
+          title: 'Registration Pending',
+          message: 'Your landlord registration is still under review. Please wait for approval before switching.',
+          confirmText: 'Got it',
+          singleAction: true,
+          onConfirm: () => setConfirmModalVisible(false)
+        });
+        setConfirmModalVisible(true);
       } else {
-        Alert.alert('Register as Landlord', 'Complete landlord registration first by submitting your valid ID and business permit.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Proceed', onPress: () => navigation.navigate('VerificationStatus') },
-        ]);
+        setConfirmModalConfig({
+          title: 'Register as Landlord',
+          message: 'Complete landlord registration first by submitting your valid ID and business permit.',
+          confirmText: 'Proceed',
+          singleAction: false,
+          onConfirm: () => {
+            setConfirmModalVisible(false);
+            navigation.navigate('VerificationStatus');
+          }
+        });
+        setConfirmModalVisible(true);
       }
       return;
     }
 
-    Alert.alert(
-      `Switch to ${roleName}`,
-      `Are you sure you want to switch your account to ${roleName} mode?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Switch",
-          onPress: async () => {
-            try {
-              setActionLoading(true);
-              const res = await ProfileService.switchRole(newRole);
-              if (res.success) {
-                // Update local storage
-                const userJson = await AsyncStorage.getItem("user");
-                if (userJson) {
-                  const user = JSON.parse(userJson);
-                  user.role = newRole;
-                  await AsyncStorage.setItem("user", JSON.stringify(user));
-                  // Persist role preference across logout/login cycles
-                  if (user.id) {
-                    await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
-                  }
-                }
-                setActiveRole(newRole);
-                // Trigger navigation refresh
-                triggerRoleSwitch(newRole);
-              } else {
-                Alert.alert("Error", res.error || "Failed to switch role");
+    setConfirmModalConfig({
+      title: `Switch to ${roleName}`,
+      message: `Are you sure you want to switch your account to ${roleName} mode?`,
+      confirmText: 'Switch',
+      singleAction: false,
+      onConfirm: async () => {
+        setConfirmModalVisible(false);
+        try {
+          setActionLoading(true);
+          const res = await ProfileService.switchRole(newRole);
+          if (res.success) {
+            // Update local storage
+            const userJson = await AsyncStorage.getItem("user");
+            if (userJson) {
+              const user = JSON.parse(userJson);
+              user.role = newRole;
+              await AsyncStorage.setItem("user", JSON.stringify(user));
+              // Persist role preference across logout/login cycles
+              if (user.id) {
+                await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
               }
-            } catch (error) {
-              console.error("Role switch error:", error);
-              Alert.alert(
-                "Error",
-                "An unexpected error occurred while switching roles.",
-              );
-            } finally {
-              setActionLoading(false);
             }
-          },
-        },
-      ],
-    );
+            setActiveRole(newRole);
+            // Trigger navigation refresh
+            triggerRoleSwitch(newRole);
+          } else {
+            showError("Error", res.error || "Failed to switch role");
+          }
+        } catch (error) {
+          console.error("Role switch error:", error);
+          showError("Error", "An unexpected error occurred while switching roles.");
+        } finally {
+          setActionLoading(false);
+        }
+      }
+    });
+    setConfirmModalVisible(true);
   }, [navigation, setActiveRole, userRole, verificationStatus]);
 
   const handleUnavailable = (label) => {
-    Alert.alert(label, "This option will be available soon.");
+    setComingSoonInfo({
+      title: label,
+      message: "This option will be available soon."
+    });
+    setComingSoonVisible(true);
   };
 
   const handleConnectPayMongo = async () => {
@@ -353,12 +372,16 @@ export default function SettingsScreen({ navigation, onLogout }) {
     //     await Linking.openURL(res.data.onboarding_url);
     //     loadSettings();
     //   } else {
-    //     Alert.alert('Error', res.error || 'Could not start PayMongo connection.');
+    //     showError('Error', res.error || 'Could not start PayMongo connection.');
     //   }
     // } catch (error) {
-    //   Alert.alert('Error', 'An unexpected error occurred.');
+    //   showError('Error', 'An unexpected error occurred.');
     // }
-    setPayMongoComingSoonVisible(true);
+    setComingSoonInfo({
+      title: "PayMongo Coming Soon",
+      message: "PayMongo online payment onboarding is currently being set up. We will notify you once it is available."
+    });
+    setComingSoonVisible(true);
   };
 
   const handleItemPress = (item) => {
@@ -809,7 +832,50 @@ export default function SettingsScreen({ navigation, onLogout }) {
       </Modal>
 
       <Modal
-        visible={payMongoComingSoonVisible}
+        visible={confirmModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setConfirmModalVisible(false)}
+      >
+        <Pressable
+          style={styles.logoutModalBackdrop}
+          onPress={() => setConfirmModalVisible(false)}
+        >
+          <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+            <View style={[styles.logoutModalIconWrap, { backgroundColor: '#DBEAFE' }]}>
+              <Ionicons name="information-circle-outline" size={22} color="#2563EB" />
+            </View>
+
+            <Text style={styles.logoutModalTitle}>{confirmModalConfig.title}</Text>
+            <Text style={styles.logoutModalMessage}>
+              {confirmModalConfig.message}
+            </Text>
+
+            <View style={styles.logoutModalActions}>
+              {!confirmModalConfig.singleAction && (
+                <TouchableOpacity
+                  style={styles.logoutModalCancelButton}
+                  onPress={() => setConfirmModalVisible(false)}
+                >
+                  <Text style={styles.logoutModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.logoutModalConfirmButton, { backgroundColor: '#2563EB' }]}
+                onPress={confirmModalConfig.onConfirm}
+              >
+                <Text style={styles.logoutModalConfirmText}>{confirmModalConfig.confirmText}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={comingSoonVisible}
         transparent
         animationType="fade"
         statusBarTranslucent
@@ -849,7 +915,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                 marginBottom: 12,
               }}
             >
-              <Ionicons name="card-outline" size={28} color="#2563EB" />
+              <Ionicons name="construct-outline" size={28} color="#2563EB" />
             </View>
 
             <Text
@@ -861,7 +927,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                 marginBottom: 10,
               }}
             >
-              PayMongo Coming Soon
+              {comingSoonInfo.title}
             </Text>
 
             <Text
@@ -873,7 +939,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                 marginBottom: 20,
               }}
             >
-              PayMongo online payment onboarding is currently being set up. We will notify you once it is available.
+              {comingSoonInfo.message}
             </Text>
 
             <TouchableOpacity
@@ -883,7 +949,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                 paddingVertical: 12,
                 alignItems: 'center',
               }}
-              onPress={() => setPayMongoComingSoonVisible(false)}
+              onPress={() => setComingSoonVisible(false)}
             >
               <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700' }}>Got it</Text>
             </TouchableOpacity>

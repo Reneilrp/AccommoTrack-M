@@ -336,10 +336,14 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                 </div>
               )}
 
-              <div className="flex items-end justify-between mt-auto pt-2">
-                <div className="flex flex-col">
-                  <span className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight">{room.primaryLabel}</span>
-                  <span className="text-sm font-extrabold text-green-600 leading-tight">{formatCurrency(room.primaryPrice)}</span>
+              <div className="flex items-center justify-between mt-auto pt-2">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-extrabold text-green-600 leading-none">
+                    {formatCurrency(room.primaryPrice)}
+                  </span>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold leading-none">
+                    / {room.billingPolicy === 'daily' ? 'D' : 'M'}
+                  </span>
                 </div>
                 <button
                   onClick={() => onOpenDetails(room, property)}
