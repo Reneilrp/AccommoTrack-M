@@ -9,7 +9,6 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Alert,
   Switch,
   KeyboardAvoidingView,
   Platform
@@ -47,6 +46,12 @@ export default function Caretakers() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [permissionPrompt, setPermissionPrompt] = useState({ visible: false, key: null });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
+  const [resetPasswordModal, setResetPasswordModal] = useState({
+    show: false,
+    caretaker: null,
+    loading: false,
+    tempPassword: '',
+  });
 
   const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics']);
   const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
@@ -200,24 +205,41 @@ export default function Caretakers() {
   };
 
   const handleResetPassword = (item) => {
-    Alert.alert(
-      'Reset Password',
-      `Are you sure you want to reset the password for ${item.caretaker.first_name}? A temporary password will be generated.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
-          onPress: async () => {
-            const res = await CaretakerService.resetPassword(item.id);
-            if (res.success) {
-              Alert.alert('Password Reset', `New temporary password: ${res.data.temporary_password}\n\nPlease share this with the caretaker.`);
-            } else {
-              showError('Error', res.error);
-            }
-          } 
+    setResetPasswordModal({
+      show: true,
+      caretaker: item,
+      loading: false,
+      tempPassword: '',
+    });
+  };
+
+  const handleResetPasswordConfirm = async () => {
+    if (!resetPasswordModal.caretaker) {
+      return;
+    }
+
+    setResetPasswordModal((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await CaretakerService.resetPassword(resetPasswordModal.caretaker.id);
+      if (res.success) {
+        const nextPassword = res.data?.temporary_password || '';
+        setResetPasswordModal((prev) => ({
+          ...prev,
+          loading: false,
+          tempPassword: nextPassword,
+        }));
+
+        if (!nextPassword) {
+          showSuccess('Success', 'Password reset successfully.');
         }
-      ]
-    );
+      } else {
+        setResetPasswordModal((prev) => ({ ...prev, loading: false }));
+        showError('Error', res.error || 'Failed to reset password');
+      }
+    } catch (_err) {
+      setResetPasswordModal((prev) => ({ ...prev, loading: false }));
+      showError('Error', 'Failed to reset password');
+    }
   };
 
   const handleSubmit = async () => {
@@ -720,6 +742,91 @@ export default function Caretakers() {
                 <Text style={styles.alertConfirmText}>Confirm</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        visible={resetPasswordModal.show}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
+        <View style={styles.alertOverlay}>
+          <View style={[styles.alertBox, { backgroundColor: theme.colors.surface }]}> 
+            <View style={[styles.alertIconContainer, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="key-outline" size={32} color="#B45309" />
+            </View>
+
+            <Text style={[styles.alertTitle, { color: theme.colors.text }]}>Reset Password</Text>
+
+            {!resetPasswordModal.tempPassword ? (
+              <Text style={[styles.alertMsg, { color: theme.colors.textSecondary }]}> 
+                Are you sure you want to reset the password for{' '}
+                <Text style={{ fontWeight: 'bold' }}>
+                  {resetPasswordModal.caretaker?.caretaker?.first_name || 'this caretaker'}
+                </Text>
+                ? A temporary password will be generated.
+              </Text>
+            ) : (
+              <>
+                <Text style={[styles.alertMsg, { color: theme.colors.textSecondary, marginBottom: 12 }]}> 
+                  New temporary password generated. Share this with the caretaker.
+                </Text>
+                <View
+                  style={{
+                    width: '100%',
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    marginBottom: 24,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 4 }}>
+                    Temporary Password
+                  </Text>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: theme.colors.text }}>
+                    {resetPasswordModal.tempPassword}
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {!resetPasswordModal.tempPassword ? (
+              <View style={styles.alertActions}>
+                <TouchableOpacity
+                  style={styles.alertCancel}
+                  onPress={() => setResetPasswordModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
+                  disabled={resetPasswordModal.loading}
+                >
+                  <Text style={styles.alertCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.alertConfirm, { backgroundColor: '#D97706' }]}
+                  onPress={handleResetPasswordConfirm}
+                  disabled={resetPasswordModal.loading}
+                >
+                  {resetPasswordModal.loading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={styles.alertConfirmText}>Confirm</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.alertConfirm, { backgroundColor: theme.colors.primary, width: '100%' }]}
+                onPress={() => setResetPasswordModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
+              >
+                <Text style={styles.alertConfirmText}>Done</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>

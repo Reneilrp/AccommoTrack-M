@@ -24,8 +24,6 @@ class ClaimAccountController extends Controller
     {
         $validated = $request->validate([
             'claim_code' => ['required', 'string', 'regex:/^\d{8}$/'],
-            'last_name' => 'required|string|max:255',
-            'date_of_birth' => 'required|date',
         ]);
 
         $claimCode = trim((string) $validated['claim_code']);
@@ -59,30 +57,6 @@ class ClaimAccountController extends Controller
             return $this->errorResponse('This claim code is no longer valid.');
         }
 
-        if (! $tenant->date_of_birth) {
-            return $this->errorResponse('Tenant birth date is not configured yet. Please ask your landlord to update your profile first.');
-        }
-
-        $providedLastName = Str::lower(trim((string) $validated['last_name']));
-        $storedLastName = Str::lower(trim((string) $tenant->last_name));
-        $providedDob = Carbon::parse($validated['date_of_birth'])->toDateString();
-        $storedDob = Carbon::parse($tenant->date_of_birth)->toDateString();
-
-        if ($providedLastName !== $storedLastName || $providedDob !== $storedDob) {
-            $attempts = (int) $claim->attempts + 1;
-            $payload = ['attempts' => $attempts];
-            if ($attempts >= (int) $claim->max_attempts) {
-                $payload['revoked_at'] = now();
-            }
-            $claim->forceFill($payload)->save();
-
-            return $this->errorResponse(
-                $attempts >= (int) $claim->max_attempts
-                    ? 'Claim code locked due to multiple failed attempts. Please request a new code from your landlord.'
-                    : 'Claim details did not match our records.'
-            );
-        }
-
         $challengeToken = (string) Str::uuid();
 
         $claim->forceFill([
@@ -106,6 +80,7 @@ class ClaimAccountController extends Controller
     {
         $validated = $request->validate([
             'challenge_token' => 'required|uuid',
+            'date_of_birth' => 'required|date',
             'email' => 'required|email:rfc|max:255|unique:users,email',
             'password' => [
                 'required',
@@ -136,6 +111,19 @@ class ClaimAccountController extends Controller
         $tenant = $claim->tenant;
         if (! $tenant || $tenant->role !== 'tenant') {
             return $this->errorResponse('This claim is no longer valid.');
+        }
+
+        $providedDob = Carbon::parse($validated['date_of_birth'])->toDateString();
+
+        if ($tenant->date_of_birth) {
+            $storedDob = Carbon::parse($tenant->date_of_birth)->toDateString();
+            if ($providedDob !== $storedDob) {
+                return $this->errorResponse('Date of birth did not match our records.');
+            }
+        } else {
+            $tenant->forceFill([
+                'date_of_birth' => $providedDob,
+            ])->save();
         }
 
         $email = Str::lower(trim((string) $validated['email']));

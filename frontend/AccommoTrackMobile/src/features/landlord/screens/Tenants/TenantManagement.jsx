@@ -20,7 +20,6 @@ import { useQuery } from '@tanstack/react-query';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Tenants.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import { useAuthStore } from '../../../../stores/auth/authStore.js';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -117,8 +116,6 @@ const resolveTenantMonthlyRent = (tenant, room) => {
 export default function TenantsScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const activeRole = useAuthStore((state) => state.activeRole);
-  const isCaretaker = activeRole === 'caretaker';
   const { width: screenWidth } = useWindowDimensions();
   const isTablet = screenWidth >= 768;
   const isLargeTablet = screenWidth >= 1024;
@@ -140,6 +137,12 @@ export default function TenantsScreen({ navigation, route }) {
     tenantName: '',
     code: '',
     expiresAt: '',
+  });
+  const [feedbackModal, setFeedbackModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    tone: 'error',
   });
 
   const [detailTenant, setDetailTenant] = useState(null);
@@ -291,6 +294,22 @@ export default function TenantsScreen({ navigation, route }) {
     }
   }, [selectedPropertyId, properties]);
 
+  const showFeedbackModal = (title, message, tone = 'error') => {
+    setFeedbackModal({
+      visible: true,
+      title,
+      message: message || 'Something went wrong. Please try again.',
+      tone,
+    });
+  };
+
+  const closeFeedbackModal = () => {
+    setFeedbackModal((current) => ({
+      ...current,
+      visible: false,
+    }));
+  };
+
   const handleTransferInitiate = async (tenant) => {
     const propertyId = tenant.room?.property_id || selectedPropertyId;
     if (!propertyId) {
@@ -425,11 +444,6 @@ export default function TenantsScreen({ navigation, route }) {
 
   const handleCreateTenantInitiate = async () => {
     setOpenActionsTenantId(null);
-
-    if (isCaretaker) {
-      Alert.alert('Access denied', 'Only landlord accounts can add tenants.');
-      return;
-    }
 
     if (!selectedPropertyId) {
       Alert.alert('Property required', 'Please select a property before adding a tenant.');
@@ -576,13 +590,13 @@ export default function TenantsScreen({ navigation, route }) {
   const handleEvictConfirm = async () => {
     if (!evictingTenant) return;
     if (!evictionReason.trim()) {
-      Alert.alert('Required', 'Reason for eviction is required.');
+      showFeedbackModal('Missing reason', 'Reason for eviction is required.');
       return;
     }
 
     const graceHours = Number(evictionGraceHours || 0);
     if (Number.isNaN(graceHours) || graceHours < 0 || graceHours > 168) {
-      Alert.alert('Invalid value', 'Grace hours must be between 0 and 168.');
+      showFeedbackModal('Invalid value', 'Grace hours must be between 0 and 168.');
       return;
     }
 
@@ -601,8 +615,9 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Eviction scheduled successfully.');
     } catch (evictionError) {
-      setActionError(evictionError.message || 'Failed to schedule eviction.');
-      Alert.alert('Error', evictionError.message || 'Failed to schedule eviction.');
+      const message = evictionError.message || 'Failed to schedule eviction.';
+      setActionError(message);
+      showFeedbackModal('Unable to schedule eviction', message);
     } finally {
       setIsEvicting(false);
     }
@@ -618,8 +633,9 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Eviction finalized successfully.');
     } catch (error) {
-      setActionError(error.message || 'Failed to finalize eviction.');
-      Alert.alert('Error', error.message || 'Failed to finalize eviction.');
+      const message = error.message || 'Failed to finalize eviction.';
+      setActionError(message);
+      showFeedbackModal('Unable to finalize eviction', message);
     }
   };
 
@@ -633,8 +649,9 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Eviction schedule cancelled.');
     } catch (error) {
-      setActionError(error.message || 'Failed to cancel eviction schedule.');
-      Alert.alert('Error', error.message || 'Failed to cancel eviction schedule.');
+      const message = error.message || 'Failed to cancel eviction schedule.';
+      setActionError(message);
+      showFeedbackModal('Unable to cancel eviction', message);
     }
   };
 
@@ -648,8 +665,9 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       Alert.alert('Success', 'Eviction undone and tenancy restored.');
     } catch (error) {
-      setActionError(error.message || 'Failed to undo eviction.');
-      Alert.alert('Error', error.message || 'Failed to undo eviction.');
+      const message = error.message || 'Failed to undo eviction.';
+      setActionError(message);
+      showFeedbackModal('Unable to undo eviction', message);
     }
   };
 
@@ -661,11 +679,6 @@ export default function TenantsScreen({ navigation, route }) {
   };
 
   const handleGenerateClaimCode = async (tenant) => {
-    if (isCaretaker) {
-      Alert.alert('Access denied', 'Only landlord accounts can generate claim codes.');
-      return;
-    }
-
     try {
       const response = await PropertyService.generateTenantClaimCode(tenant.id);
       if (!response.success) {
@@ -685,8 +698,9 @@ export default function TenantsScreen({ navigation, route }) {
       });
       setClaimCodeModalVisible(true);
     } catch (error) {
-      setActionError(error.message || 'Failed to generate claim code.');
-      Alert.alert('Error', error.message || 'Failed to generate claim code.');
+      const message = error.message || 'Failed to generate claim code.';
+      setActionError(message);
+      showFeedbackModal('Unable to generate claim code', message);
     }
   };
 
@@ -699,7 +713,7 @@ export default function TenantsScreen({ navigation, route }) {
         message: `Tenant: ${claimCodePayload.tenantName}\nClaim code: ${claimCodePayload.code}\nExpires: ${claimCodePayload.expiresAt}\n\nUse Claim Existing Account on the auth screen.`,
       });
     } catch {
-      Alert.alert('Error', 'Unable to open share options right now.');
+      showFeedbackModal('Unable to share code', 'Unable to open share options right now.');
     }
   };
 
@@ -752,12 +766,11 @@ export default function TenantsScreen({ navigation, route }) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.moreActionItem, isCaretaker ? styles.moreActionItemDisabled : null]}
+                style={styles.moreActionItem}
                 onPress={() => {
                   setOpenActionsTenantId(null);
                   handleGenerateClaimCode(item);
                 }}
-                disabled={isCaretaker}
               >
                 <Ionicons name="key-outline" size={16} color="#4338CA" />
                 <Text style={styles.moreActionLabel}>Generate Claim Code</Text>
@@ -1008,11 +1021,9 @@ export default function TenantsScreen({ navigation, route }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tenant Management</Text>
         <View style={styles.headerActions}>
-          {!isCaretaker && (
-            <TouchableOpacity style={styles.iconButton} onPress={handleCreateTenantInitiate}>
-              <Ionicons name="person-add" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={styles.iconButton} onPress={handleCreateTenantInitiate}>
+            <Ionicons name="person-add" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={handleRefresh}>
             <Ionicons name="refresh" size={22} color="#FFFFFF" />
           </TouchableOpacity>
@@ -1176,6 +1187,43 @@ export default function TenantsScreen({ navigation, route }) {
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalSuccessBtn} onPress={handleShareClaimCode}>
                 <Text style={styles.modalConfirmText}>Share</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={feedbackModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeFeedbackModal}
+      >
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Ionicons
+                name={feedbackModal.tone === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+                size={22}
+                color={feedbackModal.tone === 'success' ? '#16a34a' : '#DC2626'}
+              />
+              <Text style={[styles.actionModalTitle, { marginLeft: 8 }]}>{feedbackModal.title || 'Notice'}</Text>
+            </View>
+
+            <Text style={styles.actionModalSubtitle}>{feedbackModal.message}</Text>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.modalDangerBtn,
+                  {
+                    backgroundColor: feedbackModal.tone === 'success' ? '#16a34a' : '#DC2626',
+                    flex: 1,
+                  },
+                ]}
+                onPress={closeFeedbackModal}
+              >
+                <Text style={styles.modalConfirmText}>Okay</Text>
               </TouchableOpacity>
             </View>
           </View>

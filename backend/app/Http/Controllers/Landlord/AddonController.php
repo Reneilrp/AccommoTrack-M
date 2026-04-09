@@ -3,17 +3,19 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Http\Resources\AddonResource;
 use App\Models\Addon;
 use App\Models\Booking;
-use App\Models\Property;
 use App\Services\AddonService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class AddonController extends Controller
 {
+    use ResolvesLandlordAccess;
+
     protected AddonService $addonService;
 
     private function extractSuggestedPriceFromNote(?string $note): ?float
@@ -41,26 +43,22 @@ class AddonController extends Controller
         $this->addonService = $addonService;
     }
 
+    private function resolveAddonPropertyContext(Request $request, int $propertyId, string $permissionColumn = 'can_view_properties'): array
+    {
+        $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, $permissionColumn);
+        $this->checkPropertyAccess($context, $propertyId);
+
+        return $context;
+    }
+
     /**
      * Get all addons for a property (Landlord/Caretaker)
      */
     public function index(Request $request, $propertyId)
     {
         try {
-            $user = Auth::user();
-
-            // Verify ownership or caretaker access
-            $property = Property::where('id', $propertyId)
-                ->where(function ($query) use ($user) {
-                    $query->where('landlord_id', $user->id);
-                })
-                ->first();
-
-            if (! $property) {
-                return response()->json([
-                    'message' => 'Property not found or access denied',
-                ], 404);
-            }
+            $this->resolveAddonPropertyContext($request, (int) $propertyId);
 
             $addons = Addon::where('property_id', $propertyId)
                 ->orderBy('name')
@@ -69,6 +67,10 @@ class AddonController extends Controller
             return response()->json([
                 'addons' => AddonResource::collection($addons)->resolve(),
             ], 200);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch addons',
@@ -83,18 +85,7 @@ class AddonController extends Controller
     public function store(Request $request, $propertyId)
     {
         try {
-            $user = Auth::user();
-
-            // Verify ownership
-            $property = Property::where('id', $propertyId)
-                ->where('landlord_id', $user->id)
-                ->first();
-
-            if (! $property) {
-                return response()->json([
-                    'message' => 'Property not found or access denied',
-                ], 404);
-            }
+            $this->resolveAddonPropertyContext($request, (int) $propertyId);
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
@@ -112,6 +103,10 @@ class AddonController extends Controller
                 'message' => 'Addon created successfully',
                 'addon' => (new AddonResource($addon))->resolve(),
             ], 201);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
@@ -131,18 +126,7 @@ class AddonController extends Controller
     public function update(Request $request, $propertyId, $addonId)
     {
         try {
-            $user = Auth::user();
-
-            // Verify ownership
-            $property = Property::where('id', $propertyId)
-                ->where('landlord_id', $user->id)
-                ->first();
-
-            if (! $property) {
-                return response()->json([
-                    'message' => 'Property not found or access denied',
-                ], 404);
-            }
+            $this->resolveAddonPropertyContext($request, (int) $propertyId);
 
             $addon = Addon::where('id', $addonId)
                 ->where('property_id', $propertyId)
@@ -164,6 +148,10 @@ class AddonController extends Controller
                 'message' => 'Addon updated successfully',
                 'addon' => (new AddonResource($addon))->resolve(),
             ], 200);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
@@ -180,21 +168,10 @@ class AddonController extends Controller
     /**
      * Delete an addon (Landlord/Caretaker)
      */
-    public function destroy($propertyId, $addonId)
+    public function destroy(Request $request, $propertyId, $addonId)
     {
         try {
-            $user = Auth::user();
-
-            // Verify ownership
-            $property = Property::where('id', $propertyId)
-                ->where('landlord_id', $user->id)
-                ->first();
-
-            if (! $property) {
-                return response()->json([
-                    'message' => 'Property not found or access denied',
-                ], 404);
-            }
+            $this->resolveAddonPropertyContext($request, (int) $propertyId);
 
             $addon = Addon::where('id', $addonId)
                 ->where('property_id', $propertyId)
@@ -205,6 +182,10 @@ class AddonController extends Controller
             return response()->json([
                 'message' => 'Addon deleted successfully',
             ], 200);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete addon',
@@ -216,21 +197,10 @@ class AddonController extends Controller
     /**
      * Get pending addon requests for a property (Landlord/Caretaker)
      */
-    public function getPendingRequests($propertyId)
+    public function getPendingRequests(Request $request, $propertyId)
     {
         try {
-            $user = Auth::user();
-
-            // Verify ownership
-            $property = Property::where('id', $propertyId)
-                ->where('landlord_id', $user->id)
-                ->first();
-
-            if (! $property) {
-                return response()->json([
-                    'message' => 'Property not found or access denied',
-                ], 404);
-            }
+            $this->resolveAddonPropertyContext($request, (int) $propertyId);
 
             $pendingRequests = DB::table('booking_addons')
                 ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
@@ -297,6 +267,10 @@ class AddonController extends Controller
                     ];
                 }),
             ], 200);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch pending requests',
@@ -311,7 +285,8 @@ class AddonController extends Controller
     public function handleRequest(Request $request, $bookingId, $addonId)
     {
         try {
-            $user = Auth::user();
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
 
             $validated = $request->validate([
                 'action' => 'required|in:approve,reject',
@@ -321,10 +296,12 @@ class AddonController extends Controller
 
             // Get booking and verify access
             $booking = Booking::where('id', $bookingId)
-                ->whereHas('property', function ($query) use ($user) {
-                    $query->where('landlord_id', $user->id);
-                })
+                ->where('landlord_id', $context['landlord_id'])
                 ->firstOrFail();
+
+            if ($context['is_caretaker']) {
+                $this->checkPropertyAccess($context, (int) $booking->property_id);
+            }
 
             $approvedPrice = array_key_exists('approved_price', $validated)
                 ? (float) $validated['approved_price']
@@ -335,11 +312,15 @@ class AddonController extends Controller
                 $addonId,
                 $validated['action'],
                 $validated['note'] ?? null,
-                $user->id,
+                $context['user']->id,
                 $approvedPrice
             );
 
             return response()->json($result, 200);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
@@ -356,21 +337,10 @@ class AddonController extends Controller
     /**
      * Get all active addons across all bookings for a property (Landlord overview)
      */
-    public function getActiveAddons($propertyId)
+    public function getActiveAddons(Request $request, $propertyId)
     {
         try {
-            $user = Auth::user();
-
-            // Verify ownership
-            $property = Property::where('id', $propertyId)
-                ->where('landlord_id', $user->id)
-                ->first();
-
-            if (! $property) {
-                return response()->json([
-                    'message' => 'Property not found or access denied',
-                ], 404);
-            }
+            $this->resolveAddonPropertyContext($request, (int) $propertyId);
 
             $activeAddons = DB::table('booking_addons')
                 ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
@@ -435,6 +405,10 @@ class AddonController extends Controller
                     'monthlyRevenue' => (float) $monthlyRevenue,
                 ],
             ], 200);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch active addons',

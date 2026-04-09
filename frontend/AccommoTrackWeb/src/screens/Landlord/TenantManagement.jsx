@@ -12,7 +12,7 @@ import landlordService from '../../services/landlordService';
 import bookingService from '../../services/bookingService';
 import roomService from '../../services/roomService';
 
-export default function TenantManagement({ user, accessRole = 'landlord' }) {
+export default function TenantManagement() {
   const { uiState, updateData } = useUIState();
   const location = useLocation();
   const navigate = useNavigate();
@@ -102,8 +102,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     return new Date(scheduledFor).getTime() <= Date.now();
   };
 
-  const normalizedRole = accessRole || user?.role || 'landlord';
-  const isCaretaker = normalizedRole === 'caretaker';
   const isFromProperty = Boolean(new URLSearchParams(location.search).get('property'));
   
   const handleBackClick = () => {
@@ -319,11 +317,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   };
 
   const handleCreateTenantInitiate = async () => {
-    if (isCaretaker) {
-      toast.error('Only landlord accounts can add tenants.');
-      return;
-    }
-
     if (!selectedPropertyId) {
       toast.error('Select a property before adding a tenant');
       return;
@@ -504,11 +497,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   };
 
   const handleGenerateClaimCode = async (tenant) => {
-    if (isCaretaker) {
-      toast.error('Only landlord accounts can generate claim codes.');
-      return;
-    }
-
     if (!tenant?.id) {
       toast.error('Invalid tenant selection.');
       return;
@@ -628,16 +616,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                 </button>
               </div>
 
-              {!isCaretaker && (
-                <button
-                  onClick={handleCreateTenantInitiate}
-                  disabled={loading || !selectedPropertyId}
-                  className="px-3 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-md shadow-emerald-500/20"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span className="text-sm font-bold hidden sm:inline">Add Tenant</span>
-                </button>
-              )}
+              <button
+                onClick={handleCreateTenantInitiate}
+                disabled={loading || !selectedPropertyId}
+                className="px-3 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-md shadow-emerald-500/20"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="text-sm font-bold hidden sm:inline">Add Tenant</span>
+              </button>
 
               <button onClick={loadTenants} disabled={loading} title="Refresh" className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
@@ -668,7 +654,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                   onGenerateClaimCode={handleGenerateClaimCode}
                   onApproveReservation={handleApproveReservation}
                   onCheckIn={handleCheckInTenant}
-                  canTransfer={!isCaretaker}
+                  canTransfer={true}
                   isEvictionDue={isEvictionDue(tenant)}
                 />
               ))
@@ -687,7 +673,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             onGenerateClaimCode={handleGenerateClaimCode}
             onApproveReservation={handleApproveReservation}
             onCheckIn={handleCheckInTenant}
-            canTransfer={!isCaretaker}
+            canTransfer={true}
             searchQuery={searchQuery}
             isEvictionDue={isEvictionDue}
           />

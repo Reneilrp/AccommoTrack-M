@@ -461,7 +461,6 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [claimData, setClaimData] = useState({
     claimCode: '',
-    lastName: '',
     dateOfBirth: '',
     challengeToken: '',
     email: '',
@@ -479,7 +478,6 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
       setResendCooldown(0);
       setClaimData({
         claimCode: '',
-        lastName: '',
         dateOfBirth: '',
         challengeToken: '',
         email: '',
@@ -499,14 +497,18 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
 
   const handleVerifyClaimCode = async (e) => {
     e.preventDefault();
+    const normalizedClaimCode = (claimData.claimCode || '').trim();
+    if (!/^\d{8}$/.test(normalizedClaimCode)) {
+      setError('Please enter the 8-digit claim code.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       const response = await api.post('/claim-account/verify-code', {
-        claim_code: (claimData.claimCode || '').trim(),
-        last_name: (claimData.lastName || '').trim(),
-        date_of_birth: claimData.dateOfBirth,
+        claim_code: normalizedClaimCode,
       });
 
       const payload = response.data?.data || response.data || {};
@@ -533,6 +535,7 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
     try {
       const response = await api.post('/claim-account/send-otp', {
         challenge_token: claimData.challengeToken,
+        date_of_birth: claimData.dateOfBirth,
         email: (claimData.email || '').trim(),
         password: claimData.password,
         password_confirmation: claimData.passwordConfirmation,
@@ -612,7 +615,7 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
           {step === 1 && (
             <form className="space-y-4" onSubmit={handleVerifyClaimCode}>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Enter the claim code from your landlord, plus your last name and birth date.
+                Enter the 8-digit claim code from your landlord.
               </p>
               <input
                 type="text"
@@ -622,21 +625,6 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
                 value={claimData.claimCode}
                 onChange={(e) => setClaimData((prev) => ({ ...prev, claimCode: e.target.value.replace(/\D/g, '') }))}
                 placeholder="8-digit claim code"
-                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
-                required
-              />
-              <input
-                type="text"
-                value={claimData.lastName}
-                onChange={(e) => setClaimData((prev) => ({ ...prev, lastName: e.target.value }))}
-                placeholder="Last name"
-                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
-                required
-              />
-              <input
-                type="date"
-                value={claimData.dateOfBirth}
-                onChange={(e) => setClaimData((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
                 className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
                 required
               />
@@ -657,8 +645,15 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
                 {claimData.tenantName
                   ? `Code verified for ${claimData.tenantName}.`
                   : 'Code verified.'}{' '}
-                Set your login credentials and we will send OTP to your email.
+                Enter your date of birth, then set your login credentials and we will send OTP to your email.
               </p>
+              <input
+                type="date"
+                value={claimData.dateOfBirth}
+                onChange={(e) => setClaimData((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
               <input
                 type="email"
                 value={claimData.email}

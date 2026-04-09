@@ -310,7 +310,6 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
   const [showClaimDobPicker, setShowClaimDobPicker] = useState(false);
   const [claimData, setClaimData] = useState({
     claimCode: '',
-    lastName: '',
     dateOfBirth: '',
     challengeToken: '',
     tenantName: '',
@@ -329,7 +328,6 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
       setShowClaimDobPicker(false);
       setClaimData({
         claimCode: '',
-        lastName: '',
         dateOfBirth: '',
         challengeToken: '',
         tenantName: '',
@@ -384,8 +382,9 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
   };
 
   const handleVerifyCode = async () => {
-    if (!claimData.claimCode || !claimData.lastName || !claimData.dateOfBirth) {
-      setError('Claim code, last name, and date of birth are required.');
+    const normalizedClaimCode = claimData.claimCode.trim();
+    if (!/^\d{8}$/.test(normalizedClaimCode)) {
+      setError('Please enter the 8-digit claim code.');
       return;
     }
 
@@ -395,9 +394,7 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
       const data = await postClaim(
         '/claim-account/verify-code',
         {
-          claim_code: claimData.claimCode.trim(),
-          last_name: claimData.lastName.trim(),
-          date_of_birth: claimData.dateOfBirth.trim(),
+          claim_code: normalizedClaimCode,
         },
         'Failed to verify claim code.',
       );
@@ -418,8 +415,8 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
   };
 
   const handleSendOtp = async () => {
-    if (!claimData.email || !claimData.password || !claimData.passwordConfirmation) {
-      setError('Email, password, and confirmation are required.');
+    if (!claimData.dateOfBirth || !claimData.email || !claimData.password || !claimData.passwordConfirmation) {
+      setError('Date of birth, email, password, and confirmation are required.');
       return;
     }
 
@@ -430,6 +427,7 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
         '/claim-account/send-otp',
         {
           challenge_token: claimData.challengeToken,
+          date_of_birth: claimData.dateOfBirth.trim(),
           email: claimData.email.trim(),
           password: claimData.password,
           password_confirmation: claimData.passwordConfirmation,
@@ -544,7 +542,7 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
               {step === 1 && (
                 <View style={{ gap: 10 }}>
                   <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-                    Enter the claim code from your landlord with your last name and date of birth.
+                    Enter the 8-digit claim code from your landlord.
                   </Text>
                   <TextInput
                     value={claimData.claimCode}
@@ -555,14 +553,25 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
                     placeholderTextColor="#9CA3AF"
                     style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text }}
                   />
-                  <TextInput
-                    value={claimData.lastName}
-                    onChangeText={(text) => setClaimData((prev) => ({ ...prev, lastName: text }))}
-                    placeholder="Last name"
-                    placeholderTextColor="#9CA3AF"
-                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text }}
-                  />
 
+                  <TouchableOpacity
+                    onPress={handleVerifyCode}
+                    disabled={loading}
+                    style={{ backgroundColor: theme.colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4, opacity: loading ? 0.7 : 1 }}
+                  >
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Verify Claim Code</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {step === 2 && (
+                <View style={{ gap: 10 }}>
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
+                    {claimData.tenantName
+                      ? `Code verified for ${claimData.tenantName}.`
+                      : 'Code verified.'}{' '}
+                    Enter your date of birth, then set your email and password to continue.
+                  </Text>
                   <TouchableOpacity
                     onPress={() => setShowClaimDobPicker(true)}
                     style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 }}
@@ -586,25 +595,6 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
                       }}
                     />
                   )}
-
-                  <TouchableOpacity
-                    onPress={handleVerifyCode}
-                    disabled={loading}
-                    style={{ backgroundColor: theme.colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4, opacity: loading ? 0.7 : 1 }}
-                  >
-                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Verify Claim Code</Text>}
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {step === 2 && (
-                <View style={{ gap: 10 }}>
-                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-                    {claimData.tenantName
-                      ? `Code verified for ${claimData.tenantName}.`
-                      : 'Code verified.'}{' '}
-                    Set your email and password to continue.
-                  </Text>
                   <TextInput
                     value={claimData.email}
                     onChangeText={(text) => setClaimData((prev) => ({ ...prev, email: text }))}

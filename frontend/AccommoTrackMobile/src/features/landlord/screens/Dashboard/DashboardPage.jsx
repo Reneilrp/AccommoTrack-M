@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert,
+  TouchableWithoutFeedback,
   Modal,
   Pressable,
   useWindowDimensions,
@@ -142,6 +142,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [moreActionsVisible, setMoreActionsVisible] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [permissionModal, setPermissionModal] = useState({
     visible: false,
     actionTitle: '',
@@ -153,7 +154,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const cachedDashboard = uiState.data?.[BUCKET];
   const isCaretaker = user?.role === 'caretaker';
   const isTablet = screenWidth >= 768;
-  const isLargeTablet = screenWidth >= 1024;
 
   const normalizePermissionValue = useCallback((value) => {
     if (typeof value === 'string') {
@@ -269,6 +269,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'business',
       color: theme.colors.primary,
       screen: 'Properties',
+      category: 'Core Category',
       requiredPermission: { key: 'properties', aliases: ['property', 'property_management'] },
     },
     {
@@ -277,6 +278,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'bed',
       color: '#8B5CF6',
       screen: 'RoomManagement',
+      category: 'Core Category',
       requiredPermission: { key: 'rooms' },
     },
     {
@@ -285,6 +287,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'people',
       color: '#2196F3',
       screen: 'Tenants',
+      category: 'Core Category',
       requiredPermission: { key: 'tenants' },
     },
     {
@@ -293,6 +296,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'calendar',
       color: '#FF9800',
       screen: 'Bookings',
+      category: 'Core Category',
       requiredPermission: { key: 'bookings' },
     },
     {
@@ -301,6 +305,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'cash',
       color: '#16a34a',
       screen: 'Payments',
+      category: 'Core Category',
       requiredPermission: { key: 'payments' },
     },
     {
@@ -309,6 +314,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'bar-chart',
       color: '#9C27B0',
       screen: 'Analytics',
+      category: 'Core Category',
       requiredPermission: { key: 'analytics' },
     },
   ];
@@ -320,6 +326,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'swap-horizontal',
       color: '#F43F5E',
       screen: 'TransferRequests',
+      category: 'Room Category',
       show: !isCaretaker || hasPermission('tenants'),
       badgeCount: pendingTransferCount,
     },
@@ -329,6 +336,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'sparkles-outline',
       color: '#14B8A6',
       screen: 'AddonManagement',
+      category: 'Room Category',
       show: !isCaretaker,
     },
     {
@@ -337,6 +345,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'construct',
       color: '#F59E0B',
       screen: 'MaintenanceRequests',
+      category: 'Room Category',
       show: !isCaretaker || hasPermission('maintenance'),
     },
     {
@@ -345,6 +354,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'star',
       color: '#FCD34D',
       screen: 'Reviews',
+      category: 'Reputation Category',
       show: !isCaretaker,
     },
     {
@@ -353,15 +363,8 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       icon: 'chatbubbles',
       color: theme.colors.primary,
       screen: 'Messages',
+      category: 'Communication Category',
       show: !isCaretaker || hasPermission('messages'),
-    },
-    {
-      id: 12,
-      title: 'Settings',
-      icon: 'settings',
-      color: '#64748B',
-      screen: 'Settings',
-      show: true,
     },
   ];
 
@@ -378,58 +381,82 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     );
   }, [hasPermission, isCaretaker]);
 
-  const visibleMajorQuickActions = majorQuickActions;
-  const allQuickActions = [
-    ...visibleMajorQuickActions,
-    ...minorQuickActions.filter((action) => action.show),
-  ];
-  const quickActionColumns = isLargeTablet ? 5 : isTablet ? 4 : 3;
+  const allQuickActions = [...majorQuickActions, ...minorQuickActions.filter((action) => action.show)];
+  const visibleQuickActions = allQuickActions.slice(0, 8);
+  const quickActionColumns = 4;
   const quickActionGap = isTablet ? 12 : 8;
   const quickActionAvailableWidth = Math.max(320, screenWidth - 32);
   const quickActionRawSize = Math.floor(
     (quickActionAvailableWidth - quickActionGap * (quickActionColumns - 1)) / quickActionColumns,
   );
   const quickActionTileSize = isTablet
-    ? Math.min(140, Math.max(104, quickActionRawSize))
-    : Math.min(84, Math.max(72, quickActionRawSize));
-  const quickActionsToRender = isTablet ? allQuickActions : visibleMajorQuickActions;
-  const showMoreQuickActions = !isTablet && allQuickActions.length > visibleMajorQuickActions.length;
+    ? Math.min(136, Math.max(98, quickActionRawSize))
+    : Math.min(96, Math.max(74, quickActionRawSize));
+  const quickActionsToRender = visibleQuickActions;
+  const showMoreQuickActions = allQuickActions.length > visibleQuickActions.length;
   const quickActionsSectionStyle = isTablet
     ? { width: '100%', maxWidth: 1080, alignSelf: 'center' }
     : null;
   const quickActionsGridStyle = {
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
+    alignSelf: 'center',
     columnGap: quickActionGap,
     rowGap: quickActionGap,
   };
   const quickActionCardStyle = isTablet
     ? {
         width: quickActionTileSize,
-        height: 102,
-        borderRadius: 18,
-        paddingHorizontal: 8,
-        paddingVertical: 10,
+        minHeight: 102,
+        borderRadius: 14,
+        paddingHorizontal: 4,
+        paddingVertical: 8,
       }
     : {
         width: quickActionTileSize,
-        height: quickActionTileSize,
-        borderRadius: quickActionTileSize / 2,
-      };
-  const quickActionIconStyle = isTablet
-    ? {
-        width: 34,
-        height: 34,
+        minHeight: 84,
         borderRadius: 12,
-        marginBottom: 6,
-      }
-    : null;
-  const quickActionTitleStyle = isTablet
-    ? {
-        fontSize: 12,
-        lineHeight: 14,
         paddingHorizontal: 4,
-      }
-    : null;
+        paddingVertical: 8,
+      };
+  const quickActionIconStyle = {
+    width: isTablet ? 42 : 40,
+    height: isTablet ? 46 : 44,
+    borderRadius: 10,
+    marginBottom: isTablet ? 6 : 4,
+  };
+  const quickActionTitleStyle = {
+    fontSize: isTablet ? 12 : 10,
+    lineHeight: isTablet ? 14 : 12,
+    paddingHorizontal: 2,
+  };
+
+  const groupedQuickActionsForModal = (() => {
+    const categories = [
+      'Core Category',
+      'Room Category',
+      'Communication Category',
+      'Reputation Category',
+      'General Category',
+    ];
+
+    const grouped = categories
+      .map((category) => ({
+        category,
+        items: allQuickActions.filter((action) => (action.category || 'General Category') === category),
+      }))
+      .filter((group) => group.items.length > 0);
+
+    if (grouped.length > 0) {
+      return grouped;
+    }
+
+    return [
+      {
+        category: 'General Category',
+        items: allQuickActions,
+      },
+    ];
+  })();
 
   const handleQuickActionPress = useCallback((action, closeMore = false) => {
     if (closeMore) {
@@ -506,25 +533,22 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-                      if (onLogout) {
-                        await onLogout();
-                      } else {
-                        // Clear only auth-related data
-                        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
-                        triggerForcedLogout();
-                      }          } catch (error) {
-            console.error('Logout error:', error);
-          }
-        }
+    setLogoutModalVisible(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setLogoutModalVisible(false);
+    try {
+      if (onLogout) {
+        await onLogout();
+      } else {
+        // Clear only auth-related data
+        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
+        triggerForcedLogout();
       }
-    ]);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const stats = dashboardData.stats;
@@ -804,9 +828,10 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
               style={styles.quickActionsModalBackdrop}
               onPress={() => setMoreActionsVisible(false)}
             >
-              <Pressable style={styles.quickActionsModalCard} onPress={() => {}}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.quickActionsModalCard}>
                 <View style={styles.quickActionsModalHeader}>
-                  <Text style={styles.quickActionsModalTitle}>All Quick Actions</Text>
+                  <Text style={styles.quickActionsModalTitle}>More Actions</Text>
                   <TouchableOpacity
                     style={styles.quickActionsModalClose}
                     onPress={() => setMoreActionsVisible(false)}
@@ -816,42 +841,74 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                 </View>
 
                 <ScrollView
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.quickActionsModalBody}
                 >
-                  <View style={styles.quickActionsModalGrid}>
-                    {allQuickActions.map((action) => {
-                      const hasAccess = hasQuickActionAccess(action);
-                      return (
-                        <Button
-                          key={`more-${action.id}`}
-                          style={[
-                            styles.actionCard,
-                            !hasAccess && styles.actionCardRestricted,
-                          ]}
-                          onPress={() => handleQuickActionPress(action, true)}
-                          type="transparent"
+                  {groupedQuickActionsForModal.map((group) => (
+                    <View key={group.category} style={styles.quickActionsCategorySection}>
+                      <View style={styles.quickActionsCategoryCard}>
+                        <View style={styles.quickActionsCategoryHeader}>
+                          <View
+                            style={[
+                              styles.quickActionsCategoryDot,
+                              { backgroundColor: group.items[0]?.color || theme.colors.primary },
+                            ]}
+                          />
+                          <Text style={styles.quickActionsCategoryTitle}>{group.category}</Text>
+                        </View>
+
+                        <ScrollView
+                          horizontal
+                          nestedScrollEnabled
+                          directionalLockEnabled
+                          keyboardShouldPersistTaps="handled"
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.quickActionsCategoryRow}
                         >
-                          {!hasAccess && (
-                            <View style={styles.actionRestrictedBadge}>
-                              <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
-                            </View>
-                          )}
-                          {action.badgeCount > 0 && (
-                            <View style={styles.actionBadge}>
-                              <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
-                            </View>
-                          )}
-                          <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}> 
-                            <Ionicons name={action.icon} size={20} color={action.color} />
-                          </View>
-                          <Text style={styles.actionTitle}>{action.title}</Text>
-                        </Button>
-                      );
-                    })}
-                  </View>
+                          {group.items.map((action, index) => {
+                            const hasAccess = hasQuickActionAccess(action);
+                            const isLastItem = index === group.items.length - 1;
+
+                            return (
+                              <Button
+                                key={`more-${group.category}-${action.id}`}
+                                style={[
+                                  styles.actionCard,
+                                  styles.quickActionsCategoryAction,
+                                  isLastItem && styles.quickActionsCategoryActionLast,
+                                  quickActionCardStyle,
+                                  !hasAccess && styles.actionCardRestricted,
+                                ]}
+                                delayPressIn={100}
+                                onPress={() => handleQuickActionPress(action, true)}
+                                type="transparent"
+                              >
+                                {!hasAccess && (
+                                  <View style={styles.actionRestrictedBadge}>
+                                    <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
+                                  </View>
+                                )}
+                                {action.badgeCount > 0 && (
+                                  <View style={styles.actionBadge}>
+                                    <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                                  </View>
+                                )}
+                                <View style={[styles.actionIcon, quickActionIconStyle, { backgroundColor: action.color + '20' }]}> 
+                                  <Ionicons name={action.icon} size={20} color={action.color} />
+                                </View>
+                                <Text style={[styles.actionTitle, quickActionTitleStyle]}>{action.title}</Text>
+                              </Button>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    </View>
+                  ))}
                 </ScrollView>
-              </Pressable>
+                </View>
+              </TouchableWithoutFeedback>
             </Pressable>
           </Modal>
         )}
@@ -883,6 +940,47 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
               >
                 <Text style={styles.permissionModalButtonText}>Okay</Text>
               </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        <Modal
+          transparent
+          visible={logoutModalVisible}
+          animationType="fade"
+          statusBarTranslucent
+          navigationBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => setLogoutModalVisible(false)}
+        >
+          <Pressable
+            style={styles.logoutModalBackdrop}
+            onPress={() => setLogoutModalVisible(false)}
+          >
+            <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+              <View style={styles.logoutModalIconWrap}>
+                <Ionicons name="log-out-outline" size={22} color="#B91C1C" />
+              </View>
+
+              <Text style={styles.logoutModalTitle}>Logout</Text>
+              <Text style={styles.logoutModalMessage}>
+                Are you sure you want to logout?
+              </Text>
+
+              <View style={styles.logoutModalActions}>
+                <TouchableOpacity
+                  style={styles.logoutModalCancelButton}
+                  onPress={() => setLogoutModalVisible(false)}
+                >
+                  <Text style={styles.logoutModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.logoutModalConfirmButton}
+                  onPress={handleLogoutConfirm}
+                >
+                  <Text style={styles.logoutModalConfirmText}>Logout</Text>
+                </TouchableOpacity>
+              </View>
             </Pressable>
           </Pressable>
         </Modal>

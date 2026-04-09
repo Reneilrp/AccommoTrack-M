@@ -291,7 +291,7 @@ class TenantController extends Controller
     public function store(Request $request): JsonResponse
     {
         $context = $this->resolveLandlordContext($request);
-        $this->assertNotCaretaker($context);
+        $this->ensureCaretakerCanManageTenants($context);
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -333,6 +333,16 @@ class TenantController extends Controller
                     'available_slots' => $room->available_slots,
                 ], 400);
             }
+
+            if ($context['is_caretaker']) {
+                $this->checkPropertyAccess($context, (int) $room->property_id);
+            }
+        }
+
+        if ($context['is_caretaker'] && ! $room) {
+            return response()->json([
+                'error' => 'Caretakers must assign a room when creating a tenant.',
+            ], 422);
         }
 
         try {
@@ -399,9 +409,9 @@ class TenantController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $context = $this->resolveLandlordContext($request);
-        $this->assertNotCaretaker($context);
+        $this->ensureCaretakerCanManageTenants($context);
 
-        $user = User::where('role', 'tenant')->findOrFail($id);
+        $user = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
 
         $validated = $request->validate([
             'first_name' => 'sometimes|string|max:255',
@@ -451,9 +461,9 @@ class TenantController extends Controller
     public function destroy(Request $request, string $id): JsonResponse
     {
         $context = $this->resolveLandlordContext($request);
-        $this->assertNotCaretaker($context);
+        $this->ensureCaretakerCanManageTenants($context);
 
-        $user = User::where('role', 'tenant')->findOrFail($id);
+        $user = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
 
         // Check if tenant is currently assigned to a room in landlord's property
         if ($user->room && $user->room->property->landlord_id === $context['landlord_id']) {
@@ -474,18 +484,10 @@ class TenantController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCanManageTenants($context);
 
             $landlordId = (int) $context['landlord_id'];
-            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId);
-
-            if (! $tenant->date_of_birth) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => [],
-                    'message' => 'Tenant date of birth is required before generating a claim code.',
-                ], 422);
-            }
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId, $context);
 
             [$plainCode, $claim] = DB::transaction(function () use ($tenant, $landlordId) {
                 TenantClaimCode::query()
@@ -520,7 +522,7 @@ class TenantController extends Controller
                         'first_name' => $tenant->first_name,
                         'last_name' => $tenant->last_name,
                     ],
-                    'guardrail_hint' => 'Tenant must enter claim code, exact last name, and date of birth before setting new credentials.',
+                    'guardrail_hint' => 'Tenant claim flow: Step 1 claim code, Step 2 date of birth with email/password, Step 3 OTP verification.',
                 ],
                 'message' => 'Claim code generated successfully.',
             ]);
@@ -545,7 +547,7 @@ class TenantController extends Controller
     public function assignRoom(Request $request, string $id): JsonResponse
     {
         $context = $this->resolveLandlordContext($request);
-        $this->assertNotCaretaker($context);
+        $this->ensureCaretakerCanManageTenants($context);
 
         $validated = $request->validate([
             'room_id' => 'required|exists:rooms,id',
@@ -554,7 +556,7 @@ class TenantController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $tenant = User::where('role', 'tenant')->findOrFail($id);
+        $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
         $room = Room::with('property')->findOrFail($validated['room_id']);
 
         if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
@@ -566,6 +568,10 @@ class TenantController extends Controller
         // Verify room belongs to landlord
         if ($room->property->landlord_id !== $context['landlord_id']) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if ($context['is_caretaker']) {
+            $this->checkPropertyAccess($context, (int) $room->property_id);
         }
 
         if (! $room->isAvailable() || $room->available_slots <= 0) {
@@ -612,9 +618,9 @@ class TenantController extends Controller
     public function unassignRoom(Request $request, string $id): JsonResponse
     {
         $context = $this->resolveLandlordContext($request);
-        $this->assertNotCaretaker($context);
+        $this->ensureCaretakerCanManageTenants($context);
 
-        $tenant = User::where('role', 'tenant')->with('room.property')->findOrFail($id);
+        $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
 
         if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
             return response()->json([
@@ -628,6 +634,10 @@ class TenantController extends Controller
 
         if ($tenant->room->property->landlord_id !== $context['landlord_id']) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if ($context['is_caretaker']) {
+            $this->checkPropertyAccess($context, (int) $tenant->room->property_id);
         }
 
         $room = $tenant->room;
@@ -674,7 +684,7 @@ class TenantController extends Controller
     public function transferRoom(Request $request, string $id): JsonResponse
     {
         $context = $this->resolveLandlordContext($request);
-        $this->assertNotCaretaker($context);
+        $this->ensureCaretakerCanManageTenants($context);
 
         $validated = $request->validate([
             'booking_id' => 'nullable|integer|exists:bookings,id',
@@ -688,7 +698,8 @@ class TenantController extends Controller
             'prorated_adjustment' => 'nullable|numeric',
         ]);
 
-        $tenant = User::where('role', 'tenant')->with(['roomAssignments', 'tenantProfile'])->findOrFail($id);
+        $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context)
+            ->loadMissing(['roomAssignments', 'tenantProfile']);
 
         if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
             return response()->json([
@@ -697,8 +708,14 @@ class TenantController extends Controller
         }
         
         $activeBooking = null;
-        if (!empty($validated['booking_id'])) {
+        if (! empty($validated['booking_id'])) {
             $activeBooking = \App\Models\Booking::find($validated['booking_id']);
+            if ($activeBooking && (int) $activeBooking->landlord_id !== (int) $context['landlord_id']) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+            if ($activeBooking && (int) $activeBooking->tenant_id !== (int) $tenant->id) {
+                return response()->json(['error' => 'Booking does not belong to this tenant'], 422);
+            }
         }
 
         $oldRoom = null;
@@ -713,6 +730,13 @@ class TenantController extends Controller
         // Verify new room belongs to the same landlord
         if ($newRoom->property->landlord_id !== $context['landlord_id']) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if ($context['is_caretaker']) {
+            $this->checkPropertyAccess($context, (int) $newRoom->property_id);
+            if ($oldRoom) {
+                $this->checkPropertyAccess($context, (int) $oldRoom->property_id);
+            }
         }
 
         // Verify new room availability
@@ -980,7 +1004,7 @@ class TenantController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCanManageTenants($context);
             $landlordId = (int) $context['landlord_id'];
 
             $validated = $request->validate([
@@ -998,7 +1022,7 @@ class TenantController extends Controller
                 ? Carbon::parse($validated['effective_at'])
                 : now()->addHours((int) ($validated['grace_hours'] ?? 24));
 
-            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId);
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId, $context);
 
             if ($this->hasScheduledEviction((int) $tenant->id, $landlordId)) {
                 return response()->json([
@@ -1029,6 +1053,10 @@ class TenantController extends Controller
                 $room = Room::with('property')->find($roomId);
                 if ($room && (int) optional($room->property)->landlord_id !== $landlordId) {
                     throw new AccessDeniedHttpException('Unauthorized room access for eviction scheduling.');
+                }
+
+                if ($room && $context['is_caretaker']) {
+                    $this->checkPropertyAccess($context, (int) $room->property_id);
                 }
             }
 
@@ -1069,15 +1097,17 @@ class TenantController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCanManageTenants($context);
             $landlordId = (int) $context['landlord_id'];
 
             $validated = $request->validate([
                 'note' => 'nullable|string|max:1000',
             ]);
 
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId, $context)->loadMissing('tenantProfile');
+
             $eviction = TenantEviction::forLandlord($landlordId)
-                ->where('tenant_id', $id)
+                ->where('tenant_id', $tenant->id)
                 ->scheduled()
                 ->orderBy('scheduled_for')
                 ->first();
@@ -1088,7 +1118,6 @@ class TenantController extends Controller
                 ], 404);
             }
 
-            $tenant = User::where('role', 'tenant')->with('tenantProfile')->findOrFail($id);
             $cancelNote = trim((string) ($validated['note'] ?? ''));
 
             $updatedEviction = DB::transaction(function () use ($eviction, $tenant, $cancelNote, $context) {
@@ -1112,6 +1141,8 @@ class TenantController extends Controller
                 'message' => 'Pending eviction schedule cancelled.',
                 'eviction' => $this->serializeEviction($updatedEviction),
             ]);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to cancel eviction schedule', 'error' => $e->getMessage()], 500);
         }
@@ -1124,7 +1155,7 @@ class TenantController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCanManageTenants($context);
             $landlordId = (int) $context['landlord_id'];
 
             $validated = $request->validate([
@@ -1132,8 +1163,10 @@ class TenantController extends Controller
             ]);
             $force = (bool) ($validated['force'] ?? false);
 
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId, $context)->loadMissing(['room.property', 'tenantProfile']);
+
             $eviction = TenantEviction::forLandlord($landlordId)
-                ->where('tenant_id', $id)
+                ->where('tenant_id', $tenant->id)
                 ->scheduled()
                 ->orderBy('scheduled_for')
                 ->first();
@@ -1151,10 +1184,8 @@ class TenantController extends Controller
                 ], 422);
             }
 
-            $tenant = User::where('role', 'tenant')->with(['room.property', 'tenantProfile'])->findOrFail($id);
-
             $updatedEviction = DB::transaction(function () use ($tenant, $eviction, $landlordId, $context) {
-                $outcome = $this->performFinalEviction($tenant, $landlordId, $eviction->reason);
+                $outcome = $this->performFinalEviction($tenant, $landlordId, $eviction->reason, $context);
 
                 $eviction->update([
                     'status' => 'finalized',
@@ -1188,13 +1219,15 @@ class TenantController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCanManageTenants($context);
             $landlordId = (int) $context['landlord_id'];
 
             $validated = $request->validate([
                 'reason' => 'nullable|string|max:1000',
             ]);
             $undoReason = trim((string) ($validated['reason'] ?? ''));
+
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId, $context)->loadMissing('tenantProfile');
 
             if ($this->hasScheduledEviction((int) $id, $landlordId)) {
                 return response()->json([
@@ -1203,7 +1236,7 @@ class TenantController extends Controller
             }
 
             $eviction = TenantEviction::forLandlord($landlordId)
-                ->where('tenant_id', $id)
+                ->where('tenant_id', $tenant->id)
                 ->finalized()
                 ->orderByDesc('finalized_at')
                 ->orderByDesc('id')
@@ -1220,8 +1253,6 @@ class TenantController extends Controller
                     'message' => 'Undo window has expired for this eviction.',
                 ], 422);
             }
-
-            $tenant = User::where('role', 'tenant')->with('tenantProfile')->findOrFail($id);
 
             $hasActiveStay = Booking::where('tenant_id', $tenant->id)
                 ->where('landlord_id', $landlordId)
@@ -1242,6 +1273,10 @@ class TenantController extends Controller
 
                 if ((int) optional($room->property)->landlord_id !== $landlordId) {
                     throw new AccessDeniedHttpException('Unauthorized room access for undo eviction.');
+                }
+
+                if ($context['is_caretaker']) {
+                    $this->checkPropertyAccess($context, (int) $room->property_id);
                 }
 
                 if (! $room->isAvailable() || $room->available_slots <= 0) {
@@ -1347,7 +1382,7 @@ class TenantController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->assertNotCaretaker($context);
+            $this->ensureCaretakerCanManageTenants($context);
             $landlordId = (int) $context['landlord_id'];
 
             $validated = $request->validate([
@@ -1355,7 +1390,7 @@ class TenantController extends Controller
             ]);
             $evictionReason = trim((string) $validated['reason']);
 
-            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId);
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId, $context);
 
             if ($this->hasScheduledEviction((int) $tenant->id, $landlordId)) {
                 return response()->json([
@@ -1364,7 +1399,7 @@ class TenantController extends Controller
             }
 
             $payload = DB::transaction(function () use ($tenant, $landlordId, $evictionReason, $context) {
-                $outcome = $this->performFinalEviction($tenant, $landlordId, $evictionReason);
+                $outcome = $this->performFinalEviction($tenant, $landlordId, $evictionReason, $context);
 
                 $eviction = TenantEviction::create([
                     'landlord_id' => $landlordId,
@@ -1393,13 +1428,17 @@ class TenantController extends Controller
         }
     }
 
-    private function resolveTenantForLandlord(int $tenantId, int $landlordId): User
+    private function resolveTenantForLandlord(int $tenantId, int $landlordId, ?array $context = null): User
     {
         $tenant = User::where('role', 'tenant')->with(['room.property', 'tenantProfile'])->findOrFail($tenantId);
 
         $hasValidBooking = $tenant->bookings()->where('landlord_id', $landlordId)->exists();
         if (! $tenant->room && ! $hasValidBooking) {
             throw new AccessDeniedHttpException('This tenant is not associated with your properties.');
+        }
+
+        if ($context) {
+            $this->ensureTenantWithinCaretakerScope($context, $tenant, $landlordId);
         }
 
         return $tenant;
@@ -1463,7 +1502,7 @@ class TenantController extends Controller
         ]);
     }
 
-    private function performFinalEviction(User $tenant, int $landlordId, string $evictionReason): array
+    private function performFinalEviction(User $tenant, int $landlordId, string $evictionReason, ?array $context = null): array
     {
         $activeBooking = Booking::where('tenant_id', $tenant->id)
             ->where('landlord_id', $landlordId)
@@ -1483,6 +1522,10 @@ class TenantController extends Controller
 
         if ($room && (int) optional($room->property)->landlord_id !== $landlordId) {
             throw new AccessDeniedHttpException('Unauthorized room unassignment.');
+        }
+
+        if ($room && $context && $context['is_caretaker']) {
+            $this->checkPropertyAccess($context, (int) $room->property_id);
         }
 
         if ($room && $room->tenants()->where('users.id', $tenant->id)->exists()) {
@@ -1522,10 +1565,54 @@ class TenantController extends Controller
         };
     }
 
-    protected function assertNotCaretaker(array $context): void
+    private function ensureCaretakerCanManageTenants(array $context): void
     {
-        if ($context['is_caretaker']) {
-            throw new AccessDeniedHttpException('Caretaker accounts are read-only for tenants.');
+        if (! $context['is_caretaker']) {
+            return;
+        }
+
+        $this->ensureCaretakerCan($context, 'can_view_tenants');
+    }
+
+    private function ensureTenantWithinCaretakerScope(array $context, User $tenant, int $landlordId): void
+    {
+        if (! $context['is_caretaker']) {
+            return;
+        }
+
+        $assignment = $context['assignment'];
+
+        if (! $assignment) {
+            throw new AccessDeniedHttpException('Caretaker assignment not found.');
+        }
+
+        $allowedPropertyIds = $assignment->properties()
+            ->pluck('properties.id')
+            ->map(fn ($value) => (int) $value)
+            ->toArray();
+
+        if ($allowedPropertyIds === []) {
+            throw new AccessDeniedHttpException('Caretaker is not assigned to any property.');
+        }
+
+        $tenantPropertyIds = $tenant->bookings()
+            ->where('landlord_id', $landlordId)
+            ->pluck('property_id')
+            ->filter()
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if ($tenant->room?->property_id) {
+            $tenantPropertyIds[] = (int) $tenant->room->property_id;
+        }
+
+        $tenantPropertyIds = array_values(array_unique($tenantPropertyIds));
+
+        if (empty(array_intersect($allowedPropertyIds, $tenantPropertyIds))) {
+            throw new AccessDeniedHttpException('You do not have permission to manage this tenant.');
         }
     }
+
 }

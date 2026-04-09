@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
+  Modal,
+  Pressable,
   ScrollView,
   RefreshControl,
   StatusBar,
@@ -143,6 +145,8 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [payMongoComingSoonVisible, setPayMongoComingSoonVisible] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState({
     payments: true,
     messages: true,
@@ -224,27 +228,24 @@ export default function SettingsScreen({ navigation, onLogout }) {
     );
   }, [settingsQuery.error]);
 
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          try {
-                      if (onLogout) {
-                        await onLogout();
-                      } else {
-                        // Clear only auth-related data
-                        clearAuthSession();
-                        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
-                        triggerForcedLogout();
-                      }          } catch (error) {
-            console.error("Logout error:", error);
-          }
-        },
-      },
-    ]);
+  const handleLogout = () => {
+    setLogoutModalVisible(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setLogoutModalVisible(false);
+    try {
+      if (onLogout) {
+        await onLogout();
+      } else {
+        // Clear only auth-related data
+        clearAuthSession();
+        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
+        triggerForcedLogout();
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const handleSwitchRole = useCallback(async () => {
@@ -357,11 +358,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
     // } catch (error) {
     //   Alert.alert('Error', 'An unexpected error occurred.');
     // }
-    Alert.alert(
-      "Coming Soon",
-      "PayMongo online payment onboarding is currently being set up. We will notify you once it is available.",
-      [{ text: "OK" }],
-    );
+    setPayMongoComingSoonVisible(true);
   };
 
   const handleItemPress = (item) => {
@@ -769,6 +766,130 @@ export default function SettingsScreen({ navigation, onLogout }) {
           © 2026 AccommoTrack. All rights reserved.
         </Text>
       </ScrollView>
+
+      <Modal
+        visible={logoutModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <Pressable
+          style={styles.logoutModalBackdrop}
+          onPress={() => setLogoutModalVisible(false)}
+        >
+          <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+            <View style={styles.logoutModalIconWrap}>
+              <Ionicons name="log-out-outline" size={22} color="#B91C1C" />
+            </View>
+
+            <Text style={styles.logoutModalTitle}>Logout</Text>
+            <Text style={styles.logoutModalMessage}>
+              Are you sure you want to logout?
+            </Text>
+
+            <View style={styles.logoutModalActions}>
+              <TouchableOpacity
+                style={styles.logoutModalCancelButton}
+                onPress={() => setLogoutModalVisible(false)}
+              >
+                <Text style={styles.logoutModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutModalConfirmButton}
+                onPress={handleLogoutConfirm}
+              >
+                <Text style={styles.logoutModalConfirmText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={payMongoComingSoonVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              borderRadius: 20,
+              backgroundColor: theme.colors.surface,
+              paddingHorizontal: 20,
+              paddingVertical: 22,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+            }}
+          >
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                alignSelf: 'center',
+                backgroundColor: '#DBEAFE',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <Ionicons name="card-outline" size={28} color="#2563EB" />
+            </View>
+
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: '700',
+                textAlign: 'center',
+                color: theme.colors.text,
+                marginBottom: 10,
+              }}
+            >
+              PayMongo Coming Soon
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 14,
+                lineHeight: 20,
+                textAlign: 'center',
+                color: theme.colors.textSecondary,
+                marginBottom: 20,
+              }}
+            >
+              PayMongo online payment onboarding is currently being set up. We will notify you once it is available.
+            </Text>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: theme.colors.primary,
+                borderRadius: 12,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+              onPress={() => setPayMongoComingSoonVisible(false)}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700' }}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
