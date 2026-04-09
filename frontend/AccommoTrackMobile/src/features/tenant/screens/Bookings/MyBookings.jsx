@@ -89,6 +89,7 @@ export default function MyBookings() {
   const [pendingBookings, setPendingBookings] = useState(cachedBookings?.pendingBookings ?? []);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
   const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
+  const [showPropertySwitchModal, setShowPropertySwitchModal] = useState(false);
   const [submittingExtension, setSubmittingExtension] = useState(false);
   const [submittingTransfer, setSubmittingTransfer] = useState(false);
   const [submittingMoveOut, setSubmittingMoveOut] = useState(false);
@@ -414,6 +415,41 @@ export default function MyBookings() {
       day: 'numeric',
       year: 'numeric',
     });
+  };
+
+  const getPropertySwitchOptions = () => {
+    return viewMode === 'active'
+      ? (Array.isArray(stayData?.stays) ? stayData.stays : [])
+      : (Array.isArray(pendingBookings) ? pendingBookings : []);
+  };
+
+  const getPropertySwitchIndex = () => {
+    return viewMode === 'active' ? selectedStayIndex : selectedPendingIndex;
+  };
+
+  const getPropertyOptionLabel = (item) => {
+    const propertyName = item?.property?.title || item?.property_title || 'Property';
+    const roomNumber =
+      item?.room?.room_number ||
+      item?.room?.roomNumber ||
+      item?.room_number ||
+      item?.roomNumber ||
+      'N/A';
+
+    return `${propertyName} (Room ${roomNumber})`;
+  };
+
+  const closePropertySwitchModal = () => {
+    setShowPropertySwitchModal(false);
+  };
+
+  const selectPropertyFromModal = (index) => {
+    if (viewMode === 'active') {
+      setSelectedStayIndex(index);
+    } else {
+      setSelectedPendingIndex(index);
+    }
+    setShowPropertySwitchModal(false);
   };
 
   const closeReviewModal = () => {
@@ -1277,15 +1313,7 @@ export default function MyBookings() {
             <TouchableOpacity 
               style={styles.selectorDropdown}
               onPress={() => {
-                const list = viewMode === 'active' ? stayData.stays : pendingBookings;
-                Alert.alert(
-                  "Select Property",
-                  "Choose a property to view details",
-                  list.map((item, idx) => ({
-                    text: `${item.property?.title || item.property_title} (Room ${item.room?.room_number || item.room?.roomNumber})`,
-                    onPress: () => viewMode === 'active' ? setSelectedStayIndex(idx) : setSelectedPendingIndex(idx)
-                  })).concat([{ text: "Cancel", style: "cancel" }])
-                );
+                setShowPropertySwitchModal(true);
               }}
             >
               <Text style={styles.selectorValue} numberOfLines={1}>
@@ -1913,6 +1941,78 @@ export default function MyBookings() {
           </ScrollView>
         </View>
       )}
+
+      <Modal
+        visible={showPropertySwitchModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closePropertySwitchModal}
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+      >
+        <View style={styles.propertySwitchModalOverlay}>
+          <TouchableOpacity
+            style={styles.propertySwitchModalBackdrop}
+            activeOpacity={1}
+            onPress={closePropertySwitchModal}
+          />
+
+          <View style={styles.propertySwitchModalCard}>
+            <Text style={styles.propertySwitchModalTitle}>Switch Property</Text>
+            <Text style={styles.propertySwitchModalMessage}>Choose a property to view details.</Text>
+
+            <ScrollView
+              style={styles.propertySwitchOptionsScroll}
+              contentContainerStyle={styles.propertySwitchOptionsContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {getPropertySwitchOptions().map((item, index) => {
+                const isSelected = index === getPropertySwitchIndex();
+                return (
+                  <TouchableOpacity
+                    key={`property-switch-${item?.id || index}`}
+                    style={[
+                      styles.propertySwitchOptionButton,
+                      isSelected && styles.propertySwitchOptionButtonActive,
+                    ]}
+                    onPress={() => selectPropertyFromModal(index)}
+                  >
+                    <View style={styles.propertySwitchOptionTextWrap}>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.propertySwitchOptionText,
+                          isSelected && styles.propertySwitchOptionTextActive,
+                        ]}
+                      >
+                        {getPropertyOptionLabel(item)}
+                      </Text>
+                      <Text style={styles.propertySwitchOptionSubText}>
+                        {isSelected ? 'Currently selected' : 'Tap to switch'}
+                      </Text>
+                    </View>
+                    {isSelected ? (
+                      <Ionicons name="checkmark-circle" size={18} color={theme.colors.primary} />
+                    ) : (
+                      <Ionicons name="chevron-forward" size={16} color={theme.colors.textTertiary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.propertySwitchModalActions}>
+              <TouchableOpacity
+                style={[styles.propertySwitchModalButton, styles.propertySwitchModalCancelButton]}
+                onPress={closePropertySwitchModal}
+              >
+                <Text style={styles.propertySwitchModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showAddonModal}

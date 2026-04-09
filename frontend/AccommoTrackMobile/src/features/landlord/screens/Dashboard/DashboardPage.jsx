@@ -651,7 +651,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           <Ionicons name="menu" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.userName}>{user?.first_name || 'Dashboard'}</Text>
+          <Text style={styles.userName}>{'Dashboard'}</Text>
         </View>
         <TouchableOpacity
           style={styles.notificationButton}

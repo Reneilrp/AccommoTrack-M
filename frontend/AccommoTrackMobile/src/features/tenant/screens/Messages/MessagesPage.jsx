@@ -16,6 +16,41 @@ import {
     useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 
+const ROLE_LABELS = {
+    tenant: 'Tenant',
+    caretaker: 'Caretaker',
+    landlord: 'Landlord',
+};
+
+const normalizeRole = (role) => String(role || '').trim().toLowerCase();
+
+const getRoleLabel = (role) => {
+    const normalized = normalizeRole(role);
+    if (ROLE_LABELS[normalized]) return ROLE_LABELS[normalized];
+    if (!normalized) return 'Participant';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const getConversationStatus = (conversation) => {
+    const role = normalizeRole(conversation?.other_user?.role);
+    const latestSenderRole = normalizeRole(conversation?.last_message?.sender_role);
+    const latestMessageIsMine = Boolean(conversation?.last_message?.is_mine);
+
+    if (role === 'caretaker') {
+        return { key: 'caretaker', label: 'Caretaker' };
+    }
+
+    if (latestSenderRole === 'caretaker' && !latestMessageIsMine) {
+        return { key: 'caretaker-assisted', label: 'Caretaker-assisted' };
+    }
+
+    if (role === 'landlord') {
+        return { key: 'owner', label: 'Property Owner' };
+    }
+
+    return { key: 'participant', label: getRoleLabel(role) };
+};
+
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -36,7 +71,10 @@ export default function MessagesPage({ navigation, route }) {
         placeholderData: (previousData) => previousData,
     });
 
-    const conversations = conversationsQuery.data || [];
+    const conversations = useMemo(
+        () => (Array.isArray(conversationsQuery.data) ? conversationsQuery.data : []),
+        [conversationsQuery.data],
+    );
     const isLoading = conversationsQuery.isLoading;
     const refetchConversations = conversationsQuery.refetch;
     const conversationRefetchers = React.useMemo(
@@ -62,19 +100,44 @@ export default function MessagesPage({ navigation, route }) {
     }, [totalUnreadCount]);
 
     // Start conversation mutation
+    const withParticipantMeta = React.useCallback((conversation) => {
+        if (!conversation) return conversation;
+
+        const role = normalizeRole(conversation?.other_user?.role);
+        const status = getConversationStatus(conversation);
+
+        return {
+            ...conversation,
+            participantMeta: {
+                userId: conversation?.other_user?.id || null,
+                role: role || 'participant',
+                roleLabel: getRoleLabel(role),
+                statusKey: status.key,
+                statusLabel: status.label,
+                propertyLabel: conversation?.property?.title || null,
+                phone: conversation?.other_user?.phone || null,
+                email: conversation?.other_user?.email || null,
+            },
+        };
+    }, []);
+
     const startConversationMutation = useMutation({
         mutationFn: (payload) => MessageService.startConversation(payload),
         onSuccess: (result) => {
             if (result.success) {
-                const conv = result.data;
+                const conv = result.data?.conversation || result.data;
                 // Clear the start params immediately
                 navigation.setParams({ startConversation: false, recipient: null, property: null, room: null });
                 
                 if (conv?.id) {
                     // Invalidate and refetch conversations
                     queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
+                    const conversationWithMeta = withParticipantMeta(conv);
                     // Navigate to the dedicated Chat screen
-                    navigation.navigate('Chat', { conversation: conv });
+                    navigation.navigate('Chat', {
+                        conversation: conversationWithMeta,
+                        participantMeta: conversationWithMeta?.participantMeta || null,
+                    });
                 }
             } else {
                 showError('Error', result.error || 'Failed to start conversation');
@@ -85,16 +148,21 @@ export default function MessagesPage({ navigation, route }) {
         }
     });
 
+    const startConversation = startConversationMutation.mutate;
+    const isStartingConversation = startConversationMutation.isPending;
+
     useFocusEffect(
         React.useCallback(() => {
+            if (isStartingConversation) return;
+
             if (route.params?.startConversation && route.params?.recipient) {
                 const payload = {
                     recipient_id: route.params.recipient.id,
                     property_id: route.params.property?.id || null,
                 };
-                startConversationMutation.mutate(payload);
+                startConversation(payload);
             }
-        }, [route.params])
+        }, [route.params, startConversation, isStartingConversation])
     );
 
     const handleMenuItemPress = async (itemTitle) => {
@@ -155,7 +223,7 @@ export default function MessagesPage({ navigation, route }) {
     }, [conversations]);
 
     const filteredConversations = useMemo(() => {
-        return conversations.filter((conv) => {
+        const filtered = conversations.filter((conv) => {
             const otherUser = conv.other_user || {};
             const name = `${otherUser.first_name || ''} ${otherUser.last_name || ''}`.toLowerCase();
             const matchesSearch = name.includes(searchQuery.toLowerCase());
@@ -163,7 +231,9 @@ export default function MessagesPage({ navigation, route }) {
             
             return matchesSearch && matchesProperty;
         });
-    }, [conversations, searchQuery, selectedPropertyId]);
+
+        return filtered.map((conversation) => withParticipantMeta(conversation));
+    }, [conversations, searchQuery, selectedPropertyId, withParticipantMeta]);
 
     if (startConversationMutation.isPending) {
         return (

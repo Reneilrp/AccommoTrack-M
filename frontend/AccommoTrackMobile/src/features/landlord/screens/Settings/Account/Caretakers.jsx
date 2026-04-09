@@ -412,10 +412,13 @@ export default function Caretakers() {
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity 
             onPress={() => {
-              navigation.navigate('Messages', { 
-                startConversation: true, 
-                tenant: { ...item.caretaker, user_id: item.caretaker.id },
-                propertyId: item.assigned_property_ids?.[0] || null
+              navigation.navigate('MainTabs', {
+                screen: 'Messages',
+                params: {
+                  startConversation: true,
+                  tenant: { ...item.caretaker, user_id: item.caretaker.id },
+                  propertyId: item.assigned_property_ids?.[0] || null,
+                },
               });
             }} 
             style={styles.editButton}

@@ -26,6 +26,46 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+const getRolePalette = (theme, role) => {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+
+    if (normalizedRole === 'caretaker') {
+        return theme.isDark
+            ? { background: 'rgba(245, 158, 11, 0.2)', border: 'rgba(245, 158, 11, 0.45)', text: '#FCD34D' }
+            : { background: '#FEF3C7', border: '#FCD34D', text: '#92400E' };
+    }
+
+    if (normalizedRole === 'landlord') {
+        return theme.isDark
+            ? { background: 'rgba(16, 185, 129, 0.2)', border: 'rgba(16, 185, 129, 0.45)', text: '#6EE7B7' }
+            : { background: '#D1FAE5', border: '#6EE7B7', text: '#065F46' };
+    }
+
+    return theme.isDark
+        ? { background: 'rgba(148, 163, 184, 0.2)', border: 'rgba(148, 163, 184, 0.4)', text: '#CBD5E1' }
+        : { background: '#F1F5F9', border: '#CBD5E1', text: '#334155' };
+};
+
+const getStatusPalette = (theme, statusKey) => {
+    const normalized = String(statusKey || '').trim().toLowerCase();
+
+    if (normalized === 'caretaker-assisted') {
+        return theme.isDark
+            ? { background: 'rgba(59, 130, 246, 0.2)', border: 'rgba(59, 130, 246, 0.45)', text: '#93C5FD' }
+            : { background: '#DBEAFE', border: '#93C5FD', text: '#1D4ED8' };
+    }
+
+    if (normalized === 'owner') {
+        return theme.isDark
+            ? { background: 'rgba(20, 184, 166, 0.2)', border: 'rgba(20, 184, 166, 0.45)', text: '#5EEAD4' }
+            : { background: '#CCFBF1', border: '#5EEAD4', text: '#115E59' };
+    }
+
+    return theme.isDark
+        ? { background: 'rgba(148, 163, 184, 0.2)', border: 'rgba(148, 163, 184, 0.4)', text: '#CBD5E1' }
+        : { background: '#F1F5F9', border: '#CBD5E1', text: '#334155' };
+};
+
 export default function MessagesList({
     theme,
     styles,
@@ -146,15 +186,17 @@ export default function MessagesList({
                                     <TouchableOpacity
                                         style={[styles.conversationItem, isNew && styles.newConversation]}
                                         onPress={() => {
+                                            const participantMeta = conv?.participantMeta || null;
                                             // Navigate to standalone Chat route so header and bottom nav are hidden
                                             try {
                                                 navigation.navigate('Chat', { 
                                                     conversation: conv,
+                                                    participantMeta,
                                                     hideLayout: true 
                                                 });
-                                            } catch (e) {
+                                            } catch (_navigationError) {
                                                 // fallback: keep local behavior
-                                                try { navigation.setParams({ hideLayout: true }); } catch (err) {}
+                                                try { navigation.setParams({ hideLayout: true }); } catch (_paramsError) {}
                                             }
                                             if (isNew) {
                                                 setNewConversationId(null);
@@ -170,6 +212,51 @@ export default function MessagesList({
                                         </View>
 
                                         <View style={styles.conversationInfo}>
+                                            {(() => {
+                                                const participantMeta = conv?.participantMeta || null;
+                                                const role = participantMeta?.role || conv?.other_user?.role || 'participant';
+                                                const roleLabel = participantMeta?.roleLabel || 'Participant';
+                                                const statusLabel = participantMeta?.statusLabel || null;
+                                                const rolePalette = getRolePalette(theme, role);
+                                                const statusPalette = getStatusPalette(theme, participantMeta?.statusKey);
+                                                const shouldShowStatusBadge = Boolean(statusLabel)
+                                                    && String(statusLabel).trim().toLowerCase() !== String(roleLabel).trim().toLowerCase();
+
+                                                return (
+                                                    <View style={styles.participantMetaRow}>
+                                                        <View
+                                                            style={[
+                                                                styles.participantBadge,
+                                                                {
+                                                                    backgroundColor: rolePalette.background,
+                                                                    borderColor: rolePalette.border,
+                                                                },
+                                                            ]}
+                                                        >
+                                                            <Text style={[styles.participantBadgeText, { color: rolePalette.text }]}>
+                                                                {roleLabel}
+                                                            </Text>
+                                                        </View>
+
+                                                        {shouldShowStatusBadge && (
+                                                            <View
+                                                                style={[
+                                                                    styles.participantBadge,
+                                                                    {
+                                                                        backgroundColor: statusPalette.background,
+                                                                        borderColor: statusPalette.border,
+                                                                    },
+                                                                ]}
+                                                            >
+                                                                <Text style={[styles.participantBadgeText, { color: statusPalette.text }]}>
+                                                                    {statusLabel}
+                                                                </Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                );
+                                            })()}
+
                                             <View style={styles.conversationHeader}>
                                                 <Text style={[styles.conversationName, { color: theme.colors.text }]}>{conv.property?.title || `${conv.other_user?.first_name || ''} ${conv.other_user?.last_name || ''}`.trim()}</Text>
                                                 <Text style={styles.conversationTime}>{formatTime(conv.last_message_at)}</Text>
