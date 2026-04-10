@@ -117,18 +117,27 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
 
   useEffect(() => {
     if (location.state?.tab && VALID_TABS.includes(location.state.tab)) {
-      if (location.state.tab !== activeTab) {
-        setActiveTab(location.state.tab);
+      setActiveTab((currentTab) => {
+        if (currentTab === location.state.tab) return currentTab;
+        return location.state.tab;
+      });
+
+      const currentParamTab = ensureValidTab(searchParams.get('tab'));
+      if (currentParamTab !== location.state.tab) {
         const params = new URLSearchParams(searchParams);
         params.set('tab', location.state.tab);
         setSearchParams(params, { replace: true });
       }
       return;
     }
+
     const paramTab = searchParams.get('tab');
     const nextTab = ensureValidTab(paramTab);
-    if (nextTab !== activeTab) setActiveTab(nextTab);
-  }, [searchParams, location.state]);
+    setActiveTab((currentTab) => {
+      if (currentTab === nextTab) return currentTab;
+      return nextTab;
+    });
+  }, [searchParams, location.state, setSearchParams]);
 
   const handleTabChange = (tab) => {
     const nextTab = ensureValidTab(tab);

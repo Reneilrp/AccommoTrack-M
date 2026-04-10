@@ -523,7 +523,17 @@ class AuthController extends Controller
 
             return response()->json([
                 'status' => 'blocked',
-                'message' => 'Your account has been blocked by the administrator. Please contact support for assistance.',
+                'message' => 'Your account has been permanently blocked by the administrator. Please contact support for assistance.',
+            ], 403);
+        }
+
+        if ($user->suspended_until && Carbon::now()->isBefore($user->suspended_until)) {
+            $refreshToken->delete();
+            $formattedDate = Carbon::parse($user->suspended_until)->format('F j, Y, g:i a');
+
+            return response()->json([
+                'status' => 'blocked',
+                'message' => "Your account is temporarily suspended until {$formattedDate}. Please contact support for assistance.",
             ], 403);
         }
 

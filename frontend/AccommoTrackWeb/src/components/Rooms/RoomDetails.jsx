@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Users, List, CreditCard, CalendarDays, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
@@ -11,13 +11,8 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
   const [extending, setExtending] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (isOpen && showActivity && room?.id) {
-      fetchRoomActivity();
-    }
-  }, [isOpen, showActivity, room?.id]);
-
-  const fetchRoomActivity = async () => {
+  const fetchRoomActivity = useCallback(async () => {
+    if (!room?.id) return;
     setLoadingActivity(true);
     try {
       const res = await api.get(`/landlord/dashboard/recent-activities?room_id=${room.id}`);
@@ -27,7 +22,13 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
     } finally {
       setLoadingActivity(false);
     }
-  };
+  }, [room?.id]);
+
+  useEffect(() => {
+    if (isOpen && showActivity) {
+      fetchRoomActivity();
+    }
+  }, [isOpen, showActivity, fetchRoomActivity]);
 
   if (!isOpen || !room) return null;
 

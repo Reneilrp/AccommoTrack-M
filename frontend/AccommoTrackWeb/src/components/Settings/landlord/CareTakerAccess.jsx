@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -66,6 +66,7 @@ export default function CareTakerAccess({
     phone: '',
     date_of_birth: '',
   });
+  const fetchCaretakersRef = useRef(fetchCaretakers);
   const navigate = useNavigate();
 
   // Safe access to props
@@ -77,8 +78,12 @@ export default function CareTakerAccess({
   const safeState = caretakerState || { loading: false, error: '' };
 
   useEffect(() => {
-    if (typeof fetchCaretakers === 'function') {
-      fetchCaretakers();
+    fetchCaretakersRef.current = fetchCaretakers;
+  }, [fetchCaretakers]);
+
+  useEffect(() => {
+    if (typeof fetchCaretakersRef.current === 'function') {
+      fetchCaretakersRef.current();
     }
   }, []);
 

@@ -86,17 +86,53 @@ class ReportController extends Controller
         $request->validate([
             'status' => 'required|in:pending,resolved,dismissed',
             'admin_notes' => 'nullable|string',
+            'issue_strike' => 'nullable|boolean',
         ]);
 
-        $report = Report::findOrFail($id);
+        $report = Report::with('property.landlord')->findOrFail($id);
 
         $report->update([
             'status' => $request->status,
             'admin_notes' => $request->admin_notes,
         ]);
 
+        $strikeIssued = false;
+        $suspended = false;
+
+        // If resolving the report and admin opted to issue a strike against the landlord
+        if ($request->status === 'resolved' && $request->issue_strike && $report->property && $report->property->landlord) {
+            $landlord = $report->property->landlord;
+            $landlord->increment('strikes');
+            $strikeIssued = true;
+
+            // Enforce 3-strike rule
+            if ($landlord->strikes >= 3) {
+                // Suspend for 30 days
+                $landlord->update([
+                    'suspended_until' => now()->addDays(30),
+                ]);
+                $suspended = true;
+
+                // Log the suspension
+                app(\App\Services\AuditLogService::class)->log('user', 'user.suspended', [
+                    'severity' => 'danger',
+                    'subject_type' => 'user',
+                    'subject_id' => $landlord->id,
+                    'summary' => "System automatically suspended landlord {$landlord->email} for 30 days due to accumulating 3 strikes.",
+                ]);
+            } else {
+                app(\App\Services\AuditLogService::class)->log('user', 'user.strike_issued', [
+                    'severity' => 'warning',
+                    'subject_type' => 'user',
+                    'subject_id' => $landlord->id,
+                    'summary' => "Admin issued strike {$landlord->strikes}/3 to landlord {$landlord->email} via Report #{$report->id}.",
+                ]);
+            }
+        }
+
         return response()->json([
-            'message' => 'Report updated',
+            'message' => $suspended ? 'Report resolved. Landlord hit 3 strikes and was auto-suspended for 30 days.' : 'Report updated.',
+            'strike_issued' => $strikeIssued,
             'report' => $report,
         ]);
     }

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\LandlordApprovedNotification;
 use App\Notifications\LandlordRejectedNotification;
 use App\Services\AuditLogService;
+use App\Services\PropertyService;
 use App\Support\SystemToggle;
 use App\Jobs\PurgeCloudflareFilesJob;
 use Illuminate\Http\Request;
@@ -274,6 +275,111 @@ class AdminController extends Controller
     }
 
     /**
+     * Bulk approve landlords
+     */
+    public function bulkApproveLandlords(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:users,id',
+        ]);
+
+        $users = User::whereIn('id', $request->ids)->get();
+        $approvedCount = 0;
+
+        foreach ($users as $user) {
+            if (!$user->is_verified) {
+                $user->is_verified = true;
+                $user->save();
+
+                $verification = LandlordVerification::where('user_id', $user->id)->first();
+                if ($verification) {
+                    LandlordVerificationHistory::create([
+                        'landlord_verification_id' => $verification->id,
+                        'valid_id_type' => $verification->valid_id_type,
+                        'valid_id_other' => $verification->valid_id_other,
+                        'valid_id_path' => $verification->valid_id_path,
+                        'permit_path' => $verification->permit_path,
+                        'status' => 'approved',
+                        'rejection_reason' => null,
+                        'submitted_at' => $verification->created_at,
+                        'reviewed_at' => now(),
+                        'reviewed_by' => Auth::id(),
+                    ]);
+
+                    $verification->status = 'approved';
+                    $verification->rejection_reason = null;
+                    $verification->reviewed_at = now();
+                    $verification->reviewed_by = Auth::id();
+                    $verification->save();
+                }
+
+                try {
+                    $user->notify(new LandlordApprovedNotification);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send approval notification: '.$e->getMessage());
+                }
+
+                $approvedCount++;
+            }
+        }
+
+        return response()->json(['message' => "$approvedCount landlords approved successfully"]);
+    }
+
+    /**
+     * Bulk reject landlords
+     */
+    public function bulkRejectLandlords(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:users,id',
+            'reason' => 'required|string|min:10|max:1000',
+        ]);
+
+        $users = User::whereIn('id', $request->ids)->get();
+        $rejectedCount = 0;
+
+        foreach ($users as $user) {
+            $verification = LandlordVerification::where('user_id', $user->id)->first();
+            if ($verification && $verification->status !== 'rejected') {
+                LandlordVerificationHistory::create([
+                    'landlord_verification_id' => $verification->id,
+                    'valid_id_type' => $verification->valid_id_type,
+                    'valid_id_other' => $verification->valid_id_other,
+                    'valid_id_path' => $verification->valid_id_path,
+                    'permit_path' => $verification->permit_path,
+                    'status' => 'rejected',
+                    'rejection_reason' => $request->reason,
+                    'submitted_at' => $verification->updated_at ?? $verification->created_at,
+                    'reviewed_at' => now(),
+                    'reviewed_by' => Auth::id(),
+                ]);
+
+                $verification->status = 'rejected';
+                $verification->rejection_reason = $request->reason;
+                $verification->reviewed_at = now();
+                $verification->reviewed_by = Auth::id();
+                $verification->save();
+
+                $user->is_verified = false;
+                $user->save();
+
+                try {
+                    $user->notify(new LandlordRejectedNotification($request->reason));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send rejection notification: '.$e->getMessage());
+                }
+
+                $rejectedCount++;
+            }
+        }
+
+        return response()->json(['message' => "$rejectedCount landlords rejected successfully"]);
+    }
+
+    /**
      * Reject a landlord verification
      */
     public function rejectVerification(Request $request, $id)
@@ -325,7 +431,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Block a user
+     * Block or suspend a user
      */
     public function blockUser(Request $request, $id)
     {
@@ -334,6 +440,7 @@ class AdminController extends Controller
             'discussion_summary' => 'nullable|string|max:2000',
             'admin_notes' => 'nullable|string|max:2000',
             'override_without_discussion' => 'nullable|boolean',
+            'suspension_duration' => 'nullable|string|in:24h,7d,30d,permanent',
         ]);
 
         $user = User::findOrFail($id);
@@ -341,6 +448,7 @@ class AdminController extends Controller
         $discussionSummary = trim((string) ($validated['discussion_summary'] ?? ''));
         $adminNotes = trim((string) ($validated['admin_notes'] ?? ''));
         $overrideWithoutDiscussion = (bool) ($validated['override_without_discussion'] ?? false);
+        $suspensionDuration = $validated['suspension_duration'] ?? 'permanent';
 
         if ($requestedMode === 'after_discussion' && ! $overrideWithoutDiscussion && $discussionSummary === '') {
             return response()->json([
@@ -352,16 +460,32 @@ class AdminController extends Controller
         }
 
         $statusBefore = $user->is_blocked ? 'blocked' : 'active';
-        $user->is_blocked = true;
+        
+        if ($suspensionDuration === 'permanent') {
+            $user->is_blocked = true;
+            $user->suspended_until = null;
+        } else {
+            $user->is_blocked = false; // ensure it's not permanently blocked
+            if ($suspensionDuration === '24h') {
+                $user->suspended_until = now()->addHours(24);
+            } elseif ($suspensionDuration === '7d') {
+                $user->suspended_until = now()->addDays(7);
+            } elseif ($suspensionDuration === '30d') {
+                $user->suspended_until = now()->addDays(30);
+            }
+        }
+        
         $user->save();
 
-        $this->auditLogService->log('user', 'user.blocked', [
+        $actionType = $suspensionDuration === 'permanent' ? 'blocked' : 'suspended';
+
+        $this->auditLogService->log('user', "user.{$actionType}", [
             'severity' => 'warning',
             'subject_type' => 'user',
             'subject_id' => $user->id,
             'status_before' => $statusBefore,
-            'status_after' => 'blocked',
-            'summary' => sprintf('Admin blocked %s (%s).', $user->email ?? ('user#'.$user->id), $user->role ?? 'user'),
+            'status_after' => $actionType,
+            'summary' => sprintf('Admin %s %s (%s).', $actionType, $user->email ?? ('user#'.$user->id), $user->role ?? 'user'),
             'metadata' => [
                 'mode' => $requestedMode,
                 'discussion_summary' => $discussionSummary !== '' ? $discussionSummary : null,
@@ -430,6 +554,123 @@ class AdminController extends Controller
             ->get();
 
         return response()->json(['data' => \App\Http\Resources\PropertyResource::collection($properties)->resolve()]);
+    }
+
+    /**
+     * Update a user's email address
+     */
+    public function updateUserEmail(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|unique:users,email,' . $id,
+        ]);
+
+        try {
+            $user = User::findOrFail($id);
+            $oldEmail = $user->email;
+            $user->email = $validated['email'];
+            $user->save();
+
+            $this->auditLogService->log('user', 'user.email_updated', [
+                'severity' => 'info',
+                'subject_type' => 'user',
+                'subject_id' => $user->id,
+                'summary' => sprintf('Admin updated email for %s (from: %s to: %s).', $user->role, $oldEmail, $user->email),
+                'metadata' => [
+                    'old_email' => $oldEmail,
+                    'new_email' => $user->email,
+                ],
+            ]);
+
+            return response()->json([
+                'message' => 'Email updated successfully.',
+                'user' => $user
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to update email.', 'error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Soft delete a user completely off the active platform
+     */
+    public function deleteUser(Request $request, $id)
+    {
+        if ($request->has('password')) {
+            if (! \Illuminate\Support\Facades\Hash::check($request->password, \Illuminate\Support\Facades\Auth::user()->password)) {
+                return response()->json(['message' => 'Incorrect password.', 'error' => 'password_incorrect'], 422);
+            }
+        } else {
+            return response()->json(['message' => 'Password is required for deletion.'], 422);
+        }
+
+        try {
+            $user = User::findOrFail($id);
+            $userEmail = $user->email;
+            
+            // Log it before deletion
+            $this->auditLogService->log('user', 'user.deleted', [
+                'severity' => 'warning',
+                'subject_type' => 'user',
+                'subject_id' => $user->id,
+                'summary' => "Admin permanently deleted user {$userEmail}.",
+            ]);
+
+            $user->delete();
+
+            return response()->json(['message' => 'User wiped successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to delete user.', 'error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Get isolated soft-deleted users
+     */
+    public function getArchivedUsers()
+    {
+        $users = User::onlyTrashed()->orderBy('deleted_at', 'desc')->get();
+        return response()->json($users);
+    }
+
+    /**
+     * Restore a soft-deleted user
+     */
+    public function restoreUser(Request $request, $id)
+    {
+        try {
+            $user = User::onlyTrashed()->findOrFail($id);
+            $user->restore();
+
+            return response()->json(['message' => 'User restored successfully', 'user' => $user]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to restore user', 'error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Permanently purge a soft-deleted user (hard delete)
+     */
+    public function purgeUser(Request $request, $id)
+    {
+        if ($request->has('password')) {
+            if (! \Illuminate\Support\Facades\Hash::check($request->password, \Illuminate\Support\Facades\Auth::user()->password)) {
+                return response()->json(['message' => 'Incorrect password.', 'error' => 'password_incorrect'], 422);
+            }
+        } else {
+            return response()->json(['message' => 'Password is required for permanent deletion.'], 422);
+        }
+
+        try {
+            $user = User::onlyTrashed()->findOrFail($id);
+            // Optionally, handle related records cleanup here if not using ON DELETE CASCADE at DB level
+            // For now, since properties handle their own SoftDeletes, we just forceDelete the user.
+            $user->forceDelete();
+
+            return response()->json(['message' => 'User permanently removed']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to purge user', 'error' => $e->getMessage()], 422);
+        }
     }
 
     /**
@@ -517,6 +758,142 @@ class AdminController extends Controller
         $property->save();
 
         return response()->json(['property' => $property, 'message' => 'Property put under maintenance']);
+    }
+
+    /**
+     * Bulk approve properties
+     */
+    public function bulkApproveProperties(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:properties,id',
+        ]);
+
+        $properties = Property::whereIn('id', $request->ids)->get();
+        $approvedCount = 0;
+
+        foreach ($properties as $property) {
+            if ($property->current_status !== Property::STATUS_ACTIVE) {
+                $property->current_status = Property::STATUS_ACTIVE;
+                $property->is_published = true;
+                $property->is_available = true;
+                $property->save();
+
+                $property->updateAvailableRooms();
+
+                $approvedCount++;
+            }
+        }
+
+        return response()->json(['message' => "$approvedCount properties approved successfully"]);
+    }
+
+    /**
+     * Bulk reject properties
+     */
+    public function bulkRejectProperties(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:properties,id',
+        ]);
+
+        $properties = Property::whereIn('id', $request->ids)->get();
+        $rejectedCount = 0;
+
+        foreach ($properties as $property) {
+            if ($property->current_status !== Property::STATUS_INACTIVE) {
+                $property->current_status = Property::STATUS_INACTIVE;
+                $property->is_published = false;
+                $property->is_available = false;
+                $property->save();
+
+                $property->updateAvailableRooms();
+
+                $rejectedCount++;
+            }
+        }
+
+        return response()->json(['message' => "$rejectedCount properties rejected successfully"]);
+    }
+
+    /**
+     * Delete a property (Soft Delete)
+     */
+    public function deleteProperty(Request $request, $id)
+    {
+        if ($request->has('password')) {
+            if (! Hash::check($request->password, Auth::user()->password)) {
+                return response()->json(['message' => 'Incorrect password.', 'error' => 'password_incorrect'], 422);
+            }
+        } else {
+            return response()->json(['message' => 'Password is required for deletion.'], 422);
+        }
+
+        try {
+            $property = Property::findOrFail($id);
+            $propertyService = app(PropertyService::class);
+            $propertyService->safeSoftDeleteProperty($property, false);
+
+            return response()->json(['message' => 'Property sent to archive']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to delete property', 'error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Get archived properties
+     */
+    public function getArchivedProperties()
+    {
+        $properties = Property::onlyTrashed()
+            ->with(['landlord' => function ($query) {
+                $query->select('id', 'first_name', 'last_name');
+            }])
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+
+        return response()->json($properties);
+    }
+
+    /**
+     * Restore an archived property
+     */
+    public function restoreProperty(Request $request, $id)
+    {
+        try {
+            $property = Property::onlyTrashed()->findOrFail($id);
+            $property->restore();
+
+            return response()->json(['message' => 'Property restored successfully', 'property' => $property]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to restore property', 'error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Purge a property completely
+     */
+    public function purgeProperty(Request $request, $id)
+    {
+        if ($request->has('password')) {
+            if (! Hash::check($request->password, Auth::user()->password)) {
+                return response()->json(['message' => 'Incorrect password.', 'error' => 'password_incorrect'], 422);
+            }
+        } else {
+            return response()->json(['message' => 'Password is required for permanent deletion.'], 422);
+        }
+
+        try {
+            $property = Property::onlyTrashed()->findOrFail($id);
+            $propertyService = app(PropertyService::class);
+            $propertyService->forceDeleteProperty($property);
+
+            return response()->json(['message' => 'Property permanently removed']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to purge property', 'error' => $e->getMessage()], 422);
+        }
     }
 
     /**

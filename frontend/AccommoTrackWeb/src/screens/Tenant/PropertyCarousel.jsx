@@ -213,6 +213,20 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       >
         {(Array.isArray(property?.rooms) ? property.rooms : [])
           .map(normalizeRoom)
+          .filter((room) => {
+            const rawStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
+            const effectiveStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawStatus === 'available')
+              ? 'reserved'
+              : rawStatus;
+            const parsedCapacity = Number(room.raw_capacity ?? room.capacity);
+            const parsedAvailableSlots = Number(room.available_slots ?? room.availableSlots);
+            const parsedOccupied = Number(room.occupied_count ?? room.occupied);
+            const isFullyOccupied = Number.isFinite(parsedCapacity) && parsedCapacity > 0 && (
+              (Number.isFinite(parsedAvailableSlots) && parsedAvailableSlots <= 0)
+              || (Number.isFinite(parsedOccupied) && parsedOccupied >= parsedCapacity)
+            );
+            return effectiveStatus !== 'occupied' && !isFullyOccupied;
+          })
           .sort((a, b) => {
             const aStatus = (a.display_status || a.status || 'available').toString().toLowerCase();
             const bStatus = (b.display_status || b.status || 'available').toString().toLowerCase();

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import api, { getImageUrl } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
+import { Edit2, Check, X, Trash2, Download } from 'lucide-react';
+import { exportToCSV } from '../../utils/csvExport';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -10,7 +12,11 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, requirePassword: false });
+  const [passwordValue, setPasswordValue] = useState('');
+  
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [editEmailValue, setEditEmailValue] = useState('');
   const createInitialBlockFlowState = () => ({
     isOpen: false,
     userId: null,
@@ -19,6 +25,7 @@ const UserManagement = () => {
     discussionSummary: '',
     adminNotes: '',
     overrideWithoutDiscussion: false,
+    suspensionDuration: 'permanent',
   });
   const [blockFlowState, setBlockFlowState] = useState(createInitialBlockFlowState);
 
@@ -115,6 +122,7 @@ const UserManagement = () => {
     const payload = {
       block_mode: blockFlowState.blockMode,
       override_without_discussion: blockFlowState.overrideWithoutDiscussion,
+      suspension_duration: blockFlowState.suspensionDuration,
       ...(discussionSummary ? { discussion_summary: discussionSummary } : {}),
       ...(adminNotes ? { admin_notes: adminNotes } : {}),
     };
@@ -126,7 +134,62 @@ const UserManagement = () => {
     }
   };
 
+  const saveEmail = async () => {
+    if (!editEmailValue || editEmailValue === selectedUser.email) {
+      setIsEditingEmail(false);
+      return;
+    }
+    setActionLoading(`${selectedUser.id}:email`);
+    try {
+      const res = await api.patch(`/admin/users/${selectedUser.id}/email`, { email: editEmailValue });
+      toast.success(res.data.message || 'Email updated successfully');
+      
+      const newEmail = res.data.user?.email || editEmailValue;
+      setSelectedUser(prev => ({ ...prev, email: newEmail }));
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, email: newEmail } : u));
+      setIsEditingEmail(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update email');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const promptDeleteUser = (user) => {
+    setPasswordValue('');
+    setConfirmModalState({
+      isOpen: true,
+      title: 'Delete User Permanently',
+      message: `Are you sure you want to permanently delete ${user.first_name || user.email}? This action will wipe their data off the active platform and cannot be immediately reversed without a manual database restoration.`,
+      onConfirm: () => runDeleteUser(user.id),
+      confirmText: 'Delete User',
+      confirmButtonClass: 'bg-red-600 hover:bg-red-700',
+      requirePassword: true
+    });
+  };
+
+  const runDeleteUser = async (userId) => {
+    setConfirmModalState({ isOpen: false });
+    setActionLoading(`${userId}:delete`);
+    try {
+      await api.delete(`/admin/users/${userId}`, { data: { password: passwordValue } });
+      toast.success('User permanently deleted');
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      if (selectedUser?.id === userId) {
+        setShowModal(false);
+      }
+      setPasswordValue('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete user');
+      setPasswordValue('');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleView = (user) => {
+    setIsEditingEmail(false);
+    setEditEmailValue(user.email || '');
     setSelectedUser(user);
     setShowModal(true);
   };
@@ -136,8 +199,34 @@ const UserManagement = () => {
     return user.role?.toLowerCase() === roleFilter;
   });
 
+  const handleExportCSV = () => {
+    const dataToExport = filteredUsers.map(user => ({
+      ID: user.id,
+      Name: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.name,
+      Email: user.email,
+      Role: user.role,
+      Status: user.is_blocked ? 'Blocked' : 'Active',
+      Suspended_Until: user.suspended_until || 'N/A',
+      Registered_At: user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'
+    }));
+    exportToCSV('User_Management_Export', dataToExport);
+  };
+
   return (
     <div className="w-full max-w-full px-6 py-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">User Management</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Manage tenant and landlord accounts, emails, and platform access.</p>
+        </div>
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm w-fit"
+        >
+          <Download className="w-4 h-4" />
+          Export Data
+        </button>
+      </div>
       <ConfirmationModal
         isOpen={confirmModalState.isOpen}
         onClose={() => setConfirmModalState({ isOpen: false })}
@@ -146,6 +235,9 @@ const UserManagement = () => {
         message={confirmModalState.message}
         confirmText={confirmModalState.confirmText}
         confirmButtonClass={confirmModalState.confirmButtonClass}
+        requirePassword={confirmModalState.requirePassword}
+        passwordValue={passwordValue}
+        setPasswordValue={setPasswordValue}
       />
       {blockFlowState.isOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -196,6 +288,23 @@ const UserManagement = () => {
                     Immediate Block
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Duration</label>
+                <select
+                  value={blockFlowState.suspensionDuration}
+                  onChange={(e) => setBlockFlowState(prev => ({ ...prev, suspensionDuration: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="24h">24 Hours</option>
+                  <option value="7d">7 Days</option>
+                  <option value="30d">30 Days</option>
+                  <option value="permanent">Permanent Block</option>
+                </select>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                  If set to a temporary duration, the system will automatically restore the user's access once it expires.
+                </p>
               </div>
 
               <div>
@@ -422,8 +531,47 @@ const UserManagement = () => {
                 <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Basic Information</h4>
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
-                    <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedUser.email || 'N/A'}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
+                      {!isEditingEmail && (
+                        <button
+                          onClick={() => setIsEditingEmail(true)}
+                          className="p-1 rounded bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-emerald-100 hover:text-emerald-700 transition"
+                          title="Edit Email"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    {isEditingEmail ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <input 
+                          type="email"
+                          value={editEmailValue}
+                          onChange={(e) => setEditEmailValue(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-emerald-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                        <button 
+                          onClick={saveEmail}
+                          disabled={actionLoading}
+                          className="p-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setIsEditingEmail(false);
+                            setEditEmailValue(selectedUser.email || '');
+                          }}
+                          disabled={actionLoading}
+                          className="p-1.5 rounded bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-400 disabled:opacity-50"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedUser.email || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Gender</p>
@@ -563,10 +711,18 @@ const UserManagement = () => {
                 className={`px-6 py-2 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                   selectedUser.is_blocked
                     ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-orange-600 text-white hover:bg-orange-700'
                 }`}
               >
                 {selectedUser.is_blocked ? 'Unblock User' : 'Block User'}
+              </button>
+              <button
+                onClick={() => promptDeleteUser(selectedUser)}
+                disabled={actionLoading}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete User
               </button>
             </div>
           </div>

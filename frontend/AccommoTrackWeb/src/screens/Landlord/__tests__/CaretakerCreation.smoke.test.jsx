@@ -80,7 +80,9 @@ const setupCaretakerApiMocks = () => {
 
 const openCaretakerTab = async () => {
   fireEvent.click(screen.getByRole('button', { name: /Caretaker Management/i }));
-  await screen.findByText('Add New Caretaker');
+  await screen.findByRole('button', { name: /Add CareTaker/i });
+  fireEvent.click(screen.getByRole('button', { name: /Add CareTaker/i }));
+  await screen.findByRole('heading', { name: /Add New Caretaker/i });
 };
 
 const fillRequiredCaretakerFields = () => {
@@ -111,9 +113,10 @@ describe('Landlord caretaker creation smoke', () => {
 
     await openCaretakerTab();
     fillRequiredCaretakerFields();
+    fireEvent.click(screen.getByRole('button', { name: /Next: Modules and Properties/i }));
 
     fireEvent.click(screen.getByText('Dorm One'));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm & Add Caretaker' }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirm and Add Caretaker/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
@@ -150,6 +153,7 @@ describe('Landlord caretaker creation smoke', () => {
 
     await openCaretakerTab();
     fillRequiredCaretakerFields();
+    fireEvent.click(screen.getByRole('button', { name: /Next: Modules and Properties/i }));
 
     fireEvent.click(screen.getByLabelText(/Bookings/i));
     fireEvent.click(screen.getByLabelText(/Tenants/i));
@@ -171,7 +175,7 @@ describe('Landlord caretaker creation smoke', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Grant Access' }));
 
     fireEvent.click(screen.getByText('Dorm One'));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm & Add Caretaker' }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirm and Add Caretaker/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(

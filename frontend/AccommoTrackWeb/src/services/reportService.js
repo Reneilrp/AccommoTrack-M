@@ -19,7 +19,7 @@ export const reportService = {
   /**
    * Update report status (Admin)
    */
-  async updateStatus(id, status, notes) {
-    return api.patch(`/admin/reports/${id}`, { status, admin_notes: notes });
+  async updateStatus(id, status, notes, issueStrike = false) {
+    return api.patch(`/admin/reports/${id}`, { status, admin_notes: notes, issue_strike: issueStrike });
   }
 };

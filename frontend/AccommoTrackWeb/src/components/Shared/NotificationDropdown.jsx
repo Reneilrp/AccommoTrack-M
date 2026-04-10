@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, Check, Calendar, Home, Users, CreditCard, AlertCircle } from 'lucide-react';
 import api from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,15 @@ const ACTIVITY_COLOR_MAP = {
   red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
 };
 
+const isNotificationRead = (item) => Boolean(item?.is_read || item?.read_at);
+
+const extractNotificationRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  return [];
+};
+
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -26,16 +35,7 @@ const NotificationDropdown = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  const isNotificationRead = (item) => Boolean(item?.is_read || item?.read_at);
-
-  const extractNotificationRows = (payload) => {
-    if (Array.isArray(payload)) return payload;
-    if (Array.isArray(payload?.data)) return payload.data;
-    if (Array.isArray(payload?.data?.data)) return payload.data.data;
-    return [];
-  };
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -96,13 +96,13 @@ const NotificationDropdown = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifications]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

@@ -1,38 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Eye, CheckCircle, XCircle, FileText, Loader2, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
+
+const looksLikeHtmlDocument = (value) => {
+  if (typeof value !== 'string') return false;
+  return /^\s*</.test(value) && /<(?:!doctype\s+html|html)/i.test(value);
+};
+
+const normalizeVerificationsPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.data)) return payload.data;
+  if (payload && payload.data && Array.isArray(payload.data.data)) return payload.data.data;
+  if (payload && Array.isArray(payload.verifications)) return payload.verifications;
+  return [];
+};
 
 export default function LandlordApproval() {
   const [verifications, setVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedVerification, setSelectedVerification] = useState(null);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
-  useEffect(() => {
-    fetchVerifications();
-  }, []);
-
-  const looksLikeHtmlDocument = (value) => {
-    if (typeof value !== 'string') return false;
-    return /^\s*</.test(value) && /<(?:!doctype\s+html|html)/i.test(value);
-  };
-
-  const normalizeVerificationsPayload = (payload) => {
-    if (Array.isArray(payload)) return payload;
-    if (payload && Array.isArray(payload.data)) return payload.data;
-    if (payload && payload.data && Array.isArray(payload.data.data)) return payload.data.data;
-    if (payload && Array.isArray(payload.verifications)) return payload.verifications;
-    return [];
-  };
-
-  const fetchVerifications = async () => {
+  const fetchVerifications = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -61,6 +58,68 @@ export default function LandlordApproval() {
       );
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchVerifications();
+  }, [fetchVerifications]);
+
+  const toggleSelection = (userId) => {
+    setSelectedUserIds(prev => 
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const toggleAll = () => {
+    const safeVerifications = Array.isArray(verifications) ? verifications : [];
+    if (selectedUserIds.length === safeVerifications.length) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(safeVerifications.map(v => v.user_id));
+    }
+  };
+
+  const runBulkAction = async (action) => {
+    if (selectedUserIds.length === 0) return;
+    setConfirmModalState({ isOpen: false });
+    
+    if (action === 'reject' && (!rejectionReason.trim() || rejectionReason.trim().length < 10)) {
+      toast.error('Please provide a detailed rejection reason (at least 10 characters) for bulk reject');
+      return;
+    }
+
+    setActionLoading(`bulk:${action}`);
+
+    try {
+      const payload = { ids: selectedUserIds };
+      if (action === 'reject') payload.reason = rejectionReason.trim();
+
+      const res = await api.post(`/admin/users/bulk-${action}`, payload);
+      toast.success(res.data?.message || `Bulk ${action} successful`);
+      
+      setVerifications(prev => prev.map(v => {
+        if (selectedUserIds.includes(v.user_id)) {
+          return {
+            ...v,
+            status: action === 'approve' ? 'approved' : 'rejected',
+            rejection_reason: action === 'reject' ? rejectionReason.trim() : null,
+            user: { ...v.user, is_verified: action === 'approve' }
+          };
+        }
+        return v;
+      }));
+
+      setSelectedUserIds([]);
+      if (action === 'reject') {
+        setShowRejectModal(false);
+        setRejectionReason('');
+      }
+    } catch (err) {
+      console.error(`Failed to bulk ${action}`, err);
+      toast.error(err.response?.data?.message || err.message || `Failed to bulk ${action}`);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -96,9 +155,9 @@ export default function LandlordApproval() {
     }
   };
 
-  const openRejectModal = () => {
+  const openRejectModal = (isBulk = false) => {
     setRejectionReason('');
-    setShowRejectModal(true);
+    setShowRejectModal(isBulk ? 'bulk' : 'single');
   };
 
   const confirmReject = () => {
@@ -106,11 +165,14 @@ export default function LandlordApproval() {
       toast.error('Please provide a detailed rejection reason (at least 10 characters)');
       return;
     }
+    const isBulk = showRejectModal === 'bulk';
     setConfirmModalState({
       isOpen: true,
-      title: 'Confirm Rejection',
-      message: 'Are you sure you want to reject this application? The reason will be sent to the landlord.',
-      onConfirm: handleReject,
+      title: isBulk ? `Reject ${selectedUserIds.length} Application(s)` : 'Confirm Rejection',
+      message: isBulk
+        ? `Are you sure you want to reject ${selectedUserIds.length} selected applications? Each landlord will be notified.`
+        : 'Are you sure you want to reject this application? The reason will be sent to the landlord.',
+      onConfirm: isBulk ? () => runBulkAction('reject') : handleReject,
       confirmText: 'Reject',
       confirmButtonClass: 'bg-red-600 hover:bg-red-700'
     });
@@ -226,27 +288,74 @@ export default function LandlordApproval() {
           <p className="text-gray-500 dark:text-gray-400">No verification requests found.</p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left border-collapse">
-            <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
-              <tr>
-                <th className="px-6 py-4 font-semibold">Applicant</th>
-                <th className="px-6 py-4 font-semibold">ID Type</th>
-                <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 font-semibold">Submitted</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {safeVerifications.map((v) => (
-                <tr key={v.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-gray-900 dark:text-white">{v.first_name} {v.last_name}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">{v.user?.email}</span>
-                    </div>
-                  </td>
+        <div className="space-y-4">
+          {selectedUserIds.length > 0 && (
+            <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
+              <span className="text-emerald-800 dark:text-emerald-300 font-medium">
+                {selectedUserIds.length} landlord{selectedUserIds.length > 1 ? 's' : ''} selected
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => runBulkAction('approve')}
+                  disabled={actionLoading?.startsWith('bulk:')}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  {actionLoading === 'bulk:approve' ? 'Approving...' : 'Approve Selected'}
+                </button>
+                <button
+                  onClick={() => openRejectModal(true)}
+                  disabled={actionLoading?.startsWith('bulk:')}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  Reject Selected
+                </button>
+                <button
+                  onClick={() => setSelectedUserIds([])}
+                  className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-sm font-medium"
+                >
+                  Cancel Selection
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="px-6 py-4 font-semibold w-12">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      checked={safeVerifications.length > 0 && selectedUserIds.length === safeVerifications.length}
+                      onChange={toggleAll}
+                    />
+                  </th>
+                  <th className="px-6 py-4 font-semibold">Applicant</th>
+                  <th className="px-6 py-4 font-semibold">ID Type</th>
+                  <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold">Submitted</th>
+                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {safeVerifications.map((v) => (
+                  <tr key={v.id} className={`${selectedUserIds.includes(v.user_id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'} transition-colors`}>
+                    <td className="px-6 py-4">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        checked={selectedUserIds.includes(v.user_id)}
+                        onChange={() => toggleSelection(v.user_id)}
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900 dark:text-white">{v.first_name} {v.last_name}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{v.user?.email}</span>
+                      </div>
+                    </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                     {v.valid_id_type || 'N/A'}
                   </td>
@@ -292,6 +401,7 @@ export default function LandlordApproval() {
             </tbody>
           </table>
           </div>
+        </div>
         </div>
       )}
 
@@ -377,7 +487,7 @@ export default function LandlordApproval() {
       )}
 
       {/* Rejection Reason Modal */}
-      {showRejectModal && selectedVerification && (
+      {showRejectModal && (showRejectModal === 'bulk' || selectedVerification) && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg">
             <div className="p-6 border-b border-gray-100 dark:border-gray-700">
@@ -386,9 +496,13 @@ export default function LandlordApproval() {
                   <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Reject Application</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {showRejectModal === 'bulk' ? `Reject ${selectedUserIds.length} Applications` : 'Reject Application'}
+                  </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Rejecting: {selectedVerification.first_name} {selectedVerification.last_name}
+                    {showRejectModal === 'bulk'
+                      ? `${selectedUserIds.length} landlord application(s) will receive a rejection notification.`
+                      : `Rejecting: ${selectedVerification?.first_name} ${selectedVerification?.last_name}`}
                   </p>
                 </div>
               </div>

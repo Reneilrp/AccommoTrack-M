@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { maintenanceService } from '../../services/maintenanceService';
 import { tenantService } from '../../services/tenantService';
@@ -36,11 +36,7 @@ export default function TenantMaintenance() {
     images: []
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [requestsRes, stayRes] = await Promise.all([
@@ -77,7 +73,11 @@ export default function TenantMaintenance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [preselectedPropertyId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);

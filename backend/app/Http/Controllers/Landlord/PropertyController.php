@@ -270,9 +270,9 @@ class PropertyController extends Controller
             }
 
             $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
-            $this->propertyService->deleteProperty($property);
+            $this->propertyService->safeSoftDeleteProperty($property, true);
 
-            return response()->json(['message' => 'Property and all associated rooms deleted successfully'], 200);
+            return response()->json(['message' => 'Property sent to archive'], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Property not found'], 404);
         } catch (\Exception $e) {

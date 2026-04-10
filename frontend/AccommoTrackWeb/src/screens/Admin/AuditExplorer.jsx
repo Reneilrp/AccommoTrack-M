@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { AlertCircle, Clock4, Loader2, Search, Shield, XCircle } from 'lucide-react';
+import { AlertCircle, Clock4, Loader2, Search, Shield, XCircle, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminService from '../../services/adminService';
+import { exportToCSV } from '../../utils/csvExport';
 
 const DEFAULT_FILTERS = {
   domain: '',
@@ -231,16 +232,39 @@ export default function AuditExplorer() {
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleExportCSV = () => {
+    const dataToExport = logs.map(log => ({
+      Timestamp: formatDateTime(log.createdAt),
+      Domain: log.domain || 'N/A',
+      Event: log.event || 'event.unknown',
+      Severity: log.severity || 'info',
+      Actor_ID: log.actorId || '-',
+      Summary: log.summary || '-',
+      Metadata: JSON.stringify(log.metadata || {})
+    }));
+    exportToCSV('Audit_Logs_Export', dataToExport);
+  };
+
   return (
     <div className="w-full max-w-full px-6 py-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Shield className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-          Audit Explorer
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Search system audit entries and inspect entity timelines for booking, invoice, payment, and user events.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Shield className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+            Audit Explorer
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Search system audit entries and inspect entity timelines for booking, invoice, payment, and user events.
+          </p>
+        </div>
+        <button
+          onClick={handleExportCSV}
+          disabled={!hasData}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+        >
+          <Download className="w-4 h-4" />
+          Export Data
+        </button>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">

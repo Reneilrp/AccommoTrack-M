@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminPaymentOversightController;
+use App\Http\Controllers\Admin\AdminDisputeController;
+use App\Http\Controllers\Admin\AdminBroadcastController;
 use App\Http\Controllers\Common\AuthController;
 use App\Http\Controllers\Common\ClaimAccountController;
 use App\Http\Controllers\Common\ForgotPasswordController;
@@ -358,17 +360,31 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/settings/payment-controls', [AdminController::class, 'updatePaymentControlSettings']);
         Route::post('/clear-cache', [AdminController::class, 'clearGlobalCache']);
         Route::get('/users', [AdminController::class, 'getUsers']);
+        Route::get('/users/archived', [AdminController::class, 'getArchivedUsers']);
+        Route::patch('/users/{id}/email', [AdminController::class, 'updateUserEmail']);
+        Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+        Route::post('/users/{id}/restore', [AdminController::class, 'restoreUser']);
+        Route::delete('/users/{id}/force', [AdminController::class, 'purgeUser']);
         // Route::post('/users', [AdminController::class, 'createAdmin']);
+        Route::post('/users/bulk-approve', [AdminController::class, 'bulkApproveLandlords']);
+        Route::post('/users/bulk-reject', [AdminController::class, 'bulkRejectLandlords']);
         Route::post('/users/{id}/approve', [AdminController::class, 'approveUser']);
         Route::post('/users/{id}/block', [AdminController::class, 'blockUser']);
         Route::post('/users/{id}/unblock', [AdminController::class, 'unblockUser']);
+        Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser']);
         Route::get('/properties/pending', [AdminController::class, 'getPendingProperties']);
         Route::get('/properties/approved', [AdminController::class, 'getApprovedProperties']);
         Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);
         Route::get('/properties/maintenance', [AdminController::class, 'getMaintenanceProperties']);
+        Route::get('/properties/archived', [AdminController::class, 'getArchivedProperties']);
+        Route::post('/properties/bulk-approve', [AdminController::class, 'bulkApproveProperties']);
+        Route::post('/properties/bulk-reject', [AdminController::class, 'bulkRejectProperties']);
         Route::post('/properties/{id}/approve', [AdminController::class, 'approveProperty']);
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
         Route::post('/properties/{id}/maintenance', [AdminController::class, 'putUnderMaintenance']);
+        Route::post('/properties/{id}/restore', [AdminController::class, 'restoreProperty']);
+        Route::delete('/properties/{id}', [AdminController::class, 'deleteProperty']);
+        Route::delete('/properties/{id}/force', [AdminController::class, 'purgeProperty']);
 
         // Admin: Inquiries
         Route::prefix('inquiries')->group(function () {
@@ -392,6 +408,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/payments/{invoiceId}/override-approve', [AdminPaymentOversightController::class, 'overrideApprove']);
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index']);
         Route::get('/audit-logs/timeline', [AdminAuditLogController::class, 'entityTimeline']);
+
+        // Admin: Dispute Arbitration
+        Route::get('/disputes', [AdminDisputeController::class, 'index']);
+        Route::post('/disputes/{id}/resolve', [AdminDisputeController::class, 'resolve']);
+        Route::patch('/disputes/{id}/notes', [AdminDisputeController::class, 'updateNotes']);
+
+        // Admin: Global Broadcasts
+        Route::get('/broadcasts', [AdminBroadcastController::class, 'index']);
+        Route::post('/broadcasts', [AdminBroadcastController::class, 'store']);
+        Route::patch('/broadcasts/{id}/toggle', [AdminBroadcastController::class, 'toggle']);
+        Route::delete('/broadcasts/{id}', [AdminBroadcastController::class, 'destroy']);
     });
 
     Route::prefix('messages')->group(function () {

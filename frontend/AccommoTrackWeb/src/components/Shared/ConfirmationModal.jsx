@@ -9,7 +9,10 @@ const ConfirmationModal = ({
   confirmText = 'Confirm', 
   cancelText = 'Cancel',
   icon,
-  confirmButtonClass = 'bg-red-600 hover:bg-red-700'
+  confirmButtonClass = 'bg-red-600 hover:bg-red-700',
+  requirePassword = false,
+  passwordValue,
+  setPasswordValue
 }) => {
   if (!isOpen) return null;
 
@@ -30,6 +33,21 @@ const ConfirmationModal = ({
           {message}
         </p>
 
+        {requirePassword && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Confirm with Password
+            </label>
+            <input
+              type="password"
+              value={passwordValue || ''}
+              onChange={(e) => setPasswordValue && setPasswordValue(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="Enter your password"
+            />
+          </div>
+        )}
+
         <div className="flex gap-4">
           <button
             onClick={onClose}
@@ -39,7 +57,8 @@ const ConfirmationModal = ({
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 px-4 py-2.5 text-white rounded-lg transition-colors font-medium ${confirmButtonClass}`}
+            disabled={requirePassword && !passwordValue}
+            className={`flex-1 px-4 py-2.5 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed ${confirmButtonClass}`}
           >
             {confirmText}
           </button>

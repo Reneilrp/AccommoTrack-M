@@ -1,13 +1,36 @@
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
-// IMPORT NAVIGATORS
-import AdminNavigator from './AdminNavigator.jsx';
-import LandlordNavigator from './LandlordNavigator.jsx';
-import TenantNavigator from './TenantNavigator.jsx';
-
-// IMPORT THE NEW COMPONENT
-import PropertyDetails from '../screens/Tenant/PropertyDetails.jsx';
+import RouteLoadingFallback from '../components/Shared/RouteLoadingFallback.jsx';
 import LandingPage from '../screens/Guest/LandingPage.jsx';
-import BrowsingPropertyPage from '../screens/Tenant/ExploreProperties.jsx';
+
+const loadAdminNavigator = () => import('./AdminNavigator.jsx');
+const loadLandlordNavigator = () => import('./LandlordNavigator.jsx');
+const loadTenantNavigator = () => import('./TenantNavigator.jsx');
+const loadPropertyDetails = () => import('../screens/Tenant/PropertyDetails.jsx');
+const loadBrowsingPropertyPage = () => import('../screens/Tenant/ExploreProperties.jsx');
+
+const AdminNavigator = lazy(loadAdminNavigator);
+const LandlordNavigator = lazy(loadLandlordNavigator);
+const TenantNavigator = lazy(loadTenantNavigator);
+const PropertyDetails = lazy(loadPropertyDetails);
+const BrowsingPropertyPage = lazy(loadBrowsingPropertyPage);
+
+const prefetchByRole = {
+  admin: [loadAdminNavigator],
+  landlord: [loadLandlordNavigator],
+  caretaker: [loadLandlordNavigator],
+  tenant: [loadTenantNavigator],
+};
+
+const isConstrainedConnection = () => {
+  if (typeof navigator === 'undefined') return false;
+
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!connection) return false;
+
+  if (connection.saveData) return true;
+  return connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g';
+};
 
 // --- WRAPPER FOR DETAILS PAGE ---
 // This wrapper is needed to extract the ID from the URL and pass it to your component
@@ -19,10 +42,48 @@ const PublicDetailsWrapper = () => {
 
 export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   const role = (user?.role || '').toLowerCase();
+  const prefetchedRolesRef = useRef(new Set());
+  const fullPageFallback = <RouteLoadingFallback fullScreen label="Loading page" />;
+  const renderWithFallback = (element) => (
+    <Suspense fallback={fullPageFallback}>
+      {element}
+    </Suspense>
+  );
+
+  useEffect(() => {
+    if (!user || !role) return;
+    if (prefetchedRolesRef.current.has(role)) return;
+    if (isConstrainedConnection()) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+
+    const jobs = prefetchByRole[role] || [];
+    const primaryJob = jobs[0];
+    if (!primaryJob) return;
+
+    prefetchedRolesRef.current.add(role);
+
+    const runPrefetch = () => {
+      Promise.resolve(primaryJob()).catch(() => {
+        // Ignore prefetch failures; routes still lazy-load on demand.
+      });
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(runPrefetch, { timeout: 1600 });
+      return () => {
+        if (typeof window.cancelIdleCallback === 'function') {
+          window.cancelIdleCallback(idleId);
+        }
+      };
+    }
+
+    const timeoutId = window.setTimeout(runPrefetch, 350);
+    return () => window.clearTimeout(timeoutId);
+  }, [role, user]);
   
   // Guest routes (no user)
   if (!user) {
-    return (
+    return renderWithFallback(
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/browse-properties" element={<BrowsingPropertyPage />} />
@@ -38,17 +99,17 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   
   // Admin role
   if (role === 'admin') {
-    return <AdminNavigator user={user} onLogout={onLogout} />;
+    return renderWithFallback(<AdminNavigator user={user} onLogout={onLogout} />);
   }
 
   // Landlord and caretaker roles
   if (role === 'landlord' || role === 'caretaker') {
-    return <LandlordNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
+    return renderWithFallback(<LandlordNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />);
   }
 
   // Tenant role
   if (role === 'tenant') {
-    return <TenantNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
+    return renderWithFallback(<TenantNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />);
   }
 
   return <Navigate to="/" replace />;

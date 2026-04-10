@@ -144,13 +144,14 @@ export default function TenantPayments({ user }) {
     }
   };
 
-  const getFilteredPayments = () => {
+  const filteredPayments = useMemo(() => {
     const threshold = getThresholdDate(timeRange);
-    const list = [...payments].filter(p => {
+    const list = [...payments].filter((p) => {
       if (!threshold) return true;
       const d = new Date(p.date);
       return isNaN(d) ? true : d >= threshold;
     });
+
     const statusFiltered = list.filter((payment) => {
       if (statusFilter === 'all') return true;
       const normalized = (payment.status || '').toLowerCase();
@@ -159,6 +160,7 @@ export default function TenantPayments({ user }) {
       }
       return normalized === statusFilter;
     });
+
     // Apply search query (property name, room number, reference, method)
     const q = (searchQuery || '').trim().toLowerCase();
     const filtered = statusFiltered.filter((payment) => {
@@ -169,13 +171,9 @@ export default function TenantPayments({ user }) {
       const room = (payment.roomNumber || (payment.room && payment.room.roomNumber) || '').toString().toLowerCase();
       return prop.includes(q) || ref.includes(q) || method.includes(q) || room.includes(q);
     });
-    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-  };
 
-  const filteredPayments = useMemo(
-    () => getFilteredPayments(),
-    [payments, statusFilter, timeRange, searchQuery],
-  );
+    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [payments, statusFilter, timeRange, searchQuery]);
 
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900">

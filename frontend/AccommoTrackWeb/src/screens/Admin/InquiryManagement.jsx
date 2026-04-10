@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, X, Send, RefreshCw, ArrowRight } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -16,11 +16,7 @@ const InquiryManagement = () => {
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
 
-  useEffect(() => {
-    fetchInquiries();
-  }, [page]);
-
-  const fetchInquiries = async () => {
+  const fetchInquiries = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(`/admin/inquiries?page=${page}`);
@@ -32,7 +28,11 @@ const InquiryManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
+
+  useEffect(() => {
+    fetchInquiries();
+  }, [fetchInquiries]);
 
   const handleUpdateStatus = async (id, status) => {
     try {

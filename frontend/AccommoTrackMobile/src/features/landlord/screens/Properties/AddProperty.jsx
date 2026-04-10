@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StatusBar,

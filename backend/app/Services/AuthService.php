@@ -62,7 +62,12 @@ class AuthService
         }
 
         if ($user->is_blocked) {
-            throw new AccountBlockedException('Your account has been blocked by the administrator. Please contact support for assistance.');
+            throw new AccountBlockedException('Your account has been permanently blocked by the administrator. Please contact support for assistance.');
+        }
+
+        if ($user->suspended_until && Carbon::now()->isBefore($user->suspended_until)) {
+            $formattedDate = Carbon::parse($user->suspended_until)->format('F j, Y, g:i a');
+            throw new AccountBlockedException("Your account is temporarily suspended until {$formattedDate}. Please contact support for assistance.");
         }
 
         // Prevent OTP bypass: users must complete email verification before login.

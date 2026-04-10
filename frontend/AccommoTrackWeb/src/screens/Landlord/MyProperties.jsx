@@ -526,7 +526,7 @@ export default function MyProperties({ __user }) {
                                 : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                             }`}
                           >
-                            {property.current_status === 'active' && !property.is_published ? 'active | hidden' : property.current_status}
+                            {property.current_status === 'active' && !property.is_published ? 'hidden' : property.current_status}
                           </span>
                         </div>
 

@@ -403,14 +403,23 @@ class PropertyService
         };
     }
 
-    public function deleteProperty(Property $property): void
+    public function safeSoftDeleteProperty(Property $property, bool $isLandlord): void
     {
-        DB::transaction(function () use ($property) {
-            $activeBookings = $property->bookings()->whereIn('status', ['pending', 'confirmed'])->count();
-            if ($activeBookings > 0) {
-                throw new \Exception('Cannot delete property with active bookings. Please cancel or complete all bookings first.');
+        DB::transaction(function () use ($property, $isLandlord) {
+            if ($isLandlord) {
+                $activeBookings = $property->bookings()->whereIn('status', ['pending', 'confirmed'])->count();
+                if ($activeBookings > 0) {
+                    throw new \Exception('Cannot delete property with active bookings. Please cancel or complete all bookings first.');
+                }
             }
 
+            $property->delete();
+        });
+    }
+
+    public function forceDeleteProperty(Property $property): void
+    {
+        DB::transaction(function () use ($property) {
             foreach ($property->images as $image) {
                 Storage::delete($image->image_url);
             }
@@ -421,7 +430,7 @@ class PropertyService
                 }
             }
 
-            $property->delete();
+            $property->forceDelete();
         });
     }
 

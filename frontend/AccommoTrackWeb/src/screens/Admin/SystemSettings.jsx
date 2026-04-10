@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Loader2, Pencil, Save, Smartphone, Wallet, CalendarDays, Cog, RefreshCw, ShieldAlert } from 'lucide-react';
 import adminService from '../../services/adminService';
+import { cacheManager } from '../../utils/cache';
 
 export default function SystemSettings() {
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,9 @@ export default function SystemSettings() {
       if (!response?.success) {
         throw new Error(response?.error || response?.message || 'Failed to clear cache');
       }
+      // Also wipe this browser's localStorage cache so the admin's own
+      // browser doesn't serve stale property data after the server is purged.
+      cacheManager.clearAll();
       toast.success('Global cache cleared successfully!');
     } catch (error) {
       toast.error(error?.message || 'Failed to clear cache');

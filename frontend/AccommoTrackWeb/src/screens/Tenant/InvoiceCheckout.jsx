@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { ArrowLeft, CreditCard, Wallet, Landmark, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -86,22 +86,7 @@ export default function InvoiceCheckout() {
   const [offlineDetails, setOfflineDetails] = useState({ method: '', reference: '', notes: '', show: false });
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
 
-  useEffect(() => {
-    loadInvoice();
-  }, [id]);
-
-  useEffect(() => {
-    let mounted = true;
-    systemToggleService.getToggles().then((result) => {
-      if (!mounted || !result?.data) return;
-      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const loadInvoice = async () => {
+  const loadInvoice = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get(`/tenant/payments/${id}`);
@@ -139,7 +124,22 @@ export default function InvoiceCheckout() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadInvoice();
+  }, [loadInvoice]);
+
+  useEffect(() => {
+    let mounted = true;
+    systemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handlePayMongoSource = async (method) => {
     if (tenantPaymentsTempDisabled) {

@@ -11,10 +11,15 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   const [showModal, setShowModal] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [statusFilter, setStatusFilter] = useState('pending');
-  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [confirmModalState, setConfirmModalState] = useState({ 
+    isOpen: false, title: '', message: '', onConfirm: () => {}, requirePassword: false 
+  });
+  const [passwordValue, setPasswordValue] = useState('');
 
   const fetchProperties = async (status = 'pending') => {
     setLoading(true);
+    setSelectedIds([]); // Clear selection on tab change
     try {
       const res = await api.get(`/admin/properties/${status}`);
       setProperties(res.data.data || res.data || []);
@@ -30,6 +35,38 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     fetchProperties(statusFilter);
   }, [statusFilter]);
 
+  const toggleSelection = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.length === properties.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(properties.map(p => p.id));
+    }
+  };
+
+  const runBulkAction = async (action) => {
+    if (selectedIds.length === 0) return;
+    setConfirmModalState({ isOpen: false });
+    setActionLoading(`bulk:${action}`);
+
+    try {
+      const res = await api.post(`/admin/properties/bulk-${action}`, { ids: selectedIds });
+      toast.success(res.data?.message || `Bulk ${action} successful`);
+      setProperties(prev => prev.filter(p => !selectedIds.includes(p.id)));
+      setSelectedIds([]);
+    } catch (err) {
+      console.error(`Failed to bulk ${action}`, err);
+      toast.error(err.response?.data?.message || err.message || `Failed to bulk ${action}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const runAction = async (propertyId, action) => {
     setConfirmModalState({ isOpen: false });
     setActionLoading(propertyId + ':' + action);
@@ -44,29 +81,40 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       } else if (action === 'maintenance') {
         await api.post(`/admin/properties/${propertyId}/maintenance`);
         toast.success('Property put under maintenance');
+      } else if (action === 'delete') {
+        await api.delete(`/admin/properties/${propertyId}`, { data: { password: passwordValue } });
+        toast.success('Property completely removed');
       }
 
       setProperties(prev => prev.filter(p => p.id !== propertyId));
+      setSelectedIds(prev => prev.filter(id => id !== propertyId)); // Remove from selection
       setShowModal(false);
       setSelectedProperty(null);
+      setPasswordValue('');
     } catch (err) {
       console.error(`Failed to ${action} property`, err);
       toast.error(err.response?.data?.message || err.message || `Failed to ${action}`);
+      if (action === 'delete') setPasswordValue('');
     } finally {
       setActionLoading(null);
     }
   };
 
   const confirmAction = (propertyId, action) => {
+    setPasswordValue('');
     const isApprove = action === 'approve';
     const isMaintenance = action === 'maintenance';
+    const isDelete = action === 'delete';
     setConfirmModalState({
       isOpen: true,
-      title: `Confirm ${isApprove ? 'Approval' : isMaintenance ? 'Maintenance' : 'Rejection'}`,
-      message: `Are you sure you want to ${isMaintenance ? 'put this property under maintenance' : action + ' this property'}?`,
+      title: `Confirm ${isApprove ? 'Approval' : isMaintenance ? 'Maintenance' : isDelete ? 'Deletion' : 'Rejection'}`,
+      message: isDelete 
+        ? 'Are you sure you want to completely delete this property? This action is irreversible.'
+        : `Are you sure you want to ${isMaintenance ? 'put this property under maintenance' : action + ' this property'}?`,
       onConfirm: () => runAction(propertyId, action),
-      confirmText: isApprove ? 'Approve' : isMaintenance ? 'Maintenance' : 'Reject',
-      confirmButtonClass: isApprove ? 'bg-green-600 hover:bg-green-700' : isMaintenance ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700'
+      confirmText: isApprove ? 'Approve' : isMaintenance ? 'Maintenance' : isDelete ? 'Delete Completely' : 'Reject',
+      confirmButtonClass: isApprove ? 'bg-green-600 hover:bg-green-700' : isMaintenance ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700',
+      requirePassword: isDelete
     });
   };
 
@@ -85,6 +133,9 @@ const PropertyApproval = ({ isEmbedded = false }) => {
         message={confirmModalState.message}
         confirmText={confirmModalState.confirmText}
         confirmButtonClass={confirmModalState.confirmButtonClass}
+        requirePassword={confirmModalState.requirePassword}
+        passwordValue={passwordValue}
+        setPasswordValue={setPasswordValue}
       />
       {!isEmbedded && (
         <>
@@ -134,6 +185,36 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       </div>
 
       <div className="mt-4">
+        {selectedIds.length > 0 && (
+          <div className="mb-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
+            <span className="text-emerald-800 dark:text-emerald-300 font-medium">
+              {selectedIds.length} property{selectedIds.length > 1 ? 'ies' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => runBulkAction('approve')}
+                disabled={actionLoading?.startsWith('bulk:')}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                {actionLoading === 'bulk:approve' ? 'Approving...' : 'Approve Selected'}
+              </button>
+              <button
+                onClick={() => runBulkAction('reject')}
+                disabled={actionLoading?.startsWith('bulk:')}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                {actionLoading === 'bulk:reject' ? 'Reject Selected' : 'Reject Selected'}
+              </button>
+              <button
+                onClick={() => setSelectedIds([])}
+                className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-sm font-medium"
+              >
+                Cancel Selection
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
@@ -153,6 +234,14 @@ const PropertyApproval = ({ isEmbedded = false }) => {
             <table className="w-full">
               <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wide">
                 <tr>
+                  <th className="px-6 py-4 text-left font-semibold w-12">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      checked={properties.length > 0 && selectedIds.length === properties.length}
+                      onChange={toggleAll}
+                    />
+                  </th>
                   <th className="px-6 py-4 text-left font-semibold">Title</th>
                   <th className="px-6 py-4 text-left font-semibold">Property Type</th>
                   <th className="px-6 py-4 text-left font-semibold">Location</th>
@@ -163,7 +252,15 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
                 {properties.map(prop => (
-                  <tr key={prop.id} className="bg-white dark:bg-gray-800 even:bg-gray-50 dark:even:bg-gray-700/30 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/20 transition-colors">
+                  <tr key={prop.id} className={`${selectedIds.includes(prop.id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'bg-white dark:bg-gray-800 even:bg-gray-50 dark:even:bg-gray-700/30'} hover:bg-emerald-50/40 dark:hover:bg-emerald-900/20 transition-colors`}>
+                    <td className="px-6 py-4">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        checked={selectedIds.includes(prop.id)}
+                        onChange={() => toggleSelection(prop.id)}
+                      />
+                    </td>
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{prop.title || 'Untitled'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{prop.property_type || '—'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{prop.city || prop.full_address || '—'}</td>
@@ -410,6 +507,13 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                 className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
               >
                 Close
+              </button>
+              <button
+                onClick={() => confirmAction(selectedProperty.id, 'delete')}
+                disabled={actionLoading}
+                className="px-6 py-2 border-2 border-red-600 text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading === selectedProperty.id + ':delete' ? 'Deleting...' : 'Delete Completely'}
               </button>
               {selectedProperty.current_status === 'pending' && (
                 <>

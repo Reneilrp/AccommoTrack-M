@@ -110,7 +110,9 @@ describe('Caretaker screens smoke coverage', () => {
     expect(majorQuickActionsSection).toContain("title: 'Analytics'");
     expect(majorQuickActionsSection).toContain("requiredPermission: { key: 'analytics' }");
 
-    expect(source).toContain('const visibleMajorQuickActions = majorQuickActions');
+    expect(source).toContain('const allQuickActions = [...majorQuickActions, ...minorQuickActions.filter((action) => action.show)];');
+    expect(source).toContain('const visibleQuickActions = allQuickActions.slice(0, 8);');
+    expect(source).toContain('const quickActionsToRender = visibleQuickActions;');
     expect(source).toContain('const hasQuickActionAccess = useCallback((action) => {');
     expect(source).toContain('if (!hasQuickActionAccess(action)) {');
     expect(source).toContain("setPermissionModal({ visible: true, actionTitle: action?.title || 'this module' });");

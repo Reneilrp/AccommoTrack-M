@@ -4,7 +4,7 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
 import { getImageUrl } from '../../utils/api';
-import { Menu, Settings as SettingsIcon } from 'lucide-react';
+import { Menu, Settings as SettingsIcon, Archive, Scale, Megaphone } from 'lucide-react';
 
 const AdminLayout = ({ children, user, onLogout = () => {} }) => {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
@@ -82,6 +82,21 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10m-3 4h3m-6 0h1m4 0h1M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       )
+    },
+    {
+      path: '/admin/disputes',
+      label: 'Disputes',
+      icon: <Scale className="w-5 h-5" />
+    },
+    {
+      path: '/admin/broadcasts',
+      label: 'Broadcasts',
+      icon: <Megaphone className="w-5 h-5" />
+    },
+    {
+      path: '/admin/archives',
+      label: 'Archives',
+      icon: <Archive className="w-5 h-5" />
     },
     {
       path: '/admin/settings',

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -69,7 +70,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use HasApiTokens, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'role',
@@ -93,6 +94,8 @@ class User extends Authenticatable
         'paymongo_verification_status',
         'email_otp_code',
         'email_otp_expires_at',
+        'strikes',
+        'suspended_until',
     ];
 
     protected $hidden = [
@@ -103,12 +106,18 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'is_verified' => 'boolean',
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'is_blocked' => 'boolean',
         'is_active' => 'boolean',
+        'push_notifications_enabled' => 'boolean',
+        'email_notifications_enabled' => 'boolean',
+        'last_active_at' => 'datetime',
+        'suspended_until' => 'datetime',
+        'strikes' => 'integer',
         'payment_methods_settings' => 'array',
         'notification_preferences' => 'array',
         'preferences' => 'array',
-        'is_blocked' => 'boolean',
         'date_of_birth' => 'date',
     ];
 

@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Eye, Loader2, Shield, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Eye, Loader2, Shield, XCircle, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminService from '../../services/adminService';
 import { getImageUrl } from '../../utils/api';
+import { exportToCSV } from '../../utils/csvExport';
 
 const DEFAULT_FILTERS = {
   status: 'pending',
@@ -213,9 +214,24 @@ export default function PaymentOversight() {
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleExportCSV = () => {
+    const dataToExport = records.map(record => ({
+      Invoice_Reference: record.invoiceReference || `#${record.invoiceId || 'N/A'}`,
+      Tenant_Name: record.tenantName || 'Unknown',
+      Property_Title: record.propertyTitle || 'Unknown',
+      Room: record.roomNumber || 'N/A',
+      Amount_PHP: Number(record.amountCents || 0) / 100,
+      Method: formatMethodLabel(record.method),
+      Status: record.status || 'unknown',
+      Risk_Flags: record.riskFlags?.join(', ') || 'None',
+      Submitted_At: formatDateTime(record.submittedAt)
+    }));
+    exportToCSV('Payment_Oversight_Export', dataToExport);
+  };
+
   return (
     <div className="w-full max-w-full px-6 py-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Shield className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -225,6 +241,14 @@ export default function PaymentOversight() {
             Review manual payment submissions, risk indicators, and apply justified override approvals.
           </p>
         </div>
+        <button
+          onClick={handleExportCSV}
+          disabled={!hasData}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+        >
+          <Download className="w-4 h-4" />
+          Export Data
+        </button>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
