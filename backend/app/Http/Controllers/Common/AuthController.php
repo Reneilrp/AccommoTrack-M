@@ -723,7 +723,10 @@ class AuthController extends Controller
                 'user' => $user->fresh()->load('tenantProfile'),
                 'message' => 'Profile updated successfully',
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
+            Log::error('updateProfile error', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'message' => 'Failed to update profile',
                 'error' => $e->getMessage(),

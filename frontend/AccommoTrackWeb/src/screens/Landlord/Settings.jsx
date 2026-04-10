@@ -167,13 +167,15 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const handleSaveProfile = async () => {
     try {
       const formData = new FormData();
-      formData.append('first_name', profileData.firstName);
-      formData.append('last_name', profileData.lastName);
-      formData.append('phone', profileData.phone);
-      formData.append('date_of_birth', profileData.dateOfBirth);
-      formData.append('gender', profileData.gender || '');
-      formData.append('identified_as', profileData.identified_as || '');
+      formData.append('first_name', profileData.firstName || '');
+      formData.append('last_name', profileData.lastName || '');
       formData.append('_method', 'PUT');
+
+      // Only append optional fields if they have real values
+      if (profileData.phone) formData.append('phone', profileData.phone);
+      if (profileData.dateOfBirth) formData.append('date_of_birth', profileData.dateOfBirth);
+      if (profileData.gender) formData.append('gender', profileData.gender);
+      if (profileData.identified_as) formData.append('identified_as', profileData.identified_as);
 
       if (fileInputRef.current?.files[0]) {
         formData.append('profile_image', fileInputRef.current.files[0]);
@@ -185,7 +187,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       setPhotoPreview(null);
       toast.success('Profile updated!');
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Update failed');
+      toast.error(e.response?.data?.message || e.response?.data?.error || 'Update failed');
     }
   };
 
