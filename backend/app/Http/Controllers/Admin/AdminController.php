@@ -91,6 +91,21 @@ class AdminController extends Controller
     }
 
     /**
+     * Clear the global cache (frontend edge and backend application cache).
+     */
+    public function clearGlobalCache(Request $request)
+    {
+        try {
+            \App\Jobs\PurgeCloudflareCacheJob::dispatchSync();
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+            return response()->json(['success' => true, 'message' => 'Global cache successfully cleared.']);
+        } catch (\Exception $e) {
+            \Log::error('Failed to clear global cache: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to clear cache.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Get all users
      */
     public function getUsers(Request $request)

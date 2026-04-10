@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Loader2, Pencil, Save, Smartphone, Wallet, CalendarDays, Cog } from 'lucide-react';
+import { Loader2, Pencil, Save, Smartphone, Wallet, CalendarDays, Cog, RefreshCw, ShieldAlert } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function SystemSettings() {
@@ -13,6 +13,7 @@ export default function SystemSettings() {
   const [mobileLatestVersion, setMobileLatestVersion] = useState('1.0.0');
   const [mobileDownloadUrl, setMobileDownloadUrl] = useState('https://accommotrack.me/downloads/AccommoTrack.apk');
   const [mobileForceUpdate, setMobileForceUpdate] = useState(true);
+  const [clearingCache, setClearingCache] = useState(false);
 
   const [initialSettings, setInitialSettings] = useState({
     tenantPaymentsDisabled: true,
@@ -84,6 +85,21 @@ export default function SystemSettings() {
       toast.error(error?.message || 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    setClearingCache(true);
+    try {
+      const response = await adminService.clearGlobalCache();
+      if (!response?.success) {
+        throw new Error(response?.error || response?.message || 'Failed to clear cache');
+      }
+      toast.success('Global cache cleared successfully!');
+    } catch (error) {
+      toast.error(error?.message || 'Failed to clear cache');
+    } finally {
+      setClearingCache(false);
     }
   };
 
@@ -272,6 +288,32 @@ export default function SystemSettings() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </section>
+
+            {/* Cache Management Section */}
+            <section className="pt-8 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2 mb-4">
+                <ShieldAlert className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Cache Management</h2>
+              </div>
+              <div className="p-5 rounded-xl border border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white">Clear Global Cache</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                    Purges the Cloudflare edge cache and the backend application cache. Use this when property visibility changes aren't reflecting immediately for guests.
+                  </p>
+                </div>
+                <button
+                  onClick={handleClearCache}
+                  disabled={clearingCache || loading}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors disabled:opacity-60 shadow-sm whitespace-nowrap flex-shrink-0"
+                >
+                  {clearingCache
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <RefreshCw className="w-4 h-4" />}
+                  {clearingCache ? 'Clearing...' : 'Clear Cache'}
+                </button>
               </div>
             </section>
 

@@ -356,6 +356,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard/recent-activities', [AdminController::class, 'getRecentActivities']);
         Route::get('/settings/payment-controls', [AdminController::class, 'getPaymentControlSettings']);
         Route::put('/settings/payment-controls', [AdminController::class, 'updatePaymentControlSettings']);
+        Route::post('/clear-cache', [AdminController::class, 'clearGlobalCache']);
         Route::get('/users', [AdminController::class, 'getUsers']);
         // Route::post('/users', [AdminController::class, 'createAdmin']);
         Route::post('/users/{id}/approve', [AdminController::class, 'approveUser']);

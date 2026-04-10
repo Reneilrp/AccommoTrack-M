@@ -504,6 +504,18 @@ const adminService = {
    * Get audit timeline for an entity
    * @param {Object} params
    */
+  /**
+   * Clear all platform caches (Cloudflare edge + Laravel app cache)
+   */
+  async clearGlobalCache() {
+    try {
+      const response = await api.post('/admin/clear-cache');
+      return normalizeEnvelope(response?.data);
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
   async getAuditTimeline(params = {}) {
     try {
       const response = await api.get('/admin/audit-logs/timeline', {
