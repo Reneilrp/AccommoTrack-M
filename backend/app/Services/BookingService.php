@@ -255,8 +255,8 @@ class BookingService
 
             if ($requiresReservationFee && isset($data['receipt_image'])) {
                 $status = 'pending_reservation';
-                // Store image in public disk
-                $receiptImagePath = $data['receipt_image']->store('receipts', 'public');
+                // Store image in default disk
+                $receiptImagePath = $data['receipt_image']->store('receipts');
                 $reservationRef = 'RES-'.strtoupper(Str::random(8));
             } elseif ($requiresReservationFee) {
                // If property requires reservation but no image was provided 

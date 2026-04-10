@@ -584,7 +584,7 @@ class InvoiceController extends Controller
 
             $proofImagePath = null;
             if (isset($validated['proof_image'])) {
-                $proofImagePath = $validated['proof_image']->store('payment_proofs', 'public');
+                $proofImagePath = $validated['proof_image']->store('payment_proofs');
             }
 
             $tx = PaymentTransaction::create([
@@ -598,7 +598,7 @@ class InvoiceController extends Controller
                 'gateway_response' => [
                     'notes' => $validated['notes'] ?? null,
                     'proof_image_path' => $proofImagePath,
-                    'proof_image_url' => $proofImagePath ? asset('storage/'.ltrim($proofImagePath, '/')) : null,
+                    'proof_image_url' => $proofImagePath ? \Illuminate\Support\Facades\Storage::url($proofImagePath) : null,
                 ],
             ]);
 

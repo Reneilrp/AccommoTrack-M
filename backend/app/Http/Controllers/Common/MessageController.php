@@ -103,8 +103,7 @@ class MessageController extends Controller
 
             $filename = 'msg_'.time().'_'.uniqid().'.webp';
             $path = 'message_images/'.$filename;
-
-            \Illuminate\Support\Facades\Storage::disk('public')->put($path, (string) $encoded);
+            \Illuminate\Support\Facades\Storage::put($path, (string) $encoded);
             $imageUrl = $path;
         }
 

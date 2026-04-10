@@ -46,12 +46,13 @@ class TenantSettingsController extends Controller
             // Format profile image URL
             $profileImage = null;
             if ($user->profile_image) {
-                // Normalize: strip any leading /storage/ prefix, then use asset()
                 $rawPath = ltrim($user->profile_image, '/');
-                if (str_starts_with($rawPath, 'storage/')) {
-                    $profileImage = asset($rawPath);
-                } else {
-                    $profileImage = asset('storage/' . $rawPath);
+                $cleanPath = str_replace('storage/', '', $rawPath);
+                
+                try {
+                    $profileImage = Storage::url($cleanPath);
+                } catch (\Exception $e) {
+                    $profileImage = asset('storage/' . $cleanPath);
                 }
             }
 
@@ -174,10 +175,11 @@ class TenantSettingsController extends Controller
                 // Delete old image if exists
                 if ($user->profile_image) {
                     $oldPath = str_replace('/storage/', '', $user->profile_image);
-                    Storage::disk('public')->delete($oldPath);
+                    $oldPath = str_replace('storage/', '', $oldPath);
+                    Storage::delete($oldPath);
                 }
-                $path = $request->file('profile_image')->store('profile-images', 'public');
-                $userData['profile_image'] = '/storage/' . $path;
+                $path = $request->file('profile_image')->store('profile-images');
+                $userData['profile_image'] = $path;
             }
 
             if (! empty($userData)) {

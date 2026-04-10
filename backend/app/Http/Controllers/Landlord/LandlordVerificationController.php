@@ -65,8 +65,8 @@ class LandlordVerificationController extends Controller
             ]);
 
             // 2. Store files
-            $validIdPath = $request->file('valid_id')->store('landlord_ids', 'public');
-            $permitPath = $request->file('permit')->store('landlord_permits', 'public');
+            $validIdPath = $request->file('valid_id')->store('landlord_ids');
+            $permitPath = $request->file('permit')->store('landlord_permits');
 
             // 3. Create Verification Record
             $verification = LandlordVerification::create([
@@ -93,10 +93,10 @@ class LandlordVerificationController extends Controller
             DB::rollBack();
             // Delete uploaded files if transaction failed
             if (isset($validIdPath)) {
-                Storage::disk('public')->delete($validIdPath);
+                Storage::delete($validIdPath);
             }
             if (isset($permitPath)) {
-                Storage::disk('public')->delete($permitPath);
+                Storage::delete($permitPath);
             }
 
             return response()->json(['message' => 'Registration failed: '.$e->getMessage()], 500);
@@ -295,8 +295,8 @@ class LandlordVerificationController extends Controller
         try {
             DB::beginTransaction();
 
-            $validIdPath = $request->file('valid_id_front')->store('landlord_ids', 'public');
-            $permitPath = $request->file('permit')->store('landlord_permits', 'public');
+            $validIdPath = $request->file('valid_id_front')->store('landlord_ids');
+            $permitPath = $request->file('permit')->store('landlord_permits');
 
             $validIdType = $request->valid_id_type;
             $validIdOther = in_array(strtolower((string) $validIdType), ['other'], true)
@@ -305,10 +305,10 @@ class LandlordVerificationController extends Controller
 
             if ($verification) {
                 if ($verification->valid_id_path) {
-                    Storage::disk('public')->delete($verification->valid_id_path);
+                    Storage::delete($verification->valid_id_path);
                 }
                 if ($verification->permit_path) {
-                    Storage::disk('public')->delete($verification->permit_path);
+                    Storage::delete($verification->permit_path);
                 }
 
                 $verification->forceFill([
@@ -354,10 +354,10 @@ class LandlordVerificationController extends Controller
             DB::rollBack();
 
             if (isset($validIdPath)) {
-                Storage::disk('public')->delete($validIdPath);
+                Storage::delete($validIdPath);
             }
             if (isset($permitPath)) {
-                Storage::disk('public')->delete($permitPath);
+                Storage::delete($permitPath);
             }
 
             return response()->json([
@@ -414,8 +414,8 @@ class LandlordVerificationController extends Controller
             DB::beginTransaction();
 
             // Store new files
-            $validIdPath = $request->file('valid_id')->store('landlord_ids', 'public');
-            $permitPath = $request->file('permit')->store('landlord_permits', 'public');
+            $validIdPath = $request->file('valid_id')->store('landlord_ids');
+            $permitPath = $request->file('permit')->store('landlord_permits');
 
             if ($verification) {
                 // Update verification record with new documents
@@ -470,10 +470,10 @@ class LandlordVerificationController extends Controller
             DB::rollBack();
             // Delete uploaded files if transaction failed
             if (isset($validIdPath)) {
-                Storage::disk('public')->delete($validIdPath);
+                Storage::delete($validIdPath);
             }
             if (isset($permitPath)) {
-                Storage::disk('public')->delete($permitPath);
+                Storage::delete($permitPath);
             }
 
             return response()->json(['message' => 'Resubmission failed: '.$e->getMessage()], 500);

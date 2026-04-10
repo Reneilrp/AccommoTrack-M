@@ -676,13 +676,14 @@ class AuthController extends Controller
             if ($request->hasFile('profile_image')) {
                 $image = $request->file('profile_image');
                 $filename = 'profile_'.$user->id.'_'.time().'.'.$image->getClientOriginalExtension();
-                $path = $image->storeAs('profile-images', $filename, 'public');
-                $validated['profile_image'] = '/storage/'.$path;
+                $path = $image->storeAs('profile-images', $filename);
+                $validated['profile_image'] = $path;
 
                 // Delete old profile image if exists
                 if ($user->profile_image) {
                     $oldPath = str_replace('/storage/', '', $user->profile_image);
-                    Storage::disk('public')->delete($oldPath);
+                    $oldPath = str_replace('storage/', '', $oldPath);
+                    Storage::delete($oldPath);
                 }
             }
 
@@ -784,7 +785,8 @@ class AuthController extends Controller
             if ($user->profile_image) {
                 // Delete the image file
                 $oldPath = str_replace('/storage/', '', $user->profile_image);
-                Storage::disk('public')->delete($oldPath);
+                $oldPath = str_replace('storage/', '', $oldPath);
+                Storage::delete($oldPath);
 
                 // Update user record
                 $user->update(['profile_image' => null]);

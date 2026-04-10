@@ -412,12 +412,12 @@ class PropertyService
             }
 
             foreach ($property->images as $image) {
-                Storage::disk('public')->delete($image->image_url);
+                Storage::delete($image->image_url);
             }
 
             foreach ($property->rooms as $room) {
                 foreach ($room->images as $roomImage) {
-                    Storage::disk('public')->delete($roomImage->image_url);
+                    Storage::delete($roomImage->image_url);
                 }
             }
 
@@ -447,7 +447,7 @@ class PropertyService
                 $encoded = $image->toWebp(80);
                 $filename = 'property_'.time().'_'.uniqid().'.webp';
                 $path = 'property_images/'.$filename;
-                Storage::disk('public')->put($path, (string) $encoded);
+                Storage::put($path, (string) $encoded);
                 PropertyImage::create([
                     'property_id' => $property->id,
                     'image_url' => $path,
@@ -469,7 +469,7 @@ class PropertyService
 
         if ($request->hasFile('credentials')) {
             foreach ($request->file('credentials') as $file) {
-                $path = $file->store('property_credentials', 'public');
+                $path = $file->store('property_credentials');
                 \App\Models\PropertyCredential::create([
                     'property_id' => $property->id,
                     'file_path' => $path,
@@ -490,18 +490,18 @@ class PropertyService
     {
         $existingVideos = $property->images()->where('media_type', 'video')->get();
         foreach ($existingVideos as $ev) {
-            Storage::disk('public')->delete($ev->image_url);
+            Storage::delete($ev->image_url);
             $ev->delete();
         }
     }
 
     private function uploadVideo(Property $property, $videoFile): void
     {
-        $path = $videoFile->store('property_videos', 'public');
+        $path = $videoFile->store('property_videos');
         try {
-            $duration = FFMpeg::fromDisk('public')->open($path)->getDurationInSeconds();
+            $duration = FFMpeg::fromDisk(config('filesystems.default'))->open($path)->getDurationInSeconds();
             if ($duration > 45) {
-                Storage::disk('public')->delete($path);
+                Storage::delete($path);
                 throw new \Exception('Video duration must not exceed 45 seconds.');
             }
             PropertyImage::create([
@@ -509,7 +509,7 @@ class PropertyService
                 'display_order' => 99, 'media_type' => 'video',
             ]);
         } catch (\Exception $e) {
-            Storage::disk('public')->delete($path);
+            Storage::delete($path);
             throw new \Exception('Could not process video file: '.$e->getMessage());
         }
     }
@@ -520,7 +520,7 @@ class PropertyService
             $deletedIds = is_array($request->input('deleted_credentials')) ? $request->input('deleted_credentials') : [$request->input('deleted_credentials')];
             $credentials = \App\Models\PropertyCredential::where('property_id', $property->id)->whereIn('id', $deletedIds)->get();
             foreach ($credentials as $cred) {
-                Storage::disk('public')->delete($cred->file_path);
+                Storage::delete($cred->file_path);
                 $cred->delete();
             }
         }
@@ -530,7 +530,7 @@ class PropertyService
             if ($property->images()->count() - count($deletedImageIds) >= 1) {
                 $images = PropertyImage::where('property_id', $property->id)->whereIn('id', $deletedImageIds)->get();
                 foreach ($images as $image) {
-                    Storage::disk('public')->delete($image->image_url);
+                    Storage::delete($image->image_url);
                     $image->delete();
                 }
             }

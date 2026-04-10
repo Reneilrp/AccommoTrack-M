@@ -33,7 +33,7 @@ class MaintenanceRequestController extends Controller
         $imagePaths = [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('maintenance_requests', 'public');
+                $path = $image->store('maintenance_requests');
                 $imagePaths[] = $path;
             }
         }

@@ -122,7 +122,8 @@ class RoomService
 
             $room->amenities()->detach();
             foreach ($room->images as $image) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $image->image_url));
+                $filename = basename($image->image_url);
+                Storage::delete('room_images/' . $filename);
                 $image->delete();
             }
             DB::table('room_tenant_assignments')->where('room_id', $room->id)->delete();
@@ -297,7 +298,7 @@ class RoomService
                 $encoded = $image->toWebp(80);
                 $filename = 'room_'.time().'_'.uniqid().'.webp';
                 $path = 'room_images/'.$filename;
-                Storage::disk('public')->put($path, (string) $encoded);
+                Storage::put($path, (string) $encoded);
                 RoomImage::create([
                     'room_id' => $room->id,
                     'image_url' => Storage::url($path),
