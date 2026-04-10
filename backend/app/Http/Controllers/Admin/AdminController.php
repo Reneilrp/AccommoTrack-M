@@ -11,6 +11,7 @@ use App\Notifications\LandlordApprovedNotification;
 use App\Notifications\LandlordRejectedNotification;
 use App\Services\AuditLogService;
 use App\Support\SystemToggle;
+use App\Jobs\PurgeCloudflareFilesJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -66,6 +67,14 @@ class AdminController extends Controller
         }
         if (isset($validated['mobile_force_update'])) {
             SystemToggle::setBool('mobile_force_update', (bool) $validated['mobile_force_update'], $actorId);
+        }
+
+        // Automatically purge Cloudflare cache for the APK if mobile settings are updated
+        if (isset($validated['mobile_download_url']) || isset($validated['mobile_latest_version'])) {
+            $urlToPurge = $validated['mobile_download_url'] ?? SystemToggle::getString('mobile_download_url');
+            if ($urlToPurge) {
+                PurgeCloudflareFilesJob::dispatch([$urlToPurge]);
+            }
         }
 
         return response()->json([

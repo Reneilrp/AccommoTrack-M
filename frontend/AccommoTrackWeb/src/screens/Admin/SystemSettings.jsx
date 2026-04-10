@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Loader2, Pencil, Save, Smartphone } from 'lucide-react';
+import { Loader2, Pencil, Save, Smartphone, Wallet, CalendarDays, Cog } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function SystemSettings() {
@@ -97,152 +97,225 @@ export default function SystemSettings() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent dark:bg-gray-900 p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-transparent p-4 md:p-6 space-y-8 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">System Settings</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Control temporary booking and payment platform switches and app version requirements.
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+          <Cog className="w-8 h-8 text-brand-500" />
+          System Settings
+        </h1>
+        <p className="text-base text-gray-600 dark:text-gray-400 mt-2">
+          Control platform-wide payment restrictions and configure mobile application requirements.
         </p>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 space-y-6 max-w-3xl">
+      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-6 md:p-8 space-y-8">
         {loading ? (
-          <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Loading settings...
+          <div className="flex items-center justify-center p-8 text-gray-600 dark:text-gray-300">
+            <Loader2 className="w-6 h-6 animate-spin mr-3 text-brand-500" />
+            <span className="font-medium">Loading system configurations...</span>
           </div>
         ) : (
-          <>
-            <label className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-white">Disable Tenant Payments</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Blocks tenant payment submissions (PayMongo and tenant offline submission endpoints).
-                </p>
+          <div className="space-y-8">
+            {/* Global Controls Section */}
+            <section>
+              <div className="flex items-center gap-2 mb-6">
+                <Wallet className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Financial Controls</h2>
               </div>
-              <input
-                type="checkbox"
-                className="mt-1 h-5 w-5"
-                checked={tenantPaymentsDisabled}
-                onChange={(e) => setTenantPaymentsDisabled(e.target.checked)}
-                disabled={!isEditing || saving}
-              />
-            </label>
-
-            <label className="flex items-start justify-between gap-4 border-t border-gray-200 dark:border-gray-700 pt-6">
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-white">Disable Reservation Fee</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Suppresses reservation-fee requirement during booking creation.
-                </p>
+              
+              <div className="space-y-4">
+                {/* Toggle Item */}
+                <div className={`p-5 rounded-xl border transition-all duration-200 ${tenantPaymentsDisabled ? 'bg-orange-50/50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-800' : 'bg-gray-50/50 border-gray-100 dark:bg-gray-800/30 dark:border-gray-700/50'}`}>
+                  <label className="flex items-start justify-between gap-6 cursor-pointer">
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900 dark:text-white">Disable Tenant Payments</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
+                        Instantly blocks all tenant payment capability across the platform. Disables PayMongo endpoints and manual offline payment submissions.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      disabled={!isEditing || saving}
+                      onClick={() => setTenantPaymentsDisabled(!tenantPaymentsDisabled)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
+                        !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${tenantPaymentsDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tenantPaymentsDisabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </label>
+                </div>
+                
+                {/* Toggle Item */}
+                <div className={`p-5 rounded-xl border transition-all duration-200 ${reservationFeeDisabled ? 'bg-orange-50/50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-800' : 'bg-gray-50/50 border-gray-100 dark:bg-gray-800/30 dark:border-gray-700/50'}`}>
+                  <label className="flex items-start justify-between gap-6 cursor-pointer">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                        <p className="font-bold text-gray-900 dark:text-white">Disable Reservation Fees</p>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
+                        Suppresses the reservation-fee requirement globally during booking creation, allowing users to book bypassing initial payment gateways.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      disabled={!isEditing || saving}
+                      onClick={() => setReservationFeeDisabled(!reservationFeeDisabled)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
+                        !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${reservationFeeDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${reservationFeeDisabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </label>
+                </div>
               </div>
-              <input
-                type="checkbox"
-                className="mt-1 h-5 w-5"
-                checked={reservationFeeDisabled}
-                onChange={(e) => setReservationFeeDisabled(e.target.checked)}
-                disabled={!isEditing || saving}
-              />
-            </label>
+            </section>
 
             {/* Mobile App Management Section */}
-            <div className="pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
-              <div className="flex items-center gap-2 mb-4">
+            <section className="pt-8 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2 mb-6">
                 <Smartphone className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Mobile App Management</h2>
               </div>
               
-              <div className="space-y-5 pl-7">
-                <label className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">Enable Force Update Lock</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      If enabled, users with older versions will lock up on startup and be forced to download the new version. If disabled, they will not be locked out.
+              <div className="space-y-6 bg-brand-50/30 dark:bg-transparent dark:border dark:border-gray-800 rounded-xl p-5 md:p-6">
+                <label className="flex items-start justify-between gap-6 cursor-pointer">
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-900 dark:text-white">Enable Force Update Lock</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
+                      If enabled, users running an app version beneath the minimum threshold will be locked out and forced to download the new `.apk`. Disable to allow soft updates.
                     </p>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-5 w-5"
-                    checked={mobileForceUpdate}
-                    onChange={(e) => setMobileForceUpdate(e.target.checked)}
+                  <button
+                    type="button"
+                    role="switch"
                     disabled={!isEditing || saving}
-                  />
+                    onClick={() => setMobileForceUpdate(!mobileForceUpdate)}
+                    className={`relative mt-1 inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
+                      !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                    } ${mobileForceUpdate ? 'bg-brand-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${mobileForceUpdate ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
                 </label>
 
-                <div className="grid gap-3">
-                  <label className="block">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">Minimum Allowed App Version</span>
-                    <input
-                      type="text"
-                      className="mt-1 w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-brand-500 focus:border-brand-500 disabled:opacity-50"
-                      value={mobileLatestVersion}
-                      onChange={(e) => setMobileLatestVersion(e.target.value)}
-                      disabled={!isEditing || saving}
-                      placeholder="e.g. 1.0.0"
-                    />
-                  </label>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Must follow semantic versioning. The app uses this to determine if it is outdated.
-                  </p>
-                </div>
+                <div className="grid md:grid-cols-2 gap-6 pt-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                      Minimum Allowed App Version
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        className="w-16 text-center rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-gray-900"
+                        value={mobileLatestVersion.split('.')[0] || '1'}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^0-9]/g, '');
+                          const parts = mobileLatestVersion.split('.');
+                          setMobileLatestVersion(`${v || '0'}.${parts[1] || '0'}.${parts[2] || '0'}`);
+                        }}
+                        disabled={!isEditing || saving}
+                      />
+                      <span className="text-gray-400 dark:text-gray-500 font-bold text-xl">.</span>
+                      <input
+                        type="text"
+                        className="w-16 text-center rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-gray-900"
+                        value={mobileLatestVersion.split('.')[1] || '0'}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^0-9]/g, '');
+                          const parts = mobileLatestVersion.split('.');
+                          setMobileLatestVersion(`${parts[0] || '1'}.${v || '0'}.${parts[2] || '0'}`);
+                        }}
+                        disabled={!isEditing || saving}
+                      />
+                      <span className="text-gray-400 dark:text-gray-500 font-bold text-xl">.</span>
+                      <input
+                        type="text"
+                        className="w-16 text-center rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-gray-900"
+                        value={mobileLatestVersion.split('.')[2] || '0'}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^0-9]/g, '');
+                          const parts = mobileLatestVersion.split('.');
+                          setMobileLatestVersion(`${parts[0] || '1'}.${parts[1] || '0'}.${v || '0'}`);
+                        }}
+                        disabled={!isEditing || saving}
+                      />
+                    </div>
+                    <div className="flex justify-between w-[220px] px-1 mt-1">
+                      <span className="text-[10px] text-brand-600/70 dark:text-brand-400/70 font-semibold tracking-wider uppercase text-center w-16">Major</span>
+                      <span className="text-[10px] text-brand-600/70 dark:text-brand-400/70 font-semibold tracking-wider uppercase text-center w-16">Minor</span>
+                      <span className="text-[10px] text-brand-600/70 dark:text-brand-400/70 font-semibold tracking-wider uppercase text-center w-16">Patch</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Must follow semantic versioning. 
+                    </p>
+                  </div>
 
-                <div className="grid gap-3">
-                  <label className="block">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">APK Download URL</span>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-gray-900 dark:text-white">
+                      APK Download URL
+                    </label>
                     <input
                       type="text"
-                      className="mt-1 w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-brand-500 focus:border-brand-500 disabled:opacity-50"
+                      className="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-gray-900"
                       value={mobileDownloadUrl}
                       onChange={(e) => setMobileDownloadUrl(e.target.value)}
                       disabled={!isEditing || saving}
-                      placeholder="e.g. https://accommotrack.me/downloads/AccommoTrack.apk"
+                      placeholder="https://..."
                     />
-                  </label>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    The public link where the latest APK is hosted. Users tap "Download Update" to land here.
-                  </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      The hosted link where users can download the latest `.apk`.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            <div className="pt-6 mt-2 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
-              {!isEditing ? (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  disabled={loading || saving}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold disabled:opacity-60"
-                >
-                  <Pencil className="w-4 h-4" />
-                  Edit Settings
-                </button>
-              ) : (
-                <>
+            {/* Actions */}
+            <div className="pt-8 flex items-center justify-between gap-3 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-3">
+                {!isEditing ? (
                   <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold disabled:opacity-60"
+                    onClick={() => setIsEditing(true)}
+                    disabled={loading || saving}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold transition-colors disabled:opacity-60 shadow-sm"
                   >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Save Settings
+                    <Pencil className="w-4 h-4" />
+                    Edit Configuration
                   </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    disabled={saving}
-                    className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
+                ) : (
+                  <>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold transition-colors disabled:opacity-60 shadow-sm"
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Save Changes
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={saving}
+                      className="px-5 py-2.5 rounded-lg font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors disabled:opacity-60 shadow-sm"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </div>
               <button
                 onClick={loadSettings}
                 disabled={loading || saving}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
+                className="px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
-                Reload
+                Reload state
               </button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
