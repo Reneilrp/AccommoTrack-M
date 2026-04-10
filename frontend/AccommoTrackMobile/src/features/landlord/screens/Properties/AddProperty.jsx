@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   StatusBar,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   View,
   Modal,
+  Pressable,
   Switch,
 } from "react-native";
 import {
@@ -118,6 +118,13 @@ export default function AddProperty({ navigation }) {
     visible: false,
     isDraft: false,
   });
+  const [alertModal, setAlertModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+  });
+  const showAlert = (title, message) => setAlertModal({ visible: true, title, message });
+  const hideAlert = () => setAlertModal(prev => ({ ...prev, visible: false }));
   const webviewRef = useRef(null);
   const scrollRef = useRef(null);
 
@@ -336,7 +343,7 @@ export default function AddProperty({ navigation }) {
   const handlePickVideo = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission required", "Please allow photo library access.");
+      showAlert("Permission Required", "Please allow photo library access to upload a video.");
       return;
     }
 
@@ -350,8 +357,8 @@ export default function AddProperty({ navigation }) {
 
       // Strict 200MB size check
       if (video.fileSize && video.fileSize > 200 * 1024 * 1024) {
-        Alert.alert(
-          "Video too large",
+        showAlert(
+          "Video Too Large",
           `The selected video is ${(video.fileSize / (1024 * 1024)).toFixed(1)}MB. Please choose a video under 200MB.`,
         );
         return;
@@ -359,9 +366,9 @@ export default function AddProperty({ navigation }) {
 
       // 45 seconds duration check
       if (video.duration && video.duration > 45000) {
-        Alert.alert(
-          "Video too long",
-          "Video tours must be 45 seconds or less. Please trim your video.",
+        showAlert(
+          "Video Too Long",
+          "Video tours must be 45 seconds or less. Please trim your video before uploading.",
         );
         return;
       }
@@ -1570,6 +1577,30 @@ export default function AddProperty({ navigation }) {
         )}
       </View>
       {renderSuccessModal()}
+
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={alertModal.visible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={hideAlert}
+      >
+        <Pressable style={styles.successModalOverlay} onPress={hideAlert}>
+          <Pressable style={styles.successModalCard} onPress={() => {}}>
+            <View style={[styles.successIconContainer, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="warning-outline" size={36} color="#DC2626" />
+            </View>
+            <Text style={styles.successTitle}>{alertModal.title}</Text>
+            <Text style={styles.successMessage}>{alertModal.message}</Text>
+            <TouchableOpacity style={[styles.successButton, { backgroundColor: '#DC2626' }]} onPress={hideAlert}>
+              <Text style={styles.successButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
