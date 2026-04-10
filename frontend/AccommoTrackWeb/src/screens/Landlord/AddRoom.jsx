@@ -143,7 +143,7 @@ export default function AddRoomModal({
         ? 'male'
         : (propertyGender === 'female' || propertyGender === 'girls')
           ? 'female'
-          : 'mixed';
+          : isApartment ? 'mixed' : 'male';
 
       setFormData({
         roomNumber: "",
@@ -174,6 +174,7 @@ export default function AddRoomModal({
     initialPricingModel,
     isBedSpacerProperty,
     propertyGender,
+    isApartment,
   ]);
 
   const allRoomTypes = [
@@ -190,7 +191,10 @@ export default function AddRoomModal({
     if (isApartment) {
       return allRoomTypes.filter((rt) => rt.value !== "bedSpacer");
     }
-    if (isDormitory || isBoarding || isBedSpacerProperty) {
+    if (isBedSpacerProperty) {
+      return allRoomTypes.filter((rt) => rt.value === "bedSpacer");
+    }
+    if (isDormitory || isBoarding) {
       return allRoomTypes.filter((rt) => rt.value === "single" || rt.value === "bedSpacer");
     }
     // For others, allow all types.
@@ -515,12 +519,10 @@ export default function AddRoomModal({
       const bp = formData.billingPolicy || "monthly";
 
       // Append non-file fields
-      const isGenderRestricted = isDormitory || isBoarding || isBedSpacerProperty;
-
       payload.append("property_id", propertyId);
       payload.append("room_number", formData.roomNumber);
       payload.append("room_type", formData.roomType);
-      payload.append("gender_restriction", isGenderRestricted ? formData.genderRestriction : 'mixed');
+      payload.append("gender_restriction", formData.genderRestriction);
       payload.append("floor", parseInt(formData.floor));
       if (bp === "monthly" || bp === "monthly_with_daily") {
         const monthlyVal = parseFloat(formData.monthlyRate);
@@ -723,29 +725,26 @@ export default function AddRoomModal({
                 </select>
               </div>
 
-              { (isDormitory || isBoarding || isBedSpacerProperty) ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Gender
-                  </label>
-                  <select
-                    value={formData.genderRestriction}
-                    onChange={(e) => handleInputChange("genderRestriction", e.target.value)}
-                    disabled={propertyGender !== "mixed"}
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${propertyGender !== "mixed" ? "bg-gray-50 dark:bg-gray-600 cursor-not-allowed" : ""}`}
-                  >
-                    <option value="male">Male Only</option>
-                    <option value="female">Female Only</option>
-                  </select>
-                  {propertyGender !== "mixed" && (
-                    <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 italic">
-                      * Property is restricted to {propertyGender} only.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="hidden"></div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Gender
+                </label>
+                <select
+                  value={formData.genderRestriction}
+                  onChange={(e) => handleInputChange("genderRestriction", e.target.value)}
+                  disabled={propertyGender !== "mixed"}
+                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${propertyGender !== "mixed" ? "bg-gray-50 dark:bg-gray-600 cursor-not-allowed" : ""}`}
+                >
+                  <option value="male">Boys</option>
+                  <option value="female">Girls</option>
+                  {(isApartment || (!isDormitory && !isBoarding && !isBedSpacerProperty)) && <option value="mixed">Mixed</option>}
+                </select>
+                {propertyGender !== "mixed" && (
+                  <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                    * Property is restricted to {propertyGender} only.
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Row 2: Billing Policy | Monthly Rate | Daily Rate */}

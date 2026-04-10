@@ -39,12 +39,8 @@ export default function SwitchRoleTab({ user: userProp }) {
         const res = await api.get('/landlord/my-verification');
         setVerificationStatus(res.data?.status || 'not_submitted');
       } catch (err) {
-        if (err.response?.status === 404) {
-          setVerificationStatus('not_submitted');
-        } else {
-          console.error('Failed to fetch verification status:', err);
-          setVerificationStatus('not_submitted');
-        }
+        console.error('Failed to fetch verification status:', err);
+        setVerificationStatus('not_submitted');
       } finally {
         setLoading(false);
       }
@@ -276,11 +272,7 @@ export default function SwitchRoleTab({ user: userProp }) {
       formData.append('valid_id_front', registrationForm.valid_id_front);
       formData.append('permit', registrationForm.permit);
 
-      const res = await api.post('/tenant/register-landlord', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const res = await api.post('/tenant/register-landlord', formData);
 
       setVerificationStatus('pending');
       setShowRegistrationModal(false);

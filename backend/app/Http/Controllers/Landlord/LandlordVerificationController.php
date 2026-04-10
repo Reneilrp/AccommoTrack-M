@@ -158,7 +158,7 @@ class LandlordVerificationController extends Controller
             return response()->json([
                 'message' => 'No verification record found',
                 'status' => 'not_submitted',
-            ], 404);
+            ]);
         }
 
         $landlord = User::find($user->id);

@@ -127,6 +127,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     id: null,
     roomNumber: "",
     roomType: "single",
+    genderRestriction: "male",
     floor: "1",
     monthlyRate: "",
     dailyRate: "",
@@ -289,6 +290,7 @@ export default function RoomManagementScreen({ navigation, route }) {
   );
 
   const propertyType = selectedProperty?.property_type || "";
+  const propertyGender = selectedProperty?.gender_restriction || "mixed";
   const normalizedType = propertyType.toLowerCase();
   const isApartment = normalizedType.includes("apartment");
   const isDormitory = normalizedType.includes("dormitory");
@@ -452,6 +454,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       id: null,
       roomNumber: "",
       roomType: initialRT,
+      genderRestriction: propertyGender !== "mixed" ? propertyGender : isApartment ? "mixed" : "male",
       floor: "1",
       monthlyRate: "",
       dailyRate: "",
@@ -476,6 +479,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       id: room.id,
       roomNumber: room.room_number || "",
       roomType: room.room_type || "single",
+      genderRestriction: room.gender_restriction || (propertyGender !== "mixed" ? propertyGender : isApartment ? "mixed" : "male"),
       floor: String(room.floor || "1"),
       monthlyRate: String(room.monthly_rate || ""),
       dailyRate: String(room.daily_rate || ""),
@@ -582,6 +586,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       payload.append("property_id", selectedPropertyId);
       payload.append("room_number", formData.roomNumber.trim());
       payload.append("room_type", formData.roomType);
+      payload.append("gender_restriction", formData.genderRestriction);      
       payload.append("floor", formData.floor);
       payload.append("capacity", isApartment ? "1" : formData.capacity);
       payload.append("billing_policy", formData.billingPolicy);
@@ -984,6 +989,35 @@ export default function RoomManagementScreen({ navigation, route }) {
                 ))}
               </Picker>
             </View>
+
+            <>
+              <Text style={styles.label}>
+                Gender <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
+              <View
+                style={[
+                  styles.pickerWrapper,
+                  propertyGender !== "mixed" && {
+                    backgroundColor: theme.colors.backgroundSecondary,
+                  },
+                ]}
+              >
+                <Picker
+                  selectedValue={formData.genderRestriction}
+                  onValueChange={(v) => handleInputChange("genderRestriction", v)}
+                  enabled={propertyGender === "mixed"}
+                >
+                  <Picker.Item label="Boys" value="male" />
+                  <Picker.Item label="Girls" value="female" />
+                  {(isApartment || (!isDormitory && !isBoarding && !isBedSpacerProperty)) && <Picker.Item label="Mixed" value="mixed" />}
+                </Picker>
+              </View>
+              {propertyGender !== "mixed" && (
+                <Text style={[styles.helperText, { marginTop: -12, marginBottom: 12, color: "#D97706" }]}>
+                  * Property is restricted to {propertyGender} only.
+                </Text>
+              )}
+            </>
 
             {/* Billing Row */}
             <Text style={styles.sectionTitle}>Billing & Rates</Text>
