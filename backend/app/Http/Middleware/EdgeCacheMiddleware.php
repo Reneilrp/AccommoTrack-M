@@ -29,8 +29,9 @@ class EdgeCacheMiddleware
             return $response;
         }
 
-        // Add Cache-Control headers for Cloudflare / Browsers to cache this for 6 hours (21600 seconds)
-        $response->headers->set('Cache-Control', 'public, max-age=21600');
+        // Add Cache-Control headers for Cloudflare to cache this for 6 hours (s-maxage=21600)
+        // Set max-age=30 for local browser cache so clients re-fetch quickly when browsing
+        $response->headers->set('Cache-Control', 'public, s-maxage=21600, max-age=30');
 
         return $response;
     }
