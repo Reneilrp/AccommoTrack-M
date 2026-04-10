@@ -150,8 +150,13 @@ const ProfileTab = ({ onUserUpdate }) => {
           return;
         }
 
+        // Skip gender/identified_as empty strings — backend enum validation rejects them
+        if ((key === 'gender' || key === 'identified_as') && !formData[key]) {
+          return;
+        }
+
         // Always send every field (including empty strings) so the backend
-        // can clear nullable fields like middle_name, gender, phone, etc.
+        // can clear nullable fields like middle_name, phone, etc.
         if (formData[key] !== null && formData[key] !== undefined) {
           data.append(key, formData[key]);
         }

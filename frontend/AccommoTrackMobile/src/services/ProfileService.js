@@ -101,11 +101,7 @@ const ProfileService = {
         
         // Laravel requires POST for FormData with PUT method spoofing
         formData.append('_method', 'PUT');
-        response = await api.post(endpoint, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        response = await api.post(endpoint, formData);
       } else {
         // Regular JSON update without image
         response = await api.put(endpoint, profileData);
@@ -165,11 +161,7 @@ const ProfileService = {
       );
       formData.append('_method', 'PUT');
 
-      const response = await api.post('/tenant/profile', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/tenant/profile', formData);
 
       return {
         success: true,
@@ -263,11 +255,7 @@ const ProfileService = {
    */
   async resubmitVerification(formData) {
     try {
-      const response = await api.post('/landlord/resubmit-verification', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/landlord/resubmit-verification', formData);
       return {
         success: true,
         data: response.data,
@@ -288,11 +276,7 @@ const ProfileService = {
    */
   async registerAsLandlord(formData) {
     try {
-      const response = await api.post('/tenant/register-landlord', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/tenant/register-landlord', formData);
 
       return {
         success: true,
