@@ -646,7 +646,7 @@ class AuthController extends Controller
                 'date_of_birth' => 'nullable|date',
                 'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
                 'identified_as' => 'nullable|string|max:50',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'payment_methods_settings' => 'nullable|array',
                 'payment_methods_settings.allowed' => 'nullable|array',
                 'payment_methods_settings.details' => 'nullable|array',

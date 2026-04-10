@@ -103,7 +103,7 @@ class TenantSettingsController extends Controller
                 'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($userId)],
                 'phone' => 'nullable|string|max:20',
                 'identified_as' => 'nullable|string|max:50',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
                 'notification_preferences' => 'nullable',
 
                 // TenantProfile fields
