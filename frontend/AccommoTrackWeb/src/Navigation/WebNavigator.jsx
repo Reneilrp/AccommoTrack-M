@@ -44,8 +44,11 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   const role = (user?.role || '').toLowerCase();
   const prefetchedRolesRef = useRef(new Set());
   const fullPageFallback = <RouteLoadingFallback fullScreen label="Loading page" />;
-  const renderWithFallback = (element) => (
-    <Suspense fallback={fullPageFallback}>
+  const roleGateFallback = (
+    <RouteLoadingFallback fullScreen showSpinner={false} label="Preparing workspace" />
+  );
+  const renderWithFallback = (element, fallback = fullPageFallback) => (
+    <Suspense fallback={fallback}>
       {element}
     </Suspense>
   );
@@ -99,17 +102,26 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   
   // Admin role
   if (role === 'admin') {
-    return renderWithFallback(<AdminNavigator user={user} onLogout={onLogout} />);
+    return renderWithFallback(
+      <AdminNavigator user={user} onLogout={onLogout} />,
+      roleGateFallback,
+    );
   }
 
   // Landlord and caretaker roles
   if (role === 'landlord' || role === 'caretaker') {
-    return renderWithFallback(<LandlordNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />);
+    return renderWithFallback(
+      <LandlordNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />,
+      roleGateFallback,
+    );
   }
 
   // Tenant role
   if (role === 'tenant') {
-    return renderWithFallback(<TenantNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />);
+    return renderWithFallback(
+      <TenantNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />,
+      roleGateFallback,
+    );
   }
 
   return <Navigate to="/" replace />;

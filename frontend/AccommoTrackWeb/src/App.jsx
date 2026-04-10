@@ -28,6 +28,7 @@ function App() {
     const bootstrapAuth = async () => {
       const token = localStorage.getItem("authToken");
       const userData = localStorage.getItem("userData");
+      let hasHydratedCachedUser = false;
       const publicRoutes = new Set([
         "/",
         "/login",
@@ -55,7 +56,11 @@ function App() {
 
       if (userData) {
         try {
-          if (isActive) setUser(JSON.parse(userData));
+          if (isActive) {
+            setUser(JSON.parse(userData));
+            setIsLoading(false);
+          }
+          hasHydratedCachedUser = true;
         } catch (error) {
           console.error("Error parsing cached user data:", error);
           localStorage.removeItem("userData");
@@ -66,7 +71,7 @@ function App() {
       const shouldProbeSession = !isGuestPublicRoute;
 
       if (!shouldProbeSession) {
-        if (isActive) setIsLoading(false);
+        if (isActive && !hasHydratedCachedUser) setIsLoading(false);
         return;
       }
 
@@ -88,7 +93,7 @@ function App() {
           if (isActive) setUser(null);
         }
       } finally {
-        if (isActive) setIsLoading(false);
+        if (isActive && !hasHydratedCachedUser) setIsLoading(false);
       }
     };
 

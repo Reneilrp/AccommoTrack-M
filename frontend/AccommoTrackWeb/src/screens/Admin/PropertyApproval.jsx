@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api, { getImageUrl } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
@@ -15,7 +15,13 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   const [confirmModalState, setConfirmModalState] = useState({ 
     isOpen: false, title: '', message: '', onConfirm: () => {}, requirePassword: false 
   });
-  const [passwordValue, setPasswordValue] = useState('');
+  const [passwordValue, setPasswordValueState] = useState('');
+  const passwordValueRef = useRef('');
+
+  const setPasswordValue = (value) => {
+    passwordValueRef.current = value;
+    setPasswordValueState(value);
+  };
 
   const fetchProperties = async (status = 'pending') => {
     setLoading(true);
@@ -82,7 +88,9 @@ const PropertyApproval = ({ isEmbedded = false }) => {
         await api.post(`/admin/properties/${propertyId}/maintenance`);
         toast.success('Property put under maintenance');
       } else if (action === 'delete') {
-        await api.delete(`/admin/properties/${propertyId}`, { data: { password: passwordValue } });
+        await api.delete(`/admin/properties/${propertyId}`, {
+          data: { password: passwordValueRef.current },
+        });
         toast.success('Property completely removed');
       }
 
@@ -122,6 +130,9 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     setSelectedProperty(property);
     setShowModal(true);
   };
+
+  const canBulkApprove = ['pending', 'maintenance', 'rejected'].includes(statusFilter);
+  const canBulkReject = ['pending', 'approved', 'maintenance'].includes(statusFilter);
 
   return (
     <div className={isEmbedded ? "w-full" : "w-full max-full px-6 py-6"}>
@@ -191,20 +202,24 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               {selectedIds.length} property{selectedIds.length > 1 ? 'ies' : ''} selected
             </span>
             <div className="flex gap-2">
-              <button
-                onClick={() => runBulkAction('approve')}
-                disabled={actionLoading?.startsWith('bulk:')}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50"
-              >
-                {actionLoading === 'bulk:approve' ? 'Approving...' : 'Approve Selected'}
-              </button>
-              <button
-                onClick={() => runBulkAction('reject')}
-                disabled={actionLoading?.startsWith('bulk:')}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
-              >
-                {actionLoading === 'bulk:reject' ? 'Reject Selected' : 'Reject Selected'}
-              </button>
+              {canBulkApprove && (
+                <button
+                  onClick={() => runBulkAction('approve')}
+                  disabled={actionLoading?.startsWith('bulk:')}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  {actionLoading === 'bulk:approve' ? 'Approving...' : 'Approve Selected'}
+                </button>
+              )}
+              {canBulkReject && (
+                <button
+                  onClick={() => runBulkAction('reject')}
+                  disabled={actionLoading?.startsWith('bulk:')}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  {actionLoading === 'bulk:reject' ? 'Rejecting...' : 'Reject Selected'}
+                </button>
+              )}
               <button
                 onClick={() => setSelectedIds([])}
                 className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-sm font-medium"

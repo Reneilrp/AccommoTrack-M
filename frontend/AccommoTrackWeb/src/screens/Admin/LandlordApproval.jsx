@@ -26,7 +26,7 @@ export default function LandlordApproval() {
   const [showModal, setShowModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
   const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const fetchVerifications = useCallback(async () => {
@@ -119,7 +119,7 @@ export default function LandlordApproval() {
       console.error(`Failed to bulk ${action}`, err);
       toast.error(err.response?.data?.message || err.message || `Failed to bulk ${action}`);
     } finally {
-      setActionLoading(false);
+      setActionLoading(null);
     }
   };
 
@@ -151,7 +151,7 @@ export default function LandlordApproval() {
       console.error('Approval failed:', err);
       toast.error('Failed to approve landlord');
     } finally {
-      setActionLoading(false);
+      setActionLoading(null);
     }
   };
 
@@ -199,7 +199,7 @@ export default function LandlordApproval() {
       console.error('Rejection failed:', err);
       toast.error(err.response?.data?.message || 'Failed to reject application');
     } finally {
-      setActionLoading(false);
+      setActionLoading(null);
     }
   };
 
@@ -297,14 +297,14 @@ export default function LandlordApproval() {
               <div className="flex gap-2">
                 <button
                   onClick={() => runBulkAction('approve')}
-                  disabled={actionLoading?.startsWith('bulk:')}
+                  disabled={typeof actionLoading === 'string' && actionLoading.startsWith('bulk:')}
                   className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50"
                 >
                   {actionLoading === 'bulk:approve' ? 'Approving...' : 'Approve Selected'}
                 </button>
                 <button
                   onClick={() => openRejectModal(true)}
-                  disabled={actionLoading?.startsWith('bulk:')}
+                  disabled={typeof actionLoading === 'string' && actionLoading.startsWith('bulk:')}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
                 >
                   Reject Selected
