@@ -52,7 +52,7 @@ class TenantSettingsController extends Controller
                 try {
                     $profileImage = Storage::url($cleanPath);
                 } catch (\Exception $e) {
-                    $profileImage = asset('storage/' . $cleanPath);
+                    $profileImage = \Illuminate\Support\Facades\Storage::url($cleanPath);
                 }
             }
 

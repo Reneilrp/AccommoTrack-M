@@ -63,7 +63,7 @@ class BookingResource extends JsonResource
             'payment_plan' => $this->payment_plan,
             'contractMode' => $this->contract_mode,
             'contract_mode' => $this->contract_mode,
-            'receipt_image_path' => $this->receipt_image_path ? (str_starts_with($this->receipt_image_path, 'http') ? $this->receipt_image_path : asset('storage/'.ltrim($this->receipt_image_path, '/'))) : null,
+            'receipt_image_path' => $this->receipt_image_path ? (str_starts_with($this->receipt_image_path, 'http') ? $this->receipt_image_path : \Illuminate\Support\Facades\Storage::url($this->receipt_image_path)) : null,
             'reference_number' => $this->reference_number,
             'move_in_date' => $this->move_in_date,
             'reservation_policy' => $reservationPolicy,

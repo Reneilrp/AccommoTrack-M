@@ -176,7 +176,7 @@ class PropertyController extends Controller
             // Add credentials back in for the landlord view
             if ($property->relationLoaded('credentials')) {
                 $propertyArray['credentials'] = $property->credentials->map(function ($c) {
-                    return ['id' => $c->id, 'file_url' => asset('storage/'.$c->file_path), 'original_name' => $c->original_name];
+                    return ['id' => $c->id, 'file_url' => \Illuminate\Support\Facades\Storage::url($c->file_path), 'original_name' => $c->original_name];
                 })->toArray();
             }
 

@@ -107,7 +107,7 @@ class RoomResource extends JsonResource
             'rules' => $this->rules ?? [],
             'amenities' => $this->whenLoaded('amenities', fn () => $this->amenities->pluck('name')->toArray(), []),
             'images' => $this->whenLoaded('images', fn () => $this->images->pluck('image_url')->map(function ($url) {
-                return str_starts_with($url, 'http') ? $url : asset('storage/'.ltrim($url, '/'));
+                return str_starts_with($url, 'http') ? $url : \Illuminate\Support\Facades\Storage::url($url);
             })->toArray(), []),
             'landlord' => $this->whenLoaded('property', fn () => $this->property->landlord ? [
                 'id' => $this->property->landlord->id,

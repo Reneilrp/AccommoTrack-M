@@ -312,7 +312,7 @@ class Property extends Model
     {
         $firstImage = $this->images()->where('media_type', 'image')->first();
 
-        return $firstImage ? asset('storage/'.$firstImage->image_url) : null;
+        return $firstImage ? \Illuminate\Support\Facades\Storage::url($firstImage->image_url) : null;
     }
 
     /**
