@@ -250,8 +250,8 @@ export default function AddProperty({ onBack, onSave }) {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 90 * 1024 * 1024) {
-      toast.error('Video is too large. Maximum size is 90MB.');
+    if (file.size > 200 * 1024 * 1024) {
+      toast.error('Video is too large. Maximum size is 200MB.');
       return;
     }
 
@@ -983,7 +983,7 @@ export default function AddProperty({ onBack, onSave }) {
                   <span className="text-sm font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Upload a short video tour of your property. Max <strong>45 seconds</strong> and <strong>90MB</strong>.
+                  Upload a short video tour of your property. Max <strong>45 seconds</strong> and <strong>200MB</strong>.
                 </p>
               </div>
 
@@ -995,7 +995,7 @@ export default function AddProperty({ onBack, onSave }) {
                   <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-green-500 transition-colors">
                     <Play className="w-10 h-10" />
                     <span className="text-sm font-medium">Click to upload video</span>
-                    <span className="text-xs">MP4, MOV, AVI (max 90MB, 45s)</span>
+                    <span className="text-xs">MP4, MOV, AVI (max 200MB, 45s)</span>
                   </div>
                   <input
                     id="video-upload"

@@ -348,11 +348,11 @@ export default function AddProperty({ navigation }) {
     if (!result.canceled && result.assets.length > 0) {
       const video = result.assets[0];
 
-      // Strict 90MB size check
-      if (video.fileSize && video.fileSize > 90 * 1024 * 1024) {
+      // Strict 200MB size check
+      if (video.fileSize && video.fileSize > 200 * 1024 * 1024) {
         Alert.alert(
           "Video too large",
-          `The selected video is ${(video.fileSize / (1024 * 1024)).toFixed(1)}MB. Please choose a video under 90MB.`,
+          `The selected video is ${(video.fileSize / (1024 * 1024)).toFixed(1)}MB. Please choose a video under 200MB.`,
         );
         return;
       }
@@ -1023,7 +1023,7 @@ export default function AddProperty({ navigation }) {
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Property Video Tour</Text>
               <Text style={styles.sectionSubtitle}>
-                Add a short video tour (Max 45s, 90MB)
+                Add a short video tour (Max 45s, 200MB)
               </Text>
 
               <View style={styles.imagesRow}>

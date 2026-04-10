@@ -111,7 +111,7 @@ class UpdatePropertyRequest extends FormRequest
             'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
             'images' => 'nullable|array|max:10',
-            'video' => 'nullable|mimes:mp4,mov,avi|max:102400',
+            'video' => 'nullable|mimes:mp4,mov,avi|max:204800',
             'credentials' => 'nullable|array',
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
             'accepted_payments' => 'nullable|array',

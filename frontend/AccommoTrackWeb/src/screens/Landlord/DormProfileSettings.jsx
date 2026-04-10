@@ -459,8 +459,8 @@ export default function DormProfileSettings({
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 90 * 1024 * 1024) {
-      toast.error("Video is too large. Maximum size is 90MB.");
+    if (file.size > 200 * 1024 * 1024) {
+      toast.error("Video is too large. Maximum size is 200MB.");
       return;
     }
 
@@ -1853,7 +1853,7 @@ export default function DormProfileSettings({
                   </span>
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Max <strong>45 seconds</strong> and <strong>90MB</strong>.
+                  Max <strong>45 seconds</strong> and <strong>200MB</strong>.
                   Uploading a new video replaces the existing one.
                 </p>
               </div>
@@ -1891,7 +1891,7 @@ export default function DormProfileSettings({
                       Click to upload video
                     </span>
                     <span className="text-xs">
-                      MP4, MOV, AVI (max 90MB, 45s)
+                      MP4, MOV, AVI (max 200MB, 45s)
                     </span>
                   </div>
                   <input
