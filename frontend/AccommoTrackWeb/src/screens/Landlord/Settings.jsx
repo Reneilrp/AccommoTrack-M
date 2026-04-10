@@ -179,7 +179,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         formData.append('profile_image', fileInputRef.current.files[0]);
       }
 
-      const res = await api.post('/me', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/me', formData);
       onUserUpdate(res.data.user);
       setIsEditingProfile(false);
       setPhotoPreview(null);

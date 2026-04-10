@@ -156,11 +156,7 @@ export const tenantService = {
     async updateProfile(formData) {
         try {
             formData.append('_method', 'PUT'); 
-            const response = await api.post('/tenant/profile', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            const response = await api.post('/tenant/profile', formData);
 
             // Invalidate cache so next fetch gets fresh data
             cacheManager.invalidate(CACHE_KEYS.PROFILE);
