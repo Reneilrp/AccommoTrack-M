@@ -22,6 +22,7 @@ import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { triggerForcedLogout, triggerRoleSwitch } from "../../../../navigation/RootNavigation.js";
 import { showError } from "../../../../utils/toast.js";
 import { useAuthStore } from "../../../../stores/auth/authStore.js";
+import { useAppVersion } from "../../../../shared/hooks/useAppVersion.js";
 import {
   landlordQueryKeys,
   useLandlordFocusRefetch,
@@ -160,6 +161,8 @@ export default function SettingsScreen({ navigation, onLogout }) {
   });
   const [fetchError, setFetchError] = useState("");
 
+  const { currentVersion, updateAvailable, downloadUrl, refetch: refetchVersion } = useAppVersion();
+
   const settingsQuery = useQuery({
     queryKey: landlordQueryKeys.settingsHub(),
     queryFn: async () => {
@@ -193,7 +196,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
 
   const handleRefresh = useLandlordRefreshHandler({
     setRefreshing,
-    refetchers: settingsRefetchers,
+    refetchers: [...settingsRefetchers, refetchVersion],
   });
 
   useEffect(() => {
@@ -599,12 +602,26 @@ export default function SettingsScreen({ navigation, onLogout }) {
             type: "action",
             action: () => handleSwitchRole(),
           },
+          ...(updateAvailable ? [{
+            id: "update-available",
+            label: "Update Available",
+            icon: "cloud-download-outline",
+            type: "action",
+            description: "Tap to download the latest version",
+            action: () => {
+              if (downloadUrl) {
+                import('react-native').then(({ Linking }) => {
+                  Linking.openURL(downloadUrl);
+                });
+              }
+            },
+          }] : []),
           {
             id: "version",
             label: "Version",
             icon: "albums-outline",
             type: "info",
-            value: "1.0.0",
+            value: currentVersion,
           },
           {
             id: "updates",

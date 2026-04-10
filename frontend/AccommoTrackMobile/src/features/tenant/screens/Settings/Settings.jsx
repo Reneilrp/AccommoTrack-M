@@ -11,6 +11,7 @@ import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
 import { navigate as rootNavigate, triggerForcedLogout, triggerRoleSwitch } from '../../../../navigation/RootNavigation.js';
 import { useAuthStore } from '../../../../stores/auth/authStore.js';
+import { useAppVersion } from '../../../../shared/hooks/useAppVersion.js';
 import { showError, showSuccess } from '../../../../utils/toast.js';
 import {
   tenantQueryKeys,
@@ -62,6 +63,8 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [refreshing, setRefreshing] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(isGuest ?? true);
   const [loading, setLoading] = useState(true);
+
+  const { currentVersion, updateAvailable, downloadUrl, refetch: refetchVersion } = useAppVersion();
   const [userRole, setUserRole] = useState('tenant');
   const [landlordVerificationStatus, setLandlordVerificationStatus] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -138,7 +141,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const onRefresh = useTenantRefreshHandler({
     enabled: !isGuestMode,
     setRefreshing,
-    refetchers: settingsRefetchers,
+    refetchers: [...settingsRefetchers, refetchVersion],
   });
 
   useEffect(() => {
@@ -216,11 +219,17 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       case "Login / Sign Up":
         handleLoginPress();
         break;
-      case "Become a Landlord":
       case "Register as Landlord":
       case "Switch to Landlord":
       case "Switch to Tenant":
         handleSwitchRole();
+        break;
+      case "Update Available":
+        if (downloadUrl) {
+          import('react-native').then(({ Linking }) => {
+            Linking.openURL(downloadUrl);
+          });
+        }
         break;
       default:
         console.log('Setting pressed:', label);
@@ -497,6 +506,24 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           { id: 12, label: "Help & Support", icon: "help-circle-outline", arrow: true },
           { id: 14, label: "Terms & Conditions", icon: "document-text-outline", arrow: true },
           { id: 15, label: "Privacy Policy", icon: "shield-outline", arrow: true },
+        ]
+      },
+      {
+        title: "App Info",
+        items: [
+          ...(updateAvailable ? [{
+            id: 16,
+            label: "Update Available",
+            icon: "cloud-download-outline",
+            highlight: true,
+            value: "Download Latest",
+          }] : []),
+          { 
+            id: 17, 
+            label: "App Version", 
+            icon: "albums-outline", 
+            value: currentVersion,
+          },
         ]
       }
     ];

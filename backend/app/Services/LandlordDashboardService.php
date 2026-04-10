@@ -131,7 +131,7 @@ class LandlordDashboardService
                 $activities = $activities->merge($propertyUpdatesQuery->limit(5)->get());
             }
 
-            $invoiceQuery = \App\Models\Invoice::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'booking.room'])->orderBy('updated_at', 'desc');
+            $invoiceQuery = Invoice::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'booking.room'])->orderBy('updated_at', 'desc');
             if ($roomId) {
                 $invoiceQuery->whereHas('booking', function ($q) use ($roomId) {
                     $q->where('room_id', $roomId);

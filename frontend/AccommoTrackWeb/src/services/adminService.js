@@ -370,6 +370,9 @@ const adminService = {
         data: {
           tenantPaymentsDisabled: toBoolean(payload.tenant_payments_disabled, false),
           reservationFeeDisabled: toBoolean(payload.reservation_fee_disabled, false),
+          mobileLatestVersion: toStringOrNull(payload.mobile_latest_version) || '1.0.0',
+          mobileDownloadUrl: toStringOrNull(payload.mobile_download_url) || 'https://accommotrack.me/downloads/AccommoTrack.apk',
+          mobileForceUpdate: toBoolean(payload.mobile_force_update, true),
         },
         message: envelope.message,
       };
@@ -380,13 +383,16 @@ const adminService = {
 
   /**
    * Update admin payment control settings.
-   * @param {{tenantPaymentsDisabled: boolean, reservationFeeDisabled: boolean}} payload
+   * @param {{tenantPaymentsDisabled: boolean, reservationFeeDisabled: boolean, mobileLatestVersion: string, mobileDownloadUrl: string, mobileForceUpdate: boolean}} payload
    */
   async updatePaymentControlSettings(payload = {}) {
     try {
       const body = {
         tenant_payments_disabled: Boolean(payload.tenantPaymentsDisabled),
         reservation_fee_disabled: Boolean(payload.reservationFeeDisabled),
+        mobile_latest_version: String(payload.mobileLatestVersion || '1.0.0'),
+        mobile_download_url: String(payload.mobileDownloadUrl || 'https://accommotrack.me/downloads/AccommoTrack.apk'),
+        mobile_force_update: Boolean(payload.mobileForceUpdate),
       };
       const response = await api.put('/admin/settings/payment-controls', body);
       const envelope = normalizeEnvelope(response?.data);
@@ -397,6 +403,9 @@ const adminService = {
         data: {
           tenantPaymentsDisabled: toBoolean(data.tenant_payments_disabled, body.tenant_payments_disabled),
           reservationFeeDisabled: toBoolean(data.reservation_fee_disabled, body.reservation_fee_disabled),
+          mobileLatestVersion: toStringOrNull(data.mobile_latest_version) || body.mobile_latest_version,
+          mobileDownloadUrl: toStringOrNull(data.mobile_download_url) || body.mobile_download_url,
+          mobileForceUpdate: toBoolean(data.mobile_force_update, body.mobile_force_update),
         },
         message: envelope.message,
       };

@@ -51,6 +51,42 @@ class SystemToggle
         Cache::forget("system_setting_bool:{$key}");
     }
 
+    public static function getString(string $key, string $default = ''): string
+    {
+        if (app()->runningUnitTests()) {
+            try {
+                $setting = SystemSetting::query()->where('key', $key)->first();
+                return $setting ? (string) $setting->value : $default;
+            } catch (\Throwable $e) {
+                return $default;
+            }
+        }
+
+        $cacheKey = "system_setting_string:{$key}";
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($key, $default) {
+            try {
+                $setting = SystemSetting::query()->where('key', $key)->first();
+                return $setting ? (string) $setting->value : $default;
+            } catch (\Throwable $e) {
+                return $default;
+            }
+        });
+    }
+
+    public static function setString(string $key, string $value, ?int $updatedBy = null): void
+    {
+        SystemSetting::query()->updateOrCreate(
+            ['key' => $key],
+            [
+                'value' => $value,
+                'updated_by' => $updatedBy,
+            ]
+        );
+
+        Cache::forget("system_setting_string:{$key}");
+    }
+
     public static function normalizeBool(mixed $value, bool $fallback = false): bool
     {
         if (is_bool($value)) {
