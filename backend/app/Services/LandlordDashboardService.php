@@ -167,9 +167,10 @@ class LandlordDashboardService
             // Add Addon Requests (from booking_addons)
             $addonQuery = DB::table('booking_addons')
                 ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
+                ->join('properties', 'addons.property_id', '=', 'properties.id')
                 ->join('bookings', 'booking_addons.booking_id', '=', 'bookings.id')
                 ->join('users', 'bookings.tenant_id', '=', 'users.id')
-                ->where('addons.property_id', '>', 0) // dummy where
+                ->where('properties.landlord_id', $landlordId)
                 ->select([
                     'booking_addons.*',
                     'addons.name as addon_name',
@@ -182,6 +183,8 @@ class LandlordDashboardService
                 $addonQuery->where('bookings.room_id', $roomId);
             } elseif ($propertyId) {
                 $addonQuery->where('addons.property_id', $propertyId);
+            } elseif ($assignedPropertyIds) {
+                $addonQuery->whereIn('addons.property_id', $assignedPropertyIds);
             }
 
             $addons = $addonQuery->orderBy('booking_addons.created_at', 'desc')->limit(10)->get();
