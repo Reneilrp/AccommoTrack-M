@@ -15,6 +15,7 @@ import ErrorBoundary from "./components/Shared/ErrorBoundary";
 import { getDefaultLandingRoute } from "./utils/userRoutes";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { UIStateProvider } from "./contexts/UIStateContext";
+import { cacheManager } from "./utils/cache";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -115,6 +116,7 @@ function App() {
       localStorage.removeItem("userData");
       clearStoredTokenAuth();
       clearPersistedAuthMode();
+      cacheManager.clearAll();
       navigate("/login", { replace: true });
     };
 
@@ -131,6 +133,7 @@ function App() {
       localStorage.removeItem("lastLoginAt");
       clearStoredTokenAuth();
       clearPersistedAuthMode();
+      cacheManager.clearAll();
       toast.error("Your account has been blocked. Please contact support.", {
         duration: 6000,
       });
@@ -146,6 +149,7 @@ function App() {
     localStorage.removeItem("lastLoginAt");
     clearStoredTokenAuth();
     clearPersistedAuthMode();
+    cacheManager.clearAll();
   };
 
   const handleLogin = (userData) => {

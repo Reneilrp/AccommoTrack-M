@@ -16,6 +16,25 @@ class PropertyObserver
     }
 
     /**
+     * Handle the Property "updated" event.
+     */
+    public function updated(Property $property): void
+    {
+        // Check if property was transitioned to "hidden" (unpublished)
+        if ($property->isDirty('is_published') && !$property->is_published) {
+            // Dispatch immediately in case queue workers aren't running
+            PurgeCloudflareCacheJob::dispatchSync();
+            
+            // Also explicitly clear Laravel cache for the property if any
+            try {
+                \Illuminate\Support\Facades\Artisan::call('cache:clear');
+            } catch (\Exception $e) {
+                // Ignore errors
+            }
+        }
+    }
+
+    /**
      * Handle the Property "deleted" event.
      */
     public function deleted(Property $property): void

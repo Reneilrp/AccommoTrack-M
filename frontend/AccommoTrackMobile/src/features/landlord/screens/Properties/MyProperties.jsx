@@ -34,6 +34,7 @@ const STATUS_TABS = [
 const STATUS_COLORS = {
   active: { bg: "#DCFCE7", fg: "#166534" },
   inactive: { bg: "#E5E7EB", fg: "#374151" },
+  'active | hidden': { bg: "#F3F4F6", fg: "#4B5563" },
   pending: { bg: "#FEF3C7", fg: "#92400E" },
   draft: { bg: "#F3E8FF", fg: "#6B21A8" },
   maintenance: { bg: "#DBEAFE", fg: "#1D4ED8" },
@@ -124,7 +125,10 @@ export default function MyPropertiesScreen({ navigation }) {
   };
 
   const renderProperty = ({ item }) => {
-    const statusKey = (item.current_status || "pending").toLowerCase();
+    let statusKey = (item.current_status || "pending").toLowerCase();
+    if (statusKey === 'active' && !item.is_published) {
+      statusKey = 'active | hidden';
+    }
     const palette = STATUS_COLORS[statusKey] || STATUS_COLORS.default;
     const cover = getCoverImage(item);
     const totalRooms = Number(item.total_rooms || 0);

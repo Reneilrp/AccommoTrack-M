@@ -517,14 +517,16 @@ export default function MyProperties({ __user }) {
                           </div>
                           <span
                             className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize flex-shrink-0 ${
-                              property.current_status === 'active'
+                              property.current_status === 'active' && !property.is_published
+                                ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                : property.current_status === 'active'
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                 : property.current_status === 'inactive'
                                 ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                                 : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                             }`}
                           >
-                            {property.current_status}
+                            {property.current_status === 'active' && !property.is_published ? 'active | hidden' : property.current_status}
                           </span>
                         </div>
 
