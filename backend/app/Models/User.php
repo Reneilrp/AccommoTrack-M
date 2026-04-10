@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -289,6 +290,27 @@ class User extends Authenticatable
     public function getNameAttribute()
     {
         return $this->full_name;
+    }
+
+    /**
+     * Get profile image URL — automatically resolves to CDN/storage URL.
+     * Handles both old full-URL values and new relative path values.
+     */
+    public function getProfileImageAttribute(?string $value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+
+        // Already a full URL (e.g. old records or already-transformed values)
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
+
+        // Strip any stale leading /storage/ or storage/ prefix from old DB values
+        $clean = ltrim(preg_replace('#^/?storage/#', '', $value), '/');
+
+        return Storage::url($clean);
     }
 
     /**
