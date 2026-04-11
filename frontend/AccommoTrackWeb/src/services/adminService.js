@@ -357,6 +357,19 @@ const adminService = {
   },
 
   /**
+   * Update admin password.
+   * @param {{current_password: string, new_password: string, new_password_confirmation: string}} payload
+   */
+  async updatePassword(payload) {
+    try {
+      const response = await api.post('/change-password', payload);
+      return { success: true, message: response?.data?.message || 'Password updated successfully' };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
    * Get admin payment control settings.
    */
   async getPaymentControlSettings() {

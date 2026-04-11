@@ -363,9 +363,6 @@ const UserManagement = () => {
           </div>
         </div>
       )}
-      <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">User Management</h2>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Manage registered users. View information or block/unblock users.</p>
-
       {/* Filter Buttons */}
       <div className="mb-4 flex gap-2 flex-wrap">
         {[

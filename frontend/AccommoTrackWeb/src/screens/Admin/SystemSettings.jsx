@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Loader2, Pencil, Save, Smartphone, Wallet, CalendarDays, Cog, RefreshCw, ShieldAlert } from 'lucide-react';
+import { Loader2, Pencil, Save, Smartphone, Wallet, CalendarDays, Cog, RefreshCw, ShieldAlert, Key, Eye, EyeOff } from 'lucide-react';
 import adminService from '../../services/adminService';
 import { cacheManager } from '../../utils/cache';
 
@@ -15,6 +15,44 @@ export default function SystemSettings() {
   const [mobileDownloadUrl, setMobileDownloadUrl] = useState('https://accommotrack.me/downloads/AccommoTrack.apk');
   const [mobileForceUpdate, setMobileForceUpdate] = useState(true);
   const [clearingCache, setClearingCache] = useState(false);
+
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    new_password_confirmation: ''
+  });
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [isEditingPassword, setIsEditingPassword] = useState(false);
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (passwordForm.new_password !== passwordForm.new_password_confirmation) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    if (passwordForm.new_password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+    setUpdatingPassword(true);
+    try {
+      const response = await adminService.updatePassword(passwordForm);
+      if (!response?.success) {
+        throw new Error(response?.error || response?.message || 'Failed to update password');
+      }
+      toast.success(response?.message || 'Password updated successfully');
+      setPasswordForm({ current_password: '', new_password: '', new_password_confirmation: '' });
+      setIsEditingPassword(false);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to update password');
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
 
   const [initialSettings, setInitialSettings] = useState({
     tenantPaymentsDisabled: true,
@@ -292,6 +330,120 @@ export default function SystemSettings() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </section>
+
+            {/* Security Management Section */}
+            <section className="pt-8 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2 mb-4">
+                <Key className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Security Settings</h2>
+              </div>
+              <div className="p-5 rounded-xl border border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white">Update Password</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Change your administrator account password.</p>
+                  </div>
+                  {!isEditingPassword && (
+                    <button
+                      onClick={() => setIsEditingPassword(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium transition-colors shadow-sm"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Change Password
+                    </button>
+                  )}
+                </div>
+
+                {isEditingPassword && (
+                  <form onSubmit={handleUpdatePassword} className="space-y-4 mt-4 bg-white dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? "text" : "password"}
+                          required
+                          className="w-full pl-3 pr-10 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500"
+                          value={passwordForm.current_password}
+                          onChange={e => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+                          disabled={updatingPassword}
+                        />
+                        <button
+                          type="button"
+                          tabIndex="-1"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                          {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          required
+                          className="w-full pl-3 pr-10 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500"
+                          value={passwordForm.new_password}
+                          onChange={e => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+                          disabled={updatingPassword}
+                        />
+                        <button
+                          type="button"
+                          tabIndex="-1"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                          {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          required
+                          className="w-full pl-3 pr-10 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500"
+                          value={passwordForm.new_password_confirmation}
+                          onChange={e => setPasswordForm({ ...passwordForm, new_password_confirmation: e.target.value })}
+                          disabled={updatingPassword}
+                        />
+                        <button
+                          type="button"
+                          tabIndex="-1"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="submit"
+                        disabled={updatingPassword}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm transition-colors shadow-sm disabled:opacity-60"
+                      >
+                        {updatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Update Password
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingPassword(false);
+                          setPasswordForm({ current_password: '', new_password: '', new_password_confirmation: '' });
+                        }}
+                        disabled={updatingPassword}
+                        className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </section>
 

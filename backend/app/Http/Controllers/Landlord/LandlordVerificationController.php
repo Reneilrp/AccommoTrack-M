@@ -106,7 +106,16 @@ class LandlordVerificationController extends Controller
     public function index()
     {
         // For admin: list all landlord verifications with user info
-        $verifications = LandlordVerification::with('user')->orderBy('created_at', 'desc')->get();
+        $verifications = LandlordVerification::with('user')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function (LandlordVerification $verification) {
+                $payload = $verification->toArray();
+                $payload['valid_id_path'] = $this->toPublicStorageUrl($verification->valid_id_path);
+                $payload['permit_path'] = $this->toPublicStorageUrl($verification->permit_path);
+
+                return $payload;
+            });
 
         return response()->json($verifications);
     }
@@ -168,8 +177,8 @@ class LandlordVerificationController extends Controller
             'status' => $verification->status,
             'rejection_reason' => $verification->rejection_reason,
             'valid_id_type' => $verification->valid_id_type,
-            'valid_id_path' => $verification->valid_id_path ? \Illuminate\Support\Facades\Storage::url($verification->valid_id_path) : null,
-            'permit_path' => $verification->permit_path ? \Illuminate\Support\Facades\Storage::url($verification->permit_path) : null,
+            'valid_id_path' => $this->toPublicStorageUrl($verification->valid_id_path),
+            'permit_path' => $this->toPublicStorageUrl($verification->permit_path),
             'reviewed_at' => $verification->reviewed_at,
             'reviewer' => $verification->reviewer ? [
                 'name' => trim($verification->reviewer->first_name.' '.$verification->reviewer->last_name),
@@ -215,8 +224,8 @@ class LandlordVerificationController extends Controller
                     'status' => $h->status,
                     'rejection_reason' => $h->rejection_reason,
                     'valid_id_type' => $h->valid_id_type,
-                    'valid_id_path' => $h->valid_id_path ? \Illuminate\Support\Facades\Storage::url($h->valid_id_path) : null,
-                    'permit_path' => $h->permit_path ? \Illuminate\Support\Facades\Storage::url($h->permit_path) : null,
+                    'valid_id_path' => $this->toPublicStorageUrl($h->valid_id_path),
+                    'permit_path' => $this->toPublicStorageUrl($h->permit_path),
                     'submitted_at' => $h->submitted_at,
                     'reviewed_at' => $h->reviewed_at,
                     'reviewer' => $h->reviewer ? trim($h->reviewer->first_name.' '.$h->reviewer->last_name) : null,
@@ -478,5 +487,25 @@ class LandlordVerificationController extends Controller
 
             return response()->json(['message' => 'Resubmission failed: '.$e->getMessage()], 500);
         }
+    }
+
+    private function toPublicStorageUrl(?string $path): ?string
+    {
+        if (! is_string($path) || trim($path) === '') {
+            return null;
+        }
+
+        $cleanPath = trim($path);
+
+        if (str_starts_with($cleanPath, 'http://') || str_starts_with($cleanPath, 'https://')) {
+            return $cleanPath;
+        }
+
+        $cleanPath = ltrim($cleanPath, '/');
+        if (str_starts_with($cleanPath, 'storage/')) {
+            $cleanPath = substr($cleanPath, strlen('storage/'));
+        }
+
+        return Storage::url($cleanPath);
     }
 }

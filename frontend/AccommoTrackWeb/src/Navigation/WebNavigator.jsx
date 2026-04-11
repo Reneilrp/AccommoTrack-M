@@ -45,7 +45,7 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   const prefetchedRolesRef = useRef(new Set());
   const fullPageFallback = <RouteLoadingFallback fullScreen label="Loading page" />;
   const roleGateFallback = (
-    <RouteLoadingFallback fullScreen showSpinner={false} label="Preparing workspace" />
+    <RouteLoadingFallback fullScreen label="Preparing workspace" />
   );
   const renderWithFallback = (element, fallback = fullPageFallback) => (
     <Suspense fallback={fallback}>
