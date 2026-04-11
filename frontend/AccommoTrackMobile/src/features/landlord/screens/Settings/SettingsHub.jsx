@@ -601,6 +601,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
             icon: "swap-horizontal-outline",
             type: "action",
             action: () => handleSwitchRole(),
+            role: "landlord",
           },
           ...(updateAvailable ? [{
             id: "update-available",
@@ -862,8 +863,8 @@ export default function SettingsScreen({ navigation, onLogout }) {
           onPress={() => setConfirmModalVisible(false)}
         >
           <Pressable style={styles.logoutModalCard} onPress={() => {}}>
-            <View style={[styles.logoutModalIconWrap, { backgroundColor: '#DBEAFE' }]}>
-              <Ionicons name="information-circle-outline" size={22} color="#2563EB" />
+            <View style={[styles.logoutModalIconWrap, { backgroundColor: theme.isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7' }]}>
+              <Ionicons name="information-circle-outline" size={22} color={theme.colors.primary} />
             </View>
 
             <Text style={styles.logoutModalTitle}>{confirmModalConfig.title}</Text>
@@ -881,7 +882,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={[styles.logoutModalConfirmButton, { backgroundColor: '#2563EB' }]}
+                style={[styles.logoutModalConfirmButton, { backgroundColor: theme.colors.primary }]}
                 onPress={confirmModalConfig.onConfirm}
               >
                 <Text style={styles.logoutModalConfirmText}>{confirmModalConfig.confirmText}</Text>
