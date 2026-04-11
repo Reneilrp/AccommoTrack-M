@@ -238,7 +238,7 @@ class PropertyController extends Controller
                 }
             }
 
-            if (! $context['user']->is_verified) {
+            if (! $this->propertyService->canLandlordSubmitProperties($context['user'])) {
                 if ($request->has('current_status') && $request->current_status !== 'draft') {
                     return response()->json(['message' => 'Your account is pending verification. Properties can only be saved as drafts.', 'verification_required' => true], 403);
                 }

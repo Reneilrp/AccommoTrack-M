@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\LandlordVerification;
 use App\Models\Property;
 use App\Models\PropertyImage;
 use App\Models\User;
@@ -15,16 +16,32 @@ use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 class PropertyService
 {
+    public function canLandlordSubmitProperties(User $user): bool
+    {
+        if ((bool) ($user->is_verified ?? false)) {
+            return true;
+        }
+
+        if ($user->role !== 'landlord') {
+            return false;
+        }
+
+        $verification = LandlordVerification::where('user_id', $user->id)->first();
+
+        return (bool) ($verification
+            && in_array($verification->status, LandlordVerification::LANDLORD_ACCESS_STATUSES, true));
+    }
+
     public function createProperty(array $validated, User $user): Property
     {
         return DB::transaction(function () use ($validated, $user) {
-            $isVerified = $user->is_verified ?? false;
+            $canSubmitProperties = $this->canLandlordSubmitProperties($user);
 
             $currentStatus = Property::STATUS_DRAFT;
             $isPublished = false;
             $isAvailable = false;
 
-            if ($isVerified) {
+            if ($canSubmitProperties) {
                 $currentStatus = ($validated['is_draft'] ?? false) ? Property::STATUS_DRAFT : ($validated['current_status'] ?? Property::STATUS_PENDING);
                 // New properties (Draft/Pending) should NOT be published or available initially
                 $isPublished = false;
@@ -104,13 +121,15 @@ class PropertyService
     {
         return DB::transaction(function () use ($property, $validated, $request) {
             $user = Auth::user();
-            $isVerified = $user->is_verified ?? false;
+            $canSubmitProperties = $user instanceof User
+                ? $this->canLandlordSubmitProperties($user)
+                : false;
 
             if (isset($validated['is_draft']) && $validated['is_draft']) {
                 $validated['current_status'] = Property::STATUS_DRAFT;
             }
 
-            if (! $isVerified) {
+            if (! $canSubmitProperties) {
                 $validated['current_status'] = Property::STATUS_DRAFT;
                 $validated['is_published'] = false;
             }

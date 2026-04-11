@@ -25,7 +25,8 @@ class TenantBookingController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Booking::with(['property.images', 'landlord', 'room', 'review'])
+            $query = Booking::with(['property.images', 'landlord', 'room', 'review', 'occupants'])
+                ->withCount('occupants')
                 ->where('tenant_id', Auth::id());
 
             // Filter by status if provided
@@ -128,7 +129,16 @@ class TenantBookingController extends Controller
     public function show($id)
     {
         try {
-            $booking = Booking::with(['property.images', 'landlord', 'room.images', 'room.amenities', 'addons', 'maintenanceRequests'])
+            $booking = Booking::with([
+                'property.images',
+                'landlord',
+                'room.images',
+                'room.amenities',
+                'addons',
+                'maintenanceRequests',
+                'occupants',
+            ])
+                ->withCount('occupants')
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 

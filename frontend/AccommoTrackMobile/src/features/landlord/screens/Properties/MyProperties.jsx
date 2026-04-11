@@ -22,6 +22,8 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from "../../hooks/useLandlordQueryHelpers.js";
+import { useUIState } from "../../../../contexts/UIStateContext.jsx";
+import { TextInput } from "react-native-gesture-handler";
 
 const STATUS_TABS = [
   { key: "all", label: "All" },
@@ -46,9 +48,14 @@ const emptyMetrics = { active: 0, inactive: 0, pending: 0, draft: 0, totalRooms:
 
 export default function MyPropertiesScreen({ navigation }) {
   const { theme } = useTheme();
+  const { uiState } = useUIState();
+  const verificationStatus = uiState.data?.verificationStatus;
+  const isVerified = verificationStatus?.status === 'approved';
+
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -98,9 +105,17 @@ export default function MyPropertiesScreen({ navigation }) {
   const filteredProperties = useMemo(() => {
     return properties.filter((property) => {
       const status = (property.current_status || "pending").toLowerCase();
-      return statusFilter === "all" || status === statusFilter;
+      const matchesStatus = statusFilter === "all" || status === statusFilter;
+      
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch = !q || 
+        (property.title || '').toLowerCase().includes(q) || 
+        (property.city || '').toLowerCase().includes(q) ||
+        (property.street_address || '').toLowerCase().includes(q);
+
+      return matchesStatus && matchesSearch;
     });
-  }, [properties, statusFilter]);
+  }, [properties, statusFilter, searchQuery]);
 
   const formatAddress = (property) => {
     const parts = [
@@ -234,6 +249,33 @@ export default function MyPropertiesScreen({ navigation }) {
 
   const renderListHeader = () => (
     <View style={styles.section}>
+      {/* Verification Warning */}
+      {!isVerified && (
+        <TouchableOpacity 
+          style={{ 
+            margin: 16, 
+            padding: 16, 
+            backgroundColor: theme.isDark ? 'rgba(124,45,18,0.1)' : '#FFF7ED', 
+            borderRadius: 12, 
+            borderWidth: 1, 
+            borderColor: theme.isDark ? '#9A3412' : '#FFEDD5',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12
+          }}
+          onPress={() => navigation.navigate('VerificationStatus')}
+        >
+          <Ionicons name="shield-alert-outline" size={24} color="#9A3412" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#9A3412' }}>Verification Required</Text>
+            <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>
+              Your properties will remain as "Draft" and won't be visible to guests until your account is verified.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#9A3412" />
+        </TouchableOpacity>
+      )}
+
       {error ? (
         <View style={styles.errorBanner}>
           <Ionicons name="warning-outline" size={18} color="#B91C1C" />
@@ -271,6 +313,40 @@ export default function MyPropertiesScreen({ navigation }) {
         </View>
       </ScrollView>
 
+      {/* Search Bar */}
+      <View style={{ paddingHorizontal: 16, marginTop: 16, marginBottom: 8 }}>
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          backgroundColor: theme.colors.backgroundSecondary, 
+          borderRadius: 10, 
+          paddingHorizontal: 12,
+          height: 44,
+          borderWidth: 1,
+          borderColor: theme.colors.border
+        }}>
+          <Ionicons name="search-outline" size={18} color={theme.colors.textTertiary} />
+          <TextInput
+            placeholder="Search properties..."
+            placeholderTextColor={theme.colors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{ 
+              flex: 1, 
+              marginLeft: 8, 
+              fontSize: 14, 
+              color: theme.colors.text,
+              padding: 0 
+            }}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={16} color={theme.colors.textTertiary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+
       <View style={{ marginTop: 8 }}>
         <View style={styles.filtersRow}>
           {STATUS_TABS.map((tab) => {
@@ -287,7 +363,7 @@ export default function MyPropertiesScreen({ navigation }) {
                 <Text
                   style={[
                     styles.filterLabel,
-                    { color: active ? "#166534" : "#1F2937" },
+                    { color: active ? "#166534" : theme.colors.textSecondary },
                   ]}
                 >
                   {tab.label}

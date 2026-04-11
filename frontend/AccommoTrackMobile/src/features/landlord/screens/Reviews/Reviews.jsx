@@ -35,6 +35,7 @@ export default function Reviews({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
 
   const [refreshing, setRefreshing] = useState(false);
   const routePropertyId = route?.params?.propertyId || route?.params?.property?.id;
@@ -125,7 +126,7 @@ export default function Reviews({ route }) {
 
   const handleReply = async () => {
     if (!responseText.trim()) {
-      Alert.alert('Error', 'Please enter a response');
+      showAlert('Error', 'Please enter a response');
       return;
     }
 
@@ -134,13 +135,13 @@ export default function Reviews({ route }) {
     setSubmitting(false);
 
     if (res.success) {
-      Alert.alert('Success', 'Response submitted successfully');
+      showAlert('Success', 'Response submitted successfully');
       await refetchLandlordQueries(reviewRefetchers);
       setReplyVisible(false);
       setResponseText('');
       setSelectedReview(null);
     } else {
-      Alert.alert('Error', res.error);
+      showAlert('Error', res.error);
     }
   };
 

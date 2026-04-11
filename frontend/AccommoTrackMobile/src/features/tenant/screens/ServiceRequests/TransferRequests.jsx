@@ -72,6 +72,7 @@ const resolvePropertyLabel = (request) => {
 export default function TransferRequests({ hideHeader = false, historyOnly = false }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const showAlert = Alert.alert;
   const [refreshing, setRefreshing] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
 
@@ -115,7 +116,7 @@ export default function TransferRequests({ hideHeader = false, historyOnly = fal
       return;
     }
 
-    Alert.alert('Cancel Transfer Request', 'Are you sure you want to cancel this pending transfer request?', [
+    showAlert('Cancel Transfer Request', 'Are you sure you want to cancel this pending transfer request?', [
       { text: 'No', style: 'cancel' },
       {
         text: 'Yes, Cancel',

@@ -36,6 +36,7 @@ const EMPTY_PROPERTIES = [];
 export default function AddonManagement({ route, navigation }) {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
+  const showAlert = Alert.alert;
   const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const contentWrapStyle = useMemo(
@@ -311,12 +312,12 @@ export default function AddonManagement({ route, navigation }) {
 
   const handleOpenCreateModal = () => {
     if (properties.length === 0) {
-      Alert.alert('No Properties', 'Create a property first before adding usage fees.');
+      showAlert('No Properties', 'Create a property first before adding usage fees.');
       return;
     }
 
     if (effectivePropertyScope === 'all') {
-      Alert.alert('Select Property', 'Select a specific property before creating a new add-on.');
+      showAlert('Select Property', 'Select a specific property before creating a new add-on.');
       return;
     }
 
@@ -326,13 +327,13 @@ export default function AddonManagement({ route, navigation }) {
 
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.price) {
-      Alert.alert('Validation', 'Name and Price are required.');
+      showAlert('Validation', 'Name and Price are required.');
       return;
     }
 
     const targetPropertyId = resolveMutationPropertyId();
     if (!targetPropertyId) {
-      Alert.alert('Select Property', 'Select a specific property before saving this add-on.');
+      showAlert('Select Property', 'Select a specific property before saving this add-on.');
       return;
     }
 
@@ -356,10 +357,10 @@ export default function AddonManagement({ route, navigation }) {
         resetForm();
         await refetchLandlordQueries(addonRefetchers);
       } else {
-        Alert.alert('Error', res.error || 'Failed to save addon');
+        showAlert('Error', res.error || 'Failed to save addon');
       }
     } catch (_error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      showAlert('Error', 'An unexpected error occurred');
     } finally {
       setSubmitting(false);
     }
@@ -368,11 +369,11 @@ export default function AddonManagement({ route, navigation }) {
   const handleDelete = (addon) => {
     const targetPropertyId = Number(addon?.propertyId);
     if (!Number.isFinite(targetPropertyId)) {
-      Alert.alert('Error', 'Unable to determine the property for this add-on.');
+      showAlert('Error', 'Unable to determine the property for this add-on.');
       return;
     }
 
-    Alert.alert(
+    showAlert(
       'Delete Add-on',
       'Are you sure you want to delete this add-on? This action cannot be undone.',
       [
@@ -385,7 +386,7 @@ export default function AddonManagement({ route, navigation }) {
             if (res.success) {
               await refetchLandlordQueries(addonRefetchers);
             } else {
-              Alert.alert('Error', res.error || 'Failed to delete addon');
+              showAlert('Error', res.error || 'Failed to delete addon');
             }
           }
         }
@@ -399,7 +400,7 @@ export default function AddonManagement({ route, navigation }) {
       setRejectNote('');
       setShowRejectNoteModal(true);
     } else {
-      Alert.alert(
+      showAlert(
         'Approve Request',
         'Approve this add-on request?',
         [
@@ -427,7 +428,7 @@ export default function AddonManagement({ route, navigation }) {
     if (res.success) {
       await refetchLandlordQueries(addonRefetchers);
     } else {
-      Alert.alert('Error', res.error || `Failed to ${action} request`);
+      showAlert('Error', res.error || `Failed to ${action} request`);
     }
   };
 
@@ -737,14 +738,14 @@ export default function AddonManagement({ route, navigation }) {
             <Ionicons 
               name={tab.icon + (activeTab === tab.id ? '' : '-outline')} 
               size={18} 
-              color={activeTab === tab.id ? '#166534' : '#6B7280'} 
+              color={activeTab === tab.id ? theme.colors.primary : theme.colors.textSecondary} 
             />
-            <Text style={[styles.tabText, activeTab === tab.id && styles.activeTabText]}>
+            <Text style={[styles.tabText, { color: activeTab === tab.id ? theme.colors.primary : theme.colors.textSecondary }, activeTab === tab.id && styles.activeTabText]}>
               {tab.label}
             </Text>
             {tab.count > 0 && (
-              <View style={[styles.tabBadge, activeTab === tab.id && styles.activeTabBadge]}>
-                <Text style={[styles.tabBadgeText, activeTab === tab.id && styles.activeTabBadgeText]}>
+              <View style={[styles.tabBadge, { backgroundColor: activeTab === tab.id ? theme.colors.primary : theme.colors.backgroundSecondary }, activeTab === tab.id && styles.activeTabBadge]}>
+                <Text style={[styles.tabBadgeText, { color: activeTab === tab.id ? '#FFFFFF' : theme.colors.textSecondary }, activeTab === tab.id && styles.activeTabBadgeText]}>
                   {tab.count}
                 </Text>
               </View>
@@ -759,15 +760,15 @@ export default function AddonManagement({ route, navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#16a34a']}
-            tintColor="#16a34a"
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
       >
         {errorMessage ? (
-          <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={16} color="#B91C1C" />
-            <Text style={styles.errorText}>{errorMessage}</Text>
+          <View style={[styles.errorBanner, { backgroundColor: theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2' }]}>
+            <Ionicons name="alert-circle" size={16} color={theme.colors.error} />
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>{errorMessage}</Text>
           </View>
         ) : null}
 

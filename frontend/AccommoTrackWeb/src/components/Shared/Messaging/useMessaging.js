@@ -173,6 +173,26 @@ export const useMessaging = (user, accessRole = 'landlord') => {
       .map(conv => [conv.property.id, conv.property])
   ).values()];
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const unreadCount = conversations.reduce(
+      (sum, conv) => sum + (Number(conv?.unread_count) || 0),
+      0,
+    );
+
+    try {
+      localStorage.setItem('messages_unread_count', String(unreadCount));
+      window.dispatchEvent(
+        new CustomEvent('accommo:messages-unread-updated', {
+          detail: { count: unreadCount },
+        }),
+      );
+    } catch (_error) {
+      // Ignore storage failures in restricted browser contexts.
+    }
+  }, [conversations]);
+
   // User ID extraction logic
   const currentUserId = (() => {
     try {

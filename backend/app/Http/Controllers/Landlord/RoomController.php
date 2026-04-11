@@ -39,7 +39,21 @@ class RoomController extends Controller
             $this->checkPropertyAccess($context, (int) $propertyId);
 
             $rooms = Room::where('property_id', $propertyId)
-                ->with('tenants', 'amenities', 'images')
+                ->with([
+                    'tenants',
+                    'amenities',
+                    'images',
+                    'bookings' => function ($query) {
+                        $query->whereNotNull('tenant_id')
+                            ->whereIn('status', ['reserved', 'confirmed', 'active', 'completed', 'partial-completed'])
+                            ->where(function ($bookingQuery) {
+                                $bookingQuery->whereNull('end_date')
+                                    ->orWhereDate('end_date', '>=', now()->startOfDay());
+                            })
+                            ->with('occupants')
+                            ->orderByDesc('start_date');
+                    },
+                ])
                 ->orderBy('room_number')
                 ->get();
 
@@ -62,7 +76,7 @@ class RoomController extends Controller
 
             $room = $this->roomService->createRoom($request->validated(), $property);
 
-            return response()->json((new RoomResource($room->fresh(['tenants', 'amenities', 'images'])))->resolve());
+            return response()->json((new RoomResource($room->fresh(['tenants', 'amenities', 'images', 'bookings.occupants'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
@@ -80,7 +94,7 @@ class RoomController extends Controller
 
             $updatedRoom = $this->roomService->updateRoom($room, $request->validated());
 
-            return response()->json((new RoomResource($updatedRoom->load(['tenants', 'amenities', 'images'])))->resolve());
+            return response()->json((new RoomResource($updatedRoom->load(['tenants', 'amenities', 'images', 'bookings.occupants'])))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found or unauthorized'], 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -121,7 +135,7 @@ class RoomController extends Controller
 
             $updatedRoom = $this->roomService->updateStatus($room, $validated['status']);
 
-            return response()->json((new RoomResource($updatedRoom->load('tenants')))->resolve());
+            return response()->json((new RoomResource($updatedRoom->load(['tenants', 'bookings.occupants'])))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found'], 404);
         } catch (\Exception $e) {
@@ -165,6 +179,10 @@ class RoomController extends Controller
             $start = $request->query('start') ?? $request->query('start_date');
             $end = $request->query('end') ?? $request->query('end_date');
             $bedCount = (int) ($request->query('bed_count') ?? 1);
+            $requestedContractMode = strtolower((string) ($request->query('contract_mode') ?? 'monthly'));
+            $contractMode = in_array($requestedContractMode, ['daily', 'monthly'], true)
+                ? $requestedContractMode
+                : 'monthly';
 
             if (! $start || ! $end) {
                 return response()->json(['message' => '`start` and `end` dates are required'], 400);
@@ -178,11 +196,36 @@ class RoomController extends Controller
             }
 
             $result['days'] = Carbon::parse($start)->diffInDays(Carbon::parse($end));
+            $result['base_total'] = round((float) $result['total'], 2);
+
+            $promoOffer = $this->resolvePromoOffer($room, $result, $contractMode);
+            $result['promo_offer'] = $promoOffer;
+            $result['promo_eligible'] = $promoOffer !== null;
+            if ($promoOffer) {
+                $result['promo_total'] = round((float) $promoOffer['discounted_total'], 2);
+            }
 
             return response()->json($result, 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found'], 404);
         }
+    }
+
+    private function resolvePromoOffer(Room $room, array $priceResult, string $contractMode): ?array
+    {
+        if ($contractMode !== 'monthly') {
+            return null;
+        }
+
+        $breakdown = $priceResult['breakdown'] ?? [];
+        $months = (int) ($breakdown['months'] ?? 0);
+        $remainingDays = (int) ($breakdown['remaining_days'] ?? 0);
+
+        if ($months < 1 || $remainingDays !== 0) {
+            return null;
+        }
+
+        return $room->calculateDurationDiscount((float) ($priceResult['total'] ?? 0), $months);
     }
 
     /**
@@ -237,7 +280,7 @@ class RoomController extends Controller
 
             $updatedRoom = $this->roomService->assignTenant($room, $validated['tenant_id'], $validated['start_date'] ?? null);
 
-            return response()->json((new RoomResource($updatedRoom))->resolve());
+            return response()->json((new RoomResource($updatedRoom->load(['tenants', 'bookings.occupants'])))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found or unauthorized'], 404);
         } catch (\Exception $e) {
@@ -292,7 +335,7 @@ class RoomController extends Controller
 
             $updatedRoom = $this->roomService->removeTenant($room, $tenantId);
 
-            return response()->json((new RoomResource($updatedRoom))->resolve());
+            return response()->json((new RoomResource($updatedRoom->load(['tenants', 'bookings.occupants'])))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found or unauthorized'], 404);
         } catch (\Exception $e) {

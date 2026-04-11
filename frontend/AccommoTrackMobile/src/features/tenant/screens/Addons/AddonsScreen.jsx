@@ -27,6 +27,7 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -195,7 +196,7 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
     const id = req.id || req.request_id;
     if (!id) return;
 
-    Alert.alert('Cancel Request', 'Are you sure you want to cancel this add-on request?', [
+    showAlert('Cancel Request', 'Are you sure you want to cancel this add-on request?', [
         { text: 'No', style: 'cancel' },
         { 
             text: 'Yes, Cancel', 

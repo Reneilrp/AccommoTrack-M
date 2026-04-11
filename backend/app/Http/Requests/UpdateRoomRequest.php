@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateRoomRequest extends FormRequest
 {
@@ -94,9 +95,72 @@ class UpdateRoomRequest extends FormRequest
             'rules.*' => 'string',
             'amenities' => 'nullable|array',
             'amenities.*' => 'string',
+            'duration_pricing' => 'nullable|array',
+            'duration_pricing.3' => 'nullable|array',
+            'duration_pricing.6' => 'nullable|array',
+            'duration_pricing.9' => 'nullable|array',
+            'duration_pricing.12' => 'nullable|array',
+            'duration_pricing.3.discount_type' => 'required_with:duration_pricing.3|in:percent,fixed',
+            'duration_pricing.6.discount_type' => 'required_with:duration_pricing.6|in:percent,fixed',
+            'duration_pricing.9.discount_type' => 'required_with:duration_pricing.9|in:percent,fixed',
+            'duration_pricing.12.discount_type' => 'required_with:duration_pricing.12|in:percent,fixed',
+            'duration_pricing.3.discount_value' => 'required_with:duration_pricing.3|numeric|gt:0',
+            'duration_pricing.6.discount_value' => 'required_with:duration_pricing.6|numeric|gt:0',
+            'duration_pricing.9.discount_value' => 'required_with:duration_pricing.9|numeric|gt:0',
+            'duration_pricing.12.discount_value' => 'required_with:duration_pricing.12|numeric|gt:0',
             'images' => 'nullable|array',
             'images.*' => 'string|url', // Assuming URLs are sent for existing images
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('duration_pricing')) {
+            return;
+        }
+
+        $decoded = $this->decodeDurationPricing($this->input('duration_pricing'));
+        if ($decoded !== null) {
+            $this->merge(['duration_pricing' => $decoded]);
+        }
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $pricing = $this->input('duration_pricing');
+            if (! is_array($pricing)) {
+                return;
+            }
+
+            $allowedTerms = ['3', '6', '9', '12'];
+
+            foreach (array_keys($pricing) as $termKey) {
+                if (! in_array((string) $termKey, $allowedTerms, true)) {
+                    $validator->errors()->add(
+                        "duration_pricing.{$termKey}",
+                        'Only 3, 6, 9, and 12-month terms are supported for long-term promos.'
+                    );
+                }
+            }
+
+            foreach ($allowedTerms as $term) {
+                $entry = $pricing[$term] ?? null;
+                if (! is_array($entry)) {
+                    continue;
+                }
+
+                $discountType = strtolower((string) ($entry['discount_type'] ?? ''));
+                $discountValue = $entry['discount_value'] ?? null;
+
+                if ($discountType === 'percent' && is_numeric($discountValue) && (float) $discountValue > 100) {
+                    $validator->errors()->add(
+                        "duration_pricing.{$term}.discount_value",
+                        'Percentage discounts cannot exceed 100.'
+                    );
+                }
+            }
+        });
     }
 
     /**
@@ -125,5 +189,20 @@ class UpdateRoomRequest extends FormRequest
     private function normalizePropertyTypeToken(?string $propertyType): string
     {
         return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
+    }
+
+    private function decodeDurationPricing(mixed $value): ?array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 }

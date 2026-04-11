@@ -32,6 +32,7 @@ import {
 export default function MyProfileScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const [user, setUser] = useState(null);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,7 +77,7 @@ export default function MyProfileScreen({ navigation }) {
   useEffect(() => {
     if (!fetchError) return;
     console.error('Error fetching profile:', fetchError);
-    Alert.alert('Error', fetchError);
+    showAlert('Error', fetchError);
   }, [fetchError]);
 
   const calculateAge = (dob) => {
@@ -101,7 +102,7 @@ export default function MyProfileScreen({ navigation }) {
     if (event.type === "set" || Platform.OS === "ios") {
       const age = calculateAge(currentDate);
       if (age < 21) {
-        Alert.alert("Age Restriction", "You must be at least 21 years old.");
+        showAlert("Age Restriction", "You must be at least 21 years old.");
         return;
       }
 
@@ -118,7 +119,7 @@ export default function MyProfileScreen({ navigation }) {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library to upload a profile picture.');
+      showAlert('Permission Required', 'Please allow access to your photo library to upload a profile picture.');
       return;
     }
 
@@ -138,7 +139,7 @@ export default function MyProfileScreen({ navigation }) {
   const handleSave = async () => {
     // Basic validation
     if (!tempUser.first_name?.trim() || !tempUser.last_name?.trim()) {
-      Alert.alert('Validation Error', 'First and Last name are required.');
+      showAlert('Validation Error', 'First and Last name are required.');
       return;
     }
 
@@ -175,12 +176,12 @@ export default function MyProfileScreen({ navigation }) {
         setSelectedImage(null);
         setIsEditing(false);
         await refetchLandlordQueries([refetchProfile]);
-        Alert.alert('Success', 'Your profile has been updated!');
+        showAlert('Success', 'Your profile has been updated!');
       } else {
-        Alert.alert('Error', response.error || 'Failed to update profile');
+        showAlert('Error', response.error || 'Failed to update profile');
       }
     } catch (_error) {
-      Alert.alert('Error', 'Failed to update profile');
+      showAlert('Error', 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -196,7 +197,7 @@ export default function MyProfileScreen({ navigation }) {
   // Custom back button handler
   const handleBack = () => {
     if (isEditing) {
-      Alert.alert(
+      showAlert(
         'Discard Changes?',
         'You have unsaved changes. Do you want to discard them?',
         [
@@ -382,7 +383,7 @@ export default function MyProfileScreen({ navigation }) {
             <TouchableOpacity
               onPress={() => {
                 if (!isEditing) return;
-                Alert.alert("Select Gender", "Choose your gender", [
+                showAlert("Select Gender", "Choose your gender", [
                   { text: "Male", onPress: () => setTempUser({ ...tempUser, gender: "male" }) },
                   { text: "Female", onPress: () => setTempUser({ ...tempUser, gender: "female" }) },
                   { text: "Cancel", style: "cancel" },

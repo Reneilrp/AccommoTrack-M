@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   Share,
@@ -20,6 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Tenants.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -132,6 +135,7 @@ export default function TenantsScreen({ navigation, route }) {
   const [filter, setFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [actionError, setActionError] = useState('');
+  const { showAlert } = useUIState();
   const [claimCodeModalVisible, setClaimCodeModalVisible] = useState(false);
   const [claimCodePayload, setClaimCodePayload] = useState({
     tenantName: '',
@@ -313,7 +317,7 @@ export default function TenantsScreen({ navigation, route }) {
   const handleTransferInitiate = async (tenant) => {
     const propertyId = tenant.room?.property_id || selectedPropertyId;
     if (!propertyId) {
-      Alert.alert('Transfer unavailable', 'Tenant has no assigned property.');
+      showAlert('Transfer unavailable', 'Tenant has no assigned property.');
       return;
     }
 
@@ -335,7 +339,7 @@ export default function TenantsScreen({ navigation, route }) {
       ));
       setAvailableRooms(rooms);
     } catch (transferError) {
-      Alert.alert('Error', transferError.message || 'Failed to load available rooms.');
+      showAlert('Error', transferError.message || 'Failed to load available rooms.');
     } finally {
       setLoadingRoomsForTransfer(false);
     }
@@ -344,11 +348,11 @@ export default function TenantsScreen({ navigation, route }) {
   const handleTransferSubmit = async () => {
     if (!transferringTenant) return;
     if (!transferData.new_room_id || !transferData.reason.trim()) {
-      Alert.alert('Required fields', 'Please select a room and provide a reason.');
+      showAlert('Required fields', 'Please select a room and provide a reason.');
       return;
     }
     if (Number(transferData.damage_charge || 0) > 0 && !transferData.damage_description.trim()) {
-      Alert.alert('Required fields', 'Please add a damage charge description.');
+      showAlert('Required fields', 'Please add a damage charge description.');
       return;
     }
 
@@ -368,10 +372,10 @@ export default function TenantsScreen({ navigation, route }) {
       setTransferringTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      Alert.alert('Success', 'Room transfer completed successfully.');
+      showAlert('Success', 'Room transfer completed successfully.');
     } catch (transferError) {
       setActionError(transferError.message || 'Failed to transfer room.');
-      Alert.alert('Error', transferError.message || 'Failed to transfer room.');
+      showAlert('Error', transferError.message || 'Failed to transfer room.');
     } finally {
       setIsTransferring(false);
     }
@@ -379,11 +383,11 @@ export default function TenantsScreen({ navigation, route }) {
 
   const handleAssignInitiate = async (tenant) => {
     if (tenant.room) {
-      Alert.alert('Already assigned', 'This tenant already has a room. Use Transfer instead.');
+      showAlert('Already assigned', 'This tenant already has a room. Use Transfer instead.');
       return;
     }
     if (!selectedPropertyId) {
-      Alert.alert('Property required', 'Please select a property first.');
+      showAlert('Property required', 'Please select a property first.');
       return;
     }
 
@@ -402,7 +406,7 @@ export default function TenantsScreen({ navigation, route }) {
       const rooms = (response.data || []).filter((room) => isRoomBookable(room));
       setAvailableRoomsForAssign(rooms);
     } catch (assignError) {
-      Alert.alert('Error', assignError.message || 'Failed to load available rooms.');
+      showAlert('Error', assignError.message || 'Failed to load available rooms.');
     } finally {
       setLoadingRoomsForAssign(false);
     }
@@ -411,7 +415,7 @@ export default function TenantsScreen({ navigation, route }) {
   const handleAssignSubmit = async () => {
     if (!assigningTenant) return;
     if (!assignData.room_id) {
-      Alert.alert('Required fields', 'Please select a room.');
+      showAlert('Required fields', 'Please select a room.');
       return;
     }
 
@@ -433,10 +437,10 @@ export default function TenantsScreen({ navigation, route }) {
       setAssigningTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      Alert.alert('Success', 'Room assignment completed successfully.');
+      showAlert('Success', 'Room assignment completed successfully.');
     } catch (assignError) {
       setActionError(assignError.message || 'Failed to assign room.');
-      Alert.alert('Error', assignError.message || 'Failed to assign room.');
+      showAlert('Error', assignError.message || 'Failed to assign room.');
     } finally {
       setIsAssigning(false);
     }
@@ -446,7 +450,7 @@ export default function TenantsScreen({ navigation, route }) {
     setOpenActionsTenantId(null);
 
     if (!selectedPropertyId) {
-      Alert.alert('Property required', 'Please select a property before adding a tenant.');
+      showAlert('Property required', 'Please select a property before adding a tenant.');
       return;
     }
 
@@ -476,7 +480,7 @@ export default function TenantsScreen({ navigation, route }) {
       const rooms = (response.data || []).filter((room) => isRoomBookable(room));
       setAvailableRoomsForCreate(rooms);
     } catch (createInitError) {
-      Alert.alert('Error', createInitError.message || 'Failed to load available rooms.');
+      showAlert('Error', createInitError.message || 'Failed to load available rooms.');
     } finally {
       setLoadingRoomsForCreate(false);
     }
@@ -491,27 +495,27 @@ export default function TenantsScreen({ navigation, route }) {
     const confirmPassword = createTenantData.confirm_password;
 
     if (!firstName || !lastName || !email) {
-      Alert.alert('Required fields', 'First name, last name, and email are required.');
+      showAlert('Required fields', 'First name, last name, and email are required.');
       return;
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      showAlert('Invalid email', 'Please enter a valid email address.');
       return;
     }
 
     if (!password || password.length < 8) {
-      Alert.alert('Invalid password', 'Password must be at least 8 characters.');
+      showAlert('Invalid password', 'Password must be at least 8 characters.');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Password mismatch', 'Password and confirm password do not match.');
+      showAlert('Password mismatch', 'Password and confirm password do not match.');
       return;
     }
 
     if (!createTenantData.room_id) {
-      Alert.alert('Required fields', 'Please select a room for immediate assignment.');
+      showAlert('Required fields', 'Please select a room for immediate assignment.');
       return;
     }
 
@@ -539,10 +543,10 @@ export default function TenantsScreen({ navigation, route }) {
       setCreateTenantVisible(false);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      Alert.alert('Success', 'Tenant added and assigned successfully.');
+      showAlert('Success', 'Tenant added and assigned successfully.');
     } catch (createError) {
       setActionError(createError.message || 'Failed to add tenant.');
-      Alert.alert('Error', createError.message || 'Failed to add tenant.');
+      showAlert('Error', createError.message || 'Failed to add tenant.');
     } finally {
       setIsCreatingTenant(false);
     }
@@ -550,7 +554,7 @@ export default function TenantsScreen({ navigation, route }) {
 
   const handleUnassignInitiate = (tenant) => {
     if (!tenant.room) {
-      Alert.alert('Not assigned', 'This tenant does not have an assigned room.');
+      showAlert('Not assigned', 'This tenant does not have an assigned room.');
       return;
     }
     setUnassigningTenant(tenant);
@@ -571,10 +575,10 @@ export default function TenantsScreen({ navigation, route }) {
       setUnassigningTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      Alert.alert('Success', 'Tenant unassigned successfully.');
+      showAlert('Success', 'Tenant unassigned successfully.');
     } catch (unassignError) {
       setActionError(unassignError.message || 'Failed to unassign tenant.');
-      Alert.alert('Error', unassignError.message || 'Failed to unassign tenant.');
+      showAlert('Error', unassignError.message || 'Failed to unassign tenant.');
     } finally {
       setIsUnassigning(false);
     }
@@ -590,13 +594,13 @@ export default function TenantsScreen({ navigation, route }) {
   const handleEvictConfirm = async () => {
     if (!evictingTenant) return;
     if (!evictionReason.trim()) {
-      showFeedbackModal('Missing reason', 'Reason for eviction is required.');
+      showAlert('Missing reason', 'Reason for eviction is required.');
       return;
     }
 
     const graceHours = Number(evictionGraceHours || 0);
     if (Number.isNaN(graceHours) || graceHours < 0 || graceHours > 168) {
-      showFeedbackModal('Invalid value', 'Grace hours must be between 0 and 168.');
+      showAlert('Invalid value', 'Grace hours must be between 0 and 168.');
       return;
     }
 
@@ -613,11 +617,11 @@ export default function TenantsScreen({ navigation, route }) {
       setEvictingTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      Alert.alert('Success', 'Eviction scheduled successfully.');
+      showAlert('Success', 'Eviction scheduled successfully.');
     } catch (evictionError) {
       const message = evictionError.message || 'Failed to schedule eviction.';
       setActionError(message);
-      showFeedbackModal('Unable to schedule eviction', message);
+      showAlert('Unable to schedule eviction', message);
     } finally {
       setIsEvicting(false);
     }
@@ -631,11 +635,11 @@ export default function TenantsScreen({ navigation, route }) {
       }
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      Alert.alert('Success', 'Eviction finalized successfully.');
+      showAlert('Success', 'Eviction finalized successfully.');
     } catch (error) {
       const message = error.message || 'Failed to finalize eviction.';
       setActionError(message);
-      showFeedbackModal('Unable to finalize eviction', message);
+      showAlert('Unable to finalize eviction', message);
     }
   };
 
@@ -647,11 +651,11 @@ export default function TenantsScreen({ navigation, route }) {
       }
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      Alert.alert('Success', 'Eviction schedule cancelled.');
+      showAlert('Success', 'Eviction schedule cancelled.');
     } catch (error) {
       const message = error.message || 'Failed to cancel eviction schedule.';
       setActionError(message);
-      showFeedbackModal('Unable to cancel eviction', message);
+      showAlert('Unable to cancel eviction', message);
     }
   };
 
@@ -663,11 +667,11 @@ export default function TenantsScreen({ navigation, route }) {
       }
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      Alert.alert('Success', 'Eviction undone and tenancy restored.');
+      showAlert('Success', 'Eviction undone and tenancy restored.');
     } catch (error) {
       const message = error.message || 'Failed to undo eviction.';
       setActionError(message);
-      showFeedbackModal('Unable to undo eviction', message);
+      showAlert('Unable to undo eviction', message);
     }
   };
 
@@ -700,7 +704,7 @@ export default function TenantsScreen({ navigation, route }) {
     } catch (error) {
       const message = error.message || 'Failed to generate claim code.';
       setActionError(message);
-      showFeedbackModal('Unable to generate claim code', message);
+      showAlert('Unable to generate claim code', message);
     }
   };
 
@@ -713,7 +717,7 @@ export default function TenantsScreen({ navigation, route }) {
         message: `Tenant: ${claimCodePayload.tenantName}\nClaim code: ${claimCodePayload.code}\nExpires: ${claimCodePayload.expiresAt}\n\nUse Claim Existing Account on the auth screen.`,
       });
     } catch {
-      showFeedbackModal('Unable to share code', 'Unable to open share options right now.');
+      showAlert('Unable to share code', 'Unable to open share options right now.');
     }
   };
 
@@ -819,7 +823,7 @@ export default function TenantsScreen({ navigation, route }) {
                     style={[styles.moreActionItem, !evictionDue ? styles.moreActionItemDisabled : null]}
                     onPress={() => {
                       setOpenActionsTenantId(null);
-                      Alert.alert(
+                      showAlert(
                         'Finalize eviction',
                         `Finalize eviction for ${item.first_name} ${item.last_name}?`,
                         [
@@ -838,7 +842,7 @@ export default function TenantsScreen({ navigation, route }) {
                     style={styles.moreActionItem}
                     onPress={() => {
                       setOpenActionsTenantId(null);
-                      Alert.alert(
+                      showAlert(
                         'Cancel eviction schedule',
                         `Cancel pending eviction for ${item.first_name} ${item.last_name}?`,
                         [
@@ -859,7 +863,7 @@ export default function TenantsScreen({ navigation, route }) {
                   style={styles.moreActionItem}
                   onPress={() => {
                     setOpenActionsTenantId(null);
-                    Alert.alert(
+                    showAlert(
                       'Undo eviction',
                       `Restore tenancy for ${item.first_name} ${item.last_name}?`,
                       [
@@ -1299,281 +1303,302 @@ export default function TenantsScreen({ navigation, route }) {
       </Modal>
 
       <Modal visible={createTenantVisible} transparent animationType="fade" onRequestClose={() => setCreateTenantVisible(false)}>
-        <View style={styles.overlayContainer}>
-          <View style={styles.actionModalCard}>
-            <Text style={styles.actionModalTitle}>Add Tenant</Text>
-            <Text style={styles.actionModalSubtitle}>Create a tenant account and assign them to a room in one step.</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.overlayContainer}
+        >
+          <View style={[styles.actionModalCard, { maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+              <Text style={styles.actionModalTitle}>Add Tenant</Text>
+              <Text style={styles.actionModalSubtitle}>Create a tenant account and assign them to a room in one step.</Text>
 
-            <Text style={styles.actionFieldLabel}>First Name *</Text>
-            <TextInput
-              value={createTenantData.first_name}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, first_name: value }))}
-              placeholder="Juan"
-              style={styles.actionInput}
-            />
+              <Text style={styles.actionFieldLabel}>First Name *</Text>
+              <TextInput
+                value={createTenantData.first_name}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, first_name: value }))}
+                placeholder="Juan"
+                style={styles.actionInput}
+              />
 
-            <Text style={styles.actionFieldLabel}>Middle Name</Text>
-            <TextInput
-              value={createTenantData.middle_name}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, middle_name: value }))}
-              placeholder="Santos"
-              style={styles.actionInput}
-            />
+              <Text style={styles.actionFieldLabel}>Middle Name</Text>
+              <TextInput
+                value={createTenantData.middle_name}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, middle_name: value }))}
+                placeholder="Santos"
+                style={styles.actionInput}
+              />
 
-            <Text style={styles.actionFieldLabel}>Last Name *</Text>
-            <TextInput
-              value={createTenantData.last_name}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, last_name: value }))}
-              placeholder="Dela Cruz"
-              style={styles.actionInput}
-            />
+              <Text style={styles.actionFieldLabel}>Last Name *</Text>
+              <TextInput
+                value={createTenantData.last_name}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, last_name: value }))}
+                placeholder="Dela Cruz"
+                style={styles.actionInput}
+              />
 
-            <Text style={styles.actionFieldLabel}>Email *</Text>
-            <TextInput
-              value={createTenantData.email}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, email: value }))}
-              placeholder="tenant@example.com"
-              style={styles.actionInput}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+              <Text style={styles.actionFieldLabel}>Email *</Text>
+              <TextInput
+                value={createTenantData.email}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, email: value }))}
+                placeholder="tenant@example.com"
+                style={styles.actionInput}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
 
-            <Text style={styles.actionFieldLabel}>Phone</Text>
-            <TextInput
-              value={createTenantData.phone}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, phone: value }))}
-              placeholder="09XXXXXXXXX"
-              style={styles.actionInput}
-              keyboardType="phone-pad"
-            />
+              <Text style={styles.actionFieldLabel}>Phone</Text>
+              <TextInput
+                value={createTenantData.phone}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, phone: value }))}
+                placeholder="09XXXXXXXXX"
+                style={styles.actionInput}
+                keyboardType="phone-pad"
+              />
 
-            <Text style={styles.actionFieldLabel}>Password *</Text>
-            <TextInput
-              value={createTenantData.password}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, password: value }))}
-              placeholder="Minimum 8 characters"
-              style={styles.actionInput}
-              secureTextEntry
-            />
+              <Text style={styles.actionFieldLabel}>Password *</Text>
+              <TextInput
+                value={createTenantData.password}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, password: value }))}
+                placeholder="Minimum 8 characters"
+                style={styles.actionInput}
+                secureTextEntry
+              />
 
-            <Text style={styles.actionFieldLabel}>Confirm Password *</Text>
-            <TextInput
-              value={createTenantData.confirm_password}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, confirm_password: value }))}
-              placeholder="Retype password"
-              style={styles.actionInput}
-              secureTextEntry
-            />
+              <Text style={styles.actionFieldLabel}>Confirm Password *</Text>
+              <TextInput
+                value={createTenantData.confirm_password}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, confirm_password: value }))}
+                placeholder="Retype password"
+                style={styles.actionInput}
+                secureTextEntry
+              />
 
-            <Text style={styles.actionFieldLabel}>Room Assignment *</Text>
-            <ScrollView style={styles.roomsPicker}>
-              {loadingRoomsForCreate && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
-              {!loadingRoomsForCreate && availableRoomsForCreate.length === 0 && (
-                <Text style={styles.helperText}>No available rooms found.</Text>
-              )}
-              {availableRoomsForCreate.map((room) => (
-                <TouchableOpacity
-                  key={room.id}
-                  style={[
-                    styles.roomOption,
-                    normalizeId(createTenantData.room_id) === normalizeId(room.id) && styles.roomOptionActive
-                  ]}
-                  onPress={() => setCreateTenantData((current) => ({ ...current, room_id: room.id }))}
-                >
-                  <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
-                  <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+              <Text style={styles.actionFieldLabel}>Room Assignment *</Text>
+              <View style={[styles.roomsPicker, { maxHeight: 200 }]}>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
+                  {loadingRoomsForCreate && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
+                  {!loadingRoomsForCreate && availableRoomsForCreate.length === 0 && (
+                    <Text style={styles.helperText}>No available rooms found.</Text>
+                  )}
+                  {availableRoomsForCreate.map((room) => (
+                    <TouchableOpacity
+                      key={room.id}
+                      style={[
+                        styles.roomOption,
+                        normalizeId(createTenantData.room_id) === normalizeId(room.id) && styles.roomOptionActive
+                      ]}
+                      onPress={() => setCreateTenantData((current) => ({ ...current, room_id: room.id }))}
+                    >
+                      <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
+                      <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
+              <TextInput
+                value={createTenantData.move_in_date}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, move_in_date: value }))}
+                placeholder="2026-03-28"
+                style={styles.actionInput}
+              />
+
+              <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
+              <TextInput
+                value={createTenantData.end_date}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, end_date: value }))}
+                placeholder="2026-09-28"
+                style={styles.actionInput}
+              />
+
+              <Text style={styles.actionFieldLabel}>Notes</Text>
+              <TextInput
+                value={createTenantData.notes}
+                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, notes: value }))}
+                placeholder="Optional assignment notes"
+                style={styles.actionTextArea}
+                multiline
+              />
+
+              <View style={styles.modalActionsRow}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setCreateTenantVisible(false)}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity
+                  style={[styles.modalSuccessBtn, (isCreatingTenant || availableRoomsForCreate.length === 0) && styles.modalDisabledBtn]}
+                  onPress={handleCreateTenantSubmit}
+                  disabled={isCreatingTenant || availableRoomsForCreate.length === 0}
+                >
+                  <Text style={styles.modalConfirmText}>{isCreatingTenant ? 'Adding...' : 'Create & Assign'}</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
-
-            <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
-            <TextInput
-              value={createTenantData.move_in_date}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, move_in_date: value }))}
-              placeholder="2026-03-28"
-              style={styles.actionInput}
-            />
-
-            <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
-            <TextInput
-              value={createTenantData.end_date}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, end_date: value }))}
-              placeholder="2026-09-28"
-              style={styles.actionInput}
-            />
-
-            <Text style={styles.actionFieldLabel}>Notes</Text>
-            <TextInput
-              value={createTenantData.notes}
-              onChangeText={(value) => setCreateTenantData((current) => ({ ...current, notes: value }))}
-              placeholder="Optional assignment notes"
-              style={styles.actionTextArea}
-              multiline
-            />
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setCreateTenantVisible(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalSuccessBtn, (isCreatingTenant || availableRoomsForCreate.length === 0) && styles.modalDisabledBtn]}
-                onPress={handleCreateTenantSubmit}
-                disabled={isCreatingTenant || availableRoomsForCreate.length === 0}
-              >
-                <Text style={styles.modalConfirmText}>{isCreatingTenant ? 'Adding...' : 'Create & Assign'}</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={transferVisible} transparent animationType="fade" onRequestClose={() => setTransferVisible(false)}>
-        <View style={styles.overlayContainer}>
-          <View style={styles.actionModalCard}>
-            <Text style={styles.actionModalTitle}>Transfer Room</Text>
-            <Text style={styles.actionModalSubtitle}>
-              {transferringTenant
-                ? `Transfer ${transferringTenant.first_name} ${transferringTenant.last_name} from Room ${transferringTenant.room?.room_number || 'N/A'}.`
-                : 'Select a tenant to transfer.'}
-            </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.overlayContainer}
+        >
+          <View style={[styles.actionModalCard, { maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+              <Text style={styles.actionModalTitle}>Transfer Room</Text>
+              <Text style={styles.actionModalSubtitle}>
+                {transferringTenant
+                  ? `Transfer ${transferringTenant.first_name} ${transferringTenant.last_name} from Room ${transferringTenant.room?.room_number || 'N/A'}.`
+                  : 'Select a tenant to transfer.'}
+              </Text>
 
-            <Text style={styles.actionFieldLabel}>New Room *</Text>
-            <ScrollView style={styles.roomsPicker}>
-              {loadingRoomsForTransfer && <ActivityIndicator color="#f59e0b" style={styles.modalLoader} />}
-              {!loadingRoomsForTransfer && availableRooms.length === 0 && (
-                <Text style={styles.helperText}>No available rooms found.</Text>
+              <Text style={styles.actionFieldLabel}>New Room *</Text>
+              <View style={[styles.roomsPicker, { maxHeight: 200 }]}>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
+                  {loadingRoomsForTransfer && <ActivityIndicator color="#f59e0b" style={styles.modalLoader} />}
+                  {!loadingRoomsForTransfer && availableRooms.length === 0 && (
+                    <Text style={styles.helperText}>No available rooms found.</Text>
+                  )}
+                  {availableRooms.map((room) => (
+                    <TouchableOpacity
+                      key={room.id}
+                      style={[
+                        styles.roomOption,
+                        normalizeId(transferData.new_room_id) === normalizeId(room.id) && styles.roomOptionActive
+                      ]}
+                      onPress={() => setTransferData((current) => ({ ...current, new_room_id: room.id }))}
+                    >
+                      <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
+                      <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <Text style={styles.actionFieldLabel}>Reason *</Text>
+              <TextInput
+                value={transferData.reason}
+                onChangeText={(value) => setTransferData((current) => ({ ...current, reason: value }))}
+                placeholder="Reason for transfer"
+                style={styles.actionTextArea}
+                multiline
+              />
+
+              <Text style={styles.actionFieldLabel}>Damage Charge (optional)</Text>
+              <TextInput
+                value={transferData.damage_charge}
+                onChangeText={(value) => setTransferData((current) => ({ ...current, damage_charge: value }))}
+                placeholder="0.00"
+                style={styles.actionInput}
+                keyboardType="numeric"
+              />
+
+              {Number(transferData.damage_charge || 0) > 0 && (
+                <>
+                  <Text style={styles.actionFieldLabel}>Damage Description *</Text>
+                  <TextInput
+                    value={transferData.damage_description}
+                    onChangeText={(value) => setTransferData((current) => ({ ...current, damage_description: value }))}
+                    placeholder="Describe the charge"
+                    style={styles.actionInput}
+                  />
+                </>
               )}
-              {availableRooms.map((room) => (
-                <TouchableOpacity
-                  key={room.id}
-                  style={[
-                    styles.roomOption,
-                    normalizeId(transferData.new_room_id) === normalizeId(room.id) && styles.roomOptionActive
-                  ]}
-                  onPress={() => setTransferData((current) => ({ ...current, new_room_id: room.id }))}
-                >
-                  <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
-                  <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+
+              <View style={styles.modalActionsRow}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setTransferVisible(false)}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity
+                  style={[styles.modalConfirmBtn, (isTransferring || availableRooms.length === 0) && styles.modalDisabledBtn]}
+                  onPress={handleTransferSubmit}
+                  disabled={isTransferring || availableRooms.length === 0}
+                >
+                  <Text style={styles.modalConfirmText}>{isTransferring ? 'Transferring...' : 'Transfer'}</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
-
-            <Text style={styles.actionFieldLabel}>Reason *</Text>
-            <TextInput
-              value={transferData.reason}
-              onChangeText={(value) => setTransferData((current) => ({ ...current, reason: value }))}
-              placeholder="Reason for transfer"
-              style={styles.actionTextArea}
-              multiline
-            />
-
-            <Text style={styles.actionFieldLabel}>Damage Charge (optional)</Text>
-            <TextInput
-              value={transferData.damage_charge}
-              onChangeText={(value) => setTransferData((current) => ({ ...current, damage_charge: value }))}
-              placeholder="0.00"
-              style={styles.actionInput}
-              keyboardType="numeric"
-            />
-
-            {Number(transferData.damage_charge || 0) > 0 && (
-              <>
-                <Text style={styles.actionFieldLabel}>Damage Description *</Text>
-                <TextInput
-                  value={transferData.damage_description}
-                  onChangeText={(value) => setTransferData((current) => ({ ...current, damage_description: value }))}
-                  placeholder="Describe the charge"
-                  style={styles.actionInput}
-                />
-              </>
-            )}
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setTransferVisible(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalConfirmBtn, (isTransferring || availableRooms.length === 0) && styles.modalDisabledBtn]}
-                onPress={handleTransferSubmit}
-                disabled={isTransferring || availableRooms.length === 0}
-              >
-                <Text style={styles.modalConfirmText}>{isTransferring ? 'Transferring...' : 'Transfer'}</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={assignVisible} transparent animationType="fade" onRequestClose={() => setAssignVisible(false)}>
-        <View style={styles.overlayContainer}>
-          <View style={styles.actionModalCard}>
-            <Text style={styles.actionModalTitle}>Assign Room</Text>
-            <Text style={styles.actionModalSubtitle}>
-              {assigningTenant
-                ? `Assign ${assigningTenant.first_name} ${assigningTenant.last_name} to an available room.`
-                : 'Select a tenant to assign.'}
-            </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.overlayContainer}
+        >
+          <View style={[styles.actionModalCard, { maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+              <Text style={styles.actionModalTitle}>Assign Room</Text>
+              <Text style={styles.actionModalSubtitle}>
+                {assigningTenant
+                  ? `Assign ${assigningTenant.first_name} ${assigningTenant.last_name} to an available room.`
+                  : 'Select a tenant to assign.'}
+              </Text>
 
-            <Text style={styles.actionFieldLabel}>Room *</Text>
-            <ScrollView style={styles.roomsPicker}>
-              {loadingRoomsForAssign && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
-              {!loadingRoomsForAssign && availableRoomsForAssign.length === 0 && (
-                <Text style={styles.helperText}>No available rooms found.</Text>
-              )}
-              {availableRoomsForAssign.map((room) => (
-                <TouchableOpacity
-                  key={room.id}
-                  style={[
-                    styles.roomOption,
-                    normalizeId(assignData.room_id) === normalizeId(room.id) && styles.roomOptionActive
-                  ]}
-                  onPress={() => setAssignData((current) => ({ ...current, room_id: room.id }))}
-                >
-                  <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
-                  <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+              <Text style={styles.actionFieldLabel}>Room *</Text>
+              <View style={[styles.roomsPicker, { maxHeight: 200 }]}>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
+                  {loadingRoomsForAssign && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
+                  {!loadingRoomsForAssign && availableRoomsForAssign.length === 0 && (
+                    <Text style={styles.helperText}>No available rooms found.</Text>
+                  )}
+                  {availableRoomsForAssign.map((room) => (
+                    <TouchableOpacity
+                      key={room.id}
+                      style={[
+                        styles.roomOption,
+                        normalizeId(assignData.room_id) === normalizeId(room.id) && styles.roomOptionActive
+                      ]}
+                      onPress={() => setAssignData((current) => ({ ...current, room_id: room.id }))}
+                    >
+                      <Text style={styles.roomOptionTitle}>Room {room.room_number}</Text>
+                      <Text style={styles.roomOptionMeta}>{room.type_label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
+              <TextInput
+                value={assignData.move_in_date}
+                onChangeText={(value) => setAssignData((current) => ({ ...current, move_in_date: value }))}
+                placeholder="2026-03-28"
+                style={styles.actionInput}
+              />
+
+              <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
+              <TextInput
+                value={assignData.end_date}
+                onChangeText={(value) => setAssignData((current) => ({ ...current, end_date: value }))}
+                placeholder="2026-09-28"
+                style={styles.actionInput}
+              />
+
+              <Text style={styles.actionFieldLabel}>Notes</Text>
+              <TextInput
+                value={assignData.notes}
+                onChangeText={(value) => setAssignData((current) => ({ ...current, notes: value }))}
+                placeholder="Optional assignment notes"
+                style={styles.actionTextArea}
+                multiline
+              />
+
+              <View style={styles.modalActionsRow}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAssignVisible(false)}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity
+                  style={[styles.modalSuccessBtn, (isAssigning || availableRoomsForAssign.length === 0) && styles.modalDisabledBtn]}
+                  onPress={handleAssignSubmit}
+                  disabled={isAssigning || availableRoomsForAssign.length === 0}
+                >
+                  <Text style={styles.modalConfirmText}>{isAssigning ? 'Assigning...' : 'Assign'}</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
-
-            <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
-            <TextInput
-              value={assignData.move_in_date}
-              onChangeText={(value) => setAssignData((current) => ({ ...current, move_in_date: value }))}
-              placeholder="2026-03-28"
-              style={styles.actionInput}
-            />
-
-            <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
-            <TextInput
-              value={assignData.end_date}
-              onChangeText={(value) => setAssignData((current) => ({ ...current, end_date: value }))}
-              placeholder="2026-09-28"
-              style={styles.actionInput}
-            />
-
-            <Text style={styles.actionFieldLabel}>Notes</Text>
-            <TextInput
-              value={assignData.notes}
-              onChangeText={(value) => setAssignData((current) => ({ ...current, notes: value }))}
-              placeholder="Optional assignment notes"
-              style={styles.actionTextArea}
-              multiline
-            />
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAssignVisible(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalSuccessBtn, (isAssigning || availableRoomsForAssign.length === 0) && styles.modalDisabledBtn]}
-                onPress={handleAssignSubmit}
-                disabled={isAssigning || availableRoomsForAssign.length === 0}
-              >
-                <Text style={styles.modalConfirmText}>{isAssigning ? 'Assigning...' : 'Assign'}</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={unassignVisible} transparent animationType="fade" onRequestClose={() => setUnassignVisible(false)}>
@@ -1603,48 +1628,53 @@ export default function TenantsScreen({ navigation, route }) {
       </Modal>
 
       <Modal visible={evictionVisible} transparent animationType="fade" onRequestClose={() => setEvictionVisible(false)}>
-        <View style={styles.overlayContainer}>
-          <View style={styles.actionModalCard}>
-            <Text style={[styles.actionModalTitle, { color: '#DC2626' }]}>Schedule Eviction</Text>
-            <Text style={styles.actionModalSubtitle}>
-              {evictingTenant
-                ? `Set grace period before finalizing eviction for ${evictingTenant.first_name} ${evictingTenant.last_name}.`
-                : 'Select a tenant to schedule eviction.'}
-            </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.overlayContainer}
+        >
+          <View style={[styles.actionModalCard, { maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+              <Text style={[styles.actionModalTitle, { color: '#DC2626' }]}>Schedule Eviction</Text>
+              <Text style={styles.actionModalSubtitle}>
+                {evictingTenant
+                  ? `Set grace period before finalizing eviction for ${evictingTenant.first_name} ${evictingTenant.last_name}.`
+                  : 'Select a tenant to schedule eviction.'}
+              </Text>
 
-            <Text style={styles.actionFieldLabel}>Grace Period (Hours) *</Text>
-            <TextInput
-              value={evictionGraceHours}
-              onChangeText={setEvictionGraceHours}
-              placeholder="24"
-              style={styles.actionInput}
-              keyboardType="numeric"
-            />
-            <Text style={styles.helperText}>Use 0 for immediate finalization eligibility.</Text>
+              <Text style={styles.actionFieldLabel}>Grace Period (Hours) *</Text>
+              <TextInput
+                value={evictionGraceHours}
+                onChangeText={setEvictionGraceHours}
+                placeholder="24"
+                style={styles.actionInput}
+                keyboardType="numeric"
+              />
+              <Text style={styles.helperText}>Use 0 for immediate finalization eligibility.</Text>
 
-            <Text style={styles.actionFieldLabel}>Reason *</Text>
-            <TextInput
-              value={evictionReason}
-              onChangeText={setEvictionReason}
-              placeholder="Reason for eviction"
-              style={styles.actionTextArea}
-              multiline
-            />
+              <Text style={styles.actionFieldLabel}>Reason *</Text>
+              <TextInput
+                value={evictionReason}
+                onChangeText={setEvictionReason}
+                placeholder="Reason for eviction"
+                style={styles.actionTextArea}
+                multiline
+              />
 
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setEvictionVisible(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalDangerBtn, (isEvicting || !evictionReason.trim()) && styles.modalDisabledBtn]}
-                onPress={handleEvictConfirm}
-                disabled={isEvicting || !evictionReason.trim()}
-              >
-                <Text style={styles.modalConfirmText}>{isEvicting ? 'Scheduling...' : 'Schedule'}</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.modalActionsRow}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setEvictionVisible(false)}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalDangerBtn, (isEvicting || !evictionReason.trim()) && styles.modalDisabledBtn]}
+                  onPress={handleEvictConfirm}
+                  disabled={isEvicting || !evictionReason.trim()}
+                >
+                  <Text style={styles.modalConfirmText}>{isEvicting ? 'Scheduling...' : 'Schedule'}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
     </SafeAreaView>

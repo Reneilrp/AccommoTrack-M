@@ -30,6 +30,7 @@ import {
   Banknote,
   CalendarDays,
   CreditCard,
+  Users,
   Shuffle,
   MessageSquare
 } from 'lucide-react';
@@ -215,7 +216,7 @@ const MyBookings = () => {
             bookingsResp?.data ||
             bookingsResp ||
             [];
-          const pendingStatuses = new Set(['pending', 'booked']);
+          const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked']);
           const pendingCheckInIds = new Set(pendingCheckInsData.map(pc => pc.id));
           pending = Array.isArray(bookingsList)
             ? bookingsList.filter((b) => 
@@ -640,6 +641,30 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     }
   };
 
+  const toWholeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : fallback;
+  };
+
+  const resolveOccupantProfiles = (bookingEntry) => {
+    const source = Array.isArray(bookingEntry?.occupants) ? bookingEntry.occupants : [];
+
+    return source.map((occupant, index) => {
+      const fullName = String(occupant?.full_name || occupant?.fullName || '').trim() || `Occupant ${index + 1}`;
+      const relationship = String(occupant?.relationship_to_booker || occupant?.relationshipToBooker || '').trim();
+      const gender = String(occupant?.gender || '').trim();
+      const contact = [occupant?.phone, occupant?.email].filter(Boolean).join(' • ');
+
+      return {
+        id: occupant?.id || `${fullName}-${index}`,
+        fullName,
+        relationship,
+        gender,
+        contact,
+      };
+    });
+  };
+
   if (!hasStays && !hasPending) {
     if (upcomingBooking) {
       return (
@@ -798,6 +823,17 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
             const now = new Date();
             now.setHours(0, 0, 0, 0);
             const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - now) / (1000 * 60 * 60 * 24))) : null;
+            const pendingBedCount = Math.max(1, toWholeNumber(pb?.bed_count ?? pb?.bedCount, 1));
+            const pendingOccupantCount = Math.max(
+              1,
+              toWholeNumber(pb?.occupant_count ?? pb?.occupantCount, 0) || pendingBedCount,
+            );
+            const pendingRoomCapacity = toWholeNumber(pb?.room?.capacity, 0);
+            const pendingOccupancyLabel = pendingRoomCapacity > 0
+              ? `${pendingOccupantCount}/${pendingRoomCapacity} Occupancy`
+              : `${pendingOccupantCount} Occupant${pendingOccupantCount === 1 ? '' : 's'}`;
+            const pendingOccupants = resolveOccupantProfiles(pb);
+            const isProxyPending = String(pb?.booking_mode || pb?.bookingMode || '').toLowerCase() === 'proxy';
             
             return (
               <div key={pb.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
@@ -813,8 +849,24 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                                         <div className="text-left flex-1">
                                                           <p className="font-bold text-base leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
                                                           <p className="text-xs opacity-80 font-medium mt-0.5">Room {pb?.room_number || pb?.room?.room_number || '—'}</p>
+                                                          <p className="text-xs opacity-80 font-medium mt-0.5">{pendingOccupancyLabel}</p>
+                                                          {(isProxyPending || pendingOccupants.length > 0) && (
+                                                            <div className="mt-2 space-y-1">
+                                                              <p className="text-[10px] uppercase font-bold opacity-70">Proxy Occupants</p>
+                                                              {pendingOccupants.length > 0 ? pendingOccupants.map((occupant) => (
+                                                                <p key={occupant.id} className="text-[11px] opacity-85 leading-tight">
+                                                                  {occupant.fullName}
+                                                                  {(occupant.relationship || occupant.gender)
+                                                                    ? ` • ${[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}`
+                                                                    : ''}
+                                                                </p>
+                                                              )) : (
+                                                                <p className="text-[11px] opacity-70">Occupant details are still syncing.</p>
+                                                              )}
+                                                            </div>
+                                                          )}
                                                           <p className="text-xs opacity-80 font-medium mt-0.5">
-                                                            {daysUntil !== null ? `Tentative start: ${formatDate(pb.start_date)}` : 'Awaiting approval'}
+                                                            {daysUntil !== null ? `Move-in Date: ${formatDate(pb.start_date)}` : 'Move-in Date Awaiting Approval'}
                                                           </p>
                                                           <ReservationPolicyNotice policy={pb?.reservation_policy} compact />
                                                         </div>
@@ -864,6 +916,18 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
             const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
             const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
             const effectivePaymentStatus = booking.is_overdue || booking.isOverdue ? 'overdue' : booking.paymentStatus;
+            const resolvedBedCount = Math.max(1, toWholeNumber(booking?.bed_count ?? booking?.bedCount, 1));
+            const resolvedOccupantCount = Math.max(
+              1,
+              toWholeNumber(booking?.occupant_count ?? booking?.occupantCount, 0) || resolvedBedCount,
+            );
+            const resolvedRoomCapacity = toWholeNumber(room?.capacity ?? room?.raw_capacity, 0);
+            const occupancyLabel = resolvedRoomCapacity > 0 ? 'Occupancy' : 'Occupants';
+            const occupancyValue = resolvedRoomCapacity > 0
+              ? `${resolvedOccupantCount}/${resolvedRoomCapacity}`
+              : `${resolvedOccupantCount}`;
+            const occupantProfiles = resolveOccupantProfiles(booking);
+            const isProxyBooking = String(booking?.booking_mode || booking?.bookingMode || '').toLowerCase() === 'proxy';
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -975,8 +1039,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       </div>
                     </div>
                     <div className="p-6">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <StatCard label="Room" value={room.roomNumber} icon={DoorOpen} />
+                        <StatCard label={occupancyLabel} value={occupancyValue} icon={Users} />
                         <StatCard 
                           label={booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'} 
                           value={`₱${(booking.unit_price || booking.monthlyRent || 0).toLocaleString()}`} 
@@ -1015,6 +1080,28 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           icon={CreditCard} 
                         />
                       </div>
+
+                      {(isProxyBooking || occupantProfiles.length > 0) && (
+                        <div className="mt-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-4">
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Proxy Occupants</p>
+                          {occupantProfiles.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {occupantProfiles.map((occupant) => (
+                                <p key={occupant.id} className="text-sm text-gray-700 dark:text-gray-300 leading-tight">
+                                  <span className="font-semibold text-gray-900 dark:text-white">{occupant.fullName}</span>
+                                  {(occupant.relationship || occupant.gender)
+                                    ? ` • ${[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}`
+                                    : ''}
+                                  {occupant.contact ? ` • ${occupant.contact}` : ''}
+                                </p>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-amber-700 dark:text-amber-300">Occupant details are still syncing for this proxy booking.</p>
+                          )}
+                        </div>
+                      )}
+
                       <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
@@ -2263,12 +2350,45 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
   const [roomsMessage, setRoomsMessage] = useState('');
   const [leaseDurationPreference, setLeaseDurationPreference] = useState('keep_current');
   const [newEndDate, setNewEndDate] = useState('');
+  const [transferPreview, setTransferPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [formData, setFormData] = useState({
     requested_room_id: '',
     reason: '',
     booking_id: booking?.id || '',
     property_id: property?.id || '',
   });
+
+  useEffect(() => {
+    if (!formData.requested_room_id || !booking?.id) {
+      setTransferPreview(null);
+      return;
+    }
+    
+    let cancelled = false;
+    const fetchPreview = async () => {
+      setLoadingPreview(true);
+      try {
+        const res = await api.get('/tenant/transfers/preview', {
+          params: {
+            booking_id: booking.id,
+            requested_room_id: formData.requested_room_id,
+          }
+        });
+        if (!cancelled) {
+          setTransferPreview(res.data?.success ? res.data.data : null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch transfer preview', err);
+        if (!cancelled) setTransferPreview(null);
+      } finally {
+        if (!cancelled) setLoadingPreview(false);
+      }
+    };
+    
+    fetchPreview();
+    return () => { cancelled = true; };
+  }, [formData.requested_room_id, booking?.id]);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -2351,12 +2471,93 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
               >
                 <option value="">{loadingRooms ? 'Loading available rooms...' : 'Select a Room'}</option>
                 {availableRooms.map(r => (
-                  <option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>
+                  <option key={r.id} value={r.id}>
+                    Room {r.room_number} ({r.type_label}) — ₱{(r.monthly_rate ?? r.price ?? 0).toLocaleString()}/mo
+                  </option>
                 ))}
               </select>
               {availableRooms.length === 0 && !loadingRooms && (
                 <p className="text-[10px] text-red-500 mt-2 font-bold italic">{roomsMessage || 'No eligible transfer rooms are available in this property right now.'}</p>
               )}
+            </div>
+
+            {/* Financial Impact Preview */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">💰 Financial Impact Preview</label>
+                <div className="group relative">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-500 cursor-help" />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    Rent is prorated based on a standard 30-day month: (Monthly Rent ÷ 30) × remaining days. Any transfer fee is deducted from your unused credit.
+                  </div>
+                </div>
+              </div>
+
+              {loadingPreview ? (
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-center">
+                  <RefreshCw className="w-4 h-4 animate-spin mx-auto text-amber-500 mb-2" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Calculating impact...</p>
+                </div>
+              ) : transferPreview ? (
+                <div className={`rounded-xl border overflow-hidden transition-all ${
+                  transferPreview.suggested_adjustment > 0 ? 'border-amber-200 dark:border-amber-800' : 
+                  transferPreview.suggested_adjustment < 0 ? 'border-green-200 dark:border-green-800' : 'border-gray-200 dark:border-gray-700'
+                }`}>
+                  <div className="grid grid-cols-2 bg-gray-50 dark:bg-gray-700/50 divide-x divide-gray-200 dark:divide-gray-600">
+                    <div className="p-3 text-center">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">Current Rate</p>
+                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300">₱{transferPreview.current_room_rate.toLocaleString()}/mo</p>
+                    </div>
+                    <div className="p-3 text-center">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">New Rate</p>
+                      <p className="text-sm font-bold text-amber-600 dark:text-amber-400">₱{transferPreview.new_room_rate.toLocaleString()}/mo</p>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 space-y-2 bg-white dark:bg-gray-800">
+                    {!transferPreview.has_payment_this_period ? (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">ℹ️ No payment found for current period.</p>
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">Next invoice will reflect the new room rate. No immediate charge.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Remaining days this cycle</span>
+                          <span className="font-bold">{transferPreview.remaining_days} days</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Old room unused value</span>
+                          <span className="font-bold">₱{transferPreview.old_room_unused_value.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">New room cost (rem. days)</span>
+                          <span className="font-bold">₱{transferPreview.new_room_cost.toLocaleString()}</span>
+                        </div>
+                        
+                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                          <span className="text-xs font-bold uppercase text-gray-400">Net Adjustment</span>
+                          <div className="text-right">
+                            <p className={`text-base font-black ${
+                              transferPreview.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'
+                            }`}>
+                              {transferPreview.suggested_adjustment > 0 ? '+' : ''}
+                              ₱{Math.abs(transferPreview.suggested_adjustment).toLocaleString()}
+                            </p>
+                            <p className="text-[10px] text-gray-400 font-medium">
+                              {transferPreview.suggested_adjustment > 0 ? 'Additional charge' : 'Credit to next month'}
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : formData.requested_room_id ? (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl text-center">
+                  <p className="text-xs text-red-600 dark:text-red-400">Unable to calculate preview for this room.</p>
+                </div>
+              ) : null}
             </div>
 
             <div>

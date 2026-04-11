@@ -39,6 +39,7 @@ export default function NotificationPreferences() {
   const { theme } = useTheme();
   const queryClient = useQueryClient();
   const settingsStyles = React.useMemo(() => getSettingsStyles(theme), [theme]);
+  const showAlert = Alert.alert;
 
   const [prefs, setPrefs] = useState(DEFAULT_PREFS);
 
@@ -90,7 +91,7 @@ export default function NotificationPreferences() {
       }
     } catch (e) {
       console.warn('Save pref error', e);
-      Alert.alert("Error", "Failed to save preferences to the server.");
+      showAlert("Error", "Failed to save preferences to the server.");
       // Rollback on fail
       setPrefs(previousPrefs);
       queryClient.setQueryData(tenantQueryKeys.notificationPreferences(), previousPrefs);

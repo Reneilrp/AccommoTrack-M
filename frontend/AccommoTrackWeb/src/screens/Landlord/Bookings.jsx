@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw, CalendarDays, Calculator } from 'lucide-react';
+import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw, CalendarDays, Calculator, Users } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
@@ -600,6 +600,47 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     }
   };
 
+  const resolveBedCount = (booking) => {
+    const value = Number(booking?.bedCount ?? booking?.bed_count ?? 1);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
+  };
+
+  const resolveOccupantCount = (booking) => {
+    const explicit = Number(booking?.occupantCount ?? booking?.occupant_count ?? 0);
+    if (Number.isFinite(explicit) && explicit > 0) {
+      return Math.floor(explicit);
+    }
+
+    const loadedOccupantsCount = Array.isArray(booking?.occupants) ? booking.occupants.length : 0;
+    if (loadedOccupantsCount > 0) {
+      return loadedOccupantsCount;
+    }
+
+    const mode = String(booking?.bookingMode ?? booking?.booking_mode ?? 'normal').toLowerCase();
+    return mode === 'proxy' ? resolveBedCount(booking) : 1;
+  };
+
+  const resolveRoomCapacity = (booking) => {
+    const value = Number(booking?.room?.capacity ?? booking?.room_capacity ?? booking?.capacity ?? 0);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : null;
+  };
+
+  const getBookingModeLabel = (booking) => {
+    const mode = String(booking?.bookingMode ?? booking?.booking_mode ?? 'normal').toLowerCase();
+    return mode === 'proxy' ? 'Proxy' : 'Normal';
+  };
+
+  const getOccupancySummary = (booking) => {
+    const occupants = resolveOccupantCount(booking);
+    const capacity = resolveRoomCapacity(booking);
+
+    if (capacity) {
+      return `${occupants}/${capacity} occupants`;
+    }
+
+    return `${occupants} occupant${occupants === 1 ? '' : 's'}`;
+  };
+
   return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">
@@ -761,6 +802,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         <td className="px-6 py-4">
                           <p className="font-bold text-gray-900 dark:text-white">{b.propertyTitle}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Room {b.roomNumber}</p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-1">
+                            Mode: {getBookingModeLabel(b)} · Beds: {resolveBedCount(b)} · {getOccupancySummary(b)}
+                          </p>
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
                           <p>{formatDate(b.checkIn)}</p>
@@ -827,7 +871,49 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Room Details</p>
                   <p className="font-semibold text-gray-900 dark:text-white">Room {selectedBooking.roomNumber} ({selectedBooking.roomType})</p>
                 </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Booking Mode</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">{getBookingModeLabel(selectedBooking)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Beds Booked</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">{resolveBedCount(selectedBooking)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Occupancy</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">{getOccupancySummary(selectedBooking)}</p>
+                </div>
               </div>
+
+              {(getBookingModeLabel(selectedBooking) === 'Proxy' || Array.isArray(selectedBooking.occupants)) && (
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Users className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Proxy Occupants</p>
+                  </div>
+                  {Array.isArray(selectedBooking.occupants) && selectedBooking.occupants.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedBooking.occupants.map((occupant, index) => (
+                        <div key={occupant.id || `${occupant.full_name}-${index}`} className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-gray-50/70 dark:bg-gray-700/40">
+                          <p className="font-semibold text-gray-900 dark:text-white">{occupant.full_name || `Occupant ${index + 1}`}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                            {occupant.relationship_to_booker || 'Relationship not provided'} · {occupant.gender || 'Gender not provided'}
+                          </p>
+                          {(occupant.phone || occupant.email) && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {[occupant.phone, occupant.email].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                      No occupant profiles are attached yet for this proxy booking.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {(selectedBooking.receipt_image_path || selectedBooking.reference_number || selectedBooking.move_in_date) && (
                 <div className="pt-6 border-t border-gray-100 dark:border-gray-700">

@@ -47,6 +47,7 @@ export default function RoomDetailsModal({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [promoOffer, setPromoOffer] = useState(null);
   const [duration, setDuration] = useState(null);
   const [_pricingBreakdown, setPricingPreview] = useState(null);
   const [loadingPricing, setLoadingPricing] = useState(false);
@@ -333,6 +334,7 @@ export default function RoomDetailsModal({
     const fetchPricing = async () => {
       if (!room?.id || !startDate) {
         setTotalPrice(0);
+        setPromoOffer(null);
         setDuration(null);
         return;
       }
@@ -349,6 +351,7 @@ export default function RoomDetailsModal({
 
       if (!pricingEndDate || new Date(pricingEndDate) <= start) {
         setTotalPrice(0);
+        setPromoOffer(null);
         setDuration(null);
         return;
       }
@@ -356,13 +359,20 @@ export default function RoomDetailsModal({
       setLoadingPricing(true);
       try {
         const res = await api.get(`/rooms/${room.id}/pricing`, {
-          params: { start: startDate, end: pricingEndDate, bed_count: bedCount }
+          params: {
+            start: startDate,
+            end: pricingEndDate,
+            bed_count: bedCount,
+            contract_mode: isDailyContract ? "daily" : "monthly",
+          },
         });
-        
-        setTotalPrice(res.data.total);
+
+        const baseTotal = Number(res.data.base_total ?? res.data.total ?? 0);
+        setTotalPrice(baseTotal);
+        setPromoOffer(res.data.promo_offer || null);
         setPricingPreview(res.data.breakdown);
         setDuration({
-          days: res.data.days,
+        days: res.data.days || 0,
           months: res.data.breakdown?.months || 0,
           extraDays: res.data.breakdown?.remaining_days || 0
         });
@@ -370,6 +380,7 @@ export default function RoomDetailsModal({
         console.error('Pricing calculation failed', err);
         // Fallback to 0 or error state
         setTotalPrice(0);
+        setPromoOffer(null);
       } finally {
         setLoadingPricing(false);
       }
@@ -410,6 +421,44 @@ export default function RoomDetailsModal({
       setBedCount(maxBookableBeds);
     }
   }, [bedCount, maxBookableBeds]);
+
+  useEffect(() => {
+    if (isDailyContract) {
+      setPaymentPlan("full");
+      return;
+    }
+
+    const hasCheckout = Boolean(endDate) && new Date(endDate) > new Date(startDate);
+    if (!hasCheckout) {
+      setPaymentPlan("monthly");
+      return;
+    }
+
+    const showSelector = Boolean(
+      duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0)),
+    );
+    if (!showSelector) {
+      setPaymentPlan("full");
+      return;
+    }
+
+    const promoEligible = Boolean(promoOffer);
+    if (promoEligible && !["monthly", "promo_one_time"].includes(paymentPlan)) {
+      setPaymentPlan("monthly");
+      return;
+    }
+
+    if (!promoEligible && !["monthly", "full"].includes(paymentPlan)) {
+      setPaymentPlan("full");
+    }
+  }, [
+    isDailyContract,
+    endDate,
+    startDate,
+    duration,
+    promoOffer,
+    paymentPlan,
+  ]);
 
   if (!room) return null;
 
@@ -591,10 +640,19 @@ export default function RoomDetailsModal({
     // Check if selector should be shown
     const isMonthlyBilling = !isDailyContract;
     const showSelector = isMonthlyBilling && hasCheckout && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+    const promoEligible = Boolean(promoOffer);
+
+    let resolvedPaymentPlan = paymentPlan;
+    if (promoEligible && !['monthly', 'promo_one_time'].includes(resolvedPaymentPlan)) {
+      resolvedPaymentPlan = 'monthly';
+    }
+    if (!promoEligible && !['monthly', 'full'].includes(resolvedPaymentPlan)) {
+      resolvedPaymentPlan = 'full';
+    }
 
     const finalPaymentPlan = isDailyContract
       ? 'full'
-      : (hasCheckout ? (showSelector ? paymentPlan : 'full') : 'monthly');
+      : (hasCheckout ? (showSelector ? resolvedPaymentPlan : 'full') : 'monthly');
 
     // Submit booking to server (use shared /bookings endpoint)
     setIsSubmitting(true);
@@ -745,6 +803,18 @@ export default function RoomDetailsModal({
   const isRoomAvailable = room.is_available !== undefined ? room.is_available : (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
 
   const canBook = displayStatus === "available" && isRoomAvailable && isGenderCompatible;
+  const baseTotalPrice = Number(totalPrice || 0);
+  const promoDiscountedTotal = Number(promoOffer?.discounted_total ?? baseTotalPrice);
+  const hasPromoOffer = Boolean(
+    promoOffer && Number.isFinite(promoDiscountedTotal) && promoDiscountedTotal < baseTotalPrice,
+  );
+  const promoDiscountAmount = hasPromoOffer
+    ? Math.max(0, baseTotalPrice - promoDiscountedTotal)
+    : 0;
+  const selectedPlanTotal =
+    paymentPlan === "promo_one_time" && hasPromoOffer
+      ? promoDiscountedTotal
+      : baseTotalPrice;
 
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1413,10 +1483,15 @@ export default function RoomDetailsModal({
                           {loadingPricing ? (
                             <span className="animate-pulse opacity-50">Calculating...</span>
                           ) : (
-                            `₱${totalPrice.toLocaleString()}`
+                            `₱${selectedPlanTotal.toLocaleString()}`
                           )}
                         </span>
                       </div>
+                      {!loadingPricing && hasPromoOffer && paymentPlan === "promo_one_time" && (
+                        <p className="text-xs text-green-700 dark:text-green-400 text-right">
+                          Promo applied. You save ₱{promoDiscountAmount.toLocaleString()} on this stay.
+                        </p>
+                      )}
                       {/* Reservation Fee UI Details */}
                       {isReservationFeeRequired && (
                         <div className="mt-4 p-4 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
@@ -1444,6 +1519,8 @@ export default function RoomDetailsModal({
                     const isMonthlyBilling = !isDailyContract;
                     const hasCheckoutDate = Boolean(endDate) && new Date(endDate) > new Date(startDate);
                     const showPaymentPlanSelector = isMonthlyBilling && hasCheckoutDate && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+                    const promoLabel = promoOffer?.term_label || (promoOffer?.term_months ? `${promoOffer.term_months} months` : "long-term term");
+                    const promoPercent = Number(promoOffer?.discount_percent || 0);
 
                     if (isMonthlyBilling && !hasCheckoutDate) {
                       return (
@@ -1477,23 +1554,46 @@ export default function RoomDetailsModal({
                               <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Pay rent at the beginning of each billing cycle.</span>
                             </div>
                           </label>
-                          
-                          <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'full' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
-                            <div className="pt-0.5">
-                              <input 
-                                type="radio" 
-                                name="payment_plan" 
-                                value="full" 
-                                checked={paymentPlan === 'full'} 
-                                onChange={() => setPaymentPlan('full')} 
-                                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
-                              />
-                            </div>
-                            <div>
-                              <span className="block font-bold text-gray-900 dark:text-gray-100">Full Duration Upfront</span>
-                              <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Pay the entire lease amount at once.</span>
-                            </div>
-                          </label>
+
+                          {hasPromoOffer ? (
+                            <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'promo_one_time' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
+                              <div className="pt-0.5">
+                                <input
+                                  type="radio"
+                                  name="payment_plan"
+                                  value="promo_one_time"
+                                  checked={paymentPlan === 'promo_one_time'}
+                                  onChange={() => setPaymentPlan('promo_one_time')}
+                                  className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+                                />
+                              </div>
+                              <div>
+                                <span className="block font-bold text-gray-900 dark:text-gray-100">
+                                  Pay One-Time Promo ({promoPercent}% off)
+                                </span>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                                  Exact {promoLabel} term only. Pay ₱{promoDiscountedTotal.toLocaleString()} upfront and save ₱{promoDiscountAmount.toLocaleString()}.
+                                </span>
+                              </div>
+                            </label>
+                          ) : (
+                            <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'full' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
+                              <div className="pt-0.5">
+                                <input
+                                  type="radio"
+                                  name="payment_plan"
+                                  value="full"
+                                  checked={paymentPlan === 'full'}
+                                  onChange={() => setPaymentPlan('full')}
+                                  className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+                                />
+                              </div>
+                              <div>
+                                <span className="block font-bold text-gray-900 dark:text-gray-100">Full Duration Upfront</span>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Pay the entire lease amount at once.</span>
+                              </div>
+                            </label>
+                          )}
                         </div>
                       </div>
                     );

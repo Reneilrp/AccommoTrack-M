@@ -201,6 +201,23 @@ class TenantDashboardController extends Controller
 
                         return $price * ((float) ($a->pivot->quantity ?? 1));
                     });
+                $resolvedBedCount = max(1, (int) ($booking->bed_count ?? 1));
+                $resolvedOccupantCount = (int) ($booking->occupants_count ?? 0);
+                if ($resolvedOccupantCount <= 0 && $booking->booking_mode === 'proxy') {
+                    $resolvedOccupantCount = $resolvedBedCount;
+                }
+                $roomCapacity = (int) ($booking->room->capacity ?? 0);
+                $occupants = $booking->occupants->map(function ($occupant) {
+                    return [
+                        'id' => $occupant->id,
+                        'full_name' => $occupant->full_name,
+                        'date_of_birth' => $occupant->date_of_birth,
+                        'gender' => $occupant->gender,
+                        'relationship_to_booker' => $occupant->relationship_to_booker,
+                        'phone' => $occupant->phone,
+                        'email' => $occupant->email,
+                    ];
+                })->values();
 
                 // For multiple stays, we might want to fetch available addons per property
                 // But for now let's use the standard service call which finds the "first" active booking context
@@ -216,6 +233,13 @@ class TenantDashboardController extends Controller
                         'status' => $booking->status,
                         'startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
                         'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                        'bookingMode' => $booking->booking_mode,
+                        'booking_mode' => $booking->booking_mode,
+                        'bedCount' => $resolvedBedCount,
+                        'bed_count' => $resolvedBedCount,
+                        'occupantCount' => $resolvedOccupantCount,
+                        'occupant_count' => $resolvedOccupantCount,
+                        'occupants' => $occupants,
                         'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $booking->monthly_rent,
                         'total_months' => $booking->total_months, 'monthly_rent' => (float) $booking->monthly_rent,
                         'billing_policy' => $booking->room->billing_policy ?? 'monthly',
@@ -240,6 +264,7 @@ class TenantDashboardController extends Controller
                         'id' => $booking->room->id,
                         'roomNumber' => $booking->room->room_number,
                         'room_number' => $booking->room->room_number,
+                        'capacity' => $roomCapacity,
                         'roomType' => $booking->room->room_type ?? null,
                         'room_type' => $booking->room->room_type ?? null,
                         'require_1month_advance' => $booking->room->requiresAdvance(),

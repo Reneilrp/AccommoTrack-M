@@ -14,6 +14,16 @@ class BookingResource extends JsonResource
     public function toArray(Request $request): array
     {
         $reservationPolicy = $this->buildReservationPolicy();
+        $resolvedBedCount = max(1, (int) ($this->bed_count ?? 1));
+        $resolvedOccupantCount = (int) ($this->occupants_count ?? 0);
+
+        if ($resolvedOccupantCount <= 0 && $this->relationLoaded('occupants')) {
+            $resolvedOccupantCount = (int) $this->occupants->count();
+        }
+
+        if ($resolvedOccupantCount <= 0 && $this->booking_mode === 'proxy') {
+            $resolvedOccupantCount = $resolvedBedCount;
+        }
 
         return [
             'id' => $this->id,
@@ -34,6 +44,10 @@ class BookingResource extends JsonResource
             'tenant_id' => $this->tenant_id,
             'bookingMode' => $this->booking_mode,
             'booking_mode' => $this->booking_mode,
+            'bedCount' => $resolvedBedCount,
+            'bed_count' => $resolvedBedCount,
+            'occupantCount' => $resolvedOccupantCount,
+            'occupant_count' => $resolvedOccupantCount,
             'bookingGroupReference' => $this->booking_group_reference,
             'booking_group_reference' => $this->booking_group_reference,
             'landlord_id' => $this->landlord_id,
@@ -84,6 +98,16 @@ class BookingResource extends JsonResource
                 'rating' => $this->review->rating,
                 'comment' => $this->review->comment,
             ] : null),
+            'occupants' => $this->whenLoaded('occupants', fn () => $this->occupants->map(fn ($occupant) => [
+                'id' => $occupant->id,
+                'full_name' => $occupant->full_name,
+                'date_of_birth' => $occupant->date_of_birth,
+                'gender' => $occupant->gender,
+                'relationship_to_booker' => $occupant->relationship_to_booker,
+                'phone' => $occupant->phone,
+                'email' => $occupant->email,
+                'notes' => $occupant->notes,
+            ])->values()),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 
@@ -114,6 +138,7 @@ class BookingResource extends JsonResource
                 'room_number' => $this->room->room_number,
                 'name' => $this->room->room_number,
                 'room_type' => $this->room->room_type,
+                'capacity' => (int) ($this->room->capacity ?? 0),
                 'floor' => $this->room->floor,
                 'status' => $this->room->status,
                 'billing_policy' => $this->room->billing_policy ?? 'monthly',

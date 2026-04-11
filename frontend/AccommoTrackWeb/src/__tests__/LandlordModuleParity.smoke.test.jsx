@@ -53,6 +53,17 @@ describe('Web landlord parity module smoke coverage', () => {
     ]);
   });
 
+  it('keeps AddProperty staged verification submit messaging', () => {
+    const source = readSource(addPropertyPath);
+
+    expectSourceToContain(source, [
+      "const LANDLORD_ACCESS_STATUSES = ['approved', 'partial_verified', 'pending_documents_review'];",
+      'setVerificationStatus(status || null);',
+      'Submit for approval and publishing unlock after partial verification or full approval.',
+      'Complete partial verification to submit',
+    ]);
+  });
+
   it('keeps DormProfileSettings reservation/GCash/transfer payload contracts', () => {
     const source = readSource(dormProfileSettingsPath);
 
@@ -80,6 +91,16 @@ describe('Web landlord parity module smoke coverage', () => {
       'transfer_fee: data.transfer_fee || 0',
       'reservation_fee_amount: dormData.require_reservation_fee ? dormData.reservation_fee_amount : 0',
       'transfer_fee: parseFloat(dormData.transfer_fee) || 0',
+    ]);
+  });
+
+  it('keeps DormProfileSettings draft submit backend error surfacing', () => {
+    const source = readSource(dormProfileSettingsPath);
+
+    expectSourceToContain(source, [
+      'const backendMessage = err?.response?.data?.message;',
+      'const message = backendMessage || err.message || "Failed to submit draft";',
+      'toast.error(message);',
     ]);
   });
 

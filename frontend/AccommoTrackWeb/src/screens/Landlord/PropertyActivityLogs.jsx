@@ -32,15 +32,56 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
 
   if (!isOpen) return null;
 
+  const formatLogTimestamp = (log) => {
+    const raw = log.created_at || log.time || log.timestamp;
+    if (!raw) return '—';
+
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return String(raw);
+
+    return date.toLocaleString('en-PH', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const resolveStatusColor = (log) => {
+    const fromColor = String(log.color || '').toLowerCase();
+    if (fromColor === 'green') return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+    if (fromColor === 'yellow') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+    if (fromColor === 'red') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+    if (fromColor === 'blue') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+
+    const status = String(log.status || '').toLowerCase();
+    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'verified'].includes(status)) {
+      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+    }
+    if (['pending', 'pending_offline', 'partial', 'partial-completed', 'processing', 'in_progress'].includes(status)) {
+      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+    }
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) {
+      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+    }
+
+    return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  };
+
+  const formatStatus = (status) => {
+    if (!status) return '';
+    return String(status)
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   const matchesFilter = (log) => {
-    // only include logs that relate to this property when propertyId/propertyTitle is provided
-    if (propertyId || propertyTitle) {
-      const desc = (log.description || log.details || log.action || '').toString().toLowerCase();
-      const propTitleLower = (propertyTitle || '').toString().toLowerCase();
-      const propIdMatch = Boolean(log.property_id || log.propertyId || log.property);
-      const propIdMatches = propIdMatch ? (String(log.property_id || log.propertyId || log.property).indexOf(String(propertyId)) !== -1) : false;
-      const titleMatches = propTitleLower ? desc.indexOf(propTitleLower) !== -1 : false;
-      if (!(propIdMatches || titleMatches)) return false;
+    // Backend already applies property filtering. Keep only strict-id mismatch checks here.
+    if (propertyId) {
+      const explicitPropertyId = log.property_id ?? log.propertyId ?? null;
+      if (explicitPropertyId !== null && Number(explicitPropertyId) !== Number(propertyId)) return false;
     }
 
     // Category filter
@@ -148,16 +189,34 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
                 <li key={i} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-green-200 dark:hover:border-green-800 transition-colors shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-gray-800 dark:text-gray-200 font-semibold leading-tight">{a.title || a.action || a.type || 'Activity'}</div>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        {a.type ? (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+                            {a.type}
+                          </span>
+                        ) : null}
+                        <div className="text-sm text-gray-800 dark:text-gray-200 font-bold leading-tight">{a.title || a.action || a.type || 'Activity'}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-500 uppercase bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 rounded">
                           {a.by || a.user || a.actor || 'System'}
                         </span>
                         <span className="text-[10px] text-gray-500 dark:text-gray-500">
-                          {a.created_at || a.time || ''}
+                          {formatLogTimestamp(a)}
                         </span>
                       </div>
-                      {a.details && <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic border-l-2 border-gray-200 dark:border-gray-700 pl-4">{a.details}</div>}
+                      {(a.description || a.details) ? (
+                        <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                          {a.description || a.details}
+                        </div>
+                      ) : null}
+                      {a.status ? (
+                        <div className="mt-2">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${resolveStatusColor(a)}`}>
+                            {formatStatus(a.status)}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                     {a.amount_cents || a.amount ? (
                       <div className="text-sm font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-2 rounded-lg border border-green-100 dark:border-green-900/30">

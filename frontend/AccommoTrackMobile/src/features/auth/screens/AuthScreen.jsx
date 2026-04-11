@@ -27,6 +27,7 @@ import ForgotPasswordModal from '../../../components/ForgotPasswordModal.jsx';
 import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { useAuthStore } from '../../../stores/auth/authStore.js';
+import { useUIState } from '../../../contexts/UIStateContext.jsx';
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
 
@@ -150,6 +151,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
   const [loading, setLoading] = useState(false);
   const [idTypes, setIdTypes] = useState([]);
   const styles = getStyles(theme);
+  const { showAlert } = useUIState();
   const [form, setForm] = useState({
     validIdType: '',
     validIdOther: '',
@@ -180,7 +182,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
 
   const handleSubmit = async () => {
     if (!form.validIdType || !form.validId || !form.permit) {
-      Alert.alert('Error', 'Please fill in all fields and upload both documents.');
+      showAlert('Error', 'Please fill in all fields and upload both documents.');
       return;
     }
 
@@ -219,13 +221,13 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'Documents resubmitted successfully! Please wait for admin review.');
+        showAlert('Success', 'Documents resubmitted successfully! Please wait for admin review.');
         onClose();
       } else {
-        Alert.alert('Error', data.message || 'Failed to resubmit documents.');
+        showAlert('Error', data.message || 'Failed to resubmit documents.');
       }
     } catch (err) {
-      Alert.alert('Error', 'An error occurred while resubmitting documents.');
+      showAlert('Error', 'An error occurred while resubmitting documents.');
     } finally {
       setLoading(false);
     }
@@ -669,6 +671,7 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme, isDarkMode } = useTheme();
+  const { showAlert } = useUIState();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const contentWrapStyle = React.useMemo(
     () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 760, alignSelf: 'center' } : null),
@@ -688,6 +691,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showAuthMenu, setShowAuthMenu] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
@@ -1136,6 +1140,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
 
   const toggleScreen = () => {
     setIsLogin(!isLogin);
+    setShowAuthMenu(false);
     setSignupStep(1);
     setFormData({ firstName: '', middleName: '', lastName: '', phone: '', email: '', password: '', confirmPassword: '', role: 'tenant', dateOfBirth: null, gender: '' });
     setAgreedToTerms(false);
@@ -1215,6 +1220,40 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             />
           </View>
           <View style={styles.card}>
+            {isLogin && showAuthMenu && (
+              <TouchableOpacity
+                style={styles.authMenuBackdrop}
+                activeOpacity={1}
+                onPress={() => setShowAuthMenu(false)}
+              />
+            )}
+
+            {isLogin && (
+              <View style={styles.authMenuAnchor}>
+                <TouchableOpacity
+                  style={styles.authMenuButton}
+                  onPress={() => setShowAuthMenu((prev) => !prev)}
+                  accessibilityLabel="Open authentication menu"
+                >
+                  <Ionicons name="ellipsis-vertical" size={18} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+
+                {showAuthMenu && (
+                  <View style={styles.authMenuDropdown}>
+                    <TouchableOpacity
+                      style={styles.authMenuItem}
+                      onPress={() => {
+                        setShowAuthMenu(false);
+                        setShowClaimModal(true);
+                      }}
+                    >
+                      <Text style={styles.authMenuItemText}>Claim Existing Account</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>
@@ -1302,12 +1341,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                 </Text>
               </TouchableOpacity>
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <TouchableOpacity onPress={() => setShowClaimModal(true)}>
-                  <Text style={{ fontSize: 13, color: theme.colors.primary, fontWeight: '600', opacity: 0.85 }}>
-                    Claim Existing Account
-                  </Text>
-                </TouchableOpacity>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
                 <TouchableOpacity onPress={() => setShowForgotPasswordModal(true)}>
                   <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                 </TouchableOpacity>

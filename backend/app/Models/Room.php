@@ -88,6 +88,7 @@ class Room extends Model
         'current_tenant_id',
         'description',
         'rules',
+        'duration_pricing',
     ];
 
     protected $casts = [
@@ -102,6 +103,7 @@ class Room extends Model
         // We check for null explicitly in requiresAdvance() before casting.
         'current_tenant_id' => 'integer',
         'rules' => 'array',
+        'duration_pricing' => 'array',
     ];
 
     /**
@@ -799,6 +801,103 @@ class Room extends Model
                 'days_charge' => 0.00,
             ],
             'method' => 'monthly_30day_fixed',
+        ];
+    }
+
+    /**
+     * @return array<string, array{discount_type: string, discount_value: float}>
+     */
+    public static function sanitizeDurationPricing(mixed $rawPricing): array
+    {
+        if (! is_array($rawPricing)) {
+            return [];
+        }
+
+        $allowedTerms = [3, 6, 9, 12];
+        $normalized = [];
+
+        foreach ($allowedTerms as $term) {
+            $key = (string) $term;
+            $entry = $rawPricing[$key] ?? $rawPricing[$term] ?? null;
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $discountType = strtolower(trim((string) ($entry['discount_type'] ?? '')));
+            $discountValue = $entry['discount_value'] ?? null;
+
+            if (! in_array($discountType, ['percent', 'fixed'], true) || ! is_numeric($discountValue)) {
+                continue;
+            }
+
+            $normalizedValue = (float) $discountValue;
+            if ($normalizedValue <= 0) {
+                continue;
+            }
+
+            if ($discountType === 'percent') {
+                $normalizedValue = min(100.0, $normalizedValue);
+                if ($normalizedValue <= 0) {
+                    continue;
+                }
+            }
+
+            $normalized[$key] = [
+                'discount_type' => $discountType,
+                'discount_value' => round($normalizedValue, 2),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return array<string, array{discount_type: string, discount_value: float}>
+     */
+    public function normalizedDurationPricing(): array
+    {
+        return self::sanitizeDurationPricing($this->duration_pricing);
+    }
+
+    /**
+     * @return array{discount_type: string, discount_value: float}|null
+     */
+    public function getDurationPricingForTerm(int $months): ?array
+    {
+        $pricing = $this->normalizedDurationPricing();
+        $key = (string) $months;
+
+        return $pricing[$key] ?? null;
+    }
+
+    /**
+     * @return array{months: int, discount_type: string, discount_value: float, discount_amount: float, discounted_total: float}|null
+     */
+    public function calculateDurationDiscount(float $baseAmount, int $months): ?array
+    {
+        $promo = $this->getDurationPricingForTerm($months);
+        if (! $promo) {
+            return null;
+        }
+
+        $baseTotal = max(0.0, round($baseAmount, 2));
+        if ($baseTotal <= 0) {
+            return null;
+        }
+
+        $discountAmount = $promo['discount_type'] === 'percent'
+            ? round($baseTotal * ($promo['discount_value'] / 100), 2)
+            : round($promo['discount_value'], 2);
+
+        $discountAmount = min($discountAmount, $baseTotal);
+        $discountedTotal = max(0.0, round($baseTotal - $discountAmount, 2));
+
+        return [
+            'months' => $months,
+            'discount_type' => $promo['discount_type'],
+            'discount_value' => (float) $promo['discount_value'],
+            'discount_amount' => $discountAmount,
+            'discounted_total' => $discountedTotal,
         ];
     }
 

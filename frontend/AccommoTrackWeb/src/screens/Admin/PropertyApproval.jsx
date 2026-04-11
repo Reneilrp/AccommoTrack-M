@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Check, X, Ban, Pencil, Loader2 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
+
+const normalizePropertyStatus = (value) => (typeof value === 'string' ? value.toLowerCase() : '');
 
 const PropertyApproval = ({ isEmbedded = false }) => {
   const [properties, setProperties] = useState([]);
@@ -12,6 +15,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [selectedIds, setSelectedIds] = useState([]);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [confirmModalState, setConfirmModalState] = useState({ 
     isOpen: false, title: '', message: '', onConfirm: () => {}, requirePassword: false 
   });
@@ -42,28 +46,61 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   }, [statusFilter]);
 
   const toggleSelection = (id) => {
+    const targetProperty = properties.find((item) => item.id === id);
+    const targetStatus = normalizePropertyStatus(targetProperty?.current_status || targetProperty?.status || statusFilter);
+    if (targetStatus !== 'pending') return;
+
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
 
   const toggleAll = () => {
-    if (selectedIds.length === properties.length) {
+    const selectableIds = properties
+      .filter((property) => normalizePropertyStatus(property?.current_status || property?.status || statusFilter) === 'pending')
+      .map((property) => property.id);
+
+    if (selectedIds.length === selectableIds.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(properties.map(p => p.id));
+      setSelectedIds(selectableIds);
     }
+  };
+
+  const toggleEditMode = () => {
+    setIsEditMode((prev) => {
+      if (prev) {
+        setSelectedIds([]);
+      }
+      return !prev;
+    });
   };
 
   const runBulkAction = async (action) => {
     if (selectedIds.length === 0) return;
+
+    const selectableIds = properties
+      .filter((property) => normalizePropertyStatus(property?.current_status || property?.status || statusFilter) === 'pending')
+      .map((property) => property.id);
+    const pendingSelectedIds = selectedIds.filter((id) => selectableIds.includes(id));
+
+    if (pendingSelectedIds.length === 0) {
+      toast.error('Only pending properties can be selected.');
+      setSelectedIds([]);
+      return;
+    }
+
+    if (pendingSelectedIds.length !== selectedIds.length) {
+      setSelectedIds(pendingSelectedIds);
+    }
+
     setConfirmModalState({ isOpen: false });
     setActionLoading(`bulk:${action}`);
 
     try {
-      const res = await api.post(`/admin/properties/bulk-${action}`, { ids: selectedIds });
+      const res = await api.post(`/admin/properties/bulk-${action}`, { ids: pendingSelectedIds });
       toast.success(res.data?.message || `Bulk ${action} successful`);
-      setProperties(prev => prev.filter(p => !selectedIds.includes(p.id)));
+      setProperties(prev => prev.filter(p => !pendingSelectedIds.includes(p.id)));
       setSelectedIds([]);
     } catch (err) {
       console.error(`Failed to bulk ${action}`, err);
@@ -131,8 +168,10 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     setShowModal(true);
   };
 
-  const canBulkApprove = ['pending', 'maintenance', 'rejected'].includes(statusFilter);
-  const canBulkReject = ['pending', 'approved', 'maintenance'].includes(statusFilter);
+  const selectableProperties = properties.filter(
+    (property) => normalizePropertyStatus(property?.current_status || property?.status || statusFilter) === 'pending'
+  );
+  const bulkActionLoading = typeof actionLoading === 'string' && actionLoading.startsWith('bulk:');
 
   return (
     <div className={isEmbedded ? "w-full" : "w-full max-full px-6 py-6"}>
@@ -196,39 +235,54 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       </div>
 
       <div className="mt-4">
-        {selectedIds.length > 0 && (
-          <div className="mb-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
-            <span className="text-emerald-800 dark:text-emerald-300 font-medium">
-              {selectedIds.length} property{selectedIds.length > 1 ? 'ies' : ''} selected
-            </span>
-            <div className="flex gap-2">
-              {canBulkApprove && (
-                <button
-                  onClick={() => runBulkAction('approve')}
-                  disabled={actionLoading?.startsWith('bulk:')}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50"
-                >
-                  {actionLoading === 'bulk:approve' ? 'Approving...' : 'Approve Selected'}
-                </button>
-              )}
-              {canBulkReject && (
-                <button
-                  onClick={() => runBulkAction('reject')}
-                  disabled={actionLoading?.startsWith('bulk:')}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
-                >
-                  {actionLoading === 'bulk:reject' ? 'Rejecting...' : 'Reject Selected'}
-                </button>
-              )}
+        <div className="mb-4 flex items-center justify-end gap-2">
+          {isEditMode ? (
+            <>
+              <span className="mr-2 text-sm text-gray-600 dark:text-gray-300">
+                {selectedIds.length} selected
+              </span>
               <button
-                onClick={() => setSelectedIds([])}
-                className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-sm font-medium"
+                onClick={() => runBulkAction('approve')}
+                disabled={selectedIds.length === 0 || bulkActionLoading}
+                className="h-10 w-10 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Approve selected"
+                aria-label="Approve selected"
               >
-                Cancel Selection
+                {actionLoading === 'bulk:approve' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               </button>
-            </div>
-          </div>
-        )}
+              <button
+                onClick={() => {
+                  setSelectedIds([]);
+                  setIsEditMode(false);
+                }}
+                disabled={bulkActionLoading}
+                className="h-10 w-10 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Cancel"
+                aria-label="Cancel"
+              >
+                <Ban className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => runBulkAction('reject')}
+                disabled={selectedIds.length === 0 || bulkActionLoading}
+                className="h-10 w-10 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Reject selected"
+                aria-label="Reject selected"
+              >
+                {actionLoading === 'bulk:reject' ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={toggleEditMode}
+              className="h-10 w-10 inline-flex items-center justify-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              title="Edit"
+              aria-label="Edit"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
         {loading ? (
           <div className="text-center py-8">
@@ -249,14 +303,17 @@ const PropertyApproval = ({ isEmbedded = false }) => {
             <table className="w-full">
               <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wide">
                 <tr>
-                  <th className="px-6 py-4 text-left font-semibold w-12">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      checked={properties.length > 0 && selectedIds.length === properties.length}
-                      onChange={toggleAll}
-                    />
-                  </th>
+                  {isEditMode && (
+                    <th className="px-6 py-4 text-left font-semibold w-12">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        checked={selectableProperties.length > 0 && selectedIds.length === selectableProperties.length}
+                        disabled={selectableProperties.length === 0}
+                        onChange={toggleAll}
+                      />
+                    </th>
+                  )}
                   <th className="px-6 py-4 text-left font-semibold">Title</th>
                   <th className="px-6 py-4 text-left font-semibold">Property Type</th>
                   <th className="px-6 py-4 text-left font-semibold">Location</th>
@@ -266,16 +323,22 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-                {properties.map(prop => (
-                  <tr key={prop.id} className={`${selectedIds.includes(prop.id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'bg-white dark:bg-gray-800 even:bg-gray-50 dark:even:bg-gray-700/30'} hover:bg-emerald-50/40 dark:hover:bg-emerald-900/20 transition-colors`}>
-                    <td className="px-6 py-4">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                        checked={selectedIds.includes(prop.id)}
-                        onChange={() => toggleSelection(prop.id)}
-                      />
-                    </td>
+                {properties.map(prop => {
+                  const isSelectable = normalizePropertyStatus(prop.current_status || prop.status || statusFilter) === 'pending';
+
+                  return (
+                  <tr key={prop.id} className={`${isEditMode && selectedIds.includes(prop.id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'bg-white dark:bg-gray-800 even:bg-gray-50 dark:even:bg-gray-700/30'} hover:bg-emerald-50/40 dark:hover:bg-emerald-900/20 transition-colors`}>
+                    {isEditMode && (
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                          checked={selectedIds.includes(prop.id)}
+                          disabled={!isSelectable}
+                          onChange={() => toggleSelection(prop.id)}
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{prop.title || 'Untitled'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{prop.property_type || '—'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{prop.city || prop.full_address || '—'}</td>
@@ -316,7 +379,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

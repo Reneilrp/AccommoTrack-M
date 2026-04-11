@@ -5,6 +5,33 @@ import api from "../../utils/api";
 import PricingHelp from "../../components/Rooms/PricingHelp";
 import PriceRow from "../../components/Shared/PriceRow";
 
+const LONG_TERM_PROMO_TERMS = ["3", "6", "9", "12"];
+
+const createInitialDurationPricing = () =>
+  LONG_TERM_PROMO_TERMS.reduce((acc, term) => {
+    acc[term] = {
+      enabled: false,
+      discountType: "percent",
+      discountValue: "",
+    };
+    return acc;
+  }, {});
+
+const buildDurationPricingPayload = (durationPricing) =>
+  LONG_TERM_PROMO_TERMS.reduce((acc, term) => {
+    const entry = durationPricing?.[term];
+    if (!entry?.enabled) return acc;
+
+    const parsedValue = parseFloat(entry.discountValue);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) return acc;
+
+    acc[term] = {
+      discount_type: entry.discountType === "fixed" ? "fixed" : "percent",
+      discount_value: parsedValue,
+    };
+    return acc;
+  }, {});
+
 export default function AddRoomModal({
   isOpen,
   onClose,
@@ -42,6 +69,7 @@ export default function AddRoomModal({
     rules: [],
     amenities: [],
     images: [],
+    durationPricing: createInitialDurationPricing(),
   });
 
   // Bed spacer is controlled per-room via `formData.roomType`.
@@ -161,6 +189,7 @@ export default function AddRoomModal({
         rules: [],
         amenities: [],
         images: [],
+        durationPricing: createInitialDurationPricing(),
       });
       setPreviewImages([]);
       setError("");
@@ -311,6 +340,28 @@ export default function AddRoomModal({
       errors.images = "Maximum 10 images allowed";
     }
 
+    let hasDurationPricingErrors = false;
+    LONG_TERM_PROMO_TERMS.forEach((term) => {
+      const promo = data.durationPricing?.[term];
+      if (!promo?.enabled) return;
+
+      const parsedValue = parseFloat(promo.discountValue);
+      if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+        errors[`durationPricing_${term}`] = `Enter a valid discount for ${term}-month term.`;
+        hasDurationPricingErrors = true;
+        return;
+      }
+
+      if (promo.discountType === "percent" && parsedValue > 100) {
+        errors[`durationPricing_${term}`] = `Percentage discount for ${term}-month term cannot exceed 100.`;
+        hasDurationPricingErrors = true;
+      }
+    });
+
+    if (hasDurationPricingErrors) {
+      errors.durationPricing = "Fix long-term promo discounts before submitting.";
+    }
+
     // Determine first invalid field for focusing
     const priority = [
       "roomNumber",
@@ -318,6 +369,7 @@ export default function AddRoomModal({
       "dailyRate",
       "capacity",
       "minStayDays",
+      "durationPricing",
       "images",
       "pricingModel",
     ];
@@ -341,10 +393,18 @@ export default function AddRoomModal({
       capacity: "capacity",
       min_stay_days: "minStayDays",
       pricing_model: "pricingModel",
+      duration_pricing: "durationPricing",
       images: "images",
     };
     const result = {};
     Object.keys(serverErrors).forEach((key) => {
+      if (key.startsWith("duration_pricing.")) {
+        result.durationPricing = Array.isArray(serverErrors[key])
+          ? serverErrors[key].join(", ")
+          : String(serverErrors[key]);
+        return;
+      }
+
       const target =
         mapping[key] || key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
       const val = serverErrors[key];
@@ -372,6 +432,26 @@ export default function AddRoomModal({
         ? prev.rules.filter((r) => r !== rule)
         : [...prev.rules, rule],
     }));
+  };
+
+  const updateDurationPricing = (term, patch) => {
+    setFormData((prev) => ({
+      ...prev,
+      durationPricing: {
+        ...prev.durationPricing,
+        [term]: {
+          ...prev.durationPricing?.[term],
+          ...patch,
+        },
+      },
+    }));
+
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.durationPricing;
+      delete next[`durationPricing_${term}`];
+      return next;
+    });
   };
 
   const addNewRule = async () => {
@@ -559,6 +639,16 @@ export default function AddRoomModal({
       // Append rules (array style)
       (formData.rules || []).forEach((r) => payload.append("rules[]", r));
 
+      const durationPricingPayload = buildDurationPricingPayload(
+        formData.durationPricing,
+      );
+      if (Object.keys(durationPricingPayload).length > 0) {
+        payload.append(
+          "duration_pricing",
+          JSON.stringify(durationPricingPayload),
+        );
+      }
+
       // Append image files (use images[] array style)
       formData.images.forEach((file) => {
         payload.append("images[]", file);
@@ -569,7 +659,14 @@ export default function AddRoomModal({
 
       setFormData({
         roomNumber: "",
-        roomType: "single",
+        roomType: initialRoomType,
+        genderRestriction: (propertyGender === 'male' || propertyGender === 'boys')
+          ? 'male'
+          : (propertyGender === 'female' || propertyGender === 'girls')
+            ? 'female'
+            : isApartment
+              ? 'mixed'
+              : 'male',
         floor: "1",
         monthlyRate: "",
         // billing fields
@@ -583,6 +680,7 @@ export default function AddRoomModal({
         rules: [],
         amenities: [],
         images: [],
+        durationPricing: createInitialDurationPricing(),
       });
       setPreviewImages([]);
 
@@ -1043,6 +1141,92 @@ export default function AddRoomModal({
               open={showPricingHelp}
               onClose={() => setShowPricingHelp(false)}
             />
+
+            <div className="bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Long-Term Promo Discounts (Optional)
+                </h4>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                  Enable discounts for exact 3, 6, 9, or 12-month stays. Tenants only see enabled terms.
+                </p>
+                {fieldErrors.durationPricing && (
+                  <p className="text-red-600 text-xs mt-2 font-semibold">{fieldErrors.durationPricing}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {LONG_TERM_PROMO_TERMS.map((term) => {
+                  const promo = formData.durationPricing?.[term] || {
+                    enabled: false,
+                    discountType: "percent",
+                    discountValue: "",
+                  };
+
+                  return (
+                    <div
+                      key={term}
+                      className={`rounded-lg border p-3 ${promo.enabled ? "border-amber-400 bg-white dark:bg-gray-800" : "border-amber-200/70 bg-white/60 dark:bg-gray-800/60"}`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {term} Months
+                        </span>
+                        <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={promo.enabled}
+                            onChange={(e) =>
+                              updateDurationPricing(term, {
+                                enabled: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                          />
+                          Enable
+                        </label>
+                      </div>
+
+                      {promo.enabled && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={promo.discountType}
+                            onChange={(e) =>
+                              updateDurationPricing(term, {
+                                discountType: e.target.value,
+                              })
+                            }
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                          >
+                            <option value="percent">% Off</option>
+                            <option value="fixed">PHP Off</option>
+                          </select>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={promo.discountValue}
+                            onChange={(e) =>
+                              updateDurationPricing(term, {
+                                discountValue: e.target.value,
+                              })
+                            }
+                            placeholder={promo.discountType === "percent" ? "e.g. 10" : "e.g. 1500"}
+                            className={`px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white ${fieldErrors[`durationPricing_${term}`] ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                          />
+                        </div>
+                      )}
+
+                      {fieldErrors[`durationPricing_${term}`] && (
+                        <p className="text-red-600 text-xs mt-2">
+                          {fieldErrors[`durationPricing_${term}`]}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

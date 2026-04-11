@@ -8,6 +8,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
   const [activity, setActivity] = useState([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [extensionValues, setExtensionValues] = useState({});
+  const [expandedProxyAccounts, setExpandedProxyAccounts] = useState({});
   const [extending, setExtending] = useState(false);
   const navigate = useNavigate();
 
@@ -29,6 +30,10 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
       fetchRoomActivity();
     }
   }, [isOpen, showActivity, fetchRoomActivity]);
+
+  useEffect(() => {
+    setExpandedProxyAccounts({});
+  }, [room?.id]);
 
   if (!isOpen || !room) return null;
 
@@ -97,130 +102,184 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
               <div className="text-sm text-gray-500 dark:text-gray-400">No tenant assigned.</div>
             ) : (
               <div className="space-y-2">
-                {tenants.map((t, i) => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md border border-gray-100 dark:border-gray-700">
-                    <div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Tenant Name</div>
-                      <button
-                        onClick={() => {
-                          const tenantId = t?.id || t?.tenant_id || t?.tenantId || t?.user_id || t?.user?.id || null;
-                          const displayName = t?.name || (t?.first_name ? `${t.first_name} ${t.last_name}` : String(t));
-                          if (tenantId) {
-                            navigate(`/tenants/${tenantId}`);
-                          } else {
-                            // fallback to tenant logs search which will try to resolve the tenant
-                            navigate(`/tenants/logs?search=${encodeURIComponent(displayName)}`);
-                          }
-                        }}
-                        className="font-medium text-gray-800 dark:text-white text-left hover:underline"
-                      >
-                        {t.name || `${t.first_name ? `${t.first_name} ${t.last_name}` : t}`}
-                      </button>
-                      {t.email && <div className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">{t.email}</div>}
-                    </div>
+                {tenants.map((t, i) => {
+                  const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                  const tenantId = t?.id || t?.tenant_id || t?.tenantId || t?.user_id || t?.user?.id || null;
+                  const displayName = t?.name || (t?.first_name ? `${t.first_name} ${t.last_name}` : String(t));
+                  const isProxyAccount = Boolean(t?.is_proxy_account) || String(t?.booking_mode || '').toLowerCase() === 'proxy';
+                  const proxyOccupants = Array.isArray(t?.occupants) ? t.occupants : [];
+                  const resolvedOccupantCount = Number(t?.occupant_count || proxyOccupants.length || 0);
+                  const isExpanded = Boolean(expandedProxyAccounts[idKey]);
 
-                    <div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Contact No.</div>
-                      <div className="font-medium text-gray-800 dark:text-gray-200">{t.phone || t.contact || '—'}</div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Payments</div>
-                      <button
-                        onClick={() => {
-                          const tenantId = t?.id || t?.tenant_id || t?.tenantId || t?.user_id || t?.user?.id || null;
-                          const displayName = t?.name || (t?.first_name ? `${t.first_name} ${t.last_name}` : String(t));
-                          if (tenantId) {
-                            navigate(`/tenants/${tenantId}`);
-                          } else {
-                            navigate(`/tenants/logs?search=${encodeURIComponent(displayName)}`);
-                          }
-                        }}
-                        className="font-medium text-gray-800 dark:text-gray-200 hover:underline text-left"
-                      >
-                        {room.monthly_rate ? `₱${Number(room.monthly_rate).toLocaleString()}` : (room.daily_rate ? `₱${Number(room.daily_rate).toLocaleString()}` : '—')}
-                      </button>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Extension</div>
-                      <div className="flex items-center gap-2">
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="1"
-                            value={(() => {
-                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                              return extensionValues[idKey] ?? 1;
-                            })()}
-                            onChange={(e) => {
-                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                              setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
-                            }}
-                            className="w-20 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-                            aria-label="Extension value"
-                          />
-                          {/* Mini Price Preview */}
-                          <div className="absolute -top-5 left-0 whitespace-nowrap text-[10px] font-bold text-green-600 dark:text-green-400">
-                            Est: ₱{(() => {
-                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                              const val = extensionValues[idKey] ?? 1;
-                              const monthly = Number(room.monthly_rate) || 0;
-                              const daily = Number(room.daily_rate) || (monthly / 30);
-                              return (val * daily).toLocaleString(undefined, { maximumFractionDigits: 0 });
-                            })()}
-                          </div>
-                        </div>
+                  return (
+                    <div key={idKey} className="space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md border border-gray-100 dark:border-gray-700">
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Tenant Name</div>
                           <button
-                            disabled={extending}
-                            onClick={async () => {
-                              if (!onExtend) return;
-                              const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
-                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                              const days = extensionValues[idKey] ?? 1;
-                              
-                              if (!window.confirm(`Extend stay for ${days} days? This will generate an invoice.`)) return;
-                              
-                              setExtending(true);
-                              try {
-                                await onExtend({ roomId: room.id, days: Number(days), tenant_id: tenantId });
-                              } catch (__e) {
-                                // parent handles error
-                              } finally {
-                                setExtending(false);
+                            onClick={() => {
+                              if (tenantId) {
+                                navigate(`/tenants/${tenantId}`);
+                              } else {
+                                // fallback to tenant logs search which will try to resolve the tenant
+                                navigate(`/tenants/logs?search=${encodeURIComponent(displayName)}`);
                               }
                             }}
-                          className="px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-xs font-bold uppercase"
-                        >
-                          Days
-                        </button>
-                        <button
-                          disabled={extending}
-                          onClick={async () => {
-                            if (!onExtend) return;
-                            const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
-                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                            const months = extensionValues[idKey] ?? 1;
+                            className="font-medium text-gray-800 dark:text-white text-left hover:underline"
+                          >
+                            {displayName}
+                          </button>
+                          {t.email && <div className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">{t.email}</div>}
 
-                            if (!window.confirm(`Extend stay for ${months} month(s)? This will generate an invoice.`)) return;
+                          {isProxyAccount && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                Proxy Account
+                              </span>
+                              <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                                {resolvedOccupantCount} {resolvedOccupantCount === 1 ? 'Occupant' : 'Occupants'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExpandedProxyAccounts((prev) => ({
+                                    ...prev,
+                                    [idKey]: !prev[idKey],
+                                  }));
+                                }}
+                                className="text-[11px] font-semibold text-green-700 dark:text-green-400 hover:underline"
+                              >
+                                {isExpanded ? 'Hide Occupants' : 'Show Occupants'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
 
-                            setExtending(true);
-                            try {
-                                await onExtend({ roomId: room.id, months: Number(months), tenant_id: tenantId });
-                            } catch (__e) {
-                              // parent handles error
-                            } finally {
-                              setExtending(false);
-                            }
-                          }}
-                          className="px-4 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-xs font-bold uppercase"
-                        >
-                          Month
-                        </button>
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Contact No.</div>
+                          <div className="font-medium text-gray-800 dark:text-gray-200">{t.phone || t.contact || '—'}</div>
+                        </div>
+
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Payments</div>
+                          <button
+                            onClick={() => {
+                              if (tenantId) {
+                                navigate(`/tenants/${tenantId}`);
+                              } else {
+                                navigate(`/tenants/logs?search=${encodeURIComponent(displayName)}`);
+                              }
+                            }}
+                            className="font-medium text-gray-800 dark:text-gray-200 hover:underline text-left"
+                          >
+                            {room.monthly_rate ? `₱${Number(room.monthly_rate).toLocaleString()}` : (room.daily_rate ? `₱${Number(room.daily_rate).toLocaleString()}` : '—')}
+                          </button>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Extension</div>
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="1"
+                                value={extensionValues[idKey] ?? 1}
+                                onChange={(e) => {
+                                  setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
+                                }}
+                                className="w-20 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                                aria-label="Extension value"
+                              />
+                              {/* Mini Price Preview */}
+                              <div className="absolute -top-5 left-0 whitespace-nowrap text-[10px] font-bold text-green-600 dark:text-green-400">
+                                Est: ₱{(() => {
+                                  const val = extensionValues[idKey] ?? 1;
+                                  const monthly = Number(room.monthly_rate) || 0;
+                                  const daily = Number(room.daily_rate) || (monthly / 30);
+                                  return (val * daily).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                })()}
+                              </div>
+                            </div>
+                            <button
+                              disabled={extending}
+                              onClick={async () => {
+                                if (!onExtend) return;
+                                const days = extensionValues[idKey] ?? 1;
+
+                                if (!window.confirm(`Extend stay for ${days} days? This will generate an invoice.`)) return;
+
+                                setExtending(true);
+                                try {
+                                  await onExtend({ roomId: room.id, days: Number(days), tenant_id: tenantId });
+                                } catch (__e) {
+                                  // parent handles error
+                                } finally {
+                                  setExtending(false);
+                                }
+                              }}
+                              className="px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-xs font-bold uppercase"
+                            >
+                              Days
+                            </button>
+                            <button
+                              disabled={extending}
+                              onClick={async () => {
+                                if (!onExtend) return;
+                                const months = extensionValues[idKey] ?? 1;
+
+                                if (!window.confirm(`Extend stay for ${months} month(s)? This will generate an invoice.`)) return;
+
+                                setExtending(true);
+                                try {
+                                  await onExtend({ roomId: room.id, months: Number(months), tenant_id: tenantId });
+                                } catch (__e) {
+                                  // parent handles error
+                                } finally {
+                                  setExtending(false);
+                                }
+                              }}
+                              className="px-4 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-xs font-bold uppercase"
+                            >
+                              Month
+                            </button>
+                          </div>
+                        </div>
                       </div>
+
+                      {isProxyAccount && isExpanded && (
+                        <div className="ml-0 md:ml-4 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/15 p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2">
+                            Proxy Occupants
+                          </p>
+                          {proxyOccupants.length === 0 ? (
+                            <p className="text-xs text-gray-600 dark:text-gray-300">No occupant profiles submitted yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {proxyOccupants.map((occupant, occIdx) => {
+                                const occupantName = occupant?.full_name || `Occupant ${occIdx + 1}`;
+                                const relationship = occupant?.relationship_to_booker ? ` • ${occupant.relationship_to_booker}` : '';
+
+                                return (
+                                  <div key={occupant?.id || `${idKey}_occ_${occIdx}`} className="rounded-md bg-white/80 dark:bg-gray-800/80 border border-amber-100 dark:border-amber-900 px-3 py-2">
+                                    <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">{occupantName}</div>
+                                    <div className="text-xs text-gray-600 dark:text-gray-300">
+                                      {(occupant?.gender || 'Unspecified').toString()}{relationship}
+                                    </div>
+                                    {(occupant?.phone || occupant?.email) && (
+                                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {occupant?.phone || 'No phone'}{occupant?.email ? ` • ${occupant.email}` : ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

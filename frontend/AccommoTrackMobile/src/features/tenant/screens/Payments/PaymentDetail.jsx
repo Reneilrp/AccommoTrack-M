@@ -119,6 +119,7 @@ export default function PaymentDetail() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const showAlert = Alert.alert;
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { invoiceId } = route.params || {};
 
@@ -181,7 +182,7 @@ export default function PaymentDetail() {
   useEffect(() => {
     if (!paymentDetailQuery.error) return;
     console.error('Error fetching invoice:', paymentDetailQuery.error);
-    Alert.alert('Error', paymentDetailQuery.error.message || 'Failed to load invoice');
+    showAlert('Error', paymentDetailQuery.error.message || 'Failed to load invoice');
   }, [paymentDetailQuery.error]);
 
   const addonLines = React.useMemo(() => normalizeInvoiceAddonLines(invoice), [invoice]);
@@ -261,36 +262,36 @@ export default function PaymentDetail() {
 
   const handleGCashPay = async () => {
     if (tenantPaymentsTempDisabled) {
-      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
     }
 
     if (!showOnline) {
-      Alert.alert('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
+      showAlert('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
       return;
     }
 
     if (!invoice) return;
     const { amount: amountToPay, error } = resolveAmountToPay();
     if (error) {
-      return Alert.alert('Invalid Amount', error);
+      return showAlert('Invalid Amount', error);
     }
 
     try {
       setIsPaying(true);
       const res = await PaymentService.createPaymongoSource(invoice.id, 'gcash', null, amountToPay);
-      if (!res.success) return Alert.alert('Payment Error', res.error || 'Failed to create source');
+      if (!res.success) return showAlert('Payment Error', res.error || 'Failed to create source');
 
       const sourceBody = res.data?.source || res.data;
       const checkoutUrl = sourceBody?.data?.attributes?.redirect?.checkout_url;
       if (checkoutUrl) {
         navigation.navigate('PaymentRedirectWebview', { checkoutUrl, invoiceId: invoice.id });
       } else {
-        Alert.alert('Payment', 'No checkout URL returned.');
+        showAlert('Payment', 'No checkout URL returned.');
       }
     } catch (e) {
       console.error('GCash pay error', e);
-      Alert.alert('Payment Error', 'Failed to initiate GCash payment');
+      showAlert('Payment Error', 'Failed to initiate GCash payment');
     } finally {
       setIsPaying(false);
     }
@@ -298,18 +299,18 @@ export default function PaymentDetail() {
 
   const handleCardPay = () => {
     if (tenantPaymentsTempDisabled) {
-      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
     }
 
     if (!showOnline) {
-      Alert.alert('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
+      showAlert('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
       return;
     }
 
     const { amount: amountToPay, error } = resolveAmountToPay();
     if (error) {
-      Alert.alert('Invalid Amount', error);
+      showAlert('Invalid Amount', error);
       return;
     }
 
@@ -322,28 +323,28 @@ export default function PaymentDetail() {
 
   const handleOfflinePayment = async (method) => {
     if (tenantPaymentsTempDisabled) {
-      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
     }
 
     if (method === 'cash' && !showCash) {
-      Alert.alert('Payment Method Unavailable', 'Cash payments are currently not enabled for this property.');
+      showAlert('Payment Method Unavailable', 'Cash payments are currently not enabled for this property.');
       return;
     }
 
     if (method === 'gcash' && !showManualGcash) {
-      Alert.alert('Payment Method Unavailable', 'Manual GCash transfer is currently not enabled.');
+      showAlert('Payment Method Unavailable', 'Manual GCash transfer is currently not enabled.');
       return;
     }
 
     const { amount: amountToPay, error } = resolveAmountToPay();
     if (error) {
-      Alert.alert('Invalid Amount', error);
+      showAlert('Invalid Amount', error);
       return;
     }
 
     if (method === 'gcash' && !offlineDetails.reference.trim()) {
-      Alert.alert('Reference Required', 'Please provide the GCash transfer reference number.');
+      showAlert('Reference Required', 'Please provide the GCash transfer reference number.');
       return;
     }
 
@@ -357,18 +358,18 @@ export default function PaymentDetail() {
       });
 
       if (!response.success) {
-        Alert.alert('Payment Error', response.error || 'Failed to submit offline payment details.');
+        showAlert('Payment Error', response.error || 'Failed to submit offline payment details.');
         return;
       }
 
-      Alert.alert('Submitted', method === 'gcash'
+      showAlert('Submitted', method === 'gcash'
         ? 'Manual GCash transfer details submitted. Waiting for landlord verification.'
         : 'Cash payment request submitted. Waiting for landlord confirmation.');
       setOfflineDetails({ reference: '', notes: '' });
       await refetchPaymentDetail();
     } catch (error) {
       console.error('Offline payment submit error', error);
-      Alert.alert('Payment Error', 'Failed to submit offline payment details.');
+      showAlert('Payment Error', 'Failed to submit offline payment details.');
     } finally {
       setIsPaying(false);
     }

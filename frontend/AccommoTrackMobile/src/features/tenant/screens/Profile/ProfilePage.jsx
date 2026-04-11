@@ -32,6 +32,7 @@ import {
 export default function ProfilePage() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const showAlert = Alert.alert;
   const queryClient = useQueryClient();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [isEditing, setIsEditing] = useState(false);
@@ -144,7 +145,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!profilePageQuery.error) return;
-    Alert.alert("Error", profilePageQuery.error.message || "Failed to load profile");
+    showAlert("Error", profilePageQuery.error.message || "Failed to load profile");
   }, [profilePageQuery.error]);
 
   const loading = profilePageQuery.isLoading && !profilePageQuery.data;
@@ -171,7 +172,7 @@ export default function ProfilePage() {
     if (event.type === "set" || Platform.OS === "ios") {
       const age = calculateAge(currentDate);
       if (age < 18) {
-        Alert.alert("Age Restriction", "You must be at least 18 years old.");
+        showAlert("Age Restriction", "You must be at least 18 years old.");
         return;
       }
 
@@ -191,7 +192,7 @@ export default function ProfilePage() {
   const handleSave = async () => {
     // Basic validation
     if (!profileData.firstName?.trim() || !profileData.lastName?.trim()) {
-      Alert.alert("Validation Error", "First and Last name are required.");
+      showAlert("Validation Error", "First and Last name are required.");
       return;
     }
 
@@ -252,13 +253,13 @@ export default function ProfilePage() {
 
         await AsyncStorage.setItem("user", JSON.stringify(u));
         setIsEditing(false);
-        Alert.alert("Success", "Profile updated successfully!");
+        showAlert("Success", "Profile updated successfully!");
       } else {
-        Alert.alert("Error", res.error || "Failed to update profile");
+        showAlert("Error", res.error || "Failed to update profile");
       }
     } catch (error) {
       console.error("Error saving profile:", error);
-      Alert.alert("Error", "Failed to save profile");
+      showAlert("Error", "Failed to save profile");
     } finally {
       setSaving(false);
     }
@@ -270,21 +271,21 @@ export default function ProfilePage() {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
-        Alert.alert(
+        showAlert(
           "Permission Denied",
           "We need camera roll permissions to change your photo.",
         );
         return;
       }
 
-      Alert.alert("Change Profile Photo", "Choose an option", [
+      showAlert("Change Profile Photo", "Choose an option", [
         {
           text: "Take Photo",
           onPress: async () => {
             const { status: cameraStatus } =
               await ImagePicker.requestCameraPermissionsAsync();
             if (cameraStatus !== "granted") {
-              Alert.alert(
+              showAlert(
                 "Permission Denied",
                 "We need camera permissions to take a photo.",
               );
@@ -325,7 +326,7 @@ export default function ProfilePage() {
       ]);
     } catch (error) {
       console.error("Error picking image:", error);
-      Alert.alert("Error", "Failed to pick image");
+      showAlert("Error", "Failed to pick image");
     }
   };
 
@@ -349,13 +350,13 @@ export default function ProfilePage() {
         }));
 
         await AsyncStorage.setItem("user", JSON.stringify(u));
-        Alert.alert("Success", "Profile photo updated!");
+        showAlert("Success", "Profile photo updated!");
       } else {
-        Alert.alert("Error", res.error || "Failed to upload photo");
+        showAlert("Error", res.error || "Failed to upload photo");
       }
     } catch (error) {
       console.error("Error uploading image:", error);
-      Alert.alert("Error", "Failed to upload photo");
+      showAlert("Error", "Failed to upload photo");
     } finally {
       setSaving(false);
     }
@@ -671,7 +672,7 @@ export default function ProfilePage() {
             <TouchableOpacity
               onPress={() => {
                 if (!isEditing) return;
-                Alert.alert("Select Gender", "Choose your gender", [
+                showAlert("Select Gender", "Choose your gender", [
                   { text: "Male", onPress: () => handleInputChange("gender", "male") },
                   { text: "Female", onPress: () => handleInputChange("gender", "female") },
                   { text: "Cancel", style: "cancel" },

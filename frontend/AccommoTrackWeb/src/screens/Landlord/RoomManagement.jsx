@@ -26,6 +26,68 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 
+const LONG_TERM_PROMO_TERMS = ['3', '6', '9', '12'];
+
+const createDurationPricingDefaults = () =>
+  LONG_TERM_PROMO_TERMS.reduce((acc, term) => {
+    acc[term] = {
+      enabled: false,
+      discountType: 'percent',
+      discountValue: '',
+    };
+    return acc;
+  }, {});
+
+const normalizeDurationPricing = (value) => {
+  const normalized = createDurationPricingDefaults();
+
+  if (Array.isArray(value)) {
+    value.forEach((entry) => {
+      const term = String(entry?.months ?? entry?.term ?? '');
+      if (!LONG_TERM_PROMO_TERMS.includes(term)) return;
+      normalized[term] = {
+        enabled: true,
+        discountType: entry?.discount_type === 'fixed' ? 'fixed' : 'percent',
+        discountValue: String(entry?.discount_value ?? entry?.discountValue ?? ''),
+      };
+    });
+    return normalized;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return normalized;
+  }
+
+  LONG_TERM_PROMO_TERMS.forEach((term) => {
+    const entry = value?.[term] ?? value?.[Number(term)];
+    if (!entry || typeof entry !== 'object') return;
+
+    normalized[term] = {
+      enabled: true,
+      discountType: entry.discount_type === 'fixed' ? 'fixed' : 'percent',
+      discountValue: String(entry.discount_value ?? ''),
+    };
+  });
+
+  return normalized;
+};
+
+const buildDurationPricingPayload = (durationPricing) =>
+  LONG_TERM_PROMO_TERMS.reduce((acc, term) => {
+    const entry = durationPricing?.[term];
+    if (!entry?.enabled) return acc;
+
+    const parsedValue = parseFloat(entry.discountValue);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) return acc;
+
+    acc[term] = {
+      discount_type: entry.discountType === 'fixed' ? 'fixed' : 'percent',
+      discount_value: parsedValue,
+    };
+
+    return acc;
+  }, {});
+
 export default function RoomManagement() {
   const { uiState, updateData } = useUIState();
   const location = useLocation();
@@ -128,6 +190,21 @@ export default function RoomManagement() {
     }));
   };
 
+  const updateSelectedRoomDurationPricing = (term, patch) => {
+    setSelectedRoom((prev) => ({
+      ...prev,
+      durationPricing: {
+        ...createDurationPricingDefaults(),
+        ...(prev?.durationPricing || {}),
+        [term]: {
+          ...createDurationPricingDefaults()[term],
+          ...(prev?.durationPricing?.[term] || {}),
+          ...patch,
+        },
+      },
+    }));
+  };
+
   const addNewRule = async () => {
     if (!newRule.trim() || !selectedPropertyId) return;
     try {
@@ -189,12 +266,14 @@ export default function RoomManagement() {
     };
 
     loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
   // Load rooms and stats when property changes
   useEffect(() => {
     if (!selectedPropertyId) return;
     fetchRooms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPropertyId]);
 
   // Get rooms
@@ -269,7 +348,8 @@ export default function RoomManagement() {
         : !!room.require_1month_advance,
       amenities: room.amenities || [],
       rules: room.rules || [],
-      images: room.images || []
+      images: room.images || [],
+      durationPricing: normalizeDurationPricing(room.duration_pricing || room.long_term_promos),
     });
     setEditPreviewImages(room.images || []);
     setEditNewImages([]);
@@ -353,8 +433,6 @@ export default function RoomManagement() {
         'Bed Spacer': 'bedSpacer'
       };
 
-      const propertyType = properties.find(p => p.id === selectedPropertyId)?.property_type;
-
       const floorNumber = parseInt(selectedRoom.floor.match(/\d+/)[0]);
 
       const updateData = new FormData();
@@ -388,6 +466,11 @@ export default function RoomManagement() {
       (selectedRoom.rules || []).forEach((rule, idx) => {
         updateData.append(`rules[${idx}]`, rule);
       });
+
+      const durationPricingPayload = buildDurationPricingPayload(
+        selectedRoom.durationPricing,
+      );
+      updateData.append('duration_pricing', JSON.stringify(durationPricingPayload));
       
       // Append new images
       editNewImages.forEach(file => {
@@ -973,6 +1056,83 @@ export default function RoomManagement() {
                       <p className="text-xs text-gray-600 dark:text-gray-400">Each tenant pays the monthly rate independently.</p>
                     </div>
                   </label>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Long-Term Promo Discounts (Optional)
+                  </h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    Enable exact-term discounts for 3, 6, 9, or 12-month stays.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {LONG_TERM_PROMO_TERMS.map((term) => {
+                    const promo = selectedRoom.durationPricing?.[term] || {
+                      enabled: false,
+                      discountType: 'percent',
+                      discountValue: '',
+                    };
+
+                    return (
+                      <div
+                        key={term}
+                        className={`rounded-lg border p-3 ${promo.enabled ? 'border-amber-400 bg-white dark:bg-gray-800' : 'border-amber-200/70 bg-white/60 dark:bg-gray-800/60'}`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {term} Months
+                          </span>
+                          <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={promo.enabled}
+                              onChange={(e) =>
+                                updateSelectedRoomDurationPricing(term, {
+                                  enabled: e.target.checked,
+                                })
+                              }
+                              className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                            />
+                            Enable
+                          </label>
+                        </div>
+
+                        {promo.enabled && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              value={promo.discountType}
+                              onChange={(e) =>
+                                updateSelectedRoomDurationPricing(term, {
+                                  discountType: e.target.value,
+                                })
+                              }
+                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                            >
+                              <option value="percent">% Off</option>
+                              <option value="fixed">PHP Off</option>
+                            </select>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={promo.discountValue}
+                              onChange={(e) =>
+                                updateSelectedRoomDurationPricing(term, {
+                                  discountValue: e.target.value,
+                                })
+                              }
+                              placeholder={promo.discountType === 'percent' ? 'e.g. 10' : 'e.g. 1500'}
+                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

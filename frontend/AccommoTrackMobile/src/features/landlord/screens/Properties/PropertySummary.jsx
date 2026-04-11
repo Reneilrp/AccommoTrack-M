@@ -456,10 +456,24 @@ export default function PropertySummaryScreen({ route, navigation }) {
                           <View style={{ flex: 1, paddingRight: 8 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                               <Text style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: getThemeColorForType(item.type, theme) }}>{item.type}</Text>
+                              {item.type === 'addon' && item.note ? (
+                                <Text
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: '700',
+                                    color: getThemeColorForType(item.type, theme),
+                                    marginLeft: 8,
+                                    flexShrink: 1,
+                                  }}
+                                  numberOfLines={1}
+                                >
+                                  {item.note}
+                                </Text>
+                              ) : null}
                             </View>
                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text }}>{item.tenant}</Text>
                             <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>{item.room}</Text>
-                            {item.note ? <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>{item.note}</Text> : null}
+                            {item.note && item.type !== 'addon' ? <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>{item.note}</Text> : null}
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>{formatDisplayDate(item.date)}</Text>

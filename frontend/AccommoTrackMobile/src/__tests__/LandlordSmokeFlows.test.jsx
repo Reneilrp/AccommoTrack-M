@@ -320,6 +320,67 @@ describe('Landlord smoke flows', () => {
     expect(PropertyService.createProperty).not.toHaveBeenCalled();
   });
 
+  it('AddProperty allows final submission for partial verified accounts', async () => {
+    ProfileService.getVerificationStatus.mockResolvedValue({
+      success: true,
+      data: { status: 'partial_verified', user: { is_verified: false } },
+    });
+    AsyncStorage.getItem.mockResolvedValue(
+      JSON.stringify({ paymongo_verification_status: 'pending' }),
+    );
+    PropertyService.createProperty.mockResolvedValue({
+      success: true,
+      data: { id: 654 },
+    });
+
+    renderWithQueryClient(<AddProperty navigation={mockPropNavigation} />);
+
+    await screen.findByText('Save Draft');
+    expect(screen.queryByText('Account Verification Required')).toBeNull();
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('e.g., Sunrise Residences'),
+      'Partial Verified Residences',
+    );
+
+    const { Picker } = require('@react-native-picker/picker');
+    const pickers = screen.UNSAFE_getAllByType(Picker);
+    fireEvent(pickers[0], 'valueChange', 'dormitory');
+
+    fireEvent.press(screen.getByText('Next Step'));
+
+    fireEvent(
+      screen.getByTestId('mock-webview'),
+      'onMessage',
+      {
+        nativeEvent: {
+          data: JSON.stringify({ type: 'location', lat: 6.921, lon: 122.079 }),
+        },
+      },
+    );
+    fireEvent.changeText(
+      screen.getByPlaceholderText('e.g., 123 Maria Clara St.'),
+      '456 Partial Verify Ave',
+    );
+    fireEvent.changeText(screen.getByPlaceholderText('City'), 'Zamboanga City');
+
+    fireEvent.press(screen.getByText('Next Step'));
+    fireEvent.press(screen.getByText('Next Step'));
+
+    await screen.findByText('Submit Property');
+    fireEvent.press(screen.getByText('Submit Property'));
+
+    await waitFor(() => {
+      expect(PropertyService.createProperty).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = PropertyService.createProperty.mock.calls[0][0];
+    const entries = getFormDataEntries(payload);
+    const valueByKey = new Map(entries);
+
+    expect(valueByKey.get('current_status')).toBe('pending');
+  }, 15000);
+
   it('AddProperty save draft submits without forcing optional occupancy fields', async () => {
     ProfileService.getVerificationStatus.mockResolvedValue({
       success: true,

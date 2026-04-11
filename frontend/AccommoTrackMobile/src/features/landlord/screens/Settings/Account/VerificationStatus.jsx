@@ -34,6 +34,7 @@ const EMPTY_ID_TYPES = [];
 export default function VerificationStatus({ navigation }) {
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const insets = useSafeAreaInsets();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -133,7 +134,7 @@ export default function VerificationStatus({ navigation }) {
   const pickDocumentFromLibrary = async (field) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
+      showAlert(
         "Permission Required",
         "Please allow photo library access to upload documents.",
       );
@@ -154,7 +155,7 @@ export default function VerificationStatus({ navigation }) {
   const takeDocumentPhoto = async (field) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
+      showAlert(
         "Permission Required",
         "Please allow camera access to capture documents.",
       );
@@ -173,7 +174,7 @@ export default function VerificationStatus({ navigation }) {
   };
 
   const handlePickDocument = (field) => {
-    Alert.alert("Upload Document", "Choose a source for your document image.", [
+    showAlert("Upload Document", "Choose a source for your document image.", [
       {
         text: "Take Photo",
         onPress: () => {
@@ -192,7 +193,7 @@ export default function VerificationStatus({ navigation }) {
 
   const handleSubmit = async () => {
     if (!formData.validIdType || !formData.validIdFront || !formData.permit) {
-      Alert.alert(
+      showAlert(
         "Validation",
         "Please select an ID type and upload your valid ID plus business/accommodation permit.",
       );
@@ -200,7 +201,7 @@ export default function VerificationStatus({ navigation }) {
     }
 
     if (formData.validIdType === "other" && !formData.validIdOther) {
-      Alert.alert("Validation", "Please specify your ID type.");
+      showAlert("Validation", "Please specify your ID type.");
       return;
     }
 
@@ -253,7 +254,7 @@ export default function VerificationStatus({ navigation }) {
       }
 
       if (res.success) {
-        Alert.alert(
+        showAlert(
           "Success",
           usedTenantFlow
             ? "Landlord registration submitted! Please wait for admin review."
@@ -269,10 +270,10 @@ export default function VerificationStatus({ navigation }) {
         });
         await refetchLandlordQueries(verificationRefetchers);
       } else {
-        Alert.alert("Error", res.error || "Failed to submit documents");
+        showAlert("Error", res.error || "Failed to submit documents");
       }
     } catch (_error) {
-      Alert.alert("Error", "An unexpected error occurred");
+      showAlert("Error", "An unexpected error occurred");
     } finally {
       setSubmitting(false);
     }

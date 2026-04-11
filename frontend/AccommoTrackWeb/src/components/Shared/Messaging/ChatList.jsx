@@ -157,7 +157,7 @@ const ChatList = ({
                 </p>
               </div>
               {conv.unread_count > 0 && (
-                <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+                <div className="w-5 h-5 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
                   <span className="text-[10px] text-white font-bold">{conv.unread_count}</span>
                 </div>
               )}

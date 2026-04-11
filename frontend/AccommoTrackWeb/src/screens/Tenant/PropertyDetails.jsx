@@ -116,6 +116,42 @@ export default function PropertyDetails({ propertyId, onBack }) {
     };
   };
 
+  const getRoomPromoTerms = (room) => {
+    const promos = Array.isArray(room?.long_term_promos)
+      ? room.long_term_promos
+      : [];
+
+    return promos
+      .map((promo) => {
+        const months = Number(promo?.months);
+        if (!Number.isFinite(months) || months <= 0) return null;
+
+        const discountType =
+          String(promo?.discount_type || "percent").toLowerCase() === "fixed"
+            ? "fixed"
+            : "percent";
+        const discountValue = Number(promo?.discount_value || 0);
+        if (!Number.isFinite(discountValue) || discountValue <= 0) return null;
+
+        return {
+          months,
+          discountType,
+          discountValue,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.months - b.months);
+  };
+
+  const formatPromoTermLabel = (promo) => {
+    const valueLabel =
+      promo.discountType === "fixed"
+        ? `PHP ${Math.round(promo.discountValue).toLocaleString()} off`
+        : `${promo.discountValue}% off`;
+
+    return `${promo.months}M ${valueLabel}`;
+  };
+
   const getGenderBadge = (restriction) => {
     const normalized = String(restriction || "mixed").toLowerCase().trim();
 
@@ -243,6 +279,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
       fetchProperty();
       fetchReviews(propertyId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId]);
 
   // If navigation included state or query params to open booking, handle it after property loads
@@ -454,9 +491,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   && Number(room.available_slots ?? 1) > 0
                   && !room.is_booking_locked
                 );
+              const promoTerms = getRoomPromoTerms(room);
               return (
               <div
-                key={room.id}
+                key={room.id || `room-${room.room_number}`}
                 className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-shadow flex flex-col"
               >
                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
@@ -535,6 +573,24 @@ export default function PropertyDetails({ propertyId, onBack }) {
                       {(room.billing_policy || "Monthly").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} Billing
                     </span>
                   </div>
+
+                  {promoTerms.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {promoTerms.slice(0, 2).map((promo) => (
+                        <span
+                          key={`${room.id}-promo-${promo.months}`}
+                          className="inline-flex px-2 py-1 rounded-md text-[10px] font-semibold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50"
+                        >
+                          {formatPromoTermLabel(promo)}
+                        </span>
+                      ))}
+                      {promoTerms.length > 2 && (
+                        <span className="inline-flex px-2 py-1 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                          +{promoTerms.length - 2} more terms
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {(() => {
                     const roomAmenities = (Array.isArray(room.amenities) ? room.amenities : [])

@@ -83,6 +83,7 @@ const buildTenantParticipantMeta = (tenant) => {
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
+    const showAlert = Alert.alert;
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPropertyId, setSelectedPropertyId] = useState(null);
@@ -260,11 +261,11 @@ export default function MessagesPage({ navigation, route }) {
                     });
                 }
             } else {
-                Alert.alert('Error', result.error || 'Failed to start conversation');
+                showAlert('Error', result.error || 'Failed to start conversation');
             }
         },
         onError: (err) => {
-            Alert.alert('Error', err.message || 'Failed to start conversation');
+            showAlert('Error', err.message || 'Failed to start conversation');
         }
     });
 

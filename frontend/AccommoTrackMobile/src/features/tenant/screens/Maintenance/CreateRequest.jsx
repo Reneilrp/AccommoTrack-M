@@ -28,6 +28,7 @@ export default function CreateRequest() {
   const { bookingId = null, propertyId = null, roomId = null } = route.params || {};
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -40,7 +41,7 @@ export default function CreateRequest() {
       const ImagePicker = await import('expo-image-picker');
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Permission required', 'Please grant media library permissions to attach photos.');
+        showAlert('Permission required', 'Please grant media library permissions to attach photos.');
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({ 

@@ -33,6 +33,7 @@ export default function MaintenanceRequests({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const queryClient = useQueryClient();
   
   const [refreshing, setRefreshing] = useState(false);
@@ -122,7 +123,7 @@ export default function MaintenanceRequests({ route }) {
   useEffect(() => {
     const fetchError = requestsQuery.error?.message || propertiesQuery.error?.message;
     if (fetchError) {
-      Alert.alert('Error', fetchError || 'Failed to load maintenance requests');
+      showAlert('Error', fetchError || 'Failed to load maintenance requests');
     }
   }, [requestsQuery.error, propertiesQuery.error]);
 
@@ -142,7 +143,7 @@ export default function MaintenanceRequests({ route }) {
       const res = await updateStatusMutation.mutateAsync({ id, status: newStatus });
 
       if (res.success) {
-        Alert.alert('Success', `Request marked as ${newStatus.replace('_', ' ')}`);
+        showAlert('Success', `Request marked as ${newStatus.replace('_', ' ')}`);
 
         if (selectedRequest?.id === id) {
           setSelectedRequest(prev => ({ ...prev, status: newStatus }));
@@ -150,10 +151,10 @@ export default function MaintenanceRequests({ route }) {
 
         await queryClient.invalidateQueries({ queryKey: landlordQueryKeys.maintenanceRequestsRoot() });
       } else {
-        Alert.alert('Error', res.error || 'Failed to update status');
+        showAlert('Error', res.error || 'Failed to update status');
       }
     } catch {
-      Alert.alert('Error', 'Failed to update status');
+      showAlert('Error', 'Failed to update status');
     }
   };
 

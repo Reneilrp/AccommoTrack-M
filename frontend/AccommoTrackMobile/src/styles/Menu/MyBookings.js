@@ -288,6 +288,44 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 10,
     marginBottom: 10,
   },
+  proxyOccupantsSection: {
+    marginBottom: 12,
+    gap: 8,
+  },
+  proxyOccupantsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  proxyOccupantsTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textTransform: 'uppercase',
+  },
+  proxyOccupantCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 2,
+  },
+  proxyOccupantName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  proxyOccupantMeta: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+  },
+  proxyOccupantsEmpty: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    fontStyle: 'italic',
+  },
   actionGridContainer: {
     marginBottom: 10,
     gap: 8,

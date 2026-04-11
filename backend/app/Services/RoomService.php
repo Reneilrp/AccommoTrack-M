@@ -31,6 +31,9 @@ class RoomService
 
             $capacity = $validatedData['capacity'] ?? 1;
             $pricingModel = $validatedData['pricing_model'] ?? (($validatedData['room_type'] === 'bedSpacer') ? 'per_bed' : 'full_room');
+            $durationPricing = array_key_exists('duration_pricing', $validatedData)
+                ? Room::sanitizeDurationPricing($validatedData['duration_pricing'])
+                : [];
 
             $propertyGender = strtolower($property->gender_restriction ?? 'mixed');
             $defaultGender = in_array($propertyGender, ['male', 'female', 'boys', 'girls'])
@@ -53,6 +56,7 @@ class RoomService
                 'require_1month_advance' => $validatedData['require_1month_advance'] ?? false,
                 'description' => $validatedData['description'] ?? null,
                 'rules' => $validatedData['rules'] ?? [],
+                'duration_pricing' => $durationPricing,
             ]);
 
             $this->syncAmenities($room, $validatedData['amenities'] ?? []);
@@ -79,6 +83,10 @@ class RoomService
                 if ($this->isRoomNumberDuplicate($validatedData['room_number'], $room->property_id, $room->id)) {
                     throw ValidationException::withMessages(['room_number' => 'Room number already exists for this property.']);
                 }
+            }
+
+            if (array_key_exists('duration_pricing', $validatedData)) {
+                $validatedData['duration_pricing'] = Room::sanitizeDurationPricing($validatedData['duration_pricing']);
             }
 
             $oldStatus = $room->status;

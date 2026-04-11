@@ -293,7 +293,7 @@ export default function MessagesList({
                                 </View>
 
                                 {conv.unread_count > 0 && (
-                                    <View style={[styles.unreadBadge, { backgroundColor: theme.colors.primary }]}>
+                                    <View style={[styles.unreadBadge, { backgroundColor: '#EF4444' }]}>
                                         <Text style={styles.unreadCount}>{conv.unread_count}</Text>
                                     </View>
                                 )}

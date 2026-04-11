@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
@@ -132,6 +133,128 @@ class TenantBookingContractModeTest extends TestCase
         $this->assertSame('monthly', $booking->contract_mode);
         $this->assertSame('monthly', $booking->payment_plan);
         $this->assertNull($booking->end_date);
+    }
+
+    public function test_tenant_can_create_exact_term_promo_one_time_booking(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id);
+        $room = $this->createRoom($property->id, 'monthly');
+        $room->update([
+            'duration_pricing' => [
+                '12' => [
+                    'discount_type' => 'percent',
+                    'discount_value' => 10,
+                ],
+            ],
+        ]);
+
+        Sanctum::actingAs($tenant);
+
+        $startDate = now()->addDay()->toDateString();
+        $endDate = Carbon::parse($startDate)->addDays(360)->toDateString();
+
+        $response = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'payment_plan' => 'promo_one_time',
+            'notes' => 'Promo exact term booking',
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('booking.contract_mode', 'monthly')
+            ->assertJsonPath('booking.payment_plan', 'promo_one_time');
+
+        $bookingId = (int) $response->json('booking.id');
+        $booking = Booking::findOrFail($bookingId);
+
+        $this->assertSame('promo_one_time', $booking->payment_plan);
+        $this->assertSame(129600.0, (float) $booking->total_amount);
+    }
+
+    public function test_tenant_cannot_use_promo_one_time_for_non_exact_term_booking(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id);
+        $room = $this->createRoom($property->id, 'monthly');
+        $room->update([
+            'duration_pricing' => [
+                '12' => [
+                    'discount_type' => 'percent',
+                    'discount_value' => 10,
+                ],
+            ],
+        ]);
+
+        Sanctum::actingAs($tenant);
+
+        $startDate = now()->addDay()->toDateString();
+        $endDate = Carbon::parse($startDate)->addDays(365)->toDateString();
+
+        $response = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'payment_plan' => 'promo_one_time',
+            'notes' => 'Promo non exact term booking',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Long-term promo is only available for exact 3, 6, 9, or 12-month stays with configured discounts.');
+    }
+
+    public function test_tenant_cannot_use_promo_one_time_for_room_without_promos(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id);
+        $room = $this->createRoom($property->id, 'monthly'); // No duration_pricing set
+
+        Sanctum::actingAs($tenant);
+
+        $startDate = now()->addDay()->toDateString();
+        $endDate = Carbon::parse($startDate)->addDays(360)->toDateString(); // 12 months
+
+        $response = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'payment_plan' => 'promo_one_time',
+            'notes' => 'Promo on room without config',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Long-term promo is only available for exact 3, 6, 9, or 12-month stays with configured discounts.');
+    }
+
+    public function test_booking_existing_room_without_promos_defaults_to_regular_behavior(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id);
+        $room = $this->createRoom($property->id, 'monthly');
+
+        Sanctum::actingAs($tenant);
+
+        $startDate = now()->addDay()->toDateString();
+        $endDate = Carbon::parse($startDate)->addDays(360)->toDateString();
+
+        $response = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'payment_plan' => 'full',
+            'notes' => 'Regular long stay on existing room',
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('booking.payment_plan', 'full');
+
+        $booking = Booking::findOrFail($response->json('booking.id'));
+        $this->assertSame(144000.0, (float) $booking->total_amount); // 12 * 12000 (no discount)
     }
 
     private function createUsers(): array

@@ -84,6 +84,7 @@ export default function PreferencesLifestyle() {
   const queryClient = useQueryClient();
   const styles = useMemo(() => getStyles(theme), [theme]);
   const themedHomeStyles = useMemo(() => homeStyles(theme), [theme]);
+  const showAlert = Alert.alert;
 
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -167,7 +168,7 @@ export default function PreferencesLifestyle() {
       return;
     }
 
-    Alert.alert(
+    showAlert(
       'Discard changes?',
       'You have unsaved preference changes.',
       [

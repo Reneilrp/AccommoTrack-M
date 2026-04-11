@@ -161,6 +161,92 @@ class ProxyBookingModeLimitTest extends TestCase
         $this->assertSame(2, BookingOccupant::where('booking_id', $bookingId)->count());
     }
 
+    public function test_proxy_booking_exposes_occupancy_fields_in_tenant_booking_and_current_stay_payloads(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id);
+        $room = $this->createRoom($property->id, '305', 4, 'per_bed');
+
+        $booking = Booking::create([
+            'property_id' => $property->id,
+            'room_id' => $room->id,
+            'tenant_id' => $tenant->id,
+            'booking_mode' => 'proxy',
+            'landlord_id' => $landlord->id,
+            'booking_reference' => 'BK-PROXY-VIEW-'.uniqid(),
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => now()->addDays(29)->toDateString(),
+            'bed_count' => 2,
+            'total_months' => 1,
+            'monthly_rent' => 12000,
+            'total_amount' => 24000,
+            'status' => 'confirmed',
+            'payment_status' => 'paid',
+            'payment_plan' => 'full',
+            'contract_mode' => 'monthly',
+        ]);
+
+        $booking->occupants()->createMany([
+            [
+                'full_name' => 'Proxy Occupant One',
+                'date_of_birth' => '1990-01-01',
+                'gender' => 'female',
+                'relationship_to_booker' => 'child',
+            ],
+            [
+                'full_name' => 'Proxy Occupant Two',
+                'date_of_birth' => '1991-01-01',
+                'gender' => 'male',
+                'relationship_to_booker' => 'child',
+            ],
+        ]);
+
+        $room->assignTenant($tenant->id, $booking->start_date, $booking->bed_count);
+
+        Sanctum::actingAs($tenant);
+
+        $bookingsResponse = $this->getJson('/api/tenant/bookings');
+
+        $bookingsResponse->assertStatus(200)
+            ->assertJsonPath('0.booking_mode', 'proxy')
+            ->assertJsonPath('0.bed_count', 2)
+            ->assertJsonPath('0.occupant_count', 2)
+            ->assertJsonPath('0.occupants.0.full_name', 'Proxy Occupant One')
+            ->assertJsonPath('0.occupants.1.full_name', 'Proxy Occupant Two')
+            ->assertJsonPath('0.room.capacity', 4);
+
+        $currentStayResponse = $this->getJson('/api/tenant/current-stay');
+
+        $currentStayResponse->assertStatus(200)
+            ->assertJsonPath('hasActiveStay', true)
+            ->assertJsonPath('stays.0.booking.booking_mode', 'proxy')
+            ->assertJsonPath('stays.0.booking.bed_count', 2)
+            ->assertJsonPath('stays.0.booking.occupant_count', 2)
+            ->assertJsonPath('stays.0.booking.occupants.0.full_name', 'Proxy Occupant One')
+            ->assertJsonPath('stays.0.booking.occupants.1.full_name', 'Proxy Occupant Two')
+            ->assertJsonPath('stays.0.room.capacity', 4);
+
+        Sanctum::actingAs($landlord);
+
+        $landlordBookingsResponse = $this->getJson('/api/bookings');
+
+        $landlordBookingsResponse->assertStatus(200)
+            ->assertJsonPath('0.booking_mode', 'proxy')
+            ->assertJsonPath('0.bed_count', 2)
+            ->assertJsonPath('0.occupant_count', 2)
+            ->assertJsonPath('0.occupants.0.full_name', 'Proxy Occupant One')
+            ->assertJsonPath('0.occupants.1.full_name', 'Proxy Occupant Two');
+
+        $landlordBookingDetailResponse = $this->getJson('/api/bookings/'.$booking->id);
+
+        $landlordBookingDetailResponse->assertStatus(200)
+            ->assertJsonPath('booking_mode', 'proxy')
+            ->assertJsonPath('bed_count', 2)
+            ->assertJsonPath('occupant_count', 2)
+            ->assertJsonPath('occupants.0.full_name', 'Proxy Occupant One')
+            ->assertJsonPath('occupants.1.full_name', 'Proxy Occupant Two');
+    }
+
     public function test_normal_booking_limit_counts_pending_reservation_status(): void
     {
         [$landlord, $tenant] = $this->createUsers();

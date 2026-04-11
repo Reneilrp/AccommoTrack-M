@@ -30,6 +30,7 @@ const EMPTY_PROPERTIES = [];
 export default function TransferRequests({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
 
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
@@ -177,7 +178,7 @@ export default function TransferRequests({ navigation, route }) {
         });
       } else {
         updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
-        Alert.alert('Error', 'Failed to calculate rent proration details');
+        showAlert('Error', 'Failed to calculate rent proration details');
       }
     } catch (_err) {
       updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
@@ -190,12 +191,12 @@ export default function TransferRequests({ navigation, route }) {
     const landlordNotes = String(form.landlord_notes || '').trim();
 
     if (action === 'approve' && damageCharge > 0 && !String(form.damage_description || '').trim()) {
-      Alert.alert('Error', 'Damage description is required when damage charge is set.');
+      showAlert('Error', 'Damage description is required when damage charge is set.');
       return;
     }
 
     if (action === 'reject' && !landlordNotes) {
-      Alert.alert('Error', 'Please provide a reason before rejecting this request.');
+      showAlert('Error', 'Please provide a reason before rejecting this request.');
       return;
     }
 
@@ -212,7 +213,7 @@ export default function TransferRequests({ navigation, route }) {
     try {
       const res = await PropertyService.handleTransferRequest(transferId, payload);
       if (res.success) {
-        Alert.alert('Success', `Transfer request ${action}d successfully`);
+        showAlert('Success', `Transfer request ${action}d successfully`);
         setActionError('');
         await refetchLandlordQueries(transferRefetchers);
         if (action === 'approve') {
@@ -220,7 +221,7 @@ export default function TransferRequests({ navigation, route }) {
         }
       } else {
         setActionError(res.error || `Failed to ${action} transfer request`);
-        Alert.alert('Error', res.error || `Failed to ${action} transfer request`);
+        showAlert('Error', res.error || `Failed to ${action} transfer request`);
       }
     } catch (err) {
       console.error(`Failed to ${action} request`, err);

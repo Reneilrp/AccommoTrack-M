@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Eye, CheckCircle, XCircle, FileText, Loader2, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Eye, Check, CheckCircle, X, XCircle, Ban, Pencil, FileText, Loader2, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
@@ -54,12 +54,15 @@ const getVerificationStatusMeta = (status) => {
   }
 };
 
+const isSelectableVerification = (verification) => normalizeVerificationStatus(verification?.status) === 'pending';
+
 export default function LandlordApproval() {
   const [verifications, setVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedVerification, setSelectedVerification] = useState(null);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -103,6 +106,9 @@ export default function LandlordApproval() {
   }, [fetchVerifications]);
 
   const toggleSelection = (userId) => {
+    const targetVerification = verifications.find((item) => item.user_id === userId);
+    if (!isSelectableVerification(targetVerification)) return;
+
     setSelectedUserIds(prev => 
       prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
     );
@@ -110,15 +116,44 @@ export default function LandlordApproval() {
 
   const toggleAll = () => {
     const safeVerifications = Array.isArray(verifications) ? verifications : [];
-    if (selectedUserIds.length === safeVerifications.length) {
+    const selectableUserIds = safeVerifications
+      .filter((verification) => isSelectableVerification(verification))
+      .map((verification) => verification.user_id);
+
+    if (selectedUserIds.length === selectableUserIds.length) {
       setSelectedUserIds([]);
     } else {
-      setSelectedUserIds(safeVerifications.map(v => v.user_id));
+      setSelectedUserIds(selectableUserIds);
     }
+  };
+
+  const toggleEditMode = () => {
+    setIsEditMode((prev) => {
+      if (prev) {
+        setSelectedUserIds([]);
+      }
+      return !prev;
+    });
   };
 
   const runBulkAction = async (action) => {
     if (selectedUserIds.length === 0) return;
+
+    const selectableUserIds = (Array.isArray(verifications) ? verifications : [])
+      .filter((verification) => isSelectableVerification(verification))
+      .map((verification) => verification.user_id);
+    const pendingSelectedUserIds = selectedUserIds.filter((id) => selectableUserIds.includes(id));
+
+    if (pendingSelectedUserIds.length === 0) {
+      toast.error('Only pending applications can be selected.');
+      setSelectedUserIds([]);
+      return;
+    }
+
+    if (pendingSelectedUserIds.length !== selectedUserIds.length) {
+      setSelectedUserIds(pendingSelectedUserIds);
+    }
+
     setConfirmModalState({ isOpen: false });
     
     if (action === 'reject' && (!rejectionReason.trim() || rejectionReason.trim().length < 10)) {
@@ -129,14 +164,14 @@ export default function LandlordApproval() {
     setActionLoading(`bulk:${action}`);
 
     try {
-      const payload = { ids: selectedUserIds };
+      const payload = { ids: pendingSelectedUserIds };
       if (action === 'reject') payload.reason = rejectionReason.trim();
 
       const res = await api.post(`/admin/users/bulk-${action}`, payload);
       toast.success(res.data?.message || `Bulk ${action} successful`);
       
       setVerifications(prev => prev.map(v => {
-        if (selectedUserIds.includes(v.user_id)) {
+        if (pendingSelectedUserIds.includes(v.user_id)) {
           return {
             ...v,
             status: action === 'approve' ? 'approved' : 'rejected',
@@ -342,10 +377,12 @@ export default function LandlordApproval() {
   }
 
   const safeVerifications = Array.isArray(verifications) ? verifications : [];
+  const selectableVerifications = safeVerifications.filter((verification) => isSelectableVerification(verification));
   const selectedVerificationStatus = (selectedVerification?.status || '').toLowerCase();
   const selectedVerificationHistory = Array.isArray(selectedVerification?.history)
     ? selectedVerification.history
     : [];
+  const bulkActionLoading = typeof actionLoading === 'string' && actionLoading.startsWith('bulk:');
 
   return (
     <div className="w-full">
@@ -358,9 +395,23 @@ export default function LandlordApproval() {
         confirmText={confirmModalState.confirmText}
         confirmButtonClass={confirmModalState.confirmButtonClass}
       />
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Landlord Verification Requests</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Review submitted IDs and business permits.</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Landlord Verification Requests</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Review submitted IDs and business permits.</p>
+        </div>
+        <button
+          onClick={toggleEditMode}
+          className={`shrink-0 h-10 w-10 inline-flex items-center justify-center border rounded-lg transition-colors ${
+            isEditMode
+              ? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20'
+              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+          title={isEditMode ? 'Exit edit mode' : 'Edit'}
+          aria-label={isEditMode ? 'Exit edit mode' : 'Edit'}
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
       </div>
 
       {safeVerifications.length === 0 ? (
@@ -369,33 +420,41 @@ export default function LandlordApproval() {
         </div>
       ) : (
         <div className="space-y-4">
-          {selectedUserIds.length > 0 && (
-            <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
-              <span className="text-emerald-800 dark:text-emerald-300 font-medium">
-                {selectedUserIds.length} landlord{selectedUserIds.length > 1 ? 's' : ''} selected
+          {isEditMode && (
+            <div className="flex items-center justify-end gap-2">
+              <span className="mr-2 text-sm text-gray-600 dark:text-gray-300">
+                {selectedUserIds.length} selected
               </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => runBulkAction('approve')}
-                  disabled={typeof actionLoading === 'string' && actionLoading.startsWith('bulk:')}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50"
-                >
-                  {actionLoading === 'bulk:approve' ? 'Approving...' : 'Approve Selected'}
-                </button>
-                <button
-                  onClick={() => openRejectModal(true)}
-                  disabled={typeof actionLoading === 'string' && actionLoading.startsWith('bulk:')}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
-                >
-                  Reject Selected
-                </button>
-                <button
-                  onClick={() => setSelectedUserIds([])}
-                  className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-sm font-medium"
-                >
-                  Cancel Selection
-                </button>
-              </div>
+              <button
+                onClick={() => runBulkAction('approve')}
+                disabled={selectedUserIds.length === 0 || bulkActionLoading}
+                className="h-10 w-10 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Approve selected"
+                aria-label="Approve selected"
+              >
+                {actionLoading === 'bulk:approve' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedUserIds([]);
+                  setIsEditMode(false);
+                }}
+                disabled={bulkActionLoading}
+                className="h-10 w-10 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Cancel"
+                aria-label="Cancel"
+              >
+                <Ban className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => openRejectModal(true)}
+                disabled={selectedUserIds.length === 0 || bulkActionLoading}
+                className="h-10 w-10 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Reject selected"
+                aria-label="Reject selected"
+              >
+                {actionLoading === 'bulk:reject' ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+              </button>
             </div>
           )}
 
@@ -404,14 +463,17 @@ export default function LandlordApproval() {
               <table className="w-full text-left border-collapse">
               <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-4 font-semibold w-12">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      checked={safeVerifications.length > 0 && selectedUserIds.length === safeVerifications.length}
-                      onChange={toggleAll}
-                    />
-                  </th>
+                  {isEditMode && (
+                    <th className="px-6 py-4 font-semibold w-12">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        checked={selectableVerifications.length > 0 && selectedUserIds.length === selectableVerifications.length}
+                        disabled={selectableVerifications.length === 0}
+                        onChange={toggleAll}
+                      />
+                    </th>
+                  )}
                   <th className="px-6 py-4 font-semibold">Applicant</th>
                   <th className="px-6 py-4 font-semibold">ID Type</th>
                   <th className="px-6 py-4 font-semibold">Status</th>
@@ -420,16 +482,22 @@ export default function LandlordApproval() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {safeVerifications.map((v) => (
-                  <tr key={v.id} className={`${selectedUserIds.includes(v.user_id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'} transition-colors`}>
-                    <td className="px-6 py-4">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                        checked={selectedUserIds.includes(v.user_id)}
-                        onChange={() => toggleSelection(v.user_id)}
-                      />
-                    </td>
+                {safeVerifications.map((v) => {
+                  const selectable = isSelectableVerification(v);
+
+                  return (
+                  <tr key={v.id} className={`${isEditMode && selectedUserIds.includes(v.user_id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'} transition-colors`}>
+                    {isEditMode && (
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                          checked={selectedUserIds.includes(v.user_id)}
+                          disabled={!selectable}
+                          onChange={() => toggleSelection(v.user_id)}
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-medium text-gray-900 dark:text-white">{v.first_name} {v.last_name}</span>
@@ -462,7 +530,7 @@ export default function LandlordApproval() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
           </div>

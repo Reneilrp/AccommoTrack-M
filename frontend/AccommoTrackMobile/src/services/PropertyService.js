@@ -1,11 +1,10 @@
 import api from "./api.js";
-import { API_BASE_URL, BASE_URL } from "../config/index.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImageUrl } from "../utils/imageUtils.js";
 import { extractErrorMessage } from "../utils/error.js";
-import cacheManager from "../utils/cache.js";
+import cacheStore from "../utils/cache.js";
 
-const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
+const cacheManager = cacheStore;
 
 const isFormData = (data) => data instanceof FormData;
 
@@ -1562,11 +1561,25 @@ const PropertyService = {
    * @param {number} roomId - Room ID
    * @param {string} startDate - YYYY-MM-DD
    * @param {string} endDate - YYYY-MM-DD
+   * @param {object} options - Optional params (contractMode, bedCount)
    */
-  async getRoomPricing(roomId, startDate, endDate) {
+  async getRoomPricing(roomId, startDate, endDate, options = {}) {
     try {
+      const params = {
+        start_date: startDate,
+        end_date: endDate,
+      };
+
+      if (options?.contractMode) {
+        params.contract_mode = options.contractMode;
+      }
+
+      if (options?.bedCount) {
+        params.bed_count = options.bedCount;
+      }
+
       const response = await api.get(`/rooms/${roomId}/pricing`, {
-        params: { start_date: startDate, end_date: endDate },
+        params,
       });
       return {
         success: true,

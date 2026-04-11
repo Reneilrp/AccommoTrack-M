@@ -39,7 +39,8 @@ class LandlordBookingController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
 
-            $query = Booking::with(['property', 'tenant', 'landlord', 'room'])
+            $query = Booking::with(['property', 'tenant', 'landlord', 'room', 'occupants'])
+                ->withCount('occupants')
                 ->forLandlord($context['landlord_id']);
 
             // If caretaker, filter by assigned properties only
@@ -116,7 +117,8 @@ class LandlordBookingController extends Controller
                 ->where('status', 'pending')
                 ->first();
 
-            $bookingPayload = $booking->load(['property', 'tenant', 'room']);
+            $bookingPayload = $booking->load(['property', 'tenant', 'room', 'occupants'])
+                ->loadCount('occupants');
             $reservationPolicy = $this->buildReservationPolicy($bookingPayload);
 
             return response()->json([
@@ -528,7 +530,8 @@ class LandlordBookingController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
 
-            $query = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room'])
+            $query = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room', 'occupants'])
+                ->withCount('occupants')
                 ->forLandlord($context['landlord_id']);
 
             // If caretaker, filter by assigned properties only

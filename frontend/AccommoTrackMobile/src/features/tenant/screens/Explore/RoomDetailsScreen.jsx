@@ -25,7 +25,6 @@ import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { getStyles } from '../../../../styles/Tenant/RoomDetailsScreen.js';
-import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import BookingService from '../../../../services/BookingService.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import PaymentService from '../../../../services/PaymentService.js';
@@ -60,6 +59,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const navigation = useNavigation();
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
+  const showAlert = Alert.alert;
   const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
   const { room, property } = route.params;
 
@@ -227,37 +227,33 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   // Hide parent tab bar and mark route to hide layout (TenantLayout)
   useEffect(() => {
-    let isMounted = true;
     try {
       navigation.setParams?.({ hideLayout: true });
-    } catch (e) {}
+    } catch (_e) {}
     const parent = navigation.getParent?.();
     try {
       parent?.setOptions?.({ tabBarStyle: { display: 'none' } });
-    } catch (e) {}
+    } catch (_e) {}
     return () => {
-      isMounted = false;
       try { 
         if (navigation.isFocused()) {
           navigation.setParams?.({ hideLayout: false }); 
         }
-      } catch (e) {}
-      try { parent?.setOptions?.({ tabBarStyle: undefined }); } catch (e) {}
+      } catch (_e) {}
+      try { parent?.setOptions?.({ tabBarStyle: undefined }); } catch (_e) {}
     };
   }, [navigation]);
 
   // Set a friendly title for TenantLayout to use
   useEffect(() => {
-    let isMounted = true;
     const title = (roomData && (roomData.title || roomData.name)) || (room && (room.title || room.name)) || (propertyData && (propertyData.title || propertyData.name));
-    try { navigation.setParams?.({ layoutTitle: title, hideLayout: true }); } catch (e) {}
+    try { navigation.setParams?.({ layoutTitle: title, hideLayout: true }); } catch (_e) {}
     return () => { 
-      isMounted = false;
       try { 
         if (navigation.isFocused()) {
           navigation.setParams?.({ layoutTitle: undefined, hideLayout: false }); 
         }
-      } catch (e) {} 
+      } catch (_e) {} 
     };
   }, [roomData, room, propertyData, property, navigation]);
 
@@ -283,7 +279,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     contract_mode: 'monthly',
     notes: '',
     payment_method: 'cash',
-    payment_plan: 'full',
+    payment_plan: 'monthly',
   });
 
   const daysUntilMoveIn = React.useMemo(() => {
@@ -354,23 +350,48 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       && new Date(pricingEndDate) > new Date(pricingStartDate),
   );
 
+  const previewBedCount = React.useMemo(() => {
+    if (roomPricingModel !== 'per_bed') {
+      return 1;
+    }
+
+    if (bookingMode === 'proxy') {
+      return Math.max(1, proxyOccupants.length || 1);
+    }
+
+    return 1;
+  }, [roomPricingModel, bookingMode, proxyOccupants.length]);
+
   const roomPricingQuery = useQuery({
     queryKey: tenantQueryKeys.exploreRoomPricing({
       roomId: activeRoomId,
       startDate: pricingStartDate,
       endDate: pricingEndDate,
-      contractMode: bookingData.contract_mode,
+      contractMode: isDailyContract ? 'daily' : 'monthly',
+      bedCount: previewBedCount,
     }),
     enabled: shouldFetchPricing,
     queryFn: async () => {
-      const res = await PropertyService.getRoomPricing(activeRoomId, pricingStartDate, pricingEndDate);
+      const res = await PropertyService.getRoomPricing(
+        activeRoomId,
+        pricingStartDate,
+        pricingEndDate,
+        {
+          contractMode: isDailyContract ? 'daily' : 'monthly',
+          bedCount: previewBedCount,
+        },
+      );
       if (!res?.success || !res?.data) {
         throw new Error(res?.error || 'Pricing calculation failed');
       }
 
+      const baseTotal = Number(res.data.base_total ?? res.data.total ?? 0);
+
       return {
-        total: Number(res.data.total || 0),
+        total: baseTotal,
         breakdown: res.data.breakdown || null,
+        promoOffer: res.data.promo_offer || null, // Capture promo offer
+        promoTotal: res.data.promo_total || null, // Capture promo total
       };
     },
     placeholderData: (previousData) => previousData,
@@ -382,7 +403,39 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const pricingBreakdown = shouldFetchPricing
     ? (roomPricingQuery.data?.breakdown || null)
     : null;
+  const promoOffer = roomPricingQuery.data?.promoOffer || null;
+  const promoDiscountedTotal = roomPricingQuery.data?.promoTotal || null;
+
   const isPricingLoading = shouldFetchPricing && roomPricingQuery.isFetching;
+  const hasCheckoutDate = Boolean(
+    bookingData.start_date &&
+    bookingData.end_date && new Date(bookingData.end_date) > new Date(bookingData.start_date),
+  );
+  const showPaymentPlanSelector = Boolean(
+    !isDailyContract
+      && hasCheckoutDate
+      && pricingBreakdown
+      && (
+        (Number(pricingBreakdown.months || 0) > 1)
+        || (
+          Number(pricingBreakdown.months || 0) === 1
+          && Number(pricingBreakdown.remaining_days || 0) > 0
+        )
+      ),
+  );
+  const hasPromoOffer = Boolean(
+    promoOffer
+      && Number.isFinite(Number(promoDiscountedTotal))
+      && Number(promoDiscountedTotal) < Number(totalPrice || 0),
+  );
+  const promoDiscountAmount = hasPromoOffer
+    ? Math.max(0, Number(totalPrice || 0) - Number(promoDiscountedTotal))
+    : 0;
+  const selectedPlanTotal = (
+    bookingData.payment_plan === 'promo_one_time' && hasPromoOffer
+      ? promoDiscountedTotal
+      : Number(totalPrice || 0)
+  );
 
   useEffect(() => {
     if (!roomPaymentOptionsQuery.error) return;
@@ -394,9 +447,34 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     console.error('Pricing calculation failed', roomPricingQuery.error);
   }, [roomPricingQuery.error]);
 
-  // Get allowed methods from landlord settings, default to cash only if not set
-  const allowedMethods = activeRoom?.landlord?.payment_methods_settings?.allowed || ['cash'];
-  const gcashDetails = activeRoom?.landlord?.payment_methods_settings?.details?.gcash_info;
+  useEffect(() => {
+    setBookingData((prev) => {
+      let nextPaymentPlan = prev.payment_plan;
+
+      if (isDailyContract) {
+        nextPaymentPlan = 'full';
+      } else if (!hasCheckoutDate) {
+        nextPaymentPlan = 'monthly';
+      } else if (!showPaymentPlanSelector) {
+        nextPaymentPlan = 'full';
+      } else if (hasPromoOffer) {
+        if (!['monthly', 'promo_one_time'].includes(nextPaymentPlan)) {
+          nextPaymentPlan = 'monthly';
+        }
+      } else if (!['monthly', 'full'].includes(nextPaymentPlan)) {
+        nextPaymentPlan = 'full';
+      }
+
+      if (nextPaymentPlan === prev.payment_plan) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        payment_plan: nextPaymentPlan,
+      };
+    });
+  }, [isDailyContract, hasCheckoutDate, showPaymentPlanSelector, hasPromoOffer]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -460,7 +538,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (selectedDate) {
       // Ensure selected start date is within allowed range
       if (!isStartWithinAllowedRange(selectedDate)) {
-        Alert.alert(
+        showAlert(
           `Invalid ${isDailyContract ? 'Check-in' : 'Move-in'}`,
           `${isDailyContract ? 'Check-in' : 'Move-in'} must be within the next 3 months.`
         );
@@ -490,7 +568,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (selectedDate) {
       // Ensure end date is after start date
       if (bookingData.start_date && selectedDate <= bookingData.start_date) {
-        Alert.alert('Invalid Date', `${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
+        showAlert('Invalid Date', `${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
         return;
       }
       setBookingData(prev => ({ ...prev, end_date: selectedDate }));
@@ -500,13 +578,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   // AUTH GATE: Check if user is authenticated before booking
   const handleBook = () => {
     if (activeRoom.status !== 'available') {
-      Alert.alert('Unavailable', 'This room is not available for booking.');
+      showAlert('Unavailable', 'This room is not available for booking.');
       return;
     }
 
     // If guest user, trigger auth requirement
     if (isGuest) {
-      Alert.alert(
+      showAlert(
         'Sign In Required',
         'You need to sign in to book a room. Create an account or log in to continue.',
         [
@@ -809,7 +887,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             if (payRes.success && payRes.data.checkout_url) {
               await Linking.openURL(payRes.data.checkout_url);
             } else {
-              Alert.alert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
+              showAlert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
             }
           }
         } else if (bookingData.payment_method === 'cash') {
@@ -819,7 +897,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           }
         }
 
-        Alert.alert(
+        showAlert(
           'Success',
           `Booking submitted successfully! Reference: ${bookingObj?.booking_reference || 'N/A'}`,
           [
@@ -845,14 +923,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
         if (result.details) {
           const errorMessages = Object.values(result.details).flat().join('\n');
-          Alert.alert('Validation Error', errorMessages);
+          showAlert('Validation Error', errorMessages);
         } else {
-          Alert.alert('Error', result.error || 'Failed to submit booking.');
+          showAlert('Error', result.error || 'Failed to submit booking.');
         }
       }
     } catch (error) {
       console.error('Booking submission error:', error);
-      Alert.alert('Error', error.message || 'An unexpected error occurred.');
+      showAlert('Error', error.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -861,7 +939,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   // AUTH GATE: Contact landlord also requires auth
   const handleContactLandlord = async () => {
     if (isGuest) {
-      Alert.alert(
+      showAlert(
         'Sign In Required',
         'You need to sign in to contact the landlord.',
         [
@@ -915,7 +993,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         console.error('LANDLORD ID NOT FOUND!');
         console.error('Available property data:', Object.keys(property));
 
-        Alert.alert(
+        showAlert(
           'Debug Info',
           `Property ID: ${property.id}\n\nAvailable fields: ${Object.keys(property).join(', ')}\n\nPlease screenshot this and check the backend response.`,
           [
@@ -923,7 +1001,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               text: 'OK',
               onPress: () => {
                 // Show more detailed error
-                Alert.alert(
+                showAlert(
                   'Error',
                   'Landlord information not available. This might be an older property listing. Please try viewing the property again from the home page.',
                   [
@@ -968,7 +1046,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     } catch (error) {
       console.error('Error navigating to messages:', error);
       console.error('Error stack:', error.stack);
-      Alert.alert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
+      showAlert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
     }
   };
 
@@ -1495,24 +1573,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             </View>
 
             {/* Payment Plan Selection - Only for monthly contract stays >= 2 months */}
-            {!isDailyContract && pricingBreakdown && pricingBreakdown.months >= 2 && (
+            {showPaymentPlanSelector && (
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Payment Plan <Text style={{color: '#ef4444'}}>*</Text></Text>
                 
                 <View style={styles.paymentMethodRow}>
-                  <TouchableOpacity 
-                    style={[
-                      styles.paymentMethodBtn, 
-                      bookingData.payment_plan === 'full' && styles.paymentMethodBtnActive
-                    ]}
-                    onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'full' }))}
-                  >
-                     <Text style={[
-                       styles.paymentMethodBtnText, 
-                       bookingData.payment_plan === 'full' && styles.paymentMethodBtnTextActive
-                     ]}>Full</Text>
-                  </TouchableOpacity>
-
                   <TouchableOpacity 
                     style={[
                       styles.paymentMethodBtn, 
@@ -1525,17 +1590,40 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                        bookingData.payment_plan === 'monthly' && styles.paymentMethodBtnTextActive
                      ]}>Monthly</Text>
                   </TouchableOpacity>
+
+                  {hasPromoOffer ? (
+                    <TouchableOpacity
+                      style={[styles.paymentMethodBtn, bookingData.payment_plan === 'promo_one_time' && styles.paymentMethodBtnActive]}
+                      onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'promo_one_time' }))}
+                    >
+                      <Text style={[styles.paymentMethodBtnText, bookingData.payment_plan === 'promo_one_time' && styles.paymentMethodBtnTextActive]}>
+                        Pay One-Time Promo
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.paymentMethodBtn, bookingData.payment_plan === 'full' && styles.paymentMethodBtnActive]}
+                      onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'full' }))}
+                    >
+                      <Text style={[styles.paymentMethodBtnText, bookingData.payment_plan === 'full' && styles.paymentMethodBtnTextActive]}>
+                        Full
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Text style={[styles.summaryNote, { marginTop: 8, fontStyle: 'italic' }]}>
                   {bookingData.payment_plan === 'monthly' 
                     ? 'Pay the first month now to confirm, then pay monthly.'
-                    : 'Pay the total amount within 3 days to confirm your booking.'}
+                    : bookingData.payment_plan === 'promo_one_time'
+                    ? `Pay the discounted total of ₱${promoDiscountedTotal.toLocaleString()} upfront to avail the promo.`
+                    : 'Pay the total amount within 3 days to confirm your booking.'
+                  }
                 </Text>
               </View>
             )}
 
             {/* Duration & Cost Summary */}
-            {(bookingData.end_date || !isDailyContract) && (
+            {(hasCheckoutDate || !isDailyContract) && (
               <View style={styles.summaryContainer}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Duration</Text>
@@ -1566,11 +1654,20 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </View>
                 )}
 
+                {hasPromoOffer && bookingData.payment_plan === 'promo_one_time' && (
+                  <View style={styles.summaryRow}>
+                    <Text style={[styles.summaryLabel, { color: theme.colors.success }]}>Promo Discount</Text>
+                    <Text style={[styles.summaryValue, { color: theme.colors.success }]}>
+                      - ₱{promoDiscountAmount.toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+
                 <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
                   <Text style={styles.summaryLabelBold}>Total Amount</Text>
                   <Text style={styles.summaryValueBold}>
-                    {isPricingLoading ? '...' : `₱${(
-                      (Number(totalPrice) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? reservationFeeAmount : 0)
+                    {isPricingLoading ? '...' : `₱${( // Use selectedPlanTotal which already accounts for promo
+                      (Number(selectedPlanTotal) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? reservationFeeAmount : 0)
                     ).toLocaleString()}`}
                   </Text>
                 </View>

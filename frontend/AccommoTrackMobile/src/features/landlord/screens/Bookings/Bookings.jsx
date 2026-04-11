@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -55,10 +56,49 @@ const formatDate = (value) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const resolveBookingMode = (booking) => String(booking?.bookingMode || booking?.booking_mode || 'normal').toLowerCase();
+
+const resolveBedCount = (booking) => {
+  const parsed = Number(booking?.bedCount ?? booking?.bed_count ?? 1);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+};
+
+const resolveOccupantCount = (booking) => {
+  const explicit = Number(booking?.occupantCount ?? booking?.occupant_count ?? 0);
+  if (Number.isFinite(explicit) && explicit > 0) {
+    return Math.floor(explicit);
+  }
+
+  const loaded = Array.isArray(booking?.occupants) ? booking.occupants.length : 0;
+  if (loaded > 0) {
+    return loaded;
+  }
+
+  return resolveBookingMode(booking) === 'proxy' ? resolveBedCount(booking) : 1;
+};
+
+const resolveRoomCapacity = (booking) => {
+  const parsed = Number(booking?.room?.capacity ?? booking?.room_capacity ?? booking?.capacity ?? 0);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+};
+
+const getOccupancyLabel = (booking) => {
+  const occupants = resolveOccupantCount(booking);
+  const capacity = resolveRoomCapacity(booking);
+
+  if (capacity) {
+    return `${occupants}/${capacity} occupants`;
+  }
+
+  return `${occupants} occupant${occupants === 1 ? '' : 's'}`;
+};
+
 export default function BookingsScreen({ navigation, route }) {
   const { theme } = useTheme();
+  const { showAlert } = useUIState();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('bookings'); // bookings, transfers, extensions
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -130,19 +170,34 @@ export default function BookingsScreen({ navigation, route }) {
     placeholderData: (previousData) => previousData,
   });
 
+  const transferRequestsQuery = useQuery({
+    queryKey: ['landlord', 'transferRequests'],
+    queryFn: async () => {
+      const response = await PropertyService.getTransferRequests();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load transfer requests');
+      }
+      return Array.isArray(response.data) ? response.data : EMPTY_REQUESTS;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
   const bookings = bookingsQuery.data || EMPTY_BOOKINGS;
   const stats = statsQuery.data || DEFAULT_STATS;
   const extensionRequests = extensionRequestsQuery.data || EMPTY_REQUESTS;
+  const transferRequests = transferRequestsQuery.data || EMPTY_REQUESTS;
   const loading = bookingsQuery.isPending && bookings.length === 0;
   const loadingExtensions = extensionRequestsQuery.isPending && extensionRequests.length === 0;
+  const loadingTransfers = transferRequestsQuery.isPending && transferRequests.length === 0;
   const error = bookingsQuery.error?.message || statsQuery.error?.message || '';
 
   const refetchBookings = bookingsQuery.refetch;
   const refetchStats = statsQuery.refetch;
   const refetchExtensionRequests = extensionRequestsQuery.refetch;
+  const refetchTransferRequests = transferRequestsQuery.refetch;
   const bookingRefetchers = useMemo(
-    () => [refetchBookings, refetchStats, refetchExtensionRequests],
-    [refetchBookings, refetchStats, refetchExtensionRequests],
+    () => [refetchBookings, refetchStats, refetchExtensionRequests, refetchTransferRequests],
+    [refetchBookings, refetchStats, refetchExtensionRequests, refetchTransferRequests],
   );
 
   useLandlordFocusRefetch({ refetchers: bookingRefetchers });
@@ -202,10 +257,10 @@ export default function BookingsScreen({ navigation, route }) {
       if (!response.success) throw new Error(response.error || 'Unable to update extension request');
       setActionError('');
       await refetchLandlordQueries([refetchExtensionRequests]);
-      Alert.alert('Extension Request', `Request ${action}d successfully.`);
+      showAlert('Extension Request', `Request ${action}d successfully.`);
     } catch (err) {
       setActionError(err.message || 'Unable to process extension request');
-      Alert.alert('Extension Request', err.message || 'Unable to process extension request');
+      showAlert('Extension Request', err.message || 'Unable to process extension request');
     } finally {
       setRequestActionLoading(false);
     }
@@ -285,7 +340,7 @@ export default function BookingsScreen({ navigation, route }) {
       ));
     } catch (err) {
       if (showErrors) {
-        Alert.alert('Deposit Settlement', err.message || 'Unable to fetch settlement history.');
+        showAlert('Deposit Settlement', err.message || 'Unable to fetch settlement history.');
       }
     } finally {
       setSettlementHistoryLoading(false);
@@ -344,7 +399,7 @@ export default function BookingsScreen({ navigation, route }) {
     if (!selectedBooking) return;
 
     if (status === 'completed' && Number(selectedBooking.deposit_balance || 0) > 0) {
-      Alert.alert(
+      showAlert(
         'Deposit Settlement Required',
         `Settle the deposit balance of ${formatCurrency(selectedBooking.deposit_balance)} before completing this booking.`
       );
@@ -361,7 +416,7 @@ export default function BookingsScreen({ navigation, route }) {
       if (status === 'cancelled') closeDetailModal();
     } catch (err) {
       setActionError(err.message || 'Unable to update booking');
-      Alert.alert('Booking', err.message || 'Unable to update booking');
+      showAlert('Booking', err.message || 'Unable to update booking');
     } finally {
       setActionLoading(false);
     }
@@ -378,13 +433,13 @@ export default function BookingsScreen({ navigation, route }) {
       updateSelectedBooking({ paymentStatus, ...response.data?.booking });
 
       if (response.data?.completion_blocked) {
-        Alert.alert('Payment Updated', response.data?.message || 'Payment updated, but booking cannot be completed until deposit is settled.');
+        showAlert('Payment Updated', response.data?.message || 'Payment updated, but booking cannot be completed until deposit is settled.');
       }
 
       return true;
     } catch (err) {
       setActionError(err.message || 'Unable to update payment');
-      Alert.alert('Payment', err.message || 'Unable to update payment');
+      showAlert('Payment', err.message || 'Unable to update payment');
       return false;
     } finally {
       setActionLoading(false);
@@ -395,7 +450,7 @@ export default function BookingsScreen({ navigation, route }) {
     if (!selectedBooking) return;
 
     if (Number(selectedBooking.deposit_balance || 0) > 0) {
-      Alert.alert(
+      showAlert(
         'Deposit Settlement Required',
         `Settle the deposit balance of ${formatCurrency(selectedBooking.deposit_balance)} before completing this booking.`
       );
@@ -411,7 +466,7 @@ export default function BookingsScreen({ navigation, route }) {
   };
 
   const confirmResolvePartialCompleted = () => {
-    Alert.alert(
+    showAlert(
       'Mark Fully Paid & Completed',
       'Mark this booking as fully completed and paid?',
       [
@@ -433,10 +488,10 @@ export default function BookingsScreen({ navigation, route }) {
       await refetchLandlordQueries([refetchBookings, refetchStats]);
       closeDetailModal();
 
-      Alert.alert('Checkout Finalized', response.message || 'Checkout finalized successfully.');
+      showAlert('Checkout Finalized', response.message || 'Checkout finalized successfully.');
     } catch (err) {
       setActionError(err.message || 'Unable to finalize checkout.');
-      Alert.alert('Checkout', err.message || 'Unable to finalize checkout.');
+      showAlert('Checkout', err.message || 'Unable to finalize checkout.');
     } finally {
       setActionLoading(false);
     }
@@ -452,12 +507,12 @@ export default function BookingsScreen({ navigation, route }) {
     const totalDeductions = damageFee + cleaningFee + otherFee;
 
     if (totalDeductions <= 0 && !markRefunded) {
-      Alert.alert('Deposit Settlement', 'Add at least one deduction or mark remaining balance as refunded.');
+      showAlert('Deposit Settlement', 'Add at least one deduction or mark remaining balance as refunded.');
       return;
     }
 
     if (markRefunded && !settlementForm.refundMethod.trim()) {
-      Alert.alert('Deposit Settlement', 'Refund method is required when marking as refunded.');
+      showAlert('Deposit Settlement', 'Refund method is required when marking as refunded.');
       return;
     }
 
@@ -503,10 +558,10 @@ export default function BookingsScreen({ navigation, route }) {
       });
 
       setActionError('');
-      Alert.alert('Deposit Settlement', response.message || 'Deposit settlement recorded successfully.');
+      showAlert('Deposit Settlement', response.message || 'Deposit settlement recorded successfully.');
     } catch (err) {
       setActionError(err.message || 'Unable to settle deposit.');
-      Alert.alert('Deposit Settlement', err.message || 'Unable to settle deposit.');
+      showAlert('Deposit Settlement', err.message || 'Unable to settle deposit.');
     } finally {
       setSubmittingSettlement(false);
     }
@@ -514,7 +569,7 @@ export default function BookingsScreen({ navigation, route }) {
 
   const submitCancellation = () => {
     if (!cancelForm.reason.trim()) {
-      Alert.alert('Cancellation', 'Provide a reason before cancelling.');
+      showAlert('Cancellation', 'Provide a reason before cancelling.');
       return;
     }
     const payload = {
@@ -530,6 +585,7 @@ export default function BookingsScreen({ navigation, route }) {
   const renderBookingCard = ({ item }) => {
     const statusBadge = STATUS_BADGES[item.status] || STATUS_BADGES.pending;
     const paymentBadge = PAYMENT_BADGES[item.paymentStatus] || PAYMENT_BADGES.unpaid;
+    const modeLabel = resolveBookingMode(item) === 'proxy' ? 'Proxy' : 'Normal';
     const initials = item.guestName
       .split(' ')
       .map((n) => n[0])
@@ -561,6 +617,10 @@ export default function BookingsScreen({ navigation, route }) {
           <Text style={styles.detailText}>Room {item.roomNumber} • {item.roomType}</Text>
         </View>
         <View style={styles.detailRow}>
+          <Ionicons name="people-outline" size={16} color="#94A3B8" />
+          <Text style={styles.detailText}>{modeLabel} • Beds {resolveBedCount(item)} • {getOccupancyLabel(item)}</Text>
+        </View>
+        <View style={styles.detailRow}>
           <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
           <Text style={styles.detailText}>{formatDate(item.checkIn)} - {formatDate(item.checkOut)}</Text>
         </View>
@@ -574,6 +634,57 @@ export default function BookingsScreen({ navigation, route }) {
           </View>
         </View>
       </TouchableOpacity>
+    );
+  };
+
+  const handleTransferRequestAction = async (requestId, action) => {
+    try {
+      setRequestActionLoading(true);
+      const response = await PropertyService.handleTransferRequest(requestId, { action });
+      if (!response.success) throw new Error(response.error || 'Unable to update transfer request');
+      setActionError('');
+      await refetchLandlordQueries([refetchTransferRequests]);
+      showAlert('Transfer Request', `Request ${action}d successfully.`);
+    } catch (err) {
+      setActionError(err.message || 'Unable to process transfer request');
+      showAlert('Transfer Request', err.message || 'Unable to process transfer request');
+    } finally {
+      setRequestActionLoading(false);
+    }
+  };
+
+  const renderTransferRequestCard = (item) => {
+    const tenantName = item.tenant?.full_name || [item.tenant?.first_name, item.tenant?.last_name].filter(Boolean).join(' ') || 'Tenant';
+    return (
+      <View key={`tr-${item.id}`} style={styles.requestCard}>
+        <View style={styles.requestCardTop}>
+          <Text style={styles.requestTitle}>{tenantName}</Text>
+          <Text style={styles.requestStatus}>{item.status || 'pending'}</Text>
+        </View>
+        <Text style={styles.requestSubtitle}>
+          From Room {item.current_room?.room_number || '—'} → To Room {item.requested_room?.room_number || '—'}
+        </Text>
+        <Text style={styles.requestMeta}>Property: {item.property?.title || 'Property'}</Text>
+        <Text style={styles.requestMeta}>Reason: {item.reason}</Text>
+        {item.status === 'pending' ? (
+          <View style={styles.requestActionsRow}>
+            <TouchableOpacity
+              style={styles.requestApproveBtn}
+              disabled={requestActionLoading}
+              onPress={() => handleTransferRequestAction(item.id, 'approve')}
+            >
+              <Text style={styles.requestApproveText}>Approve</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.requestRejectBtn}
+              disabled={requestActionLoading}
+              onPress={() => handleTransferRequestAction(item.id, 'reject')}
+            >
+              <Text style={styles.requestRejectText}>Reject</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
     );
   };
 
@@ -597,43 +708,74 @@ export default function BookingsScreen({ navigation, route }) {
           <Text style={styles.statValue}>{stats.completed}</Text>
         </View>
       </ScrollView>
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color="#94A3B8" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search guest, property, room, or reference"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery ? (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color="#94A3B8" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-        {FILTERS.map((item) => (
-          <TouchableOpacity
-            key={item}
-            style={[styles.filterChip, filter === item && styles.filterChipActive]}
-            onPress={() => setFilter(item)}
+
+      {/* Main Feature Tabs */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+        {[
+          { id: 'bookings', label: 'All Bookings', icon: 'calendar' },
+          { id: 'transfers', label: 'Transfers', icon: 'shuffle', count: transferRequests.filter(r => r.status === 'pending').length },
+          { id: 'extensions', label: 'Extensions', icon: 'calendar-outline', count: extensionRequests.filter(r => r.status === 'pending').length }
+        ].map((tab) => (
+          <TouchableOpacity 
+            key={tab.id}
+            onPress={() => setActiveTab(tab.id)}
+            style={{ 
+              flex: 1, 
+              paddingVertical: 12, 
+              alignItems: 'center',
+              borderBottomWidth: 3,
+              borderBottomColor: activeTab === tab.id ? theme.colors.primary : 'transparent'
+            }}
           >
-            <Text style={[styles.filterText, filter === item && styles.filterTextActive]}>
-              {item.charAt(0).toUpperCase() + item.slice(1)}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ 
+                fontSize: 12, 
+                fontWeight: 'bold', 
+                color: activeTab === tab.id ? theme.colors.primary : theme.colors.textSecondary 
+              }}>
+                {tab.label}
+              </Text>
+              {tab.count > 0 && (
+                <View style={{ backgroundColor: theme.colors.error, borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>{tab.count}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
-      {loadingExtensions || extensionRequests.length > 0 ? (
-        <View style={styles.requestSection}>
-          {loadingExtensions ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          ) : (
-            extensionRequests.map(renderExtensionRequestCard)
-          )}
-        </View>
-      ) : null}
+      {activeTab === 'bookings' && (
+        <>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color="#94A3B8" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search guest, property, room, or reference"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {FILTERS.map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[styles.filterChip, filter === item && styles.filterChipActive]}
+                onPress={() => setFilter(item)}
+              >
+                <Text style={[styles.filterText, filter === item && styles.filterTextActive]}>
+                  {item.charAt(0).toUpperCase() + item.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
     </View>
   );
 
@@ -672,17 +814,45 @@ export default function BookingsScreen({ navigation, route }) {
       ) : null}
 
       <FlatList
-        data={filteredBookings}
+        data={activeTab === 'bookings' ? filteredBookings : []}
         keyExtractor={(item) => item.id?.toString() ?? Math.random().toString()}
-        renderItem={renderBookingCard}
+        renderItem={activeTab === 'bookings' ? renderBookingCard : null}
         ListHeaderComponent={listHeader}
+        ListFooterComponent={() => (
+          <View style={{ paddingBottom: 40 }}>
+            {activeTab === 'transfers' && (
+              <View style={styles.requestSection}>
+                {loadingTransfers ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : transferRequests.length === 0 ? (
+                  <Text style={styles.emptySubtitle}>No pending transfer requests.</Text>
+                ) : (
+                  transferRequests.map(renderTransferRequestCard)
+                )}
+              </View>
+            )}
+            {activeTab === 'extensions' && (
+              <View style={styles.requestSection}>
+                {loadingExtensions ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : extensionRequests.length === 0 ? (
+                  <Text style={styles.emptySubtitle}>No pending extension requests.</Text>
+                ) : (
+                  extensionRequests.map(renderExtensionRequestCard)
+                )}
+              </View>
+            )}
+          </View>
+        )}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} colors={[theme.colors.primary]} />}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={48} color="#94A3B8" />
-            <Text style={styles.emptyTitle}>No bookings found</Text>
-            <Text style={styles.emptySubtitle}>Bookings will appear here when guests reserve rooms.</Text>
-          </View>
+          activeTab === 'bookings' ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="calendar-outline" size={48} color="#94A3B8" />
+              <Text style={styles.emptyTitle}>No bookings found</Text>
+              <Text style={styles.emptySubtitle}>Bookings will appear here when guests reserve rooms.</Text>
+            </View>
+          ) : null
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -690,37 +860,37 @@ export default function BookingsScreen({ navigation, route }) {
 
       {/* Detail Modal */}
       <Modal visible={detailVisible} animationType="slide" onRequestClose={closeDetailModal}>
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Booking Details</Text>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Booking Details</Text>
             <TouchableOpacity onPress={closeDetailModal} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
           {selectedBooking ? (
             <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
               {/* Timeline - Blue themed like web */}
-              <View style={styles.timelineCard}>
+              <View style={[styles.timelineCard, { backgroundColor: theme.isDark ? 'rgba(30,64,175,0.1)' : '#EFF6FF', borderColor: theme.isDark ? '#1e40af' : '#DBEAFE' }]}>
                 <View style={styles.timelineItem}>
-                  <Text style={styles.timelineLabelBlue}>CHECK-IN</Text>
-                  <Text style={styles.timelineValueBlue}>{formatDate(selectedBooking.checkIn)}</Text>
+                  <Text style={[styles.timelineLabelBlue, { color: theme.isDark ? '#93c5fd' : '#1e40af' }]}>CHECK-IN</Text>
+                  <Text style={[styles.timelineValueBlue, { color: theme.isDark ? '#dbeafe' : '#1e3a8a' }]}>{formatDate(selectedBooking.checkIn)}</Text>
                 </View>
-                <Text style={styles.timelineArrow}>→</Text>
+                <Text style={[styles.timelineArrow, { color: theme.isDark ? '#3b82f6' : '#3b82f6' }]}>→</Text>
                 <View style={styles.timelineItemCenter}>
-                  <Text style={styles.timelineLabelBlue}>DURATION</Text>
-                  <Text style={styles.timelineValueBlue}>{selectedBooking.duration || '1 month'}</Text>
+                  <Text style={[styles.timelineLabelBlue, { color: theme.isDark ? '#93c5fd' : '#1e40af' }]}>DURATION</Text>
+                  <Text style={[styles.timelineValueBlue, { color: theme.isDark ? '#dbeafe' : '#1e3a8a' }]}>{selectedBooking.duration || '1 month'}</Text>
                 </View>
-                <Text style={styles.timelineArrow}>→</Text>
+                <Text style={[styles.timelineArrow, { color: theme.isDark ? '#3b82f6' : '#3b82f6' }]}>→</Text>
                 <View style={styles.timelineItemEnd}>
-                  <Text style={styles.timelineLabelBlue}>CHECK-OUT</Text>
-                  <Text style={styles.timelineValueBlue}>{formatDate(selectedBooking.checkOut)}</Text>
+                  <Text style={[styles.timelineLabelBlue, { color: theme.isDark ? '#93c5fd' : '#1e40af' }]}>CHECK-OUT</Text>
+                  <Text style={[styles.timelineValueBlue, { color: theme.isDark ? '#dbeafe' : '#1e3a8a' }]}>{formatDate(selectedBooking.checkOut)}</Text>
                 </View>
               </View>
 
               {/* Status Badges Row */}
               <View style={styles.statusRow}>
                 <View style={styles.statusItem}>
-                  <Text style={styles.statusItemLabel}>Booking Status</Text>
+                  <Text style={[styles.statusItemLabel, { color: theme.colors.textSecondary }]}>Booking Status</Text>
                   <View style={[styles.statusBadgeLarge, { backgroundColor: (STATUS_BADGES[selectedBooking.status] || STATUS_BADGES.pending).bg }]}>
                     <Text style={[styles.statusBadgeText, { color: (STATUS_BADGES[selectedBooking.status] || STATUS_BADGES.pending).color }]}>
                       {(STATUS_BADGES[selectedBooking.status] || STATUS_BADGES.pending).label}
@@ -728,7 +898,7 @@ export default function BookingsScreen({ navigation, route }) {
                   </View>
                 </View>
                 <View style={styles.statusItem}>
-                  <Text style={styles.statusItemLabel}>Payment Status</Text>
+                  <Text style={[styles.statusItemLabel, { color: theme.colors.textSecondary }]}>Payment Status</Text>
                   <View style={[styles.statusBadgeLarge, { backgroundColor: (PAYMENT_BADGES[selectedBooking.paymentStatus] || PAYMENT_BADGES.unpaid).bg }]}>
                     <Text style={[styles.statusBadgeText, { color: (PAYMENT_BADGES[selectedBooking.paymentStatus] || PAYMENT_BADGES.unpaid).color }]}>
                       {(PAYMENT_BADGES[selectedBooking.paymentStatus] || PAYMENT_BADGES.unpaid).label}
@@ -738,67 +908,100 @@ export default function BookingsScreen({ navigation, route }) {
               </View>
 
               {/* Guest Information */}
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionHeader}>Guest Information</Text>
+              <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Guest Information</Text>
                 <View style={styles.infoGrid}>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Name</Text>
-                    <Text style={styles.infoValue}>{selectedBooking.guestName}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Name</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>{selectedBooking.guestName}</Text>
                   </View>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Email</Text>
-                    <Text style={styles.infoValueSmall}>{selectedBooking.email}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Email</Text>
+                    <Text style={[styles.infoValueSmall, { color: theme.colors.textTertiary }]}>{selectedBooking.email}</Text>
                   </View>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Phone</Text>
-                    <Text style={styles.infoValue}>{selectedBooking.phone || '—'}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Phone</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>{selectedBooking.phone || '—'}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Booking Information */}
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionHeader}>Booking Information</Text>
+              <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Booking Information</Text>
                 <View style={styles.infoGrid}>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Reference</Text>
-                    <Text style={styles.referenceValue}>{selectedBooking.bookingReference}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Reference</Text>
+                    <Text style={[styles.referenceValue, { color: theme.colors.primary }]}>{selectedBooking.bookingReference}</Text>
                   </View>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Property</Text>
-                    <Text style={styles.infoValue}>{selectedBooking.propertyTitle}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Property</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>{selectedBooking.propertyTitle}</Text>
                   </View>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Room</Text>
-                    <Text style={styles.infoValue}>Room {selectedBooking.roomNumber} - {selectedBooking.roomType}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Room</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>Room {selectedBooking.roomNumber} - {selectedBooking.roomType}</Text>
                   </View>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Monthly Rent</Text>
-                    <Text style={styles.infoValue}>{formatCurrency(selectedBooking.monthlyRent || selectedBooking.amount)}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Booking Mode</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>{resolveBookingMode(selectedBooking) === 'proxy' ? 'Proxy' : 'Normal'}</Text>
                   </View>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Payment Plan</Text>
-                    <Text style={[styles.infoValue, { textTransform: 'capitalize' }]}>{selectedBooking.paymentPlan || 'Full'}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Beds Booked</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>{resolveBedCount(selectedBooking)}</Text>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Occupancy</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>{getOccupancyLabel(selectedBooking)}</Text>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Monthly Rent</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>{formatCurrency(selectedBooking.monthlyRent || selectedBooking.amount)}</Text>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Payment Plan</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text, textTransform: 'capitalize' }]}>{selectedBooking.paymentPlan || 'Full'}</Text>
                   </View>
                 </View>
-                <View style={styles.totalAmountBox}>
-                  <Text style={styles.totalAmountLabel}>Total Amount</Text>
-                  <Text style={styles.totalAmountValue}>{formatCurrency(selectedBooking.amount)}</Text>
+                <View style={[styles.totalAmountBox, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                  <Text style={[styles.totalAmountLabel, { color: theme.colors.textSecondary }]}>Total Amount</Text>
+                  <Text style={[styles.totalAmountValue, { color: theme.colors.primary }]}>{formatCurrency(selectedBooking.amount)}</Text>
                 </View>
               </View>
 
+              {(resolveBookingMode(selectedBooking) === 'proxy' || Array.isArray(selectedBooking.occupants)) ? (
+                <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Proxy Occupants</Text>
+                  {Array.isArray(selectedBooking.occupants) && selectedBooking.occupants.length > 0 ? (
+                    selectedBooking.occupants.map((occupant, index) => (
+                      <View key={occupant.id || `${occupant.full_name}-${index}`} style={[styles.occupantCard, { borderBottomColor: theme.colors.border }]}>
+                        <Text style={[styles.occupantName, { color: theme.colors.text }]}>{occupant.full_name || `Occupant ${index + 1}`}</Text>
+                        <Text style={[styles.occupantMeta, { color: theme.colors.textSecondary }]}>
+                          {occupant.relationship_to_booker || 'Relationship not provided'} • {occupant.gender || 'Gender not provided'}
+                        </Text>
+                        {(occupant.phone || occupant.email) ? (
+                          <Text style={[styles.occupantMeta, { color: theme.colors.textSecondary }]}>{[occupant.phone, occupant.email].filter(Boolean).join(' • ')}</Text>
+                        ) : null}
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={[styles.requestEmptyText, { color: theme.colors.textTertiary }]}>No occupant profiles are attached yet for this proxy booking.</Text>
+                  )}
+                </View>
+              ) : null}
+
               {/* Update Payment Status */}
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionHeader}>Update Payment Status</Text>
+              <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Update Payment Status</Text>
                 <View style={styles.paymentPillRow}>
                   {['unpaid', 'partial', 'paid', 'refunded'].map((status) => (
                     <TouchableOpacity
                       key={status}
-                      style={[styles.paymentPill, selectedBooking.paymentStatus === status && styles.paymentPillActive]}
+                      style={[styles.paymentPill, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }, selectedBooking.paymentStatus === status && styles.paymentPillActive]}
                       onPress={() => handlePaymentChange(status)}
                       disabled={actionLoading}
                     >
-                      <Text style={[styles.paymentPillText, selectedBooking.paymentStatus === status && styles.paymentPillTextActive]}>
+                      <Text style={[styles.paymentPillText, { color: theme.colors.textSecondary }, selectedBooking.paymentStatus === status && styles.paymentPillTextActive]}>
                         {status.charAt(0).toUpperCase() + status.slice(1)}
                       </Text>
                     </TouchableOpacity>
@@ -806,80 +1009,86 @@ export default function BookingsScreen({ navigation, route }) {
                 </View>
               </View>
 
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionHeader}>Deposit Settlement</Text>
-                <Text style={styles.depositBalanceLabel}>Current Deposit Balance</Text>
-                <Text style={styles.depositBalanceValue}>{formatCurrency(selectedBooking.deposit_balance || 0)}</Text>
+              <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Deposit Settlement</Text>
+                <Text style={[styles.depositBalanceLabel, { color: theme.colors.textSecondary }]}>Current Deposit Balance</Text>
+                <Text style={[styles.depositBalanceValue, { color: theme.colors.text }]}>{formatCurrency(selectedBooking.deposit_balance || 0)}</Text>
 
                 <View style={styles.settlementFeeRow}>
                   <View style={styles.settlementFeeField}>
-                    <Text style={styles.transferApprovalLabel}>Damage Fee</Text>
+                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Damage Fee</Text>
                     <TextInput
                       value={settlementForm.damageFee}
                       onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, damageFee: value }))}
                       keyboardType="numeric"
                       placeholder="0.00"
-                      style={styles.transferApprovalInput}
+                      placeholderTextColor={theme.colors.textTertiary}
+                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
                     />
                   </View>
                   <View style={styles.settlementFeeField}>
-                    <Text style={styles.transferApprovalLabel}>Cleaning Fee</Text>
+                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Cleaning Fee</Text>
                     <TextInput
                       value={settlementForm.cleaningFee}
                       onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, cleaningFee: value }))}
                       keyboardType="numeric"
                       placeholder="0.00"
-                      style={styles.transferApprovalInput}
+                      placeholderTextColor={theme.colors.textTertiary}
+                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
                     />
                   </View>
                   <View style={styles.settlementFeeField}>
-                    <Text style={styles.transferApprovalLabel}>Other Fee</Text>
+                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Other Fee</Text>
                     <TextInput
                       value={settlementForm.otherFee}
                       onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, otherFee: value }))}
                       keyboardType="numeric"
                       placeholder="0.00"
-                      style={styles.transferApprovalInput}
+                      placeholderTextColor={theme.colors.textTertiary}
+                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
                     />
                   </View>
                 </View>
 
                 <View style={styles.switchRow}>
-                  <Text style={styles.detailLabel}>Mark remaining balance as refunded?</Text>
+                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Mark remaining balance as refunded?</Text>
                   <Switch
                     value={settlementForm.markRefunded}
                     onValueChange={(value) => setSettlementForm((prev) => ({ ...prev, markRefunded: value }))}
-                    trackColor={{ true: '#86EFAC', false: '#CBD5F5' }}
+                    trackColor={{ true: '#86EFAC', false: theme.colors.border }}
                     thumbColor={settlementForm.markRefunded ? theme.colors.primary : '#FFFFFF'}
                   />
                 </View>
 
                 {settlementForm.markRefunded ? (
                   <>
-                    <Text style={styles.transferApprovalLabel}>Refund Method *</Text>
+                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Method *</Text>
                     <TextInput
                       value={settlementForm.refundMethod}
                       onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundMethod: value }))}
                       placeholder="Cash, GCash, Bank Transfer"
-                      style={styles.transferApprovalInput}
+                      placeholderTextColor={theme.colors.textTertiary}
+                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
                     />
 
-                    <Text style={styles.transferApprovalLabel}>Refund Reference</Text>
+                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Reference</Text>
                     <TextInput
                       value={settlementForm.refundReference}
                       onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundReference: value }))}
                       placeholder="Optional reference id"
-                      style={styles.transferApprovalInput}
+                      placeholderTextColor={theme.colors.textTertiary}
+                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
                     />
                   </>
                 ) : null}
 
-                <Text style={styles.transferApprovalLabel}>Notes</Text>
+                <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Notes</Text>
                 <TextInput
                   value={settlementForm.note}
                   onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, note: value }))}
                   placeholder="Optional settlement note"
-                  style={styles.transferApprovalTextArea}
+                  placeholderTextColor={theme.colors.textTertiary}
+                  style={[styles.transferApprovalTextArea, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
                   multiline
                 />
 
@@ -895,32 +1104,32 @@ export default function BookingsScreen({ navigation, route }) {
                   )}
                 </TouchableOpacity>
 
-                <Text style={styles.settlementHistoryTitle}>Settlement History</Text>
+                <Text style={[styles.settlementHistoryTitle, { color: theme.colors.text }]}>Settlement History</Text>
                 {settlementHistoryLoading ? (
                   <ActivityIndicator size="small" color={theme.colors.primary} />
                 ) : settlementHistory.length === 0 ? (
-                  <Text style={styles.requestEmptyText}>No settlement records yet.</Text>
+                  <Text style={[styles.requestEmptyText, { color: theme.colors.textTertiary }]}>No settlement records yet.</Text>
                 ) : (
                   settlementHistory.map((entry) => (
-                    <View key={entry.id} style={styles.settlementHistoryCard}>
-                      <Text style={styles.settlementHistoryAmount}>
+                    <View key={entry.id} style={[styles.settlementHistoryCard, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}>
+                      <Text style={[styles.settlementHistoryAmount, { color: theme.colors.text }]}>
                         Deductions {formatCurrency(entry.total_deductions || 0)} • Balance {formatCurrency(entry.ending_balance || 0)}
                       </Text>
-                      <Text style={styles.settlementHistoryMeta}>{formatDate(entry.created_at)}</Text>
+                      <Text style={[styles.settlementHistoryMeta, { color: theme.colors.textSecondary }]}>{formatDate(entry.created_at)}</Text>
                       {entry.mark_refunded ? (
-                        <Text style={styles.settlementHistoryMeta}>
+                        <Text style={[styles.settlementHistoryMeta, { color: theme.colors.textSecondary }]}>
                           Refunded via {entry.refund_method || 'N/A'}{entry.refund_reference ? ` • ${entry.refund_reference}` : ''}
                         </Text>
                       ) : null}
-                      {entry.note ? <Text style={styles.requestNote}>{entry.note}</Text> : null}
+                      {entry.note ? <Text style={[styles.requestNote, { color: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}>{entry.note}</Text> : null}
                     </View>
                   ))
                 )}
               </View>
 
               {/* Booking Actions */}
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionHeader}>Booking Actions</Text>
+              <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Booking Actions</Text>
                 <View style={styles.actionButtonsRow}>
                   {selectedBooking.status === 'pending' && (
                     <>
@@ -943,8 +1152,8 @@ export default function BookingsScreen({ navigation, route }) {
                     </>
                   )}
                   {selectedBooking.status === 'partial-completed' && (
-                    <View style={styles.cancelledNote}>
-                      <Text style={styles.cancelledNoteText}>
+                    <View style={[styles.cancelledNote, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                      <Text style={[styles.cancelledNoteText, { color: theme.colors.textSecondary }]}>
                         Partial Complete: Mark as fully completed once all balances are settled.
                       </Text>
                       <TouchableOpacity
@@ -962,8 +1171,8 @@ export default function BookingsScreen({ navigation, route }) {
                     </TouchableOpacity>
                   )}
                   {selectedBooking.status === 'cancelled' && (
-                    <View style={styles.cancelledNote}>
-                      <Text style={styles.cancelledNoteText}>This booking has been cancelled.</Text>
+                    <View style={[styles.cancelledNote, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                      <Text style={[styles.cancelledNoteText, { color: theme.colors.textSecondary }]}>This booking has been cancelled.</Text>
                     </View>
                   )}
                 </View>
@@ -975,36 +1184,37 @@ export default function BookingsScreen({ navigation, route }) {
 
       {/* Cancel Modal */}
       <Modal visible={cancelVisible} animationType="slide" onRequestClose={closeCancelModal}>
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Cancel Booking</Text>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Cancel Booking</Text>
             <TouchableOpacity onPress={closeCancelModal} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.modalContent}>
-            <Text style={styles.sectionTitle}>Reason</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Reason</Text>
             <TextInput
-              style={[styles.input, { height: 100 }]}
+              style={[styles.input, { height: 100, backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
               multiline
               placeholder="Explain why this booking is cancelled"
+              placeholderTextColor={theme.colors.textTertiary}
               value={cancelForm.reason}
               onChangeText={(text) => setCancelForm((prev) => ({ ...prev, reason: text }))}
             />
             <View style={styles.switchRow}>
-              <Text style={styles.detailLabel}>Refund payment?</Text>
+              <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Refund payment?</Text>
                 <Switch
                 value={cancelForm.shouldRefund}
                 onValueChange={(value) => setCancelForm((prev) => ({ ...prev, shouldRefund: value }))}
-                trackColor={{ true: '#86EFAC', false: '#CBD5F5' }}
+                trackColor={{ true: '#86EFAC', false: theme.colors.border }}
                 thumbColor={cancelForm.shouldRefund ? theme.colors.primary : '#FFFFFF'}
               />
             </View>
             {cancelForm.shouldRefund ? (
               <>
-                <Text style={styles.sectionTitle}>Refund Amount</Text>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Refund Amount</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
                   keyboardType="numeric"
                   value={cancelForm.refundAmount}
                   onChangeText={(text) => setCancelForm((prev) => ({ ...prev, refundAmount: text }))}
@@ -1012,9 +1222,9 @@ export default function BookingsScreen({ navigation, route }) {
               </>
             ) : null}
           </ScrollView>
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={styles.goBackBtn} onPress={closeCancelModal}>
-              <Text style={styles.goBackBtnText}>Go Back</Text>
+          <View style={[styles.modalActions, { borderTopColor: theme.colors.border }]}>
+            <TouchableOpacity style={[styles.goBackBtn, { backgroundColor: theme.colors.backgroundSecondary }]} onPress={closeCancelModal}>
+              <Text style={[styles.goBackBtnText, { color: theme.colors.textSecondary }]}>Go Back</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.confirmCancelBtn} onPress={submitCancellation}>
               <Text style={styles.confirmCancelBtnText}>Confirm Cancel</Text>

@@ -7,6 +7,7 @@ import PaymentService from '../../../../services/PaymentService.js';
 export default function PaymentRedirectWebview({ route, navigation }) {
   const { checkoutUrl, invoiceId } = route.params || {};
   const webviewRef = useRef(null);
+  const showAlert = Alert.alert;
 
   useEffect(() => {
     // noop
@@ -31,7 +32,7 @@ export default function PaymentRedirectWebview({ route, navigation }) {
       }
     } catch (e) {
       console.error('Error handling redirect navigation', e);
-      Alert.alert('Error', 'Failed to refresh payment status');
+      showAlert('Error', 'Failed to refresh payment status');
       navigation.goBack();
     }
   };

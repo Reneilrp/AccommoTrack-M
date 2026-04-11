@@ -48,6 +48,7 @@ export default function RoomListScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const contentWrapStyle = React.useMemo(
     () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
     [viewportWidth],
@@ -88,7 +89,7 @@ export default function RoomListScreen({ route }) {
     placeholderData: (previousData) => previousData,
   });
 
-  const rooms = roomListQuery.data || [];
+  const rooms = React.useMemo(() => roomListQuery.data ?? [], [roomListQuery.data]);
   const loading = roomListQuery.isLoading;
   const refetchRoomList = roomListQuery.refetch;
   const roomListRefetchers = React.useMemo(
@@ -110,7 +111,7 @@ export default function RoomListScreen({ route }) {
   useEffect(() => {
     if (!roomListQuery.error) return;
     console.error('Error loading rooms:', roomListQuery.error);
-    Alert.alert('Error', roomListQuery.error.message || 'Failed to load rooms. Please try again.');
+    showAlert('Error', roomListQuery.error.message || 'Failed to load rooms. Please try again.');
   }, [roomListQuery.error]);
 
   const filteredRooms = React.useMemo(() => {
@@ -157,6 +158,22 @@ export default function RoomListScreen({ route }) {
   const capitalizeStatus = (status) => {
     return (status || '').replace(/^\w/, c => c.toUpperCase()) || 'Unknown';
   };
+
+  const getPromoTerms = (room) => {
+    const promos = room?.duration_pricing;
+    if (!promos || typeof promos !== 'object') {
+      // The backend might return an array from the JSON cast.
+      if (Array.isArray(promos) && promos.length > 0) {
+        return promos.map(p => p.months || p.term).filter(Boolean);
+      }
+      return [];
+    }
+    // Handle object format
+    return Object.keys(promos).filter(
+      (term) => promos[term] && promos[term].discount_value > 0,
+    );
+  };
+
 
   if (loading) {
     return (
@@ -237,6 +254,7 @@ export default function RoomListScreen({ route }) {
             <View style={styles.roomsContainer}>
               {filteredRooms.map((room) => {
                 const isOccupied = room.status === 'occupied';
+                const promoTerms = getPromoTerms(room);
                 return (
                 <TouchableOpacity
                   key={room.id}
@@ -271,6 +289,16 @@ export default function RoomListScreen({ route }) {
                     </View>
 
                     <Text style={styles.roomType}>{room.type_label || room.room_type}</Text>
+
+                    {promoTerms.length > 0 && (
+                      <View style={styles.promoContainer}>
+                        <Ionicons name="pricetag-outline" size={12} color={theme.colors.primary} />
+                        <Text style={styles.promoText}>
+                          {promoTerms.join('/')}-Month
+                          {promoTerms.length > 1 ? ' Promos' : ' Promo'}
+                        </Text>
+                      </View>
+                    )}
 
                     <View style={styles.roomDetailsGrid}>
                       <View style={styles.roomDetailItem}>

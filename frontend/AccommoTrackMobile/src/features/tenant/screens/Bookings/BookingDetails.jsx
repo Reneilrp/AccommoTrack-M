@@ -97,6 +97,7 @@ export default function BookingDetails() {
     const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
+    const showAlert = Alert.alert;
     const insets = useSafeAreaInsets();
     const { bookingId } = route.params || {};
 
@@ -206,7 +207,7 @@ export default function BookingDetails() {
         const reqId = addon?.pivot?.id || addon?.request_id || addon?.id;
         if (!reqId) return;
 
-        Alert.alert('Cancel Add-on', 'Are you sure you want to cancel this add-on request?', [
+        showAlert('Cancel Add-on', 'Are you sure you want to cancel this add-on request?', [
             { text: 'No', style: 'cancel' },
             { 
                 text: 'Yes, Cancel', 
@@ -232,7 +233,7 @@ export default function BookingDetails() {
     };
 
     const handleCancelBooking = () => {
-        Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking? This action might be subject to terms and conditions.', [
+        showAlert('Cancel Booking', 'Are you sure you want to cancel this booking? This action might be subject to terms and conditions.', [
             { text: 'No', style: 'cancel' },
             { 
                 text: 'Confirm Cancellation', 
@@ -512,7 +513,7 @@ export default function BookingDetails() {
                     {(booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
                         <TouchableOpacity
                             onPress={() => {
-                                Alert.alert(
+                                showAlert(
                                     'Report an Issue',
                                     'What issue are you experiencing with this reservation?',
                                     [

@@ -22,6 +22,7 @@ import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
 import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
+import { useUIState } from '../../../contexts/UIStateContext.jsx';
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
 
@@ -86,6 +87,7 @@ const TermsModal = ({ visible, onClose, theme }) => {
 export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }) {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme, isDarkMode } = useTheme();
+  const { showAlert } = useUIState();
   const styles = useMemo(() => getStyles(theme), [theme]);
   const contentWrapStyle = useMemo(
     () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 760, alignSelf: 'center' } : null),
@@ -277,7 +279,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   const pickImageFromLibrary = async (field) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please allow photo library access to upload documents.');
+      showAlert('Permission Required', 'Please allow photo library access to upload documents.');
       return;
     }
 
@@ -292,7 +294,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   const takePhotoWithCamera = async (field) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please allow camera access to capture documents.');
+      showAlert('Permission Required', 'Please allow camera access to capture documents.');
       return;
     }
 
@@ -305,7 +307,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   };
 
   const pickImage = (field) => {
-    Alert.alert(
+    showAlert(
       'Upload Document',
       'Choose a source for your document image.',
       [
@@ -371,7 +373,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert(
+        showAlert(
           'Application Submitted!',
           'Your landlord registration has been successfully submitted. Our administrators will review your documents within 1-3 business days. You will receive an email once your account is verified.',
           [{ text: 'Return to Login', onPress: () => navigation.goBack() }]

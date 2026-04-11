@@ -24,6 +24,8 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   const normalizedGender = String(room.gender_restriction || 'mixed').toLowerCase().trim();
   const normalizedPropertyType = String(propertyType || room.property_type || room.property?.property_type || '').toLowerCase().trim();
   const showGenderBadge = !(normalizedPropertyType === 'apartment' && normalizedGender === 'mixed');
+  const hasProxyAccounts = Array.isArray(room.tenants)
+    && room.tenants.some((tenant) => Boolean(tenant?.is_proxy_account) || String(tenant?.booking_mode || '').toLowerCase() === 'proxy');
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col ${className}`} onClick={onClick}>
@@ -86,14 +88,31 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
 
         {room.tenants && room.tenants.length > 0 ? (
           <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mb-4 border border-gray-200 dark:border-gray-700">
-            <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Current Occupants</p>
+            <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">
+              {hasProxyAccounts ? 'Proxy Account' : 'Current Occupants'}
+            </p>
             <div className="flex flex-wrap gap-2.5">
-              {room.tenants.map((t, idx) => (
-                <span key={t.id || idx} className="px-2 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-200">
-                  {t.name}
-                </span>
-              ))}
+              {room.tenants.map((t, idx) => {
+                const isProxyAccount = Boolean(t?.is_proxy_account) || String(t?.booking_mode || '').toLowerCase() === 'proxy';
+                const occupantCount = Number(t?.occupant_count || 0);
+
+                return (
+                  <span key={t.id || idx} className="px-2 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    <span className="block">{t.name}{isProxyAccount ? ' (Proxy Account)' : ''}</span>
+                    {isProxyAccount && occupantCount > 0 && (
+                      <span className="block text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                        {occupantCount} {occupantCount === 1 ? 'occupant' : 'occupants'}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
             </div>
+            {hasProxyAccounts && (
+              <p className="mt-2 text-[10px] text-gray-500 dark:text-gray-400">
+                Click this room to show occupants under the proxy account.
+              </p>
+            )}
           </div>
         ) : room.tenant ? (
           <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mb-4 border border-gray-200 dark:border-gray-700">

@@ -591,6 +591,24 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '500',
     color: theme.colors.text
   },
+  occupantCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  occupantName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  occupantMeta: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+  },
   referenceValue: {
     fontSize: 15,
     fontWeight: '700',

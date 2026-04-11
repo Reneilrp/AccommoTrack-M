@@ -97,7 +97,7 @@ class StoreBookingRequest extends FormRequest
                 },
             ],
             'notes' => 'nullable|string|max:1000',
-            'payment_plan' => 'nullable|string|in:full,monthly',
+            'payment_plan' => 'nullable|string|in:full,monthly,promo_one_time',
             'contract_mode' => ['nullable', 'string', 'in:daily,monthly'],
             'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             'occupants' => 'required_if:booking_mode,proxy|array|min:1',

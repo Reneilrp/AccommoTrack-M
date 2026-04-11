@@ -45,7 +45,7 @@ const formatCurrency = (value) => {
   return `₱${numeric.toLocaleString()}`;
 };
 
-const shareOrNotify = async (fileUri) => {
+const shareOrNotify = async (fileUri, notify) => {
   const isAvailable = typeof Sharing?.isAvailableAsync === 'function'
     ? await Sharing.isAvailableAsync()
     : true;
@@ -55,7 +55,7 @@ const shareOrNotify = async (fileUri) => {
     return;
   }
 
-  Alert.alert('Export complete', `CSV saved to: ${fileUri}`);
+  notify('Export complete', `CSV saved to: ${fileUri}`);
 };
 
 const getOccupancyStatusMeta = (rateValue) => {
@@ -102,6 +102,7 @@ export default function Analytics({ navigation }) {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
+  const showAlert = Alert.alert;
   const chartWidth = React.useMemo(
     () => Math.max(260, Math.min(viewportWidth - 64, 920)),
     [viewportWidth],
@@ -327,7 +328,7 @@ export default function Analytics({ navigation }) {
         await FileSystem.writeAsStringAsync(serverFileUri, exportResponse.data, {
           encoding: FileSystem.EncodingType.UTF8
         });
-        await shareOrNotify(serverFileUri);
+        await shareOrNotify(serverFileUri, showAlert);
         return;
       }
 
@@ -349,9 +350,9 @@ export default function Analytics({ navigation }) {
       const csv = rows.map(r => r.map(formatCsvVal).join(',')).join('\n');
       const fileUri = `${FileSystem.documentDirectory}Analytics_${Date.now()}.csv`;
       await FileSystem.writeAsStringAsync(fileUri, csv);
-      await shareOrNotify(fileUri);
+      await shareOrNotify(fileUri, showAlert);
     } catch (_err) {
-      Alert.alert('Error', 'Failed to export report');
+      showAlert('Error', 'Failed to export report');
     } finally {
       setExporting(false);
     }

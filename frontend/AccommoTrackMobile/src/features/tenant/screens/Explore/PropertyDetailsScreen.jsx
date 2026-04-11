@@ -81,6 +81,7 @@ export default function PropertyDetailsScreen({
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
+  const showAlert = Alert.alert;
   const routeParams = route?.params || {};
   const {
     accommodation,
@@ -347,7 +348,7 @@ export default function PropertyDetailsScreen({
     const src = detailedAccommodation || accommodation;
     const { latitude, longitude } = src || {};
     if (!latitude || !longitude) {
-      Alert.alert(
+      showAlert(
         "Location Not Available",
         "Map coordinates are not set for this property.",
       );
@@ -397,7 +398,7 @@ export default function PropertyDetailsScreen({
       console.log("Extracted landlord info:", { landlordId, landlordName });
 
       if (!landlordId) {
-        Alert.alert(
+        showAlert(
           "Error",
           "Landlord information not available. Please try refreshing the property details.",
           [
@@ -434,7 +435,7 @@ export default function PropertyDetailsScreen({
       });
     } catch (error) {
       console.error("Error navigating to messages:", error);
-      Alert.alert(
+      showAlert(
         "Error",
         `Failed to open messages: ${error.message}\n\nPlease try again.`,
       );

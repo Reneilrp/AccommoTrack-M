@@ -12,6 +12,7 @@ import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQue
 export default function MyReviews({ hideHeader = false, historyOnly = false }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
@@ -42,11 +43,11 @@ export default function MyReviews({ hideHeader = false, historyOnly = false }) {
 
   useEffect(() => {
     if (!myReviewsQuery.error) return;
-    Alert.alert('Error', myReviewsQuery.error.message || 'Failed to load your reviews');
+    showAlert('Error', myReviewsQuery.error.message || 'Failed to load your reviews');
   }, [myReviewsQuery.error]);
 
   const confirmDelete = (id) => {
-    Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
+    showAlert('Delete Review', 'Are you sure you want to delete this review?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => handleDelete(id) }
     ]);
@@ -57,17 +58,17 @@ export default function MyReviews({ hideHeader = false, historyOnly = false }) {
     try {
       const res = await tenantService.deleteReview(id);
       if (res.success) {
-        Alert.alert('Deleted', 'Review deleted');
+        showAlert('Deleted', 'Review deleted');
         queryClient.setQueryData(tenantQueryKeys.myReviews(), (prev) => {
           if (!Array.isArray(prev)) return [];
           return prev.filter((review) => review.id !== id);
         });
       } else {
-        Alert.alert('Error', res.error || 'Failed to delete review');
+        showAlert('Error', res.error || 'Failed to delete review');
       }
     } catch (err) {
       console.error('Delete review error', err);
-      Alert.alert('Error', 'Failed to delete review');
+      showAlert('Error', 'Failed to delete review');
     } finally {
       setDeletingId(null);
     }

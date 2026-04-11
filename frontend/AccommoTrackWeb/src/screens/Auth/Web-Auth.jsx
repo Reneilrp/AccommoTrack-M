@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Upload,
   X,
+  MoreVertical,
 } from "lucide-react";
 import Logo from "../../assets/Logo.png";
 import api, {
@@ -749,6 +750,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showAuthMenu, setShowAuthMenu] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({
     title: "",
     message: "",
@@ -1438,6 +1440,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
   const toggleScreen = () => {
     setIsLogin(!isLogin);
+    setShowAuthMenu(false);
     setError("");
     setEmailAvailable(null);
     setEmailCheckMsg("");
@@ -1496,6 +1499,14 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
             onClaimed={handleClaimSuccess}
           />
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
+            {isLogin && showAuthMenu && (
+              <button
+                type="button"
+                aria-hidden="true"
+                className="absolute inset-0 z-10 cursor-default"
+                onClick={() => setShowAuthMenu(false)}
+              />
+            )}
             {/* Back/Sign In Button */}
             {isLogin ? (
               <button
@@ -1515,6 +1526,34 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
               >
                 <ChevronLeft className="w-7 h-7" />
               </button>
+            )}
+
+            {isLogin && (
+              <div className="absolute top-4 right-4 z-20">
+                <button
+                  type="button"
+                  onClick={() => setShowAuthMenu((prev) => !prev)}
+                  className="h-8 w-8 inline-flex items-center justify-center rounded-md text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-gray-700 transition-colors"
+                  aria-label="Open authentication menu"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+
+                {showAuthMenu && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAuthMenu(false);
+                        setShowClaimModal(true);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      Claim Existing Account
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
             {/* Logo and Header */}
             <div className="flex flex-col items-center justify-center mb-4">
@@ -1649,14 +1688,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setShowClaimModal(true)}
-                    className="text-sm text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold transition-colors opacity-80 hover:opacity-100"
-                  >
-                    Claim Existing Account
-                  </button>
+                <div className="flex items-center justify-end">
                   <button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}

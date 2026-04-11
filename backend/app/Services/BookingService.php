@@ -239,12 +239,29 @@ class BookingService
                 && $reservationFeeAmount > 0
                 && $daysUntilMoveIn > $reservationFeeThresholdDays;
 
-            $requestedPaymentPlan = $data['payment_plan'] ?? 'full';
+            $requestedPaymentPlan = strtolower((string) ($data['payment_plan'] ?? 'full'));
+            if (! in_array($requestedPaymentPlan, ['full', 'monthly', 'promo_one_time'], true)) {
+                $requestedPaymentPlan = 'full';
+            }
+
             if ($contractMode === 'daily') {
                 $requestedPaymentPlan = 'full';
             }
             if (! $endDate && $contractMode === 'monthly') {
                 $requestedPaymentPlan = 'monthly';
+            }
+
+            if ($requestedPaymentPlan === 'promo_one_time') {
+                if ($contractMode !== 'monthly' || !$endDate) {
+                    throw new \DomainException('Long-term promo one-time payment is only available for fixed monthly stays.');
+                }
+
+                $promoDiscount = $this->resolveLongTermPromoDiscount($room, $priceResult, $totalAmount);
+                if (! $promoDiscount) {
+                    throw new \DomainException('Long-term promo is only available for exact 3, 6, 9, or 12-month stays with configured discounts.');
+                }
+
+                $totalAmount = $promoDiscount['discounted_total'];
             }
 
             $bookingReference = 'BK-'.strtoupper(Str::random(8));
@@ -257,7 +274,7 @@ class BookingService
                 $status = 'pending_reservation';
                 // Store image in default disk
                 $receiptImagePath = $data['receipt_image']->store('receipts');
-                $reservationRef = 'RES-'.strtoupper(Str::random(8));
+                $reservationRef = 'RES-' . strtoupper(Str::random(8));
             } elseif ($requiresReservationFee) {
                // If property requires reservation but no image was provided 
                // (handled loosely here, can depend on UI strictness)
@@ -312,7 +329,7 @@ class BookingService
 
             // GENERATE RESERVATION FEE INVOICE IF REQUIRED
             if ($requiresReservationFee) {
-                $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
+                $reference = 'RES-' . date('Ymd') . '-' . strtoupper(Str::random(6));
 
                 $reservationInvoice = \App\Models\Invoice::create([
                     'reference' => $reference,
@@ -375,6 +392,22 @@ class BookingService
     private function normalizePropertyTypeToken(?string $propertyType): string
     {
         return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
+    }
+
+    /**
+     * @return array{months: int, discount_type: string, discount_value: float, discount_amount: float, discounted_total: float}|null
+     */
+    private function resolveLongTermPromoDiscount(Room $room, array $priceResult, float $baseTotal): ?array
+    {
+        $breakdown = $priceResult['breakdown'] ?? [];
+        $months = (int) ($breakdown['months'] ?? 0);
+        $remainingDays = (int) ($breakdown['remaining_days'] ?? 0);
+
+        if ($months < 1 || $remainingDays !== 0) {
+            return null;
+        }
+
+        return $room->calculateDurationDiscount($baseTotal, $months);
     }
 
     /**
@@ -691,23 +724,30 @@ class BookingService
             ->first();
         if (! $existingInvoice) {
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
-
+    
             $billingPolicy = $booking->room->billing_policy ?? 'monthly';
 
-            // For monthly-billed rooms, the first invoice always covers 1 full month's rent.
-            // This is critical for transfer bookings where start_date = today and the period
-            // may be < 30 days, which would cause total_amount to be a tiny prorated figure.
+            // For monthly billing policies:
+            // - monthly plan starts with one monthly invoice and then recurring cycles
+            // - full and promo_one_time plans issue one upfront invoice for total_amount
             if ($billingPolicy !== 'daily') {
-                $amount = $booking->monthly_rent;
-                $description = 'Monthly rent for booking '.$booking->booking_reference;
+                if (in_array($booking->payment_plan, ['full', 'promo_one_time'], true)) {
+                    $amount = (float) $booking->total_amount; // This already includes promo discount if applicable
+                    $description = $booking->payment_plan === 'promo_one_time'
+                        ? 'Promo one-time rent for booking '.$booking->booking_reference
+                        : 'Full duration upfront rent for booking '.$booking->booking_reference;
+                } else {
+                    // Keep monthly behavior unchanged: first invoice covers one month plus recurring addons.
+                    $amount = $booking->monthly_rent;
+                    $description = 'Monthly rent for booking '.$booking->booking_reference;
 
-                // Add recurring monthly addons to first invoice if any
-                $recurringAddonAmount = $booking->addons()
-                    ->where('booking_addons.status', 'active')
-                    ->where('price_type', 'monthly')
-                    ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+                    $recurringAddonAmount = $booking->addons()
+                        ->where('booking_addons.status', 'active')
+                        ->where('price_type', 'monthly')
+                        ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
 
-                $amount += $recurringAddonAmount;
+                    $amount += $recurringAddonAmount;
+                }
             } else {
                 // For daily-rate rooms, use the exact period total
                 $amount = $booking->total_amount;

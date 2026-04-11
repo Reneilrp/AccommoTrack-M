@@ -95,7 +95,8 @@ export default function TenantHomePage({
 }) {
   const { width: viewportWidth } = useWindowDimensions();
   const navigation = useNavigation();
-  const { uiState, updateData, invalidateData } = useUIState();
+  const { uiState, updateData, invalidateData, showAlert: uiShowAlert } = useUIState();
+  const showAlert = uiShowAlert || Alert.alert;
   const BUCKET = 'explore_properties';
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -246,7 +247,7 @@ export default function TenantHomePage({
     if (!explorePropertiesQuery.error) return;
 
     console.error("Error loading properties:", explorePropertiesQuery.error);
-    Alert.alert(
+    showAlert(
       "Error",
       explorePropertiesQuery.error.message || "Failed to load properties. Please try again.",
     );
@@ -431,7 +432,7 @@ export default function TenantHomePage({
       && Number(nextFilters.maxPrice) > 0
       && Number(nextFilters.minPrice) > Number(nextFilters.maxPrice)
     ) {
-      Alert.alert('Invalid Price Range', 'Minimum price cannot be greater than maximum price.');
+      showAlert('Invalid Price Range', 'Minimum price cannot be greater than maximum price.');
       return;
     }
 
@@ -644,7 +645,7 @@ export default function TenantHomePage({
 
   const handleLikePress = async (id) => {
     if (isGuest) {
-      Alert.alert(
+      showAlert(
         "Sign In Required",
         "You need to sign in to save favorites.",
         [

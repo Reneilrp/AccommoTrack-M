@@ -168,7 +168,7 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 8
   },
   unreadBadge: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: '#EF4444',
     borderRadius: 12,
     minWidth: 24,
     height: 24,

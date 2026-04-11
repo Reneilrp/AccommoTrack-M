@@ -117,8 +117,27 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
         return String(amenity?.name || amenity?.title || '').trim();
       })
       .filter(Boolean);
+    const longTermPromos = (Array.isArray(room?.long_term_promos) ? room.long_term_promos : [])
+      .map((promo) => {
+        const months = Number(promo?.months);
+        if (!Number.isFinite(months) || months <= 0) return null;
 
-    return {
+        const discountType = String(promo?.discount_type || 'percent').toLowerCase() === 'fixed'
+          ? 'fixed'
+          : 'percent';
+        const discountValue = Number(promo?.discount_value || 0);
+        if (!Number.isFinite(discountValue) || discountValue <= 0) return null;
+
+        return {
+          months,
+          discountType,
+          discountValue,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.months - b.months);
+
+    const normalizedRoom = {
       ...room,
       billingPolicy,
       genderRestriction,
@@ -130,8 +149,11 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       roomTypeLabel: roomType,
       occupancyLabel,
       amenityLabels,
+      longTermPromos,
       imageSource: room?.image || room?.images?.[0] || null,
+      is_available: room.is_available, // Pass through for filtering
     };
+    return normalizedRoom;
   };
 
   const getGenderBadge = (restriction) => {
@@ -166,6 +188,14 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     const amount = Number(value);
     if (!Number.isFinite(amount) || amount <= 0) return 'N/A';
     return `₱${amount.toLocaleString()}`;
+  };
+
+  const formatPromoLabel = (promo) => {
+    const discountLabel = promo.discountType === 'fixed'
+      ? `PHP ${Math.round(promo.discountValue).toLocaleString()} off`
+      : `${promo.discountValue}% off`;
+
+    return `${promo.months}M ${discountLabel}`;
   };
 
   const checkArrows = () => {
@@ -214,18 +244,18 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
         {(Array.isArray(property?.rooms) ? property.rooms : [])
           .map(normalizeRoom)
           .filter((room) => {
-            const rawStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
-            const effectiveStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawStatus === 'available')
-              ? 'reserved'
-              : rawStatus;
+            const rawStatus = (room.display_status || room.status || 'available').toLowerCase();
+            const effectiveStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawStatus === 'available') ? 'reserved' : rawStatus;
+
             const parsedCapacity = Number(room.raw_capacity ?? room.capacity);
             const parsedAvailableSlots = Number(room.available_slots ?? room.availableSlots);
             const parsedOccupied = Number(room.occupied_count ?? room.occupied);
             const isFullyOccupied = Number.isFinite(parsedCapacity) && parsedCapacity > 0 && (
               (Number.isFinite(parsedAvailableSlots) && parsedAvailableSlots <= 0)
               || (Number.isFinite(parsedOccupied) && parsedOccupied >= parsedCapacity)
+              || (room.status === 'occupied' && room.is_available === false) // Explicitly occupied and not available
             );
-            return effectiveStatus !== 'occupied' && !isFullyOccupied;
+            return effectiveStatus !== 'occupied' && !isFullyOccupied && room.status !== 'maintenance'; // Also exclude maintenance rooms
           })
           .sort((a, b) => {
             const aStatus = (a.display_status || a.status || 'available').toString().toLowerCase();
@@ -330,6 +360,24 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                   {room.roomTypeLabel}
                 </span>
               </div>
+
+              {room.longTermPromos.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {room.longTermPromos.slice(0, 2).map((promo) => (
+                    <span
+                      key={`${room.id}-promo-${promo.months}`}
+                      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+                    >
+                      {formatPromoLabel(promo)}
+                    </span>
+                  ))}
+                  {room.longTermPromos.length > 2 && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                      +{room.longTermPromos.length - 2} more
+                    </span>
+                  )}
+                </div>
+              )}
 
               {room.amenityLabels.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api, { getImageUrl } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
@@ -51,6 +51,9 @@ const UserManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, requirePassword: false });
   const [passwordValue, setPasswordValue] = useState('');
+  const passwordValueRef = useRef(passwordValue);
+  // Keep the latest typed password available for confirm callbacks stored in state.
+  passwordValueRef.current = passwordValue;
   
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [editEmailValue, setEditEmailValue] = useState('');
@@ -206,10 +209,11 @@ const UserManagement = () => {
   };
 
   const runDeleteUser = async (userId) => {
+    const adminPassword = passwordValueRef.current;
     setConfirmModalState({ isOpen: false });
     setActionLoading(`${userId}:delete`);
     try {
-      await api.delete(`/admin/users/${userId}`, { data: { password: passwordValue } });
+      await api.delete(`/admin/users/${userId}`, { data: { password: adminPassword } });
       toast.success('User permanently deleted');
       setUsers(prev => prev.filter(u => u.id !== userId));
       if (selectedUser?.id === userId) {

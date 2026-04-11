@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   StatusBar,
@@ -100,6 +99,12 @@ const STEPS = [
   { id: 4, title: "Credentials", icon: "shield-checkmark" },
 ];
 
+const LANDLORD_ACCESS_STATUSES = [
+  "approved",
+  "partial_verified",
+  "pending_documents_review",
+];
+
 export default function AddProperty({ navigation }) {
   const { theme } = useTheme();
   const styles = getStyles(theme);
@@ -135,6 +140,7 @@ export default function AddProperty({ navigation }) {
       let isCaretaker = false;
       let isVerified = false;
       let isPayMongoVerified = false;
+      let verificationStatus = null;
 
       try {
         const userString = await AsyncStorage.getItem("user");
@@ -152,26 +158,28 @@ export default function AddProperty({ navigation }) {
 
         if (isCaretaker) {
           isVerified = true;
-          return { isCaretaker, isVerified, isPayMongoVerified };
+          return { isCaretaker, isVerified, isPayMongoVerified, verificationStatus };
         }
 
         const verificationRes = await ProfileService.getVerificationStatus();
 
         if (verificationRes?.success) {
+          verificationStatus = verificationRes.data?.status ?? null;
           isVerified =
-            verificationRes.data?.status === "approved" ||
+            LANDLORD_ACCESS_STATUSES.includes(verificationStatus) ||
             verificationRes.data?.user?.is_verified === true;
         }
       } catch (_error) {
         isVerified = false;
       }
 
-      return { isCaretaker, isVerified, isPayMongoVerified };
+      return { isCaretaker, isVerified, isPayMongoVerified, verificationStatus };
     },
   });
 
   const isCaretaker = addPropertyVerificationQuery.data?.isCaretaker === true;
   const isVerified = addPropertyVerificationQuery.data?.isVerified ?? null;
+  const verificationStatus = addPropertyVerificationQuery.data?.verificationStatus ?? null;
   const isPayMongoVerified =
     addPropertyVerificationQuery.data?.isPayMongoVerified ?? false;
   const canSubmitForApproval = isCaretaker || isVerified === true;
@@ -301,7 +309,7 @@ export default function AddProperty({ navigation }) {
   const handlePickImages = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission required", "Please allow photo library access.");
+      showAlert("Permission required", "Please allow photo library access.");
       return;
     }
 
@@ -331,7 +339,7 @@ export default function AddProperty({ navigation }) {
       }
 
       if (tooLargeFiles.length > 0) {
-        Alert.alert(
+        showAlert(
           "Files too large",
           `The following images exceed the 5MB limit and were skipped:\n\n${tooLargeFiles.join("\n")}`,
         );
@@ -600,7 +608,7 @@ export default function AddProperty({ navigation }) {
 
       if (!canSubmitForApproval) {
         setError(
-          "Account verification is required before submitting for approval. You can still save as draft.",
+          "Your account needs partial verification (or approved status) before submitting for approval. You can still save as draft.",
         );
         return;
       }
@@ -763,8 +771,9 @@ export default function AddProperty({ navigation }) {
                 Account Verification Required
               </Text>
               <Text style={styles.warningText}>
-                You can save as draft, but you can't submit for approval until
-                your account is verified.
+                {verificationStatus === "pending"
+                  ? "You can save as draft while your account is under review. Submit for approval unlocks after partial verification or full approval."
+                  : "You can save as draft, but submit for approval unlocks after partial verification or full approval."}
               </Text>
             </View>
           </View>
@@ -947,7 +956,7 @@ export default function AddProperty({ navigation }) {
                     value={form.requireReservationFee}
                     onValueChange={(value) => {
                       if (!isPayMongoVerified && value) {
-                        Alert.alert(
+                        showAlert(
                           "PayMongo Not Verified",
                           "You need to complete PayMongo verification before enabling reservation fee.",
                         );
@@ -1362,10 +1371,9 @@ export default function AddProperty({ navigation }) {
                 }}
                 onPress={() => {
                   if (!isPayMongoVerified) {
-                    Alert.alert(
+                    showAlert(
                       "PayMongo Not Verified",
                       "You need to complete PayMongo verification before enabling online payments.\n\nGo to Settings > Payments to connect your account.",
-                      [{ text: "OK" }],
                     );
                     return;
                   }

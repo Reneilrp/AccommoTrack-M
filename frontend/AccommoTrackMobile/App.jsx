@@ -31,6 +31,7 @@ const MyDarkTheme = {
 
 import Constants from 'expo-constants';
 import ForceUpdateModal from './src/components/ForceUpdateModal.jsx';
+import ThemedAlert from './src/components/ThemedAlert.jsx';
 import api from './src/services/api.js';
 
 function AppContent() {
@@ -109,6 +110,7 @@ function AppContent() {
         latestVersion={latestVersion} 
         downloadUrl={downloadUrl} 
       />
+      <ThemedAlert />
       <Toast config={toastConfig} />
     </View>
   );

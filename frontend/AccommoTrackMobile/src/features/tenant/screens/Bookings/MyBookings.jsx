@@ -72,7 +72,8 @@ export default function MyBookings() {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const { uiState, updateData, invalidateData } = useUIState();
+  const { uiState, updateData, invalidateData, showAlert: uiShowAlert } = useUIState();
+  const showAlert = uiShowAlert || Alert.alert;
   const BUCKET = 'bookings';
   
   const [activeTab, setActiveTab] = useState(
@@ -103,6 +104,9 @@ export default function MyBookings() {
   const [transferRoomOptions, setTransferRoomOptions] = useState([]);
   const [selectedTransferRoomId, setSelectedTransferRoomId] = useState(null);
   const [transferReason, setTransferReason] = useState('');
+  const [leaseDurationPreference, setLeaseDurationPreference] = useState('keep_current');
+  const [newEndDate, setNewEndDate] = useState(null);
+  const [showNewEndDatePicker, setShowNewEndDatePicker] = useState(false);
   const [transferOptionsMessage, setTransferOptionsMessage] = useState('');
   const [transferContext, setTransferContext] = useState(null);
   const [transferPreview, setTransferPreview] = useState(null);
@@ -180,6 +184,9 @@ export default function MyBookings() {
     setTransferRoomOptions([]);
     setSelectedTransferRoomId(null);
     setTransferReason('');
+    setLeaseDurationPreference('keep_current');
+    setNewEndDate(null);
+    setShowNewEndDatePicker(false);
     setTransferOptionsMessage('');
     setTransferContext(null);
     setTransferPreview(null);
@@ -349,6 +356,59 @@ export default function MyBookings() {
     return `₱${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   };
 
+  const toWholeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : fallback;
+  };
+
+  const resolveOccupancySummary = (bookingEntry, roomEntry) => {
+    const resolvedBedCount = Math.max(
+      1,
+      toWholeNumber(bookingEntry?.bed_count ?? bookingEntry?.bedCount, 1),
+    );
+    const resolvedOccupantCount = Math.max(
+      1,
+      toWholeNumber(bookingEntry?.occupant_count ?? bookingEntry?.occupantCount, 0)
+        || resolvedBedCount,
+    );
+    const resolvedRoomCapacity = toWholeNumber(
+      roomEntry?.capacity ?? roomEntry?.raw_capacity,
+      0,
+    );
+
+    if (resolvedRoomCapacity > 0) {
+      return {
+        label: 'Occupancy',
+        value: `${resolvedOccupantCount}/${resolvedRoomCapacity}`,
+      };
+    }
+
+    return {
+      label: 'Occupants',
+      value: String(resolvedOccupantCount),
+    };
+  };
+
+  const resolveOccupantProfiles = (bookingEntry) => {
+    const source = Array.isArray(bookingEntry?.occupants) ? bookingEntry.occupants : [];
+
+    return source.map((occupant, index) => {
+      const fullName = String(occupant?.full_name || occupant?.fullName || '').trim() || `Occupant ${index + 1}`;
+      const relationship = String(occupant?.relationship_to_booker || occupant?.relationshipToBooker || '').trim();
+      const gender = String(occupant?.gender || '').trim();
+      const phone = String(occupant?.phone || '').trim();
+      const email = String(occupant?.email || '').trim();
+
+      return {
+        id: occupant?.id || `${fullName}-${index}`,
+        fullName,
+        relationship,
+        gender,
+        contact: [phone, email].filter(Boolean).join(' • '),
+      };
+    });
+  };
+
   const resolveAddonDisplayPrice = (addon) => {
     const candidates = [
       addon?.pivot?.price_at_booking,
@@ -500,13 +560,13 @@ export default function MyBookings() {
 
   const openAddonModal = ({ booking, property, addons }) => {
     if (!booking?.id) {
-      Alert.alert('Unavailable', 'Add-on request details are incomplete for this stay.');
+      showAlert('Unavailable', 'Add-on request details are incomplete for this stay.');
       return;
     }
 
     const paymentStatus = String(booking.paymentStatus || booking.payment_status || '').toLowerCase();
     if (paymentStatus === 'refunded') {
-      Alert.alert('Action Disabled', 'Add-on requests are disabled until your room payment is re-settled.');
+      showAlert('Action Disabled', 'Add-on requests are disabled until your room payment is re-settled.');
       return;
     }
 
@@ -524,7 +584,7 @@ export default function MyBookings() {
 
   const submitAddonRequest = async (payload, requestKey) => {
     if (!payload?.booking_id) {
-      Alert.alert('Unavailable', 'Booking reference is missing for this add-on request.');
+      showAlert('Unavailable', 'Booking reference is missing for this add-on request.');
       return;
     }
 
@@ -536,12 +596,12 @@ export default function MyBookings() {
     const result = await TenantService.requestAddon(payload);
 
     if (result.success) {
-      Alert.alert('Request Submitted', 'Your add-on request was sent to the landlord for review.');
+      showAlert('Request Submitted', 'Your add-on request was sent to the landlord for review.');
       closeAddonModal();
       invalidateData(BUCKET);
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Unable to Submit', result.error || 'Failed to request add-on.');
+      showAlert('Unable to Submit', result.error || 'Failed to request add-on.');
       setAddonRequestingId(null);
       setSubmittingCustomAddon(false);
     }
@@ -549,20 +609,20 @@ export default function MyBookings() {
 
   const submitCustomAddonRequest = async () => {
     if (!addonContext?.bookingId) {
-      Alert.alert('Unavailable', 'Booking reference is missing for this add-on request.');
+      showAlert('Unavailable', 'Booking reference is missing for this add-on request.');
       return;
     }
 
     const addonName = addonDraft.name.trim();
     if (!addonName) {
-      Alert.alert('Name Required', 'Please enter a name for your custom add-on request.');
+      showAlert('Name Required', 'Please enter a name for your custom add-on request.');
       return;
     }
 
     const rawSuggestedPrice = String(addonDraft.suggested_price ?? '').trim();
     const normalizedSuggestedPrice = normalizeSuggestedPrice(rawSuggestedPrice);
     if (rawSuggestedPrice && normalizedSuggestedPrice === null) {
-      Alert.alert('Invalid Suggested Price', 'Suggested price must be a non-negative number.');
+      showAlert('Invalid Suggested Price', 'Suggested price must be a non-negative number.');
       return;
     }
 
@@ -591,7 +651,7 @@ export default function MyBookings() {
 
   const openReviewModal = ({ booking, property }) => {
     if (!booking?.id || !property?.id) {
-      Alert.alert('Unavailable', 'Review details are incomplete for this booking.');
+      showAlert('Unavailable', 'Review details are incomplete for this booking.');
       return;
     }
 
@@ -603,7 +663,7 @@ export default function MyBookings() {
 
   const openMaintenanceModal = ({ booking, property, room }) => {
     if (!booking?.id) {
-      Alert.alert('Unavailable', 'Maintenance request details are incomplete for this booking.');
+      showAlert('Unavailable', 'Maintenance request details are incomplete for this booking.');
       return;
     }
 
@@ -618,7 +678,7 @@ export default function MyBookings() {
 
   const pickMaintenanceImages = async () => {
     if (maintenanceImages.length >= 5) {
-      Alert.alert('Limit Reached', 'You can upload up to 5 photos only.');
+      showAlert('Limit Reached', 'You can upload up to 5 photos only.');
       return;
     }
 
@@ -626,7 +686,7 @@ export default function MyBookings() {
       const ImagePicker = await import('expo-image-picker');
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission Required', 'Please allow photo library access to attach maintenance images.');
+        showAlert('Permission Required', 'Please allow photo library access to attach maintenance images.');
         return;
       }
 
@@ -642,13 +702,13 @@ export default function MyBookings() {
       setMaintenanceImages((previous) => [...previous, ...selectedAssets].slice(0, 5));
     } catch (error) {
       console.error('Failed to pick maintenance images:', error);
-      Alert.alert('Error', 'Unable to open your photo library.');
+      showAlert('Error', 'Unable to open your photo library.');
     }
   };
 
   const captureMaintenanceImage = async () => {
     if (maintenanceImages.length >= 5) {
-      Alert.alert('Limit Reached', 'You can upload up to 5 photos only.');
+      showAlert('Limit Reached', 'You can upload up to 5 photos only.');
       return;
     }
 
@@ -656,7 +716,7 @@ export default function MyBookings() {
       const ImagePicker = await import('expo-image-picker');
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission Required', 'Please allow camera access to take maintenance photos.');
+        showAlert('Permission Required', 'Please allow camera access to take maintenance photos.');
         return;
       }
 
@@ -671,7 +731,7 @@ export default function MyBookings() {
       setMaintenanceImages((previous) => [...previous, ...capturedAssets].slice(0, 5));
     } catch (error) {
       console.error('Failed to capture maintenance image:', error);
-      Alert.alert('Error', 'Unable to open camera.');
+      showAlert('Error', 'Unable to open camera.');
     }
   };
 
@@ -681,7 +741,7 @@ export default function MyBookings() {
 
   const openReportModal = ({ booking, property }) => {
     if (!booking?.id || !property?.id) {
-      Alert.alert('Unavailable', 'Report details are incomplete for this booking.');
+      showAlert('Unavailable', 'Report details are incomplete for this booking.');
       return;
     }
 
@@ -693,7 +753,7 @@ export default function MyBookings() {
 
   const submitReviewModal = async () => {
     if (!reviewContext?.booking?.id || !reviewContext?.property?.id) {
-      Alert.alert('Unavailable', 'Review details are incomplete.');
+      showAlert('Unavailable', 'Review details are incomplete.');
       return;
     }
 
@@ -708,28 +768,28 @@ export default function MyBookings() {
     });
 
     if (result.success) {
-      Alert.alert('Thanks!', 'Your review has been submitted.');
+      showAlert('Thanks!', 'Your review has been submitted.');
       closeReviewModal();
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Error', result.error || 'Failed to submit review.');
+      showAlert('Error', result.error || 'Failed to submit review.');
       setSubmittingReview(false);
     }
   };
 
   const submitMaintenanceModal = async () => {
     if (!maintenanceContext?.booking?.id) {
-      Alert.alert('Unavailable', 'Maintenance details are incomplete.');
+      showAlert('Unavailable', 'Maintenance details are incomplete.');
       return;
     }
 
     if (!maintenanceTitle.trim()) {
-      Alert.alert('Title Required', 'Please enter a maintenance title.');
+      showAlert('Title Required', 'Please enter a maintenance title.');
       return;
     }
 
     if (!maintenanceDescription.trim()) {
-      Alert.alert('Description Required', 'Please describe the issue.');
+      showAlert('Description Required', 'Please describe the issue.');
       return;
     }
 
@@ -768,27 +828,27 @@ export default function MyBookings() {
     const result = await TenantService.submitMaintenanceRequest(payload, isMultipart);
 
     if (result.success) {
-      Alert.alert('Request Sent', 'Your maintenance request was submitted to your landlord.');
+      showAlert('Request Sent', 'Your maintenance request was submitted to your landlord.');
       closeMaintenanceModal();
     } else {
-      Alert.alert('Error', result.error || 'Failed to submit maintenance request.');
+      showAlert('Error', result.error || 'Failed to submit maintenance request.');
       setSubmittingMaintenance(false);
     }
   };
 
   const submitReportModal = async () => {
     if (!reportContext?.property?.id) {
-      Alert.alert('Unavailable', 'Report details are incomplete.');
+      showAlert('Unavailable', 'Report details are incomplete.');
       return;
     }
 
     if (!reportReason) {
-      Alert.alert('Selection Required', 'Please select a reason for your report.');
+      showAlert('Selection Required', 'Please select a reason for your report.');
       return;
     }
 
     if (reportDescription.trim().length < 10) {
-      Alert.alert('More Detail Needed', 'Please provide a description of at least 10 characters.');
+      showAlert('More Detail Needed', 'Please provide a description of at least 10 characters.');
       return;
     }
 
@@ -802,22 +862,22 @@ export default function MyBookings() {
     });
 
     if (result.success) {
-      Alert.alert('Report Submitted', 'Thank you. Admins will review this report shortly.');
+      showAlert('Report Submitted', 'Thank you. Admins will review this report shortly.');
       closeReportModal();
     } else {
-      Alert.alert('Error', result.error || 'Failed to submit report.');
+      showAlert('Error', result.error || 'Failed to submit report.');
       setSubmittingReport(false);
     }
   };
 
   const submitMoveOutModal = async () => {
     if (!moveOutContext?.booking?.id) {
-      Alert.alert('Unavailable', 'Move-out details are incomplete.');
+      showAlert('Unavailable', 'Move-out details are incomplete.');
       return;
     }
 
     if (!moveOutDate || Number.isNaN(moveOutDate.getTime())) {
-      Alert.alert('Date Required', 'Please select your planned move-out date.');
+      showAlert('Date Required', 'Please select your planned move-out date.');
       return;
     }
 
@@ -825,7 +885,7 @@ export default function MyBookings() {
     const plannedDate = new Date(moveOutDate);
     plannedDate.setHours(0, 0, 0, 0);
     if (plannedDate < today) {
-      Alert.alert('Invalid Date', 'Move-out date must be today or later.');
+      showAlert('Invalid Date', 'Move-out date must be today or later.');
       return;
     }
 
@@ -838,11 +898,11 @@ export default function MyBookings() {
     });
 
     if (result.success) {
-      Alert.alert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
+      showAlert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
       closeMoveOutModal();
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Request Failed', result.error || 'Failed to request move-out notice.');
+      showAlert('Request Failed', result.error || 'Failed to request move-out notice.');
       setSubmittingMoveOut(false);
     }
   };
@@ -856,10 +916,10 @@ export default function MyBookings() {
     });
 
     if (result.success) {
-      Alert.alert('Cancelled', 'Your booking request has been cancelled.');
+      showAlert('Cancelled', 'Your booking request has been cancelled.');
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
+      showAlert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
     }
 
     setCancellingBookingId(null);
@@ -871,13 +931,13 @@ export default function MyBookings() {
     const submitExtension = async (days) => {
       const currentEndRaw = booking.endDate || booking.end_date;
       if (!currentEndRaw) {
-        Alert.alert('Extension Not Needed', 'This stay is open-ended monthly. You can submit a move-out notice anytime instead of extending.');
+        showAlert('Extension Not Needed', 'This stay is open-ended monthly. You can submit a move-out notice anytime instead of extending.');
         return;
       }
 
       const currentEnd = new Date(currentEndRaw);
       if (Number.isNaN(currentEnd.getTime())) {
-        Alert.alert('Request Failed', 'Could not determine your current move-out date.');
+        showAlert('Request Failed', 'Could not determine your current move-out date.');
         return;
       }
 
@@ -891,15 +951,15 @@ export default function MyBookings() {
       });
 
       if (result.success) {
-        Alert.alert('Extension Requested', 'Your extension request was sent to your landlord.');
+        showAlert('Extension Requested', 'Your extension request was sent to your landlord.');
         await refetchMyBookingsBundle();
       } else {
-        Alert.alert('Request Failed', result.error || 'Failed to request extension.');
+        showAlert('Request Failed', result.error || 'Failed to request extension.');
       }
       setSubmittingExtension(false);
     };
 
-    Alert.alert(
+    showAlert(
       'Request Extension',
       'Select extension duration',
       [
@@ -915,7 +975,7 @@ export default function MyBookings() {
 
     const propertyId = property?.id || booking?.property_id;
     if (!propertyId) {
-      Alert.alert('Request Failed', 'Could not identify the property for this transfer request.');
+      showAlert('Request Failed', 'Could not identify the property for this transfer request.');
       return;
     }
 
@@ -923,13 +983,13 @@ export default function MyBookings() {
       (item) => Number(item?.booking_id) === Number(booking.id),
     );
     if (existingPending) {
-      Alert.alert('Transfer Pending', 'You already have a pending transfer request for this booking.');
+      showAlert('Transfer Pending', 'You already have a pending transfer request for this booking.');
       return;
     }
 
     if (monthlyTransferCount >= 2) {
       const daysUntilReset = getDaysUntilTransferReset();
-      Alert.alert(
+      showAlert(
         'Transfer Limit Reached',
         `Room transfers are limited to 2 per month. Try again in ${daysUntilReset} day${daysUntilReset === 1 ? '' : 's'}.`,
       );
@@ -940,14 +1000,14 @@ export default function MyBookings() {
 
     const optionsResult = await TenantService.getTransferOptions(booking.id, propertyId);
     if (!optionsResult.success) {
-      Alert.alert('Request Failed', optionsResult.error || 'Failed to load transfer options.');
+      showAlert('Request Failed', optionsResult.error || 'Failed to load transfer options.');
       setSubmittingTransfer(false);
       return;
     }
 
     const rooms = Array.isArray(optionsResult.data) ? optionsResult.data : [];
     if (rooms.length === 0) {
-      Alert.alert(
+      showAlert(
         'No Eligible Rooms',
         optionsResult.message || 'No eligible transfer rooms are currently available for this property.',
       );
@@ -970,35 +1030,45 @@ export default function MyBookings() {
 
   const submitTransferRequest = async () => {
     if (!transferContext?.bookingId || !transferContext?.propertyId) {
-      Alert.alert('Request Failed', 'Transfer context is incomplete. Please try again.');
+      showAlert('Request Failed', 'Transfer context is incomplete. Please try again.');
       return;
     }
 
     if (!selectedTransferRoomId) {
-      Alert.alert('Select a Room', 'Please choose a room to transfer into.');
+      showAlert('Select a Room', 'Please choose a room to transfer into.');
       return;
     }
 
     const normalizedReason = transferReason.trim();
     if (!normalizedReason) {
-      Alert.alert('Reason Required', 'Please provide a reason for transfer.');
+      showAlert('Reason Required', 'Please provide a reason for transfer.');
+      return;
+    }
+
+    if (leaseDurationPreference === 'new_lease' && !newEndDate) {
+      showAlert('Date Required', 'Please select a new lease end date.');
       return;
     }
 
     setSubmittingTransfer(true);
-    const result = await TenantService.requestTransfer({
+    const transferPayload = {
       booking_id: transferContext.bookingId,
       property_id: transferContext.propertyId,
       requested_room_id: selectedTransferRoomId,
       reason: normalizedReason,
-    });
+    };
+    if (leaseDurationPreference === 'new_lease' && newEndDate) {
+      transferPayload.new_end_date = formatIsoDate(newEndDate);
+    }
+
+    const result = await TenantService.requestTransfer(transferPayload);
 
     if (result.success) {
-      Alert.alert('Transfer Requested', 'Your transfer request was sent to your landlord.');
+      showAlert('Transfer Requested', 'Your transfer request was sent to your landlord.');
       closeTransferModal();
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Request Failed', result.error || 'Failed to request transfer.');
+      showAlert('Request Failed', result.error || 'Failed to request transfer.');
     }
     setSubmittingTransfer(false);
   };
@@ -1010,10 +1080,10 @@ export default function MyBookings() {
     const result = await TenantService.cancelTransferRequest(transferRequestId);
 
     if (result.success) {
-      Alert.alert('Cancelled', result.message || 'Transfer request cancelled successfully.');
+      showAlert('Cancelled', result.message || 'Transfer request cancelled successfully.');
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Unable to Cancel', result.error || 'Failed to cancel transfer request.');
+      showAlert('Unable to Cancel', result.error || 'Failed to cancel transfer request.');
     }
 
     setCancellingTransferRequestId(null);
@@ -1036,7 +1106,7 @@ export default function MyBookings() {
     const roomId = bookingEntry?.room?.id || bookingEntry?.room_id;
 
     if (!propertyId || !roomId) {
-      Alert.alert('Unavailable', 'Room details are not available for this pending booking yet.');
+      showAlert('Unavailable', 'Room details are not available for this pending booking yet.');
       return;
     }
 
@@ -1044,7 +1114,7 @@ export default function MyBookings() {
     try {
       const propertyResult = await PropertyService.getPublicProperty(propertyId);
       if (!propertyResult.success || !propertyResult.data) {
-        Alert.alert('Unable to Load', propertyResult.error || 'Failed to load property details.');
+        showAlert('Unable to Load', propertyResult.error || 'Failed to load property details.');
         return;
       }
 
@@ -1052,7 +1122,7 @@ export default function MyBookings() {
       const fullRoom = (fullProperty.rooms || []).find((room) => String(room.id) === String(roomId));
 
       if (!fullRoom) {
-        Alert.alert('Unavailable', 'This room is no longer listed for details.');
+        showAlert('Unavailable', 'This room is no longer listed for details.');
         return;
       }
 
@@ -1063,7 +1133,7 @@ export default function MyBookings() {
       });
     } catch (error) {
       console.error('Error opening room details:', error);
-      Alert.alert('Error', 'Failed to open room details. Please try again.');
+      showAlert('Error', 'Failed to open room details. Please try again.');
     } finally {
       setOpeningRoomDetails(false);
     }
@@ -1071,13 +1141,14 @@ export default function MyBookings() {
 
   const getStatusColor = (status) => {
     const s = String(status || '').toLowerCase();
-    if (s.includes('overdue')) return '#EF4444';
+    const isDark = theme.isDark;
+    if (s.includes('overdue')) return isDark ? '#f87171' : '#EF4444';
     if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.primary;
-    if (s === 'reserved') return '#0D9488'; // teal — room reserved, awaiting check-in
-    if (s === 'pending_reservation') return '#EA580C'; // orange — receipt under review
-    if (s.includes('pending') || s.includes('partial')) return '#F59E0B';
-    if (s.includes('cancel') || s.includes('reject')) return '#EF4444';
-    return '#6B7280';
+    if (s === 'reserved') return isDark ? '#2dd4bf' : '#0D9488';
+    if (s === 'pending_reservation') return isDark ? '#fb923c' : '#EA580C';
+    if (s.includes('pending') || s.includes('partial')) return isDark ? '#fbbf24' : '#F59E0B';
+    if (s.includes('cancel') || s.includes('reject')) return isDark ? '#f87171' : '#EF4444';
+    return theme.colors.textSecondary;
   };
 
   const getStatusLabel = (status) => {
@@ -1156,18 +1227,29 @@ export default function MyBookings() {
         id: currentData?.id,
         startDate: currentData?.start_date,
         endDate: currentData?.end_date,
+        bookingMode: currentData?.bookingMode || currentData?.booking_mode,
+        booking_mode: currentData?.booking_mode || currentData?.bookingMode,
+        bedCount: currentData?.bedCount || currentData?.bed_count,
+        bed_count: currentData?.bed_count || currentData?.bedCount,
+        occupantCount: currentData?.occupantCount || currentData?.occupant_count,
+        occupant_count: currentData?.occupant_count || currentData?.occupantCount,
         monthlyRent: currentData?.monthly_rent,
         unit_price: currentData?.unit_price,
         contract_mode: currentData?.contract_mode,
         contractMode: currentData?.contract_mode,
         billing_policy: currentData?.billing_policy,
         reservation_policy: currentData?.reservation_policy,
+        occupants: Array.isArray(currentData?.occupants) ? currentData.occupants : [],
         status: currentData?.status,
         paymentStatus: currentData?.status,
         daysStayed: 0,
         isPending: true
       },
-      room: { roomNumber: currentData?.room?.room_number || 'N/A' },
+      room: {
+        roomNumber: currentData?.room?.room_number || currentData?.room_number || 'N/A',
+        room_number: currentData?.room?.room_number || currentData?.room_number || 'N/A',
+        capacity: currentData?.room?.capacity,
+      },
       property: currentData?.property || {},
       landlord: currentData?.landlord || {},
       addons: { active: [], pending: [] }
@@ -1176,6 +1258,10 @@ export default function MyBookings() {
     if (!display) return null;
 
     const { booking, room, property, landlord, addons } = display;
+    const occupancySummary = resolveOccupancySummary(booking, room);
+    const occupantProfiles = resolveOccupantProfiles(booking);
+    const bookingMode = String(booking?.booking_mode || booking?.bookingMode || 'normal').toLowerCase();
+    const shouldShowProxyOccupants = bookingMode === 'proxy' || occupantProfiles.length > 0;
     const reservationPolicy = currentData?.reservation_policy || booking?.reservation_policy;
     const bookingContractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
     const hasScheduledEndDate = Boolean(booking.endDate || booking.end_date);
@@ -1208,6 +1294,9 @@ export default function MyBookings() {
     const stayDurationValue = isFutureStart
       ? `${daysUntilStart} ${daysUntilStart === 1 ? 'Day' : 'Days'}`
       : `${hasCheckoutDate ? daysLeft : daysStayed} ${(hasCheckoutDate ? daysLeft : daysStayed) === 1 ? 'Day' : 'Days'}`;
+    const pendingMoveInValue = hasValidStartDate ? formatDate(startDateRaw) : 'Move-in date awaiting approval';
+    const durationSummaryLabel = booking.isPending ? 'Move-in Date' : stayDurationLabel;
+    const durationSummaryValue = booking.isPending ? pendingMoveInValue : stayDurationValue;
 
     const paymentStatusRaw = String(
       booking.isOverdue || booking.is_overdue
@@ -1266,13 +1355,13 @@ export default function MyBookings() {
       <View style={styles.content}>
         {/* Sliding Toggle */}
         {hasStays && hasPending && (
-          <View style={styles.sliderContainer}>
+          <View style={[styles.sliderContainer, { backgroundColor: theme.colors.backgroundSecondary }]}>
             <Animated.View 
               style={[
                 styles.sliderIndicator, 
                 { 
                   width: '50%',
-                  backgroundColor: viewMode === 'active' ? theme.colors.primary : '#F59E0B',
+                  backgroundColor: viewMode === 'active' ? theme.colors.primary : (theme.isDark ? '#fbbf24' : '#F59E0B'),
                   transform: [{ translateX }] 
                 }
               ]} 
@@ -1298,25 +1387,25 @@ export default function MyBookings() {
 
         {/* Property Selector */}
         {((viewMode === 'active' && stayData.stays.length > 1) || (viewMode === 'pending' && pendingBookings.length > 1)) && (
-          <View style={styles.selectorContainer}>
+          <View style={[styles.selectorContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
             <View style={styles.selectorInfo}>
-              <View style={styles.selectorIcon}>
+              <View style={[styles.selectorIcon, { backgroundColor: theme.colors.primaryLight }]}>
                 <Ionicons name="business" size={20} color={theme.colors.primary} />
               </View>
               <View>
-                <Text style={styles.selectorLabel}>Switch Property</Text>
-                <Text style={styles.selectorSublabel}>
+                <Text style={[styles.selectorLabel, { color: theme.colors.text }]}>Switch Property</Text>
+                <Text style={[styles.selectorSublabel, { color: theme.colors.textSecondary }]}>
                   {viewMode === 'active' ? `${stayData.stays.length} active stays` : `${pendingBookings.length} pending requests`}
                 </Text>
               </View>
             </View>
             <TouchableOpacity 
-              style={styles.selectorDropdown}
+              style={[styles.selectorDropdown, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}
               onPress={() => {
                 setShowPropertySwitchModal(true);
               }}
             >
-              <Text style={styles.selectorValue} numberOfLines={1}>
+              <Text style={[styles.selectorValue, { color: theme.colors.text }]} numberOfLines={1}>
                 {property.title || property.property_title || 'Select'}
               </Text>
               <Ionicons name="chevron-down" size={16} color={theme.colors.textTertiary} />
@@ -1326,11 +1415,11 @@ export default function MyBookings() {
 
         {/* Refund Warning */}
         {booking.paymentStatus === 'refunded' && (
-          <View style={styles.warningBanner}>
-            <Ionicons name="alert-circle" size={24} color="#7E22CE" />
+          <View style={[styles.warningBanner, { backgroundColor: theme.isDark ? 'rgba(126,34,206,0.1)' : '#F3E8FF', borderColor: theme.isDark ? '#7E22CE' : '#E9D5FF', borderWidth: 1 }]}>
+            <Ionicons name="alert-circle" size={24} color={theme.isDark ? '#a855f7' : '#7E22CE'} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.warningTitle}>Payment Action Required</Text>
-              <Text style={styles.warningText}>
+              <Text style={[styles.warningTitle, { color: theme.isDark ? '#a855f7' : '#7E22CE' }]}>Payment Action Required</Text>
+              <Text style={[styles.warningText, { color: theme.colors.textSecondary }]}>
                 Your last payment was refunded. Please complete a new payment to maintain your active status.
               </Text>
             </View>
@@ -1338,14 +1427,14 @@ export default function MyBookings() {
         )}
 
         {/* Main Property Card */}
-        <View style={styles.bookingCard}>
+        <View style={[styles.bookingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
           <Image 
             source={getImageUrl(property.image)} 
             style={styles.bookingImage} 
           />
           <View style={styles.bookingInfo}>
             <View style={styles.bookingHeader}>
-              <Text style={styles.bookingName}>{property.title}</Text>
+              <Text style={[styles.bookingName, { color: theme.colors.text }]}>{property.title}</Text>
               <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
                 <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status) }]}>
                   {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
@@ -1355,39 +1444,70 @@ export default function MyBookings() {
             
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={16} color={theme.colors.textSecondary} />
-              <Text style={styles.locationText}>{property.address || property.full_address}</Text>
+              <Text style={[styles.locationText, { color: theme.colors.textSecondary }]}>{property.address || property.full_address}</Text>
             </View>
 
             <View style={styles.financialSummaryRow}>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Room</Text>
-                <Text style={styles.summaryValue}>{room.roomNumber || room.room_number}</Text>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Room</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{room.roomNumber || room.room_number}</Text>
               </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{occupancySummary.label}</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{occupancySummary.value}</Text>
+              </View>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
                   {booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
                 </Text>
-                <Text style={styles.summaryValue}>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
                   {formatPesoNoCents(booking.unit_price || booking.monthlyRent)}
                 </Text>
               </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>{stayDurationLabel}</Text>
-                <Text style={styles.summaryValue}>{stayDurationValue}</Text>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{durationSummaryLabel}</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{durationSummaryValue}</Text>
               </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Payment Status</Text>
-                <Text style={styles.summaryValue}>{paymentStatusValue}</Text>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Payment Status</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{paymentStatusValue}</Text>
               </View>
             </View>
 
-            <View style={styles.summaryDivider} />
+            <View style={[styles.summaryDivider, { backgroundColor: theme.colors.border }]} />
+
+            {shouldShowProxyOccupants && (
+              <View style={styles.proxyOccupantsSection}>
+                <View style={styles.proxyOccupantsHeader}>
+                  <Ionicons name="people-outline" size={16} color={theme.colors.primary} />
+                  <Text style={[styles.proxyOccupantsTitle, { color: theme.colors.text }]}>Proxy Occupants</Text>
+                </View>
+
+                {occupantProfiles.length > 0 ? (
+                  occupantProfiles.map((occupant) => (
+                    <View key={occupant.id} style={[styles.proxyOccupantCard, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                      <Text style={[styles.proxyOccupantName, { color: theme.colors.text }]}>{occupant.fullName}</Text>
+                      {(occupant.relationship || occupant.gender) ? (
+                        <Text style={[styles.proxyOccupantMeta, { color: theme.colors.textSecondary }]}>
+                          {[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}
+                        </Text>
+                      ) : null}
+                      {occupant.contact ? (
+                        <Text style={[styles.proxyOccupantMeta, { color: theme.colors.textSecondary }]}>{occupant.contact}</Text>
+                      ) : null}
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[styles.proxyOccupantsEmpty, { color: theme.colors.textTertiary }]}>Occupant details are still syncing for this proxy booking.</Text>
+                )}
+              </View>
+            )}
 
             {!booking.isPending && (
               <View style={styles.actionGridContainer}>
                 <View style={styles.actionRow}>
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: transferButtonDisabled ? theme.colors.textTertiary : '#7C3AED' }]}
+                    style={[styles.actionBtn, { backgroundColor: transferButtonDisabled ? theme.colors.textTertiary : (theme.isDark ? '#6d28d9' : '#7C3AED') }]}
                     disabled={transferButtonDisabled}
                     onPress={() => handleRequestTransfer(booking, property)}
                   >
@@ -1413,7 +1533,7 @@ export default function MyBookings() {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#F97316' }]}
+                    style={[styles.actionBtn, { backgroundColor: theme.isDark ? '#c2410c' : '#F97316' }]}
                     onPress={() => openMaintenanceModal({ booking, property, room })}
                   >
                     <Text style={styles.actionBtnText}>Maintenance</Text>
@@ -1425,14 +1545,14 @@ export default function MyBookings() {
                     <View
                       style={[
                         styles.actionBtn,
-                        { backgroundColor: '#F0FDFA', borderWidth: 1, borderColor: '#99F6E4' },
+                        { backgroundColor: theme.isDark ? 'rgba(13,148,136,0.1)' : '#F0FDFA', borderWidth: 1, borderColor: theme.isDark ? '#0D9488' : '#99F6E4' },
                       ]}
                     >
-                      <Text style={[styles.actionBtnText, { color: '#0D9488' }]}>Notice Submitted</Text>
+                      <Text style={[styles.actionBtnText, { color: theme.isDark ? '#2dd4bf' : '#0D9488' }]}>Notice Submitted</Text>
                     </View>
                   ) : (
                     <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : '#4F46E5' }]}
+                      style={[styles.actionBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : (theme.isDark ? '#3730a3' : '#4F46E5') }]}
                       disabled={submittingMoveOut}
                       onPress={() => handleRequestMoveOut(booking, property, room)}
                     >
@@ -1444,7 +1564,7 @@ export default function MyBookings() {
 
                   {canRequestExtension ? (
                     <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : '#2563EB' }]}
+                      style={[styles.actionBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : (theme.isDark ? '#1d4ed8' : '#2563EB') }]}
                       disabled={submittingExtension}
                       onPress={() => handleRequestExtension(booking)}
                     >
@@ -1455,7 +1575,7 @@ export default function MyBookings() {
                   )}
 
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#DC2626' }]}
+                    style={[styles.actionBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626' }]}
                     onPress={() => openReportModal({ booking, property })}
                   >
                     <Text style={styles.actionBtnText}>Report</Text>
@@ -1472,7 +1592,7 @@ export default function MyBookings() {
                 </Text>
                 {pendingTransferForBooking && (
                   <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: '#DC2626' }]}
+                    style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626' }]}
                     disabled={cancellingTransferRequestId === pendingTransferForBooking.id}
                     onPress={() => handleCancelTransferRequest(pendingTransferForBooking.id)}
                   >
@@ -1486,12 +1606,12 @@ export default function MyBookings() {
 
             {/* Move-out notice detail banner */}
             {!booking.isPending && (booking.notice_given_at || booking.noticeGivenAt) && (
-              <View style={{ backgroundColor: '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#99F6E4' }}>
+              <View style={{ backgroundColor: theme.isDark ? 'rgba(13,148,136,0.1)' : '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: theme.isDark ? '#0D9488' : '#99F6E4' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 }}>
-                  <Ionicons name="exit-outline" size={18} color="#0D9488" />
-                  <Text style={{ color: '#0D9488', fontWeight: '700', fontSize: 13 }}>Move-out Notice Pending</Text>
+                  <Ionicons name="exit-outline" size={18} color={theme.isDark ? '#2dd4bf' : '#0D9488'} />
+                  <Text style={{ color: theme.isDark ? '#2dd4bf' : '#0D9488', fontWeight: '700', fontSize: 13 }}>Move-out Notice Pending</Text>
                 </View>
-                <Text style={{ color: '#134E4A', fontSize: 12, lineHeight: 18 }}>
+                <Text style={{ color: theme.isDark ? '#99f6e4' : '#134E4A', fontSize: 12, lineHeight: 18 }}>
                   Your move-out notice was submitted.{booking.endDate ? ` Planned departure: ${formatDate(booking.endDate)}.` : ''} The landlord will confirm your checkout and finalize billing.
                 </Text>
               </View>
@@ -1499,33 +1619,38 @@ export default function MyBookings() {
 
             {/* Reservation Status Banners (GCash flow) */}
             {booking.isPending && booking.status === 'pending_reservation' && (
-              <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FED7AA' }}>
+              <View style={{ backgroundColor: theme.isDark ? 'rgba(234,88,12,0.1)' : '#FFF7ED', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: theme.isDark ? '#EA580C' : '#FED7AA' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-                  <Ionicons name="hourglass-outline" size={18} color="#EA580C" />
-                  <Text style={{ color: '#EA580C', fontWeight: '700', fontSize: 13 }}>Receipt Verification Pending</Text>
+                  <Ionicons name="hourglass-outline" size={18} color={theme.isDark ? '#fb923c' : '#EA580C'} />
+                  <Text style={{ color: theme.isDark ? '#fb923c' : '#EA580C', fontWeight: '700', fontSize: 13 }}>Receipt Verification Pending</Text>
                 </View>
-                <Text style={{ color: '#7C2D12', fontSize: 12, lineHeight: 18 }}>
+                <Text style={{ color: theme.isDark ? '#fdba74' : '#7C2D12', fontSize: 12, lineHeight: 18 }}>
                   Your GCash receipt was submitted. The landlord will verify your payment and confirm your reservation shortly.
                 </Text>
+                {(currentData?.move_in_date || currentData?.start_date) && (
+                  <Text style={{ color: theme.isDark ? '#fb923c' : '#9A3412', fontSize: 12, fontWeight: '600', marginTop: 6 }}>
+                    Move-in: {new Date(currentData.move_in_date || currentData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                )}
                 {currentData?.reference_number && (
-                  <View style={{ marginTop: 10, backgroundColor: '#FFEDD5', borderRadius: 8, padding: 8 }}>
-                    <Text style={{ color: '#9A3412', fontSize: 11, fontWeight: '600' }}>Reference #: {currentData.reference_number}</Text>
+                  <View style={{ marginTop: 10, backgroundColor: theme.isDark ? 'rgba(255,237,213,0.1)' : '#FFEDD5', borderRadius: 8, padding: 8 }}>
+                    <Text style={{ color: theme.isDark ? '#fdba74' : '#9A3412', fontSize: 11, fontWeight: '600' }}>Reference #: {currentData.reference_number}</Text>
                   </View>
                 )}
               </View>
             )}
 
             {booking.isPending && booking.status === 'reserved' && (
-              <View style={{ backgroundColor: '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#99F6E4' }}>
+              <View style={{ backgroundColor: theme.isDark ? 'rgba(13,148,136,0.1)' : '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: theme.isDark ? '#0D9488' : '#99F6E4' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#0D9488" />
-                  <Text style={{ color: '#0D9488', fontWeight: '700', fontSize: 13 }}>Room Reserved!</Text>
+                  <Ionicons name="checkmark-circle-outline" size={18} color={theme.isDark ? '#2dd4bf' : '#0D9488'} />
+                  <Text style={{ color: theme.isDark ? '#2dd4bf' : '#0D9488', fontWeight: '700', fontSize: 13 }}>Room Reserved!</Text>
                 </View>
-                <Text style={{ color: '#134E4A', fontSize: 12, lineHeight: 18 }}>
+                <Text style={{ color: theme.isDark ? '#99f6e4' : '#134E4A', fontSize: 12, lineHeight: 18 }}>
                   Your reservation is confirmed. The landlord will check you in on your move-in date.
                 </Text>
                 {(currentData?.move_in_date || currentData?.start_date) && (
-                  <Text style={{ color: '#0F766E', fontSize: 12, fontWeight: '600', marginTop: 6 }}>
+                  <Text style={{ color: theme.isDark ? '#2dd4bf' : '#0F766E', fontSize: 12, fontWeight: '600', marginTop: 6 }}>
                     Move-in: {new Date(currentData.move_in_date || currentData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </Text>
                 )}
@@ -1541,7 +1666,7 @@ export default function MyBookings() {
                 {(booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
                   <>
                     <TouchableOpacity
-                      style={[styles.reviewBtn, { backgroundColor: '#2563EB' }]}
+                      style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#1d4ed8' : '#2563EB' }]}
                       onPress={() => handleOpenRoomDetails(currentData)}
                       disabled={openingRoomDetails}
                     >
@@ -1550,9 +1675,9 @@ export default function MyBookings() {
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.reviewBtn, { backgroundColor: '#DC2626' }]}
+                      style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626' }]}
                       onPress={() => {
-                        Alert.alert(
+                        showAlert(
                           'Report an Issue',
                           'What issue are you experiencing?',
                           [
@@ -1563,8 +1688,8 @@ export default function MyBookings() {
                               onPress: async () => {
                                 try {
                                   await TenantService.reportDispute(booking.id, 'Tenant reported a fake or incorrect receipt.', 'fake_receipt');
-                                  Alert.alert('Report Submitted', 'Our admin team will review your report.');
-                                } catch { Alert.alert('Error', 'Failed to submit report.'); }
+                                  showAlert('Report Submitted', 'Our admin team will review your report.');
+                                } catch { showAlert('Error', 'Failed to submit report.'); }
                               }
                             },
                             {
@@ -1572,8 +1697,8 @@ export default function MyBookings() {
                               onPress: async () => {
                                 try {
                                   await TenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.', 'other');
-                                  Alert.alert('Report Submitted', 'Our admin team will review your report.');
-                                } catch { Alert.alert('Error', 'Failed to submit report.'); }
+                                  showAlert('Report Submitted', 'Our admin team will review your report.');
+                                } catch { showAlert('Error', 'Failed to submit report.'); }
                               }
                             }
                           ]
@@ -1586,7 +1711,7 @@ export default function MyBookings() {
                 ) : (
                   <>
                     <TouchableOpacity
-                      style={[styles.reviewBtn, { backgroundColor: '#2563EB' }]}
+                      style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#1d4ed8' : '#2563EB' }]}
                       onPress={() => handleOpenRoomDetails(currentData)}
                       disabled={openingRoomDetails}
                     >
@@ -1597,7 +1722,7 @@ export default function MyBookings() {
                     <TouchableOpacity
                       style={[styles.reviewBtn, { backgroundColor: theme.colors.error }]}
                       onPress={() => {
-                        Alert.alert(
+                        showAlert(
                           "Cancel Request",
                           "Are you sure you want to cancel this booking request?",
                           [
@@ -1622,7 +1747,7 @@ export default function MyBookings() {
         {/* Addons Section */}
         <View style={styles.addonSection}>
            <View style={styles.addonHeader}>
-              <Text style={styles.sectionTitle}>Add-ons & Extras</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-ons & Extras</Text>
               {!booking.isPending && (
                 <TouchableOpacity 
                   style={[
@@ -1644,31 +1769,31 @@ export default function MyBookings() {
              (addons.active?.length > 0 || addons.pending?.length > 0) ? (
                <>
                  {addons.active?.map((addon, idx) => (
-                   <View key={`active-${idx}`} style={styles.addonItem}>
+                   <View key={`active-${idx}`} style={[styles.addonItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
                       <View style={styles.addonInfo}>
-                         <View style={styles.addonIconContainer}>
+                         <View style={[styles.addonIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
                             <Ionicons name="sparkles" size={20} color={theme.colors.primary} />
                          </View>
                          <View>
-                            <Text style={styles.addonName}>{addon.name}</Text>
-                            <Text style={styles.addonSubtext}>{addon.priceTypeLabel}</Text>
+                            <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
+                            <Text style={[styles.addonSubtext, { color: theme.colors.textSecondary }]}>{addon.priceTypeLabel}</Text>
                          </View>
                       </View>
-                      <Text style={styles.addonPrice}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
+                      <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
                    </View>
                  ))}
                  {addons.pending?.map((addon, idx) => (
-                   <View key={`pending-${idx}`} style={[styles.addonItem, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: '#FEF3C7' }]}>
+                   <View key={`pending-${idx}`} style={[styles.addonItem, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: theme.isDark ? '#fbbf24' : '#FEF3C7', borderWidth: 1 }]}>
                       <View style={styles.addonInfo}>
-                         <View style={[styles.addonIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                            <Ionicons name="time" size={20} color="#D97706" />
+                         <View style={[styles.addonIconContainer, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7' }]}>
+                            <Ionicons name="time" size={20} color={theme.isDark ? '#fbbf24' : '#D97706'} />
                          </View>
                          <View>
-                            <Text style={styles.addonName}>{addon.name}</Text>
-                            <Text style={[styles.addonSubtext, { color: '#D97706' }]}>Pending Approval</Text>
+                            <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
+                            <Text style={[styles.addonSubtext, { color: theme.isDark ? '#fbbf24' : '#D97706' }]}>Pending Approval</Text>
                          </View>
                       </View>
-                      <Text style={styles.addonPrice}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
+                      <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
                    </View>
                  ))}
                </>
@@ -1680,8 +1805,8 @@ export default function MyBookings() {
              )
            ) : (
              <View style={{ paddingVertical: 24, alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
-               <Ionicons name="time-outline" size={32} color="#D97706" style={{ opacity: 0.7 }} />
-               <Text style={{ color: '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
+               <Ionicons name="time-outline" size={32} color={theme.isDark ? '#fbbf24' : '#D97706'} style={{ opacity: 0.7 }} />
+               <Text style={{ color: theme.isDark ? '#fbbf24' : '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
                <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
                  Add-ons will be available once your booking is confirmed.
                </Text>
@@ -1690,28 +1815,28 @@ export default function MyBookings() {
         </View>
 
         {!booking.isPending && (
-          <View style={styles.sectionCard}>
+          <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
             <View style={styles.sectionHeader}>
               <Ionicons name="wallet-outline" size={20} color={theme.colors.primary} />
               <View>
-                <Text style={styles.sectionTitle}>Payment Summary</Text>
-                <Text style={styles.paymentSummaryCycleText}>{currentCycleLabel}</Text>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Payment Summary</Text>
+                <Text style={[styles.paymentSummaryCycleText, { color: theme.colors.textTertiary }]}>{currentCycleLabel}</Text>
               </View>
             </View>
 
             <View style={styles.paymentSummaryContent}>
               <View style={styles.paymentSummaryRow}>
-                <Text style={styles.paymentSummaryLabel}>Total Charges (Rent & Add-ons)</Text>
-                <Text style={styles.paymentSummaryValue}>{formatPesoNoCents(totalCycleCharges)}</Text>
+                <Text style={[styles.paymentSummaryLabel, { color: theme.colors.textSecondary }]}>Total Charges (Rent & Add-ons)</Text>
+                <Text style={[styles.paymentSummaryValue, { color: theme.colors.text }]}>{formatPesoNoCents(totalCycleCharges)}</Text>
               </View>
               <View style={styles.paymentSummaryRow}>
-                <Text style={styles.paymentSummaryLabel}>Total Paid Amount</Text>
+                <Text style={[styles.paymentSummaryLabel, { color: theme.colors.textSecondary }]}>Total Paid Amount</Text>
                 <Text style={[styles.paymentSummaryValue, { color: theme.colors.success }]}>-{formatPesoNoCents(totalPaidAmount)}</Text>
               </View>
 
-              <View style={styles.paymentSummaryDivider}>
+              <View style={[styles.paymentSummaryDivider, { borderTopColor: theme.colors.border }]}>
                 <View style={styles.paymentSummaryRow}>
-                  <Text style={styles.paymentSummaryTotalLabel}>Remaining Balance</Text>
+                  <Text style={[styles.paymentSummaryTotalLabel, { color: theme.colors.text }]}>Remaining Balance</Text>
                   <Text
                     style={[
                       styles.paymentSummaryTotalValue,
@@ -1724,7 +1849,7 @@ export default function MyBookings() {
 
                 {remainingBalanceAmount > 0 ? (
                   <TouchableOpacity
-                    style={styles.paymentSummaryButton}
+                    style={[styles.paymentSummaryButton, { backgroundColor: theme.colors.primary }]}
                     onPress={() => navigation.navigate('Payments')}
                   >
                     <Text style={styles.paymentSummaryButtonText}>Make a Payment</Text>
@@ -1741,10 +1866,10 @@ export default function MyBookings() {
         )}
 
         {/* Landlord Contact */}
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
            <View style={styles.sectionHeader}>
               <Ionicons name="person-outline" size={20} color={theme.colors.primary} />
-              <Text style={styles.sectionTitle}>Property Manager</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Property Manager</Text>
            </View>
            <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
               <View style={[styles.avatarSmall, { backgroundColor: theme.colors.primaryLight }]}>
@@ -1753,8 +1878,8 @@ export default function MyBookings() {
                  </Text>
               </View>
               <View style={{ flex: 1 }}>
-                 <Text style={styles.managerName}>{landlord?.name || `${landlord?.first_name} ${landlord?.last_name}`}</Text>
-                 <Text style={styles.managerEmail}>{landlord?.email}</Text>
+                 <Text style={[styles.managerName, { color: theme.colors.text }]}>{landlord?.name || `${landlord?.first_name} ${landlord?.last_name}`}</Text>
+                 <Text style={[styles.managerEmail, { color: theme.colors.textSecondary }]}>{landlord?.email}</Text>
               </View>
               <TouchableOpacity
                 style={{ padding: 8, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 8 }}
@@ -2395,6 +2520,96 @@ export default function MyBookings() {
                 })}
               </View>
 
+              <View style={{ marginTop: 16 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                  Lease Duration
+                </Text>
+                <View style={{ flexDirection: 'row', backgroundColor: theme.colors.backgroundSecondary, p: 2, borderRadius: 10, padding: 4 }}>
+                  <TouchableOpacity
+                    onPress={() => setLeaseDurationPreference('keep_current')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      alignItems: 'center',
+                      borderRadius: 8,
+                      backgroundColor: leaseDurationPreference === 'keep_current' ? theme.colors.surface : 'transparent',
+                      borderWidth: leaseDurationPreference === 'keep_current' ? 1 : 0,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: leaseDurationPreference === 'keep_current' ? theme.colors.primary : theme.colors.textSecondary }}>
+                      Keep Current
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setLeaseDurationPreference('new_lease')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      alignItems: 'center',
+                      borderRadius: 8,
+                      backgroundColor: leaseDurationPreference === 'new_lease' ? theme.colors.surface : 'transparent',
+                      borderWidth: leaseDurationPreference === 'new_lease' ? 1 : 0,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: leaseDurationPreference === 'new_lease' ? theme.colors.primary : theme.colors.textSecondary }}>
+                      New Lease
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {leaseDurationPreference === 'new_lease' && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                      New Lease End Date *
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setShowNewEndDatePicker(true)}
+                      style={{
+                        minHeight: 44,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 10,
+                        paddingHorizontal: 12,
+                        flexDirection: 'row',
+                        gap: 8,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: theme.colors.surface,
+                      }}
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color={newEndDate ? theme.colors.textSecondary : theme.colors.textTertiary}
+                      />
+                      <Text style={{ color: newEndDate ? theme.colors.text : theme.colors.textTertiary, fontSize: 14 }}>
+                        {newEndDate ? formatSlashDate(newEndDate) : 'Select New End Date'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {showNewEndDatePicker && (
+                      <DateTimePicker
+                        value={newEndDate || new Date(new Date().getTime() + 86400000)}
+                        mode="date"
+                        display="default"
+                        minimumDate={new Date(new Date().getTime() + 86400000)}
+                        onChange={(event, selectedDate) => {
+                          if (Platform.OS !== 'ios') {
+                            setShowNewEndDatePicker(false);
+                          }
+                          if (selectedDate) {
+                            selectedDate.setHours(0, 0, 0, 0);
+                            setNewEndDate(selectedDate);
+                          }
+                        }}
+                      />
+                    )}
+                  </View>
+                )}
+              </View>
+
               {/* Financial Impact Preview */}
               <View style={{ marginTop: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -2402,7 +2617,7 @@ export default function MyBookings() {
                     💰 Financial Impact Preview
                   </Text>
                   <TouchableOpacity 
-                    onPress={() => Alert.alert(
+                    onPress={() => showAlert(
                       'Proration Rule', 
                       'Rent is prorated based on a standard 30-day month: (Monthly Rent ÷ 30) × remaining days. Any transfer processing fee is deducted from your unused credit.'
                     )}

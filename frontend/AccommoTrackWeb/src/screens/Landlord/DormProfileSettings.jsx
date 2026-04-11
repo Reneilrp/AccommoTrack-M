@@ -894,14 +894,15 @@ export default function DormProfileSettings({
         toast.success("Property submitted for admin approval");
         fetchPropertyDetails();
       } else {
-        setError("Failed to submit draft");
+        const message = response.data?.message || "Failed to submit draft";
+        setError(message);
       }
     } catch (err) {
       console.error("Error submitting draft:", err);
-      setError(err.message || "Failed to submit draft");
-      toast.error(
-        "Failed to submit draft: " + (err.message || "Unknown error"),
-      );
+      const backendMessage = err?.response?.data?.message;
+      const message = backendMessage || err.message || "Failed to submit draft";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

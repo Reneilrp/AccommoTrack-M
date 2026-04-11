@@ -120,8 +120,9 @@ class TenantDashboardService
             ->whereHas('room.tenants', function ($query) use ($tenantId) {
                 $query->where('users.id', $tenantId);
             })
+            ->withCount('occupants')
             ->with([
-                'room.images', 'property.landlord', 'property.images', 'landlord', 'review',
+                'room.images', 'property.landlord', 'property.images', 'landlord', 'review', 'occupants',
                 'addons' => fn ($q) => $q->wherePivotIn('status', ['approved', 'active', 'pending']),
                 'payments' => fn ($q) => $q->orderBy('payment_date', 'desc'),
                 'invoices' => fn ($q) => $q->orderBy('due_date', 'desc')->with('transactions'),
@@ -339,6 +340,7 @@ class TenantDashboardService
                             ->where('end_date', '>=', now()->subDays(30));
                     });
             })
+                    ->withCount('occupants')
             ->with($relations)
             ->orderByDesc('start_date')
             ->first();

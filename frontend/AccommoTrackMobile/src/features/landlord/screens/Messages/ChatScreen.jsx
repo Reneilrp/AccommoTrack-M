@@ -35,6 +35,7 @@ export default function ChatScreen({ navigation, route }) {
     const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
+    const showAlert = Alert.alert;
     const contentWrapStyle = React.useMemo(
         () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
         [viewportWidth],
@@ -126,11 +127,11 @@ export default function ChatScreen({ navigation, route }) {
                 queryClient.invalidateQueries({ queryKey: landlordQueryKeys.messagesConversations() });
                 scrollToBottom();
             } else {
-                Alert.alert('Error', result.error || 'Failed to send message');
+                showAlert('Error', result.error || 'Failed to send message');
             }
         },
         onError: (err) => {
-            Alert.alert('Error', err.message || 'Failed to send message');
+            showAlert('Error', err.message || 'Failed to send message');
         }
     });
 
@@ -209,7 +210,7 @@ export default function ChatScreen({ navigation, route }) {
     const handlePickImage = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-            Alert.alert('Permission required', 'Please allow photo library access to send images.');
+            showAlert('Permission required', 'Please allow photo library access to send images.');
             return;
         }
 
@@ -221,7 +222,7 @@ export default function ChatScreen({ navigation, route }) {
         if (!result.canceled && result.assets.length > 0) {
             const asset = result.assets[0];
             if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-                Alert.alert('File too large', 'Image exceeds the 5MB limit.');
+                showAlert('File too large', 'Image exceeds the 5MB limit.');
                 return;
             }
             setSelectedImage(asset.uri);

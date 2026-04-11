@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   RefreshControl,
   ActivityIndicator,
   Alert,
@@ -33,12 +34,15 @@ export default function PaymentsScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const navigation = useNavigation();
   const contentWrapStyle = React.useMemo(
     () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 860, alignSelf: 'center' } : null),
     [viewportWidth],
   );
   const [statusFilter, setStatusFilter] = useState('all');
+  const [timeRange, setTimeRange] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [resolvingPaymentId, setResolvingPaymentId] = useState(null);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
@@ -170,7 +174,7 @@ export default function PaymentsScreen() {
 
   const openCheckout = async (payment) => {
     if (tenantPaymentsTempDisabled) {
-      Alert.alert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
     }
 
@@ -183,7 +187,7 @@ export default function PaymentsScreen() {
     if (!invoiceId) {
       const bookingId = item?.bookingId || item?.booking_id || null;
       if (!bookingId) {
-        Alert.alert('Payment Error', 'No booking or invoice linked to this payment. Please contact the landlord.');
+        showAlert('Payment Error', 'No booking or invoice linked to this payment. Please contact the landlord.');
         return;
       }
 
@@ -192,14 +196,14 @@ export default function PaymentsScreen() {
 
         const response = await PaymentService.createBookingInvoice(bookingId);
         if (!response.success || !response.data) {
-          Alert.alert('Payment Error', response.error || 'Failed to prepare invoice checkout.');
+          showAlert('Payment Error', response.error || 'Failed to prepare invoice checkout.');
           return;
         }
 
         invoiceId = response.data?.id || response.data?.data?.id || null;
       } catch (error) {
         console.error('Invoice resolution error:', error);
-        Alert.alert('Payment Error', 'Failed to prepare invoice checkout.');
+        showAlert('Payment Error', 'Failed to prepare invoice checkout.');
         return;
       } finally {
         setResolvingPaymentId(null);
@@ -207,7 +211,7 @@ export default function PaymentsScreen() {
     }
 
     if (!invoiceId) {
-      Alert.alert('Payment Error', 'Unable to resolve invoice checkout for this payment.');
+      showAlert('Payment Error', 'Unable to resolve invoice checkout for this payment.');
       return;
     }
 
@@ -228,6 +232,50 @@ export default function PaymentsScreen() {
     { value: 'pending', label: 'Pending' },
     { value: 'overdue', label: 'Overdue' },
   ];
+
+  const timeRangeOptions = [
+    { value: 'w', label: 'W' },
+    { value: 'm', label: 'M' },
+    { value: 'y', label: 'Y' },
+    { value: 'all', label: 'All' },
+  ];
+
+  const getThresholdDate = (range) => {
+    if (!range || range === 'all') return null;
+    const now = new Date();
+    switch (range) {
+      case 'w': return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case 'm': return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case 'y': return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      default: return null;
+    }
+  };
+
+  const filteredPayments = React.useMemo(() => {
+    const threshold = getThresholdDate(timeRange);
+    
+    // Initial sort and date filter
+    let list = [...payments].filter((p) => {
+      if (!threshold) return true;
+      const d = new Date(p.date || p.created_at);
+      return isNaN(d.getTime()) ? true : d >= threshold;
+    });
+
+    // Search filter (property, room, reference, method)
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (q) {
+      list = list.filter((p) => {
+        const prop = (p.propertyName || p.property_title || p.property?.title || '').toString().toLowerCase();
+        const ref = (p.referenceNo || p.reference || '').toString().toLowerCase();
+        const method = (p.method || '').toString().toLowerCase();
+        const room = (p.roomNumber || (p.room && p.room.roomNumber) || p.room?.room_number || '').toString().toLowerCase();
+        const desc = (p.description || '').toString().toLowerCase();
+        return prop.includes(q) || ref.includes(q) || method.includes(q) || room.includes(q) || desc.includes(q);
+      });
+    }
+
+    return list.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+  }, [payments, timeRange, searchQuery]);
 
   const formatCurrency = (amount) => {
     const value = Number(amount) || 0;
@@ -273,10 +321,6 @@ export default function PaymentsScreen() {
     }
   };
 
-  const filteredPayments = React.useMemo(
-    () => [...payments].sort((a, b) => new Date(b.date) - new Date(a.date)),
-    [payments],
-  );
   const loading = paymentsLoading || statsLoading;
 
   return (
@@ -315,37 +359,106 @@ export default function PaymentsScreen() {
         </View>
       </View>
 
-      {/* Filter Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterContainer}
-      >
-        {filterOptions.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.filterTab,
-              {
-                backgroundColor:
-                  statusFilter === option.value ? theme.colors.primary : theme.colors.backgroundSecondary,
-                borderColor: statusFilter === option.value ? theme.colors.primary : theme.colors.border,
-              },
-            ]}
-            onPress={() => setStatusFilter(option.value)}
-          >
-            <Text
-              numberOfLines={1}
+      {/* Search Bar */}
+      <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: theme.colors.surface,
+          borderRadius: 12,
+          paddingHorizontal: 12,
+          height: 48,
+          borderWidth: 1,
+          borderColor: theme.colors.border
+        }}>
+          <Ionicons name="search-outline" size={20} color={theme.colors.textTertiary} />
+          <TextInput
+            placeholder="Search property, room, ref..."
+            placeholderTextColor={theme.colors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              color: theme.colors.text,
+              fontSize: 14,
+            }}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={theme.colors.textTertiary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+
+      {/* Filter Tabs Container */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        {/* Status Filter Tabs */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.filterContainer, { marginBottom: 0, paddingRight: 8 }]}
+          style={{ flex: 1 }}
+        >
+          {filterOptions.map((option) => (
+            <TouchableOpacity
+              key={option.value}
               style={[
-                styles.filterText,
-                { color: statusFilter === option.value ? '#fff' : theme.colors.text },
+                styles.filterTab,
+                {
+                  backgroundColor:
+                    statusFilter === option.value ? theme.colors.primary : theme.colors.backgroundSecondary,
+                  borderColor: statusFilter === option.value ? theme.colors.primary : theme.colors.border,
+                },
               ]}
+              onPress={() => setStatusFilter(option.value)}
             >
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.filterText,
+                  { color: statusFilter === option.value ? '#fff' : theme.colors.text },
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Time Range Tabs */}
+        <View style={{ 
+          flexDirection: 'row', 
+          backgroundColor: theme.colors.backgroundSecondary, 
+          borderRadius: 10, 
+          padding: 2,
+          marginRight: 16
+        }}>
+          {timeRangeOptions.map((r) => (
+            <TouchableOpacity
+              key={r.value}
+              onPress={() => setTimeRange(r.value)}
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 6,
+                borderRadius: 8,
+                backgroundColor: timeRange === r.value ? theme.colors.surface : 'transparent',
+                borderWidth: timeRange === r.value ? 1 : 0,
+                borderColor: theme.colors.border,
+              }}
+            >
+              <Text style={{ 
+                fontSize: 10, 
+                fontWeight: 'bold', 
+                color: timeRange === r.value ? theme.colors.primary : theme.colors.textSecondary 
+              }}>
+                {r.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       {/* Payment List */}
       <View style={[styles.listCard, { backgroundColor: theme.colors.surface }]}>
