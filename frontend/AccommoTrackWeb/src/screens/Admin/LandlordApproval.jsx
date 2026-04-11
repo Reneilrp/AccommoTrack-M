@@ -570,36 +570,23 @@ export default function LandlordApproval() {
                 Close
               </button>
               
-              {selectedVerificationStatus === 'pending' && (
+              {(selectedVerificationStatus === 'pending' || selectedVerificationStatus === 'pending_documents_review') && (
                 <>
+                  <button
+                    onClick={openRejectModal}
+                    disabled={actionLoading}
+                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Reject Application
+                  </button>
                   <button
                     onClick={() => confirmPartialVerify(selectedVerification.user_id, selectedVerification.id)}
                     disabled={actionLoading}
                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70"
                   >
                     {actionLoading === `partial:${selectedVerification.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                    Set Partial Verification
-                  </button>
-                  <button
-                    onClick={openRejectModal}
-                    disabled={actionLoading}
-                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Reject Application
-                  </button>
-                </>
-              )}
-
-              {selectedVerificationStatus === 'pending_documents_review' && (
-                <>
-                  <button
-                    onClick={openRejectModal}
-                    disabled={actionLoading}
-                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Reject Application
+                    Partial Verification
                   </button>
                   <button
                     onClick={() => confirmApprove(selectedVerification.user_id, selectedVerification.id)}

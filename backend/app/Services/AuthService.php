@@ -71,7 +71,7 @@ class AuthService
         }
 
         // Prevent OTP bypass: users must complete email verification before login.
-        if (! $user->is_verified && $user->role !== 'admin') {
+        if (! $user->is_verified && !in_array($user->role, ['admin', 'landlord'])) {
             $retryAfterSeconds = null;
             $otpResent = false;
 
@@ -111,7 +111,7 @@ class AuthService
             $verification = $user->landlordVerification;
 
             // Allow verified landlords to log in even if verification row is missing (legacy/test data).
-            if (! $user->is_verified && (! $verification || $verification->status === 'pending')) {
+            if (! $user->is_verified && (! $verification || in_array($verification->status, ['pending', 'pending_documents_review']))) {
                 throw new PendingVerificationException('Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.');
             }
         }
