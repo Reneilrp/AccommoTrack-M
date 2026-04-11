@@ -1421,7 +1421,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       </Picker>
                     </View>
                     {requiredProxyGender ? (
-                      <Text style={styles.proxyFieldHelp}>
+                      <Text style={[styles.proxyFieldHelp, { color: theme.colors.error || '#ef4444' }]}>
                         This room is restricted to {requiredProxyGender === 'male' ? 'boys' : 'girls'} only.
                       </Text>
                     ) : null}

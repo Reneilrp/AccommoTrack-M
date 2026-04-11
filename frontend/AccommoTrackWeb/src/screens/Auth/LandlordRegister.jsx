@@ -42,6 +42,8 @@ const LandlordRegister = () => {
   const [idTypesError, setIdTypesError] = useState('');
   const [isIdDropdownOpen, setIsIdDropdownOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const fieldRefs = useRef({});
@@ -647,18 +649,33 @@ const LandlordRegister = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Password <span className="text-red-500">*</span></label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
-                    ref={el => fieldRefs.current.password = el}
-                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.password ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
-                    placeholder="Create a password"
-                    required
-                    disabled={submitting}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={form.password}
+                      onChange={handleChange}
+                      onKeyDown={handleKeyDown}
+                      ref={el => fieldRefs.current.password = el}
+                      className={`w-full pr-12 px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.password ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                      placeholder="Create a password"
+                      required
+                      disabled={submitting}
+                    />
+                    <button
+                      type="button"
+                      tabIndex="-1"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                      disabled={submitting}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      )}
+                    </button>
+                  </div>
                   {form.password && (
                     <div className="mt-2 space-y-2">
                       {!passwordChecks.minLen && <p className="text-xs text-gray-500 flex items-center gap-2">--Minimum 8 characters</p>}
@@ -671,18 +688,33 @@ const LandlordRegister = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Confirm Password <span className="text-red-500">*</span></label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={form.confirmPassword}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
-                    ref={el => fieldRefs.current.confirmPassword = el}
-                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
-                    placeholder="Confirm your password"
-                    required
-                    disabled={submitting}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={form.confirmPassword}
+                      onChange={handleChange}
+                      onKeyDown={handleKeyDown}
+                      ref={el => fieldRefs.current.confirmPassword = el}
+                      className={`w-full pr-12 px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                      placeholder="Confirm your password"
+                      required
+                      disabled={submitting}
+                    />
+                    <button
+                      type="button"
+                      tabIndex="-1"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                      disabled={submitting}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      )}
+                    </button>
+                  </div>
                   {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-2">{fieldErrors.confirmPassword}</p>}
                 </div>
                 <div className="flex justify-between mt-4">
