@@ -17,6 +17,43 @@ const normalizeVerificationsPayload = (payload) => {
   return [];
 };
 
+const normalizeVerificationStatus = (status) => {
+  if (typeof status !== 'string') return 'pending';
+  return status.toLowerCase();
+};
+
+const getVerificationStatusMeta = (status) => {
+  const normalized = normalizeVerificationStatus(status);
+
+  switch (normalized) {
+    case 'approved':
+      return {
+        classes: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+        label: 'Approved',
+      };
+    case 'partial_verified':
+      return {
+        classes: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+        label: 'Partial Verified',
+      };
+    case 'pending_documents_review':
+      return {
+        classes: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+        label: 'Pending Docs Review',
+      };
+    case 'rejected':
+      return {
+        classes: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+        label: 'Rejected',
+      };
+    default:
+      return {
+        classes: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+        label: 'Pending',
+      };
+  }
+};
+
 export default function LandlordApproval() {
   const [verifications, setVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,12 +163,52 @@ export default function LandlordApproval() {
   const confirmApprove = (userId, verificationId) => {
     setConfirmModalState({
       isOpen: true,
-      title: 'Confirm Approval',
-      message: 'Are you sure you want to approve this landlord? This will verify their account and send them a confirmation email.',
+      title: 'Confirm Final Approval',
+      message: 'Are you sure you want to finalize approval? This will mark the landlord as fully verified and send a confirmation email.',
       onConfirm: () => handleApprove(userId, verificationId),
       confirmText: 'Approve',
       confirmButtonClass: 'bg-green-600 hover:bg-green-700'
     });
+  };
+
+  const confirmPartialVerify = (userId, verificationId) => {
+    setConfirmModalState({
+      isOpen: true,
+      title: 'Set Partial Verification',
+      message: 'This will allow landlord login and set a 7-day document submission window. Continue?',
+      onConfirm: () => handlePartialVerify(userId, verificationId),
+      confirmText: 'Set Partial',
+      confirmButtonClass: 'bg-blue-600 hover:bg-blue-700',
+    });
+  };
+
+  const handlePartialVerify = async (userId, verificationId) => {
+    setConfirmModalState({ isOpen: false });
+
+    try {
+      setActionLoading(`partial:${verificationId}`);
+      const res = await api.post(`/admin/users/${userId}/partial-verify`, { duration_days: 7 });
+      const updatedVerification = res.data?.verification || null;
+
+      setVerifications(prev => prev.map(v => {
+        if (v.id !== verificationId) return v;
+        return {
+          ...v,
+          status: 'partial_verified',
+          rejection_reason: null,
+          reviewed_at: updatedVerification?.reviewed_at || v.reviewed_at,
+          document_due_at: updatedVerification?.document_due_at || v.document_due_at,
+        };
+      }));
+
+      toast.success(res.data?.message || 'Landlord moved to partial verification');
+      setShowModal(false);
+    } catch (err) {
+      console.error('Partial verification failed:', err);
+      toast.error(err.response?.data?.message || 'Failed to set partial verification');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleApprove = async (userId, verificationId) => {
@@ -266,6 +343,9 @@ export default function LandlordApproval() {
 
   const safeVerifications = Array.isArray(verifications) ? verifications : [];
   const selectedVerificationStatus = (selectedVerification?.status || '').toLowerCase();
+  const selectedVerificationHistory = Array.isArray(selectedVerification?.history)
+    ? selectedVerification.history
+    : [];
 
   return (
     <div className="w-full">
@@ -361,27 +441,12 @@ export default function LandlordApproval() {
                   </td>
                   <td className="px-6 py-4">
                     {(() => {
-                      const verificationStatus = typeof v.status === 'string'
-                        ? v.status.toLowerCase()
-                        : 'pending';
-                      const statusClasses = verificationStatus === 'approved'
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : verificationStatus === 'rejected'
-                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-
-                      const statusLabel = verificationStatus === 'approved'
-                        ? 'Approved'
-                        : verificationStatus === 'rejected'
-                        ? 'Rejected'
-                        : 'Pending Review';
+                      const statusMeta = getVerificationStatusMeta(v.status);
 
                       return (
-                    <span className={`px-2 py-2 rounded-full text-xs font-semibold ${
-                      statusClasses
-                    }`}>
-                      {statusLabel}
-                    </span>
+                        <span className={`px-2 py-2 rounded-full text-xs font-semibold ${statusMeta.classes}`}>
+                          {statusMeta.label}
+                        </span>
                       );
                     })()}
                   </td>
@@ -425,6 +490,14 @@ export default function LandlordApproval() {
             </div>
 
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+              {selectedVerification.document_due_at && (
+                <div className="md:col-span-2 p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    Document deadline: {new Date(selectedVerification.document_due_at).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-4 text-center sm:text-left">
                 <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
                   <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -446,6 +519,49 @@ export default function LandlordApproval() {
               </div>
             </div>
 
+            {selectedVerificationHistory.length > 0 && (
+              <div className="px-6 pb-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wide">
+                    Previous Submissions
+                  </h4>
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    {selectedVerificationHistory.length}
+                  </span>
+                </div>
+
+                <div className="space-y-6">
+                  {selectedVerificationHistory.map((entry, index) => {
+                    const statusMeta = getVerificationStatusMeta(entry.status);
+
+                    return (
+                      <div key={entry.id || index} className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-900/40">
+                        <div className="flex items-center justify-between mb-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusMeta.classes}`}>
+                            {statusMeta.label}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {entry.submitted_at ? new Date(entry.submitted_at).toLocaleString() : 'Date unavailable'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Valid ID</p>
+                            <FilePreview path={entry.valid_id_path} label="Previous Valid ID" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Permit</p>
+                            <FilePreview path={entry.permit_path} label="Previous Permit" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4 sticky bottom-0">
               <button 
                 onClick={() => setShowModal(false)}
@@ -455,6 +571,27 @@ export default function LandlordApproval() {
               </button>
               
               {selectedVerificationStatus === 'pending' && (
+                <>
+                  <button
+                    onClick={() => confirmPartialVerify(selectedVerification.user_id, selectedVerification.id)}
+                    disabled={actionLoading}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70"
+                  >
+                    {actionLoading === `partial:${selectedVerification.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    Set Partial Verification
+                  </button>
+                  <button
+                    onClick={openRejectModal}
+                    disabled={actionLoading}
+                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Reject Application
+                  </button>
+                </>
+              )}
+
+              {selectedVerificationStatus === 'pending_documents_review' && (
                 <>
                   <button
                     onClick={openRejectModal}
@@ -473,6 +610,13 @@ export default function LandlordApproval() {
                     Approve Application
                   </button>
                 </>
+              )}
+
+              {selectedVerificationStatus === 'partial_verified' && (
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm font-medium">Waiting for landlord documents</span>
+                </div>
               )}
 
               {selectedVerificationStatus === 'rejected' && (

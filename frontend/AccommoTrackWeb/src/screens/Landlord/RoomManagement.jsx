@@ -257,10 +257,10 @@ export default function RoomManagement() {
       ...room,
       type: room.type_label,
       roomNumber: room.room_number,
-      price: room.monthly_rate ? Math.floor(room.monthly_rate) : '',
+      price: room.monthly_rate ? Math.round(Number(room.monthly_rate)) : '',
       genderRestriction: pGender !== 'mixed' ? pGender : (room.gender_restriction || 'mixed'),
       floor: `${room.floor}${getOrdinalSuffix(room.floor)} Floor`,
-      dailyRate: room.daily_rate ? Math.floor(room.daily_rate) : '',
+      dailyRate: room.daily_rate ? Math.round(Number(room.daily_rate)) : '',
       billingPolicy: room.billing_policy || 'monthly',
       pricingModel: room.pricing_model || 'full_room',
       minStayDays: room.min_stay_days || 1,
@@ -868,7 +868,7 @@ export default function RoomManagement() {
                   <input
                     type="number"
                     value={selectedRoom.price}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value ? Math.floor(Number(e.target.value)) : '' })}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value ? Math.round(Number(e.target.value)) : '' })}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.monthly_rate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     min="0"
                     step="1"
@@ -983,7 +983,7 @@ export default function RoomManagement() {
                   <input
                     type="number"
                     value={selectedRoom.dailyRate || ''}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value ? Math.floor(Number(e.target.value)) : '' })}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value ? Math.round(Number(e.target.value)) : '' })}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     min="0"
                     step="1"

@@ -5,6 +5,43 @@ import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 import { Edit2, Check, X, Trash2, Download } from 'lucide-react';
 import { exportToCSV } from '../../utils/csvExport';
 
+const getLandlordStatusMeta = (status) => {
+  const normalized = typeof status === 'string' ? status.toLowerCase() : null;
+
+  switch (normalized) {
+    case 'approved':
+      return {
+        classes: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+        label: 'Verified',
+      };
+    case 'partial_verified':
+      return {
+        classes: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+        label: 'Partial Verified',
+      };
+    case 'pending_documents_review':
+      return {
+        classes: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
+        label: 'Pending Docs Review',
+      };
+    case 'pending':
+      return {
+        classes: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+        label: 'Pending',
+      };
+    case 'rejected':
+      return {
+        classes: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+        label: 'Rejected',
+      };
+    default:
+      return {
+        classes: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+        label: 'Not Submitted',
+      };
+  }
+};
+
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -421,23 +458,14 @@ const UserManagement = () => {
                           Blocked
                         </span>
                       ) : u.role === 'landlord' ? (
-                        <span className={`px-4 py-2 rounded-full text-xs font-medium ${
-                          u.verification_status === 'approved' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                            : u.verification_status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                              : u.verification_status === 'rejected'
-                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                        }`}>
-                          {u.verification_status === 'approved' 
-                            ? 'Verified' 
-                            : u.verification_status === 'pending'
-                              ? 'Pending'
-                              : u.verification_status === 'rejected'
-                                ? 'Rejected'
-                                : 'Not Submitted'}
-                        </span>
+                        (() => {
+                          const statusMeta = getLandlordStatusMeta(u.verification_status);
+                          return (
+                            <span className={`px-4 py-2 rounded-full text-xs font-medium ${statusMeta.classes}`}>
+                              {statusMeta.label}
+                            </span>
+                          );
+                        })()
                       ) : (
                         <span className="px-4 py-2 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                           Active
@@ -497,23 +525,14 @@ const UserManagement = () => {
                         Blocked
                       </span>
                     ) : selectedUser.role === 'landlord' ? (
-                      <span className={`px-4 py-2 rounded-full text-xs font-semibold ${
-                        selectedUser.verification_status === 'approved' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                          : selectedUser.verification_status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            : selectedUser.verification_status === 'rejected'
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                      }`}>
-                        {selectedUser.verification_status === 'approved' 
-                          ? 'Verified' 
-                          : selectedUser.verification_status === 'pending'
-                            ? 'Pending Verification'
-                            : selectedUser.verification_status === 'rejected'
-                              ? 'Rejected'
-                              : 'Not Submitted'}
-                      </span>
+                      (() => {
+                        const statusMeta = getLandlordStatusMeta(selectedUser.verification_status);
+                        return (
+                          <span className={`px-4 py-2 rounded-full text-xs font-semibold ${statusMeta.classes}`}>
+                            {statusMeta.label}
+                          </span>
+                        );
+                      })()
                     ) : (
                       <span className="px-4 py-2 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                         Active

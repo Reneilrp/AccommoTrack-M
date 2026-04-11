@@ -245,6 +245,24 @@ export default function VerificationStatus() {
           label: 'Verified',
           description: 'Your account is verified. You can create and publish properties.',
         };
+      case 'partial_verified':
+        return {
+          icon: AlertTriangle,
+          color: 'text-blue-600 dark:text-blue-400',
+          bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+          borderColor: 'border-blue-200 dark:border-blue-800',
+          label: 'Partial Verified',
+          description: 'You can use landlord mode. Submit your valid ID and permit to complete full verification.',
+        };
+      case 'pending_documents_review':
+        return {
+          icon: Clock,
+          color: 'text-indigo-600 dark:text-indigo-400',
+          bgColor: 'bg-indigo-50 dark:bg-indigo-900/20',
+          borderColor: 'border-indigo-200 dark:border-indigo-800',
+          label: 'Documents Under Review',
+          description: 'Your documents were submitted and are now being reviewed by admin.',
+        };
       case 'rejected':
         return {
           icon: XCircle,
@@ -260,8 +278,8 @@ export default function VerificationStatus() {
           color: 'text-yellow-600 dark:text-yellow-400',
           bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
           borderColor: 'border-yellow-200 dark:border-yellow-800',
-          label: 'Pending Review',
-          description: 'Your documents are under review. This typically takes 1-3 business days.',
+          label: 'Awaiting Admin Action',
+          description: 'Your landlord registration is waiting for admin to open the document submission stage.',
         };
       default:
         return {
@@ -307,6 +325,7 @@ export default function VerificationStatus() {
 
   const statusConfig = getStatusConfig(verification?.status);
   const StatusIcon = statusConfig.icon;
+  const canSubmitInitialDocuments = verification?.status === 'not_submitted' || verification?.status === 'partial_verified';
 
   return (
     <div className="space-y-6">
@@ -321,13 +340,28 @@ export default function VerificationStatus() {
               <h3 className={`text-xl font-bold ${statusConfig.color} uppercase tracking-tight`}>
                 {statusConfig.label}
               </h3>
-              {verification?.status === 'pending' && (
+              {(verification?.status === 'pending' || verification?.status === 'pending_documents_review') && (
                 <span className="px-2 py-2 bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 text-[10px] font-bold uppercase rounded-full animate-pulse">
-                  Under Review
+                  In Progress
                 </span>
               )}
             </div>
             <p className="text-gray-600 dark:text-gray-300 mt-2 font-medium">{statusConfig.description}</p>
+
+            {verification?.status === 'partial_verified' && verification?.document_due_at && (
+              <div className="mt-4 px-4 py-3 bg-blue-100 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                  Document deadline: {new Date(verification.document_due_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                  Submit both required documents before this date to avoid delays.
+                </p>
+              </div>
+            )}
             
             {verification?.reviewed_at && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 font-medium uppercase tracking-wider">
@@ -340,7 +374,7 @@ export default function VerificationStatus() {
             )}
 
             {/* Switch back to Tenant option for pending/rejected landlords */}
-            {(verification?.status === 'pending' || verification?.status === 'rejected' || verification?.status === 'not_submitted') && (
+            {verification?.status !== 'approved' && (
               <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                   Want to go back to using the app as a tenant while waiting for verification?
@@ -412,11 +446,15 @@ export default function VerificationStatus() {
       )}
 
       {/* Initial submission form for NOT_SUBMITTED status */}
-      {verification?.status === 'not_submitted' && (
+      {canSubmitInitialDocuments && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-emerald-50 dark:bg-emerald-900/20">
             <h4 className="font-semibold text-emerald-800 dark:text-emerald-300">Submit Documents for Verification</h4>
-            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">Please provide the following documents to become a landlord.</p>
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">
+              {verification?.status === 'partial_verified'
+                ? 'Upload both documents now to move into final admin review.'
+                : 'Please provide the following documents to become a landlord.'}
+            </p>
           </div>
           <form onSubmit={handleResubmit} className="p-6 space-y-6">
             {/* ID Type Selection */}
@@ -652,11 +690,15 @@ export default function VerificationStatus() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <span className={`px-2 py-2 rounded-full text-xs font-semibold ${
-                        entry.status === 'approved' 
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : entry.status === 'rejected'
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                          : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                          entry.status === 'approved'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                            : entry.status === 'rejected'
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                            : entry.status === 'partial_verified'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                            : entry.status === 'pending_documents_review'
+                            ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                       }`}>
                         {entry.status}
                       </span>

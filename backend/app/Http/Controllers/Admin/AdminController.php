@@ -242,36 +242,112 @@ class AdminController extends Controller
 
         // Also update the landlord verification record
         $verification = LandlordVerification::where('user_id', $id)->first();
-        if ($verification) {
+        if (! $verification) {
+            $verification = LandlordVerification::create([
+                'user_id' => $user->id,
+                'first_name' => $user->first_name,
+                'middle_name' => $user->middle_name,
+                'last_name' => $user->last_name,
+                'valid_id_type' => 'Pending Submission',
+                'valid_id_other' => null,
+                'valid_id_path' => '',
+                'permit_path' => '',
+                'status' => LandlordVerification::STATUS_APPROVED,
+                'rejection_reason' => null,
+                'reviewed_at' => now(),
+                'reviewed_by' => Auth::id(),
+                'document_due_at' => null,
+            ]);
+        } else {
             // Save current state to history before updating
             LandlordVerificationHistory::create([
                 'landlord_verification_id' => $verification->id,
                 'valid_id_type' => $verification->valid_id_type,
                 'valid_id_other' => $verification->valid_id_other,
-                'valid_id_path' => $verification->valid_id_path,
-                'permit_path' => $verification->permit_path,
-                'status' => 'approved',
+                'valid_id_path' => $verification->valid_id_path ?? '',
+                'permit_path' => $verification->permit_path ?? '',
+                'status' => $verification->status,
                 'rejection_reason' => null,
                 'submitted_at' => $verification->created_at,
                 'reviewed_at' => now(),
                 'reviewed_by' => Auth::id(),
             ]);
 
-            $verification->status = 'approved';
+            $verification->status = LandlordVerification::STATUS_APPROVED;
             $verification->rejection_reason = null;
             $verification->reviewed_at = now();
             $verification->reviewed_by = Auth::id();
+            $verification->document_due_at = null;
             $verification->save();
+        }
 
-            // Send approval email notification
-            try {
-                $user->notify(new LandlordApprovedNotification);
-            } catch (\Exception $e) {
-                \Log::error('Failed to send approval notification: '.$e->getMessage());
-            }
+        // Send approval email notification
+        try {
+            $user->notify(new LandlordApprovedNotification);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send approval notification: '.$e->getMessage());
         }
 
         return response()->json(['user' => $user, 'message' => 'User approved']);
+    }
+
+    /**
+     * Mark landlord as partially verified and set deadline for document submission.
+     */
+    public function partialVerifyUser(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'duration_days' => 'nullable|integer|min:1|max:60',
+        ]);
+
+        $durationDays = (int) ($validated['duration_days'] ?? 7);
+        $user = User::findOrFail($id);
+
+        if ($user->role !== 'landlord') {
+            return response()->json([
+                'message' => 'Only landlord accounts can be partially verified.',
+            ], 422);
+        }
+
+        $verification = LandlordVerification::where('user_id', $id)->first();
+
+        if ($verification) {
+            LandlordVerificationHistory::create([
+                'landlord_verification_id' => $verification->id,
+                'valid_id_type' => $verification->valid_id_type,
+                'valid_id_other' => $verification->valid_id_other,
+                'valid_id_path' => $verification->valid_id_path ?? '',
+                'permit_path' => $verification->permit_path ?? '',
+                'status' => $verification->status,
+                'rejection_reason' => $verification->rejection_reason,
+                'submitted_at' => $verification->updated_at ?? $verification->created_at,
+                'reviewed_at' => now(),
+                'reviewed_by' => Auth::id(),
+            ]);
+        } else {
+            $verification = new LandlordVerification();
+            $verification->user_id = $user->id;
+            $verification->first_name = $user->first_name;
+            $verification->middle_name = $user->middle_name;
+            $verification->last_name = $user->last_name;
+            $verification->valid_id_type = 'Pending Submission';
+            $verification->valid_id_other = null;
+            $verification->valid_id_path = '';
+            $verification->valid_id_back_path = null;
+            $verification->permit_path = '';
+        }
+
+        $verification->status = LandlordVerification::STATUS_PARTIAL_VERIFIED;
+        $verification->rejection_reason = null;
+        $verification->reviewed_at = now();
+        $verification->reviewed_by = Auth::id();
+        $verification->document_due_at = now()->addDays($durationDays);
+        $verification->save();
+
+        return response()->json([
+            'message' => 'Landlord moved to partial verification.',
+            'verification' => $verification,
+        ]);
     }
 
     /**

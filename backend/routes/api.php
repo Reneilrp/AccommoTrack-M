@@ -68,6 +68,10 @@ Route::post('/claim-account/verify-otp', [ClaimAccountController::class, 'verify
 // Public: check if email exists
 Route::get('/check-email', [AuthController::class, 'checkEmail'])->middleware('throttle:10,1');
 
+// Authenticated accessible properties (NOT edge cached)
+// Must be defined before /properties/{id} to prevent wildcard matching
+Route::middleware('auth:sanctum')->get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
+
 // --- Edge Cached Public Endpoints ---
 Route::middleware([EdgeCacheMiddleware::class])->group(function () {
     Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
@@ -81,9 +85,6 @@ Route::middleware([EdgeCacheMiddleware::class])->group(function () {
     Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 });
 
-// Authenticated accessible properties (NOT edge cached)
-Route::middleware('auth:sanctum')->get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
-// ---------------------------------------------------------------------------
 
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
 Route::get('/system/toggles', [SystemToggleController::class, 'index']);
@@ -368,6 +369,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::post('/users', [AdminController::class, 'createAdmin']);
         Route::post('/users/bulk-approve', [AdminController::class, 'bulkApproveLandlords']);
         Route::post('/users/bulk-reject', [AdminController::class, 'bulkRejectLandlords']);
+        Route::post('/users/{id}/partial-verify', [AdminController::class, 'partialVerifyUser']);
         Route::post('/users/{id}/approve', [AdminController::class, 'approveUser']);
         Route::post('/users/{id}/block', [AdminController::class, 'blockUser']);
         Route::post('/users/{id}/unblock', [AdminController::class, 'unblockUser']);

@@ -82,7 +82,7 @@ describe('SwitchRoleTab role switching', () => {
     );
   });
 
-  it('blocks tenant switch while registration is pending', async () => {
+  it('shows disabled pending gate while waiting for admin partial verification', async () => {
     api.get.mockResolvedValue({
       data: {
         status: 'pending',
@@ -91,14 +91,12 @@ describe('SwitchRoleTab role switching', () => {
 
     render(<SwitchRoleTab user={{ id: 20, role: 'tenant' }} />);
 
-    const registerButton = await screen.findByRole('button', {
-      name: /register as landlord/i,
+    const waitingButton = await screen.findByRole('button', {
+      name: /awaiting admin partial verification/i,
     });
-    fireEvent.click(registerButton);
+    expect(waitingButton).toBeDisabled();
 
-    expect(toast.error).toHaveBeenCalledWith(
-      'Your landlord registration is still under review. Please wait for approval before switching.',
-    );
+    expect(toast.error).not.toHaveBeenCalled();
     expect(authService.switchRole).not.toHaveBeenCalled();
   });
 

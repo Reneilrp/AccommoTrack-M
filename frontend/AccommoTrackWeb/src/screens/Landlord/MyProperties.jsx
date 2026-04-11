@@ -128,7 +128,9 @@ export default function MyProperties({ __user }) {
   const checkVerificationStatus = async () => {
     try {
       const res = await api.get('/landlord/my-verification');
-      setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
+      const status = res.data?.status;
+      const hasLandlordAccess = ['approved', 'partial_verified', 'pending_documents_review'].includes(status);
+      setIsVerified(hasLandlordAccess || res.data?.user?.is_verified === true);
     } catch (__err) {
       setIsVerified(false);
     }

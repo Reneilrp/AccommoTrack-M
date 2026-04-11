@@ -35,7 +35,7 @@ class SwitchRoleCredentialRequirementTest extends TestCase
 
         $response
             ->assertStatus(403)
-            ->assertJsonPath('message', 'Your landlord registration is not yet approved. Please complete landlord registration first.')
+            ->assertJsonPath('message', 'Your landlord registration is not yet in an active state. Please wait for admin partial verification first.')
             ->assertJsonPath('status', 'not_submitted');
 
         $this->assertDatabaseHas('users', [
@@ -99,7 +99,7 @@ class SwitchRoleCredentialRequirementTest extends TestCase
 
         $response
             ->assertStatus(403)
-            ->assertJsonPath('message', 'Your landlord registration is not yet approved. Please complete landlord registration first.')
+            ->assertJsonPath('message', 'Your landlord registration is not yet in an active state. Please wait for admin partial verification first.')
             ->assertJsonPath('status', 'pending');
 
         $this->assertDatabaseHas('users', [

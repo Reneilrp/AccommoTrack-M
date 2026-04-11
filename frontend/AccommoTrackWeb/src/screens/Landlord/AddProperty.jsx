@@ -130,7 +130,9 @@ export default function AddProperty({ onBack, onSave }) {
 
       try {
         const res = await api.get('/landlord/my-verification');
-        setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
+        const status = res.data?.status;
+        const hasLandlordAccess = ['approved', 'partial_verified', 'pending_documents_review'].includes(status);
+        setIsVerified(hasLandlordAccess || res.data?.user?.is_verified === true);
       } catch {
         // If 404 or error, assume not verified
         setIsVerified(false);

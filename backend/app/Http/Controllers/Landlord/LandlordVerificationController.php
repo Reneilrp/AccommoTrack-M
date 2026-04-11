@@ -106,13 +106,30 @@ class LandlordVerificationController extends Controller
     public function index()
     {
         // For admin: list all landlord verifications with user info
-        $verifications = LandlordVerification::with('user')
+        $verifications = LandlordVerification::with([
+            'user',
+            'history' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            },
+        ])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function (LandlordVerification $verification) {
                 $payload = $verification->toArray();
                 $payload['valid_id_path'] = $this->toPublicStorageUrl($verification->valid_id_path);
                 $payload['permit_path'] = $this->toPublicStorageUrl($verification->permit_path);
+                $payload['history'] = $verification->history->map(function (LandlordVerificationHistory $entry) {
+                    return [
+                        'id' => $entry->id,
+                        'status' => $entry->status,
+                        'rejection_reason' => $entry->rejection_reason,
+                        'valid_id_type' => $entry->valid_id_type,
+                        'valid_id_path' => $this->toPublicStorageUrl($entry->valid_id_path),
+                        'permit_path' => $this->toPublicStorageUrl($entry->permit_path),
+                        'submitted_at' => $entry->submitted_at,
+                        'reviewed_at' => $entry->reviewed_at,
+                    ];
+                })->values();
 
                 return $payload;
             });
@@ -151,15 +168,16 @@ class LandlordVerificationController extends Controller
             ->first();
 
         if (! $verification) {
-            if ($user->role === 'landlord' && $user->is_verified) {
+            if ($user->role === 'landlord') {
                 return response()->json([
-                    'message' => 'Verification already approved',
-                    'status' => 'approved',
+                    'message' => 'Your account is awaiting admin partial verification.',
+                    'status' => LandlordVerification::STATUS_PENDING,
                     'user' => [
-                        'is_verified' => true,
+                        'is_verified' => $user->is_verified,
                     ],
                     'valid_id_path' => null,
                     'permit_path' => null,
+                    'document_due_at' => null,
                     'history' => [],
                 ]);
             }
@@ -179,6 +197,7 @@ class LandlordVerificationController extends Controller
             'valid_id_type' => $verification->valid_id_type,
             'valid_id_path' => $this->toPublicStorageUrl($verification->valid_id_path),
             'permit_path' => $this->toPublicStorageUrl($verification->permit_path),
+            'document_due_at' => $verification->document_due_at,
             'reviewed_at' => $verification->reviewed_at,
             'reviewer' => $verification->reviewer ? [
                 'name' => trim($verification->reviewer->first_name.' '.$verification->reviewer->last_name),
@@ -287,17 +306,20 @@ class LandlordVerificationController extends Controller
 
         $verification = LandlordVerification::where('user_id', $user->id)->first();
 
-        if ($verification && $verification->status === 'approved') {
+        if ($verification && $verification->status === LandlordVerification::STATUS_APPROVED) {
             return response()->json([
                 'message' => 'Your landlord application is already approved. You can switch to landlord mode now.',
                 'status' => 'approved',
             ], 409);
         }
 
-        if ($verification && $verification->status === 'pending') {
+        if ($verification && in_array($verification->status, [
+            LandlordVerification::STATUS_PENDING,
+            LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
+        ], true)) {
             return response()->json([
                 'message' => 'Your landlord application is currently under review.',
-                'status' => 'pending',
+                'status' => $verification->status,
             ], 409);
         }
 
@@ -313,12 +335,7 @@ class LandlordVerificationController extends Controller
                 : null;
 
             if ($verification) {
-                if ($verification->valid_id_path) {
-                    Storage::delete($verification->valid_id_path);
-                }
-                if ($verification->permit_path) {
-                    Storage::delete($verification->permit_path);
-                }
+                $this->snapshotVerificationHistory($verification);
 
                 $verification->forceFill([
                     'first_name' => $user->first_name,
@@ -328,10 +345,11 @@ class LandlordVerificationController extends Controller
                     'valid_id_other' => $validIdOther,
                     'valid_id_path' => $validIdPath,
                     'permit_path' => $permitPath,
-                    'status' => 'pending',
+                    'status' => LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
                     'rejection_reason' => null,
                     'reviewed_at' => null,
                     'reviewed_by' => null,
+                    'document_due_at' => null,
                 ])->save();
             } else {
                 $verification = LandlordVerification::create([
@@ -343,7 +361,8 @@ class LandlordVerificationController extends Controller
                     'valid_id_other' => $validIdOther,
                     'valid_id_path' => $validIdPath,
                     'permit_path' => $permitPath,
-                    'status' => 'pending',
+                    'status' => LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
+                    'document_due_at' => null,
                 ]);
             }
 
@@ -351,7 +370,7 @@ class LandlordVerificationController extends Controller
 
             return response()->json([
                 'message' => 'Landlord registration submitted successfully. Please wait for admin review.',
-                'status' => 'pending',
+                'status' => $verification->status,
                 'verification' => [
                     'id' => $verification->id,
                     'status' => $verification->status,
@@ -398,10 +417,13 @@ class LandlordVerificationController extends Controller
 
         $verification = LandlordVerification::where('user_id', $user->id)->first();
 
-        // If it exists, check if it's rejected. If it doesn't exist, we'll create it.
-        if ($verification && $verification->status !== 'rejected') {
+        // Allow re-upload when rejected, or when partially verified and waiting for docs.
+        if ($verification && ! in_array($verification->status, [
+            LandlordVerification::STATUS_REJECTED,
+            LandlordVerification::STATUS_PARTIAL_VERIFIED,
+        ], true)) {
             return response()->json([
-                'message' => 'You can only resubmit after your application has been rejected',
+                'message' => 'Document submission is only available after rejection or partial verification.',
             ], 400);
         }
 
@@ -427,15 +449,18 @@ class LandlordVerificationController extends Controller
             $permitPath = $request->file('permit')->store('landlord_permits');
 
             if ($verification) {
+                $this->snapshotVerificationHistory($verification);
+
                 // Update verification record with new documents
                 $verification->valid_id_type = $request->valid_id_type;
                 $verification->valid_id_other = $request->valid_id_other;
                 $verification->valid_id_path = $validIdPath;
                 $verification->permit_path = $permitPath;
-                $verification->status = 'pending';
+                $verification->status = LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW;
                 $verification->rejection_reason = null;
                 $verification->reviewed_at = null;
                 $verification->reviewed_by = null;
+                $verification->document_due_at = null;
                 $verification->save();
             } else {
                 // Create new verification record
@@ -448,7 +473,8 @@ class LandlordVerificationController extends Controller
                     'valid_id_other' => $request->valid_id_other,
                     'valid_id_path' => $validIdPath,
                     'permit_path' => $permitPath,
-                    'status' => 'pending',
+                    'status' => LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
+                    'document_due_at' => null,
                 ]);
             }
 
@@ -507,5 +533,40 @@ class LandlordVerificationController extends Controller
         }
 
         return Storage::url($cleanPath);
+    }
+
+    private function snapshotVerificationHistory(LandlordVerification $verification): void
+    {
+        // Keep prior submissions accessible for admin-side first-vs-current comparison.
+        if (! $verification->valid_id_path && ! $verification->permit_path) {
+            return;
+        }
+
+        $latestHistory = LandlordVerificationHistory::where('landlord_verification_id', $verification->id)
+            ->latest('id')
+            ->first();
+
+        if (
+            $latestHistory
+            && $latestHistory->valid_id_path === ($verification->valid_id_path ?? '')
+            && $latestHistory->permit_path === ($verification->permit_path ?? '')
+            && $latestHistory->status === $verification->status
+            && $latestHistory->rejection_reason === $verification->rejection_reason
+        ) {
+            return;
+        }
+
+        LandlordVerificationHistory::create([
+            'landlord_verification_id' => $verification->id,
+            'valid_id_type' => $verification->valid_id_type,
+            'valid_id_other' => $verification->valid_id_other,
+            'valid_id_path' => $verification->valid_id_path ?? '',
+            'permit_path' => $verification->permit_path ?? '',
+            'status' => $verification->status,
+            'rejection_reason' => $verification->rejection_reason,
+            'submitted_at' => $verification->updated_at ?? $verification->created_at,
+            'reviewed_at' => now(),
+            'reviewed_by' => Auth::id(),
+        ]);
     }
 }

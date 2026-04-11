@@ -250,6 +250,17 @@ const adminService = {
   },
 
   /**
+   * Move a landlord to partial verification state.
+   * @param {number|string} userId
+   * @param {number} durationDays
+   */
+  async partialVerifyLandlord(userId, durationDays = 7) {
+    return await api.post(`/admin/users/${userId}/partial-verify`, {
+      duration_days: durationDays,
+    });
+  },
+
+  /**
    * Reject a landlord verification
    * @param {number|string} verificationId 
    * @param {string} reason 

@@ -201,6 +201,45 @@ export default function DashboardPage({ user }) {
     return date.toLocaleDateString();
   };
 
+  const getVerificationBannerConfig = (status) => {
+    switch (status) {
+      case 'pending':
+        return {
+          wrapperClass: 'bg-yellow-50 border-yellow-200',
+          icon: <Clock className="w-6 h-6 text-yellow-600" />,
+          message: 'Your registration is waiting for admin to enable the document submission stage.',
+        };
+      case 'partial_verified':
+        return {
+          wrapperClass: 'bg-blue-50 border-blue-200',
+          icon: <ShieldAlert className="w-6 h-6 text-blue-600" />,
+          message: 'Your account is partially verified. Submit your documents in Settings to complete full verification.',
+        };
+      case 'pending_documents_review':
+        return {
+          wrapperClass: 'bg-indigo-50 border-indigo-200',
+          icon: <Clock className="w-6 h-6 text-indigo-600" />,
+          message: 'Your documents are under admin review. Full verification is still in progress.',
+        };
+      case 'rejected':
+        return {
+          wrapperClass: 'bg-red-50 border-red-200',
+          icon: <FileWarning className="w-6 h-6 text-red-600" />,
+          message: 'Your previous submission was rejected. Check Settings for the reason and resubmit.',
+        };
+      case 'approved':
+        return null;
+      default:
+        return {
+          wrapperClass: 'bg-orange-50 border-orange-200',
+          icon: <ShieldAlert className="w-6 h-6 text-orange-600" />,
+          message: 'Please complete your verification in Settings to unlock all features.',
+        };
+    }
+  };
+
+  const verificationBanner = verificationStatus ? getVerificationBannerConfig(verificationStatus.status) : null;
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto py-8 animate-pulse">
@@ -255,18 +294,14 @@ export default function DashboardPage({ user }) {
   return (
     <div className="space-y-6">
       {/* Verification Status Banner */}
-      {verificationStatus && verificationStatus.status !== 'approved' && (
-        <div className={`rounded-xl border p-4 ${
-          verificationStatus.status === 'rejected' ? 'bg-red-50 border-red-200' : 
-          verificationStatus.status === 'pending' ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200'
-        }`}>
+      {verificationBanner && (
+        <div className={`rounded-xl border p-4 ${verificationBanner.wrapperClass}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              {verificationStatus.status === 'rejected' ? <FileWarning className="w-6 h-6 text-red-600" /> : 
-               verificationStatus.status === 'pending' ? <Clock className="w-6 h-6 text-yellow-600" /> : <ShieldAlert className="w-6 h-6 text-orange-600" />}
+              {verificationBanner.icon}
               <div>
                 <h3 className="font-semibold text-gray-900">Account Status: {verificationStatus.status.replace('_', ' ').toUpperCase()}</h3>
-                <p className="text-sm text-gray-600">Please complete your verification in Settings to unlock all features.</p>
+                <p className="text-sm text-gray-600">{verificationBanner.message}</p>
               </div>
             </div>
             <Link to="/settings" state={{ tab: 'verification' }} className="px-4 py-2 bg-white dark:bg-gray-800 border rounded-lg text-sm font-medium shadow-sm">View Status</Link>

@@ -6,6 +6,7 @@ use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
 use App\Http\Controllers\Controller;
 use App\Mail\EmailOtpMail;
+use App\Models\LandlordVerification;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\AuthService;
@@ -622,11 +623,16 @@ class AuthController extends Controller
                 ], 403);
             }
 
-            $verification = \App\Models\LandlordVerification::where('user_id', $user->id)->first();
+            $verification = LandlordVerification::where('user_id', $user->id)->first();
+            $allowedStatuses = [
+                LandlordVerification::STATUS_PARTIAL_VERIFIED,
+                LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
+                LandlordVerification::STATUS_APPROVED,
+            ];
 
-            if (! $verification || $verification->status !== 'approved') {
+            if (! $verification || ! in_array($verification->status, $allowedStatuses, true)) {
                 return response()->json([
-                    'message' => 'Your landlord registration is not yet approved. Please complete landlord registration first.',
+                    'message' => 'Your landlord registration is not yet in an active state. Please wait for admin partial verification first.',
                     'status' => $verification ? $verification->status : 'not_submitted',
                 ], 403);
             }
