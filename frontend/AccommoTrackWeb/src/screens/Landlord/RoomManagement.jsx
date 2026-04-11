@@ -97,7 +97,12 @@ export default function RoomManagement() {
         setPropertyRules(p.property_rules || []);
         setPropertyAmenitiesList(p.amenities_list || []);
         setTotalFloors(p.total_floors || 1);
-        setPropertyGender(p.gender_restriction || "mixed");
+        const pGender = p.gender_restriction || "mixed";
+        setPropertyGender(pGender);
+        
+        if (pGender !== "mixed") {
+          setSelectedRoom(prev => prev ? { ...prev, genderRestriction: pGender } : prev);
+        }
       } catch (err) {
         console.error('Failed to fetch property details for edit modal', err);
       }
@@ -245,14 +250,17 @@ export default function RoomManagement() {
 
   // Edit Room
   const handleEditRoom = (room) => {
+    const prop = properties.find(p => p.id === selectedPropertyId);
+    const pGender = prop?.gender_restriction || 'mixed';
+
     setSelectedRoom({
       ...room,
       type: room.type_label,
       roomNumber: room.room_number,
-      price: room.monthly_rate,
-      genderRestriction: room.gender_restriction === 'mixed' ? 'male' : (room.gender_restriction || 'male'),
+      price: room.monthly_rate ? Math.floor(room.monthly_rate) : '',
+      genderRestriction: pGender !== 'mixed' ? pGender : (room.gender_restriction || 'mixed'),
       floor: `${room.floor}${getOrdinalSuffix(room.floor)} Floor`,
-      dailyRate: room.daily_rate || '',
+      dailyRate: room.daily_rate ? Math.floor(room.daily_rate) : '',
       billingPolicy: room.billing_policy || 'monthly',
       pricingModel: room.pricing_model || 'full_room',
       minStayDays: room.min_stay_days || 1,
@@ -346,19 +354,18 @@ export default function RoomManagement() {
       };
 
       const propertyType = properties.find(p => p.id === selectedPropertyId)?.property_type;
-      const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(propertyType);
 
       const floorNumber = parseInt(selectedRoom.floor.match(/\d+/)[0]);
 
       const updateData = new FormData();
       updateData.append('room_number', selectedRoom.roomNumber);
       updateData.append('room_type', roomTypeMap[selectedRoom.type] || 'single');
-      updateData.append('gender_restriction', isGenderRestricted ? selectedRoom.genderRestriction : 'mixed');
+      updateData.append('gender_restriction', selectedRoom.genderRestriction);
       updateData.append('floor', floorNumber);
-      updateData.append('monthly_rate', parseFloat(selectedRoom.price));
+      updateData.append('monthly_rate', parseInt(selectedRoom.price, 10) || 0);
       
       if (selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '') {
-        updateData.append('daily_rate', parseFloat(selectedRoom.dailyRate));
+        updateData.append('daily_rate', parseInt(selectedRoom.dailyRate, 10) || 0);
       }
       if (selectedRoom.billingPolicy) {
         updateData.append('billing_policy', selectedRoom.billingPolicy);
@@ -861,8 +868,10 @@ export default function RoomManagement() {
                   <input
                     type="number"
                     value={selectedRoom.price}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value })}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value ? Math.floor(Number(e.target.value)) : '' })}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.monthly_rate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                    min="0"
+                    step="1"
                   />
                   {fieldErrors.monthly_rate && <p className="text-red-500 text-xs mt-2">{fieldErrors.monthly_rate[0]}</p>}
                 </div>
@@ -885,7 +894,6 @@ export default function RoomManagement() {
                   </select>
                 </div>
 
-                {['dormitory', 'boardingHouse', 'bedSpacer'].includes(properties.find(p => p.id === selectedPropertyId)?.property_type) ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
                     <select
@@ -896,6 +904,9 @@ export default function RoomManagement() {
                     >
                       <option value="male">Male Only</option>
                       <option value="female">Female Only</option>
+                      {!['dormitory', 'boardingHouse', 'bedSpacer'].includes(properties.find(p => p.id === selectedPropertyId)?.property_type) && (
+                        <option value="mixed">Mixed</option>
+                      )}
                     </select>
                     {propertyGender !== "mixed" && (
                       <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 italic">
@@ -903,9 +914,6 @@ export default function RoomManagement() {
                       </p>
                     )}
                   </div>
-                ) : (
-                  <div className="hidden"></div>
-                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -975,10 +983,10 @@ export default function RoomManagement() {
                   <input
                     type="number"
                     value={selectedRoom.dailyRate || ''}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value })}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value ? Math.floor(Number(e.target.value)) : '' })}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     min="0"
-                    step="0.01"
+                    step="1"
                   />
                 </div>
 
