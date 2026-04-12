@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Clock3, CreditCard, FileText, History, Loader2, Receipt, RefreshCw, Search } from 'lucide-react';
+import { CheckCircle2, Clock3, CreditCard, FileText, History, Loader2, Receipt, RefreshCw, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import invoiceService from '../../../services/invoiceService';
@@ -89,7 +89,7 @@ const buildHistory = (invoices) => {
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 };
 
-export default function BillingCenter() {
+export default function BillingCenter({ onOpenSubscriptionPlan }) {
   const [activeTab, setActiveTab] = useState('billing');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -256,6 +256,30 @@ export default function BillingCenter() {
     };
   }, [openBillingRows.length, paymentRows.length, filteredInvoiceRows.length, historyRows.length]);
 
+  const subscriptionHealth = useMemo(() => {
+    if (openBillingRows.length > 0) {
+      return {
+        tone: 'amber',
+        title: 'Action Needed: Outstanding Subscription Billing',
+        detail: `You have ${openBillingRows.length} open item${openBillingRows.length > 1 ? 's' : ''}. Complete payment to keep subscription access uninterrupted.`,
+      };
+    }
+
+    if (overview.pendingVerification > 0) {
+      return {
+        tone: 'indigo',
+        title: 'Pending Verification',
+        detail: `You have ${overview.pendingVerification} payment${overview.pendingVerification > 1 ? 's' : ''} awaiting verification.`,
+      };
+    }
+
+    return {
+      tone: 'green',
+      title: 'Billing Status Healthy',
+      detail: 'No outstanding subscription invoices right now.',
+    };
+  }, [openBillingRows.length, overview.pendingVerification]);
+
   if (loading) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 flex items-center justify-center">
@@ -285,6 +309,16 @@ export default function BillingCenter() {
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
             </button>
 
+            {onOpenSubscriptionPlan && (
+              <button
+                type="button"
+                onClick={onOpenSubscriptionPlan}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Open Subscription Plan
+              </button>
+            )}
+
             <Link
               to="/payments"
               className="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-sm font-semibold text-white"
@@ -292,6 +326,19 @@ export default function BillingCenter() {
               Open Full Payments Page
             </Link>
           </div>
+        </div>
+
+        <div
+          className={`mt-4 rounded-lg border p-4 text-sm ${
+            subscriptionHealth.tone === 'amber'
+              ? 'border-amber-200 dark:border-amber-900 bg-amber-50/80 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200'
+              : subscriptionHealth.tone === 'indigo'
+                ? 'border-indigo-200 dark:border-indigo-900 bg-indigo-50/80 dark:bg-indigo-900/20 text-indigo-900 dark:text-indigo-200'
+                : 'border-green-200 dark:border-green-900 bg-green-50/80 dark:bg-green-900/20 text-green-900 dark:text-green-200'
+          }`}
+        >
+          <p className="font-semibold">{subscriptionHealth.title}</p>
+          <p className="mt-1 text-xs opacity-90">{subscriptionHealth.detail}</p>
         </div>
 
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -390,9 +437,9 @@ export default function BillingCenter() {
             ))}
 
             {openBillingRows.length === 0 && (
-              <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/80 dark:bg-amber-900/20 p-4 text-sm text-amber-900 dark:text-amber-200 inline-flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" />
-                No open billing items match your filters.
+              <div className="rounded-lg border border-green-200 dark:border-green-900 bg-green-50/80 dark:bg-green-900/20 p-4 text-sm text-green-900 dark:text-green-200 inline-flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                No open billing items. Your subscription billing is up to date.
               </div>
             )}
           </div>

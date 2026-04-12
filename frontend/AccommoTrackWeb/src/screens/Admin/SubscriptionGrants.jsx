@@ -32,6 +32,12 @@ const INITIAL_REVOKE_FORM = {
   reason: '',
 };
 
+const ACTION_TABS = [
+  { id: 'grant', label: 'Grant Plan' },
+  { id: 'extend', label: 'Extend Grant' },
+  { id: 'revoke', label: 'Revoke Grant' },
+];
+
 const toPositiveIntegerOrNull = (value) => {
   if (value === null || value === undefined || value === '') {
     return null;
@@ -150,6 +156,8 @@ export default function SubscriptionGrants() {
   const [grantSubmitting, setGrantSubmitting] = useState(false);
   const [extendSubmitting, setExtendSubmitting] = useState(false);
   const [revokeSubmitting, setRevokeSubmitting] = useState(false);
+  const [activeActionTab, setActiveActionTab] = useState('grant');
+  const [focusedActionPanel, setFocusedActionPanel] = useState('');
 
   const filteredLandlords = useMemo(() => {
     const query = landlordSearch.trim().toLowerCase();
@@ -456,10 +464,24 @@ export default function SubscriptionGrants() {
 
   const useGrantForExtend = (grantId) => {
     setExtendForm((prev) => ({ ...prev, grant_id: String(grantId) }));
+    setActiveActionTab('extend');
+    setFocusedActionPanel('extend');
+    window.requestAnimationFrame(() => {
+      document.getElementById('subscription-extend-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    window.setTimeout(() => setFocusedActionPanel(''), 1800);
+    toast.success(`Grant #${grantId} loaded into Extend Grant.`);
   };
 
   const useGrantForRevoke = (grantId) => {
     setRevokeForm((prev) => ({ ...prev, grant_id: String(grantId) }));
+    setActiveActionTab('revoke');
+    setFocusedActionPanel('revoke');
+    window.requestAnimationFrame(() => {
+      document.getElementById('subscription-revoke-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    window.setTimeout(() => setFocusedActionPanel(''), 1800);
+    toast.success(`Grant #${grantId} loaded into Revoke Grant.`);
   };
 
   return (
@@ -582,261 +604,297 @@ export default function SubscriptionGrants() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <form
-          onSubmit={handleGrantSubmit}
-          className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Grant Plan</h2>
-
-          <label className="block">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Plan</span>
-            <select
-              value={grantForm.plan_id}
-              onChange={(event) => setGrantForm((prev) => ({ ...prev, plan_id: event.target.value }))}
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-              required
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-5 space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {ACTION_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveActionTab(tab.id)}
+              className={`px-3 py-2 rounded-lg text-sm font-semibold ${
+                activeActionTab === tab.id
+                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+              }`}
             >
-              <option value="">Select plan</option>
-              {plans.map((plan) => (
-                <option key={plan.id} value={String(plan.id)}>
-                  {buildPlanLabel(plan)}
-                </option>
-              ))}
-            </select>
-          </label>
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          <label className="block">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Starts At</span>
-            <input
-              type="date"
-              value={grantForm.starts_at}
-              onChange={(event) => setGrantForm((prev) => ({ ...prev, starts_at: event.target.value }))}
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-            />
-          </label>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Pick one action at a time to reduce errors. Timeline quick actions will prefill the matching form and switch tabs automatically.
+        </p>
 
-          <div>
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Grant Duration Mode</span>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setGrantForm((prev) => ({ ...prev, mode: 'duration_months' }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                  grantForm.mode === 'duration_months'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
-                }`}
-              >
-                Duration (months)
-              </button>
-              <button
-                type="button"
-                onClick={() => setGrantForm((prev) => ({ ...prev, mode: 'ends_at' }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                  grantForm.mode === 'ends_at'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
-                }`}
-              >
-                End date
-              </button>
-            </div>
-          </div>
+        {activeActionTab === 'grant' && (
+          <form
+            id="subscription-grant-panel"
+            onSubmit={handleGrantSubmit}
+            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${
+              focusedActionPanel === 'grant' ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''
+            }`}
+          >
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Grant Plan</h2>
 
-          {grantForm.mode === 'duration_months' ? (
             <label className="block">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Duration Months</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Plan</span>
+              <select
+                value={grantForm.plan_id}
+                onChange={(event) => setGrantForm((prev) => ({ ...prev, plan_id: event.target.value }))}
+                className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                required
+              >
+                <option value="">Select plan</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={String(plan.id)}>
+                    {buildPlanLabel(plan)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Starts At</span>
+              <input
+                type="date"
+                value={grantForm.starts_at}
+                onChange={(event) => setGrantForm((prev) => ({ ...prev, starts_at: event.target.value }))}
+                className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+              />
+            </label>
+
+            <div>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Grant Duration Mode</span>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGrantForm((prev) => ({ ...prev, mode: 'duration_months' }))}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                    grantForm.mode === 'duration_months'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  Duration (months)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGrantForm((prev) => ({ ...prev, mode: 'ends_at' }))}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                    grantForm.mode === 'ends_at'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  End date
+                </button>
+              </div>
+            </div>
+
+            {grantForm.mode === 'duration_months' ? (
+              <label className="block">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Duration Months</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={grantForm.duration_months}
+                  onChange={(event) => setGrantForm((prev) => ({ ...prev, duration_months: event.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                  required
+                />
+              </label>
+            ) : (
+              <label className="block">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Ends At</span>
+                <input
+                  type="date"
+                  value={grantForm.ends_at}
+                  onChange={(event) => setGrantForm((prev) => ({ ...prev, ends_at: event.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                  required
+                />
+              </label>
+            )}
+
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+              <input
+                type="checkbox"
+                checked={grantForm.auto_renew}
+                onChange={(event) => setGrantForm((prev) => ({ ...prev, auto_renew: event.target.checked }))}
+                className="rounded border-gray-300 text-blue-600"
+              />
+              Auto renew
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Notes</span>
+              <textarea
+                value={grantForm.notes}
+                onChange={(event) => setGrantForm((prev) => ({ ...prev, notes: event.target.value }))}
+                rows={3}
+                placeholder="Optional grant notes"
+                className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={grantSubmitting || !selectedLandlordId}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+            >
+              {grantSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Create Grant
+            </button>
+          </form>
+        )}
+
+        {activeActionTab === 'extend' && (
+          <form
+            id="subscription-extend-panel"
+            onSubmit={handleExtendSubmit}
+            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${
+              focusedActionPanel === 'extend' ? 'ring-2 ring-emerald-300 dark:ring-emerald-600' : ''
+            }`}
+          >
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Extend Grant</h2>
+
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Grant ID</span>
               <input
                 type="number"
                 min="1"
-                value={grantForm.duration_months}
-                onChange={(event) => setGrantForm((prev) => ({ ...prev, duration_months: event.target.value }))}
+                value={extendForm.grant_id}
+                onChange={(event) => setExtendForm((prev) => ({ ...prev, grant_id: event.target.value }))}
                 className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
                 required
               />
             </label>
-          ) : (
-            <label className="block">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Ends At</span>
-              <input
-                type="date"
-                value={grantForm.ends_at}
-                onChange={(event) => setGrantForm((prev) => ({ ...prev, ends_at: event.target.value }))}
-                className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-                required
-              />
-            </label>
-          )}
 
-          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-            <input
-              type="checkbox"
-              checked={grantForm.auto_renew}
-              onChange={(event) => setGrantForm((prev) => ({ ...prev, auto_renew: event.target.checked }))}
-              className="rounded border-gray-300 text-blue-600"
-            />
-            Auto renew
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Notes</span>
-            <textarea
-              value={grantForm.notes}
-              onChange={(event) => setGrantForm((prev) => ({ ...prev, notes: event.target.value }))}
-              rows={3}
-              placeholder="Optional grant notes"
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={grantSubmitting || !selectedLandlordId}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
-          >
-            {grantSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Create Grant
-          </button>
-        </form>
-
-        <form
-          onSubmit={handleExtendSubmit}
-          className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Extend Grant</h2>
-
-          <label className="block">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Grant ID</span>
-            <input
-              type="number"
-              min="1"
-              value={extendForm.grant_id}
-              onChange={(event) => setExtendForm((prev) => ({ ...prev, grant_id: event.target.value }))}
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-              required
-            />
-          </label>
-
-          <div>
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Extension Mode</span>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setExtendForm((prev) => ({ ...prev, mode: 'add_months' }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                  extendForm.mode === 'add_months'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
-                }`}
-              >
-                Add months
-              </button>
-              <button
-                type="button"
-                onClick={() => setExtendForm((prev) => ({ ...prev, mode: 'ends_at' }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                  extendForm.mode === 'ends_at'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
-                }`}
-              >
-                Set end date
-              </button>
+            <div>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Extension Mode</span>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExtendForm((prev) => ({ ...prev, mode: 'add_months' }))}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                    extendForm.mode === 'add_months'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  Add months
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExtendForm((prev) => ({ ...prev, mode: 'ends_at' }))}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                    extendForm.mode === 'ends_at'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  Set end date
+                </button>
+              </div>
             </div>
-          </div>
 
-          {extendForm.mode === 'add_months' ? (
+            {extendForm.mode === 'add_months' ? (
+              <label className="block">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Months to Add</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={extendForm.add_months}
+                  onChange={(event) => setExtendForm((prev) => ({ ...prev, add_months: event.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                  required
+                />
+              </label>
+            ) : (
+              <label className="block">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">New End Date</span>
+                <input
+                  type="date"
+                  value={extendForm.ends_at}
+                  onChange={(event) => setExtendForm((prev) => ({ ...prev, ends_at: event.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                  required
+                />
+              </label>
+            )}
+
             <label className="block">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Months to Add</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Notes</span>
+              <textarea
+                value={extendForm.notes}
+                onChange={(event) => setExtendForm((prev) => ({ ...prev, notes: event.target.value }))}
+                rows={3}
+                placeholder="Optional extension note"
+                className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={extendSubmitting || !selectedLandlordId}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {extendSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Extend Grant
+            </button>
+          </form>
+        )}
+
+        {activeActionTab === 'revoke' && (
+          <form
+            id="subscription-revoke-panel"
+            onSubmit={handleRevokeSubmit}
+            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${
+              focusedActionPanel === 'revoke' ? 'ring-2 ring-red-300 dark:ring-red-600' : ''
+            }`}
+          >
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Revoke Grant</h2>
+
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Grant ID</span>
               <input
                 type="number"
                 min="1"
-                value={extendForm.add_months}
-                onChange={(event) => setExtendForm((prev) => ({ ...prev, add_months: event.target.value }))}
+                value={revokeForm.grant_id}
+                onChange={(event) => setRevokeForm((prev) => ({ ...prev, grant_id: event.target.value }))}
                 className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
                 required
               />
             </label>
-          ) : (
+
             <label className="block">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">New End Date</span>
-              <input
-                type="date"
-                value={extendForm.ends_at}
-                onChange={(event) => setExtendForm((prev) => ({ ...prev, ends_at: event.target.value }))}
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Reason</span>
+              <textarea
+                value={revokeForm.reason}
+                onChange={(event) => setRevokeForm((prev) => ({ ...prev, reason: event.target.value }))}
+                rows={4}
+                placeholder="Optional revoke reason"
                 className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-                required
               />
             </label>
-          )}
 
-          <label className="block">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Notes</span>
-            <textarea
-              value={extendForm.notes}
-              onChange={(event) => setExtendForm((prev) => ({ ...prev, notes: event.target.value }))}
-              rows={3}
-              placeholder="Optional extension note"
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={extendSubmitting || !selectedLandlordId}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
-          >
-            {extendSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Extend Grant
-          </button>
-        </form>
-
-        <form
-          onSubmit={handleRevokeSubmit}
-          className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Revoke Grant</h2>
-
-          <label className="block">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Grant ID</span>
-            <input
-              type="number"
-              min="1"
-              value={revokeForm.grant_id}
-              onChange={(event) => setRevokeForm((prev) => ({ ...prev, grant_id: event.target.value }))}
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Reason</span>
-            <textarea
-              value={revokeForm.reason}
-              onChange={(event) => setRevokeForm((prev) => ({ ...prev, reason: event.target.value }))}
-              rows={4}
-              placeholder="Optional revoke reason"
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={revokeSubmitting || !selectedLandlordId}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60"
-          >
-            {revokeSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Revoke Grant
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={revokeSubmitting || !selectedLandlordId}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60"
+            >
+              {revokeSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Revoke Grant
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
         <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Grant Timeline</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Recent grants for the selected landlord. Use quick actions to prefill Extend/Revoke forms.
+            Recent grants for the selected landlord. Quick actions will switch to the correct tab and prefill the chosen grant ID.
           </p>
         </div>
 
@@ -900,16 +958,16 @@ export default function SubscriptionGrants() {
                         <button
                           type="button"
                           onClick={() => useGrantForExtend(grant.id)}
-                          className="px-2.5 py-1 rounded-md border border-emerald-300 text-emerald-700 dark:text-emerald-300 text-xs font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                          className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
                         >
-                          Use for Extend
+                          Extend This
                         </button>
                         <button
                           type="button"
                           onClick={() => useGrantForRevoke(grant.id)}
-                          className="px-2.5 py-1 rounded-md border border-red-300 text-red-700 dark:text-red-300 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-900/30"
+                          className="px-3 py-1.5 rounded-md bg-red-600 text-white text-xs font-semibold hover:bg-red-700"
                         >
-                          Use for Revoke
+                          Revoke This
                         </button>
                       </div>
                     </td>

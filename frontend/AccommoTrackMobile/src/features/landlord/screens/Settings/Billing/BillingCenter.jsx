@@ -288,6 +288,30 @@ export default function BillingCenterScreen({ navigation }) {
     [openBillingRows.length, paymentRows.length, filteredInvoices.length, historyRows.length],
   );
 
+  const subscriptionHealth = useMemo(() => {
+    if (openBillingRows.length > 0) {
+      return {
+        tone: 'warning',
+        title: 'Action Needed',
+        detail: `${openBillingRows.length} subscription invoice${openBillingRows.length > 1 ? 's are' : ' is'} still open. Complete payment to avoid access issues.`,
+      };
+    }
+
+    if (overview.pendingVerification > 0) {
+      return {
+        tone: 'info',
+        title: 'Pending Verification',
+        detail: `${overview.pendingVerification} payment${overview.pendingVerification > 1 ? 's are' : ' is'} waiting for verification.`,
+      };
+    }
+
+    return {
+      tone: 'success',
+      title: 'Billing is Healthy',
+      detail: 'No outstanding subscription invoices right now.',
+    };
+  }, [openBillingRows.length, overview.pendingVerification]);
+
   const styles = useMemo(() => getStyles(theme), [theme]);
 
   if (loading) {
@@ -334,6 +358,25 @@ export default function BillingCenterScreen({ navigation }) {
           <Ionicons name="open-outline" size={16} color="#FFFFFF" />
           <Text style={styles.openPaymentsButtonText}>Open Full Payments Page</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.openSubscriptionButton} onPress={() => navigation.navigate('SubscriptionPlan')}>
+          <Ionicons name="rocket-outline" size={16} color={theme.colors.primary} />
+          <Text style={styles.openSubscriptionButtonText}>Open Subscription Plan</Text>
+        </TouchableOpacity>
+
+        <View
+          style={[
+            styles.healthBox,
+            subscriptionHealth.tone === 'warning'
+              ? styles.healthBoxWarning
+              : subscriptionHealth.tone === 'info'
+                ? styles.healthBoxInfo
+                : styles.healthBoxSuccess,
+          ]}
+        >
+          <Text style={styles.healthTitle}>{subscriptionHealth.title}</Text>
+          <Text style={styles.healthDetail}>{subscriptionHealth.detail}</Text>
+        </View>
 
         <View style={styles.searchBox}>
           <Ionicons name="search-outline" size={17} color={theme.colors.textSecondary} />
@@ -425,8 +468,8 @@ export default function BillingCenterScreen({ navigation }) {
 
             {openBillingRows.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Ionicons name="alert-circle-outline" size={16} color={theme.colors.warningDark} />
-                <Text style={styles.emptyText}>No open billing items match your filters.</Text>
+                <Ionicons name="checkmark-circle-outline" size={16} color={theme.colors.successDark} />
+                <Text style={styles.emptyText}>No open billing items. Your subscription billing is up to date.</Text>
               </View>
             ) : null}
           </View>
@@ -551,6 +594,52 @@ const getStyles = (theme) =>
       color: '#FFFFFF',
       fontSize: 13,
       fontWeight: '700',
+    },
+    openSubscriptionButton: {
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      borderRadius: 10,
+      paddingVertical: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 6,
+      backgroundColor: theme.isDark ? 'rgba(15,23,42,0.45)' : '#FFFFFF',
+    },
+    openSubscriptionButtonText: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    healthBox: {
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
+      gap: 3,
+    },
+    healthBoxWarning: {
+      borderColor: theme.colors.warningLight,
+      backgroundColor: theme.isDark ? 'rgba(120,53,15,0.28)' : '#FFFBEB',
+    },
+    healthBoxInfo: {
+      borderColor: theme.colors.infoLight,
+      backgroundColor: theme.isDark ? 'rgba(30,58,138,0.24)' : '#EFF6FF',
+    },
+    healthBoxSuccess: {
+      borderColor: theme.colors.successLight,
+      backgroundColor: theme.isDark ? 'rgba(6,78,59,0.26)' : '#ECFDF5',
+    },
+    healthTitle: {
+      fontSize: 12,
+      color: theme.colors.text,
+      fontWeight: '700',
+    },
+    healthDetail: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '600',
+      lineHeight: 17,
     },
     searchBox: {
       backgroundColor: theme.colors.surface,
@@ -721,8 +810,8 @@ const getStyles = (theme) =>
     },
     emptyBox: {
       borderWidth: 1,
-      borderColor: theme.colors.warningLight,
-      backgroundColor: theme.isDark ? 'rgba(120,53,15,0.28)' : '#FFFBEB',
+      borderColor: theme.colors.successLight,
+      backgroundColor: theme.isDark ? 'rgba(6,78,59,0.24)' : '#ECFDF5',
       borderRadius: 10,
       paddingHorizontal: 10,
       paddingVertical: 9,

@@ -562,7 +562,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
           {activeTab === 'subscription-plan' && (
             <SubscriptionPlan onOpenBillingCenter={() => handleTabChange('billing-center')} />
           )}
-          {activeTab === 'billing-center' && <BillingCenter />}
+          {activeTab === 'billing-center' && (
+            <BillingCenter onOpenSubscriptionPlan={() => handleTabChange('subscription-plan')} />
+          )}
           {activeTab === 'verification' && <VerificationStatus user={user} onUpdate={onUserUpdate} />}
           {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
           {activeTab === 'switch-role' && <SwitchRoleTab user={user} onUserUpdate={onUserUpdate} />}

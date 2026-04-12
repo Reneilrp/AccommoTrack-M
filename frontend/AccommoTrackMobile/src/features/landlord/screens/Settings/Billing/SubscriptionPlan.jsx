@@ -244,6 +244,10 @@ export default function SubscriptionPlanScreen({ navigation }) {
   const usage = bundle?.usage || {};
   const currentPlan = bundle?.plan || null;
   const currentSubscription = bundle?.subscription || null;
+  const normalizedSubscriptionStatus = String(currentSubscription?.status || 'active').toLowerCase();
+  const isSelfCheckoutSubscription = currentSubscription?.source === 'self_checkout';
+  const needsPaymentCompletion = normalizedSubscriptionStatus === 'scheduled' && isSelfCheckoutSubscription;
+  const linkedInvoiceId = currentSubscription?.metadata?.invoice_id || null;
 
   const displayPlans = useMemo(() => {
     const normalizedPlans = Array.isArray(plans)
@@ -339,6 +343,42 @@ export default function SubscriptionPlanScreen({ navigation }) {
     return Boolean(currentSubscription.metadata?.invoice_id);
   }, [currentSubscription]);
 
+  const statusMeta = useMemo(() => {
+    if (needsPaymentCompletion) {
+      return {
+        label: 'Payment Required',
+        hint: 'Your plan is scheduled and will activate only after payment confirmation.',
+        badgeBackground: theme.isDark ? 'rgba(245,158,11,0.25)' : '#FEF3C7',
+        badgeText: theme.isDark ? '#FDE68A' : '#92400E',
+      };
+    }
+
+    if (normalizedSubscriptionStatus === 'active') {
+      return {
+        label: 'Active',
+        hint: 'Your subscription is active and usage limits are enforced from this plan.',
+        badgeBackground: theme.isDark ? 'rgba(16,185,129,0.25)' : '#DCFCE7',
+        badgeText: theme.isDark ? '#6EE7B7' : '#166534',
+      };
+    }
+
+    if (normalizedSubscriptionStatus === 'revoked' || normalizedSubscriptionStatus === 'expired') {
+      return {
+        label: normalizedSubscriptionStatus.charAt(0).toUpperCase() + normalizedSubscriptionStatus.slice(1),
+        hint: 'This subscription is no longer active. Select a plan to restore full access.',
+        badgeBackground: theme.isDark ? 'rgba(220,38,38,0.25)' : '#FEE2E2',
+        badgeText: theme.isDark ? '#FCA5A5' : '#991B1B',
+      };
+    }
+
+    return {
+      label: String(currentSubscription?.status || 'active').replace(/_/g, ' '),
+      hint: 'Review this status before applying subscription changes.',
+      badgeBackground: theme.colors.backgroundTertiary,
+      badgeText: theme.colors.textSecondary,
+    };
+  }, [currentSubscription?.status, needsPaymentCompletion, normalizedSubscriptionStatus, theme.colors.backgroundTertiary, theme.colors.textSecondary, theme.isDark]);
+
   const handleCheckout = async (plan) => {
     if (!plan?.id || plan?.is_active === false) {
       Alert.alert('Unavailable Plan', 'This plan is not currently available for checkout.');
@@ -364,8 +404,8 @@ export default function SubscriptionPlanScreen({ navigation }) {
         'Subscription Updated',
         paymentRequired
           ? invoiceReference
-            ? `Checkout created. Invoice ${invoiceReference} is ready for payment.`
-            : 'Checkout created. Complete payment to activate your plan.'
+            ? `Subscription scheduled. Complete invoice ${invoiceReference} to activate your plan.`
+            : 'Subscription scheduled. Complete payment to activate your plan.'
           : 'Subscription updated successfully.',
       );
 
@@ -453,26 +493,43 @@ export default function SubscriptionPlanScreen({ navigation }) {
           <Text style={styles.cardMeta}>
             Source: {String(currentSubscription?.source || 'system_default').replace(/_/g, ' ')}
           </Text>
-          <Text style={styles.cardMeta}>
-            Status: {String(currentSubscription?.status || 'active').replace(/_/g, ' ')}
-          </Text>
+          <View style={[styles.statusBadge, { backgroundColor: statusMeta.badgeBackground }]}> 
+            <Text style={[styles.statusBadgeText, { color: statusMeta.badgeText }]}>{statusMeta.label}</Text>
+          </View>
           <Text style={styles.cardMeta}>Ends: {formatDateTime(currentSubscription?.ends_at)}</Text>
+          <Text style={styles.statusHint}>{statusMeta.hint}</Text>
 
-          {canSyncCheckout ? (
-            <TouchableOpacity
-              style={[styles.syncButton, syncing && styles.disabledButton]}
-              onPress={handleSyncCheckout}
-              disabled={syncing}
-            >
-              {syncing ? (
-                <ActivityIndicator color={theme.colors.warningDark} />
-              ) : (
-                <>
-                  <Ionicons name="shield-checkmark-outline" size={16} color={theme.colors.warningDark} />
-                  <Text style={styles.syncButtonText}>Sync Payment Status</Text>
-                </>
-              )}
-            </TouchableOpacity>
+          {needsPaymentCompletion ? (
+            <View style={styles.actionGroup}>
+              <TouchableOpacity
+                style={styles.primaryActionButton}
+                onPress={() => navigation.navigate('BillingCenter')}
+              >
+                <Ionicons name="receipt-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.primaryActionButtonText}>Open Billing Center</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.syncButton, (syncing || !canSyncCheckout) && styles.disabledButton]}
+                onPress={handleSyncCheckout}
+                disabled={syncing || !canSyncCheckout}
+              >
+                {syncing ? (
+                  <ActivityIndicator color={theme.colors.warningDark} />
+                ) : (
+                  <>
+                    <Ionicons name="shield-checkmark-outline" size={16} color={theme.colors.warningDark} />
+                    <Text style={styles.syncButtonText}>Check Payment Status</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.cardMeta}>
+                {linkedInvoiceId
+                  ? `Invoice #${linkedInvoiceId} is pending. Check status after payment.`
+                  : 'Invoice details are still syncing. Pull to refresh and try again.'}
+              </Text>
+            </View>
           ) : null}
         </View>
 
@@ -694,7 +751,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
                           <Ionicons name="rocket-outline" size={15} color="#FFFFFF" />
                         ) : null}
                         <Text style={styles.chooseButtonText}>
-                          {isCurrentPlan ? 'Current Plan' : isSelectable ? 'Choose Plan' : 'Unavailable'}
+                          {isCurrentPlan ? 'Current Plan' : isSelectable ? `Switch to ${plan.name}` : 'Unavailable'}
                         </Text>
                       </View>
                     )}
@@ -789,8 +846,47 @@ const getStyles = (theme) =>
       color: theme.colors.textSecondary,
       textTransform: 'capitalize',
     },
+    statusBadge: {
+      alignSelf: 'flex-start',
+      borderRadius: 999,
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      marginTop: 2,
+    },
+    statusBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.3,
+      textTransform: 'uppercase',
+    },
+    statusHint: {
+      marginTop: 2,
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '600',
+      lineHeight: 17,
+    },
+    actionGroup: {
+      marginTop: 8,
+      gap: 8,
+    },
+    primaryActionButton: {
+      borderRadius: 10,
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+    },
+    primaryActionButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: 13,
+    },
     syncButton: {
-      marginTop: 10,
+      marginTop: 0,
       borderRadius: 10,
       borderWidth: 1,
       borderColor: theme.colors.warningLight,

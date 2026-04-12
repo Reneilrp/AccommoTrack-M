@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   BarChart3,
   Building2,
   CheckCircle2,
+  Clock3,
   ChevronDown,
   ChevronUp,
   Crown,
@@ -151,6 +153,10 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
   const usage = bundle?.usage || {};
   const currentPlan = bundle?.plan || null;
   const currentSubscription = bundle?.subscription || null;
+  const normalizedSubscriptionStatus = String(currentSubscription?.status || 'active').toLowerCase();
+  const isSelfCheckoutSubscription = currentSubscription?.source === 'self_checkout';
+  const needsPaymentCompletion = normalizedSubscriptionStatus === 'scheduled' && isSelfCheckoutSubscription;
+  const linkedInvoiceId = currentSubscription?.metadata?.invoice_id || null;
 
   const canSyncCheckout = useMemo(() => {
     if (!currentSubscription) return false;
@@ -158,6 +164,38 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
     if (currentSubscription.status !== 'scheduled') return false;
     return Boolean(currentSubscription.metadata?.invoice_id);
   }, [currentSubscription]);
+
+  const statusMeta = useMemo(() => {
+    if (needsPaymentCompletion) {
+      return {
+        label: 'Payment Required',
+        tone: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200',
+        hint: 'Your plan is scheduled but not active yet. Complete payment to unlock full access.',
+      };
+    }
+
+    if (normalizedSubscriptionStatus === 'active') {
+      return {
+        label: 'Active',
+        tone: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+        hint: 'Your subscription is active and your limits are currently enforced by this plan.',
+      };
+    }
+
+    if (normalizedSubscriptionStatus === 'revoked' || normalizedSubscriptionStatus === 'expired') {
+      return {
+        label: normalizedSubscriptionStatus.charAt(0).toUpperCase() + normalizedSubscriptionStatus.slice(1),
+        tone: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+        hint: 'Your subscription is no longer active. Choose a plan to continue with full access.',
+      };
+    }
+
+    return {
+      label: (normalizedSubscriptionStatus || 'active').replace('_', ' '),
+      tone: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+      hint: 'Review your billing status and keep your subscription up to date.',
+    };
+  }, [needsPaymentCompletion, normalizedSubscriptionStatus]);
 
   const displayPlans = useMemo(() => {
     const normalizedPlans = Array.isArray(plans)
@@ -303,8 +341,8 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
       if (paymentRequired) {
         toast.success(
           invoiceReference
-            ? `Checkout created. Invoice ${invoiceReference} is ready for payment.`
-            : 'Checkout created. Complete payment to activate your plan.'
+            ? `Subscription scheduled. Complete invoice ${invoiceReference} to activate your plan.`
+            : 'Subscription scheduled. Complete payment to activate your plan.'
         );
       } else {
         toast.success('Subscription updated successfully.');
@@ -396,29 +434,48 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
             <p className="text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">Subscription Status</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white mt-1 capitalize">
-              {currentSubscription?.status || 'active'}
-            </p>
+            <span className={`mt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold ${statusMeta.tone}`}>
+              {needsPaymentCompletion ? <AlertTriangle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              {statusMeta.label}
+            </span>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Ends: {formatDateTime(currentSubscription?.ends_at)}
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 mt-2">
+              {statusMeta.hint}
             </p>
           </div>
 
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <p className="text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">Billing Action</p>
-            {canSyncCheckout ? (
-              <button
-                type="button"
-                onClick={handleSyncCheckout}
-                disabled={syncing}
-                className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 font-semibold text-sm hover:bg-amber-200 dark:hover:bg-amber-900/50 disabled:opacity-60"
-              >
-                {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />} Sync Payment Status
-              </button>
+            <p className="text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">Next Action</p>
+            {needsPaymentCompletion ? (
+              <div className="mt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenBillingCenter?.()}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm"
+                >
+                  Open Billing Center
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSyncCheckout}
+                  disabled={syncing || !canSyncCheckout}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 font-semibold text-sm hover:bg-amber-200 dark:hover:bg-amber-900/50 disabled:opacity-60"
+                >
+                  {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />} Check Payment Status
+                </button>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 inline-flex items-start gap-1.5">
+                  <Clock3 className="w-3.5 h-3.5 mt-0.5" />
+                  {linkedInvoiceId
+                    ? `Invoice #${linkedInvoiceId} is pending. Use Check Payment Status after completing payment.`
+                    : 'Invoice is still being prepared. Refresh and try again in a moment.'}
+                </p>
+              </div>
             ) : (
               <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 inline-flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-                No pending checkout sync needed.
+                No immediate action required.
               </p>
             )}
           </div>
@@ -632,14 +689,20 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
                     type="button"
                     onClick={() => handleCheckout(plan)}
                     disabled={isCurrentPlan || isCheckingOut || !isSelectable}
-                    className={`mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-sm text-white disabled:opacity-60 disabled:cursor-not-allowed ${isSelectable ? visual.ctaButtonClasses : 'bg-gray-400 dark:bg-gray-600'}`}
+                    className={`mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60 disabled:cursor-not-allowed ${
+                      isCurrentPlan
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        : isSelectable
+                          ? `${visual.ctaButtonClasses} text-white`
+                          : 'bg-gray-400 dark:bg-gray-600 text-white'
+                    }`}
                   >
                     {isCheckingOut ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : isCurrentPlan || !isSelectable ? null : (
                       <Rocket className="w-4 h-4" />
                     )}
-                    {isCurrentPlan ? 'Current Plan' : isSelectable ? 'Choose Plan' : 'Unavailable'}
+                    {isCurrentPlan ? 'Current Plan' : isSelectable ? `Switch to ${plan.name}` : 'Unavailable'}
                   </button>
                 </div>
               </div>
