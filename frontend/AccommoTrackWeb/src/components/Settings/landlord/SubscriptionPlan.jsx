@@ -342,7 +342,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
     try {
       const response = await landlordService.createInvoicePaymongoSource(invoiceId, {
-        method: 'gcash',
+        method: 'qrph',
         return_url: buildSubscriptionReturnUrl(),
       });
 
@@ -350,7 +350,12 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
         throw new Error(response.error || 'Unable to start PayMongo checkout.');
       }
 
-      const checkoutUrl = response.data?.source?.data?.attributes?.redirect?.checkout_url;
+      const checkoutUrl =
+        response.data?.source?.data?.attributes?.redirect?.checkout_url ||
+        response.data?.link?.data?.attributes?.checkout_url ||
+        response.data?.checkout_url ||
+        null;
+
       if (!checkoutUrl) {
         throw new Error('PayMongo checkout URL was not returned.');
       }

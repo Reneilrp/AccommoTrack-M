@@ -152,8 +152,17 @@ class PaymongoWebhookController extends Controller
                     $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
                 }
             } elseif ($eventType === 'link.payment.paid') {
-                $metadata = $resourceAttr['metadata'] ?? null;
-                if ($metadata && isset($metadata['room_id']) && isset($metadata['tenant_id'])) {
+                $metadata = is_array($resourceAttr['metadata'] ?? null) ? $resourceAttr['metadata'] : [];
+
+                // QRPh link checkouts pass invoice/transaction metadata so we can settle locally.
+                $this->applyLinkPaymentToTransaction(
+                    metadata: $metadata,
+                    paymentReference: $resourceId,
+                    resourceAttributes: is_array($resourceAttr) ? $resourceAttr : [],
+                    providerEventId: $data['id'] ?? null,
+                );
+
+                if (isset($metadata['room_id']) && isset($metadata['tenant_id'])) {
                     $room = \App\Models\Room::find($metadata['room_id']);
                     if ($room) {
                         // NOTE: Do NOT update room status here — 'paid' is not a valid room status.
@@ -200,6 +209,44 @@ class PaymongoWebhookController extends Controller
 
             return response()->json(['message' => 'Handler error'], 500);
         }
+    }
+
+    /**
+     * Map link.payment.paid to a local payment transaction and settle the linked invoice.
+     */
+    private function applyLinkPaymentToTransaction(array $metadata, ?string $paymentReference, array $resourceAttributes, ?string $providerEventId): void
+    {
+        $tx = null;
+
+        $txId = isset($metadata['payment_transaction_id']) ? (int) $metadata['payment_transaction_id'] : 0;
+        if ($txId > 0) {
+            $tx = PaymentTransaction::find($txId);
+        }
+
+        if (! $tx) {
+            $invoiceId = isset($metadata['invoice_id']) ? (int) $metadata['invoice_id'] : 0;
+            if ($invoiceId > 0) {
+                $tx = PaymentTransaction::query()
+                    ->where('invoice_id', $invoiceId)
+                    ->whereIn('status', ['pending', 'processing', 'pending_offline'])
+                    ->orderByDesc('id')
+                    ->first();
+            }
+        }
+
+        if (! $tx || $tx->status === 'succeeded') {
+            return;
+        }
+
+        $tx->status = 'succeeded';
+        if ($paymentReference) {
+            $tx->gateway_reference = $paymentReference;
+        }
+        $tx->gateway_response = $resourceAttributes;
+        $tx->provider_event_id = $providerEventId;
+        $tx->save();
+
+        $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
     }
 
     /**

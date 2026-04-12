@@ -428,14 +428,19 @@ export default function SubscriptionPlanScreen({ navigation }) {
     setPaymongoInvoiceId(invoiceId);
     try {
       const sourceResult = await LandlordSubscriptionService.createInvoicePaymongoSource(invoiceId, {
-        method: 'gcash',
+        method: 'qrph',
       });
 
       if (!sourceResult.success) {
         throw new Error(sourceResult.error || 'Unable to start PayMongo checkout.');
       }
 
-      const checkoutUrl = sourceResult.data?.source?.data?.attributes?.redirect?.checkout_url;
+      const checkoutUrl =
+        sourceResult.data?.source?.data?.attributes?.redirect?.checkout_url ||
+        sourceResult.data?.link?.data?.attributes?.checkout_url ||
+        sourceResult.data?.checkout_url ||
+        null;
+
       if (!checkoutUrl) {
         throw new Error('PayMongo checkout URL was not returned.');
       }

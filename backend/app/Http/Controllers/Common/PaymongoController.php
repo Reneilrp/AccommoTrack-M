@@ -52,7 +52,7 @@ class PaymongoController extends Controller
             $this->checkPropertyAccess($context, (int) $invoice->property_id);
         }
 
-        $method = $validated['method'];
+        $method = strtolower(trim((string) $validated['method']));
         $returnUrl = $validated['return_url'] ?? config('app.url').'/payments/return';
 
         $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
@@ -86,23 +86,14 @@ class PaymongoController extends Controller
                 'method' => 'paymongo_'.$method,
             ]);
 
-            $verifyEnv = config('services.paymongo.verify_ssl', true);
-            // Allow boolean-like values or a path to a CA bundle file
-            if (is_string($verifyEnv) && file_exists($verifyEnv)) {
-                $verify = $verifyEnv; // path to bundle
-            } else {
-                $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                if (is_null($verify)) {
-                    $verify = true;
-                }
+            $client = $this->createPaymongoClient('createSource');
+
+            if ($method === 'qrph') {
+                $result = $this->createQrphLinkCheckout($client, $invoice, $tx, $returnUrl);
+                DB::commit();
+
+                return response()->json($result, 200);
             }
-
-            Log::info('Paymongo createSource - verify resolved: '.var_export($verify, true));
-
-            $client = new Client([
-                'base_uri' => 'https://api.paymongo.com/v1/',
-                'verify' => $verify,
-            ]);
 
             $payload = [
                 'data' => [
@@ -177,7 +168,7 @@ class PaymongoController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $method = $validated['method'];
+        $method = strtolower(trim((string) $validated['method']));
         $returnUrl = $validated['return_url'] ?? config('app.url').'/payments/return';
 
         $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
@@ -231,22 +222,14 @@ class PaymongoController extends Controller
                 'method' => 'paymongo_'.$method,
             ]);
 
-            $verifyEnv = config('services.paymongo.verify_ssl', true);
-            if (is_string($verifyEnv) && file_exists($verifyEnv)) {
-                $verify = $verifyEnv;
-            } else {
-                $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                if (is_null($verify)) {
-                    $verify = true;
-                }
+            $client = $this->createPaymongoClient('createSourceForTenant');
+
+            if ($method === 'qrph') {
+                $result = $this->createQrphLinkCheckout($client, $invoice, $tx, $returnUrl);
+                DB::commit();
+
+                return response()->json($result, 200);
             }
-
-            Log::info('Paymongo createSourceForTenant - verify resolved: '.var_export($verify, true));
-
-            $client = new Client([
-                'base_uri' => 'https://api.paymongo.com/v1/',
-                'verify' => $verify,
-            ]);
 
             $payload = [
                 'data' => [
@@ -743,6 +726,105 @@ class PaymongoController extends Controller
                 ]);
             }
         }
+    }
+
+    private function createPaymongoClient(string $context): Client
+    {
+        $verify = $this->resolvePaymongoVerify();
+        Log::info('Paymongo '.$context.' - verify resolved: '.var_export($verify, true));
+
+        return new Client([
+            'base_uri' => 'https://api.paymongo.com/v1/',
+            'verify' => $verify,
+        ]);
+    }
+
+    /**
+     * Resolve TLS verification config (bool or custom CA bundle path).
+     *
+     * @return bool|string
+     */
+    private function resolvePaymongoVerify()
+    {
+        $verifyEnv = config('services.paymongo.verify_ssl', true);
+        if (is_string($verifyEnv) && file_exists($verifyEnv)) {
+            return $verifyEnv;
+        }
+
+        $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        return is_null($verify) ? true : $verify;
+    }
+
+    /**
+     * Create a PayMongo Link for QRPh checkout and return a source-compatible payload.
+     */
+    private function createQrphLinkCheckout(Client $client, Invoice $invoice, PaymentTransaction $tx, string $returnUrl): array
+    {
+        $metadata = [
+            'invoice_id' => (int) $invoice->id,
+            'landlord_id' => (int) $invoice->landlord_id,
+            'payment_transaction_id' => (int) $tx->id,
+            'flow' => 'invoice_checkout',
+        ];
+
+        if (! empty($invoice->tenant_id)) {
+            $metadata['tenant_id'] = (int) $invoice->tenant_id;
+        }
+
+        $payload = [
+            'data' => [
+                'attributes' => [
+                    'amount' => intval($tx->amount_cents),
+                    'description' => (string) ($invoice->description ?: 'Invoice #'.$invoice->id),
+                    'remarks' => (string) ($invoice->reference ?: 'INV-'.$invoice->id),
+                    'metadata' => $metadata,
+                ],
+            ],
+        ];
+
+        $res = $client->post('links', [
+            'auth' => [config('services.paymongo.secret_key'), ''],
+            'json' => $payload,
+        ]);
+
+        $body = json_decode((string) $res->getBody(), true);
+        if (! is_array($body)) {
+            throw new \Exception('Invalid response from PayMongo');
+        }
+
+        $linkId = $body['data']['id'] ?? null;
+        $checkoutUrl = $body['data']['attributes']['checkout_url'] ?? null;
+        if (! $checkoutUrl) {
+            throw new \Exception('PayMongo checkout URL was not returned.');
+        }
+
+        $tx->gateway_reference = $linkId;
+        $tx->gateway_response = $body;
+        $tx->save();
+
+        $sourceCompatible = [
+            'data' => [
+                'id' => $linkId,
+                'type' => 'source',
+                'attributes' => [
+                    'type' => 'qrph',
+                    'status' => $body['data']['attributes']['status'] ?? 'pending',
+                    'redirect' => [
+                        'checkout_url' => $checkoutUrl,
+                        'success' => $returnUrl,
+                        'failed' => $returnUrl,
+                    ],
+                ],
+            ],
+        ];
+
+        return [
+            'transaction' => $tx,
+            'source' => $sourceCompatible,
+            'link' => $body,
+            'checkout_url' => $checkoutUrl,
+        ];
     }
 
     private function extractPaymongoErrorMessage(string $rawMessage): ?string
