@@ -98,13 +98,6 @@ const HomePage = ({ onGetStarted }) => {
               {showAppPromo && (
                 <div className="absolute top-[calc(100%+1.25rem)] md:top-auto md:bottom-[calc(100%+1.25rem)] left-1/2 z-20 animate-float-gentle pointer-events-auto">
                   <div className="bg-blue-600 text-white text-[10px] md:text-xs font-bold py-2.5 px-4 rounded-2xl shadow-2xl relative whitespace-nowrap flex items-center gap-4 border border-blue-400/50 backdrop-blur-sm">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setShowAppPromo(false); }}
-                      className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                      aria-label="Close promo"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
                     <div className="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-600 rotate-45 
                       -top-1.5 border-l border-t border-blue-400/50
                       md:top-auto md:-bottom-1.5 md:border-l-0 md:border-t-0 md:border-r md:border-b">
