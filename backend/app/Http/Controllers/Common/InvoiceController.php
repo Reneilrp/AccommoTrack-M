@@ -137,6 +137,9 @@ class InvoiceController extends Controller
         if ($request->has('property_id')) {
             $query->where('property_id', $request->query('property_id'));
         }
+        if ($request->has('invoice_type')) {
+            $query->where('invoice_type', $request->query('invoice_type'));
+        }
 
         $invoices = $query->with(['transactions', 'booking.room', 'property', 'tenant'])
             ->orderBy('created_at', 'desc')
@@ -167,6 +170,7 @@ class InvoiceController extends Controller
             'property_id' => 'nullable|integer|exists:properties,id',
             'tenant_id' => 'nullable|integer|exists:users,id',
             'status' => 'nullable|string|max:40',
+            'invoice_type' => 'nullable|string|max:32',
         ]);
 
         $range = $validated['range'] ?? 'month';
@@ -188,6 +192,10 @@ class InvoiceController extends Controller
 
         if (isset($validated['status'])) {
             $query->where('status', $validated['status']);
+        }
+
+        if (isset($validated['invoice_type'])) {
+            $query->where('invoice_type', $validated['invoice_type']);
         }
 
         $periodFrom = null;

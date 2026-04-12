@@ -98,10 +98,6 @@ const HomePage = ({ onGetStarted }) => {
               {showAppPromo && (
                 <div className="absolute top-[calc(100%+1.25rem)] md:top-auto md:bottom-[calc(100%+1.25rem)] left-1/2 z-20 animate-float-gentle pointer-events-auto">
                   <div className="bg-blue-600 text-white text-[10px] md:text-xs font-bold py-2.5 px-4 rounded-2xl shadow-2xl relative whitespace-nowrap flex items-center gap-4 border border-blue-400/50 backdrop-blur-sm">
-                    <div className="flex flex-col items-start leading-tight">
-                      <span className="text-blue-100 font-medium">New Feature!</span>
-                      <span>AccommoTrack Mobile is here 📱</span>
-                    </div>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setShowAppPromo(false); }}
                       className="p-2 hover:bg-white/20 rounded-lg transition-colors"

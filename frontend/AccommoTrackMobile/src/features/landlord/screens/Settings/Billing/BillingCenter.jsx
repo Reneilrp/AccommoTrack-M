@@ -134,8 +134,8 @@ export default function BillingCenterScreen({ navigation }) {
     queryKey: landlordQueryKeys.billingCenterBundle(),
     queryFn: async () => {
       const [invoiceResult, summaryResult] = await Promise.all([
-        PaymentService.getInvoices({ t: Date.now() }),
-        PaymentService.getInvoiceSummary({ range: 'all', t: Date.now() }),
+        PaymentService.getInvoices({ invoice_type: 'subscription', t: Date.now() }),
+        PaymentService.getInvoiceSummary({ invoice_type: 'subscription', range: 'all', t: Date.now() }),
       ]);
 
       if (!invoiceResult.success) {

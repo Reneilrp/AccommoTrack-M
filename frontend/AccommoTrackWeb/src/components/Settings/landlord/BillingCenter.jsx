@@ -107,8 +107,8 @@ export default function BillingCenter() {
 
     try {
       const [invoicesResponse, summaryResponse] = await Promise.all([
-        invoiceService.getInvoices({ t: Date.now() }),
-        invoiceService.getSummary({ range: 'all', t: Date.now() }),
+        invoiceService.getInvoices({ invoice_type: 'subscription', t: Date.now() }),
+        invoiceService.getSummary({ invoice_type: 'subscription', range: 'all', t: Date.now() }),
       ]);
 
       if (!invoicesResponse.success) {
@@ -271,7 +271,7 @@ export default function BillingCenter() {
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Billing Center</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Dedicated billing workspace for invoices, payments, and account history.
+              Dedicated billing workspace for your platform subscription plan and payments.
             </p>
           </div>
 
