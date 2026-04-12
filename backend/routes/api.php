@@ -85,11 +85,14 @@ Route::middleware([EdgeCacheMiddleware::class])->group(function () {
     Route::get('/properties', [PropertyController::class, 'getAllProperties']);
     Route::get('/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
     Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+
+    // System Toggles
+    Route::get('/system/toggles', [SystemToggleController::class, 'index']);
+    Route::get('/system/toggle', [SystemToggleController::class, 'index']); // Alias for singular
 });
 
 
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
-Route::get('/system/toggles', [SystemToggleController::class, 'index']);
 
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
 Route::get('/rooms/{room}/payment-options', [RoomController::class, 'getPaymentOptions']);

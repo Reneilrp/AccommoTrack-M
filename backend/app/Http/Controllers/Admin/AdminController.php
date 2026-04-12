@@ -70,6 +70,9 @@ class AdminController extends Controller
             SystemToggle::setBool('mobile_force_update', (bool) $validated['mobile_force_update'], $actorId);
         }
 
+        // Purge global cache so toggles update on the edge immediately
+        \App\Jobs\PurgeCloudflareCacheJob::dispatch();
+
         // Automatically purge Cloudflare cache for the APK if mobile settings are updated
         if (isset($validated['mobile_download_url']) || isset($validated['mobile_latest_version'])) {
             $urlToPurge = $validated['mobile_download_url'] ?? SystemToggle::getString('mobile_download_url');

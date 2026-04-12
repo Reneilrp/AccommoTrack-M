@@ -7,6 +7,29 @@ use Illuminate\Support\Facades\Cache;
 
 class SystemToggle
 {
+    protected static $cachedSettings = null;
+
+    /**
+     * Efficiently load all system settings from cache or DB once per request.
+     */
+    protected static function loadSettings(): array
+    {
+        if (self::$cachedSettings !== null) {
+            return self::$cachedSettings;
+        }
+
+        // We use a single cache key for ALL system settings to minimize hits/DB queries
+        self::$cachedSettings = Cache::remember('all_system_settings_array', now()->addMinutes(5), function () {
+            try {
+                return SystemSetting::all()->pluck('value', 'key')->toArray();
+            } catch (\Throwable $e) {
+                return [];
+            }
+        });
+
+        return self::$cachedSettings;
+    }
+
     public static function getBool(string $key, bool $default = false): bool
     {
         if (app()->runningUnitTests()) {
@@ -22,20 +45,13 @@ class SystemToggle
             }
         }
 
-        $cacheKey = "system_setting_bool:{$key}";
+        $settings = self::loadSettings();
 
-        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($key, $default) {
-            try {
-                $setting = SystemSetting::query()->where('key', $key)->first();
-                if (! $setting) {
-                    return $default;
-                }
+        if (!isset($settings[$key])) {
+            return $default;
+        }
 
-                return self::normalizeBool($setting->value, $default);
-            } catch (\Throwable $e) {
-                return $default;
-            }
-        });
+        return self::normalizeBool($settings[$key], $default);
     }
 
     public static function setBool(string $key, bool $value, ?int $updatedBy = null): void
@@ -48,7 +64,8 @@ class SystemToggle
             ]
         );
 
-        Cache::forget("system_setting_bool:{$key}");
+        Cache::forget('all_system_settings_array');
+        self::$cachedSettings = null; // Reset local cache too
     }
 
     public static function getString(string $key, string $default = ''): string
@@ -62,16 +79,9 @@ class SystemToggle
             }
         }
 
-        $cacheKey = "system_setting_string:{$key}";
+        $settings = self::loadSettings();
 
-        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($key, $default) {
-            try {
-                $setting = SystemSetting::query()->where('key', $key)->first();
-                return $setting ? (string) $setting->value : $default;
-            } catch (\Throwable $e) {
-                return $default;
-            }
-        });
+        return isset($settings[$key]) ? (string) $settings[$key] : $default;
     }
 
     public static function setString(string $key, string $value, ?int $updatedBy = null): void
@@ -84,7 +94,8 @@ class SystemToggle
             ]
         );
 
-        Cache::forget("system_setting_string:{$key}");
+        Cache::forget('all_system_settings_array');
+        self::$cachedSettings = null; // Reset local cache too
     }
 
     public static function normalizeBool(mixed $value, bool $fallback = false): bool
