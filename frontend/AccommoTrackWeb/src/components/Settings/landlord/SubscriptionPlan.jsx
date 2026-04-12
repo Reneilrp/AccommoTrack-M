@@ -28,6 +28,8 @@ const getProgressPercent = (count, limit) => {
   return Math.max(0, Math.min(100, Math.round(percent)));
 };
 
+const hasFinitePositiveLimit = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
+
 const formatFeatureLabel = (value) => {
   if (!value) return '';
   return String(value)
@@ -38,6 +40,49 @@ const formatFeatureLabel = (value) => {
     .join(' ');
 };
 
+const DEFAULT_PLAN_CHOICES = [
+  {
+    slug: 'free',
+    name: 'Free',
+    monthly_price_cents: 0,
+    annual_price_cents: 0,
+    currency: 'PHP',
+    max_properties: 1,
+    max_rooms_total: 10,
+    features: ['core_listing', 'basic_support'],
+  },
+  {
+    slug: 'basic',
+    name: 'Basic',
+    monthly_price_cents: 49900,
+    annual_price_cents: 499000,
+    currency: 'PHP',
+    max_properties: 3,
+    max_rooms_total: 40,
+    features: ['core_listing', 'priority_support', 'payment_reports'],
+  },
+  {
+    slug: 'standard',
+    name: 'Standard',
+    monthly_price_cents: 149900,
+    annual_price_cents: 1499000,
+    currency: 'PHP',
+    max_properties: 10,
+    max_rooms_total: 200,
+    features: ['core_listing', 'priority_support', 'analytics', 'payment_reports'],
+  },
+  {
+    slug: 'premium',
+    name: 'Premium',
+    monthly_price_cents: 399900,
+    annual_price_cents: 3999000,
+    currency: 'PHP',
+    max_properties: 30,
+    max_rooms_total: 800,
+    features: ['core_listing', 'priority_support', 'analytics', 'payment_reports', 'dedicated_support'],
+  },
+];
+
 export default function SubscriptionPlan({ onOpenBillingCenter }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,6 +91,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [expandedPlanId, setExpandedPlanId] = useState(null);
 
   const usage = bundle?.usage || {};
   const currentPlan = bundle?.plan || null;
@@ -57,6 +103,91 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
     if (currentSubscription.status !== 'scheduled') return false;
     return Boolean(currentSubscription.metadata?.invoice_id);
   }, [currentSubscription]);
+
+  const displayPlans = useMemo(() => {
+    const normalizedPlans = Array.isArray(plans)
+      ? plans.map((plan) => ({
+        ...plan,
+        slug: String(plan?.slug || '').toLowerCase(),
+      }))
+      : [];
+
+    const plansBySlug = new Map(
+      normalizedPlans
+        .filter((plan) => plan.slug)
+        .map((plan) => [plan.slug, plan]),
+    );
+
+    const canonicalPlans = DEFAULT_PLAN_CHOICES.map((fallbackPlan) => {
+      const matchedPlan = plansBySlug.get(fallbackPlan.slug);
+
+      if (matchedPlan) {
+        return {
+          ...fallbackPlan,
+          ...matchedPlan,
+          slug: fallbackPlan.slug,
+          isSelectable: Boolean(matchedPlan.id) && matchedPlan.is_active !== false,
+        };
+      }
+
+      return {
+        ...fallbackPlan,
+        id: null,
+        is_active: false,
+        isSelectable: false,
+        isPlaceholder: true,
+      };
+    });
+
+    const canonicalSlugs = new Set(DEFAULT_PLAN_CHOICES.map((plan) => plan.slug));
+
+    const extraPlans = normalizedPlans
+      .filter((plan) => !canonicalSlugs.has(plan.slug))
+      .sort((first, second) => {
+        const firstSortOrder = Number(first?.sort_order ?? 0);
+        const secondSortOrder = Number(second?.sort_order ?? 0);
+
+        if (firstSortOrder !== secondSortOrder) {
+          return firstSortOrder - secondSortOrder;
+        }
+
+        return Number(first?.id || 0) - Number(second?.id || 0);
+      })
+      .map((plan) => ({
+        ...plan,
+        isSelectable: Boolean(plan.id) && plan.is_active !== false,
+      }));
+
+    return [...canonicalPlans, ...extraPlans];
+  }, [plans]);
+
+  const propertyLimitReached =
+    typeof usage.property_limit_reached === 'boolean'
+      ? usage.property_limit_reached
+      : hasFinitePositiveLimit(usage.properties_limit) && Number(usage.properties_count || 0) >= Number(usage.properties_limit);
+
+  const roomLimitReached =
+    typeof usage.room_limit_reached === 'boolean'
+      ? usage.room_limit_reached
+      : hasFinitePositiveLimit(usage.rooms_limit) && Number(usage.rooms_count || 0) >= Number(usage.rooms_limit);
+
+  const showLimitWarning = propertyLimitReached || roomLimitReached;
+
+  const limitWarningMessage = useMemo(() => {
+    if (propertyLimitReached && roomLimitReached) {
+      return 'You reached your property and room limits. Upgrade to continue adding properties and rooms.';
+    }
+
+    if (propertyLimitReached) {
+      return 'You reached your property limit for the current plan. Upgrade to add more properties.';
+    }
+
+    if (roomLimitReached) {
+      return 'You reached your room limit for the current plan. Upgrade to add more rooms.';
+    }
+
+    return '';
+  }, [propertyLimitReached, roomLimitReached]);
 
   const loadData = async (silent = false) => {
     if (silent) {
@@ -94,7 +225,10 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
   }, []);
 
   const handleCheckout = async (plan) => {
-    if (!plan?.id) return;
+    if (!plan?.id || plan?.is_active === false) {
+      toast.error('This plan is not currently available for checkout.');
+      return;
+    }
 
     setCheckoutPlanId(plan.id);
     try {
@@ -238,7 +372,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
         <div className="mt-5 space-y-3">
           <div>
             <div className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
-              <span>Properties usage</span>
+              <span>Properties Used</span>
               <span>
                 {usage.properties_count ?? 0} / {usage.properties_limit ?? 'Unlimited'}
               </span>
@@ -253,7 +387,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
           <div>
             <div className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
-              <span>Rooms usage</span>
+              <span>Rooms Used</span>
               <span>
                 {usage.rooms_count ?? 0} / {usage.rooms_limit ?? 'Unlimited'}
               </span>
@@ -266,10 +400,10 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
             </div>
           </div>
 
-          {usage.blocked_by_subscription && (
+          {showLimitWarning && (
             <p className="text-sm text-red-700 dark:text-red-300 inline-flex items-center gap-2">
               <ShieldAlert className="w-4 h-4" />
-              You reached your current plan limits. Upgrade to continue adding properties or rooms.
+              {limitWarningMessage}
             </p>
           )}
         </div>
@@ -277,7 +411,15 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Available Plans</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Plan Choices</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Current plan: {currentPlan?.name || 'Free'}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Free Plan | Basic Plan | Standard Plan | Premium Plan
+            </p>
+          </div>
 
           <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 p-1 bg-gray-50 dark:bg-gray-900/40">
             <button
@@ -297,22 +439,26 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {plans.map((plan) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {displayPlans.map((plan) => {
             const isCurrentPlan = Number(plan.id) === Number(currentPlan?.id);
             const planPrice = billingCycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents;
             const featureList = Array.isArray(plan.features) ? plan.features : [];
             const highlightedPlan = String(plan.slug || '').toLowerCase() === 'standard';
+            const planKey = plan.id ? `id-${plan.id}` : `slug-${plan.slug}`;
+            const isExpanded = expandedPlanId === planKey;
+            const isCheckingOut = checkoutPlanId !== null && checkoutPlanId === plan.id;
+            const isSelectable = Boolean(plan.isSelectable);
 
             return (
               <div
-                key={plan.id}
+                key={planKey}
                 className={`rounded-xl border p-4 ${isCurrentPlan ? 'border-green-400 dark:border-green-500 bg-green-50/50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h4 className="text-lg font-bold text-gray-900 dark:text-white inline-flex items-center gap-2">
-                      {plan.name}
+                      {plan.name} Tier
                       {highlightedPlan && !isCurrentPlan && (
                         <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                           Popular
@@ -338,7 +484,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
                 {featureList.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {featureList.slice(0, 4).map((feature) => (
+                    {featureList.slice(0, 3).map((feature) => (
                       <span
                         key={`${plan.id}-${feature}`}
                         className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
@@ -351,23 +497,55 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
                 <button
                   type="button"
+                  onClick={() => setExpandedPlanId(isExpanded ? null : planKey)}
+                  className="mt-3 text-sm font-semibold text-blue-700 dark:text-blue-300 hover:underline"
+                >
+                  {isExpanded ? 'Show Less' : 'View More'}
+                </button>
+
+                {isExpanded && (
+                  <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-900/20 p-3">
+                    <p className="text-xs uppercase tracking-wide font-semibold text-blue-700 dark:text-blue-300">
+                      What this plan can do
+                    </p>
+
+                    {featureList.length > 0 ? (
+                      <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-200">
+                        {featureList.map((feature) => (
+                          <li key={`${plan.id}-detail-${feature}`}>{formatFeatureLabel(feature)}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
+                        Core listing and account management access are included.
+                      </p>
+                    )}
+
+                    <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+                      Includes up to {plan.max_properties ?? 'Unlimited'} properties and {plan.max_rooms_total ?? 'Unlimited'} rooms.
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="button"
                   onClick={() => handleCheckout(plan)}
-                  disabled={isCurrentPlan || checkoutPlanId === plan.id}
+                  disabled={isCurrentPlan || isCheckingOut || !isSelectable}
                   className="mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm bg-green-600 hover:bg-green-700 text-white disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {checkoutPlanId === plan.id ? (
+                  {isCheckingOut ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
+                  ) : isCurrentPlan || !isSelectable ? null : (
                     <Rocket className="w-4 h-4" />
                   )}
-                  {isCurrentPlan ? 'Current Plan' : 'Choose Plan'}
+                  {isCurrentPlan ? 'Current Plan' : isSelectable ? 'Choose Plan' : 'Unavailable'}
                 </button>
               </div>
             );
           })}
         </div>
 
-        {plans.length === 0 && (
+        {displayPlans.length === 0 && (
           <div className="text-center py-8 text-gray-600 dark:text-gray-400">
             No subscription plans are currently available.
           </div>

@@ -57,12 +57,58 @@ const getUsagePercent = (count, limit) => {
   return Math.max(0, Math.min(100, Math.round(percent)));
 };
 
+const hasFinitePositiveLimit = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
+
+const DEFAULT_PLAN_CHOICES = [
+  {
+    slug: 'free',
+    name: 'Free',
+    monthly_price_cents: 0,
+    annual_price_cents: 0,
+    currency: 'PHP',
+    max_properties: 1,
+    max_rooms_total: 10,
+    features: ['core_listing', 'basic_support'],
+  },
+  {
+    slug: 'basic',
+    name: 'Basic',
+    monthly_price_cents: 49900,
+    annual_price_cents: 499000,
+    currency: 'PHP',
+    max_properties: 3,
+    max_rooms_total: 40,
+    features: ['core_listing', 'priority_support', 'payment_reports'],
+  },
+  {
+    slug: 'standard',
+    name: 'Standard',
+    monthly_price_cents: 149900,
+    annual_price_cents: 1499000,
+    currency: 'PHP',
+    max_properties: 10,
+    max_rooms_total: 200,
+    features: ['core_listing', 'priority_support', 'analytics', 'payment_reports'],
+  },
+  {
+    slug: 'premium',
+    name: 'Premium',
+    monthly_price_cents: 399900,
+    annual_price_cents: 3999000,
+    currency: 'PHP',
+    max_properties: 30,
+    max_rooms_total: 800,
+    features: ['core_listing', 'priority_support', 'analytics', 'payment_reports', 'dedicated_support'],
+  },
+];
+
 export default function SubscriptionPlanScreen({ navigation }) {
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [expandedPlanId, setExpandedPlanId] = useState(null);
 
   const subscriptionBundleQuery = useQuery({
     queryKey: landlordQueryKeys.subscriptionBundle(),
@@ -109,6 +155,93 @@ export default function SubscriptionPlanScreen({ navigation }) {
   const currentPlan = bundle?.plan || null;
   const currentSubscription = bundle?.subscription || null;
 
+  const displayPlans = useMemo(() => {
+    const normalizedPlans = Array.isArray(plans)
+      ? plans.map((plan) => ({
+        ...plan,
+        slug: String(plan?.slug || '').toLowerCase(),
+      }))
+      : [];
+
+    const plansBySlug = new Map(
+      normalizedPlans
+        .filter((plan) => plan.slug)
+        .map((plan) => [plan.slug, plan]),
+    );
+
+    const canonicalPlans = DEFAULT_PLAN_CHOICES.map((fallbackPlan) => {
+      const matchedPlan = plansBySlug.get(fallbackPlan.slug);
+
+      if (matchedPlan) {
+        return {
+          ...fallbackPlan,
+          ...matchedPlan,
+          slug: fallbackPlan.slug,
+          isSelectable: Boolean(matchedPlan.id) && matchedPlan.is_active !== false,
+        };
+      }
+
+      return {
+        ...fallbackPlan,
+        id: null,
+        is_active: false,
+        isSelectable: false,
+        isPlaceholder: true,
+      };
+    });
+
+    const canonicalSlugs = new Set(DEFAULT_PLAN_CHOICES.map((plan) => plan.slug));
+
+    const extraPlans = normalizedPlans
+      .filter((plan) => !canonicalSlugs.has(plan.slug))
+      .sort((first, second) => {
+        const firstSortOrder = Number(first?.sort_order ?? 0);
+        const secondSortOrder = Number(second?.sort_order ?? 0);
+
+        if (firstSortOrder !== secondSortOrder) {
+          return firstSortOrder - secondSortOrder;
+        }
+
+        return Number(first?.id || 0) - Number(second?.id || 0);
+      })
+      .map((plan) => ({
+        ...plan,
+        isSelectable: Boolean(plan.id) && plan.is_active !== false,
+      }));
+
+    return [...canonicalPlans, ...extraPlans];
+  }, [plans]);
+
+  const propertyLimitReached =
+    typeof usage.property_limit_reached === 'boolean'
+      ? usage.property_limit_reached
+      : hasFinitePositiveLimit(usage.properties_limit)
+        && Number(usage.properties_count || 0) >= Number(usage.properties_limit);
+
+  const roomLimitReached =
+    typeof usage.room_limit_reached === 'boolean'
+      ? usage.room_limit_reached
+      : hasFinitePositiveLimit(usage.rooms_limit)
+        && Number(usage.rooms_count || 0) >= Number(usage.rooms_limit);
+
+  const showLimitWarning = propertyLimitReached || roomLimitReached;
+
+  const limitWarningMessage = useMemo(() => {
+    if (propertyLimitReached && roomLimitReached) {
+      return 'You reached your property and room limits. Upgrade to continue adding properties and rooms.';
+    }
+
+    if (propertyLimitReached) {
+      return 'You reached your property limit for the current plan. Upgrade to add more properties.';
+    }
+
+    if (roomLimitReached) {
+      return 'You reached your room limit for the current plan. Upgrade to add more rooms.';
+    }
+
+    return '';
+  }, [propertyLimitReached, roomLimitReached]);
+
   const canSyncCheckout = useMemo(() => {
     if (!currentSubscription) return false;
     if (currentSubscription.source !== 'self_checkout') return false;
@@ -117,7 +250,10 @@ export default function SubscriptionPlanScreen({ navigation }) {
   }, [currentSubscription]);
 
   const handleCheckout = async (plan) => {
-    if (!plan?.id) return;
+    if (!plan?.id || plan?.is_active === false) {
+      Alert.alert('Unavailable Plan', 'This plan is not currently available for checkout.');
+      return;
+    }
 
     setCheckoutPlanId(plan.id);
     try {
@@ -254,7 +390,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Usage</Text>
 
           <View style={styles.usageRow}>
-            <Text style={styles.usageLabel}>Properties</Text>
+            <Text style={styles.usageLabel}>Properties Used</Text>
             <Text style={styles.usageValue}>
               {usage.properties_count ?? 0} / {usage.properties_limit ?? 'Unlimited'}
             </Text>
@@ -273,7 +409,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
 
           <View style={[styles.usageRow, { marginTop: 12 }]}
           >
-            <Text style={styles.usageLabel}>Rooms</Text>
+            <Text style={styles.usageLabel}>Rooms Used</Text>
             <Text style={styles.usageValue}>
               {usage.rooms_count ?? 0} / {usage.rooms_limit ?? 'Unlimited'}
             </Text>
@@ -290,16 +426,20 @@ export default function SubscriptionPlanScreen({ navigation }) {
             />
           </View>
 
-          {usage.blocked_by_subscription ? (
+          {showLimitWarning ? (
             <Text style={styles.limitWarning}>
-              You reached your current plan limits. Upgrade to continue adding properties or rooms.
+              {limitWarningMessage}
             </Text>
           ) : null}
         </View>
 
         <View style={styles.planCard}>
           <View style={styles.planHeaderRow}>
-            <Text style={styles.sectionTitle}>Available Plans</Text>
+            <View>
+              <Text style={styles.sectionTitle}>Plan Choices</Text>
+              <Text style={styles.planHeaderMeta}>Current plan: {currentPlan?.name || 'Free'}</Text>
+              <Text style={styles.planHeaderMeta}>Free Plan | Basic Plan | Standard Plan | Premium Plan</Text>
+            </View>
             <View style={styles.cycleSwitcher}>
               <TouchableOpacity
                 style={[
@@ -336,15 +476,19 @@ export default function SubscriptionPlanScreen({ navigation }) {
             </View>
           </View>
 
-          {plans.map((plan) => {
+          {displayPlans.map((plan) => {
             const isCurrentPlan = Number(plan.id) === Number(currentPlan?.id);
             const price = billingCycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents;
             const features = Array.isArray(plan.features) ? plan.features : [];
+            const planKey = plan.id ? `id-${plan.id}` : `slug-${plan.slug}`;
+            const isExpanded = expandedPlanId === planKey;
+            const isCheckingOut = checkoutPlanId !== null && checkoutPlanId === plan.id;
+            const isSelectable = Boolean(plan.isSelectable);
 
             return (
-              <View key={plan.id} style={[styles.planItem, isCurrentPlan && styles.planItemActive]}>
+              <View key={planKey} style={[styles.planItem, isCurrentPlan && styles.planItemActive]}>
                 <View style={styles.planTitleRow}>
-                  <Text style={styles.planName}>{plan.name}</Text>
+                  <Text style={styles.planName}>{plan.name} Tier</Text>
                   {isCurrentPlan ? <Text style={styles.activeBadge}>Active</Text> : null}
                 </View>
 
@@ -357,7 +501,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
 
                 {features.length > 0 ? (
                   <View style={styles.featureWrap}>
-                    {features.slice(0, 4).map((feature) => (
+                    {features.slice(0, 3).map((feature) => (
                       <View key={`${plan.id}-${feature}`} style={styles.featureChip}>
                         <Text style={styles.featureText}>{normalizeFeature(feature)}</Text>
                       </View>
@@ -366,18 +510,45 @@ export default function SubscriptionPlanScreen({ navigation }) {
                 ) : null}
 
                 <TouchableOpacity
+                  onPress={() => setExpandedPlanId(isExpanded ? null : planKey)}
+                  style={styles.viewMoreButton}
+                >
+                  <Text style={styles.viewMoreButtonText}>{isExpanded ? 'Show Less' : 'View More'}</Text>
+                </TouchableOpacity>
+
+                {isExpanded ? (
+                  <View style={styles.planDetailsBox}>
+                    <Text style={styles.planDetailsTitle}>What this plan can do</Text>
+                    {features.length > 0 ? (
+                      <View style={styles.planDetailsList}>
+                        {features.map((feature) => (
+                          <Text key={`${plan.id}-detail-${feature}`} style={styles.planDetailsItem}>
+                            {'\u2022'} {normalizeFeature(feature)}
+                          </Text>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.planDetailsItem}>Core listing and account management access are included.</Text>
+                    )}
+                    <Text style={styles.planDetailsMeta}>
+                      Includes up to {plan.max_properties ?? 'Unlimited'} properties and {plan.max_rooms_total ?? 'Unlimited'} rooms.
+                    </Text>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
                   style={[
                     styles.chooseButton,
-                    (isCurrentPlan || checkoutPlanId === plan.id) && styles.disabledButton,
+                    (isCurrentPlan || isCheckingOut || !isSelectable) && styles.disabledButton,
                   ]}
-                  disabled={isCurrentPlan || checkoutPlanId === plan.id}
+                  disabled={isCurrentPlan || isCheckingOut || !isSelectable}
                   onPress={() => handleCheckout(plan)}
                 >
-                  {checkoutPlanId === plan.id ? (
+                  {isCheckingOut ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <Text style={styles.chooseButtonText}>
-                      {isCurrentPlan ? 'Current Plan' : 'Choose Plan'}
+                      {isCurrentPlan ? 'Current Plan' : isSelectable ? 'Choose Plan' : 'Unavailable'}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -385,7 +556,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
             );
           })}
 
-          {plans.length === 0 ? (
+          {displayPlans.length === 0 ? (
             <Text style={styles.emptyText}>No subscription plans are currently available.</Text>
           ) : null}
         </View>
@@ -546,6 +717,12 @@ const getStyles = (theme) =>
       alignItems: 'center',
       gap: 8,
     },
+    planHeaderMeta: {
+      marginTop: -6,
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '600',
+    },
     cycleSwitcher: {
       flexDirection: 'row',
       backgroundColor: theme.colors.backgroundTertiary,
@@ -626,6 +803,46 @@ const getStyles = (theme) =>
       paddingVertical: 4,
     },
     featureText: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      fontWeight: '600',
+    },
+    viewMoreButton: {
+      marginTop: 6,
+      alignSelf: 'flex-start',
+      paddingVertical: 2,
+    },
+    viewMoreButtonText: {
+      fontSize: 13,
+      color: theme.colors.primary,
+      fontWeight: '700',
+    },
+    planDetailsBox: {
+      marginTop: 6,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.infoLight,
+      backgroundColor: theme.isDark ? 'rgba(30,58,138,0.25)' : '#EFF6FF',
+      padding: 10,
+      gap: 5,
+    },
+    planDetailsTitle: {
+      fontSize: 12,
+      color: theme.colors.infoDark,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    planDetailsList: {
+      gap: 2,
+    },
+    planDetailsItem: {
+      fontSize: 12,
+      color: theme.colors.text,
+      fontWeight: '500',
+    },
+    planDetailsMeta: {
+      marginTop: 2,
       fontSize: 11,
       color: theme.colors.textSecondary,
       fontWeight: '600',

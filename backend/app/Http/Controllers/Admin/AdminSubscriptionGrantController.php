@@ -19,6 +19,20 @@ class AdminSubscriptionGrantController extends Controller
     ) {
     }
 
+    public function plans(Request $request)
+    {
+        $includeInactive = $request->boolean('include_inactive', false);
+        $plans = $this->subscriptionResolverService
+            ->getPlanCatalog(! $includeInactive)
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $plans,
+            'message' => '',
+        ]);
+    }
+
     public function grant(Request $request)
     {
         $validated = $request->validate([

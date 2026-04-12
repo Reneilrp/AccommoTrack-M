@@ -439,6 +439,28 @@ const adminService = {
   },
 
   /**
+   * Get subscription plans for admin grants UI.
+   * @param {{include_inactive?: boolean}} params
+   */
+  async getSubscriptionPlans(params = {}) {
+    try {
+      const response = await api.get('/admin/subscriptions/plans', {
+        params: buildQueryParams(params),
+      });
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: Array.isArray(envelope.data) ? envelope.data : [],
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to fetch subscription plans.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
    * Grant a subscription plan to a landlord (admin override)
    * @param {{landlord_id: number|string, plan_id: number|string, starts_at?: string, duration_months?: number, ends_at?: string, auto_renew?: boolean, notes?: string}} payload
    */

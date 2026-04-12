@@ -4,7 +4,7 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
 import { getImageUrl } from '../../utils/api';
-import { Menu, Settings as SettingsIcon, Archive, Scale, Megaphone } from 'lucide-react';
+import { Menu, Settings as SettingsIcon, Archive, Scale, Megaphone, Gift } from 'lucide-react';
 
 const AdminLayout = ({ children, user, onLogout = () => {} }) => {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
@@ -73,6 +73,11 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zm5 0c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zM7 11c0 .5-.5 1-1 1s-1-.5-1-1 .5-1 1-1 1 .5 1 1zm5 9c4.418 0 8-3.582 8-8a8 8 0 10-16 0c0 4.418 3.582 8 8 8z" />
         </svg>
       )
+    },
+    {
+      path: '/admin/subscription-grants',
+      label: 'Subscription Grants',
+      icon: <Gift className="w-5 h-5" />
     },
     {
       path: '/admin/audit-logs',

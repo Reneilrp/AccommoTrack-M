@@ -429,6 +429,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/audit-logs/timeline', [AdminAuditLogController::class, 'entityTimeline']);
 
         // Admin: Dynamic subscription grants
+        Route::get('/subscriptions/plans', [AdminSubscriptionGrantController::class, 'plans']);
         Route::post('/subscriptions/grants', [AdminSubscriptionGrantController::class, 'grant']);
         Route::patch('/subscriptions/grants/{grantId}/extend', [AdminSubscriptionGrantController::class, 'extend']);
         Route::post('/subscriptions/grants/{grantId}/revoke', [AdminSubscriptionGrantController::class, 'revoke']);
