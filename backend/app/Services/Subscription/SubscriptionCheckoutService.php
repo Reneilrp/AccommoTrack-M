@@ -102,7 +102,7 @@ class SubscriptionCheckoutService
                     'landlord_id' => $landlord->id,
                     'actor_user_id' => $landlord->id,
                     'event' => 'subscription.checkout_activated',
-                    'description' => sprintf('Plan switched to %s via self-service checkout.', $plan->name),
+                    'description' => sprintf('Subscription to %s activated via self-service checkout.', $plan->name),
                     'metadata' => [
                         'billing_cycle' => $normalizedBillingCycle,
                         'amount_cents' => $amountCents,
@@ -153,46 +153,88 @@ class SubscriptionCheckoutService
             throw new InvalidArgumentException('Linked checkout invoice was not found.');
         }
 
-        $activated = false;
-
-        if (
-            $invoice->status === 'paid'
-            && $subscription->status === LandlordSubscription::STATUS_SCHEDULED
-        ) {
-            $subscription = DB::transaction(function () use ($subscription, $landlord, $invoice, &$activated) {
-                $this->expireActiveSelfCheckoutSubscriptions($landlord->id, $subscription->id);
-
-                $subscription->status = LandlordSubscription::STATUS_ACTIVE;
-                if ($subscription->starts_at && $subscription->starts_at->gt(now())) {
-                    $subscription->starts_at = now();
-                }
-                $subscription->save();
-
-                SubscriptionEvent::create([
-                    'landlord_subscription_id' => $subscription->id,
-                    'landlord_id' => $landlord->id,
-                    'actor_user_id' => $landlord->id,
-                    'event' => 'subscription.checkout_activated',
-                    'description' => 'Self-checkout subscription activated after payment confirmation.',
-                    'metadata' => [
-                        'invoice_id' => $invoice->id,
-                        'invoice_status' => $invoice->status,
-                    ],
-                ]);
-
-                $activated = true;
-
-                return $subscription->fresh(['plan']);
-            });
+        if ($invoice->status === 'paid') {
+            $subscription = $this->activateCheckoutSubscriptionFromPaidInvoice($invoice, $landlord->id)
+                ?? $subscription->fresh(['plan']);
         }
 
         return [
             'subscription' => $subscription,
             'invoice' => $invoice,
             'payment_required' => $invoice->status !== 'paid',
-            'activated' => $activated || $subscription->status === LandlordSubscription::STATUS_ACTIVE,
+            'activated' => $subscription->status === LandlordSubscription::STATUS_ACTIVE,
             'usage' => $this->subscriptionResolverService->getUsageSummary($landlord),
         ];
+    }
+
+    public function activateCheckoutSubscriptionFromPaidInvoice(Invoice $invoice, ?int $actorUserId = null): ?LandlordSubscription
+    {
+        if (strtolower((string) $invoice->invoice_type) !== 'subscription') {
+            return null;
+        }
+
+        if (strtolower((string) $invoice->status) !== 'paid') {
+            return null;
+        }
+
+        $invoiceMetadata = is_array($invoice->metadata) ? $invoice->metadata : [];
+        $subscriptionId = $invoiceMetadata['landlord_subscription_id'] ?? null;
+
+        if (! $subscriptionId) {
+            return null;
+        }
+
+        $subscription = LandlordSubscription::query()
+            ->with('plan')
+            ->where('id', $subscriptionId)
+            ->where('landlord_id', $invoice->landlord_id)
+            ->first();
+
+        if (! $subscription) {
+            return null;
+        }
+
+        if ($subscription->source !== LandlordSubscription::SOURCE_SELF_CHECKOUT) {
+            return $subscription;
+        }
+
+        if ($subscription->status === LandlordSubscription::STATUS_ACTIVE) {
+            return $subscription;
+        }
+
+        if ($subscription->status !== LandlordSubscription::STATUS_SCHEDULED) {
+            return $subscription;
+        }
+
+        return DB::transaction(function () use ($subscription, $invoice, $actorUserId) {
+            $this->expireActiveSelfCheckoutSubscriptions($invoice->landlord_id, $subscription->id);
+
+            $subscription->status = LandlordSubscription::STATUS_ACTIVE;
+            if ($subscription->starts_at && $subscription->starts_at->gt(now())) {
+                $subscription->starts_at = now();
+            }
+
+            $subscriptionMetadata = is_array($subscription->metadata) ? $subscription->metadata : [];
+            $subscriptionMetadata['invoice_id'] = $invoice->id;
+            $subscriptionMetadata['payment_confirmed_at'] = now()->toIso8601String();
+            $subscriptionMetadata['activated_via'] = 'payment.paid';
+            $subscription->metadata = $subscriptionMetadata;
+            $subscription->save();
+
+            SubscriptionEvent::create([
+                'landlord_subscription_id' => $subscription->id,
+                'landlord_id' => $subscription->landlord_id,
+                'actor_user_id' => $actorUserId,
+                'event' => 'subscription.checkout_activated',
+                'description' => 'Self-checkout subscription activated after payment confirmation.',
+                'metadata' => [
+                    'invoice_id' => $invoice->id,
+                    'invoice_status' => $invoice->status,
+                ],
+            ]);
+
+            return $subscription->fresh(['plan']);
+        });
     }
 
     private function resolvePeriodEnd(Carbon $periodStart, string $billingCycle): Carbon

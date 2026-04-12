@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -197,6 +198,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
+  const [paymongoInvoiceId, setPaymongoInvoiceId] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState(null);
 
@@ -398,22 +400,58 @@ export default function SubscriptionPlanScreen({ navigation }) {
       }
 
       const paymentRequired = Boolean(result.data?.payment_required);
-      const invoiceReference = result.data?.invoice?.reference;
 
-      Alert.alert(
-        'Subscription Updated',
-        paymentRequired
-          ? invoiceReference
-            ? `Subscription scheduled. Complete invoice ${invoiceReference} to activate your plan.`
-            : 'Subscription scheduled. Complete payment to activate your plan.'
-          : 'Subscription updated successfully.',
-      );
-
-      await refetchLandlordQueries(subscriptionRefetchers);
+      if (paymentRequired) {
+        const invoiceId = result.data?.invoice?.id;
+        Alert.alert('Subscription Started', 'Redirecting to PayMongo checkout to complete activation.');
+        const launched = await beginPaymongoCheckoutForInvoice(invoiceId);
+        if (!launched) {
+          await refetchLandlordQueries(subscriptionRefetchers);
+        }
+      } else {
+        Alert.alert('Subscription Activated', 'Your subscription is now active.');
+        await refetchLandlordQueries(subscriptionRefetchers);
+      }
     } catch (error) {
       Alert.alert('Error', error.message || 'Unable to start checkout.');
     } finally {
       setCheckoutPlanId(null);
+    }
+  };
+
+  const beginPaymongoCheckoutForInvoice = async (invoiceId) => {
+    if (!invoiceId) {
+      Alert.alert('Payment Unavailable', 'Subscription invoice is still being prepared. Pull to refresh and try again.');
+      return false;
+    }
+
+    setPaymongoInvoiceId(invoiceId);
+    try {
+      const sourceResult = await LandlordSubscriptionService.createInvoicePaymongoSource(invoiceId, {
+        method: 'gcash',
+      });
+
+      if (!sourceResult.success) {
+        throw new Error(sourceResult.error || 'Unable to start PayMongo checkout.');
+      }
+
+      const checkoutUrl = sourceResult.data?.source?.data?.attributes?.redirect?.checkout_url;
+      if (!checkoutUrl) {
+        throw new Error('PayMongo checkout URL was not returned.');
+      }
+
+      const canOpen = await Linking.canOpenURL(checkoutUrl);
+      if (!canOpen) {
+        throw new Error('Unable to open the PayMongo checkout URL on this device.');
+      }
+
+      await Linking.openURL(checkoutUrl);
+      return true;
+    } catch (error) {
+      Alert.alert('Checkout Error', error.message || 'Unable to open PayMongo checkout.');
+      return false;
+    } finally {
+      setPaymongoInvoiceId(null);
     }
   };
 
@@ -502,11 +540,16 @@ export default function SubscriptionPlanScreen({ navigation }) {
           {needsPaymentCompletion ? (
             <View style={styles.actionGroup}>
               <TouchableOpacity
-                style={styles.primaryActionButton}
-                onPress={() => navigation.navigate('BillingCenter')}
+                style={[styles.primaryActionButton, (paymongoInvoiceId === linkedInvoiceId || !linkedInvoiceId) && styles.disabledButton]}
+                onPress={() => beginPaymongoCheckoutForInvoice(linkedInvoiceId)}
+                disabled={paymongoInvoiceId === linkedInvoiceId || !linkedInvoiceId}
               >
-                <Ionicons name="receipt-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.primaryActionButtonText}>Open Billing Center</Text>
+                {paymongoInvoiceId === linkedInvoiceId ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="rocket-outline" size={16} color="#FFFFFF" />
+                )}
+                <Text style={styles.primaryActionButtonText}>Continue PayMongo Payment</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -526,7 +569,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
 
               <Text style={styles.cardMeta}>
                 {linkedInvoiceId
-                  ? `Invoice #${linkedInvoiceId} is pending. Check status after payment.`
+                  ? `Invoice #${linkedInvoiceId} is pending. Complete payment in PayMongo, then check status if it does not update automatically.`
                   : 'Invoice details are still syncing. Pull to refresh and try again.'}
               </Text>
             </View>
@@ -751,7 +794,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
                           <Ionicons name="rocket-outline" size={15} color="#FFFFFF" />
                         ) : null}
                         <Text style={styles.chooseButtonText}>
-                          {isCurrentPlan ? 'Current Plan' : isSelectable ? `Switch to ${plan.name}` : 'Unavailable'}
+                          {isCurrentPlan ? 'Current Plan' : isSelectable ? `Subscribe to ${plan.name}` : 'Unavailable'}
                         </Text>
                       </View>
                     )}

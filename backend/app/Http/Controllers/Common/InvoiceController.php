@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Notifications\NewPaymentReceived;
+use App\Services\Subscription\SubscriptionCheckoutService;
 use App\Support\SystemToggle;
 use App\Services\AuditLogService;
 use Carbon\Carbon;
@@ -28,7 +29,10 @@ class InvoiceController extends Controller
         'paymaya',
     ];
 
-    public function __construct(protected AuditLogService $auditLogService)
+    public function __construct(
+        protected AuditLogService $auditLogService,
+        private readonly SubscriptionCheckoutService $subscriptionCheckoutService,
+    )
     {
     }
 
@@ -425,6 +429,15 @@ class InvoiceController extends Controller
             $invoice->paid_at = now();
             $invoice->status = 'paid';
             $invoice->save();
+
+            try {
+                $this->subscriptionCheckoutService->activateCheckoutSubscriptionFromPaidInvoice($invoice, Auth::id());
+            } catch (\Throwable $subscriptionError) {
+                \Log::warning('Failed to auto-activate subscription after invoice charge', [
+                    'invoice_id' => $invoice->id,
+                    'error' => $subscriptionError->getMessage(),
+                ]);
+            }
 
             $this->logInvoiceStatusTransition($invoice, $statusBefore, [
                 'payment_transaction_id' => $tx->id,
@@ -832,6 +845,17 @@ class InvoiceController extends Controller
         if ($invoice->booking) {
             $invoice->booking->payment_status = $this->mapInvoiceStatusToBookingPaymentStatus($resolvedStatus);
             $invoice->booking->save();
+        }
+
+        if ($resolvedStatus === 'paid') {
+            try {
+                $this->subscriptionCheckoutService->activateCheckoutSubscriptionFromPaidInvoice($invoice, Auth::id());
+            } catch (\Throwable $subscriptionError) {
+                \Log::warning('Failed to auto-activate subscription after invoice recompute', [
+                    'invoice_id' => $invoice->id,
+                    'error' => $subscriptionError->getMessage(),
+                ]);
+            }
         }
     }
 

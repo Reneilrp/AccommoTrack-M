@@ -88,6 +88,26 @@ export const landlordService = {
   },
 
   /**
+   * Create a PayMongo source for an invoice and get checkout redirect metadata
+   * POST /invoices/:id/paymongo-source
+   */
+  async createInvoicePaymongoSource(invoiceId, payload) {
+    try {
+      const res = await api.post(`/invoices/${invoiceId}/paymongo-source`, payload);
+      return {
+        success: true,
+        data: res.data,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.message || err.message,
+        status: err.response?.status,
+      };
+    }
+  },
+
+  /**
    * Get all tenants for a property
    * GET /landlord/tenants?property_id=...
    */

@@ -147,6 +147,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
   const [bundle, setBundle] = useState(null);
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
+  const [paymongoInvoiceId, setPaymongoInvoiceId] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState(null);
 
@@ -317,6 +318,53 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
     loadData(false);
   }, []);
 
+  const buildSubscriptionReturnUrl = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'subscription-plan');
+    url.searchParams.set('subscription_payment', 'returned');
+    return url.toString();
+  };
+
+  const openPaymongoCheckout = (checkoutUrl) => {
+    const popup = window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+    if (!popup) {
+      window.location.assign(checkoutUrl);
+    }
+  };
+
+  const beginPaymongoCheckoutForInvoice = async (invoiceId) => {
+    if (!invoiceId) {
+      toast.error('Unable to continue payment. Subscription invoice is missing.');
+      return false;
+    }
+
+    setPaymongoInvoiceId(invoiceId);
+
+    try {
+      const response = await landlordService.createInvoicePaymongoSource(invoiceId, {
+        method: 'gcash',
+        return_url: buildSubscriptionReturnUrl(),
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to start PayMongo checkout.');
+      }
+
+      const checkoutUrl = response.data?.source?.data?.attributes?.redirect?.checkout_url;
+      if (!checkoutUrl) {
+        throw new Error('PayMongo checkout URL was not returned.');
+      }
+
+      openPaymongoCheckout(checkoutUrl);
+      return true;
+    } catch (error) {
+      toast.error(error.message || 'Unable to open PayMongo checkout.');
+      return false;
+    } finally {
+      setPaymongoInvoiceId(null);
+    }
+  };
+
   const handleCheckout = async (plan) => {
     if (!plan?.id || plan?.is_active === false) {
       toast.error('This plan is not currently available for checkout.');
@@ -336,19 +384,19 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
       }
 
       const paymentRequired = Boolean(response.data?.payment_required);
-      const invoiceReference = response.data?.invoice?.reference;
 
       if (paymentRequired) {
-        toast.success(
-          invoiceReference
-            ? `Subscription scheduled. Complete invoice ${invoiceReference} to activate your plan.`
-            : 'Subscription scheduled. Complete payment to activate your plan.'
-        );
-      } else {
-        toast.success('Subscription updated successfully.');
-      }
+        const invoiceId = response.data?.invoice?.id;
+        toast.success('Subscription started. Continue with PayMongo payment to activate your plan.');
 
-      await loadData(true);
+        const launched = await beginPaymongoCheckoutForInvoice(invoiceId);
+        if (!launched) {
+          await loadData(true);
+        }
+      } else {
+        toast.success('Subscription activated successfully.');
+        await loadData(true);
+      }
     } catch (error) {
       toast.error(error.message || 'Unable to start checkout.');
     } finally {
@@ -452,10 +500,12 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
               <div className="mt-2 space-y-2">
                 <button
                   type="button"
-                  onClick={() => onOpenBillingCenter?.()}
-                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm"
+                  onClick={() => beginPaymongoCheckoutForInvoice(linkedInvoiceId)}
+                  disabled={!linkedInvoiceId || paymongoInvoiceId === linkedInvoiceId}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm disabled:opacity-60"
                 >
-                  Open Billing Center
+                  {paymongoInvoiceId === linkedInvoiceId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                  Continue PayMongo Payment
                 </button>
                 <button
                   type="button"
@@ -468,7 +518,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 inline-flex items-start gap-1.5">
                   <Clock3 className="w-3.5 h-3.5 mt-0.5" />
                   {linkedInvoiceId
-                    ? `Invoice #${linkedInvoiceId} is pending. Use Check Payment Status after completing payment.`
+                    ? `Invoice #${linkedInvoiceId} is pending. Complete payment in PayMongo, then use Check Payment Status if the update is delayed.`
                     : 'Invoice is still being prepared. Refresh and try again in a moment.'}
                 </p>
               </div>
@@ -551,7 +601,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {displayPlans.map((plan) => {
             const isCurrentPlan = Number(plan.id) === Number(currentPlan?.id);
             const planPrice = billingCycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents;
@@ -569,7 +619,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
             return (
               <div
                 key={planKey}
-                className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${visual.shellClasses} ${isCurrentPlan ? 'ring-2 ring-green-400/70 dark:ring-green-500/60' : ''}`}
+                className={`h-full flex flex-col rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${visual.shellClasses} ${isCurrentPlan ? 'ring-2 ring-green-400/70 dark:ring-green-500/60' : ''}`}
               >
                 <div className={`p-4 ${visual.headerClasses}`}>
                   <div className="flex items-start justify-between gap-3">
@@ -613,14 +663,14 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
                   </div>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-gray-900/40">
+                <div className="p-4 bg-white dark:bg-gray-900/40 flex-1 flex flex-col">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Properties</p>
+                      <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Properties</p>
                       <p className="text-base font-bold text-gray-900 dark:text-white">{plan.max_properties ?? 'Unlimited'}</p>
                     </div>
                     <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Rooms</p>
+                      <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Rooms</p>
                       <p className="text-base font-bold text-gray-900 dark:text-white">{plan.max_rooms_total ?? 'Unlimited'}</p>
                     </div>
                   </div>
@@ -679,31 +729,33 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
                     </div>
                   )}
 
-                  {!isSelectable && !isCurrentPlan && (
-                    <p className="mt-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                      This tier is currently unavailable for checkout.
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleCheckout(plan)}
-                    disabled={isCurrentPlan || isCheckingOut || !isSelectable}
-                    className={`mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60 disabled:cursor-not-allowed ${
-                      isCurrentPlan
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                        : isSelectable
-                          ? `${visual.ctaButtonClasses} text-white`
-                          : 'bg-gray-400 dark:bg-gray-600 text-white'
-                    }`}
-                  >
-                    {isCheckingOut ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : isCurrentPlan || !isSelectable ? null : (
-                      <Rocket className="w-4 h-4" />
+                  <div className="mt-auto pt-4 space-y-3">
+                    {!isSelectable && !isCurrentPlan && (
+                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                        This tier is currently unavailable for checkout.
+                      </p>
                     )}
-                    {isCurrentPlan ? 'Current Plan' : isSelectable ? `Switch to ${plan.name}` : 'Unavailable'}
-                  </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCheckout(plan)}
+                      disabled={isCurrentPlan || isCheckingOut || !isSelectable}
+                      className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60 disabled:cursor-not-allowed ${
+                        isCurrentPlan
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          : isSelectable
+                            ? `${visual.ctaButtonClasses} text-white`
+                            : 'bg-gray-400 dark:bg-gray-600 text-white'
+                      }`}
+                    >
+                      {isCheckingOut ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : isCurrentPlan || !isSelectable ? null : (
+                        <Rocket className="w-4 h-4" />
+                      )}
+                      {isCurrentPlan ? 'Current Plan' : isSelectable ? `Subscribe to ${plan.name}` : 'Unavailable'}
+                    </button>
+                  </div>
                 </div>
               </div>
             );

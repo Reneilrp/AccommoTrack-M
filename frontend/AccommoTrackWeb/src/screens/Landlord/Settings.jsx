@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { ShieldCheck, Palette, User, Bell, Lock, Users, CreditCard, ArrowLeftRight, Rocket, Receipt } from 'lucide-react';
@@ -14,6 +14,7 @@ import VerificationStatus from './VerificationStatus';
 import AppearanceTab from '../../components/Settings/AppearanceTab';
 import SwitchRoleTab from '../../components/Settings/SwitchRoleTab';
 import { useUIState } from '../../contexts/UIStateContext';
+import SidebarContext from '../../contexts/SidebarContext';
 
 const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'payments', 'subscription-plan', 'billing-center', 'verification', 'appearance', 'switch-role'];
 const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
@@ -51,6 +52,8 @@ const getSecurityPreferences = (preferences) => {
 export default function Settings({ user, accessRole = 'landlord', onUserUpdate }) {
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_settings;
+  const sidebarContext = useContext(SidebarContext);
+  const collapseSidebar = sidebarContext?.collapse;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -164,12 +167,19 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
 
   const handleTabChange = (tab) => {
     const nextTab = ensureValidTab(tab);
+
     setActiveTab(nextTab);
     const params = new URLSearchParams(searchParams);
     if (nextTab === 'profile') params.delete('tab');
     else params.set('tab', nextTab);
     setSearchParams(params);
   };
+
+  useEffect(() => {
+    if (activeTab === 'subscription-plan' && collapseSidebar) {
+      collapseSidebar().catch(() => {});
+    }
+  }, [activeTab, collapseSidebar]);
 
   // --- Profile Handlers ---
   const handlePhotoSelect = (e) => {

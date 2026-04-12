@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
+use App\Services\Subscription\SubscriptionCheckoutService;
 use App\Support\SystemToggle;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
@@ -16,6 +17,10 @@ use Illuminate\Support\Facades\Log;
 class PaymongoController extends Controller
 {
     use ResolvesLandlordAccess;
+
+    public function __construct(private readonly SubscriptionCheckoutService $subscriptionCheckoutService)
+    {
+    }
 
     private function tenantPaymentsTemporarilyDisabledResponse()
     {
@@ -715,6 +720,17 @@ class PaymongoController extends Controller
                 }
             } catch (\Exception $be) {
                 Log::error('Failed to update booking payment_status: '.$be->getMessage());
+            }
+        }
+
+        if ($invoice->status === 'paid') {
+            try {
+                $this->subscriptionCheckoutService->activateCheckoutSubscriptionFromPaidInvoice($invoice);
+            } catch (\Throwable $subscriptionError) {
+                Log::warning('Failed to auto-activate subscription from paid invoice during PayMongo sync', [
+                    'invoice_id' => $invoice->id,
+                    'error' => $subscriptionError->getMessage(),
+                ]);
             }
         }
     }

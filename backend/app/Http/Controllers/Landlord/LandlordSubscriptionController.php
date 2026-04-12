@@ -126,7 +126,7 @@ class LandlordSubscriptionController extends Controller
                 'success' => true,
                 'data' => $result,
                 'message' => $result['payment_required']
-                    ? 'Checkout created. Complete payment to activate the plan.'
+                    ? 'Subscription checkout created. Complete PayMongo payment to activate the plan.'
                     : 'Plan activated successfully.',
             ], 201);
         } catch (AccessDeniedHttpException $exception) {

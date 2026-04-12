@@ -122,6 +122,23 @@ class LandlordSubscriptionService {
       };
     }
   }
+
+  async createInvoicePaymongoSource(invoiceId, payload = {}) {
+    try {
+      const response = await api.post(`/invoices/${invoiceId}/paymongo-source`, payload);
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to start PayMongo checkout',
+        status: error.response?.status,
+      };
+    }
+  }
 }
 
 export default new LandlordSubscriptionService();

@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
+use App\Services\Subscription\SubscriptionCheckoutService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class PaymongoWebhookController extends Controller
 {
+    public function __construct(private readonly SubscriptionCheckoutService $subscriptionCheckoutService)
+    {
+    }
+
     /**
      * Basic PayMongo webhook handler. Verifies provider event and updates transactions/invoices.
      * Note: For production, verify webhook signature (PayMongo provides a signature header).
@@ -235,6 +240,17 @@ class PaymongoWebhookController extends Controller
                 }
             } catch (\Exception $be) {
                 Log::error('Failed to update booking payment_status: '.$be->getMessage());
+            }
+        }
+
+        if ($invoice->status === 'paid') {
+            try {
+                $this->subscriptionCheckoutService->activateCheckoutSubscriptionFromPaidInvoice($invoice);
+            } catch (\Throwable $subscriptionError) {
+                Log::warning('Failed to auto-activate subscription from paid invoice via webhook', [
+                    'invoice_id' => $invoice->id,
+                    'error' => $subscriptionError->getMessage(),
+                ]);
             }
         }
     }
