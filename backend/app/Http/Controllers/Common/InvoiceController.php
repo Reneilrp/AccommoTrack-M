@@ -144,6 +144,19 @@ class InvoiceController extends Controller
         if ($request->has('invoice_type')) {
             $query->where('invoice_type', $request->query('invoice_type'));
         }
+        if ($request->has('exclude_invoice_type')) {
+            $excludedTypes = collect(explode(',', (string) $request->query('exclude_invoice_type')))
+                ->map(fn ($type) => trim($type))
+                ->filter()
+                ->values();
+
+            if ($excludedTypes->isNotEmpty()) {
+                $query->where(function ($excludeQuery) use ($excludedTypes) {
+                    $excludeQuery->whereNull('invoice_type')
+                        ->orWhereNotIn('invoice_type', $excludedTypes->all());
+                });
+            }
+        }
 
         $invoices = $query->with(['transactions', 'booking.room', 'property', 'tenant'])
             ->orderBy('created_at', 'desc')
@@ -175,6 +188,7 @@ class InvoiceController extends Controller
             'tenant_id' => 'nullable|integer|exists:users,id',
             'status' => 'nullable|string|max:40',
             'invoice_type' => 'nullable|string|max:32',
+            'exclude_invoice_type' => 'nullable|string|max:255',
         ]);
 
         $range = $validated['range'] ?? 'month';
@@ -200,6 +214,20 @@ class InvoiceController extends Controller
 
         if (isset($validated['invoice_type'])) {
             $query->where('invoice_type', $validated['invoice_type']);
+        }
+
+        if (! empty($validated['exclude_invoice_type'])) {
+            $excludedTypes = collect(explode(',', (string) $validated['exclude_invoice_type']))
+                ->map(fn ($type) => trim($type))
+                ->filter()
+                ->values();
+
+            if ($excludedTypes->isNotEmpty()) {
+                $query->where(function ($excludeQuery) use ($excludedTypes) {
+                    $excludeQuery->whereNull('invoice_type')
+                        ->orWhereNotIn('invoice_type', $excludedTypes->all());
+                });
+            }
         }
 
         $periodFrom = null;

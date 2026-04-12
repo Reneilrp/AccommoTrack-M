@@ -48,6 +48,25 @@ class SubscriptionCheckoutService
         $requiresPayment = $amountCents > 0;
 
         return DB::transaction(function () use ($landlord, $plan, $normalizedBillingCycle, $attributes, $startsAt, $periodEndsAt, $amountCents, $requiresPayment) {
+            if ($requiresPayment) {
+                $reusableCheckout = $this->findReusablePendingCheckout(
+                    landlordId: $landlord->id,
+                    planId: (int) $plan->id,
+                    billingCycle: $normalizedBillingCycle,
+                    amountCents: $amountCents,
+                );
+
+                if ($reusableCheckout !== null) {
+                    return [
+                        'subscription' => $reusableCheckout['subscription'],
+                        'plan' => $plan,
+                        'invoice' => $reusableCheckout['invoice'],
+                        'payment_required' => true,
+                        'usage' => $this->subscriptionResolverService->getUsageSummary($landlord),
+                    ];
+                }
+            }
+
             $this->expireActiveSelfCheckoutSubscriptions($landlord->id);
 
             $subscription = LandlordSubscription::create([
@@ -235,6 +254,81 @@ class SubscriptionCheckoutService
 
             return $subscription->fresh(['plan']);
         });
+    }
+
+    /**
+     * Reuse the latest unpaid checkout invoice for the same plan/cycle to avoid creating duplicates
+     * when landlords repeatedly open and cancel checkout before paying.
+     *
+     * @return array{subscription: LandlordSubscription, invoice: Invoice}|null
+     */
+    private function findReusablePendingCheckout(int $landlordId, int $planId, string $billingCycle, int $amountCents): ?array
+    {
+        $candidates = LandlordSubscription::query()
+            ->where('landlord_id', $landlordId)
+            ->where('plan_id', $planId)
+            ->where('source', LandlordSubscription::SOURCE_SELF_CHECKOUT)
+            ->where('status', LandlordSubscription::STATUS_SCHEDULED)
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            $metadata = is_array($candidate->metadata) ? $candidate->metadata : [];
+
+            if (($metadata['billing_cycle'] ?? null) !== $billingCycle) {
+                continue;
+            }
+
+            if ((int) ($metadata['amount_cents'] ?? $amountCents) !== $amountCents) {
+                continue;
+            }
+
+            $invoiceId = $metadata['invoice_id'] ?? null;
+            if (! $invoiceId) {
+                continue;
+            }
+
+            $invoice = Invoice::query()
+                ->where('id', $invoiceId)
+                ->where('landlord_id', $landlordId)
+                ->where('invoice_type', 'subscription')
+                ->first();
+
+            if (! $invoice) {
+                continue;
+            }
+
+            $status = strtolower((string) $invoice->status);
+            if (! in_array($status, ['pending', 'unpaid', 'partial', 'overdue', 'pending_verification'], true)) {
+                continue;
+            }
+
+            if (! $this->invoiceStillRequiresPayment($invoice)) {
+                continue;
+            }
+
+            return [
+                'subscription' => $candidate->fresh(['plan']),
+                'invoice' => $invoice,
+            ];
+        }
+
+        return null;
+    }
+
+    private function invoiceStillRequiresPayment(Invoice $invoice): bool
+    {
+        $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
+        if ($invoiceTotalCents <= 0) {
+            return false;
+        }
+
+        $paidCents = (int) ($invoice->transactions()
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
+            ->value('net_cents') ?? 0);
+
+        return $paidCents < $invoiceTotalCents;
     }
 
     private function resolvePeriodEnd(Carbon $periodStart, string $billingCycle): Carbon

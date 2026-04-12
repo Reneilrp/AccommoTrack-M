@@ -161,7 +161,10 @@ export default function Payments({ navigation, route }) {
   const invoicesQuery = useQuery({
     queryKey: landlordQueryKeys.invoices(),
     queryFn: async () => {
-      const response = await PaymentService.getInvoices({ _t: Date.now() });
+      const response = await PaymentService.getInvoices({
+        exclude_invoice_type: 'subscription',
+        _t: Date.now(),
+      });
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch invoices');
       }
@@ -185,6 +188,7 @@ export default function Payments({ navigation, route }) {
     queryFn: async () => {
       const response = await PaymentService.getInvoiceSummary({
         range: statsRange === 'month' ? 'month' : 'all',
+        exclude_invoice_type: 'subscription',
         _t: Date.now(),
       });
 

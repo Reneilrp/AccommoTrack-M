@@ -95,6 +95,52 @@ class LandlordSubscriptionCheckoutAndEntitlementTest extends TestCase
         ]);
     }
 
+    public function test_repeated_checkout_reuses_pending_subscription_invoice_for_same_plan(): void
+    {
+        $landlord = $this->createLandlord('checkout-reuse');
+        $basicPlan = $this->createPlan('basic-reuse', 'Basic Reuse', 49900, 499000, 3, 40);
+
+        Sanctum::actingAs($landlord);
+
+        $first = $this->postJson('/api/landlord/subscriptions/checkout', [
+            'plan_id' => $basicPlan->id,
+            'billing_cycle' => 'monthly',
+            'auto_renew' => true,
+        ])->assertStatus(201);
+
+        $second = $this->postJson('/api/landlord/subscriptions/checkout', [
+            'plan_id' => $basicPlan->id,
+            'billing_cycle' => 'monthly',
+            'auto_renew' => true,
+        ])->assertStatus(201);
+
+        $firstSubscriptionId = (int) $first->json('data.subscription.id');
+        $secondSubscriptionId = (int) $second->json('data.subscription.id');
+        $firstInvoiceId = (int) $first->json('data.invoice.id');
+        $secondInvoiceId = (int) $second->json('data.invoice.id');
+
+        $this->assertSame($firstSubscriptionId, $secondSubscriptionId);
+        $this->assertSame($firstInvoiceId, $secondInvoiceId);
+
+        $this->assertSame(
+            1,
+            LandlordSubscription::query()
+                ->where('landlord_id', $landlord->id)
+                ->where('source', LandlordSubscription::SOURCE_SELF_CHECKOUT)
+                ->where('status', LandlordSubscription::STATUS_SCHEDULED)
+                ->count()
+        );
+
+        $this->assertSame(
+            1,
+            Invoice::query()
+                ->where('landlord_id', $landlord->id)
+                ->where('invoice_type', 'subscription')
+                ->where('status', 'pending')
+                ->count()
+        );
+    }
+
     public function test_landlord_cannot_create_property_when_plan_property_limit_is_reached(): void
     {
         $landlord = $this->createLandlord('property-limit');
