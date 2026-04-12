@@ -831,7 +831,6 @@ export default function TenantHomePage({
             outputRange: [0, filterSectionHeight || 1],
           }),
           opacity: filterSectionVisibility,
-          overflow: "hidden",
         }}
       >
         <View onLayout={handleFilterSectionLayout}>

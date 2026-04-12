@@ -1028,9 +1028,6 @@ export default function TenantsScreen({ navigation, route }) {
           <TouchableOpacity style={styles.iconButton} onPress={handleCreateTenantInitiate}>
             <Ionicons name="person-add" size={22} color="#FFFFFF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={handleRefresh}>
-            <Ionicons name="refresh" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
         </View>
       </View>
 

@@ -634,7 +634,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
             <View>
               <Text style={styles.sectionTitle}>Plan Choices</Text>
               <Text style={styles.planHeaderMeta}>Current plan: {currentPlan?.name || 'Free'}</Text>
-              <Text style={styles.planHeaderMeta} numberOfLines={1}>
+              <Text style={styles.planHeaderMeta}>
                 Free Plan | Basic Plan | Standard Plan | Premium Plan
               </Text>
             </View>

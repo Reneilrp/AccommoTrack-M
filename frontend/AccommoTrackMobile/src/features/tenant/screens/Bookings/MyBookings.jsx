@@ -2155,7 +2155,7 @@ export default function MyBookings() {
           paddingHorizontal: 16,
         }}>
           <View style={{
-            maxHeight: '88%',
+            maxHeight: '95%',
             borderRadius: 14,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
@@ -2184,7 +2184,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 500 }} contentContainerStyle={{ padding: 16 }}>
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
               <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 10 }}>
                 Standard Add-ons
               </Text>
@@ -2440,7 +2440,7 @@ export default function MyBookings() {
           paddingHorizontal: 16,
         }}>
           <View style={{
-            maxHeight: '85%',
+            maxHeight: '95%',
             borderRadius: 14,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
@@ -2464,7 +2464,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ padding: 16 }}>
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
               <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
                   {transferContext?.propertyTitle
@@ -2871,7 +2871,7 @@ export default function MyBookings() {
           paddingHorizontal: 16,
         }}>
           <View style={{
-            maxHeight: '80%',
+            maxHeight: '95%',
             borderRadius: 14,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
@@ -2895,7 +2895,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ padding: 16 }}>
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
               <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
                   {reviewContext?.property?.title
@@ -3005,7 +3005,7 @@ export default function MyBookings() {
           paddingHorizontal: 16,
         }}>
           <View style={{
-            maxHeight: '85%',
+            maxHeight: '95%',
             borderRadius: 14,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
@@ -3029,7 +3029,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ padding: 16 }}>
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
               <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
                   {maintenanceContext?.property?.title
@@ -3260,7 +3260,7 @@ export default function MyBookings() {
           paddingHorizontal: 16,
         }}>
           <View style={{
-            maxHeight: '88%',
+            maxHeight: '95%',
             borderRadius: 14,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
@@ -3284,7 +3284,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 460 }} contentContainerStyle={{ padding: 16 }}>
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
               <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
                   {reportContext?.property?.title
@@ -3424,7 +3424,7 @@ export default function MyBookings() {
           paddingHorizontal: 16,
         }}>
           <View style={{
-            maxHeight: '85%',
+            maxHeight: '95%',
             borderRadius: 14,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
@@ -3448,7 +3448,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ padding: 16 }}>
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
               <View style={{
                 marginBottom: 14,
                 padding: 12,

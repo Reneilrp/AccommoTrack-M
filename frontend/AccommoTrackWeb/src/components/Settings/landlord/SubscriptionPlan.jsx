@@ -328,7 +328,6 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
   const openPaymongoCheckout = (checkoutUrl) => {
     const popup = window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
     if (!popup) {
-      toast.error('Popup was blocked. Please allow popups for this site to continue checkout.');
       return false;
     }
 

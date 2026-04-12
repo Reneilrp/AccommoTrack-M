@@ -637,7 +637,6 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 8
   },
   roomsPicker: {
-    maxHeight: 150,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 10,

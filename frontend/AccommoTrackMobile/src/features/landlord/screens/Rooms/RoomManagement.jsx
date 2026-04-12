@@ -884,7 +884,7 @@ export default function RoomManagementScreen({ navigation, route }) {
             <View>
               <Text style={styles.roomTitle}>Room {item.room_number}</Text>
               <Text style={styles.roomMeta}>
-                {item.room_type} • Floor {item.floor}
+                {item.room_type} • Floor {item.floor} • Capacity: {item.capacity || 1}
               </Text>
             </View>
             <View style={styles.priceBlock}>

@@ -480,9 +480,11 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
             <nav className="space-y-4">
               {groupedTabs.map((group) => (
                 <div key={group.id}>
-                  <p className="px-3 mb-2 text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
-                    {group.label}
-                  </p>
+                  <div className="px-3 mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
+                      {group.label}
+                    </p>
+                  </div>
                   <div className="space-y-1.5">
                     {group.tabs.map((tab) => (
                       <button

@@ -594,15 +594,13 @@ export default function BookingsScreen({ navigation, route }) {
 
     return (
       <TouchableOpacity style={styles.bookingCard} onPress={() => openDetailModal(item)}>
-        <View style={styles.cardTop}>
-          <View style={styles.guestBlock}>
-            <View style={styles.guestAvatar}>
-              <Text style={styles.guestAvatarText}>{initials || 'GN'}</Text>
-            </View>
-            <View>
-              <Text style={styles.guestName}>{item.guestName}</Text>
-              <Text style={styles.guestEmail}>{item.email}</Text>
-            </View>
+        <View style={[styles.cardTop, { alignItems: 'center' }]}>
+          <View style={[styles.guestAvatar, { marginRight: 12 }]}>
+            <Text style={styles.guestAvatarText}>{initials || 'GN'}</Text>
+          </View>
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <Text style={styles.guestName} numberOfLines={1}>{item.guestName}</Text>
+            <Text style={styles.guestEmail} numberOfLines={1}>{item.email}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusBadge.bg }] }>
             <Text style={[styles.statusText, { color: statusBadge.color }]}>{statusBadge.label}</Text>

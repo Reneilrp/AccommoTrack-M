@@ -100,6 +100,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100,
   },
   invoiceCard: {
     backgroundColor: theme.colors.surface,

@@ -403,10 +403,13 @@ export default function AddBooking({ navigation }) {
             <Text style={styles.label}>Select Property <Text style={styles.requiredAsterisk}>*</Text></Text>
             <View style={styles.pickerWrapper}>
               <Picker
-                  testID="add-booking-property-picker"
+                testID="add-booking-property-picker"
                 selectedValue={formData.propertyId}
                 onValueChange={(value) => handlePropertyChange(value)}
                 style={styles.picker}
+                itemStyle={styles.pickerItem}
+                dropdownIconColor={theme.colors.textSecondary}
+                mode="dropdown"
               >
                 <Picker.Item label="Select a property" value="" />
                 {properties.map((prop) => (
@@ -423,10 +426,13 @@ export default function AddBooking({ navigation }) {
                 <ActivityIndicator size="small" color="#16a34a" style={{ padding: 8 }} />
               ) : (
                 <Picker
-                    testID="add-booking-room-picker"
+                  testID="add-booking-room-picker"
                   selectedValue={formData.roomId}
                   onValueChange={(value) => handleRoomChange(value)}
                   style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                  dropdownIconColor={theme.colors.textSecondary}
+                  mode="dropdown"
                   enabled={formData.propertyId !== ''}
                 >
                   <Picker.Item label={rooms.length === 0 ? "No available rooms" : "Select a room"} value="" />
@@ -455,6 +461,9 @@ export default function AddBooking({ navigation }) {
                       bedCount: Number(value),
                     }))}
                     style={styles.picker}
+                    itemStyle={styles.pickerItem}
+                    dropdownIconColor={theme.colors.textSecondary}
+                    mode="dropdown"
                   >
                     {[...Array(maxSelectableBeds)].map((_, index) => (
                       <Picker.Item
@@ -545,6 +554,9 @@ export default function AddBooking({ navigation }) {
                 selectedValue={formData.paymentPlan}
                 onValueChange={(value) => setFormData({ ...formData, paymentPlan: value })}
                 style={styles.picker}
+                itemStyle={styles.pickerItem}
+                dropdownIconColor={theme.colors.textSecondary}
+                mode="dropdown"
               >
                 <Picker.Item label="Full Payment (Total Stay)" value="full" />
                 <Picker.Item label="Monthly Installments" value="monthly" />

@@ -79,7 +79,6 @@ export const getStyles = (theme, viewportWidth = 390) => {
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
-    maxHeight: 250,
     zIndex: 5000
   },
   dropdownItem: {
