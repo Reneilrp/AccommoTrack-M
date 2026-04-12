@@ -11,6 +11,7 @@ import LandingPage from "./screens/Guest/LandingPage.jsx";
 import AuthScreen from "./screens/Auth/Web-Auth";
 import LandlordRegister from "./screens/Auth/LandlordRegister";
 import Help from "./screens/Guest/Help";
+import MobileAppPage from "./screens/Guest/MobileAppPage";
 import ErrorBoundary from "./components/Shared/ErrorBoundary";
 import { getDefaultLandingRoute } from "./utils/userRoutes";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
@@ -216,6 +217,7 @@ function App() {
             {/* 4. Landlord and Help Pages */}
             <Route path="/become-landlord" element={<LandlordRegister />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/mobile-app" element={<MobileAppPage />} />
 
             {/* 5. All Other Routes Handled by WebNavigator */}
             <Route

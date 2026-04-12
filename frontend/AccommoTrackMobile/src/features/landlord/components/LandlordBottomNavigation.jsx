@@ -217,9 +217,9 @@ export default function LandlordBottomNavigation({ onLogout }) {
             backgroundColor: theme.colors.surface,
             borderTopWidth: 1,
             borderTopColor: theme.colors.border,
-            paddingBottom: 8 + insets.bottom,
-            paddingTop: 8,
-            height: 60 + insets.bottom,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+            paddingTop: 10,
+            height: (insets.bottom > 0 ? 68 + insets.bottom : 68),
             elevation: 8,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -2 },
@@ -227,10 +227,10 @@ export default function LandlordBottomNavigation({ onLogout }) {
             shadowRadius: 8,
           },
           tabBarLabelStyle: {
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: '600',
-            marginTop: 8,
-            marginBottom: 6,
+            marginTop: 4,
+            marginBottom: 2,
           }
         };
       }}

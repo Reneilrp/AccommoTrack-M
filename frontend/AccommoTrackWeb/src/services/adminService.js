@@ -397,6 +397,7 @@ const adminService = {
           mobileLatestVersion: toStringOrNull(payload.mobile_latest_version) || '1.0.0',
           mobileDownloadUrl: toStringOrNull(payload.mobile_download_url) || 'https://accommotrack.me/downloads/AccommoTrack.apk',
           mobileForceUpdate: toBoolean(payload.mobile_force_update, true),
+          systemForcedNow: toStringOrNull(payload.system_forced_now) || '',
         },
         message: envelope.message,
       };
@@ -407,7 +408,7 @@ const adminService = {
 
   /**
    * Update admin payment control settings.
-   * @param {{tenantPaymentsDisabled: boolean, reservationFeeDisabled: boolean, mobileLatestVersion: string, mobileDownloadUrl: string, mobileForceUpdate: boolean}} payload
+   * @param {{tenantPaymentsDisabled: boolean, reservationFeeDisabled: boolean, mobileLatestVersion: string, mobileDownloadUrl: string, mobileForceUpdate: boolean, systemForcedNow: string}} payload
    */
   async updatePaymentControlSettings(payload = {}) {
     try {
@@ -417,6 +418,7 @@ const adminService = {
         mobile_latest_version: String(payload.mobileLatestVersion || '1.0.0'),
         mobile_download_url: String(payload.mobileDownloadUrl || 'https://accommotrack.me/downloads/AccommoTrack.apk'),
         mobile_force_update: Boolean(payload.mobileForceUpdate),
+        system_forced_now: String(payload.systemForcedNow || ''),
       };
       const response = await api.put('/admin/settings/payment-controls', body);
       const envelope = normalizeEnvelope(response?.data);
@@ -430,6 +432,7 @@ const adminService = {
           mobileLatestVersion: toStringOrNull(data.mobile_latest_version) || body.mobile_latest_version,
           mobileDownloadUrl: toStringOrNull(data.mobile_download_url) || body.mobile_download_url,
           mobileForceUpdate: toBoolean(data.mobile_force_update, body.mobile_force_update),
+          systemForcedNow: toStringOrNull(data.system_forced_now) || body.system_forced_now,
         },
         message: envelope.message,
       };

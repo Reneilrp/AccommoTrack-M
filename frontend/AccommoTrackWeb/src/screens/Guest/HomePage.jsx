@@ -116,17 +116,13 @@ const HomePage = ({ onGetStarted }) => {
                   </div>
                 </div>
               )}
-              <button 
-                  onClick={() => {
-                    // Direct download link for the APK
-                    const backendUrl = "https://accommotrack.me/downloads/AccommoTrack.apk";
-                    window.location.href = backendUrl;
-                  }} 
-                  className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 border border-gray-200 dark:border-gray-700 px-6 py-4 md:px-8 md:py-4 min-h-[56px] text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                >
-                  Download App 
-                  <Smartphone className="w-4 h-4 md:w-5 md:h-5" />
-                </button>
+                  <button 
+                onClick={() => navigate('/mobile-app')} 
+                className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 border border-gray-200 dark:border-gray-700 px-6 py-4 md:px-8 md:py-4 min-h-[56px] text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              >
+                Get the App 
+                <Smartphone className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
             </div>
           </div>
         </div>

@@ -14,6 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->appendToGroup('api', [
+            \App\Http\Middleware\HandleSystemTimeOverride::class,
+        ]);
+
         // Always register Sanctum stateful API middleware.
         // This keeps SPA cookie auth functional even when env() values are not
         // available during bootstrap with cached configuration.

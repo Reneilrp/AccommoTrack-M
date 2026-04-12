@@ -1,5 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Loader2, RefreshCw, Rocket, ShieldAlert } from 'lucide-react';
+import {
+  BarChart3,
+  Building2,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Crown,
+  Loader2,
+  RefreshCw,
+  Rocket,
+  ShieldAlert,
+  ShieldCheck,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import landlordService from '../../../services/landlordService';
 
@@ -82,6 +94,49 @@ const DEFAULT_PLAN_CHOICES = [
     features: ['core_listing', 'priority_support', 'analytics', 'payment_reports', 'dedicated_support'],
   },
 ];
+
+const PLAN_VISUALS = {
+  free: {
+    icon: ShieldCheck,
+    tagline: 'Great for first-time landlords starting with one property.',
+    shellClasses: 'border-slate-200 dark:border-slate-700',
+    headerClasses: 'bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900/40 dark:via-gray-900 dark:to-slate-800/60',
+    badgeClasses: 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100',
+    ctaButtonClasses: 'bg-slate-900 hover:bg-slate-800',
+  },
+  basic: {
+    icon: Building2,
+    tagline: 'For growing rentals that need more rooms and better support.',
+    shellClasses: 'border-emerald-200 dark:border-emerald-900/60',
+    headerClasses: 'bg-gradient-to-br from-emerald-50 via-white to-emerald-100 dark:from-emerald-900/25 dark:via-gray-900 dark:to-emerald-900/10',
+    badgeClasses: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+    ctaButtonClasses: 'bg-emerald-600 hover:bg-emerald-700',
+  },
+  standard: {
+    icon: BarChart3,
+    tagline: 'Balanced operations and analytics for scaling portfolios.',
+    shellClasses: 'border-blue-200 dark:border-blue-900/60',
+    headerClasses: 'bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-blue-900/25 dark:via-gray-900 dark:to-blue-900/10',
+    badgeClasses: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+    ctaButtonClasses: 'bg-blue-600 hover:bg-blue-700',
+  },
+  premium: {
+    icon: Crown,
+    tagline: 'Designed for high-volume properties with premium headroom.',
+    shellClasses: 'border-amber-200 dark:border-amber-900/60',
+    headerClasses: 'bg-gradient-to-br from-amber-50 via-white to-amber-100 dark:from-amber-900/25 dark:via-gray-900 dark:to-amber-900/10',
+    badgeClasses: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    ctaButtonClasses: 'bg-amber-600 hover:bg-amber-700',
+  },
+  default: {
+    icon: ShieldCheck,
+    tagline: 'Flexible plan option for your subscription needs.',
+    shellClasses: 'border-gray-200 dark:border-gray-700',
+    headerClasses: 'bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900/30 dark:via-gray-900 dark:to-gray-800/70',
+    badgeClasses: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+    ctaButtonClasses: 'bg-green-600 hover:bg-green-700',
+  },
+};
 
 export default function SubscriptionPlan({ onOpenBillingCenter }) {
   const [loading, setLoading] = useState(true);
@@ -416,7 +471,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Current plan: {currentPlan?.name || 'Free'}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
               Free Plan | Basic Plan | Standard Plan | Premium Plan
             </p>
           </div>
@@ -445,6 +500,10 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
             const planPrice = billingCycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents;
             const featureList = Array.isArray(plan.features) ? plan.features : [];
             const highlightedPlan = String(plan.slug || '').toLowerCase() === 'standard';
+            const planSlug = String(plan.slug || '').toLowerCase();
+            const isFreeTier = planSlug === 'free';
+            const visual = PLAN_VISUALS[planSlug] || PLAN_VISUALS.default;
+            const TierIcon = visual.icon;
             const planKey = plan.id ? `id-${plan.id}` : `slug-${plan.slug}`;
             const isExpanded = expandedPlanId === planKey;
             const isCheckingOut = checkoutPlanId !== null && checkoutPlanId === plan.id;
@@ -453,93 +512,136 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
             return (
               <div
                 key={planKey}
-                className={`rounded-xl border p-4 ${isCurrentPlan ? 'border-green-400 dark:border-green-500 bg-green-50/50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'}`}
+                className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${visual.shellClasses} ${isCurrentPlan ? 'ring-2 ring-green-400/70 dark:ring-green-500/60' : ''}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h4 className="text-lg font-bold text-gray-900 dark:text-white inline-flex items-center gap-2">
-                      {plan.name} Tier
-                      {highlightedPlan && !isCurrentPlan && (
-                        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                          Popular
-                        </span>
-                      )}
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                      {formatMoney(planPrice, plan.currency)} / {billingCycle === 'annual' ? 'year' : 'month'}
-                    </p>
-                  </div>
-
-                  {isCurrentPlan ? (
-                    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Active
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <p>Properties: {plan.max_properties ?? 'Unlimited'}</p>
-                  <p>Total rooms: {plan.max_rooms_total ?? 'Unlimited'}</p>
-                </div>
-
-                {featureList.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {featureList.slice(0, 3).map((feature) => (
-                      <span
-                        key={`${plan.id}-${feature}`}
-                        className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
-                      >
-                        {formatFeatureLabel(feature)}
+                <div className={`p-4 ${visual.headerClasses}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${visual.badgeClasses}`}>
+                        <TierIcon className="w-3.5 h-3.5" />
+                        {plan.name} Plan
                       </span>
-                    ))}
+                    </div>
+
+                    {isCurrentPlan ? (
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Active
+                      </span>
+                    ) : highlightedPlan ? (
+                      <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-semibold">
+                        Popular
+                      </span>
+                    ) : null}
                   </div>
-                )}
 
-                <button
-                  type="button"
-                  onClick={() => setExpandedPlanId(isExpanded ? null : planKey)}
-                  className="mt-3 text-sm font-semibold text-blue-700 dark:text-blue-300 hover:underline"
-                >
-                  {isExpanded ? 'Show Less' : 'View More'}
-                </button>
+                  <p
+                    className="mt-2 w-full text-xs text-gray-600 dark:text-gray-300 leading-5"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {visual.tagline}
+                  </p>
 
-                {isExpanded && (
-                  <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-900/20 p-3">
-                    <p className="text-xs uppercase tracking-wide font-semibold text-blue-700 dark:text-blue-300">
-                      What this plan can do
+                  <div className="mt-4 flex items-end gap-2">
+                    <p className="text-2xl font-extrabold text-gray-900 dark:text-white">
+                      {formatMoney(planPrice, plan.currency)}
                     </p>
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 pb-1">
+                      / {billingCycle === 'annual' ? 'year' : 'month'}
+                    </span>
+                  </div>
+                </div>
 
+                <div className="p-4 bg-white dark:bg-gray-900/40">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Properties</p>
+                      <p className="text-base font-bold text-gray-900 dark:text-white">{plan.max_properties ?? 'Unlimited'}</p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Rooms</p>
+                      <p className="text-base font-bold text-gray-900 dark:text-white">{plan.max_rooms_total ?? 'Unlimited'}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1.5">Included</p>
                     {featureList.length > 0 ? (
-                      <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-200">
-                        {featureList.map((feature) => (
-                          <li key={`${plan.id}-detail-${feature}`}>{formatFeatureLabel(feature)}</li>
+                      <div className="space-y-1.5">
+                        {featureList.slice(0, 2).map((feature) => (
+                          <p key={`${plan.id}-${feature}`} className="text-sm text-gray-700 dark:text-gray-200 inline-flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                            {formatFeatureLabel(feature)}
+                          </p>
                         ))}
-                      </ul>
+                      </div>
                     ) : (
-                      <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
-                        Core listing and account management access are included.
-                      </p>
+                      <p className="text-sm text-gray-700 dark:text-gray-200">Core listing and account management.</p>
                     )}
-
-                    <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">
-                      Includes up to {plan.max_properties ?? 'Unlimited'} properties and {plan.max_rooms_total ?? 'Unlimited'} rooms.
-                    </p>
                   </div>
-                )}
 
-                <button
-                  type="button"
-                  onClick={() => handleCheckout(plan)}
-                  disabled={isCurrentPlan || isCheckingOut || !isSelectable}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm bg-green-600 hover:bg-green-700 text-white disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isCheckingOut ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isCurrentPlan || !isSelectable ? null : (
-                    <Rocket className="w-4 h-4" />
+                  {!isFreeTier && (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedPlanId(isExpanded ? null : planKey)}
+                      className="mt-3 text-sm font-semibold text-blue-700 dark:text-blue-300 hover:underline inline-flex items-center gap-1"
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      {isExpanded ? 'Show Less' : 'View More'}
+                    </button>
                   )}
-                  {isCurrentPlan ? 'Current Plan' : isSelectable ? 'Choose Plan' : 'Unavailable'}
-                </button>
+
+                  {isExpanded && !isFreeTier && (
+                    <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-900/20 p-3">
+                      <p className="text-xs uppercase tracking-wide font-semibold text-blue-700 dark:text-blue-300">
+                        What this plan can do
+                      </p>
+
+                      {featureList.length > 0 ? (
+                        <div className="mt-2 space-y-1.5">
+                          {featureList.map((feature) => (
+                            <p key={`${plan.id}-detail-${feature}`} className="text-sm text-gray-700 dark:text-gray-200 inline-flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-300" />
+                              {formatFeatureLabel(feature)}
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
+                          Core listing and account management access are included.
+                        </p>
+                      )}
+
+                      <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+                        Includes up to {plan.max_properties ?? 'Unlimited'} properties and {plan.max_rooms_total ?? 'Unlimited'} rooms.
+                      </p>
+                    </div>
+                  )}
+
+                  {!isSelectable && !isCurrentPlan && (
+                    <p className="mt-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                      This tier is currently unavailable for checkout.
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(plan)}
+                    disabled={isCurrentPlan || isCheckingOut || !isSelectable}
+                    className={`mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-sm text-white disabled:opacity-60 disabled:cursor-not-allowed ${isSelectable ? visual.ctaButtonClasses : 'bg-gray-400 dark:bg-gray-600'}`}
+                  >
+                    {isCheckingOut ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isCurrentPlan || !isSelectable ? null : (
+                      <Rocket className="w-4 h-4" />
+                    )}
+                    {isCurrentPlan ? 'Current Plan' : isSelectable ? 'Choose Plan' : 'Unavailable'}
+                  </button>
+                </div>
               </div>
             );
           })}

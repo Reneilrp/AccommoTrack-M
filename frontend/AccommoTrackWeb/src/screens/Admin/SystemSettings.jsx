@@ -14,7 +14,11 @@ export default function SystemSettings() {
   const [mobileLatestVersion, setMobileLatestVersion] = useState('1.0.0');
   const [mobileDownloadUrl, setMobileDownloadUrl] = useState('https://accommotrack.me/downloads/AccommoTrack.apk');
   const [mobileForceUpdate, setMobileForceUpdate] = useState(true);
+  const [systemForcedNow, setSystemForcedNow] = useState('');
   const [clearingCache, setClearingCache] = useState(false);
+  
+  const [tempForcedNow, setTempForcedNow] = useState('');
+  const [isSystemTimeForced, setIsSystemTimeForced] = useState(false);
 
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
@@ -60,6 +64,7 @@ export default function SystemSettings() {
     mobileLatestVersion: '1.0.0',
     mobileDownloadUrl: 'https://accommotrack.me/downloads/AccommoTrack.apk',
     mobileForceUpdate: true,
+    systemForcedNow: '',
   });
 
   const loadSettings = async () => {
@@ -76,6 +81,7 @@ export default function SystemSettings() {
         mobileLatestVersion: response.data?.mobileLatestVersion || '1.0.0',
         mobileDownloadUrl: response.data?.mobileDownloadUrl || 'https://accommotrack.me/downloads/AccommoTrack.apk',
         mobileForceUpdate: Boolean(response.data?.mobileForceUpdate),
+        systemForcedNow: response.data?.systemForcedNow || '',
       };
 
       setTenantPaymentsDisabled(nextSettings.tenantPaymentsDisabled);
@@ -83,6 +89,9 @@ export default function SystemSettings() {
       setMobileLatestVersion(nextSettings.mobileLatestVersion);
       setMobileDownloadUrl(nextSettings.mobileDownloadUrl);
       setMobileForceUpdate(nextSettings.mobileForceUpdate);
+      setSystemForcedNow(nextSettings.systemForcedNow);
+      setTempForcedNow(nextSettings.systemForcedNow ? nextSettings.systemForcedNow.slice(0, 16) : '');
+      setIsSystemTimeForced(Boolean(nextSettings.systemForcedNow));
       setInitialSettings(nextSettings);
       setIsEditing(false);
     } catch (error) {
@@ -105,6 +114,7 @@ export default function SystemSettings() {
         mobileLatestVersion,
         mobileDownloadUrl,
         mobileForceUpdate,
+        systemForcedNow,
       });
 
       if (!response?.success) {
@@ -117,6 +127,7 @@ export default function SystemSettings() {
         mobileLatestVersion,
         mobileDownloadUrl,
         mobileForceUpdate,
+        systemForcedNow,
       });
       setIsEditing(false);
       toast.success(response?.message || 'Settings updated');
@@ -151,7 +162,27 @@ export default function SystemSettings() {
     setMobileLatestVersion(initialSettings.mobileLatestVersion);
     setMobileDownloadUrl(initialSettings.mobileDownloadUrl);
     setMobileForceUpdate(initialSettings.mobileForceUpdate);
+    setSystemForcedNow(initialSettings.systemForcedNow);
+    setTempForcedNow(initialSettings.systemForcedNow ? initialSettings.systemForcedNow.slice(0, 16) : '');
+    setIsSystemTimeForced(Boolean(initialSettings.systemForcedNow));
     setIsEditing(false);
+  };
+
+  const handleForceTime = () => {
+    if (!tempForcedNow) {
+      toast.error('Please select a date and time first');
+      return;
+    }
+    setSystemForcedNow(tempForcedNow);
+    setIsSystemTimeForced(true);
+    toast.success('Forced time staged. Click "Save Changes" to apply.');
+  };
+
+  const handleResetTime = () => {
+    setSystemForcedNow('');
+    setTempForcedNow('');
+    setIsSystemTimeForced(false);
+    toast.success('System time reset staged. Click "Save Changes" to apply.');
   };
 
   return (
@@ -329,6 +360,68 @@ export default function SystemSettings() {
                       The hosted link where users can download the latest `.apk`.
                     </p>
                   </div>
+                </div>
+              </div>
+            </section>
+
+            {/* System Time Management Section */}
+            <section className="pt-8 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2 mb-6">
+                <CalendarDays className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">System Time Override</h2>
+              </div>
+              
+              <div className={`p-6 rounded-xl border transition-all duration-200 ${isSystemTimeForced ? 'bg-amber-50/50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' : 'bg-gray-50/50 border-gray-100 dark:bg-gray-800/30 dark:border-gray-700/50'}`}>
+                <div className="space-y-4">
+                  <div>
+                    <p className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      Override Global "Current Time"
+                      {isSystemTimeForced && (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500 text-[10px] text-white uppercase font-black tracking-wider">Active Override</span>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
+                      Force the entire platform to behave as if it's a specific date/time. Useful for testing automated billing, due dates, and expirations. 
+                      <span className="block mt-2 font-medium text-amber-600 dark:text-amber-400">⚠️ CAUTION: This affects all users and operations.</span>
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-end gap-4 pt-2">
+                    <div className="flex-1 w-full sm:w-auto">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Set Target Time</label>
+                      <input
+                        type="datetime-local"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm disabled:opacity-50"
+                        value={tempForcedNow}
+                        onChange={(e) => setTempForcedNow(e.target.value)}
+                        disabled={!isEditing || saving}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        onClick={handleForceTime}
+                        disabled={!isEditing || saving || !tempForcedNow}
+                        className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold transition-all disabled:opacity-50 disabled:grayscale shadow-md"
+                      >
+                        Stage Override
+                      </button>
+                      <button
+                        onClick={handleResetTime}
+                        disabled={!isEditing || saving || !isSystemTimeForced}
+                        className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-bold transition-all disabled:opacity-50"
+                      >
+                        Reset to Real Time
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {isSystemTimeForced && (
+                    <div className="pt-2">
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100/50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                        Current Force Target: <strong className="font-bold">{new Date(systemForcedNow).toLocaleString()}</strong>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </section>

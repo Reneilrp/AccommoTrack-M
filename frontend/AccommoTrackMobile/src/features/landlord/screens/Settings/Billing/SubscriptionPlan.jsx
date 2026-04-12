@@ -59,6 +59,8 @@ const getUsagePercent = (count, limit) => {
 
 const hasFinitePositiveLimit = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 
+const EMPTY_LIST = [];
+
 const DEFAULT_PLAN_CHOICES = [
   {
     slug: 'free',
@@ -101,6 +103,94 @@ const DEFAULT_PLAN_CHOICES = [
     features: ['core_listing', 'priority_support', 'analytics', 'payment_reports', 'dedicated_support'],
   },
 ];
+
+const PLAN_VISUALS = {
+  free: {
+    icon: 'shield-checkmark-outline',
+    tagline: 'Great for first-time landlords starting with one property.',
+    heroBgLight: '#F8FAFC',
+    heroBgDark: 'rgba(148,163,184,0.16)',
+    heroBorderLight: '#CBD5E1',
+    heroBorderDark: 'rgba(148,163,184,0.35)',
+    badgeBgLight: '#E2E8F0',
+    badgeBgDark: 'rgba(100,116,139,0.35)',
+    badgeTextLight: '#334155',
+    badgeTextDark: '#E2E8F0',
+    ctaLight: '#0F172A',
+    ctaDark: '#334155',
+  },
+  basic: {
+    icon: 'business-outline',
+    tagline: 'For growing rentals that need more rooms and better support.',
+    heroBgLight: '#ECFDF5',
+    heroBgDark: 'rgba(16,185,129,0.14)',
+    heroBorderLight: '#A7F3D0',
+    heroBorderDark: 'rgba(16,185,129,0.35)',
+    badgeBgLight: '#D1FAE5',
+    badgeBgDark: 'rgba(16,185,129,0.30)',
+    badgeTextLight: '#065F46',
+    badgeTextDark: '#6EE7B7',
+    ctaLight: '#059669',
+    ctaDark: '#10B981',
+  },
+  standard: {
+    icon: 'stats-chart-outline',
+    tagline: 'Balanced operations and analytics for scaling portfolios.',
+    heroBgLight: '#EFF6FF',
+    heroBgDark: 'rgba(59,130,246,0.14)',
+    heroBorderLight: '#BFDBFE',
+    heroBorderDark: 'rgba(59,130,246,0.35)',
+    badgeBgLight: '#DBEAFE',
+    badgeBgDark: 'rgba(59,130,246,0.30)',
+    badgeTextLight: '#1E3A8A',
+    badgeTextDark: '#93C5FD',
+    ctaLight: '#2563EB',
+    ctaDark: '#3B82F6',
+  },
+  premium: {
+    icon: 'diamond-outline',
+    tagline: 'Designed for high-volume properties with premium headroom.',
+    heroBgLight: '#FFFBEB',
+    heroBgDark: 'rgba(245,158,11,0.14)',
+    heroBorderLight: '#FDE68A',
+    heroBorderDark: 'rgba(245,158,11,0.35)',
+    badgeBgLight: '#FEF3C7',
+    badgeBgDark: 'rgba(245,158,11,0.30)',
+    badgeTextLight: '#92400E',
+    badgeTextDark: '#FCD34D',
+    ctaLight: '#D97706',
+    ctaDark: '#F59E0B',
+  },
+  default: {
+    icon: 'layers-outline',
+    tagline: 'Flexible plan option for your subscription needs.',
+    heroBgLight: '#F3F4F6',
+    heroBgDark: 'rgba(107,114,128,0.20)',
+    heroBorderLight: '#D1D5DB',
+    heroBorderDark: 'rgba(156,163,175,0.35)',
+    badgeBgLight: '#E5E7EB',
+    badgeBgDark: 'rgba(107,114,128,0.35)',
+    badgeTextLight: '#374151',
+    badgeTextDark: '#E5E7EB',
+    ctaLight: '#4B5563',
+    ctaDark: '#6B7280',
+  },
+};
+
+const getPlanVisual = (slug, isDark) => {
+  const key = String(slug || '').toLowerCase();
+  const visual = PLAN_VISUALS[key] || PLAN_VISUALS.default;
+
+  return {
+    icon: visual.icon,
+    tagline: visual.tagline,
+    heroBg: isDark ? visual.heroBgDark : visual.heroBgLight,
+    heroBorder: isDark ? visual.heroBorderDark : visual.heroBorderLight,
+    badgeBg: isDark ? visual.badgeBgDark : visual.badgeBgLight,
+    badgeText: isDark ? visual.badgeTextDark : visual.badgeTextLight,
+    ctaBg: isDark ? visual.ctaDark : visual.ctaLight,
+  };
+};
 
 export default function SubscriptionPlanScreen({ navigation }) {
   const { theme } = useTheme();
@@ -149,7 +239,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
     refetchers: subscriptionRefetchers,
   });
 
-  const plans = subscriptionBundleQuery.data?.plans || [];
+  const plans = subscriptionBundleQuery.data?.plans ?? EMPTY_LIST;
   const bundle = subscriptionBundleQuery.data?.bundle || null;
   const usage = bundle?.usage || {};
   const currentPlan = bundle?.plan || null;
@@ -438,7 +528,9 @@ export default function SubscriptionPlanScreen({ navigation }) {
             <View>
               <Text style={styles.sectionTitle}>Plan Choices</Text>
               <Text style={styles.planHeaderMeta}>Current plan: {currentPlan?.name || 'Free'}</Text>
-              <Text style={styles.planHeaderMeta}>Free Plan | Basic Plan | Standard Plan | Premium Plan</Text>
+              <Text style={styles.planHeaderMeta} numberOfLines={1}>
+                Free Plan | Basic Plan | Standard Plan | Premium Plan
+              </Text>
             </View>
             <View style={styles.cycleSwitcher}>
               <TouchableOpacity
@@ -484,74 +576,130 @@ export default function SubscriptionPlanScreen({ navigation }) {
             const isExpanded = expandedPlanId === planKey;
             const isCheckingOut = checkoutPlanId !== null && checkoutPlanId === plan.id;
             const isSelectable = Boolean(plan.isSelectable);
+            const highlightedPlan = String(plan.slug || '').toLowerCase() === 'standard';
+            const isFreeTier = String(plan.slug || '').toLowerCase() === 'free';
+            const visual = getPlanVisual(plan.slug, theme.isDark);
 
             return (
               <View key={planKey} style={[styles.planItem, isCurrentPlan && styles.planItemActive]}>
-                <View style={styles.planTitleRow}>
-                  <Text style={styles.planName}>{plan.name} Tier</Text>
-                  {isCurrentPlan ? <Text style={styles.activeBadge}>Active</Text> : null}
+                <View style={[styles.planHero, { backgroundColor: visual.heroBg, borderColor: visual.heroBorder }]}>
+                  <View style={styles.planHeroTopRow}>
+                    <View style={[styles.planTierBadge, { backgroundColor: visual.badgeBg }]}>
+                      <Ionicons name={visual.icon} size={13} color={visual.badgeText} />
+                      <Text
+                        style={[styles.planTierBadgeText, { color: visual.badgeText }]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {plan.name} Plan
+                      </Text>
+                    </View>
+
+                    {isCurrentPlan ? (
+                      <Text style={styles.activeBadge}>Active</Text>
+                    ) : highlightedPlan ? (
+                      <Text style={styles.popularBadge}>Popular</Text>
+                    ) : null}
+                  </View>
+
+                  <Text style={styles.planTagline} numberOfLines={2}>
+                    {visual.tagline}
+                  </Text>
+
+                  <View style={styles.planPriceRow}>
+                    <Text style={styles.planPrice}>{formatCurrency(price, plan.currency || 'PHP')}</Text>
+                    <Text style={styles.planPriceCycle}>/ {billingCycle === 'annual' ? 'year' : 'month'}</Text>
+                  </View>
                 </View>
 
-                <Text style={styles.planPrice}>
-                  {formatCurrency(price, plan.currency || 'PHP')} / {billingCycle === 'annual' ? 'year' : 'month'}
-                </Text>
-
-                <Text style={styles.planMeta}>Properties: {plan.max_properties ?? 'Unlimited'}</Text>
-                <Text style={styles.planMeta}>Total rooms: {plan.max_rooms_total ?? 'Unlimited'}</Text>
-
-                {features.length > 0 ? (
-                  <View style={styles.featureWrap}>
-                    {features.slice(0, 3).map((feature) => (
-                      <View key={`${plan.id}-${feature}`} style={styles.featureChip}>
-                        <Text style={styles.featureText}>{normalizeFeature(feature)}</Text>
-                      </View>
-                    ))}
+                <View style={styles.planBody}>
+                  <View style={styles.planCapacityGrid}>
+                    <View style={styles.planCapacityTile}>
+                      <Text style={styles.planCapacityLabel}>Properties</Text>
+                      <Text style={styles.planCapacityValue}>{plan.max_properties ?? 'Unlimited'}</Text>
+                    </View>
+                    <View style={styles.planCapacityTile}>
+                      <Text style={styles.planCapacityLabel}>Rooms</Text>
+                      <Text style={styles.planCapacityValue}>{plan.max_rooms_total ?? 'Unlimited'}</Text>
+                    </View>
                   </View>
-                ) : null}
 
-                <TouchableOpacity
-                  onPress={() => setExpandedPlanId(isExpanded ? null : planKey)}
-                  style={styles.viewMoreButton}
-                >
-                  <Text style={styles.viewMoreButtonText}>{isExpanded ? 'Show Less' : 'View More'}</Text>
-                </TouchableOpacity>
-
-                {isExpanded ? (
-                  <View style={styles.planDetailsBox}>
-                    <Text style={styles.planDetailsTitle}>What this plan can do</Text>
-                    {features.length > 0 ? (
-                      <View style={styles.planDetailsList}>
-                        {features.map((feature) => (
-                          <Text key={`${plan.id}-detail-${feature}`} style={styles.planDetailsItem}>
-                            {'\u2022'} {normalizeFeature(feature)}
-                          </Text>
-                        ))}
-                      </View>
-                    ) : (
-                      <Text style={styles.planDetailsItem}>Core listing and account management access are included.</Text>
-                    )}
-                    <Text style={styles.planDetailsMeta}>
-                      Includes up to {plan.max_properties ?? 'Unlimited'} properties and {plan.max_rooms_total ?? 'Unlimited'} rooms.
-                    </Text>
-                  </View>
-                ) : null}
-
-                <TouchableOpacity
-                  style={[
-                    styles.chooseButton,
-                    (isCurrentPlan || isCheckingOut || !isSelectable) && styles.disabledButton,
-                  ]}
-                  disabled={isCurrentPlan || isCheckingOut || !isSelectable}
-                  onPress={() => handleCheckout(plan)}
-                >
-                  {isCheckingOut ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                  <Text style={styles.planIncludedLabel}>Included</Text>
+                  {features.length > 0 ? (
+                    <View style={styles.planBulletList}>
+                      {features.slice(0, 2).map((feature) => (
+                        <View key={`${plan.id}-${feature}`} style={styles.planBulletRow}>
+                          <Ionicons name="checkmark-circle" size={14} color={theme.colors.success} />
+                          <Text style={styles.planBulletText}>{normalizeFeature(feature)}</Text>
+                        </View>
+                      ))}
+                    </View>
                   ) : (
-                    <Text style={styles.chooseButtonText}>
-                      {isCurrentPlan ? 'Current Plan' : isSelectable ? 'Choose Plan' : 'Unavailable'}
-                    </Text>
+                    <Text style={styles.planMeta}>Core listing and account management access.</Text>
                   )}
-                </TouchableOpacity>
+
+                  {!isFreeTier ? (
+                    <TouchableOpacity
+                      onPress={() => setExpandedPlanId(isExpanded ? null : planKey)}
+                      style={styles.viewMoreButton}
+                    >
+                      <Ionicons
+                        name={isExpanded ? 'chevron-up-outline' : 'chevron-down-outline'}
+                        size={14}
+                        color={theme.colors.primary}
+                      />
+                      <Text style={styles.viewMoreButtonText}>{isExpanded ? 'Show Less' : 'View More'}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {isExpanded && !isFreeTier ? (
+                    <View style={styles.planDetailsBox}>
+                      <Text style={styles.planDetailsTitle}>What this plan can do</Text>
+                      {features.length > 0 ? (
+                        <View style={styles.planDetailsList}>
+                          {features.map((feature) => (
+                            <View key={`${plan.id}-detail-${feature}`} style={styles.planDetailsRow}>
+                              <Ionicons name="checkmark-circle-outline" size={13} color={theme.colors.infoDark} />
+                              <Text style={styles.planDetailsItem}>{normalizeFeature(feature)}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.planDetailsItem}>Core listing and account management access are included.</Text>
+                      )}
+                      <Text style={styles.planDetailsMeta}>
+                        Includes up to {plan.max_properties ?? 'Unlimited'} properties and {plan.max_rooms_total ?? 'Unlimited'} rooms.
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {!isSelectable && !isCurrentPlan ? (
+                    <Text style={styles.unavailableNote}>This tier is currently unavailable for checkout.</Text>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.chooseButton,
+                      { backgroundColor: isSelectable ? visual.ctaBg : '#94A3B8' },
+                      (isCurrentPlan || isCheckingOut || !isSelectable) && styles.disabledButton,
+                    ]}
+                    disabled={isCurrentPlan || isCheckingOut || !isSelectable}
+                    onPress={() => handleCheckout(plan)}
+                  >
+                    {isCheckingOut ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <View style={styles.chooseButtonContent}>
+                        {!isCurrentPlan && isSelectable ? (
+                          <Ionicons name="rocket-outline" size={15} color="#FFFFFF" />
+                        ) : null}
+                        <Text style={styles.chooseButtonText}>
+                          {isCurrentPlan ? 'Current Plan' : isSelectable ? 'Choose Plan' : 'Unavailable'}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             );
           })}
@@ -749,24 +897,47 @@ const getStyles = (theme) =>
     planItem: {
       borderWidth: 1,
       borderColor: theme.colors.border,
-      borderRadius: 12,
-      padding: 12,
-      gap: 5,
+      borderRadius: 16,
+      overflow: 'hidden',
+      backgroundColor: theme.colors.surface,
+      shadowColor: '#000000',
+      shadowOpacity: theme.isDark ? 0 : 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
     },
     planItemActive: {
       borderColor: theme.colors.success,
-      backgroundColor: theme.isDark ? 'rgba(6,95,70,0.25)' : '#ECFDF5',
+      shadowColor: theme.colors.success,
+      shadowOpacity: theme.isDark ? 0.2 : 0.16,
+      elevation: 3,
     },
-    planTitleRow: {
+    planHero: {
+      borderBottomWidth: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+      gap: 8,
+    },
+    planHeroTopRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       gap: 10,
     },
-    planName: {
-      fontSize: 17,
+    planTierBadge: {
+      flex: 1,
+      borderRadius: 999,
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    planTierBadgeText: {
+      flex: 1,
+      fontSize: 11,
       fontWeight: '700',
-      color: theme.colors.text,
+      letterSpacing: 0.2,
     },
     activeBadge: {
       fontSize: 11,
@@ -780,37 +951,107 @@ const getStyles = (theme) =>
       textTransform: 'uppercase',
       letterSpacing: 0.3,
     },
-    planPrice: {
-      marginTop: 2,
-      fontSize: 14,
+    popularBadge: {
+      fontSize: 10,
+      color: theme.colors.infoDark,
+      fontWeight: '700',
+      backgroundColor: theme.colors.infoLight,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+      overflow: 'hidden',
+      textTransform: 'uppercase',
+      letterSpacing: 0.35,
+    },
+    planTagline: {
+      width: '100%',
+      fontSize: 12,
       color: theme.colors.text,
+      fontWeight: '500',
+      lineHeight: 17,
+      minHeight: 34,
+    },
+    planPriceRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 6,
+    },
+    planPrice: {
+      fontSize: 20,
+      color: theme.colors.text,
+      fontWeight: '800',
+    },
+    planPriceCycle: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    planBody: {
+      paddingHorizontal: 12,
+      paddingTop: 10,
+      paddingBottom: 12,
+      gap: 8,
+    },
+    planCapacityGrid: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    planCapacityTile: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
+      backgroundColor: theme.colors.backgroundTertiary,
+      gap: 2,
+    },
+    planCapacityLabel: {
+      fontSize: 10,
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      fontWeight: '700',
+    },
+    planCapacityValue: {
+      fontSize: 15,
+      color: theme.colors.text,
+      fontWeight: '700',
+    },
+    planIncludedLabel: {
+      marginTop: 2,
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.45,
       fontWeight: '700',
     },
     planMeta: {
       fontSize: 12,
       color: theme.colors.textSecondary,
     },
-    featureWrap: {
+    planBulletList: {
+      gap: 4,
+    },
+    planBulletRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
+      alignItems: 'center',
       gap: 6,
-      marginTop: 4,
     },
-    featureChip: {
-      backgroundColor: theme.colors.backgroundTertiary,
-      borderRadius: 999,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-    },
-    featureText: {
-      fontSize: 11,
-      color: theme.colors.textSecondary,
-      fontWeight: '600',
+    planBulletText: {
+      flex: 1,
+      fontSize: 12,
+      color: theme.colors.text,
+      fontWeight: '500',
     },
     viewMoreButton: {
-      marginTop: 6,
+      marginTop: 2,
       alignSelf: 'flex-start',
-      paddingVertical: 2,
+      paddingVertical: 3,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
     },
     viewMoreButtonText: {
       fontSize: 13,
@@ -834,9 +1075,15 @@ const getStyles = (theme) =>
       letterSpacing: 0.4,
     },
     planDetailsList: {
-      gap: 2,
+      gap: 4,
+    },
+    planDetailsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
     },
     planDetailsItem: {
+      flex: 1,
       fontSize: 12,
       color: theme.colors.text,
       fontWeight: '500',
@@ -847,13 +1094,24 @@ const getStyles = (theme) =>
       color: theme.colors.textSecondary,
       fontWeight: '600',
     },
+    unavailableNote: {
+      marginTop: 2,
+      fontSize: 11,
+      color: theme.colors.warningDark,
+      fontWeight: '600',
+    },
     chooseButton: {
-      marginTop: 8,
+      marginTop: 4,
       borderRadius: 10,
-      backgroundColor: theme.colors.primary,
       paddingVertical: 10,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    chooseButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
     },
     chooseButtonText: {
       color: '#FFFFFF',

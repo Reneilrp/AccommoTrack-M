@@ -34,6 +34,7 @@ class AdminController extends Controller
             'mobile_latest_version' => SystemToggle::getString('mobile_latest_version', '1.0.0'),
             'mobile_download_url' => SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),
             'mobile_force_update' => SystemToggle::getBool('mobile_force_update', true),
+            'system_forced_now' => SystemToggle::getString('system_forced_now', ''),
         ];
 
         return response()->json([
@@ -54,6 +55,7 @@ class AdminController extends Controller
             'mobile_latest_version' => 'nullable|string|max:50',
             'mobile_download_url' => 'nullable|url|max:255',
             'mobile_force_update' => 'nullable|boolean',
+            'system_forced_now' => 'nullable|string|max:100',
         ]);
 
         $actorId = Auth::id();
@@ -68,6 +70,13 @@ class AdminController extends Controller
         }
         if (isset($validated['mobile_force_update'])) {
             SystemToggle::setBool('mobile_force_update', (bool) $validated['mobile_force_update'], $actorId);
+        }
+        
+        // Handle system time override
+        if (isset($request->system_forced_now)) {
+            SystemToggle::setString('system_forced_now', (string) $request->system_forced_now, $actorId);
+        } else {
+            SystemToggle::setString('system_forced_now', '', $actorId);
         }
 
         // Purge global cache so toggles update on the edge immediately
@@ -89,6 +98,7 @@ class AdminController extends Controller
                 'mobile_latest_version' => $validated['mobile_latest_version'] ?? SystemToggle::getString('mobile_latest_version', '1.0.0'),
                 'mobile_download_url' => $validated['mobile_download_url'] ?? SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),
                 'mobile_force_update' => isset($validated['mobile_force_update']) ? (bool) $validated['mobile_force_update'] : SystemToggle::getBool('mobile_force_update', true),
+                'system_forced_now' => SystemToggle::getString('system_forced_now', ''),
             ],
             'message' => 'Payment control settings updated successfully.',
         ]);
