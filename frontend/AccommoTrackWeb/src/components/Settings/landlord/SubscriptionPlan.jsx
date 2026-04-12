@@ -157,13 +157,13 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
   const normalizedSubscriptionStatus = String(currentSubscription?.status || 'active').toLowerCase();
   const isSelfCheckoutSubscription = currentSubscription?.source === 'self_checkout';
   const needsPaymentCompletion = normalizedSubscriptionStatus === 'scheduled' && isSelfCheckoutSubscription;
-  const linkedInvoiceId = currentSubscription?.metadata?.invoice_id || null;
+  const pendingSubscriptionId = currentSubscription?.id || null;
+  const pendingCheckoutUrl = currentSubscription?.metadata?.payment_checkout_url || null;
 
   const canSyncCheckout = useMemo(() => {
     if (!currentSubscription) return false;
     if (currentSubscription.source !== 'self_checkout') return false;
-    if (currentSubscription.status !== 'scheduled') return false;
-    return Boolean(currentSubscription.metadata?.invoice_id);
+    return currentSubscription.status === 'scheduled';
   }, [currentSubscription]);
 
   const statusMeta = useMemo(() => {
@@ -328,20 +328,23 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
   const openPaymongoCheckout = (checkoutUrl) => {
     const popup = window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
     if (!popup) {
-      window.location.assign(checkoutUrl);
-    }
-  };
-
-  const beginPaymongoCheckoutForInvoice = async (invoiceId) => {
-    if (!invoiceId) {
-      toast.error('Unable to continue payment. Subscription invoice is missing.');
+      toast.error('Popup was blocked. Please allow popups for this site to continue checkout.');
       return false;
     }
 
-    setPaymongoInvoiceId(invoiceId);
+    return true;
+  };
+
+  const beginPaymongoCheckoutForSubscription = async (subscriptionId) => {
+    if (!subscriptionId) {
+      toast.error('Unable to continue payment. Subscription checkout context is missing.');
+      return false;
+    }
+
+    setPaymongoInvoiceId(subscriptionId);
 
     try {
-      const response = await landlordService.createInvoicePaymongoSource(invoiceId, {
+      const response = await landlordService.createSubscriptionCheckoutPayment(subscriptionId, {
         method: 'qrph',
         return_url: buildSubscriptionReturnUrl(),
       });
@@ -351,16 +354,21 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
       }
 
       const checkoutUrl =
-        response.data?.source?.data?.attributes?.redirect?.checkout_url ||
+        response.data?.payment?.checkout_url ||
         response.data?.link?.data?.attributes?.checkout_url ||
         response.data?.checkout_url ||
+        response.data?.source?.data?.attributes?.redirect?.checkout_url ||
         null;
 
       if (!checkoutUrl) {
         throw new Error('PayMongo checkout URL was not returned.');
       }
 
-      openPaymongoCheckout(checkoutUrl);
+      const opened = openPaymongoCheckout(checkoutUrl);
+      if (!opened) {
+        throw new Error('Popup blocked. Allow popups and try again.');
+      }
+
       return true;
     } catch (error) {
       toast.error(error.message || 'Unable to open PayMongo checkout.');
@@ -391,10 +399,10 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
       const paymentRequired = Boolean(response.data?.payment_required);
 
       if (paymentRequired) {
-        const invoiceId = response.data?.invoice?.id;
+        const subscriptionId = response.data?.subscription?.id;
         toast.success('Subscription started. Continue with PayMongo payment to activate your plan.');
 
-        const launched = await beginPaymongoCheckoutForInvoice(invoiceId);
+        const launched = await beginPaymongoCheckoutForSubscription(subscriptionId);
         if (!launched) {
           await loadData(true);
         }
@@ -505,11 +513,11 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
               <div className="mt-2 space-y-2">
                 <button
                   type="button"
-                  onClick={() => beginPaymongoCheckoutForInvoice(linkedInvoiceId)}
-                  disabled={!linkedInvoiceId || paymongoInvoiceId === linkedInvoiceId}
+                  onClick={() => beginPaymongoCheckoutForSubscription(pendingSubscriptionId)}
+                  disabled={!pendingSubscriptionId || paymongoInvoiceId === pendingSubscriptionId}
                   className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm disabled:opacity-60"
                 >
-                  {paymongoInvoiceId === linkedInvoiceId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                  {paymongoInvoiceId === pendingSubscriptionId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
                   Continue PayMongo Payment
                 </button>
                 <button
@@ -522,9 +530,9 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
                 </button>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 inline-flex items-start gap-1.5">
                   <Clock3 className="w-3.5 h-3.5 mt-0.5" />
-                  {linkedInvoiceId
-                    ? `Invoice #${linkedInvoiceId} is pending. Complete payment in PayMongo, then use Check Payment Status if the update is delayed.`
-                    : 'Invoice is still being prepared. Refresh and try again in a moment.'}
+                  {pendingCheckoutUrl
+                    ? 'Checkout link is ready. Complete payment in PayMongo, then use Check Payment Status if the update is delayed.'
+                    : 'Payment checkout link is still being prepared. Refresh and try again in a moment.'}
                 </p>
               </div>
             ) : (

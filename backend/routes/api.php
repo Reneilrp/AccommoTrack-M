@@ -240,6 +240,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/subscriptions/current', [LandlordSubscriptionController::class, 'current']);
         Route::get('/subscriptions/usage', [LandlordSubscriptionController::class, 'usage']);
         Route::post('/subscriptions/checkout', [LandlordSubscriptionController::class, 'checkout']);
+        Route::post('/subscriptions/checkout/{subscriptionId}/payment-link', [LandlordSubscriptionController::class, 'checkoutPayment']);
         Route::post('/subscriptions/checkout/{subscriptionId}/sync', [LandlordSubscriptionController::class, 'syncCheckout']);
 
         Route::get('/properties', [PropertyController::class, 'index']);

@@ -234,8 +234,20 @@ class PaymongoWebhookController extends Controller
             }
         }
 
-        if (! $tx || $tx->status === 'succeeded') {
+        if (! $tx) {
             return;
+        }
+
+        if ($tx->status === 'succeeded' && $tx->invoice_id) {
+            return;
+        }
+
+        if (! $tx->invoice_id) {
+            $materializedInvoice = $this->subscriptionCheckoutService
+                ->materializePaidInvoiceFromCheckoutTransaction($tx, $metadata);
+            if ($materializedInvoice) {
+                $tx->invoice_id = $materializedInvoice->id;
+            }
         }
 
         $tx->status = 'succeeded';

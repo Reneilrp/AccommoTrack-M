@@ -249,7 +249,8 @@ export default function SubscriptionPlanScreen({ navigation }) {
   const normalizedSubscriptionStatus = String(currentSubscription?.status || 'active').toLowerCase();
   const isSelfCheckoutSubscription = currentSubscription?.source === 'self_checkout';
   const needsPaymentCompletion = normalizedSubscriptionStatus === 'scheduled' && isSelfCheckoutSubscription;
-  const linkedInvoiceId = currentSubscription?.metadata?.invoice_id || null;
+  const pendingSubscriptionId = currentSubscription?.id || null;
+  const pendingCheckoutUrl = currentSubscription?.metadata?.payment_checkout_url || null;
 
   const displayPlans = useMemo(() => {
     const normalizedPlans = Array.isArray(plans)
@@ -341,8 +342,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
   const canSyncCheckout = useMemo(() => {
     if (!currentSubscription) return false;
     if (currentSubscription.source !== 'self_checkout') return false;
-    if (currentSubscription.status !== 'scheduled') return false;
-    return Boolean(currentSubscription.metadata?.invoice_id);
+    return currentSubscription.status === 'scheduled';
   }, [currentSubscription]);
 
   const statusMeta = useMemo(() => {
@@ -402,9 +402,9 @@ export default function SubscriptionPlanScreen({ navigation }) {
       const paymentRequired = Boolean(result.data?.payment_required);
 
       if (paymentRequired) {
-        const invoiceId = result.data?.invoice?.id;
+        const subscriptionId = result.data?.subscription?.id;
         Alert.alert('Subscription Started', 'Redirecting to PayMongo checkout to complete activation.');
-        const launched = await beginPaymongoCheckoutForInvoice(invoiceId);
+        const launched = await beginPaymongoCheckoutForSubscription(subscriptionId);
         if (!launched) {
           await refetchLandlordQueries(subscriptionRefetchers);
         }
@@ -419,15 +419,15 @@ export default function SubscriptionPlanScreen({ navigation }) {
     }
   };
 
-  const beginPaymongoCheckoutForInvoice = async (invoiceId) => {
-    if (!invoiceId) {
-      Alert.alert('Payment Unavailable', 'Subscription invoice is still being prepared. Pull to refresh and try again.');
+  const beginPaymongoCheckoutForSubscription = async (subscriptionId) => {
+    if (!subscriptionId) {
+      Alert.alert('Payment Unavailable', 'Subscription checkout context is missing. Pull to refresh and try again.');
       return false;
     }
 
-    setPaymongoInvoiceId(invoiceId);
+    setPaymongoInvoiceId(subscriptionId);
     try {
-      const sourceResult = await LandlordSubscriptionService.createInvoicePaymongoSource(invoiceId, {
+      const sourceResult = await LandlordSubscriptionService.createCheckoutPaymentLink(subscriptionId, {
         method: 'qrph',
       });
 
@@ -436,9 +436,10 @@ export default function SubscriptionPlanScreen({ navigation }) {
       }
 
       const checkoutUrl =
-        sourceResult.data?.source?.data?.attributes?.redirect?.checkout_url ||
+        sourceResult.data?.payment?.checkout_url ||
         sourceResult.data?.link?.data?.attributes?.checkout_url ||
         sourceResult.data?.checkout_url ||
+        sourceResult.data?.source?.data?.attributes?.redirect?.checkout_url ||
         null;
 
       if (!checkoutUrl) {
@@ -545,11 +546,11 @@ export default function SubscriptionPlanScreen({ navigation }) {
           {needsPaymentCompletion ? (
             <View style={styles.actionGroup}>
               <TouchableOpacity
-                style={[styles.primaryActionButton, (paymongoInvoiceId === linkedInvoiceId || !linkedInvoiceId) && styles.disabledButton]}
-                onPress={() => beginPaymongoCheckoutForInvoice(linkedInvoiceId)}
-                disabled={paymongoInvoiceId === linkedInvoiceId || !linkedInvoiceId}
+                style={[styles.primaryActionButton, (paymongoInvoiceId === pendingSubscriptionId || !pendingSubscriptionId) && styles.disabledButton]}
+                onPress={() => beginPaymongoCheckoutForSubscription(pendingSubscriptionId)}
+                disabled={paymongoInvoiceId === pendingSubscriptionId || !pendingSubscriptionId}
               >
-                {paymongoInvoiceId === linkedInvoiceId ? (
+                {paymongoInvoiceId === pendingSubscriptionId ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Ionicons name="rocket-outline" size={16} color="#FFFFFF" />
@@ -573,9 +574,9 @@ export default function SubscriptionPlanScreen({ navigation }) {
               </TouchableOpacity>
 
               <Text style={styles.cardMeta}>
-                {linkedInvoiceId
-                  ? `Invoice #${linkedInvoiceId} is pending. Complete payment in PayMongo, then check status if it does not update automatically.`
-                  : 'Invoice details are still syncing. Pull to refresh and try again.'}
+                {pendingCheckoutUrl
+                  ? 'Checkout link is ready. Complete payment in PayMongo, then check status if it does not update automatically.'
+                  : 'Payment checkout link is still syncing. Pull to refresh and try again.'}
               </Text>
             </View>
           ) : null}

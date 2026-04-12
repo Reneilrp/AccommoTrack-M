@@ -4,11 +4,14 @@ namespace App\Services\Subscription;
 
 use App\Models\Invoice;
 use App\Models\LandlordSubscription;
+use App\Models\PaymentTransaction;
 use App\Models\SubscriptionEvent;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Carbon\Carbon;
+use GuzzleHttp\Client;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -61,6 +64,7 @@ class SubscriptionCheckoutService
                         'subscription' => $reusableCheckout['subscription'],
                         'plan' => $plan,
                         'invoice' => $reusableCheckout['invoice'],
+                        'payment' => $reusableCheckout['payment'],
                         'payment_required' => true,
                         'usage' => $this->subscriptionResolverService->getUsageSummary($landlord),
                     ];
@@ -86,23 +90,7 @@ class SubscriptionCheckoutService
                 ],
             ]);
 
-            $invoice = null;
             if ($requiresPayment) {
-                $invoice = $this->createPendingCheckoutInvoice(
-                    landlord: $landlord,
-                    plan: $plan,
-                    billingCycle: $normalizedBillingCycle,
-                    amountCents: $amountCents,
-                    periodStart: $startsAt,
-                    periodEnd: $periodEndsAt,
-                    subscription: $subscription,
-                );
-
-                $metadata = $subscription->metadata ?? [];
-                $metadata['invoice_id'] = $invoice->id;
-                $subscription->metadata = $metadata;
-                $subscription->save();
-
                 SubscriptionEvent::create([
                     'landlord_subscription_id' => $subscription->id,
                     'landlord_id' => $landlord->id,
@@ -112,7 +100,6 @@ class SubscriptionCheckoutService
                     'metadata' => [
                         'billing_cycle' => $normalizedBillingCycle,
                         'amount_cents' => $amountCents,
-                        'invoice_id' => $invoice->id,
                     ],
                 ]);
             } else {
@@ -132,7 +119,10 @@ class SubscriptionCheckoutService
             return [
                 'subscription' => $subscription->fresh(['plan']),
                 'plan' => $plan,
-                'invoice' => $invoice,
+                'invoice' => null,
+                'payment' => $this->buildPaymentPayloadFromSubscriptionMetadata(
+                    is_array($subscription->metadata) ? $subscription->metadata : []
+                ),
                 'payment_required' => $requiresPayment,
                 'usage' => $this->subscriptionResolverService->getUsageSummary($landlord),
             ];
@@ -149,14 +139,17 @@ class SubscriptionCheckoutService
             throw new InvalidArgumentException('Only self-checkout subscriptions can be synchronized.');
         }
 
+        $subscription = $subscription->fresh(['plan']);
         $metadata = $subscription->metadata ?? [];
         $invoiceId = $metadata['invoice_id'] ?? null;
+        $payment = $this->buildPaymentPayloadFromSubscriptionMetadata(is_array($metadata) ? $metadata : []);
 
         if ($invoiceId === null) {
             return [
-                'subscription' => $subscription->fresh(['plan']),
+                'subscription' => $subscription,
                 'invoice' => null,
-                'payment_required' => false,
+                'payment' => $payment,
+                'payment_required' => $subscription->status === LandlordSubscription::STATUS_SCHEDULED,
                 'activated' => $subscription->status === LandlordSubscription::STATUS_ACTIVE,
                 'usage' => $this->subscriptionResolverService->getUsageSummary($landlord),
             ];
@@ -180,6 +173,7 @@ class SubscriptionCheckoutService
         return [
             'subscription' => $subscription,
             'invoice' => $invoice,
+            'payment' => $payment,
             'payment_required' => $invoice->status !== 'paid',
             'activated' => $subscription->status === LandlordSubscription::STATUS_ACTIVE,
             'usage' => $this->subscriptionResolverService->getUsageSummary($landlord),
@@ -256,11 +250,250 @@ class SubscriptionCheckoutService
         });
     }
 
+    public function initiateCheckoutPayment(
+        User $landlord,
+        LandlordSubscription $subscription,
+        string $method = 'qrph',
+        ?string $returnUrl = null,
+    ): array {
+        if ((int) $subscription->landlord_id !== (int) $landlord->id) {
+            throw new InvalidArgumentException('Subscription does not belong to the authenticated landlord.');
+        }
+
+        if ($subscription->source !== LandlordSubscription::SOURCE_SELF_CHECKOUT) {
+            throw new InvalidArgumentException('Only self-checkout subscriptions can start PayMongo checkout.');
+        }
+
+        if ($subscription->status !== LandlordSubscription::STATUS_SCHEDULED) {
+            throw new InvalidArgumentException('Only scheduled subscriptions can start payment checkout.');
+        }
+
+        $normalizedMethod = strtolower(trim($method));
+        if ($normalizedMethod !== 'qrph') {
+            throw new InvalidArgumentException('Only QRPh checkout is supported for subscription self-checkout.');
+        }
+
+        return DB::transaction(function () use ($landlord, $subscription, $normalizedMethod, $returnUrl) {
+            $subscription = $subscription->fresh(['plan']);
+            $metadata = is_array($subscription->metadata) ? $subscription->metadata : [];
+
+            $existingTxId = (int) ($metadata['payment_transaction_id'] ?? 0);
+            if ($existingTxId > 0) {
+                $existingTx = PaymentTransaction::query()->find($existingTxId);
+                if ($existingTx) {
+                    $existingStatus = strtolower((string) $existingTx->status);
+                    if (! in_array($existingStatus, ['failed', 'cancelled', 'refunded'], true)) {
+                        $existingCheckoutUrl = $metadata['payment_checkout_url'] ?? $this->extractCheckoutUrlFromGatewayResponse($existingTx->gateway_response);
+                        if ($existingCheckoutUrl) {
+                            $metadata['payment_checkout_url'] = $existingCheckoutUrl;
+                            $subscription->metadata = $metadata;
+                            $subscription->save();
+                        }
+
+                        return [
+                            'subscription' => $subscription,
+                            'transaction' => $existingTx,
+                            'checkout_url' => $existingCheckoutUrl,
+                            'payment' => $this->buildPaymentPayloadFromSubscriptionMetadata($metadata),
+                            'already_exists' => true,
+                        ];
+                    }
+                }
+            }
+
+            $plan = $subscription->plan;
+            $billingCycle = (string) ($metadata['billing_cycle'] ?? 'monthly');
+            $amountCents = (int) ($metadata['amount_cents'] ?? 0);
+            if ($amountCents <= 0) {
+                $amountCents = $billingCycle === 'annual'
+                    ? (int) ($plan?->annual_price_cents ?? 0)
+                    : (int) ($plan?->monthly_price_cents ?? 0);
+            }
+
+            if ($amountCents <= 0) {
+                throw new InvalidArgumentException('Subscription amount is not available for checkout.');
+            }
+
+            $currency = strtoupper((string) ($plan?->currency ?? 'PHP'));
+            $description = sprintf(
+                '%s subscription (%s billing)',
+                (string) ($plan?->name ?? 'Subscription'),
+                $billingCycle
+            );
+
+            $linkedInvoice = null;
+            $linkedInvoiceId = isset($metadata['invoice_id']) ? (int) $metadata['invoice_id'] : 0;
+            if ($linkedInvoiceId > 0) {
+                $linkedInvoice = Invoice::query()
+                    ->where('id', $linkedInvoiceId)
+                    ->where('landlord_id', $landlord->id)
+                    ->first();
+            }
+
+            $tx = PaymentTransaction::create([
+                'invoice_id' => $linkedInvoice?->id,
+                'tenant_id' => null,
+                'amount_cents' => $amountCents,
+                'currency' => $currency,
+                'status' => 'pending',
+                'method' => 'paymongo_'.$normalizedMethod,
+            ]);
+
+            $client = $this->createPaymongoClient('subscriptionCheckoutPayment');
+            $payload = [
+                'data' => [
+                    'attributes' => [
+                        'amount' => intval($amountCents),
+                        'description' => $description,
+                        'remarks' => 'SUB-'.$subscription->id,
+                        'metadata' => [
+                            'landlord_id' => (int) $landlord->id,
+                            'landlord_subscription_id' => (int) $subscription->id,
+                            'plan_id' => (int) ($plan?->id ?? 0),
+                            'billing_cycle' => $billingCycle,
+                            'payment_transaction_id' => (int) $tx->id,
+                        ],
+                    ],
+                ],
+            ];
+
+            if ($returnUrl) {
+                $payload['data']['attributes']['metadata']['return_url'] = $returnUrl;
+            }
+
+            $res = $client->post('links', [
+                'auth' => [config('services.paymongo.secret_key'), ''],
+                'json' => $payload,
+            ]);
+
+            $body = json_decode((string) $res->getBody(), true);
+            if (! is_array($body)) {
+                throw new \Exception('Invalid response from PayMongo');
+            }
+
+            $checkoutUrl = $body['data']['attributes']['checkout_url'] ?? null;
+            if (! $checkoutUrl) {
+                throw new \Exception('PayMongo checkout URL was not returned.');
+            }
+
+            $tx->gateway_reference = $body['data']['id'] ?? null;
+            $tx->gateway_response = $body;
+            $tx->save();
+
+            $metadata['payment_method'] = $normalizedMethod;
+            $metadata['payment_provider'] = 'paymongo_link';
+            $metadata['payment_transaction_id'] = $tx->id;
+            $metadata['payment_checkout_url'] = $checkoutUrl;
+            $metadata['payment_required'] = true;
+            $subscription->metadata = $metadata;
+            $subscription->save();
+
+            return [
+                'subscription' => $subscription->fresh(['plan']),
+                'transaction' => $tx,
+                'checkout_url' => $checkoutUrl,
+                'payment' => $this->buildPaymentPayloadFromSubscriptionMetadata($metadata),
+                'already_exists' => false,
+            ];
+        });
+    }
+
+    public function materializePaidInvoiceFromCheckoutTransaction(PaymentTransaction $transaction, array $metadata = []): ?Invoice
+    {
+        if ($transaction->invoice_id) {
+            return Invoice::query()->find($transaction->invoice_id);
+        }
+
+        $gatewayMetadata = is_array($transaction->gateway_response['data']['attributes']['metadata'] ?? null)
+            ? $transaction->gateway_response['data']['attributes']['metadata']
+            : [];
+
+        $combinedMetadata = array_merge($gatewayMetadata, $metadata);
+        $subscriptionId = isset($combinedMetadata['landlord_subscription_id']) ? (int) $combinedMetadata['landlord_subscription_id'] : 0;
+        if ($subscriptionId <= 0) {
+            return null;
+        }
+
+        $subscription = LandlordSubscription::query()
+            ->with('plan')
+            ->where('id', $subscriptionId)
+            ->where('source', LandlordSubscription::SOURCE_SELF_CHECKOUT)
+            ->first();
+
+        if (! $subscription) {
+            return null;
+        }
+
+        $subscriptionMetadata = is_array($subscription->metadata) ? $subscription->metadata : [];
+        $existingInvoiceId = isset($subscriptionMetadata['invoice_id']) ? (int) $subscriptionMetadata['invoice_id'] : 0;
+        if ($existingInvoiceId > 0) {
+            $existingInvoice = Invoice::query()->find($existingInvoiceId);
+            if ($existingInvoice) {
+                $transaction->invoice_id = $existingInvoice->id;
+                $transaction->save();
+
+                return $existingInvoice;
+            }
+        }
+
+        $plan = $subscription->plan;
+        $billingCycle = (string) ($subscriptionMetadata['billing_cycle'] ?? $combinedMetadata['billing_cycle'] ?? 'monthly');
+        $periodStart = $subscription->starts_at ? $subscription->starts_at->copy() : now();
+        $periodEnd = $subscription->ends_at
+            ? $subscription->ends_at->copy()
+            : $this->resolvePeriodEnd($periodStart, $billingCycle);
+
+        $invoiceAmountCents = (int) ($subscriptionMetadata['amount_cents'] ?? $transaction->amount_cents ?? 0);
+        if ($invoiceAmountCents <= 0) {
+            $invoiceAmountCents = (int) ($transaction->amount_cents ?? 0);
+        }
+
+        if ($invoiceAmountCents <= 0) {
+            return null;
+        }
+
+        $invoice = Invoice::query()->create([
+            'reference' => $this->generateInvoiceReference(),
+            'landlord_id' => $subscription->landlord_id,
+            'description' => sprintf('%s subscription (%s billing)', (string) ($plan?->name ?? 'Subscription'), $billingCycle),
+            'invoice_type' => 'subscription',
+            'amount_cents' => $invoiceAmountCents,
+            'subtotal_cents' => $invoiceAmountCents,
+            'total_cents' => $invoiceAmountCents,
+            'currency' => strtoupper((string) ($plan?->currency ?? $transaction->currency ?? 'PHP')),
+            'status' => 'paid',
+            'issued_at' => now(),
+            'due_date' => now()->toDateString(),
+            'paid_at' => now(),
+            'billing_period_start' => $periodStart->toDateString(),
+            'billing_period_end' => $periodEnd->toDateString(),
+            'billing_period_key' => $this->generateBillingPeriodKey(),
+            'metadata' => [
+                'domain' => 'subscriptions',
+                'plan_id' => $plan?->id,
+                'plan_slug' => $plan?->slug,
+                'billing_cycle' => $billingCycle,
+                'landlord_subscription_id' => $subscription->id,
+                'payment_transaction_id' => $transaction->id,
+            ],
+        ]);
+
+        $transaction->invoice_id = $invoice->id;
+        $transaction->save();
+
+        $subscriptionMetadata['invoice_id'] = $invoice->id;
+        $subscriptionMetadata['payment_required'] = false;
+        $subscription->metadata = $subscriptionMetadata;
+        $subscription->save();
+
+        return $invoice;
+    }
+
     /**
-     * Reuse the latest unpaid checkout invoice for the same plan/cycle to avoid creating duplicates
+     * Reuse the latest scheduled checkout for the same plan/cycle to avoid creating duplicates
      * when landlords repeatedly open and cancel checkout before paying.
      *
-     * @return array{subscription: LandlordSubscription, invoice: Invoice}|null
+     * @return array{subscription: LandlordSubscription, invoice: Invoice|null, payment: array<string,mixed>}|null
      */
     private function findReusablePendingCheckout(int $landlordId, int $planId, string $billingCycle, int $amountCents): ?array
     {
@@ -283,33 +516,58 @@ class SubscriptionCheckoutService
                 continue;
             }
 
-            $invoiceId = $metadata['invoice_id'] ?? null;
-            if (! $invoiceId) {
-                continue;
+            $invoice = null;
+            $invoiceId = isset($metadata['invoice_id']) ? (int) $metadata['invoice_id'] : 0;
+            if ($invoiceId > 0) {
+                $invoice = Invoice::query()
+                    ->where('id', $invoiceId)
+                    ->where('landlord_id', $landlordId)
+                    ->where('invoice_type', 'subscription')
+                    ->first();
+
+                if (! $invoice || ! $this->invoiceStillRequiresPayment($invoice)) {
+                    $invoice = null;
+                }
             }
 
-            $invoice = Invoice::query()
-                ->where('id', $invoiceId)
-                ->where('landlord_id', $landlordId)
-                ->where('invoice_type', 'subscription')
-                ->first();
+            $txId = isset($metadata['payment_transaction_id']) ? (int) $metadata['payment_transaction_id'] : 0;
+            if ($txId > 0) {
+                $tx = PaymentTransaction::query()->find($txId);
+                if (! $tx) {
+                    continue;
+                }
 
-            if (! $invoice) {
-                continue;
+                $txStatus = strtolower((string) $tx->status);
+                if (in_array($txStatus, ['failed', 'cancelled', 'refunded'], true)) {
+                    continue;
+                }
             }
 
-            $status = strtolower((string) $invoice->status);
-            if (! in_array($status, ['pending', 'unpaid', 'partial', 'overdue', 'pending_verification'], true)) {
-                continue;
+            $payment = $this->buildPaymentPayloadFromSubscriptionMetadata($metadata);
+            if (! $invoice && $txId <= 0) {
+                return [
+                    'subscription' => $candidate->fresh(['plan']),
+                    'invoice' => null,
+                    'payment' => $payment,
+                ];
             }
 
-            if (! $this->invoiceStillRequiresPayment($invoice)) {
-                continue;
+            if (empty($payment['checkout_url']) && $txId > 0) {
+                $tx = PaymentTransaction::query()->find($txId);
+                if ($tx) {
+                    $payment['checkout_url'] = $this->extractCheckoutUrlFromGatewayResponse($tx->gateway_response);
+                    if (! empty($payment['checkout_url'])) {
+                        $metadata['payment_checkout_url'] = $payment['checkout_url'];
+                        $candidate->metadata = $metadata;
+                        $candidate->save();
+                    }
+                }
             }
 
             return [
                 'subscription' => $candidate->fresh(['plan']),
                 'invoice' => $invoice,
+                'payment' => $payment,
             ];
         }
 
@@ -329,6 +587,58 @@ class SubscriptionCheckoutService
             ->value('net_cents') ?? 0);
 
         return $paidCents < $invoiceTotalCents;
+    }
+
+    /**
+     * @return array{checkout_url: string|null, transaction_id: int|null, method: string|null, provider: string|null}
+     */
+    private function buildPaymentPayloadFromSubscriptionMetadata(array $metadata): array
+    {
+        return [
+            'checkout_url' => isset($metadata['payment_checkout_url']) ? (string) $metadata['payment_checkout_url'] : null,
+            'transaction_id' => isset($metadata['payment_transaction_id']) ? (int) $metadata['payment_transaction_id'] : null,
+            'method' => isset($metadata['payment_method']) ? (string) $metadata['payment_method'] : null,
+            'provider' => isset($metadata['payment_provider']) ? (string) $metadata['payment_provider'] : null,
+        ];
+    }
+
+    private function createPaymongoClient(string $context): Client
+    {
+        $verify = $this->resolvePaymongoVerify();
+        Log::info('Paymongo '.$context.' - verify resolved: '.var_export($verify, true));
+
+        return new Client([
+            'base_uri' => 'https://api.paymongo.com/v1/',
+            'verify' => $verify,
+        ]);
+    }
+
+    /**
+     * @return bool|string
+     */
+    private function resolvePaymongoVerify()
+    {
+        $verifyEnv = config('services.paymongo.verify_ssl', true);
+        if (is_string($verifyEnv) && file_exists($verifyEnv)) {
+            return $verifyEnv;
+        }
+
+        $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        return is_null($verify) ? true : $verify;
+    }
+
+    private function extractCheckoutUrlFromGatewayResponse(?array $gatewayResponse): ?string
+    {
+        if (! is_array($gatewayResponse)) {
+            return null;
+        }
+
+        $checkoutUrl = $gatewayResponse['data']['attributes']['checkout_url']
+            ?? $gatewayResponse['source']['data']['attributes']['redirect']['checkout_url']
+            ?? null;
+
+        return is_string($checkoutUrl) && $checkoutUrl !== '' ? $checkoutUrl : null;
     }
 
     private function resolvePeriodEnd(Carbon $periodStart, string $billingCycle): Carbon

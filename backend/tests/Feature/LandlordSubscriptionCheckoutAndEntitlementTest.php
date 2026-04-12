@@ -17,7 +17,7 @@ class LandlordSubscriptionCheckoutAndEntitlementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_landlord_checkout_creates_pending_invoice_for_paid_plan(): void
+    public function test_landlord_checkout_does_not_create_invoice_before_payment_for_paid_plan(): void
     {
         $landlord = $this->createLandlord('checkout-paid');
         $basicPlan = $this->createPlan('basic', 'Basic', 49900, 499000, 3, 40);
@@ -36,10 +36,10 @@ class LandlordSubscriptionCheckoutAndEntitlementTest extends TestCase
             ->assertJsonPath('data.payment_required', true)
             ->assertJsonPath('data.subscription.source', 'self_checkout')
             ->assertJsonPath('data.subscription.status', 'scheduled')
+            ->assertJsonPath('data.invoice', null)
             ->assertJsonPath('data.plan.slug', 'basic');
 
         $subscriptionId = (int) $response->json('data.subscription.id');
-        $invoiceId = (int) $response->json('data.invoice.id');
 
         $this->assertDatabaseHas('landlord_subscriptions', [
             'id' => $subscriptionId,
@@ -49,13 +49,13 @@ class LandlordSubscriptionCheckoutAndEntitlementTest extends TestCase
             'status' => 'scheduled',
         ]);
 
-        $this->assertDatabaseHas('invoices', [
-            'id' => $invoiceId,
-            'landlord_id' => $landlord->id,
-            'invoice_type' => 'subscription',
-            'status' => 'pending',
-            'amount_cents' => 49900,
-        ]);
+        $this->assertSame(
+            0,
+            Invoice::query()
+                ->where('landlord_id', $landlord->id)
+                ->where('invoice_type', 'subscription')
+                ->count()
+        );
     }
 
     public function test_landlord_can_sync_checkout_after_invoice_is_paid(): void
@@ -73,12 +73,37 @@ class LandlordSubscriptionCheckoutAndEntitlementTest extends TestCase
         $checkoutResponse->assertStatus(201);
 
         $subscriptionId = (int) $checkoutResponse->json('data.subscription.id');
-        $invoiceId = (int) $checkoutResponse->json('data.invoice.id');
+        $subscription = LandlordSubscription::query()->findOrFail($subscriptionId);
 
-        $invoice = Invoice::query()->findOrFail($invoiceId);
-        $invoice->status = 'paid';
-        $invoice->paid_at = now();
-        $invoice->save();
+        $invoice = Invoice::query()->create([
+            'reference' => 'INV-SUB-'.uniqid(),
+            'landlord_id' => $landlord->id,
+            'description' => 'Standard subscription (monthly billing)',
+            'invoice_type' => 'subscription',
+            'amount_cents' => 99900,
+            'subtotal_cents' => 99900,
+            'total_cents' => 99900,
+            'currency' => 'PHP',
+            'status' => 'paid',
+            'issued_at' => now()->subMinute(),
+            'due_date' => now()->toDateString(),
+            'paid_at' => now(),
+            'billing_period_start' => now()->toDateString(),
+            'billing_period_end' => now()->addMonthNoOverflow()->toDateString(),
+            'billing_period_key' => substr('SUBSYNC-'.uniqid(), 0, 20),
+            'metadata' => [
+                'domain' => 'subscriptions',
+                'plan_id' => $standardPlan->id,
+                'plan_slug' => $standardPlan->slug,
+                'billing_cycle' => 'monthly',
+                'landlord_subscription_id' => $subscriptionId,
+            ],
+        ]);
+
+        $metadata = is_array($subscription->metadata) ? $subscription->metadata : [];
+        $metadata['invoice_id'] = $invoice->id;
+        $subscription->metadata = $metadata;
+        $subscription->save();
 
         $syncResponse = $this->postJson("/api/landlord/subscriptions/checkout/{$subscriptionId}/sync");
 
@@ -95,7 +120,7 @@ class LandlordSubscriptionCheckoutAndEntitlementTest extends TestCase
         ]);
     }
 
-    public function test_repeated_checkout_reuses_pending_subscription_invoice_for_same_plan(): void
+    public function test_repeated_checkout_reuses_scheduled_subscription_without_creating_invoice(): void
     {
         $landlord = $this->createLandlord('checkout-reuse');
         $basicPlan = $this->createPlan('basic-reuse', 'Basic Reuse', 49900, 499000, 3, 40);
@@ -116,11 +141,10 @@ class LandlordSubscriptionCheckoutAndEntitlementTest extends TestCase
 
         $firstSubscriptionId = (int) $first->json('data.subscription.id');
         $secondSubscriptionId = (int) $second->json('data.subscription.id');
-        $firstInvoiceId = (int) $first->json('data.invoice.id');
-        $secondInvoiceId = (int) $second->json('data.invoice.id');
 
         $this->assertSame($firstSubscriptionId, $secondSubscriptionId);
-        $this->assertSame($firstInvoiceId, $secondInvoiceId);
+        $this->assertNull($first->json('data.invoice'));
+        $this->assertNull($second->json('data.invoice'));
 
         $this->assertSame(
             1,
@@ -132,11 +156,10 @@ class LandlordSubscriptionCheckoutAndEntitlementTest extends TestCase
         );
 
         $this->assertSame(
-            1,
+            0,
             Invoice::query()
                 ->where('landlord_id', $landlord->id)
                 ->where('invoice_type', 'subscription')
-                ->where('status', 'pending')
                 ->count()
         );
     }

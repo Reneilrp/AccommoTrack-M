@@ -123,6 +123,27 @@ class LandlordSubscriptionService {
     }
   }
 
+  async createCheckoutPaymentLink(subscriptionId, payload = {}) {
+    try {
+      const response = await api.post(`/landlord/subscriptions/checkout/${subscriptionId}/payment-link`, payload);
+      const result = unwrapResponse(response.data);
+
+      return {
+        success: result.success,
+        data: result.data || null,
+        message: result.message,
+        error: result.success ? null : (result.message || 'Failed to start PayMongo checkout'),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to start PayMongo checkout',
+        status: error.response?.status,
+      };
+    }
+  }
+
   async createInvoicePaymongoSource(invoiceId, payload = {}) {
     try {
       const response = await api.post(`/invoices/${invoiceId}/paymongo-source`, payload);

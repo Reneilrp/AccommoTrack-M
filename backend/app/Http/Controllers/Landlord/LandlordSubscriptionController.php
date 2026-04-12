@@ -144,6 +144,50 @@ class LandlordSubscriptionController extends Controller
         }
     }
 
+    public function checkoutPayment(Request $request, int $subscriptionId)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_manage_payments');
+
+            $validated = $request->validate([
+                'method' => 'nullable|string|in:qrph',
+                'return_url' => 'nullable|url',
+            ]);
+
+            $landlord = User::query()->findOrFail($context['landlord_id']);
+            $subscription = LandlordSubscription::query()
+                ->where('id', $subscriptionId)
+                ->where('landlord_id', $landlord->id)
+                ->firstOrFail();
+
+            $result = $this->subscriptionCheckoutService->initiateCheckoutPayment(
+                landlord: $landlord,
+                subscription: $subscription,
+                method: (string) ($validated['method'] ?? 'qrph'),
+                returnUrl: $validated['return_url'] ?? null,
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Checkout link is ready. Complete PayMongo payment to activate the plan.',
+            ]);
+        } catch (AccessDeniedHttpException $exception) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => $exception->getMessage(),
+            ], 403);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
     public function syncCheckout(Request $request, int $subscriptionId)
     {
         try {

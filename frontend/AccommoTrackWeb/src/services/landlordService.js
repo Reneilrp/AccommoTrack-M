@@ -88,6 +88,27 @@ export const landlordService = {
   },
 
   /**
+   * Create or reuse a PayMongo checkout link for a scheduled subscription checkout
+   * POST /landlord/subscriptions/checkout/:id/payment-link
+   */
+  async createSubscriptionCheckoutPayment(subscriptionId, payload = {}) {
+    try {
+      const res = await api.post(`/landlord/subscriptions/checkout/${subscriptionId}/payment-link`, payload);
+      return {
+        success: true,
+        data: res.data?.data || res.data,
+        message: res.data?.message || '',
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.message || err.message,
+        status: err.response?.status,
+      };
+    }
+  },
+
+  /**
    * Create a PayMongo source for an invoice and get checkout redirect metadata
    * POST /invoices/:id/paymongo-source
    */
