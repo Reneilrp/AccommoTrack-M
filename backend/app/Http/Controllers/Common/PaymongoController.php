@@ -141,8 +141,13 @@ class PaymongoController extends Controller
             DB::rollBack();
             Log::error('PayMongo create source error: '.$e->getMessage());
             $msg = $e->getResponse() ? (string) $e->getResponse()->getBody() : $e->getMessage();
+            $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
+            $providerMessage = $this->extractPaymongoErrorMessage($msg);
 
-            return response()->json(['message' => 'Failed to create PayMongo source', 'error' => $msg], 500);
+            return response()->json([
+                'message' => $providerMessage ?: 'Failed to create PayMongo source',
+                'error' => $providerMessage ?: $msg,
+            ], ($statusCode >= 400 && $statusCode < 600) ? $statusCode : 500);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('PayMongo create source unexpected error: '.$e->getMessage());
@@ -279,8 +284,13 @@ class PaymongoController extends Controller
             DB::rollBack();
             Log::error('PayMongo create source (tenant) error: '.$e->getMessage());
             $msg = $e->getResponse() ? (string) $e->getResponse()->getBody() : $e->getMessage();
+            $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
+            $providerMessage = $this->extractPaymongoErrorMessage($msg);
 
-            return response()->json(['message' => 'Failed to create PayMongo source', 'error' => $msg], 500);
+            return response()->json([
+                'message' => $providerMessage ?: 'Failed to create PayMongo source',
+                'error' => $providerMessage ?: $msg,
+            ], ($statusCode >= 400 && $statusCode < 600) ? $statusCode : 500);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('PayMongo create source (tenant) unexpected error: '.$e->getMessage());
@@ -733,5 +743,32 @@ class PaymongoController extends Controller
                 ]);
             }
         }
+    }
+
+    private function extractPaymongoErrorMessage(string $rawMessage): ?string
+    {
+        $decoded = json_decode($rawMessage, true);
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $errors = $decoded['errors'] ?? null;
+        if (is_array($errors) && count($errors) > 0) {
+            $first = $errors[0];
+            if (is_array($first)) {
+                if (! empty($first['detail']) && is_string($first['detail'])) {
+                    return $first['detail'];
+                }
+                if (! empty($first['code']) && is_string($first['code'])) {
+                    return $first['code'];
+                }
+            }
+        }
+
+        if (! empty($decoded['message']) && is_string($decoded['message'])) {
+            return $decoded['message'];
+        }
+
+        return null;
     }
 }

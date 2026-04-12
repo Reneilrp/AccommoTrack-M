@@ -134,7 +134,7 @@ class LandlordSubscriptionService {
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || error.message || 'Failed to start PayMongo checkout',
+        error: error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to start PayMongo checkout',
         status: error.response?.status,
       };
     }
