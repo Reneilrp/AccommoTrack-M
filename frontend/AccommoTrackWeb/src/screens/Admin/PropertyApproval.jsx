@@ -128,7 +128,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
         await api.delete(`/admin/properties/${propertyId}`, {
           data: { password: passwordValueRef.current },
         });
-        toast.success('Property completely removed');
+        toast.success('Property sent to archive');
       }
 
       setProperties(prev => prev.filter(p => p.id !== propertyId));
@@ -152,17 +152,16 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     const isDelete = action === 'delete';
     setConfirmModalState({
       isOpen: true,
-      title: `Confirm ${isApprove ? 'Approval' : isMaintenance ? 'Maintenance' : isDelete ? 'Deletion' : 'Rejection'}`,
-      message: isDelete 
-        ? 'Are you sure you want to completely delete this property? This action is irreversible.'
+      title: `Confirm ${isApprove ? 'Approval' : isMaintenance ? 'Maintenance' : isDelete ? 'Archive' : 'Rejection'}`,
+      message: isDelete
+        ? 'Are you sure you want to archive this property? It will be removed from active listings but can be restored later.'
         : `Are you sure you want to ${isMaintenance ? 'put this property under maintenance' : action + ' this property'}?`,
       onConfirm: () => runAction(propertyId, action),
-      confirmText: isApprove ? 'Approve' : isMaintenance ? 'Maintenance' : isDelete ? 'Delete Completely' : 'Reject',
+      confirmText: isApprove ? 'Approve' : isMaintenance ? 'Maintenance' : isDelete ? 'Archive Property' : 'Reject',
       confirmButtonClass: isApprove ? 'bg-green-600 hover:bg-green-700' : isMaintenance ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700',
       requirePassword: isDelete
     });
   };
-
   const handleView = (property) => {
     setSelectedProperty(property);
     setShowModal(true);
@@ -171,6 +170,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   const selectableProperties = properties.filter(
     (property) => normalizePropertyStatus(property?.current_status || property?.status || statusFilter) === 'pending'
   );
+  const canShowSelectionColumn = isEditMode && selectableProperties.length > 0;
   const bulkActionLoading = typeof actionLoading === 'string' && actionLoading.startsWith('bulk:');
 
   return (
@@ -303,7 +303,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
             <table className="w-full">
               <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wide">
                 <tr>
-                  {isEditMode && (
+                  {canShowSelectionColumn && (
                     <th className="px-6 py-4 text-left font-semibold w-12">
                       <input 
                         type="checkbox" 
@@ -328,7 +328,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
 
                   return (
                   <tr key={prop.id} className={`${isEditMode && selectedIds.includes(prop.id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'bg-white dark:bg-gray-800 even:bg-gray-50 dark:even:bg-gray-700/30'} hover:bg-emerald-50/40 dark:hover:bg-emerald-900/20 transition-colors`}>
-                    {isEditMode && (
+                    {canShowSelectionColumn && (
                       <td className="px-6 py-4">
                         <input 
                           type="checkbox" 

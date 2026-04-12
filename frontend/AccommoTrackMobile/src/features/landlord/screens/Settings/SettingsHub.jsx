@@ -448,6 +448,15 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ? "Verified"
         : "Pending";
 
+    const securityPrefs = user?.preferences?.security;
+    const emailRecoveryEnabled = Boolean(securityPrefs?.emailRecoveryEnabled);
+    const emailRecoveryVerifiedAt = securityPrefs?.emailRecoveryVerifiedAt || null;
+    const emailRecoveryDescription = !emailRecoveryEnabled
+      ? 'Enable OTP verification for forgot/reset password access'
+      : emailRecoveryVerifiedAt
+        ? 'Enabled and verified from Settings'
+        : 'OTP sent. Verify code to complete setup';
+
     const normalizedVerificationStatus = normalizeLandlordVerificationStatus(verificationStatus);
 
     const idStatusLabel = !verificationStatus || normalizedVerificationStatus === 'not_submitted'
@@ -490,7 +499,30 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ],
       },
       {
-        title: "Payments",
+          title: "Billing",
+          items: [
+            {
+              id: "subscription-plan",
+              label: "Subscription Plan",
+              description: "Manage plan limits, status, and upgrades",
+              icon: "rocket-outline",
+              type: "navigate",
+              target: "SubscriptionPlan",
+              role: "landlord",
+            },
+            {
+              id: "billing-center",
+              label: "Billing Center",
+              description: "Review billing, payments, invoices, and history",
+              icon: "receipt-outline",
+              type: "navigate",
+              target: "BillingCenter",
+              role: "landlord",
+            },
+          ],
+        },
+        {
+          title: "Payment Methods",
         items: [
           {
             id: "paymongo-status",
@@ -531,6 +563,15 @@ export default function SettingsScreen({ navigation, onLogout }) {
       {
         title: "Security",
         items: [
+          {
+            id: "email-recovery-security",
+            label: "Email Recovery Verification",
+            description: emailRecoveryDescription,
+            icon: "mail-outline",
+            type: "navigate",
+            target: "EmailRecoverySecurity",
+            role: "landlord",
+          },
           {
             id: "change-password",
             label: "Change Password",

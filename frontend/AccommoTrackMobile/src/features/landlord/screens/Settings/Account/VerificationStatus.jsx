@@ -328,7 +328,7 @@ export default function VerificationStatus({ navigation }) {
           border: "#FECACA",
           label: "Rejected",
           description:
-            "Your verification was rejected. Please review the reason and resubmit.",
+            "Your landlord verification submission was rejected. This is separate from property draft status. Please review the reason and resubmit your documents.",
         };
       case "pending":
         return {
@@ -441,7 +441,7 @@ export default function VerificationStatus({ navigation }) {
             <View style={styles.rejectionCard}>
               <Ionicons name="warning" size={20} color="#991B1B" />
               <View style={{ flex: 1 }}>
-                <Text style={styles.rejectionTitle}>Reason for Rejection</Text>
+                <Text style={styles.rejectionTitle}>Landlord Verification Rejection Reason</Text>
                 <Text style={styles.rejectionReason}>
                   {verification.rejection_reason}
                 </Text>

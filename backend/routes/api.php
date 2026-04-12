@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminPaymentOversightController;
+use App\Http\Controllers\Admin\AdminSubscriptionGrantController;
 use App\Http\Controllers\Admin\AdminDisputeController;
 use App\Http\Controllers\Admin\AdminBroadcastController;
 use App\Http\Controllers\Common\AuthController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\Landlord\CaretakerController;
 use App\Http\Controllers\Landlord\LandlordBookingController;
 use App\Http\Controllers\Landlord\LandlordController;
 use App\Http\Controllers\Landlord\LandlordDashboardController;
+use App\Http\Controllers\Landlord\LandlordSubscriptionController;
 use App\Http\Controllers\Landlord\LandlordVerificationController;
 use App\Http\Controllers\Landlord\PropertyController;
 use App\Http\Controllers\Landlord\RoomController;
@@ -214,6 +216,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/verification-history', [LandlordVerificationController::class, 'getVerificationHistory']);
         Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
 
+        // Landlord Security: Email recovery OTP enrollment (Settings > Security)
+        Route::post('/security/email-recovery/send-otp', [AuthController::class, 'sendLandlordEmailRecoveryOtp'])->middleware('throttle:auth-attempts');
+        Route::post('/security/email-recovery/verify-otp', [AuthController::class, 'verifyLandlordEmailRecoveryOtp'])->middleware('throttle:auth-attempts');
+        Route::post('/security/email-recovery/disable', [AuthController::class, 'disableLandlordEmailRecovery']);
+
         // Landlord: Reviews
         Route::get('/reviews', [ReviewController::class, 'getLandlordReviews']);
         Route::post('/reviews/{id}/respond', [ReviewController::class, 'respond']);
@@ -224,6 +231,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Landlord: PayMongo Onboarding
         Route::get('/paymongo/onboarding', [LandlordController::class, 'getOnboardingUrl']);
+
+        // Landlord: Subscriptions and billing plan visibility
+        Route::get('/subscriptions/plans', [LandlordSubscriptionController::class, 'plans']);
+        Route::get('/subscriptions/current', [LandlordSubscriptionController::class, 'current']);
+        Route::get('/subscriptions/usage', [LandlordSubscriptionController::class, 'usage']);
+        Route::post('/subscriptions/checkout', [LandlordSubscriptionController::class, 'checkout']);
+        Route::post('/subscriptions/checkout/{subscriptionId}/sync', [LandlordSubscriptionController::class, 'syncCheckout']);
 
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
@@ -410,6 +424,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/payments/{invoiceId}/override-approve', [AdminPaymentOversightController::class, 'overrideApprove']);
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index']);
         Route::get('/audit-logs/timeline', [AdminAuditLogController::class, 'entityTimeline']);
+
+        // Admin: Dynamic subscription grants
+        Route::post('/subscriptions/grants', [AdminSubscriptionGrantController::class, 'grant']);
+        Route::patch('/subscriptions/grants/{grantId}/extend', [AdminSubscriptionGrantController::class, 'extend']);
+        Route::post('/subscriptions/grants/{grantId}/revoke', [AdminSubscriptionGrantController::class, 'revoke']);
+        Route::get('/subscriptions/landlords/{landlordId}', [AdminSubscriptionGrantController::class, 'overview']);
 
         // Admin: Dispute Arbitration
         Route::get('/disputes', [AdminDisputeController::class, 'index']);

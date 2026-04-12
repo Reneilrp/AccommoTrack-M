@@ -48,6 +48,10 @@ export const landlordQueryKeys = {
   caretakersBundle: () => ['landlordCaretakersBundle'],
   invoices: () => ['landlordInvoices'],
   invoiceSummary: (range = 'month') => ['landlordInvoiceSummary', range],
+  subscriptionPlans: () => ['landlordSubscriptionPlans'],
+  currentSubscription: () => ['landlordCurrentSubscription'],
+  subscriptionBundle: () => ['landlordSubscriptionBundle'],
+  billingCenterBundle: () => ['landlordBillingCenterBundle'],
   propertyAddons: (options = 'all') => {
     if (typeof options === 'object' && options !== null) {
       const { propertyScope = 'all', propertyIdsKey = 'none' } = options;

@@ -270,7 +270,7 @@ export default function VerificationStatus() {
           bgColor: 'bg-red-50 dark:bg-red-900/20',
           borderColor: 'border-red-200 dark:border-red-800',
           label: 'Rejected',
-          description: 'Your verification was rejected. Please review the reason below and resubmit.',
+          description: 'Your landlord verification submission was rejected. This is separate from property draft status. Review the reason below and resubmit your documents.',
         };
       case 'pending':
         return {
@@ -399,7 +399,7 @@ export default function VerificationStatus() {
           <div className="flex items-start gap-4">
             <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-semibold text-red-800 dark:text-red-300">Reason for Rejection</h4>
+              <h4 className="font-semibold text-red-800 dark:text-red-300">Landlord Verification Rejection Reason</h4>
               <p className="text-red-700 dark:text-red-400 mt-2">{verification.rejection_reason}</p>
             </div>
           </div>

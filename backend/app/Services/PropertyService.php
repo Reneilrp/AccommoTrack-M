@@ -6,16 +6,22 @@ use App\Models\LandlordVerification;
 use App\Models\Property;
 use App\Models\PropertyImage;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionResolverService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 class PropertyService
 {
+    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService)
+    {
+    }
+
     public function canLandlordSubmitProperties(User $user): bool
     {
         if ((bool) ($user->is_verified ?? false)) {
@@ -35,6 +41,8 @@ class PropertyService
     public function createProperty(array $validated, User $user): Property
     {
         return DB::transaction(function () use ($validated, $user) {
+            $this->assertCanCreatePropertyUnderSubscription($user);
+
             $canSubmitProperties = $this->canLandlordSubmitProperties($user);
 
             $currentStatus = Property::STATUS_DRAFT;
@@ -420,6 +428,30 @@ class PropertyService
             'bedspacer' => 'bedSpacer',
             default => $trimmed,
         };
+    }
+
+    private function assertCanCreatePropertyUnderSubscription(User $landlord): void
+    {
+        if ($landlord->role !== 'landlord') {
+            return;
+        }
+
+        $usage = $this->subscriptionResolverService->getUsageSummary($landlord);
+
+        if ((bool) ($usage['can_create_property'] ?? true)) {
+            return;
+        }
+
+        $limit = $usage['properties_limit'];
+        $limitLabel = $limit === null ? 'plan limits' : sprintf('%d-property plan limit', (int) $limit);
+
+        throw ValidationException::withMessages([
+            'subscription' => sprintf(
+                'Property limit reached (%d/%s). Upgrade your subscription or reduce properties before creating a new listing.',
+                (int) ($usage['properties_count'] ?? 0),
+                $limit === null ? $limitLabel : (string) $limit
+            ),
+        ]);
     }
 
     public function safeSoftDeleteProperty(Property $property, bool $isLandlord): void

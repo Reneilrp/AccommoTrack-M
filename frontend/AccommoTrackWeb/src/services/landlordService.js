@@ -7,6 +7,87 @@ import api from '../utils/api';
 export const landlordService = {
 
   /**
+   * Get available subscription plans
+   * GET /landlord/subscriptions/plans
+   */
+  async getSubscriptionPlans() {
+    try {
+      const res = await api.get('/landlord/subscriptions/plans');
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Get current subscription bundle (subscription + plan + usage)
+   * GET /landlord/subscriptions/current
+   */
+  async getCurrentSubscription() {
+    try {
+      const res = await api.get('/landlord/subscriptions/current');
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Get current usage against subscription limits
+   * GET /landlord/subscriptions/usage
+   */
+  async getSubscriptionUsage() {
+    try {
+      const res = await api.get('/landlord/subscriptions/usage');
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
+   * Start self-serve checkout for a target plan
+   * POST /landlord/subscriptions/checkout
+   */
+  async checkoutSubscription(payload) {
+    try {
+      const res = await api.post('/landlord/subscriptions/checkout', payload);
+      return {
+        success: true,
+        data: res.data?.data || res.data,
+        message: res.data?.message || '',
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.message || err.message,
+        status: err.response?.status,
+      };
+    }
+  },
+
+  /**
+   * Sync a checkout subscription after payment status updates
+   * POST /landlord/subscriptions/checkout/:id/sync
+   */
+  async syncSubscriptionCheckout(subscriptionId) {
+    try {
+      const res = await api.post(`/landlord/subscriptions/checkout/${subscriptionId}/sync`);
+      return {
+        success: true,
+        data: res.data?.data || res.data,
+        message: res.data?.message || '',
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.message || err.message,
+        status: err.response?.status,
+      };
+    }
+  },
+
+  /**
    * Get all tenants for a property
    * GET /landlord/tenants?property_id=...
    */

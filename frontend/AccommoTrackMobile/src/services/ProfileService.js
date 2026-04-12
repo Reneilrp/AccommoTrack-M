@@ -208,6 +208,71 @@ const ProfileService = {
   },
 
   /**
+   * Landlord only: send email recovery OTP from Settings > Security
+   */
+  async sendLandlordEmailRecoveryOtp() {
+    try {
+      const response = await api.post('/landlord/security/email-recovery/send-otp');
+      return {
+        success: true,
+        data: response.data.user || null,
+        emailRecovery: response.data.email_recovery || null,
+        message: response.data.message || 'Verification code sent to your email address.',
+      };
+    } catch (error) {
+      console.error('Error sending landlord email recovery OTP:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to send verification code',
+      };
+    }
+  },
+
+  /**
+   * Landlord only: verify email recovery OTP from Settings > Security
+   */
+  async verifyLandlordEmailRecoveryOtp(emailOtpCode) {
+    try {
+      const response = await api.post('/landlord/security/email-recovery/verify-otp', {
+        email_otp_code: emailOtpCode,
+      });
+      return {
+        success: true,
+        data: response.data.user || null,
+        emailRecovery: response.data.email_recovery || null,
+        message: response.data.message || 'Email recovery verified successfully.',
+      };
+    } catch (error) {
+      console.error('Error verifying landlord email recovery OTP:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to verify code',
+      };
+    }
+  },
+
+  /**
+   * Landlord only: disable email recovery from Settings > Security
+   */
+  async disableLandlordEmailRecovery() {
+    try {
+      const response = await api.post('/landlord/security/email-recovery/disable');
+      return {
+        success: true,
+        data: response.data.user || null,
+        emailRecovery: response.data.email_recovery || null,
+        message: response.data.message || 'Email recovery has been disabled.',
+      };
+    } catch (error) {
+      console.error('Error disabling landlord email recovery:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to disable email recovery',
+      };
+    }
+  },
+
+  /**
    * Get landlord verification status
    */
   async getVerificationStatus() {

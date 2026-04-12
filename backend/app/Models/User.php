@@ -170,6 +170,40 @@ class User extends Authenticatable
     }
 
     /**
+     * Subscription records for landlord accounts.
+     */
+    public function landlordSubscriptions()
+    {
+        return $this->hasMany(LandlordSubscription::class, 'landlord_id');
+    }
+
+    /**
+     * Active/effective subscription record for landlord accounts.
+     */
+    public function activeLandlordSubscription()
+    {
+        return $this->hasOne(LandlordSubscription::class, 'landlord_id')
+            ->whereIn('status', [
+                LandlordSubscription::STATUS_ACTIVE,
+                LandlordSubscription::STATUS_GRACE,
+                LandlordSubscription::STATUS_RESTRICTED,
+            ])
+            ->where('starts_at', '<=', now())
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>=', now());
+            })
+            ->latestOfMany('starts_at');
+    }
+
+    /**
+     * Admin grant records for landlord subscriptions.
+     */
+    public function subscriptionGrants()
+    {
+        return $this->hasMany(SubscriptionGrant::class, 'landlord_id');
+    }
+
+    /**
      * Landlord verification record
      */
     public function landlordVerification()

@@ -78,6 +78,8 @@ describe('Landlord screens smoke coverage', () => {
       'UpdatePassword',
       'PropertyPaymentSettings',
       'ManualPaymentSettings',
+      'SubscriptionPlan',
+      'BillingCenter',
       'Caretakers',
       'Chat',
       'Settings',

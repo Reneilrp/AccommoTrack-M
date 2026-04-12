@@ -42,6 +42,8 @@ jest.mock('../../../components/Settings/landlord/MyProfile', () => () => <div>Pr
 jest.mock('../../../components/Settings/landlord/Notifications', () => () => <div>Notifications Tab</div>);
 jest.mock('../../../components/Settings/landlord/Security', () => () => <div>Security Tab</div>);
 jest.mock('../../../components/Settings/landlord/PaymentMethods', () => () => <div>Payment Tab</div>);
+jest.mock('../../../components/Settings/landlord/SubscriptionPlan', () => () => <div>Subscription Plan Tab</div>);
+jest.mock('../../../components/Settings/landlord/BillingCenter', () => () => <div>Billing Center Tab</div>);
 jest.mock('../../../components/Settings/AppearanceTab', () => () => <div>Appearance Tab</div>);
 jest.mock('../../../components/Settings/SwitchRoleTab', () => () => <div>Switch Role Tab</div>);
 jest.mock('../VerificationStatus', () => () => <div>Verification Tab</div>);

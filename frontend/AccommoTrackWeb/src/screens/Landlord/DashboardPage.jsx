@@ -225,7 +225,7 @@ export default function DashboardPage({ user }) {
         return {
           wrapperClass: 'bg-red-50 border-red-200',
           icon: <FileWarning className="w-6 h-6 text-red-600" />,
-          message: 'Your previous submission was rejected. Check Settings for the reason and resubmit.',
+          message: 'Your landlord verification submission was rejected. This is separate from your property drafts. Check Settings for the reason and resubmit documents.',
         };
       case 'approved':
         return null;
@@ -300,7 +300,7 @@ export default function DashboardPage({ user }) {
             <div className="flex items-center gap-4">
               {verificationBanner.icon}
               <div>
-                <h3 className="font-semibold text-gray-900">Account Status: {verificationStatus.status.replace('_', ' ').toUpperCase()}</h3>
+                <h3 className="font-semibold text-gray-900">Verification Status: {verificationStatus.status.replace('_', ' ').toUpperCase()}</h3>
                 <p className="text-sm text-gray-600">{verificationBanner.message}</p>
               </div>
             </div>

@@ -243,19 +243,20 @@ export default function RoomDetailsModal({
     .toLowerCase()
     .replace(/[\s_-]/g, "");
   const isBedSpacerRoom = normalizedRoomType === "bedspacer";
-  const maxBookableBeds = isBedSpacerRoom
+  const maxBookableBeds = pricingModel === "per_bed"
     ? Math.max(
         1,
         resolvedAvailableSlots >= 0 ? resolvedAvailableSlots : resolvedCapacity,
       )
     : 1;
+  const showBedCountSelector = pricingModel === "per_bed";
   const roomGender = normalizeRoomRestriction(room?.gender_restriction);
   const requiredProxyGender = roomGender === "male" || roomGender === "female"
     ? roomGender
     : "";
   const occupantLimit =
     pricingModel === "per_bed"
-      ? Math.max(1, bedCount)
+      ? Math.max(1, Math.min(bedCount, maxBookableBeds))
       : resolvedCapacity;
   const monthlyRate = toMoneyNumber(
     room?.monthly_rate ?? room?.monthlyRate ?? room?.price,
@@ -657,10 +658,16 @@ export default function RoomDetailsModal({
     // Submit booking to server (use shared /bookings endpoint)
     setIsSubmitting(true);
     try {
+      let finalBedCount = bedCount;
+      if (bookingMode === "proxy") {
+        // Force bed_count to match the number of occupants if it's higher
+        finalBedCount = Math.max(bedCount, normalizedOccupants.length);
+      }
+
       const payload = {
         room_id: room.id,
         booking_mode: bookingMode,
-        bed_count: bedCount,
+        bed_count: finalBedCount,
         start_date: startDate,
         end_date: hasCheckout ? endDate : null,
         notes: notes || "",
@@ -1189,7 +1196,7 @@ export default function RoomDetailsModal({
 
                   {/* Date Selection */}
                   <div className="space-y-4">
-                    {isBedSpacerRoom && (
+                    {showBedCountSelector && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Number of Beds <span className="text-red-500">*</span>

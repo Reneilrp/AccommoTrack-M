@@ -32,6 +32,7 @@ import {
   CreditCard,
   Users,
   Shuffle,
+  HelpCircle,
   MessageSquare
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';

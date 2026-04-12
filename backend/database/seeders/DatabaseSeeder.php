@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         // Call the UserSeeder we created earlier
         $this->call([
+            SubscriptionPlanSeeder::class,
             AdminUserSeeder::class,
             TestLandlordPropertyRoomSeeder::class,
         ]);

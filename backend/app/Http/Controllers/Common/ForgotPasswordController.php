@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 
 class ForgotPasswordController extends Controller
 {
+    private const LANDLORD_RECOVERY_REQUIRED_MESSAGE = 'Password reset for landlord accounts is available only after enabling and verifying Email Recovery in Settings > Security.';
+
     /**
      * Send OTP Code to Email
      */
@@ -38,6 +40,10 @@ class ForgotPasswordController extends Controller
         // Prevent blocked users from resetting password
         if ($user->is_blocked) {
             return response()->json(['message' => 'Your account has been blocked. Please contact support.'], 403);
+        }
+
+        if (! $this->canUsePasswordRecovery($user)) {
+            return response()->json(['message' => self::LANDLORD_RECOVERY_REQUIRED_MESSAGE], 403);
         }
 
         $code = rand(100000, 999999);
@@ -74,6 +80,12 @@ class ForgotPasswordController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['message' => 'Invalid data.', 'errors' => $validator->errors()], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        if ($user && ! $this->canUsePasswordRecovery($user)) {
+            return response()->json(['message' => self::LANDLORD_RECOVERY_REQUIRED_MESSAGE], 403);
         }
 
         $record = DB::table('password_reset_codes')
@@ -129,6 +141,10 @@ class ForgotPasswordController extends Controller
             return response()->json(['message' => 'Your account has been blocked. Please contact support.'], 403);
         }
 
+        if (! $this->canUsePasswordRecovery($user)) {
+            return response()->json(['message' => self::LANDLORD_RECOVERY_REQUIRED_MESSAGE], 403);
+        }
+
         // Prevent reusing the same password
         if (Hash::check($request->password, $user->password)) {
             return response()->json([
@@ -144,5 +160,24 @@ class ForgotPasswordController extends Controller
         DB::table('password_reset_codes')->where('email', $request->email)->delete();
 
         return response()->json(['message' => 'Password reset successfully. You can now login.'], 200);
+    }
+
+    private function canUsePasswordRecovery(User $user): bool
+    {
+        if ($user->role !== 'landlord') {
+            return true;
+        }
+
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
+        $security = $preferences['security'] ?? [];
+
+        if (! is_array($security)) {
+            return false;
+        }
+
+        $enabled = (bool) ($security['emailRecoveryEnabled'] ?? false);
+        $verifiedAt = $security['emailRecoveryVerifiedAt'] ?? null;
+
+        return $enabled && ! empty($verifiedAt);
     }
 }

@@ -439,6 +439,88 @@ const adminService = {
   },
 
   /**
+   * Grant a subscription plan to a landlord (admin override)
+   * @param {{landlord_id: number|string, plan_id: number|string, starts_at?: string, duration_months?: number, ends_at?: string, auto_renew?: boolean, notes?: string}} payload
+   */
+  async grantSubscription(payload = {}) {
+    try {
+      const response = await api.post('/admin/subscriptions/grants', payload);
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: envelope.data,
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to grant subscription.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Extend an existing admin grant
+   * @param {number|string} grantId
+   * @param {{add_months?: number, ends_at?: string, notes?: string}} payload
+   */
+  async extendSubscriptionGrant(grantId, payload = {}) {
+    try {
+      const response = await api.patch(`/admin/subscriptions/grants/${grantId}/extend`, payload);
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: envelope.data,
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to extend subscription grant.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Revoke an existing admin grant
+   * @param {number|string} grantId
+   * @param {{reason?: string}} payload
+   */
+  async revokeSubscriptionGrant(grantId, payload = {}) {
+    try {
+      const response = await api.post(`/admin/subscriptions/grants/${grantId}/revoke`, payload);
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: envelope.data,
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to revoke subscription grant.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Get current subscription + timeline for a landlord
+   * @param {number|string} landlordId
+   */
+  async getSubscriptionOverview(landlordId) {
+    try {
+      const response = await api.get(`/admin/subscriptions/landlords/${landlordId}`);
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: envelope.data,
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to fetch subscription overview.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
    * Get payment oversight queue (manual payments)
    * @param {Object} params
    */

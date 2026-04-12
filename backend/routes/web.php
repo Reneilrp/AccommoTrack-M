@@ -2,6 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 
+// Loader.io verification route - MUST be at the top
+Route::get('loaderio-abc0f9c6f1440ec8a0d9be1509e3d1af.txt', function () {
+    return response('loaderio-abc0f9c6f1440ec8a0d9be1509e3d1af')
+        ->header('Content-Type', 'text/plain');
+});
+
 Route::get('/login', fn () => response()->json(['message' => 'Login route placeholder']))->name('login');
 
 Route::get('/become-landlord', function () {

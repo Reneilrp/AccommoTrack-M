@@ -1,6 +1,7 @@
 import React from 'react';
 
 export default function Security({
+  accessRole,
   passwordData,
   setPasswordData,
   isEditingPassword,
@@ -12,8 +13,29 @@ export default function Security({
   setIsEditingSecurity,
   handleCancelSecurityEdit,
   handleUpdateSecurity,
-  isSavingSecurity
+  isSavingSecurity,
+  emailRecoveryOtpCode,
+  setEmailRecoveryOtpCode,
+  handleSendEmailRecoveryOtp,
+  handleVerifyEmailRecoveryOtp,
+  handleDisableEmailRecoveryOtp,
+  isSendingEmailRecoveryOtp,
+  isVerifyingEmailRecoveryOtp,
+  isDisablingEmailRecoveryOtp,
 }) {
+  const isLandlord = accessRole === 'landlord';
+  const isEmailRecoveryEnabled = Boolean(security?.emailRecoveryEnabled);
+  const emailRecoveryVerifiedAt = security?.emailRecoveryVerifiedAt || null;
+  const isEmailRecoveryVerified = isEmailRecoveryEnabled && Boolean(emailRecoveryVerifiedAt);
+  const isEmailRecoveryLoading = isSendingEmailRecoveryOtp || isVerifyingEmailRecoveryOtp || isDisablingEmailRecoveryOtp;
+
+  const formatVerifiedAt = (timestamp) => {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return timestamp;
+    return date.toLocaleString();
+  };
+
   return (
     <div className="space-y-6">
       <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-6 transition-all ${isEditingPassword ? 'border-green-300 dark:border-green-600 ring-2 ring-green-100 dark:ring-green-900/30' : 'border-gray-100 dark:border-gray-700'}`}>
@@ -200,6 +222,97 @@ export default function Security({
           </div>
         )}
       </div>
+      {isLandlord && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center mb-4 gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Email Recovery Verification</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Enable this from Settings to allow landlord forgot password and reset password.
+              </p>
+            </div>
+            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+              isEmailRecoveryVerified
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                : isEmailRecoveryEnabled
+                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+            }`}>
+              {isEmailRecoveryVerified ? 'Verified' : isEmailRecoveryEnabled ? 'Pending Verification' : 'Disabled'}
+            </span>
+          </div>
+
+          {!isEmailRecoveryEnabled && (
+            <button
+              type="button"
+              onClick={handleSendEmailRecoveryOtp}
+              disabled={isEmailRecoveryLoading}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSendingEmailRecoveryOtp ? 'Sending OTP...' : 'Enable and Send OTP'}
+            </button>
+          )}
+
+          {isEmailRecoveryEnabled && !isEmailRecoveryVerified && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Enter the 6-digit code sent to your account email to finish enabling recovery.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={emailRecoveryOtpCode}
+                onChange={(e) => setEmailRecoveryOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full md:w-64 px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
+                placeholder="Enter 6-digit OTP"
+              />
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleVerifyEmailRecoveryOtp}
+                  disabled={isEmailRecoveryLoading || (emailRecoveryOtpCode || '').length !== 6}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isVerifyingEmailRecoveryOtp ? 'Verifying...' : 'Verify OTP'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendEmailRecoveryOtp}
+                  disabled={isEmailRecoveryLoading}
+                  className="px-4 py-2 border border-green-600 dark:border-green-500 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSendingEmailRecoveryOtp ? 'Sending...' : 'Resend OTP'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDisableEmailRecoveryOtp}
+                  disabled={isEmailRecoveryLoading}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDisablingEmailRecoveryOtp ? 'Disabling...' : 'Disable'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isEmailRecoveryVerified && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Verified on {formatVerifiedAt(emailRecoveryVerifiedAt)}
+              </p>
+              <button
+                type="button"
+                onClick={handleDisableEmailRecoveryOtp}
+                disabled={isEmailRecoveryLoading}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isDisablingEmailRecoveryOtp ? 'Disabling...' : 'Disable Email Recovery'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

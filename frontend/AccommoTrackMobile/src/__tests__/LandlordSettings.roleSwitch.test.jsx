@@ -1,5 +1,4 @@
 import React from 'react';
-import { Alert } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
@@ -59,6 +58,18 @@ jest.mock('../contexts/ThemeContext.jsx', () => ({
     theme: mockTheme,
     isDarkMode: false,
     toggleTheme: jest.fn(),
+  }),
+}));
+
+jest.mock('../shared/hooks/useAppVersion.js', () => ({
+  useAppVersion: () => ({
+    currentVersion: '1.0.0',
+    latestVersion: '1.0.0',
+    downloadUrl: '',
+    updateAvailable: false,
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn(),
   }),
 }));
 
@@ -124,8 +135,6 @@ describe('Landlord SettingsHub role switch', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-
     AsyncStorage.getItem.mockImplementation(async (key) => {
       if (key === 'user') {
         return JSON.stringify({ id: 88, role: 'landlord' });
@@ -168,10 +177,6 @@ describe('Landlord SettingsHub role switch', () => {
     });
   });
 
-  afterEach(() => {
-    Alert.alert.mockRestore();
-  });
-
   it('switches landlord to tenant after confirmation and persists role', async () => {
     renderWithClient(<SettingsHub navigation={mockNavigation} />);
 
@@ -180,20 +185,13 @@ describe('Landlord SettingsHub role switch', () => {
     fireEvent.press(screen.getByText('Switch to Tenant'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalled();
+      expect(
+        screen.getByText('Are you sure you want to switch your account to Tenant mode?'),
+      ).toBeTruthy();
     });
 
-    const switchPromptCall = Alert.alert.mock.calls.find(
-      ([title]) => title === 'Switch to Tenant',
-    );
-    expect(switchPromptCall).toBeDefined();
-
-    const [, , buttons = []] = switchPromptCall;
-    const switchButton = buttons.find((button) => button?.text === 'Switch');
-    expect(switchButton).toBeDefined();
-
     await act(async () => {
-      await switchButton.onPress();
+      fireEvent.press(screen.getByText('Switch'));
     });
 
     await waitFor(() => {

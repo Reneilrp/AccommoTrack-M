@@ -28,6 +28,7 @@ class AuthController extends Controller
     private const ACCESS_TOKEN_NAME = 'access_token';
     private const REFRESH_TOKEN_NAME = 'refresh_token';
     private const REFRESH_TOKEN_ABILITY = 'token:refresh';
+    private const LANDLORD_EMAIL_RECOVERY_OTP_TTL_MINUTES = 10;
 
     protected AuthService $authService;
     protected LegalConsentService $legalConsentService;
@@ -792,6 +793,160 @@ class AuthController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function sendLandlordEmailRecoveryOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'landlord') {
+            return response()->json([
+                'message' => 'This feature is available for landlord accounts only.',
+            ], 403);
+        }
+
+        $otp = (string) random_int(100000, 999999);
+
+        $user->forceFill([
+            'email_otp_code' => Hash::make($otp),
+            'email_otp_expires_at' => Carbon::now()->addMinutes(self::LANDLORD_EMAIL_RECOVERY_OTP_TTL_MINUTES),
+        ])->save();
+
+        try {
+            Mail::to($user->email)->send(new EmailOtpMail($otp));
+        } catch (\Throwable $mailException) {
+            Log::warning('Landlord email recovery OTP send failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $mailException->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to send verification code. Please try again later.',
+            ], 500);
+        }
+
+        $user = $this->persistLandlordEmailRecoverySecurityState($user, true, null);
+
+        return response()->json([
+            'message' => 'Verification code sent to your email address.',
+            'user' => $user,
+            'email_recovery' => $this->extractLandlordEmailRecoveryStatus($user),
+        ]);
+    }
+
+    public function verifyLandlordEmailRecoveryOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'landlord') {
+            return response()->json([
+                'message' => 'This feature is available for landlord accounts only.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'email_otp_code' => 'required|digits:6',
+        ]);
+
+        if (! $user->email_otp_code || ! $user->email_otp_expires_at) {
+            return response()->json([
+                'message' => 'Verification code not found. Please request a new code from Settings.',
+            ], 404);
+        }
+
+        if (Carbon::now()->isAfter($user->email_otp_expires_at)) {
+            return response()->json([
+                'message' => 'Verification code has expired. Please request a new code.',
+            ], 422);
+        }
+
+        if (! Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
+            return response()->json([
+                'message' => 'Invalid verification code.',
+            ], 422);
+        }
+
+        $user->forceFill([
+            'email_otp_code' => null,
+            'email_otp_expires_at' => null,
+        ])->save();
+
+        $user = $this->persistLandlordEmailRecoverySecurityState($user, true, now()->toIso8601String());
+
+        return response()->json([
+            'message' => 'Email recovery verified successfully.',
+            'user' => $user,
+            'email_recovery' => $this->extractLandlordEmailRecoveryStatus($user),
+        ]);
+    }
+
+    public function disableLandlordEmailRecovery(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'landlord') {
+            return response()->json([
+                'message' => 'This feature is available for landlord accounts only.',
+            ], 403);
+        }
+
+        $user->forceFill([
+            'email_otp_code' => null,
+            'email_otp_expires_at' => null,
+        ])->save();
+
+        $user = $this->persistLandlordEmailRecoverySecurityState($user, false, null);
+
+        return response()->json([
+            'message' => 'Email recovery has been disabled.',
+            'user' => $user,
+            'email_recovery' => $this->extractLandlordEmailRecoveryStatus($user),
+        ]);
+    }
+
+    private function extractLandlordEmailRecoveryStatus(User $user): array
+    {
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        return [
+            'enabled' => (bool) $securityPreferences['emailRecoveryEnabled'],
+            'verified_at' => $securityPreferences['emailRecoveryVerifiedAt'] ?: null,
+        ];
+    }
+
+    private function persistLandlordEmailRecoverySecurityState(User $user, bool $enabled, ?string $verifiedAt): User
+    {
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        $securityPreferences['emailRecoveryEnabled'] = $enabled;
+        $securityPreferences['emailRecoveryVerifiedAt'] = $verifiedAt;
+
+        $preferences['security'] = $securityPreferences;
+
+        $user->forceFill([
+            'preferences' => $preferences,
+        ])->save();
+
+        return $user->fresh();
+    }
+
+    private function getNormalizedSecurityPreferences(User $user): array
+    {
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
+        $security = $preferences['security'] ?? [];
+
+        if (! is_array($security)) {
+            $security = [];
+        }
+
+        return [
+            'twoFactorAuth' => (bool) ($security['twoFactorAuth'] ?? false),
+            'loginAlerts' => array_key_exists('loginAlerts', $security) ? (bool) $security['loginAlerts'] : true,
+            'emailRecoveryEnabled' => (bool) ($security['emailRecoveryEnabled'] ?? false),
+            'emailRecoveryVerifiedAt' => ! empty($security['emailRecoveryVerifiedAt']) ? (string) $security['emailRecoveryVerifiedAt'] : null,
+        ];
     }
 
     public function removeProfileImage(Request $request)

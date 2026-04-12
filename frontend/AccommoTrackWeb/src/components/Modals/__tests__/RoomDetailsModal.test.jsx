@@ -323,6 +323,77 @@ describe('RoomDetailsModal proxy booking', () => {
     expect(screen.getByRole('option', { name: '2 Beds' })).toBeInTheDocument();
   });
 
+  it('submits selected multi-bed count for proxy bookings on per-bed rooms', async () => {
+    const createBooking = jest.fn().mockResolvedValue({
+      data: {
+        booking: {
+          id: 557,
+          status: 'pending',
+        },
+      },
+    });
+
+    const { container } = renderBookingForm(
+      { createBooking },
+      {},
+      {
+        room_type: 'single',
+        pricing_model: 'per_bed',
+        available_slots: 3,
+        capacity: 3,
+        gender_restriction: 'female',
+      },
+    );
+
+    const initialDateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(initialDateInputs[0], {
+      target: { value: getTomorrowDateValue() },
+    });
+
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: '2' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Occupant' }));
+
+    const fullNameInputs = screen.getAllByPlaceholderText('Full name');
+    fireEvent.change(fullNameInputs[0], {
+      target: { value: 'Proxy Occupant One' },
+    });
+    fireEvent.change(fullNameInputs[1], {
+      target: { value: 'Proxy Occupant Two' },
+    });
+
+    const relationshipInputs = screen.getAllByPlaceholderText('Relationship to booker');
+    fireEvent.change(relationshipInputs[0], {
+      target: { value: 'friend' },
+    });
+    fireEvent.change(relationshipInputs[1], {
+      target: { value: 'friend' },
+    });
+
+    const dateInputsWithOccupants = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateInputsWithOccupants[dateInputsWithOccupants.length - 2], {
+      target: { value: '1990-05-01' },
+    });
+    fireEvent.change(dateInputsWithOccupants[dateInputsWithOccupants.length - 1], {
+      target: { value: '1991-06-01' },
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Booking Request' }));
+
+    await waitFor(() => {
+      expect(createBooking).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = createBooking.mock.calls[0][0];
+    expect(payload.booking_mode).toBe('proxy');
+    expect(payload.bed_count).toBe(2);
+    expect(payload.occupants).toHaveLength(2);
+  });
+
   it('smoke: shows normal booking validation toasts', async () => {
     const createBooking = jest.fn();
 

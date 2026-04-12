@@ -207,6 +207,8 @@ class PropertyController extends Controller
             $property = $this->propertyService->createProperty($request->validated(), $context['user']);
 
             return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to create property', 'error' => $e->getMessage()], 500);
         }
@@ -250,6 +252,8 @@ class PropertyController extends Controller
             $property = $this->propertyService->updateProperty($property, $request->validated(), $request);
 
             return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to update property', 'error' => $e->getMessage()], 500);
         }

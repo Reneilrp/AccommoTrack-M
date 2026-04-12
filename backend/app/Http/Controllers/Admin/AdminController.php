@@ -1033,14 +1033,24 @@ class AdminController extends Controller
             ->get();
 
         foreach ($recentProperties as $property) {
-            $statusType = $property->current_status === Property::STATUS_ACTIVE ? 'approval' : ($property->current_status === Property::STATUS_INACTIVE ? 'rejection' : 'property');
+            $normalizedStatus = strtolower((string) $property->current_status);
+            $landlordName = trim(($property->landlord?->first_name ?? 'Unknown').' '.($property->landlord?->last_name ?? 'Landlord'));
+
+            $activityMeta = match ($normalizedStatus) {
+                Property::STATUS_PENDING => ['type' => 'property', 'title' => 'Property Submitted', 'badge' => 'Pending'],
+                Property::STATUS_ACTIVE => ['type' => 'approval', 'title' => 'Property Approved', 'badge' => 'Approved'],
+                Property::STATUS_INACTIVE => ['type' => 'rejection', 'title' => 'Property Rejected', 'badge' => 'Rejected'],
+                Property::STATUS_MAINTENANCE => ['type' => 'property', 'title' => 'Property Put Under Maintenance', 'badge' => 'Maintenance'],
+                Property::STATUS_DRAFT => ['type' => 'property', 'title' => 'Property Saved as Draft', 'badge' => 'Draft'],
+                default => ['type' => 'property', 'title' => 'Property Updated', 'badge' => ucfirst($normalizedStatus !== '' ? $normalizedStatus : 'unknown')],
+            };
 
             $activities[] = [
-                'type' => $statusType,
-                'title' => $property->current_status === Property::STATUS_PENDING ? 'Property Submitted' : ($property->current_status === Property::STATUS_ACTIVE ? 'Property Approved' : 'Property Rejected'),
-                'description' => $property->title.' by '.$property->landlord->first_name.' '.$property->landlord->last_name,
-                'timestamp' => $property->created_at->toISOString(),
-                'badge' => ucfirst($property->current_status),
+                'type' => $activityMeta['type'],
+                'title' => $activityMeta['title'],
+                'description' => $property->title.' by '.$landlordName,
+                'timestamp' => ($property->updated_at ?? $property->created_at)?->toISOString(),
+                'badge' => $activityMeta['badge'],
             ];
         }
 

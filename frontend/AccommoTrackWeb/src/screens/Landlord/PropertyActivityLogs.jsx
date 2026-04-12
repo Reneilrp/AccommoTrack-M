@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Loader2, Search } from 'lucide-react';
 import api from '../../utils/api';
 
-export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen, onClose }) {
+export default function PropertyActivityLogs({ propertyId, _propertyTitle, isOpen, onClose }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

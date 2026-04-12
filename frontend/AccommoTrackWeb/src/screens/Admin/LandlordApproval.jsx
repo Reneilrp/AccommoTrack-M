@@ -378,6 +378,7 @@ export default function LandlordApproval() {
 
   const safeVerifications = Array.isArray(verifications) ? verifications : [];
   const selectableVerifications = safeVerifications.filter((verification) => isSelectableVerification(verification));
+  const canShowSelectionColumn = isEditMode && selectableVerifications.length > 0;
   const selectedVerificationStatus = (selectedVerification?.status || '').toLowerCase();
   const selectedVerificationHistory = Array.isArray(selectedVerification?.history)
     ? selectedVerification.history
@@ -400,18 +401,20 @@ export default function LandlordApproval() {
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Landlord Verification Requests</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">Review submitted IDs and business permits.</p>
         </div>
-        <button
-          onClick={toggleEditMode}
-          className={`shrink-0 h-10 w-10 inline-flex items-center justify-center border rounded-lg transition-colors ${
-            isEditMode
-              ? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20'
-              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-          }`}
-          title={isEditMode ? 'Exit edit mode' : 'Edit'}
-          aria-label={isEditMode ? 'Exit edit mode' : 'Edit'}
-        >
-          <Pencil className="w-4 h-4" />
-        </button>
+        {selectableVerifications.length > 0 && (
+          <button
+            onClick={toggleEditMode}
+            className={`shrink-0 h-10 w-10 inline-flex items-center justify-center border rounded-lg transition-colors ${
+              isEditMode
+                ? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20'
+                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+            title={isEditMode ? 'Exit edit mode' : 'Edit'}
+            aria-label={isEditMode ? 'Exit edit mode' : 'Edit'}
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {safeVerifications.length === 0 ? (
@@ -463,7 +466,7 @@ export default function LandlordApproval() {
               <table className="w-full text-left border-collapse">
               <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
                 <tr>
-                  {isEditMode && (
+                  {canShowSelectionColumn && (
                     <th className="px-6 py-4 font-semibold w-12">
                       <input 
                         type="checkbox" 
@@ -487,7 +490,7 @@ export default function LandlordApproval() {
 
                   return (
                   <tr key={v.id} className={`${isEditMode && selectedUserIds.includes(v.user_id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'} transition-colors`}>
-                    {isEditMode && (
+                    {canShowSelectionColumn && (
                       <td className="px-6 py-4">
                         <input 
                           type="checkbox" 

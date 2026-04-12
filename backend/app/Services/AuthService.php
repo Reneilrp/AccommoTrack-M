@@ -82,9 +82,11 @@ class AuthService
                     ? $user->email_otp_expires_at
                     : Carbon::parse($user->email_otp_expires_at);
 
-                $secondsSinceOtpIssued = Carbon::now()->diffInSeconds($otpExpiresAt->copy()->subMinutes(15), false);
+                $otpIssuedAt = $otpExpiresAt->copy()->subMinutes(15);
+                $secondsSinceOtpIssued = $otpIssuedAt->diffInSeconds(Carbon::now());
+
                 if ($secondsSinceOtpIssued < self::OTP_RESEND_COOLDOWN_SECONDS) {
-                    $retryAfterSeconds = self::OTP_RESEND_COOLDOWN_SECONDS - max($secondsSinceOtpIssued, 0);
+                    $retryAfterSeconds = self::OTP_RESEND_COOLDOWN_SECONDS - $secondsSinceOtpIssued;
                 }
             }
 

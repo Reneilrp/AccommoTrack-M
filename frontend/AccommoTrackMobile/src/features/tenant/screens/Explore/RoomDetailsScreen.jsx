@@ -838,9 +838,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       if (bookingData.notes) data.append('notes', bookingData.notes);
 
       if (bookingMode === 'proxy') {
-        const inferredBedCount = roomPricingModel === 'per_bed'
-          ? Math.max(1, normalizedOccupants.length)
-          : Math.max(1, Number(activeRoom?.capacity || 1));
+        const inferredBedCount = Math.max(1, normalizedOccupants.length);
         data.append('bed_count', String(inferredBedCount));
 
         normalizedOccupants.forEach((occupant, index) => {

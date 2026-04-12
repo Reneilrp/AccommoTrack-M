@@ -608,7 +608,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
             Verification: {verificationState.replace('_', ' ').toUpperCase()}
           </Text>
           <Text style={[styles.bannerText, { color: theme.colors.textSecondary }]}>
-            {isRejected ? (verificationStatus.rejection_reason || "Your documents were rejected. Tap to view reason.") : 
+            {isRejected ? (verificationStatus.rejection_reason || "Your landlord verification documents were rejected. This is separate from your property drafts. Tap to view reason.") : 
              isPending ? "Your documents are being reviewed." : 
              "Submit your documents to verify your account."}
           </Text>

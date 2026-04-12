@@ -732,20 +732,40 @@ export default function RoomManagementScreen({ navigation, route }) {
         !Boolean(tenant?.is_proxy_account)
         && String(tenant?.booking_mode || "").toLowerCase() !== "proxy",
     );
+    const calculatedOccupiedCount = roomTenants.reduce((acc, t) => {
+      const isProxy =
+        Boolean(t?.is_proxy_account) ||
+        String(t?.booking_mode || "").toLowerCase() === "proxy";
+      const tCount = isProxy
+        ? Math.max(
+          1,
+          Number(
+            t?.occupant_count ||
+            (Array.isArray(t?.occupants) ? t.occupants.length : 0) ||
+            t?.bed_count ||
+            1,
+          ),
+        )
+        : 1;
+      return acc + tCount;
+    }, 0);
+    const occupiedCount = calculatedOccupiedCount > 0
+      ? calculatedOccupiedCount
+      : Number(item?.occupied || item?.occupied_count || 0);
+
     const fallbackTenantName =
       item?.tenant
       || item?.current_tenant?.name
       || [item?.current_tenant?.first_name, item?.current_tenant?.last_name]
         .filter(Boolean)
         .join(" ");
-    const occupiedCount = Number(item?.occupied || item?.occupied_count || 0);
     const capacityCount = Number(item?.capacity || 0);
     const hasExistingTenant = Boolean(
       item.tenant_id ||
         item.current_tenant_id ||
         item.tenant?.id ||
         item.current_tenant?.id ||
-        Number(item.occupied || 0) > 0,
+        occupiedCount > 0,
     );
     const cover = item.images?.[0]
       ? {
@@ -885,107 +905,31 @@ export default function RoomManagementScreen({ navigation, route }) {
           </View>
 
           <View style={styles.tenantCard}>
-            {proxyAccounts.length > 0 ? (
-              <View style={styles.proxyHierarchySection}>
-                <Text style={styles.tenantLabel}>Proxy Accounts</Text>
-
-                {proxyAccounts.map((proxyAccount, idx) => {
-                  const proxyKey = `${item.id}-${proxyAccount?.booking_id || proxyAccount?.id || idx}`;
-                  const isExpanded = Boolean(expandedProxyKeys[proxyKey]);
-                  const proxyName =
-                    proxyAccount?.name
-                    || [proxyAccount?.first_name, proxyAccount?.last_name].filter(Boolean).join(" ")
-                    || "Proxy Account";
-                  const occupantProfiles = Array.isArray(proxyAccount?.occupants)
-                    ? proxyAccount.occupants
-                    : [];
-                  const occupantCount = Math.max(
-                    1,
-                    Number(proxyAccount?.occupant_count || occupantProfiles.length || proxyAccount?.bed_count || 1),
-                  );
-
-                  return (
-                    <View key={proxyKey} style={styles.proxyAccountCard}>
-                      <View style={styles.proxyAccountHeaderRow}>
-                        <Text style={styles.proxyAccountName}>{proxyName}</Text>
-                        <Text style={styles.proxyAccountMeta}>
-                          {occupantCount} {occupantCount === 1 ? "occupant" : "occupants"}
-                        </Text>
-                      </View>
-
-                      <TouchableOpacity
-                        onPress={() => {
-                          setExpandedProxyKeys((prev) => ({
-                            ...prev,
-                            [proxyKey]: !prev[proxyKey],
-                          }));
-                        }}
-                        style={styles.proxyToggleButton}
-                      >
-                        <Text style={styles.proxyToggleText}>
-                          {isExpanded ? "Hide Occupants" : "Show Occupants"}
-                        </Text>
-                      </TouchableOpacity>
-
-                      {isExpanded && (
-                        <View style={styles.proxyOccupantList}>
-                          {occupantProfiles.length > 0 ? (
-                            occupantProfiles.map((occupant, occupantIndex) => {
-                              const occupantName =
-                                occupant?.full_name
-                                || occupant?.name
-                                || `Occupant ${occupantIndex + 1}`;
-                              const occupantMeta = [
-                                occupant?.relationship_to_booker,
-                                occupant?.gender,
-                              ]
-                                .filter(Boolean)
-                                .join(" • ");
-
-                              return (
-                                <View key={`${proxyKey}-occupant-${occupant?.id || occupantIndex}`} style={styles.proxyOccupantRow}>
-                                  <Text style={styles.proxyOccupantName}>{occupantName}</Text>
-                                  {occupantMeta ? (
-                                    <Text style={styles.proxyOccupantMeta}>{occupantMeta}</Text>
-                                  ) : null}
-                                </View>
-                              );
-                            })
-                          ) : (
-                            <Text style={styles.proxyOccupantMeta}>Occupant details are still syncing.</Text>
-                          )}
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {directTenants.length > 0 ? (
-              <View style={styles.regularTenantSection}>
-                <Text style={styles.tenantLabel}>Current Occupants</Text>
-                {directTenants.map((tenant, idx) => {
+            <View>
+              <Text style={styles.tenantLabel}>Current Occupants</Text>
+              {roomTenants.length > 0 ? (
+                roomTenants.map((tenant, idx) => {
                   const tenantName =
-                    tenant?.name
-                    || [tenant?.first_name, tenant?.last_name].filter(Boolean).join(" ")
-                    || `Tenant ${idx + 1}`;
-
+                    tenant?.name ||
+                    [tenant?.first_name, tenant?.last_name]
+                      .filter(Boolean)
+                      .join(" ") ||
+                    `Tenant ${idx + 1}`;
                   return (
-                    <Text key={`${item.id}-tenant-${tenant?.id || idx}`} style={styles.tenantText}>
+                    <Text
+                      key={`${item.id}-tenant-${tenant?.id || idx}`}
+                      style={styles.tenantText}
+                    >
                       {tenantName}
                     </Text>
                   );
-                })}
-              </View>
-            ) : null}
-
-            {proxyAccounts.length === 0 && directTenants.length === 0 ? (
-              <View>
-                <Text style={styles.tenantLabel}>Current Occupants</Text>
-                <Text style={styles.tenantText}>{fallbackTenantName || "No tenant assigned"}</Text>
-              </View>
-            ) : null}
+                })
+              ) : (
+                <Text style={styles.tenantText}>
+                  {fallbackTenantName || "No tenant assigned"}
+                </Text>
+              )}
+            </View>
 
             <TouchableOpacity
               style={styles.roomDetailsLink}
@@ -1179,23 +1123,29 @@ export default function RoomManagementScreen({ navigation, route }) {
               contentContainerStyle={styles.detailsModalContent}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.detailsStatsRow}>
-                <View style={styles.detailsStatCard}>
-                  <Text style={styles.detailsStatLabel}>Occupancy</Text>
-                  <Text style={styles.detailsStatValue}>
-                    {Number(detailRoom?.occupied || detailRoom?.occupied_count || 0)}/{Number(detailRoom?.capacity || 0) || 1}
-                  </Text>
-                </View>
-                <View style={styles.detailsStatCard}>
-                  <Text style={styles.detailsStatLabel}>Rate</Text>
-                  <Text style={styles.detailsStatValue}>
-                    {formatCurrency(detailRoom?.unit_price || detailRoom?.monthly_rate || detailRoom?.daily_rate || 0)}
-                  </Text>
-                </View>
-              </View>
-
               {(() => {
                 const roomTenants = Array.isArray(detailRoom?.tenants) ? detailRoom.tenants : [];
+                const calculatedOccupiedCount = roomTenants.reduce((acc, t) => {
+                  const isProxy =
+                    Boolean(t?.is_proxy_account) ||
+                    String(t?.booking_mode || "").toLowerCase() === "proxy";
+                  const tCount = isProxy
+                    ? Math.max(
+                      1,
+                      Number(
+                        t?.occupant_count ||
+                        (Array.isArray(t?.occupants) ? t.occupants.length : 0) ||
+                        t?.bed_count ||
+                        1,
+                      ),
+                    )
+                    : 1;
+                  return acc + tCount;
+                }, 0);
+                const occupiedCount = calculatedOccupiedCount > 0
+                  ? calculatedOccupiedCount
+                  : Number(detailRoom?.occupied || detailRoom?.occupied_count || 0);
+
                 const proxyAccounts = roomTenants.filter(
                   (tenant) =>
                     Boolean(tenant?.is_proxy_account)
@@ -1214,11 +1164,27 @@ export default function RoomManagementScreen({ navigation, route }) {
                     .join(" ");
 
                 return (
-                  <View style={styles.detailsTenantSection}>
-                    {proxyAccounts.length > 0 ? (
-                      <View style={styles.proxyHierarchySection}>
-                        <Text style={styles.tenantLabel}>Proxy Accounts</Text>
-                        {proxyAccounts.map((proxyAccount, idx) => {
+                  <>
+                    <View style={styles.detailsStatsRow}>
+                      <View style={styles.detailsStatCard}>
+                        <Text style={styles.detailsStatLabel}>Occupancy</Text>
+                        <Text style={styles.detailsStatValue}>
+                          {occupiedCount}/{Number(detailRoom?.capacity || 0) || 1}
+                        </Text>
+                      </View>
+                      <View style={styles.detailsStatCard}>
+                        <Text style={styles.detailsStatLabel}>Rate</Text>
+                        <Text style={styles.detailsStatValue}>
+                          {formatCurrency(detailRoom?.unit_price || detailRoom?.monthly_rate || detailRoom?.daily_rate || 0)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.detailsTenantSection}>
+                      {proxyAccounts.length > 0 ? (
+                        <View style={styles.proxyHierarchySection}>
+                          <Text style={styles.tenantLabel}>Proxy Accounts</Text>
+                          {proxyAccounts.map((proxyAccount, idx) => {
                           const proxyKey = `detail-${detailRoom?.id || "room"}-${proxyAccount?.booking_id || proxyAccount?.id || idx}`;
                           const isExpanded = Boolean(expandedDetailProxyKeys[proxyKey]);
                           const proxyName =
@@ -1316,6 +1282,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                       </View>
                     ) : null}
                   </View>
+                </>
                 );
               })()}
             </ScrollView>
