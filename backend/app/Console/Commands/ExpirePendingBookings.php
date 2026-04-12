@@ -28,6 +28,15 @@ class ExpirePendingBookings extends Command
      */
     public function handle()
     {
+        $forcedNow = \App\Support\SystemToggle::getString('system_forced_now');
+        if ($forcedNow && $forcedNow !== '') {
+            try {
+                Carbon::setTestNow(Carbon::parse($forcedNow));
+            } catch (\Exception $e) {
+                // Ignore parsing errors
+            }
+        }
+
         $expirationDays = 2;
         $this->info("Searching for pending bookings older than {$expirationDays} days...");
         Log::info('Running ExpirePendingBookings command...');

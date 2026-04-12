@@ -32,6 +32,15 @@ class GenerateMonthlyInvoices extends Command
      */
     public function handle()
     {
+        $forcedNow = \App\Support\SystemToggle::getString('system_forced_now');
+        if ($forcedNow && $forcedNow !== '') {
+            try {
+                Carbon::setTestNow(Carbon::parse($forcedNow));
+            } catch (\Exception $e) {
+                // Ignore parsing errors
+            }
+        }
+
         $lock = Cache::lock('invoices:generate-monthly', 600);
         if (! $lock->get()) {
             $message = 'Monthly invoice generation is already running. Skipping duplicate execution.';

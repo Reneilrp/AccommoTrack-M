@@ -11,6 +11,9 @@ import { Sun, Moon, Menu } from 'lucide-react';
 const LandingPage = ({ user }) => {
   const { theme, setTheme, effectiveTheme } = usePreferences();
   const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('home');
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0, opacity: 0 });
+  const navRef = useRef(null);
 
   /* Transparent → frosted transition */
   useEffect(() => {
@@ -19,12 +22,66 @@ const LandingPage = ({ user }) => {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  /* Intersection Observer to update active section */
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, { rootMargin: '-40% 0px -50% 0px', threshold: 0 });
+
+    const sections = ['home', 'explore', 'service', 'about'];
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  /* Glide indicator calculator */
+  useEffect(() => {
+    const updateIndicator = () => {
+      if (navRef.current && activeSection) {
+        const activeLink = navRef.current.querySelector(`[data-nav-id="${activeSection}"]`);
+        
+        // Find the inner <span> that holds the text
+        const textSpan = activeLink ? activeLink.querySelector('span') : null;
+        
+        if (activeLink && textSpan) {
+          // Get the exact offset of the span relative to its parent link
+          const spanLeftOffset = textSpan.offsetLeft;
+          const linkLeftOffset = activeLink.offsetLeft;
+          
+          setIndicatorStyle({
+            // Put the indicator EXACTLY at the start of the text
+            left: linkLeftOffset + spanLeftOffset,
+            // Make the indicator EXACTLY the width of the text
+            width: textSpan.offsetWidth,
+            opacity: 1
+          });
+        }
+      }
+    };
+    
+    updateIndicator();
+    // Use setTimeout to ensure the DOM is fully rendered on first load before calculating
+    const timer = setTimeout(updateIndicator, 50);
+    window.addEventListener('resize', updateIndicator);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateIndicator);
+    };
+  }, [activeSection]);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('global-styles')) {
       const style = document.createElement('style');
       style.id = 'global-styles';
       style.innerHTML = `
-        html { scroll-behavior: smooth; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `;
@@ -36,9 +93,31 @@ const LandingPage = ({ user }) => {
     const el = document.getElementById(id);
     const header = document.querySelector('header');
     if (!el) return;
+    
     const headerHeight = header ? header.getBoundingClientRect().height : 56;
-    const top = el.getBoundingClientRect().top + window.scrollY - headerHeight;
-    window.scrollTo({ top, behavior: 'smooth' });
+    const targetY = el.getBoundingClientRect().top + window.scrollY - headerHeight;
+    const startY = window.scrollY;
+    const distance = targetY - startY;
+    const duration = 800; // Customizable scroll duration in milliseconds
+    let startTimestamp = null;
+
+    const easeInOutQuint = (t) => {
+      return t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2;
+    };
+
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = timestamp - startTimestamp;
+      const percent = Math.min(progress / duration, 1);
+      
+      window.scrollTo(0, startY + distance * easeInOutQuint(percent));
+      
+      if (progress < duration) {
+        window.requestAnimationFrame(step);
+      }
+    };
+    
+    window.requestAnimationFrame(step);
   };
 
   const handleGetStarted = () => {
@@ -84,17 +163,42 @@ const LandingPage = ({ user }) => {
           </div>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center z-20">
-            {['Home', 'Explore', 'Service', 'About'].map((item) => (
-              <a
-                key={item}
-                href={`#${item.toLowerCase()}`}
-                className="px-4 py-2 rounded-full text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 transition-all duration-200"
-                onClick={e => { e.preventDefault(); scrollTo(item.toLowerCase()); }}
-              >
-                {item}
-              </a>
-            ))}
+          <nav 
+            ref={navRef}
+            className="hidden lg:flex items-center gap-1 flex-1 justify-center z-20 relative"
+          >
+            {/* Sliding Indicator */}
+            <div 
+              style={{
+                left: `${indicatorStyle.left}px`,
+                width: `${indicatorStyle.width}px`,
+                opacity: indicatorStyle.opacity,
+                transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                bottom: '2px', // positioned just below the text inside the padded item
+              }}
+              className="absolute h-1 bg-green-600 dark:bg-green-500 rounded-full pointer-events-none"
+            ></div>
+
+            {['Home', 'Explore', 'Service', 'About'].map((item) => {
+              const id = item.toLowerCase();
+              const isActive = activeSection === id;
+              return (
+                <a
+                  key={item}
+                  href={`#${id}`}
+                  data-nav-id={id}
+                  className={`relative px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-200 z-10 inline-flex items-center ${
+                    isActive 
+                      ? 'text-green-700 dark:text-green-400' 
+                      : 'text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
+                  }`}
+                  onClick={e => { e.preventDefault(); scrollTo(id); }}
+                >
+                  {/* span required to get exact text width */}
+                  <span>{item}</span>
+                </a>
+              );
+            })}
           </nav>
 
           {/* Right actions */}
@@ -210,15 +314,24 @@ function BurgerMenu({ user, setTheme, effectiveTheme, scrollTo }) {
 
           {/* Mobile nav links */}
           <div className="lg:hidden border-b border-gray-100 dark:border-gray-700">
-            {['Home', 'Explore', 'Service', 'About'].map((item) => (
-              <button
-                key={item}
-                onClick={() => handleNavClick(item.toLowerCase())}
-                className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-400 font-semibold transition-colors text-sm"
-              >
-                {item}
-              </button>
-            ))}
+            {['Home', 'Explore', 'Service', 'About'].map((item) => {
+              const id = item.toLowerCase();
+              const isActive = activeSection === id;
+              return (
+                <button
+                  key={item}
+                  onClick={() => handleNavClick(id)}
+                  className={`w-full flex items-center justify-between text-left px-4 py-3 font-semibold transition-colors text-sm ${
+                    isActive 
+                      ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                      : 'text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-400'
+                  }`}
+                >
+                  {item}
+                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
+                </button>
+              );
+            })}
           </div>
 
           <a
