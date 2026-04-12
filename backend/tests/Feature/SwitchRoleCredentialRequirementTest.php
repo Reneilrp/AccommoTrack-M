@@ -129,6 +129,48 @@ class SwitchRoleCredentialRequirementTest extends TestCase
         ]);
     }
 
+    public function test_tenant_to_landlord_succeeds_with_partial_verified_verification(): void
+    {
+        $tenant = $this->createVerifiedTenantWithLandlordVerificationStatus(LandlordVerification::STATUS_PARTIAL_VERIFIED);
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->postJson('/api/switch-role', [
+            'role' => 'landlord',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', 'Role switched to landlord')
+            ->assertJsonPath('user.role', 'landlord');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $tenant->id,
+            'role' => 'landlord',
+        ]);
+    }
+
+    public function test_tenant_to_landlord_succeeds_with_pending_documents_review_verification(): void
+    {
+        $tenant = $this->createVerifiedTenantWithLandlordVerificationStatus(LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW);
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->postJson('/api/switch-role', [
+            'role' => 'landlord',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', 'Role switched to landlord')
+            ->assertJsonPath('user.role', 'landlord');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $tenant->id,
+            'role' => 'landlord',
+        ]);
+    }
+
     public function test_landlord_to_tenant_switch_succeeds(): void
     {
         $landlord = User::create([
@@ -162,6 +204,11 @@ class SwitchRoleCredentialRequirementTest extends TestCase
 
     private function createVerifiedTenantWithApprovedLandlordVerification(): User
     {
+        return $this->createVerifiedTenantWithLandlordVerificationStatus(LandlordVerification::STATUS_APPROVED);
+    }
+
+    private function createVerifiedTenantWithLandlordVerificationStatus(string $status): User
+    {
         $tenant = User::create([
             'role' => 'tenant',
             'email' => 'tenant-switch@example.com',
@@ -183,7 +230,7 @@ class SwitchRoleCredentialRequirementTest extends TestCase
             'valid_id_other' => null,
             'valid_id_path' => 'landlord_ids/test-id.pdf',
             'permit_path' => 'landlord_permits/test-permit.pdf',
-            'status' => 'approved',
+            'status' => $status,
         ]);
 
         return $tenant;

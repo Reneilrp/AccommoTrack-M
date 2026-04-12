@@ -393,7 +393,10 @@ export default function AddProperty({ navigation }) {
   const handlePickCredentials = async () => {
     // For simplicity using ImagePicker, but could use DocumentPicker for PDF
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+    if (!permission.granted) {
+      showAlert("Permission Required", "Please allow photo library access to upload documents.");
+      return;
+    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsMultipleSelection: true,
@@ -1599,6 +1602,15 @@ export default function AddProperty({ navigation }) {
       >
         <Pressable style={styles.successModalOverlay} onPress={hideAlert}>
           <Pressable style={styles.successModalCard} onPress={() => {}}>
+            <TouchableOpacity
+              onPress={hideAlert}
+              style={{ position: "absolute", top: 12, right: 12, padding: 4, zIndex: 1 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close alert"
+            >
+              <Ionicons name="close" size={22} color="#6B7280" />
+            </TouchableOpacity>
             <View style={[styles.successIconContainer, { backgroundColor: '#FEE2E2' }]}>
               <Ionicons name="warning-outline" size={36} color="#DC2626" />
             </View>

@@ -23,6 +23,11 @@ class EnsureUserIsLandlord
 
         // Additional check for unverified landlords
         if ($user->role === 'landlord') {
+            // Treat fully verified landlords as having full landlord access, even for legacy/missing verification rows.
+            if ((bool) ($user->is_verified ?? false)) {
+                return $next($request);
+            }
+
             $verification = LandlordVerification::where('user_id', $user->id)->first();
             if (! $verification || ! in_array($verification->status, LandlordVerification::LANDLORD_ACCESS_STATUSES, true)) {
                 return response()->json([

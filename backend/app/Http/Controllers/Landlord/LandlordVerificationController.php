@@ -160,6 +160,7 @@ class LandlordVerificationController extends Controller
     public function getMyVerification()
     {
         $user = Auth::user();
+        $landlord = $user->fresh();
 
         $verification = LandlordVerification::with(['history' => function ($query) {
             $query->orderBy('created_at', 'desc');
@@ -167,13 +168,19 @@ class LandlordVerificationController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
+        $effectiveStatus = $this->resolveEffectiveLandlordStatus($verification, $landlord);
+
         if (! $verification) {
-            if ($user->role === 'landlord') {
+            if ($landlord->role === 'landlord') {
+                $isFullyVerified = (bool) ($landlord->is_verified ?? false);
+
                 return response()->json([
-                    'message' => 'Your account is awaiting admin partial verification.',
-                    'status' => LandlordVerification::STATUS_PENDING,
+                    'message' => $isFullyVerified
+                        ? 'Your landlord account is verified.'
+                        : 'Your account is awaiting admin partial verification.',
+                    'status' => $effectiveStatus,
                     'user' => [
-                        'is_verified' => $user->is_verified,
+                        'is_verified' => $isFullyVerified,
                     ],
                     'valid_id_path' => null,
                     'permit_path' => null,
@@ -188,11 +195,10 @@ class LandlordVerificationController extends Controller
             ]);
         }
 
-        $landlord = User::find($user->id);
-
         return response()->json([
             'id' => $verification->id,
-            'status' => $verification->status,
+            'status' => $effectiveStatus,
+            'raw_status' => $verification->status,
             'rejection_reason' => $verification->rejection_reason,
             'valid_id_type' => $verification->valid_id_type,
             'valid_id_path' => $this->toPublicStorageUrl($verification->valid_id_path),
@@ -218,6 +224,27 @@ class LandlordVerificationController extends Controller
                 'is_verified' => $landlord->is_verified ?? false,
             ],
         ]);
+    }
+
+    private function resolveEffectiveLandlordStatus(?LandlordVerification $verification, User $user): string
+    {
+        if ((bool) ($user->is_verified ?? false)) {
+            return LandlordVerification::STATUS_APPROVED;
+        }
+
+        if (! $verification) {
+            return $user->role === 'landlord'
+                ? LandlordVerification::STATUS_PENDING
+                : 'not_submitted';
+        }
+
+        $status = strtolower(trim((string) $verification->status));
+
+        if ($status === LandlordVerification::STATUS_VERIFIED) {
+            return LandlordVerification::STATUS_APPROVED;
+        }
+
+        return $status !== '' ? $status : LandlordVerification::STATUS_PENDING;
     }
 
     /**

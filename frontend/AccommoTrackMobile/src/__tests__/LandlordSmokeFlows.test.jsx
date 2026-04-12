@@ -6,6 +6,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import AddProperty from '../features/landlord/screens/Properties/AddProperty.jsx';
 import DormProfileSettings from '../features/landlord/screens/Properties/DormProfileSettings.jsx';
 import Caretakers from '../features/landlord/screens/Settings/Account/Caretakers.jsx';
+import VerificationStatus from '../features/landlord/screens/Settings/Account/VerificationStatus.jsx';
 import ManualPaymentSettings from '../features/landlord/screens/Settings/ManualPaymentSettings.jsx';
 import ProfileService from '../services/ProfileService.js';
 import PropertyService from '../services/PropertyService.js';
@@ -104,6 +105,7 @@ jest.mock('../services/ProfileService.js', () => ({
   default: {
     getVerificationStatus: jest.fn(),
     getProfile: jest.fn(),
+    getCurrentUser: jest.fn(),
     updateProfile: jest.fn(),
     getValidIdTypes: jest.fn(),
     resubmitVerification: jest.fn(),
@@ -263,13 +265,12 @@ describe('Landlord smoke flows', () => {
     await screen.findByText('Accepted Payment Methods');
     fireEvent.press(screen.getByText('Online (GCash, Maya, GrabPay)'));
 
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'PayMongo Not Verified',
-        expect.stringContaining('complete PayMongo verification'),
-        [{ text: 'OK' }],
-      );
-    });
+    await screen.findByText('PayMongo Not Verified');
+    expect(
+      screen.getByText(
+        /complete PayMongo verification before enabling online payments/i,
+      ),
+    ).toBeTruthy();
   }, 15000);
 
   it('AddProperty blocks final submission for unverified accounts', async () => {
@@ -380,6 +381,41 @@ describe('Landlord smoke flows', () => {
 
     expect(valueByKey.get('current_status')).toBe('pending');
   }, 15000);
+
+  it('VerificationStatus shows reminder and upload action for partial verified landlord', async () => {
+    ProfileService.getVerificationStatus.mockResolvedValue({
+      success: true,
+      data: {
+        id: 55,
+        status: 'partial_verified',
+        document_due_at: '2026-04-19T00:00:00.000000Z',
+        valid_id_type: 'Philippine Passport',
+        valid_id_path: null,
+        valid_id_back_path: null,
+        permit_path: null,
+        history: [],
+      },
+    });
+    ProfileService.getValidIdTypes.mockResolvedValue({
+      success: true,
+      data: ['Philippine Passport', 'Driver\'s License'],
+    });
+    ProfileService.getProfile.mockResolvedValue({
+      success: true,
+      data: { role: 'landlord' },
+    });
+    ProfileService.getCurrentUser.mockResolvedValue({
+      success: true,
+      data: { role: 'landlord' },
+    });
+    AsyncStorage.getItem.mockResolvedValue(JSON.stringify({ role: 'landlord' }));
+
+    renderWithQueryClient(<VerificationStatus navigation={mockPropNavigation} />);
+
+    await screen.findByText('Partial Verified');
+    expect(screen.getByText('Submit Required Documents')).toBeTruthy();
+    expect(screen.getByText(/Document reminder due:/)).toBeTruthy();
+  });
 
   it('AddProperty save draft submits without forcing optional occupancy fields', async () => {
     ProfileService.getVerificationStatus.mockResolvedValue({

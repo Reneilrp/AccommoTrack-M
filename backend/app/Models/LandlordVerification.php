@@ -52,12 +52,16 @@ class LandlordVerification extends Model
 
     public const STATUS_APPROVED = 'approved';
 
+    // Legacy status used by older verification flows.
+    public const STATUS_VERIFIED = 'verified';
+
     public const STATUS_REJECTED = 'rejected';
 
     public const LANDLORD_ACCESS_STATUSES = [
         self::STATUS_PARTIAL_VERIFIED,
         self::STATUS_PENDING_DOCUMENTS_REVIEW,
         self::STATUS_APPROVED,
+        self::STATUS_VERIFIED,
     ];
 
     protected $fillable = [

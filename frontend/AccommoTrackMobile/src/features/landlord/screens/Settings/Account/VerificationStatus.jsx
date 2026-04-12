@@ -11,6 +11,7 @@ import {
   Image,
   RefreshControl,
   Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +31,11 @@ import {
 } from "../../../hooks/useLandlordQueryHelpers.js";
 
 const EMPTY_ID_TYPES = [];
+const DOCUMENT_SUBMISSION_STATUSES = new Set([
+  "not_submitted",
+  "rejected",
+  "partial_verified",
+]);
 
 export default function VerificationStatus({ navigation }) {
   const { theme } = useTheme();
@@ -280,7 +286,10 @@ export default function VerificationStatus({ navigation }) {
   };
 
   const getStatusConfig = (status) => {
-    switch (status) {
+    const normalizedStatus = String(status || "not_submitted").toLowerCase();
+
+    switch (normalizedStatus) {
+      case "verified":
       case "approved":
         return {
           icon: "checkmark-circle",
@@ -290,6 +299,26 @@ export default function VerificationStatus({ navigation }) {
           label: "Verified",
           description:
             "Your account is verified. You can now publish properties and manage bookings.",
+        };
+      case "partial_verified":
+        return {
+          icon: "shield-checkmark",
+          color: "#2563EB",
+          bg: "#DBEAFE",
+          border: "#93C5FD",
+          label: "Partial Verified",
+          description:
+            "Landlord mode is active. Submit your valid ID and permit to complete verification.",
+        };
+      case "pending_documents_review":
+        return {
+          icon: "time",
+          color: "#4F46E5",
+          bg: "#E0E7FF",
+          border: "#A5B4FC",
+          label: "Documents Under Review",
+          description:
+            "Your documents are being reviewed. You can continue using landlord features while waiting.",
         };
       case "rejected":
         return {
@@ -324,7 +353,13 @@ export default function VerificationStatus({ navigation }) {
     }
   };
 
-  const statusConfig = getStatusConfig(verification?.status);
+  const normalizedVerificationStatus = String(
+    verification?.status || "not_submitted",
+  ).toLowerCase();
+  const statusConfig = getStatusConfig(normalizedVerificationStatus);
+  const canSubmitDocuments = DOCUMENT_SUBMISSION_STATUSES.has(
+    normalizedVerificationStatus,
+  );
 
   if (loading && !refreshing) {
     return (
@@ -386,6 +421,11 @@ export default function VerificationStatus({ navigation }) {
             <Text style={styles.statusDescription}>
               {statusConfig.description}
             </Text>
+            {normalizedVerificationStatus === "partial_verified" && verification?.document_due_at ? (
+              <Text style={styles.lastReviewed}>
+                Document reminder due: {new Date(verification.document_due_at).toLocaleDateString()}
+              </Text>
+            ) : null}
             {verification?.reviewed_at && (
               <Text style={styles.lastReviewed}>
                 Reviewed on:{" "}
@@ -569,8 +609,7 @@ export default function VerificationStatus({ navigation }) {
       </ScrollView>
 
       {/* Fixed Footer with Action Button */}
-      {(verification?.status === "rejected" ||
-        verification?.status === "not_submitted") && (
+      {canSubmitDocuments && (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 20, 28) }]}>
           <TouchableOpacity
             style={styles.resubmitButton}
@@ -579,12 +618,16 @@ export default function VerificationStatus({ navigation }) {
             <Ionicons name="cloud-upload-outline" size={22} color="#FFFFFF" />
             <Text style={styles.resubmitButtonText}>
               {userRole === 'tenant'
-                ? verification?.status === 'rejected'
+                ? normalizedVerificationStatus === 'rejected'
                   ? 'Update Landlord Registration'
-                  : 'Register as Landlord'
-                : verification?.status === "rejected"
+                  : normalizedVerificationStatus === 'partial_verified'
+                    ? 'Complete Landlord Registration'
+                    : 'Register as Landlord'
+                : normalizedVerificationStatus === "rejected"
                   ? "Resubmit Documents"
-                  : "Submit Verification"}
+                  : normalizedVerificationStatus === "partial_verified"
+                    ? "Submit Required Documents"
+                    : "Submit Verification"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -598,12 +641,33 @@ export default function VerificationStatus({ navigation }) {
         statusBarTranslucent={true}
         navigationBarTranslucent={false}
         presentationStyle="overFullScreen"
-        onRequestClose={() => setShowResubmitForm(false)}
+        onRequestClose={() => {
+          if (!submitting) {
+            setShowResubmitForm(false);
+          }
+        }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            if (!submitting) {
+              setShowResubmitForm(false);
+            }
+          }}
+        >
+          <Pressable style={styles.modalContent} onPress={() => {}}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Submit Verification</Text>
+              <View style={styles.modalHeaderTopRow}>
+                <Text style={styles.modalTitle}>Submit Verification</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowResubmitForm(false)}
+                  disabled={submitting}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
               <Text style={styles.modalSubtitle}>
                 Please provide clear images of your documents.
               </Text>
@@ -744,8 +808,8 @@ export default function VerificationStatus({ navigation }) {
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );

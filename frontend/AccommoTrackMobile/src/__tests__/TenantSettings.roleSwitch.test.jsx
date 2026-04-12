@@ -158,11 +158,11 @@ describe('Tenant Settings role switch', () => {
     });
   });
 
-  it('switches approved tenant to landlord and persists role locally', async () => {
+  it('switches partial verified tenant to landlord and persists role locally', async () => {
     ProfileService.getVerificationStatus.mockResolvedValue({
       success: true,
       data: {
-        status: 'approved',
+        status: 'partial_verified',
       },
     });
     ProfileService.switchRole.mockResolvedValue({
@@ -177,7 +177,43 @@ describe('Tenant Settings role switch', () => {
     await screen.findByText('Switch to Landlord');
 
     fireEvent.press(screen.getByText('Switch to Landlord'));
-    await screen.findByText('Your landlord registration is approved. Switch to landlord mode now?');
+    await screen.findByText('Your landlord access is active. Switch to landlord mode now?');
+
+    fireEvent.press(screen.getByText('Switch'));
+
+    await waitFor(() => {
+      expect(ProfileService.switchRole).toHaveBeenCalledWith('landlord', {});
+    });
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'user',
+      expect.stringContaining('"role":"landlord"'),
+    );
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('user_role_123', 'landlord');
+    expect(triggerRoleSwitch).toHaveBeenCalledWith('landlord');
+    expect(mockSetActiveRole).toHaveBeenCalledWith('landlord');
+  });
+
+  it('switches pending-documents-review tenant to landlord and persists role locally', async () => {
+    ProfileService.getVerificationStatus.mockResolvedValue({
+      success: true,
+      data: {
+        status: 'pending_documents_review',
+      },
+    });
+    ProfileService.switchRole.mockResolvedValue({
+      success: true,
+      data: {
+        role: 'landlord',
+      },
+    });
+
+    renderWithClient(<Settings isGuest={false} />);
+
+    await screen.findByText('Switch to Landlord');
+
+    fireEvent.press(screen.getByText('Switch to Landlord'));
+    await screen.findByText('Your landlord access is active. Switch to landlord mode now?');
 
     fireEvent.press(screen.getByText('Switch'));
 

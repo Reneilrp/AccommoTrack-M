@@ -628,6 +628,7 @@ class AuthController extends Controller
                 LandlordVerification::STATUS_PARTIAL_VERIFIED,
                 LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
                 LandlordVerification::STATUS_APPROVED,
+                LandlordVerification::STATUS_VERIFIED,
             ];
 
             if (! $verification || ! in_array($verification->status, $allowedStatuses, true)) {

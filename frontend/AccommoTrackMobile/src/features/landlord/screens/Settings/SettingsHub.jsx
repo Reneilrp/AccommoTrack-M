@@ -32,6 +32,16 @@ import {
 import ProfileService from "../../../../services/ProfileService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 
+const LANDLORD_SWITCH_READY_STATUSES = new Set([
+  "approved",
+  "partial_verified",
+  "pending_documents_review",
+  "verified",
+]);
+
+const normalizeLandlordVerificationStatus = (status) =>
+  String(status || "not_submitted").toLowerCase();
+
 const SettingRow = ({ item, onPress, onToggle, theme, styles }) => {
   const content = (
     <View style={styles.settingLeft}>
@@ -176,7 +186,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
       if (profileRes.data.role !== "caretaker") {
         const verificationRes = await ProfileService.getVerificationStatus();
         verificationStatus = verificationRes.success
-          ? (verificationRes.data?.status || "not_submitted")
+          ? normalizeLandlordVerificationStatus(verificationRes.data?.status)
           : null;
       }
 
@@ -258,12 +268,13 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const handleSwitchRole = useCallback(async () => {
     const newRole = userRole === "landlord" ? "tenant" : "landlord";
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
+    const normalizedVerificationStatus = normalizeLandlordVerificationStatus(verificationStatus);
 
     if (userRole === 'tenant' && newRole === 'landlord') {
-      if (verificationStatus === 'approved') {
+      if (LANDLORD_SWITCH_READY_STATUSES.has(normalizedVerificationStatus)) {
         setConfirmModalConfig({
           title: 'Switch to Landlord',
-          message: 'Your landlord registration is approved. Switch to landlord mode now?',
+          message: 'Your landlord access is active. Switch to landlord mode now?',
           confirmText: 'Switch',
           singleAction: false,
           onConfirm: async () => {
@@ -295,7 +306,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
           }
         });
         setConfirmModalVisible(true);
-      } else if (verificationStatus === 'pending') {
+      } else if (normalizedVerificationStatus === 'pending') {
         setConfirmModalConfig({
           title: 'Registration Pending',
           message: 'Your landlord registration is still under review. Please wait for approval before switching.',
@@ -437,13 +448,19 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ? "Verified"
         : "Pending";
 
-    const idStatusLabel = !verificationStatus || verificationStatus === 'not_submitted'
+    const normalizedVerificationStatus = normalizeLandlordVerificationStatus(verificationStatus);
+
+    const idStatusLabel = !verificationStatus || normalizedVerificationStatus === 'not_submitted'
       ? "Not Submitted"
-      : verificationStatus === 'pending'
+      : normalizedVerificationStatus === 'pending'
         ? "Pending"
-        : verificationStatus === 'rejected'
-          ? "Rejected"
-          : "Verified";
+        : normalizedVerificationStatus === 'pending_documents_review'
+          ? "In Review"
+          : normalizedVerificationStatus === 'partial_verified'
+            ? "Action Required"
+            : normalizedVerificationStatus === 'rejected'
+              ? "Rejected"
+              : "Verified";
 
     const allSections = [
       {
@@ -451,9 +468,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
         items: [
           {
             id: "verification",
-            label: verificationStatus === 'not_submitted' ? "Submit Documents" : "ID Verification",
+            label: normalizedVerificationStatus === 'not_submitted' ? "Submit Documents" : "ID Verification",
             description: "ID and business permit status",
-            icon: verificationStatus === 'approved' ? "shield-checkmark-outline" : "alert-circle-outline",
+            icon: LANDLORD_SWITCH_READY_STATUSES.has(normalizedVerificationStatus)
+              ? "shield-checkmark-outline"
+              : "alert-circle-outline",
             type: "status",
             value: idStatusLabel,
             target: "VerificationStatus",
@@ -595,7 +614,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
             id: "switch-role",
             label: userRole === 'landlord'
               ? 'Switch to Tenant'
-              : verificationStatus === 'approved'
+              : LANDLORD_SWITCH_READY_STATUSES.has(normalizedVerificationStatus)
                 ? 'Switch to Landlord'
                 : 'Register as Landlord',
             icon: "swap-horizontal-outline",

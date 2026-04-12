@@ -14,6 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import PropertyService from "../../../../services/PropertyService.js";
+import ProfileService from "../../../../services/ProfileService.js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 import { getStyles } from "../../../../styles/Landlord/MyProperties.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
@@ -43,19 +45,73 @@ const STATUS_COLORS = {
   default: { bg: "#E5E7EB", fg: "#6B7280" },
 };
 
+const LANDLORD_ACCESS_STATUSES = [
+  "approved",
+  "partial_verified",
+  "pending_documents_review",
+  "verified",
+];
+
 const EMPTY_PROPERTIES = [];
 const emptyMetrics = { active: 0, inactive: 0, pending: 0, draft: 0, totalRooms: 0 };
 
 export default function MyPropertiesScreen({ navigation }) {
   const { theme } = useTheme();
   const { uiState } = useUIState();
-  const verificationStatus = uiState.data?.verificationStatus;
-  const isVerified = verificationStatus?.status === 'approved';
 
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const verificationQuery = useQuery({
+    queryKey: landlordQueryKeys.verificationStatusBundle(),
+    queryFn: async () => {
+      let isCaretaker = false;
+
+      try {
+        const userString = await AsyncStorage.getItem("user");
+        if (userString) {
+          const user = JSON.parse(userString);
+          isCaretaker = user?.role === "caretaker";
+        }
+      } catch {
+        isCaretaker = false;
+      }
+
+      if (isCaretaker) {
+        return { isCaretaker: true, status: "approved", user: { is_verified: true } };
+      }
+
+      const response = await ProfileService.getVerificationStatus();
+      if (!response?.success) {
+        return { isCaretaker: false, status: "not_submitted", user: { is_verified: false } };
+      }
+
+      const responseData = response.data && typeof response.data === "object"
+        ? response.data
+        : { status: "not_submitted" };
+
+      return {
+        isCaretaker: false,
+        ...responseData,
+        user: {
+          is_verified: responseData?.user?.is_verified === true,
+        },
+      };
+    },
+  });
+
+  const isCaretaker = verificationQuery.data?.isCaretaker === true;
+  const verificationPayload = verificationQuery.data;
+  const verificationStatus = typeof verificationPayload === "string"
+    ? verificationPayload
+    : verificationPayload?.status || null;
+  const normalizedVerificationStatus = String(verificationStatus || "").toLowerCase();
+  const isVerified =
+    isCaretaker ||
+    LANDLORD_ACCESS_STATUSES.includes(normalizedVerificationStatus) ||
+    verificationPayload?.user?.is_verified === true;
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -74,9 +130,10 @@ export default function MyPropertiesScreen({ navigation }) {
   const loading = propertiesQuery.isPending && properties.length === 0;
   const error = propertiesQuery.error?.message || "";
   const refetchProperties = propertiesQuery.refetch;
+  const refetchVerification = verificationQuery.refetch;
   const propertiesRefetchers = useMemo(
-    () => [refetchProperties],
-    [refetchProperties],
+    () => (isCaretaker ? [refetchProperties] : [refetchProperties, refetchVerification]),
+    [isCaretaker, refetchProperties, refetchVerification],
   );
 
   useLandlordFocusRefetch({ refetchers: propertiesRefetchers });

@@ -571,7 +571,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     if (!verificationStatus) return null;
 
     const verificationState = String(verificationStatus?.status || 'not_submitted').toLowerCase();
-    if (verificationState === 'approved') return null;
+    if (verificationState === 'approved' || verificationState === 'verified') return null;
 
     const isRejected = verificationState === 'rejected';
     const isPending = verificationState === 'pending';

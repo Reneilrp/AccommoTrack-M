@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
 use App\Mail\EmailOtpMail;
+use App\Models\LandlordVerification;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -111,7 +112,10 @@ class AuthService
             $verification = $user->landlordVerification;
 
             // Allow verified landlords to log in even if verification row is missing (legacy/test data).
-            if (! $user->is_verified && (! $verification || in_array($verification->status, ['pending', 'pending_documents_review']))) {
+            $hasActiveLandlordAccess = $verification
+                && in_array($verification->status, LandlordVerification::LANDLORD_ACCESS_STATUSES, true);
+
+            if (! $user->is_verified && ! $hasActiveLandlordAccess) {
                 throw new PendingVerificationException('Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.');
             }
         }
