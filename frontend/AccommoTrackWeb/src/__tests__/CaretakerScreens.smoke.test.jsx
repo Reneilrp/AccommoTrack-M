@@ -98,7 +98,7 @@ describe('Web caretaker screens smoke coverage', () => {
     expect(allowedPathsBlock).toContain("hasCaretakerPermission('bookings') ? '/bookings' : null");
     expect(allowedPathsBlock).toContain("canManagePayments ? '/payments' : null");
     expect(allowedPathsBlock).toContain("hasCaretakerPermission('tenants') ? '/tenants' : null");
-    expect(allowedPathsBlock).toContain("hasCaretakerPermission('messages') ? '/messages' : null");
+    expect(allowedPathsBlock).toContain("canManageMessages ? '/messages' : null");
     expect(allowedPathsBlock).toContain("canManageAnalytics ? '/analytics' : null");
     expect(allowedPathsBlock).toContain("'/settings'");
   });

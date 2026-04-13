@@ -317,19 +317,14 @@ class AnalyticsService
             $roomsQuery->where('property_id', $propertyId);
         }
 
-        $stats = $roomsQuery
-            ->select(
-                DB::raw('SUM(capacity) as total_slots'),
-                DB::raw('SUM((SELECT COUNT(*) FROM room_tenant_assignments WHERE room_tenant_assignments.room_id = rooms.id AND room_tenant_assignments.status = "active")) as occupied_slots'),
-                DB::raw('SUM(CASE WHEN status = "available" THEN 1 ELSE 0 END) as available_rooms'),
-                DB::raw('SUM(CASE WHEN status = "maintenance" THEN 1 ELSE 0 END) as maintenance_rooms')
-            )
-            ->first();
+        $totalSlots = (int) (clone $roomsQuery)->sum('capacity');
+        $availableRooms = (int) (clone $roomsQuery)->where('status', 'available')->count();
+        $maintenanceRooms = (int) (clone $roomsQuery)->where('status', 'maintenance')->count();
 
-        $totalSlots = (int) ($stats->total_slots ?? 0);
-        $occupiedSlots = (int) ($stats->occupied_slots ?? 0);
-        $availableRooms = (int) ($stats->available_rooms ?? 0);
-        $maintenanceRooms = (int) ($stats->maintenance_rooms ?? 0);
+        $occupiedSlots = (int) DB::table('room_tenant_assignments')
+            ->whereIn('room_id', (clone $roomsQuery)->select('id'))
+            ->where('status', 'active')
+            ->count();
 
         return [
             'total_slots' => $totalSlots,
@@ -351,25 +346,40 @@ class AnalyticsService
             $query->where('property_id', $propertyId);
         }
 
+        $occupiedByType = DB::table('room_tenant_assignments')
+            ->join('rooms', 'room_tenant_assignments.room_id', '=', 'rooms.id')
+            ->join('properties', 'rooms.property_id', '=', 'properties.id')
+            ->where('properties.landlord_id', $landlordId)
+            ->where('room_tenant_assignments.status', 'active')
+            ->when($propertyId, function ($q) use ($propertyId) {
+                $q->where('rooms.property_id', $propertyId);
+            })
+            ->select('rooms.room_type', DB::raw('COUNT(*) as occupied_slots'))
+            ->groupBy('rooms.room_type')
+            ->pluck('occupied_slots', 'rooms.room_type');
+
         return $query
             ->select(
                 'room_type',
                 DB::raw('COUNT(*) as count'),
                 DB::raw('SUM(capacity) as total_slots'),
-                DB::raw('SUM((SELECT COUNT(*) FROM room_tenant_assignments WHERE room_tenant_assignments.room_id = rooms.id AND room_tenant_assignments.status = "active")) as occupied_slots'),
                 DB::raw('AVG(monthly_rate) as avg_rate')
             )
             ->groupBy('room_type')
             ->get()
-            ->map(fn ($item) => [
-                'type' => $item->room_type,
-                'label' => $this->getRoomTypeLabel($item->room_type),
-                'room_count' => (int) $item->count,
-                'total_slots' => (int) $item->total_slots,
-                'occupied_slots' => (int) $item->occupied_slots,
-                'avg_rate' => round($item->avg_rate, 2),
-                'occupancy_rate' => $item->total_slots > 0 ? round(($item->occupied_slots / $item->total_slots) * 100, 1) : 0,
-            ])
+            ->map(function ($item) use ($occupiedByType) {
+                $occupiedSlots = (int) ($occupiedByType[$item->room_type] ?? 0);
+
+                return [
+                    'type' => $item->room_type,
+                    'label' => $this->getRoomTypeLabel($item->room_type),
+                    'room_count' => (int) $item->count,
+                    'total_slots' => (int) $item->total_slots,
+                    'occupied_slots' => $occupiedSlots,
+                    'avg_rate' => round($item->avg_rate, 2),
+                    'occupancy_rate' => $item->total_slots > 0 ? round(($occupiedSlots / $item->total_slots) * 100, 1) : 0,
+                ];
+            })
             ->toArray();
     }
 
@@ -521,14 +531,12 @@ class AnalyticsService
         $nowStr = now()->toDateTimeString();
 
         $stats = $query
-            ->select(
-                DB::raw('COUNT(*) as total'),
-                DB::raw('SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid'),
-                DB::raw('SUM(CASE WHEN status = "partial" THEN 1 ELSE 0 END) as partial'),
-                DB::raw("SUM(CASE WHEN status = 'overdue' OR (status = 'pending' AND due_date < ?) THEN 1 ELSE 0 END)", [$nowStr]),
-                DB::raw("SUM(CASE WHEN status = 'pending' AND due_date >= ? THEN 1 ELSE 0 END)", [$nowStr]),
-                DB::raw('SUM(amount_cents) as total_cents')
-            )
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid')
+            ->selectRaw('SUM(CASE WHEN status = "partial" THEN 1 ELSE 0 END) as partial')
+            ->selectRaw("SUM(CASE WHEN status = 'overdue' OR (status = 'pending' AND due_date < ?) THEN 1 ELSE 0 END) as overdue", [$nowStr])
+            ->selectRaw("SUM(CASE WHEN status = 'pending' AND due_date >= ? THEN 1 ELSE 0 END) as pending", [$nowStr])
+            ->selectRaw('SUM(amount_cents) as total_cents')
             ->first();
 
         // Calculate collected from transactions
