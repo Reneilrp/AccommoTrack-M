@@ -38,6 +38,7 @@ import PropertyPaymentSettings from '../screens/Settings/PropertyPaymentSettings
 import ManualPaymentSettings from '../screens/Settings/ManualPaymentSettings.jsx';
 import SubscriptionPlanScreen from '../screens/Settings/Billing/SubscriptionPlan.jsx';
 import BillingCenterScreen from '../screens/Settings/Billing/BillingCenter.jsx';
+import UpdateDetails from '../../../shared/screens/UpdateDetails.jsx';
 
 const Stack = createNativeStackNavigator();
 
@@ -211,6 +212,7 @@ export default function LandlordNavigator({ onLogout }) {
       {canAccessMessages && (
         <Stack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none' }} />
       )}
+      <Stack.Screen name="UpdateDetails" component={UpdateDetails} options={{ animation: 'none' }} />
       <Stack.Screen name="Settings">
         {(props) => <Settings {...props} onLogout={onLogout} />}
       </Stack.Screen>

@@ -74,7 +74,15 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [isGuestMode, setIsGuestMode] = useState(isGuest ?? true);
   const [loading, setLoading] = useState(true);
 
-  const { currentVersion, latestVersion, updateAvailable, downloadUrl, refetch: refetchVersion } = useAppVersion();
+  const { 
+    currentVersion, 
+    latestVersion, 
+    updateAvailable, 
+    downloadUrl, 
+    refetch: refetchVersion,
+    otaUpdateId,
+    otaCreatedAt
+  } = useAppVersion();
   const [userRole, setUserRole] = useState('tenant');
   const [landlordVerificationStatus, setLandlordVerificationStatus] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -241,6 +249,9 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             Linking.openURL(downloadUrl);
           });
         }
+        break;
+      case "EAS Update ID":
+        navigation.navigate('UpdateDetails');
         break;
       default:
         console.log('Setting pressed:', label);
@@ -528,6 +539,13 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             icon: "cloud-download-outline",
             highlight: true,
             value: `v${latestVersion}`,
+          }] : []),
+          ...(otaUpdateId ? [{
+            id: 18,
+            label: "EAS Update ID",
+            icon: "cloud-done-outline",
+            value: otaUpdateId.substring(0, 8),
+            arrow: true,
           }] : []),
           { 
             id: 17, 

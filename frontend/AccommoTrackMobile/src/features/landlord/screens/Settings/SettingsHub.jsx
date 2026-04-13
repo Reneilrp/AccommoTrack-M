@@ -171,7 +171,15 @@ export default function SettingsScreen({ navigation, onLogout }) {
   });
   const [fetchError, setFetchError] = useState("");
 
-  const { currentVersion, latestVersion, updateAvailable, downloadUrl, refetch: refetchVersion } = useAppVersion();
+  const { 
+    currentVersion, 
+    latestVersion, 
+    updateAvailable, 
+    downloadUrl, 
+    refetch: refetchVersion,
+    otaUpdateId,
+    otaCreatedAt
+  } = useAppVersion();
 
   const settingsQuery = useQuery({
     queryKey: landlordQueryKeys.settingsHub(),
@@ -676,6 +684,15 @@ export default function SettingsScreen({ navigation, onLogout }) {
                 });
               }
             },
+          }] : []),
+          ...(otaUpdateId ? [{
+            id: "ota-update-id",
+            label: "EAS Update ID",
+            description: otaCreatedAt ? `Created: ${otaCreatedAt}` : null,
+            icon: "cloud-done-outline",
+            type: "navigate",
+            value: otaUpdateId.substring(0, 8),
+            target: "UpdateDetails",
           }] : []),
           {
             id: "version",

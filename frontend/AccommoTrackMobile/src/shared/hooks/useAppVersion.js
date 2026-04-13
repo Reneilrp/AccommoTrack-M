@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import api from '../../services/api.js';
 
 const toBool = (value) => value === true || value === 1 || value === '1' || value === 'true';
@@ -50,5 +51,8 @@ export function useAppVersion() {
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: query.refetch,
+    otaUpdateId: Updates.updateId,
+    otaCreatedAt: Updates.createdAt ? new Date(Updates.createdAt).toLocaleString() : null,
+    otaChannel: Updates.channel,
   };
 }

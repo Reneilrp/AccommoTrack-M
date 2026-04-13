@@ -34,6 +34,7 @@ export const lightTheme = {
     // Surface colors
     surface: '#ffffff', // white
     surfaceHover: '#f9fafb', // gray-50
+    card: '#ffffff', // Added for card backgrounds
     
     // Text colors (matching CSS variables)
     text: '#111827', // --text-primary / gray-900
@@ -99,6 +100,7 @@ export const darkTheme = {
     // Surface colors
     surface: '#1f2937', // gray-800
     surfaceHover: '#374151', // gray-700
+    card: '#1f2937', // Added for card backgrounds
     
     // Text colors (matching CSS variables)
     text: '#f9fafb', // --text-primary / gray-50

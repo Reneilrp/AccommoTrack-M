@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Linking, StyleSheet, TouchableWithoutFeedback } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -12,54 +12,70 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
     }
   };
 
+  const handleClose = () => {
+    if (!required && typeof onLater === 'function') {
+      onLater();
+    }
+  };
+
   return (
     <Modal
       visible={visible}
       transparent={true}
       animationType="fade"
-      onRequestClose={() => {
-        if (!required && typeof onLater === 'function') {
-          onLater();
-        }
-      }}
+      onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="cloud-download" size={48} color={theme.colors.primary} />
-          </View>
-          
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            {required ? 'Update Required' : 'Update Available'}
-          </Text>
-          
-          <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
-            {required
-              ? `A new version of AccommoTrack (${latestVersion}) is available. Please update the app to continue using it.`
-              : `A new version of AccommoTrack (${latestVersion}) is available. You can update now or later from Settings.`}
-          </Text>
+      <TouchableWithoutFeedback onPress={handleClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={[styles.container, { backgroundColor: theme.colors.card || '#ffffff' }]}>
+              {!required && (
+                <TouchableOpacity 
+                  style={styles.closeButton} 
+                  onPress={handleClose}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              )}
 
-          <View style={[styles.actions, !required ? styles.actionsRow : null]}>
-            {!required ? (
-              <TouchableOpacity
-                style={[styles.button, styles.secondaryButton, { borderColor: theme.colors.border }]}
-                onPress={onLater}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>Later</Text>
-              </TouchableOpacity>
-            ) : null}
+              <View style={styles.iconContainer}>
+                <Ionicons name="cloud-download" size={48} color={theme.colors.primary} />
+              </View>
+              
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                {required ? 'Update Required' : 'Update Available'}
+              </Text>
+              
+              <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
+                {required
+                  ? `A new version of AccommoTrack (${latestVersion}) is available. Please update the app to continue using it.`
+                  : `A new version of AccommoTrack (${latestVersion}) is available. You can update now or later from Settings.`}
+              </Text>
 
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: theme.colors.primary }]}
-              onPress={handleDownload}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonText}>Download Update</Text>
-            </TouchableOpacity>
-          </View>
+              <View style={[styles.actions, !required ? styles.actionsRow : null]}>
+                {!required ? (
+                  <TouchableOpacity
+                    style={[styles.button, styles.secondaryButton, { borderColor: theme.colors.border }]}
+                    onPress={onLater}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>Later</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.button, { backgroundColor: theme.colors.primary, flex: required ? 0 : 1 }]}
+                  onPress={handleDownload}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.buttonText}>Download Update</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -82,6 +98,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
   },
   iconContainer: {
     width: 80,
@@ -112,13 +135,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   button: {
-    flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButton: {
+    flex: 1,
     borderWidth: 1,
     backgroundColor: 'transparent',
   },
