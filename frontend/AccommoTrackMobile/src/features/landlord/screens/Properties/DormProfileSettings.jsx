@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   StatusBar,
   Text,
@@ -228,6 +229,7 @@ export default function DormProfileSettings({ route, navigation }) {
   const loading = settingsQuery.isPending && !settingsQuery.data;
   const fetchError = settingsQuery.error?.message || '';
   const refetchSettings = settingsQuery.refetch;
+  const pickerMode = Platform.OS === 'android' ? 'dropdown' : undefined;
   const settingsRefetchers = useMemo(() => [refetchSettings], [refetchSettings]);
 
   const handleRefresh = useLandlordRefreshHandler({
@@ -574,7 +576,7 @@ export default function DormProfileSettings({ route, navigation }) {
     );
   }
 
-  const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(form.propertyType);
+  const isGenderRestricted = form.propertyType !== '' && form.propertyType !== 'apartment';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -702,9 +704,14 @@ export default function DormProfileSettings({ route, navigation }) {
           <Text style={styles.label}>Property Type</Text>
           <View style={styles.pickerWrapper}>
             <Picker
+              testID="dorm-profile-property-type-picker"
+              mode={pickerMode}
+              prompt="Select property type"
               selectedValue={form.propertyType}
               onValueChange={(val) => updateForm('propertyType', val)}
               style={styles.picker}
+              itemStyle={styles.pickerItem}
+              dropdownIconColor={theme.colors.textSecondary}
             >
               <Picker.Item label="Select Type" value="" />
               {PROPERTY_TYPES.map(t => <Picker.Item key={t.value} label={t.label} value={t.value} />)}
@@ -716,9 +723,14 @@ export default function DormProfileSettings({ route, navigation }) {
               <Text style={styles.label}>Gender Restriction</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
+                  testID="dorm-profile-gender-picker"
+                  mode={pickerMode}
+                  prompt="Select gender restriction"
                   selectedValue={form.genderRestriction}
                   onValueChange={(val) => updateForm('genderRestriction', val)}
                   style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                  dropdownIconColor={theme.colors.textSecondary}
                 >
                   {GENDER_OPTIONS.map(o => <Picker.Item key={o.value} label={o.label} value={o.value} />)}
                 </Picker>
@@ -729,9 +741,14 @@ export default function DormProfileSettings({ route, navigation }) {
           <Text style={styles.label}>Status</Text>
           <View style={styles.pickerWrapper}>
             <Picker
+              testID="dorm-profile-status-picker"
+              mode={pickerMode}
+              prompt="Select property status"
               selectedValue={form.status}
               onValueChange={(val) => updateForm('status', val)}
               style={styles.picker}
+              itemStyle={styles.pickerItem}
+              dropdownIconColor={theme.colors.textSecondary}
             >
               {STATUS_OPTIONS.map(o => <Picker.Item key={o.value} label={o.label} value={o.value} />)}
             </Picker>

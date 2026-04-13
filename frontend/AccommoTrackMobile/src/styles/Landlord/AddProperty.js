@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export const getStyles = (theme) => StyleSheet.create({
   container: {
@@ -135,14 +135,21 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
+    minHeight: 56,
+    justifyContent: 'center',
     overflow: 'hidden',
     marginBottom: 16,
     backgroundColor: theme.colors.background
   },
   picker: {
-    height: 48,
+    height: Platform.OS === 'android' ? 56 : undefined,
+    width: '100%',
     color: theme.colors.text,
     backgroundColor: theme.colors.background,
+  },
+  pickerItem: {
+    fontSize: 15,
+    color: theme.colors.text,
   },
   helperText: {
     fontSize: 12,

@@ -953,6 +953,60 @@ describe('Landlord smoke flows', () => {
     });
   });
 
+  it('DormProfileSettings shows gender restriction picker for non-apartment types', async () => {
+    AsyncStorage.getItem.mockResolvedValue(
+      JSON.stringify({ paymongo_verification_status: 'verified', is_paymongo_ready: true }),
+    );
+
+    PropertyService.getProperty.mockResolvedValue({
+      success: true,
+      data: {
+        id: 79,
+        title: 'Custom Stay',
+        description: 'Custom property type',
+        property_type: 'others',
+        gender_restriction: 'mixed',
+        current_status: 'active',
+        street_address: '789 Main St',
+        barangay: 'Barangay 3',
+        city: 'Zamboanga City',
+        province: 'Zamboanga Del Sur',
+        postal_code: '7000',
+        amenities_list: [],
+        property_rules: '[]',
+        total_rooms: 3,
+        max_occupants: 6,
+        total_floors: 1,
+      },
+    });
+
+    renderWithQueryClient(
+      <DormProfileSettings
+        route={{ params: { propertyId: 79 } }}
+        navigation={mockPropNavigation}
+      />,
+    );
+
+    await screen.findByDisplayValue('Custom Stay');
+
+    expect(screen.getByText('Gender Restriction')).toBeTruthy();
+    expect(screen.getByTestId('dorm-profile-gender-picker')).toBeTruthy();
+
+    const propertyTypePicker = screen.getByTestId('dorm-profile-property-type-picker');
+
+    fireEvent(propertyTypePicker, 'valueChange', 'apartment');
+    await waitFor(() => {
+      expect(screen.queryByText('Gender Restriction')).toBeNull();
+      expect(screen.queryByTestId('dorm-profile-gender-picker')).toBeNull();
+    });
+
+    fireEvent(propertyTypePicker, 'valueChange', 'others');
+    await waitFor(() => {
+      expect(screen.getByText('Gender Restriction')).toBeTruthy();
+      expect(screen.getByTestId('dorm-profile-gender-picker')).toBeTruthy();
+    });
+  });
+
   it('DormProfileSettings persists updated financial fields on next load after save', async () => {
     AsyncStorage.getItem.mockResolvedValue(
       JSON.stringify({ paymongo_verification_status: 'verified', is_paymongo_ready: true }),

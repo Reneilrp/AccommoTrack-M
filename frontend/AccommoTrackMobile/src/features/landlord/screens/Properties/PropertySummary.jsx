@@ -486,7 +486,17 @@ export default function PropertySummaryScreen({ route, navigation }) {
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
                           <TouchableOpacity 
                             onPress={() => {
-                              if (item.type === 'payment') {
+                              if (item.type === 'booking') {
+                                navigation.navigate('MainTabs', {
+                                  screen: 'Bookings',
+                                  params: {
+                                    filter: 'pending',
+                                    focusBookingId: item.id,
+                                    drilldownToken: Date.now(),
+                                  },
+                                });
+                              }
+                              else if (item.type === 'payment') {
                                 navigation.navigate('Payments', {
                                   filter: 'overdue',
                                   searchQuery: propertyTitle || '',
@@ -497,7 +507,14 @@ export default function PropertySummaryScreen({ route, navigation }) {
                               else if (item.type === 'review') navigation.navigate('Reviews', { propertyId: propertyId, propertyTitle: propertyTitle });
                               else if (item.type === 'transfer') navigation.navigate('TransferRequests', { propertyId: propertyId, propertyTitle: propertyTitle });
                               else if (item.type === 'addon') navigation.navigate('AddonManagement', { propertyId: propertyId, propertyTitle: propertyTitle });
-                              else navigation.navigate('Bookings', { propertyId: propertyId });
+                              else {
+                                navigation.navigate('MainTabs', {
+                                  screen: 'Bookings',
+                                  params: {
+                                    drilldownToken: Date.now(),
+                                  },
+                                });
+                              }
                             }}
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                           >

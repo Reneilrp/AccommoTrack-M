@@ -124,4 +124,15 @@ describe('Landlord screens smoke coverage', () => {
     expect(source).toContain("searchQuery: propertyTitle || ''");
     expect(source).toContain('drilldownToken: Date.now()');
   });
+
+  it('keeps PropertySummary booking activity drilldown wired to Bookings tab', () => {
+    const source = readSource(propertySummaryPath);
+
+    expect(source).toContain("if (item.type === 'booking') {");
+    expect(source).toContain("navigation.navigate('MainTabs', {");
+    expect(source).toContain("screen: 'Bookings'");
+    expect(source).toContain("filter: 'pending'");
+    expect(source).toContain('focusBookingId: item.id');
+    expect(source).toContain('drilldownToken: Date.now()');
+  });
 });

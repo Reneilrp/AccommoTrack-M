@@ -184,7 +184,7 @@ export default function AddProperty({ navigation }) {
   const isPayMongoVerified =
     addPropertyVerificationQuery.data?.isPayMongoVerified ?? false;
   const canSubmitForApproval = isCaretaker || isVerified === true;
-  const pickerMode = Platform.OS === 'android' ? 'dialog' : undefined;
+  const pickerMode = Platform.OS === 'android' ? 'dropdown' : undefined;
   const refetchAddPropertyVerification = addPropertyVerificationQuery.refetch;
   const addPropertyVerificationRefetchers = useMemo(
     () => [refetchAddPropertyVerification],
@@ -812,6 +812,7 @@ export default function AddProperty({ navigation }) {
                   mode={pickerMode}
                   prompt="Select property type"
                   style={styles.picker}
+                  itemStyle={styles.pickerItem}
                   dropdownIconColor={theme.colors.textSecondary}
                   selectedValue={form.propertyType}
                   onValueChange={(value) => updateForm("propertyType", value)}
@@ -852,6 +853,7 @@ export default function AddProperty({ navigation }) {
                       mode={pickerMode}
                       prompt="Select gender restriction"
                       style={styles.picker}
+                      itemStyle={styles.pickerItem}
                       dropdownIconColor={theme.colors.textSecondary}
                       selectedValue={form.genderRestriction}
                       onValueChange={(value) => updateForm("genderRestriction", value)}
