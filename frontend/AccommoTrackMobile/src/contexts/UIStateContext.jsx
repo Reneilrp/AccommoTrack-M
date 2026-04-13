@@ -54,6 +54,10 @@ const INITIAL_STATE = {
 const mergeUIState = (persistedUIState = {}) => ({
   ...INITIAL_STATE,
   ...persistedUIState,
+  // Alerts are transient UI and should never be restored from persisted state.
+  alert: {
+    ...INITIAL_STATE.alert,
+  },
   data: {
     ...INITIAL_STATE.data,
     ...(persistedUIState.data || {}),
@@ -159,7 +163,14 @@ export const useUIStateStore = create(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ uiState: state.uiState }),
+      partialize: (state) => ({
+        uiState: {
+          ...state.uiState,
+          alert: {
+            ...INITIAL_STATE.alert,
+          },
+        },
+      }),
       merge: (persistedState, currentState) => {
         const persistedUIState =
           persistedState && typeof persistedState === 'object'

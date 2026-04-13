@@ -171,7 +171,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
   });
   const [fetchError, setFetchError] = useState("");
 
-  const { currentVersion, updateAvailable, downloadUrl, refetch: refetchVersion } = useAppVersion();
+  const { currentVersion, latestVersion, updateAvailable, downloadUrl, refetch: refetchVersion } = useAppVersion();
 
   const settingsQuery = useQuery({
     queryKey: landlordQueryKeys.settingsHub(),
@@ -665,10 +665,10 @@ export default function SettingsScreen({ navigation, onLogout }) {
           },
           ...(updateAvailable ? [{
             id: "update-available",
-            label: "Update Available",
+            label: "Update App",
             icon: "cloud-download-outline",
             type: "action",
-            description: "Tap to download the latest version",
+            description: `Tap to download v${latestVersion}`,
             action: () => {
               if (downloadUrl) {
                 import('react-native').then(({ Linking }) => {

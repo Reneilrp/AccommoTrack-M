@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, Linking, StyleSheet, Image } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Linking, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
-const ForceUpdateModal = ({ visible, downloadUrl, latestVersion }) => {
+const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = false, onLater }) => {
   const { theme } = useTheme();
   
   const handleDownload = () => {
@@ -17,8 +17,11 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion }) => {
       visible={visible}
       transparent={true}
       animationType="fade"
-      // Setting onRequestClose to empty prevents hardware back button from closing it on Android
-      onRequestClose={() => {}}
+      onRequestClose={() => {
+        if (!required && typeof onLater === 'function') {
+          onLater();
+        }
+      }}
     >
       <View style={styles.overlay}>
         <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
@@ -27,20 +30,34 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion }) => {
           </View>
           
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            Update Required
+            {required ? 'Update Required' : 'Update Available'}
           </Text>
           
           <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
-            A new version of AccommoTrack ({latestVersion}) is available. Please update the app to continue using it.
+            {required
+              ? `A new version of AccommoTrack (${latestVersion}) is available. Please update the app to continue using it.`
+              : `A new version of AccommoTrack (${latestVersion}) is available. You can update now or later from Settings.`}
           </Text>
-          
-          <TouchableOpacity 
-            style={[styles.button, { backgroundColor: theme.colors.primary }]}
-            onPress={handleDownload}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>Download Update</Text>
-          </TouchableOpacity>
+
+          <View style={[styles.actions, !required ? styles.actionsRow : null]}>
+            {!required ? (
+              <TouchableOpacity
+                style={[styles.button, styles.secondaryButton, { borderColor: theme.colors.border }]}
+                onPress={onLater}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>Later</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.colors.primary }]}
+              onPress={handleDownload}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.buttonText}>Download Update</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -87,15 +104,30 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
   },
-  button: {
+  actions: {
     width: '100%',
+    gap: 10,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+  },
+  button: {
+    flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  secondaryButton: {
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
   buttonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },

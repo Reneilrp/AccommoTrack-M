@@ -127,6 +127,37 @@ class User extends Authenticatable
     ];
 
     /**
+     * The "booted" method of the model.
+     */
+    protected static function booted()
+    {
+        static::deleting(function ($user) {
+            // Check if this is a soft delete (not a force delete)
+            if (method_exists($user, 'isForceDeleting') && ! $user->isForceDeleting()) {
+                // To avoid conflict with UNIQUE email constraint while allowing re-registration,
+                // we append a timestamp suffix to the email of the deleted record.
+                // We only do this if it hasn't been renamed yet (avoiding multiple suffixes).
+                if (! str_contains($user->email, '.deleted.')) {
+                    $originalEmail = $user->email;
+                    $user->email = $originalEmail . '.deleted.' . time();
+                    // We must save manually here because runSoftDelete only updates deleted_at
+                    $user->save();
+                }
+            }
+        });
+
+        static::restoring(function ($user) {
+            if (str_contains($user->email, '.deleted.')) {
+                $restoredEmail = explode('.deleted.', $user->email)[0];
+                // Only restore original email if it's not taken by another ACTIVE user
+                if (! static::where('email', $restoredEmail)->exists()) {
+                    $user->email = $restoredEmail;
+                }
+            }
+        });
+    }
+
+    /**
      * Tenant Profile relationship (for tenants only)
      */
     public function tenantProfile()

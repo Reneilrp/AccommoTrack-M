@@ -74,7 +74,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [isGuestMode, setIsGuestMode] = useState(isGuest ?? true);
   const [loading, setLoading] = useState(true);
 
-  const { currentVersion, updateAvailable, downloadUrl, refetch: refetchVersion } = useAppVersion();
+  const { currentVersion, latestVersion, updateAvailable, downloadUrl, refetch: refetchVersion } = useAppVersion();
   const [userRole, setUserRole] = useState('tenant');
   const [landlordVerificationStatus, setLandlordVerificationStatus] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -235,6 +235,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         handleSwitchRole();
         break;
       case "Update Available":
+      case "Update App":
         if (downloadUrl) {
           import('react-native').then(({ Linking }) => {
             Linking.openURL(downloadUrl);
@@ -523,10 +524,10 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         items: [
           ...(updateAvailable ? [{
             id: 16,
-            label: "Update Available",
+            label: "Update App",
             icon: "cloud-download-outline",
             highlight: true,
-            value: "Download Latest",
+            value: `v${latestVersion}`,
           }] : []),
           { 
             id: 17, 

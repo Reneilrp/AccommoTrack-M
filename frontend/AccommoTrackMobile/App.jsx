@@ -10,6 +10,7 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext.jsx';
 import { UIStateProvider, useUIState } from './src/contexts/UIStateContext.jsx';
 import { queryClient } from './src/config/queryClient.js';
 import { useAuthStore } from './src/stores/auth/authStore.js';
+import { useAppVersion } from './src/shared/hooks/useAppVersion.js';
 
 import { getToastConfig } from './src/config/toastConfig.jsx';
 
@@ -29,61 +30,35 @@ const MyDarkTheme = {
   },
 };
 
-import Constants from 'expo-constants';
 import ForceUpdateModal from './src/components/ForceUpdateModal.jsx';
 import ThemedAlert from './src/components/ThemedAlert.jsx';
-import api from './src/services/api.js';
 
 function AppContent() {
   const { theme, isDarkMode, isLoading: isThemeLoading } = useTheme();
   const { isLoaded: isUIStateLoaded } = useUIState();
   const isAuthHydrated = useAuthStore((state) => state.hasHydrated);
   const toastConfig = React.useMemo(() => getToastConfig(theme), [theme]);
+  const {
+    latestVersion,
+    downloadUrl,
+    updateAvailable,
+    isForceUpdate,
+    isLoading: isVersionLoading,
+  } = useAppVersion();
 
-  // Version checking state
-  const [updateRequired, setUpdateRequired] = React.useState(false);
-  const [downloadUrl, setDownloadUrl] = React.useState('');
-  const [latestVersion, setLatestVersion] = React.useState('');
+  // Show startup update prompt at most once per app open.
+  const [showStartupUpdateModal, setShowStartupUpdateModal] = React.useState(false);
+  const [hasPromptedThisLaunch, setHasPromptedThisLaunch] = React.useState(false);
 
   React.useEffect(() => {
-    const checkVersion = async () => {
-      try {
-        const response = await api.get('/system/toggles');
-        if (response?.data?.data) {
-          const { mobile_latest_version, mobile_download_url, mobile_force_update } = response.data.data;
-          
-          if (!mobile_force_update) return;
+    if (isVersionLoading || hasPromptedThisLaunch) return;
 
-          const currentVersion = Constants.expoConfig?.version || '1.0.0';
-          
-          // Simple semantic version check (e.g., "1.1.0" > "1.0.0")
-          if (mobile_latest_version && mobile_latest_version !== currentVersion) {
-            // A more robust semver check can be added, but a simple !== works if we strictly control versions
-            const currentParts = currentVersion.split('.').map(Number);
-            const latestParts = mobile_latest_version.split('.').map(Number);
-            
-            let isOutdated = false;
-            for (let i = 0; i < Math.max(currentParts.length, latestParts.length); i++) {
-              const cur = currentParts[i] || 0;
-              const lat = latestParts[i] || 0;
-              if (lat > cur) { isOutdated = true; break; }
-              if (lat < cur) { break; }
-            }
+    if (updateAvailable && downloadUrl) {
+      setShowStartupUpdateModal(true);
+    }
 
-            if (isOutdated) {
-              setLatestVersion(mobile_latest_version);
-              setDownloadUrl(mobile_download_url);
-              setUpdateRequired(true);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to check app version:', error);
-      }
-    };
-    
-    checkVersion();
-  }, []);
+    setHasPromptedThisLaunch(true);
+  }, [downloadUrl, hasPromptedThisLaunch, isVersionLoading, updateAvailable]);
 
   if (isThemeLoading || !isUIStateLoaded || !isAuthHydrated) {
     return null; // Or a splash screen component
@@ -106,9 +81,11 @@ function AppContent() {
         <AppNavigator />
       </NavigationContainer>
       <ForceUpdateModal 
-        visible={updateRequired} 
+        visible={showStartupUpdateModal} 
         latestVersion={latestVersion} 
         downloadUrl={downloadUrl} 
+        required={isForceUpdate}
+        onLater={() => setShowStartupUpdateModal(false)}
       />
       <ThemedAlert />
       <Toast config={toastConfig} />

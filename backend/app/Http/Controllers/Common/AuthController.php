@@ -251,8 +251,14 @@ class AuthController extends Controller
                 'first_name' => 'required|string|max:100',
                 'middle_name' => 'nullable|string|max:100',
                 'last_name' => 'required|string|max:100',
-                // Require RFC syntax during registration
-                'email' => 'required|string|email:rfc|max:255|unique:users',
+                // Require RFC syntax during registration, explicitly ignore soft-deleted records
+                'email' => [
+                    'required',
+                    'string',
+                    'email:rfc',
+                    'max:255',
+                    Rule::unique('users')->whereNull('deleted_at'),
+                ],
                 'password' => [
                     'required',
                     'string',

@@ -242,7 +242,19 @@ export default function Caretakers() {
     }
   };
 
+  const refreshCaretakerBundleSafe = async () => {
+    try {
+      await refetchLandlordQueries(caretakerRefetchers);
+    } catch (error) {
+      console.warn('Failed to refresh caretakers after mutation:', error);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (submitting) {
+      return;
+    }
+
     // Validations
     const errors = {
       firstName: validateField('firstName', formData.firstName),
@@ -301,9 +313,10 @@ export default function Caretakers() {
 
         const res = await CaretakerService.createCaretaker(payload);
         if (res.success) {
-          await refetchLandlordQueries(caretakerRefetchers);
-          showSuccess('Success', `Caretaker created! Temp password: ${res.data.temporary_password || formData.password}`);
           setModalVisible(false);
+          resetForm();
+          showSuccess('Success', `Caretaker created! Temp password: ${res.data.temporary_password || formData.password}`);
+          await refreshCaretakerBundleSafe();
         } else {
           showError('Error', res.error);
         }
@@ -318,13 +331,16 @@ export default function Caretakers() {
 
         const res = await CaretakerService.updateCaretaker(formData.assignmentId, payload);
         if (res.success) {
-          await refetchLandlordQueries(caretakerRefetchers);
-          showSuccess('Success', 'Caretaker updated');
           setModalVisible(false);
+          resetForm();
+          showSuccess('Success', 'Caretaker updated');
+          await refreshCaretakerBundleSafe();
         } else {
           showError('Error', res.error);
         }
       }
+    } catch (_err) {
+      showError('Error', 'Failed to save caretaker changes');
     } finally {
       setSubmitting(false);
     }
