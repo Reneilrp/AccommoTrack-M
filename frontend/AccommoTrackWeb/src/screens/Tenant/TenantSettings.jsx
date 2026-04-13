@@ -6,7 +6,8 @@ import NotificationsTab from '../../components/Settings/tenant/NotificationsTab'
 import ReviewsTab from '../../components/Settings/tenant/ReviewsTab';
 import AppearanceTab from '../../components/Settings/AppearanceTab';
 import SwitchRoleTab from '../../components/Settings/SwitchRoleTab';
-import { User, Sliders, Shield, Bell, Palette, ArrowLeftRight, Star } from 'lucide-react';
+import TenantSupport from './TenantSupport';
+import { User, Sliders, Shield, Bell, Palette, ArrowLeftRight, Star, HelpCircle } from 'lucide-react';
 
 const TenantSettings = ({ user, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -19,6 +20,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
     { id: 'reviews', label: 'My Reviews', icon: 'Star' },
     { id: 'appearance', label: 'Appearance', icon: 'Palette' },
     { id: 'switch-role', label: 'Switch Role', icon: 'ArrowLeftRight' },
+    { id: 'support', label: 'Help & Support', icon: 'HelpCircle' },
   ];
 
   return (
@@ -56,6 +58,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
             {activeTab === 'reviews' && <ReviewsTab />}
             {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
             {activeTab === 'switch-role' && <SwitchRoleTab user={user} onUserUpdate={onUserUpdate} />}
+            {activeTab === 'support' && <TenantSupport />}
           </div>
         </div>
       </div>
@@ -72,6 +75,7 @@ const Icon = ({ name, className }) => {
     case 'Star': return <Star className={className} />;
     case 'Palette': return <Palette className={className} />;
     case 'ArrowLeftRight': return <ArrowLeftRight className={className} />;
+    case 'HelpCircle': return <HelpCircle className={className} />;
     default: return null;
   }
 };

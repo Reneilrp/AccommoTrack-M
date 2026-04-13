@@ -10,6 +10,7 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext.jsx';
 import { UIStateProvider, useUIState } from './src/contexts/UIStateContext.jsx';
 import { queryClient } from './src/config/queryClient.js';
 import { useAuthStore } from './src/stores/auth/authStore.js';
+import { useAppVersion } from './src/shared/hooks/useAppVersion.js';
 
 import { getToastConfig } from './src/config/toastConfig.jsx';
 
@@ -29,11 +30,35 @@ const MyDarkTheme = {
   },
 };
 
+import ForceUpdateModal from './src/components/ForceUpdateModal.jsx';
+import ThemedAlert from './src/components/ThemedAlert.jsx';
+
 function AppContent() {
   const { theme, isDarkMode, isLoading: isThemeLoading } = useTheme();
   const { isLoaded: isUIStateLoaded } = useUIState();
   const isAuthHydrated = useAuthStore((state) => state.hasHydrated);
   const toastConfig = React.useMemo(() => getToastConfig(theme), [theme]);
+  const {
+    latestVersion,
+    downloadUrl,
+    updateAvailable,
+    isForceUpdate,
+    isLoading: isVersionLoading,
+  } = useAppVersion();
+
+  // Show startup update prompt at most once per app open.
+  const [showStartupUpdateModal, setShowStartupUpdateModal] = React.useState(false);
+  const [hasPromptedThisLaunch, setHasPromptedThisLaunch] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isVersionLoading || hasPromptedThisLaunch) return;
+
+    if (updateAvailable && downloadUrl) {
+      setShowStartupUpdateModal(true);
+    }
+
+    setHasPromptedThisLaunch(true);
+  }, [downloadUrl, hasPromptedThisLaunch, isVersionLoading, updateAvailable]);
 
   if (isThemeLoading || !isUIStateLoaded || !isAuthHydrated) {
     return null; // Or a splash screen component
@@ -55,6 +80,14 @@ function AppContent() {
       >
         <AppNavigator />
       </NavigationContainer>
+      <ForceUpdateModal 
+        visible={showStartupUpdateModal} 
+        latestVersion={latestVersion} 
+        downloadUrl={downloadUrl} 
+        required={isForceUpdate}
+        onLater={() => setShowStartupUpdateModal(false)}
+      />
+      <ThemedAlert />
       <Toast config={toastConfig} />
     </View>
   );

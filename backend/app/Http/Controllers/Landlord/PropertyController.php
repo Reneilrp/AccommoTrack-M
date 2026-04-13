@@ -176,7 +176,7 @@ class PropertyController extends Controller
             // Add credentials back in for the landlord view
             if ($property->relationLoaded('credentials')) {
                 $propertyArray['credentials'] = $property->credentials->map(function ($c) {
-                    return ['id' => $c->id, 'file_url' => asset('storage/'.$c->file_path), 'original_name' => $c->original_name];
+                    return ['id' => $c->id, 'file_url' => \Illuminate\Support\Facades\Storage::url($c->file_path), 'original_name' => $c->original_name];
                 })->toArray();
             }
 
@@ -207,6 +207,8 @@ class PropertyController extends Controller
             $property = $this->propertyService->createProperty($request->validated(), $context['user']);
 
             return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to create property', 'error' => $e->getMessage()], 500);
         }
@@ -238,7 +240,7 @@ class PropertyController extends Controller
                 }
             }
 
-            if (! $context['user']->is_verified) {
+            if (! $this->propertyService->canLandlordSubmitProperties($context['user'])) {
                 if ($request->has('current_status') && $request->current_status !== 'draft') {
                     return response()->json(['message' => 'Your account is pending verification. Properties can only be saved as drafts.', 'verification_required' => true], 403);
                 }
@@ -250,6 +252,8 @@ class PropertyController extends Controller
             $property = $this->propertyService->updateProperty($property, $request->validated(), $request);
 
             return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to update property', 'error' => $e->getMessage()], 500);
         }
@@ -270,9 +274,9 @@ class PropertyController extends Controller
             }
 
             $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
-            $this->propertyService->deleteProperty($property);
+            $this->propertyService->safeSoftDeleteProperty($property, true);
 
-            return response()->json(['message' => 'Property and all associated rooms deleted successfully'], 200);
+            return response()->json(['message' => 'Property sent to archive'], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Property not found'], 404);
         } catch (\Exception $e) {

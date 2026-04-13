@@ -19,6 +19,7 @@ import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const ForgotPasswordModal = ({ visible, onClose }) => {
   const { theme, isDarkMode } = useTheme();
+  const showAlert = Alert.alert;
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [step, setStep] = useState(1);
@@ -35,7 +36,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
   const handleSendCode = async () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
-      Alert.alert('Error', 'Please enter your email address.');
+      showAlert('Error', 'Please enter your email address.');
       return;
     }
 
@@ -51,13 +52,13 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
 
       if (response.ok) {
         setEmail(normalizedEmail);
-        Alert.alert('Success', data.message || 'If your email is registered, a reset code has been sent.');
+        showAlert('Success', data.message || 'If your email is registered, a reset code has been sent.');
         setStep(2);
       } else {
-        Alert.alert('Error', data.message || 'Failed to send reset code.');
+        showAlert('Error', data.message || 'Failed to send reset code.');
       }
     } catch (err) {
-      Alert.alert('Error', 'Network error. Please check your connection.');
+      showAlert('Error', 'Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -66,7 +67,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
   const handleVerifyCode = async () => {
     const fullCode = code.join('');
     if (fullCode.length !== 6) {
-      Alert.alert('Error', 'Please enter the 6-digit code.');
+      showAlert('Error', 'Please enter the 6-digit code.');
       return;
     }
 
@@ -83,10 +84,10 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       if (response.ok) {
         setStep(3);
       } else {
-        Alert.alert('Error', data.message || 'Invalid code.');
+        showAlert('Error', data.message || 'Invalid code.');
       }
     } catch (err) {
-      Alert.alert('Error', 'Network error. Please check your connection.');
+      showAlert('Error', 'Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -94,11 +95,11 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
 
   const handleResetPassword = async () => {
     if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters.');
+      showAlert('Error', 'Password must be at least 8 characters.');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      showAlert('Error', 'Passwords do not match.');
       return;
     }
 
@@ -118,14 +119,14 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'Password reset successfully! You can now login.', [
+        showAlert('Success', 'Password reset successfully! You can now login.', [
           { text: 'OK', onPress: () => handleClose() }
         ]);
       } else {
-        Alert.alert('Error', data.message || 'Failed to reset password.');
+        showAlert('Error', data.message || 'Failed to reset password.');
       }
     } catch (err) {
-      Alert.alert('Error', 'Network error. Please check your connection.');
+      showAlert('Error', 'Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }

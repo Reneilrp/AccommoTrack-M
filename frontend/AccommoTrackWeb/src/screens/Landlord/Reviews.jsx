@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Star, 
@@ -32,13 +32,9 @@ export default function LandlordReviews() {
   const [submitting, setSubmitting] = useState(false);
   const [ratingFilter, setRatingFilter] = useState('all');
 
-  useEffect(() => {
-    fetchReviews();
-  }, []);
-
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
-      if (reviews.length === 0) setLoading(true);
+      setLoading(true);
       const res = await api.get('/landlord/reviews');
       const data = res.data || [];
       // Ensure sorted by date (newest first)
@@ -54,7 +50,11 @@ export default function LandlordReviews() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [updateData]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
   const handleReply = async (reviewId) => {
     if (!replyText.trim()) return;
     

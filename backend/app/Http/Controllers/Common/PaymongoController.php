@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
+use App\Services\PaymentLedgerService;
+use App\Support\SystemToggle;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +18,45 @@ class PaymongoController extends Controller
 {
     use ResolvesLandlordAccess;
 
+    public function __construct(private readonly PaymentLedgerService $paymentLedgerService)
+    {
+    }
+
+    private function tenantPaymentsTemporarilyDisabledResponse()
+    {
+        return response()->json([
+            'message' => 'Tenant online payments are temporarily unavailable while payment compliance updates are in progress.',
+        ], 503);
+    }
+
+    private function invoicePendingManualVerificationResponse()
+    {
+        return response()->json([
+            'message' => 'This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.',
+        ], 422);
+    }
+
+    private function invoicePaymongoTemporarilyDisabledResponse()
+    {
+        return response()->json([
+            'message' => 'Online invoice payments are temporarily unavailable while payment compliance updates are in progress.',
+        ], 503);
+    }
+
+    private function isInvoicePaymongoDisabled(): bool
+    {
+        $tenantFallback = SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false));
+
+        return SystemToggle::getBool('invoice_paymongo_disabled', $tenantFallback);
+    }
+
+    private function isSettledTransactionStatus(?string $status): bool
+    {
+        $normalized = strtolower(trim((string) $status));
+
+        return in_array($normalized, ['succeeded', 'paid', 'partially_refunded', 'refunded'], true);
+    }
+
     /**
      * Create a PayMongo Source / session for an invoice.
      * Expects `method` in request (e.g. 'gcash' or 'card') and optional `return_url`.
@@ -23,6 +64,7 @@ class PaymongoController extends Controller
     public function createSource(Request $request, $invoiceId)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
 
         $validated = $request->validate([
             'method' => 'required|string',
@@ -34,7 +76,19 @@ class PaymongoController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $method = $validated['method'];
+        if ($invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $invoice->property_id);
+        }
+
+        if ($this->isInvoicePaymongoDisabled()) {
+            return $this->invoicePaymongoTemporarilyDisabledResponse();
+        }
+
+        if (strtolower((string) $invoice->status) === 'pending_verification') {
+            return $this->invoicePendingManualVerificationResponse();
+        }
+
+        $method = strtolower(trim((string) $validated['method']));
         $returnUrl = $validated['return_url'] ?? config('app.url').'/payments/return';
 
         $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
@@ -68,23 +122,14 @@ class PaymongoController extends Controller
                 'method' => 'paymongo_'.$method,
             ]);
 
-            $verifyEnv = config('services.paymongo.verify_ssl', true);
-            // Allow boolean-like values or a path to a CA bundle file
-            if (is_string($verifyEnv) && file_exists($verifyEnv)) {
-                $verify = $verifyEnv; // path to bundle
-            } else {
-                $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                if (is_null($verify)) {
-                    $verify = true;
-                }
+            $client = $this->createPaymongoClient('createSource');
+
+            if ($method === 'qrph') {
+                $result = $this->createQrphLinkCheckout($client, $invoice, $tx, $returnUrl);
+                DB::commit();
+
+                return response()->json($result, 200);
             }
-
-            Log::info('Paymongo createSource - verify resolved: '.var_export($verify, true));
-
-            $client = new Client([
-                'base_uri' => 'https://api.paymongo.com/v1/',
-                'verify' => $verify,
-            ]);
 
             $payload = [
                 'data' => [
@@ -123,8 +168,13 @@ class PaymongoController extends Controller
             DB::rollBack();
             Log::error('PayMongo create source error: '.$e->getMessage());
             $msg = $e->getResponse() ? (string) $e->getResponse()->getBody() : $e->getMessage();
+            $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
+            $providerMessage = $this->extractPaymongoErrorMessage($msg);
 
-            return response()->json(['message' => 'Failed to create PayMongo source', 'error' => $msg], 500);
+            return response()->json([
+                'message' => $providerMessage ?: 'Failed to create PayMongo source',
+                'error' => $providerMessage ?: $msg,
+            ], ($statusCode >= 400 && $statusCode < 600) ? $statusCode : 500);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('PayMongo create source unexpected error: '.$e->getMessage());
@@ -138,6 +188,14 @@ class PaymongoController extends Controller
      */
     public function createSourceForTenant(Request $request, $invoiceId)
     {
+        if ($this->isInvoicePaymongoDisabled()) {
+            return $this->invoicePaymongoTemporarilyDisabledResponse();
+        }
+
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return $this->tenantPaymentsTemporarilyDisabledResponse();
+        }
+
         $validated = $request->validate([
             'method' => 'required|string',
             'return_url' => 'nullable|url',
@@ -150,7 +208,11 @@ class PaymongoController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $method = $validated['method'];
+        if (strtolower((string) $invoice->status) === 'pending_verification') {
+            return $this->invoicePendingManualVerificationResponse();
+        }
+
+        $method = strtolower(trim((string) $validated['method']));
         $returnUrl = $validated['return_url'] ?? config('app.url').'/payments/return';
 
         $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
@@ -204,22 +266,14 @@ class PaymongoController extends Controller
                 'method' => 'paymongo_'.$method,
             ]);
 
-            $verifyEnv = config('services.paymongo.verify_ssl', true);
-            if (is_string($verifyEnv) && file_exists($verifyEnv)) {
-                $verify = $verifyEnv;
-            } else {
-                $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                if (is_null($verify)) {
-                    $verify = true;
-                }
+            $client = $this->createPaymongoClient('createSourceForTenant');
+
+            if ($method === 'qrph') {
+                $result = $this->createQrphLinkCheckout($client, $invoice, $tx, $returnUrl);
+                DB::commit();
+
+                return response()->json($result, 200);
             }
-
-            Log::info('Paymongo createSourceForTenant - verify resolved: '.var_export($verify, true));
-
-            $client = new Client([
-                'base_uri' => 'https://api.paymongo.com/v1/',
-                'verify' => $verify,
-            ]);
 
             $payload = [
                 'data' => [
@@ -257,8 +311,13 @@ class PaymongoController extends Controller
             DB::rollBack();
             Log::error('PayMongo create source (tenant) error: '.$e->getMessage());
             $msg = $e->getResponse() ? (string) $e->getResponse()->getBody() : $e->getMessage();
+            $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
+            $providerMessage = $this->extractPaymongoErrorMessage($msg);
 
-            return response()->json(['message' => 'Failed to create PayMongo source', 'error' => $msg], 500);
+            return response()->json([
+                'message' => $providerMessage ?: 'Failed to create PayMongo source',
+                'error' => $providerMessage ?: $msg,
+            ], ($statusCode >= 400 && $statusCode < 600) ? $statusCode : 500);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('PayMongo create source (tenant) unexpected error: '.$e->getMessage());
@@ -274,6 +333,7 @@ class PaymongoController extends Controller
     public function createPayment(Request $request, $invoiceId)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
         $validated = $request->validate([
             'payment_method_id' => 'nullable|string',
             'source_id' => 'nullable|string',
@@ -282,6 +342,18 @@ class PaymongoController extends Controller
         $invoice = Invoice::findOrFail($invoiceId);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $invoice->property_id);
+        }
+
+        if ($this->isInvoicePaymongoDisabled()) {
+            return $this->invoicePaymongoTemporarilyDisabledResponse();
+        }
+
+        if (strtolower((string) $invoice->status) === 'pending_verification') {
+            return $this->invoicePendingManualVerificationResponse();
         }
 
         $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
@@ -363,7 +435,7 @@ class PaymongoController extends Controller
             $tx->status = 'succeeded'; // If /payments succeeds, it's paid
             $tx->save();
 
-            $this->updateInvoiceAndBooking($invoice->id, $amountToPayCents);
+            $this->paymentLedgerService->recomputeInvoiceAndBookingStatusById($invoice->id, Auth::id());
 
             DB::commit();
 
@@ -387,6 +459,14 @@ class PaymongoController extends Controller
      */
     public function createPaymentForTenant(Request $request, $invoiceId)
     {
+        if ($this->isInvoicePaymongoDisabled()) {
+            return $this->invoicePaymongoTemporarilyDisabledResponse();
+        }
+
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return $this->tenantPaymentsTemporarilyDisabledResponse();
+        }
+
         $validated = $request->validate([
             'payment_method_id' => 'nullable|string',
             'source_id' => 'nullable|string',
@@ -396,6 +476,10 @@ class PaymongoController extends Controller
         $tenantId = Auth::id();
         if ($invoice->tenant_id !== $tenantId) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (strtolower((string) $invoice->status) === 'pending_verification') {
+            return $this->invoicePendingManualVerificationResponse();
         }
 
         $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
@@ -476,7 +560,7 @@ class PaymongoController extends Controller
             $tx->status = 'succeeded'; // If /payments succeeds, it's paid
             $tx->save();
 
-            $this->updateInvoiceAndBooking($invoice->id, $amountToPayCents);
+            $this->paymentLedgerService->recomputeInvoiceAndBookingStatusById($invoice->id, Auth::id());
 
             DB::commit();
 
@@ -525,10 +609,22 @@ class PaymongoController extends Controller
      */
     public function refreshInvoiceForTenant(Request $request, $invoiceId)
     {
+        if ($this->isInvoicePaymongoDisabled()) {
+            return $this->invoicePaymongoTemporarilyDisabledResponse();
+        }
+
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return $this->tenantPaymentsTemporarilyDisabledResponse();
+        }
+
         $invoice = Invoice::findOrFail($invoiceId);
         $tenantId = Auth::id();
         if ($invoice->tenant_id !== $tenantId) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (strtolower((string) $invoice->status) === 'pending_verification') {
+            return $this->invoicePendingManualVerificationResponse();
         }
 
         // find any local payment transactions for this invoice that have a gateway reference
@@ -550,68 +646,92 @@ class PaymongoController extends Controller
 
         $updated = false;
         foreach ($txs as $tx) {
-            $ref = $tx->gateway_reference;
             try {
-                // Try sources endpoint first
-                $res = $client->get("sources/{$ref}", ['auth' => [config('services.paymongo.secret_key'), '']]);
-                $body = json_decode((string) $res->getBody(), true);
-                if (! is_array($body)) {
-                    throw new \Exception('Invalid response from PayMongo');
-                }
-                $resource = $body['data']['attributes'] ?? null;
-                $status = $resource['status'] ?? null;
+                [$txUpdated, $invoiceId] = DB::transaction(function () use ($client, $tx): array {
+                    $lockedTx = PaymentTransaction::query()
+                        ->whereKey($tx->id)
+                        ->lockForUpdate()
+                        ->first();
 
-                if ($status) {
-                    if ($status === 'chargeable') {
-                        // CRITICAL: If source is chargeable, we MUST create a payment to collect money
-                        Log::info("Paymongo refresh: source {$ref} is chargeable. Creating payment...");
-                        $paymentBody = $this->createPaymentFromSource($client, $ref, $tx->amount_cents, $tx->currency);
-                        if ($paymentBody) {
-                            $tx->status = 'succeeded';
-                            $tx->gateway_reference = $paymentBody['data']['id'] ?? $tx->gateway_reference;
-                            $tx->gateway_response = $paymentBody;
-                            $tx->save();
-                            $updated = true;
+                    if (! $lockedTx || ! $lockedTx->gateway_reference) {
+                        return [false, null];
+                    }
+
+                    if ($this->isSettledTransactionStatus($lockedTx->status)) {
+                        return [false, $lockedTx->invoice_id];
+                    }
+
+                    $ref = $lockedTx->gateway_reference;
+
+                    try {
+                        $res = $client->get("sources/{$ref}", ['auth' => [config('services.paymongo.secret_key'), '']]);
+                        $body = json_decode((string) $res->getBody(), true);
+                        if (! is_array($body)) {
+                            throw new \Exception('Invalid response from PayMongo');
                         }
-                    } elseif (in_array($status, ['succeeded', 'paid', 'partially_refunded'])) {
-                        $tx->status = $status;
-                        $tx->gateway_response = $body;
-                        $tx->save();
-                        $updated = true;
-                    } else {
-                        $tx->status = $status;
-                        $tx->gateway_response = $body;
-                        $tx->save();
-                    }
 
-                    // update invoice status if applicable
-                    if ($updated && $tx->invoice_id) {
-                        $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
+                        $resource = $body['data']['attributes'] ?? null;
+                        $status = strtolower((string) ($resource['status'] ?? ''));
+
+                        if ($status === 'chargeable') {
+                            Log::info("Paymongo refresh: source {$ref} is chargeable. Creating payment...");
+                            $paymentBody = $this->createPaymentFromSource($client, $ref, $lockedTx->amount_cents, $lockedTx->currency);
+                            if ($paymentBody) {
+                                $lockedTx->status = 'succeeded';
+                                $lockedTx->gateway_reference = $paymentBody['data']['id'] ?? $lockedTx->gateway_reference;
+                                $lockedTx->gateway_response = $paymentBody;
+                                $lockedTx->save();
+
+                                return [true, $lockedTx->invoice_id];
+                            }
+
+                            return [false, $lockedTx->invoice_id];
+                        }
+
+                        if (in_array($status, ['succeeded', 'paid', 'partially_refunded'], true)) {
+                            $lockedTx->status = $status;
+                            $lockedTx->gateway_response = $body;
+                            $lockedTx->save();
+
+                            return [true, $lockedTx->invoice_id];
+                        }
+
+                        if ($status !== '') {
+                            $lockedTx->status = $status;
+                            $lockedTx->gateway_response = $body;
+                            $lockedTx->save();
+                        }
+
+                        return [false, $lockedTx->invoice_id];
+                    } catch (\GuzzleHttp\Exception\ClientException $e) {
+                        $res = $client->get("payments/{$ref}", ['auth' => [config('services.paymongo.secret_key'), '']]);
+                        $body = json_decode((string) $res->getBody(), true);
+                        if (! is_array($body)) {
+                            throw new \Exception('Invalid response from PayMongo');
+                        }
+
+                        $payment = $body['data']['attributes'] ?? null;
+                        if (! $payment) {
+                            return [false, $lockedTx->invoice_id];
+                        }
+
+                        $lockedTx->status = 'succeeded';
+                        $lockedTx->gateway_response = $body;
+                        $lockedTx->save();
+
+                        return [true, $lockedTx->invoice_id];
                     }
+                });
+
+                if ($txUpdated && $invoiceId) {
+                    $this->paymentLedgerService->recomputeInvoiceAndBookingStatusById($invoiceId, Auth::id());
+                    $updated = true;
                 }
             } catch (\GuzzleHttp\Exception\ClientException $e) {
-                // not found on sources, try payments
-                try {
-                    $res = $client->get("payments/{$ref}", ['auth' => [config('services.paymongo.secret_key'), '']]);
-                    $body = json_decode((string) $res->getBody(), true);
-                    if (! is_array($body)) {
-                        throw new \Exception('Invalid response from PayMongo');
-                    }
-                    $payment = $body['data']['attributes'] ?? null;
-                    if ($payment) {
-                        $tx->status = 'succeeded';
-                        $tx->gateway_response = $body;
-                        $tx->save();
-                        $updated = true;
-
-                        if ($tx->invoice_id) {
-                            $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
-                        }
-                    }
-                } catch (\Exception $e2) {
-                    Log::warning('Paymongo refresh - reference not found or request failed: '.$ref.' - '.$e2->getMessage());
-                }
+                $ref = $tx->gateway_reference;
+                Log::warning('Paymongo refresh - reference not found or request failed: '.$ref.' - '.$e->getMessage());
             } catch (\Exception $e) {
+                $ref = $tx->gateway_reference;
                 Log::error('Paymongo refresh error for ref '.$ref.': '.$e->getMessage());
             }
         }
@@ -649,43 +769,129 @@ class PaymongoController extends Controller
         }
     }
 
-    /**
-     * Helper to update invoice and booking status.
-     */
-    private function updateInvoiceAndBooking($invoiceId, $paidAmountCents)
+    private function createPaymongoClient(string $context): Client
     {
-        $invoice = Invoice::with('transactions')->find($invoiceId);
-        if (! $invoice) {
-            return;
+        $verify = $this->resolvePaymongoVerify();
+        Log::info('Paymongo '.$context.' - verify resolved: '.var_export($verify, true));
+
+        return new Client([
+            'base_uri' => 'https://api.paymongo.com/v1/',
+            'verify' => $verify,
+        ]);
+    }
+
+    /**
+     * Resolve TLS verification config (bool or custom CA bundle path).
+     *
+     * @return bool|string
+     */
+    private function resolvePaymongoVerify()
+    {
+        $verifyEnv = config('services.paymongo.verify_ssl', true);
+        if (is_string($verifyEnv) && file_exists($verifyEnv)) {
+            return $verifyEnv;
         }
 
-        $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
+        $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
-        // Calculate total successful payments for this invoice, subtracting refunds
-        $totalPaidSoFar = $invoice->transactions()
-            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
-            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-            ->value('net_cents') ?? 0;
+        return is_null($verify) ? true : $verify;
+    }
 
-        if ($totalPaidSoFar >= $invoiceTotal) {
-            $invoice->status = 'paid';
-            $invoice->paid_at = now();
-        } else {
-            $invoice->status = 'partial';
+    /**
+     * Create a PayMongo Link for QRPh checkout and return a source-compatible payload.
+     */
+    private function createQrphLinkCheckout(Client $client, Invoice $invoice, PaymentTransaction $tx, string $returnUrl): array
+    {
+        $metadata = [
+            'invoice_id' => (int) $invoice->id,
+            'landlord_id' => (int) $invoice->landlord_id,
+            'payment_transaction_id' => (int) $tx->id,
+            'flow' => 'invoice_checkout',
+        ];
+
+        if (! empty($invoice->tenant_id)) {
+            $metadata['tenant_id'] = (int) $invoice->tenant_id;
         }
-        $invoice->save();
 
-        if ($invoice->booking_id) {
-            try {
-                $booking = \App\Models\Booking::find($invoice->booking_id);
-                if ($booking) {
-                    $booking->payment_status = ($invoice->status === 'paid') ? 'paid' : 'partial';
-                    $booking->save();
-                    Log::info('Booking payment_status updated', ['booking_id' => $booking->id, 'payment_status' => $booking->payment_status]);
+        $payload = [
+            'data' => [
+                'attributes' => [
+                    'amount' => intval($tx->amount_cents),
+                    'description' => (string) ($invoice->description ?: 'Invoice #'.$invoice->id),
+                    'remarks' => (string) ($invoice->reference ?: 'INV-'.$invoice->id),
+                    'metadata' => $metadata,
+                ],
+            ],
+        ];
+
+        $res = $client->post('links', [
+            'auth' => [config('services.paymongo.secret_key'), ''],
+            'json' => $payload,
+        ]);
+
+        $body = json_decode((string) $res->getBody(), true);
+        if (! is_array($body)) {
+            throw new \Exception('Invalid response from PayMongo');
+        }
+
+        $linkId = $body['data']['id'] ?? null;
+        $checkoutUrl = $body['data']['attributes']['checkout_url'] ?? null;
+        if (! $checkoutUrl) {
+            throw new \Exception('PayMongo checkout URL was not returned.');
+        }
+
+        $tx->gateway_reference = $linkId;
+        $tx->gateway_response = $body;
+        $tx->save();
+
+        $sourceCompatible = [
+            'data' => [
+                'id' => $linkId,
+                'type' => 'source',
+                'attributes' => [
+                    'type' => 'qrph',
+                    'status' => $body['data']['attributes']['status'] ?? 'pending',
+                    'redirect' => [
+                        'checkout_url' => $checkoutUrl,
+                        'success' => $returnUrl,
+                        'failed' => $returnUrl,
+                    ],
+                ],
+            ],
+        ];
+
+        return [
+            'transaction' => $tx,
+            'source' => $sourceCompatible,
+            'link' => $body,
+            'checkout_url' => $checkoutUrl,
+        ];
+    }
+
+    private function extractPaymongoErrorMessage(string $rawMessage): ?string
+    {
+        $decoded = json_decode($rawMessage, true);
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $errors = $decoded['errors'] ?? null;
+        if (is_array($errors) && count($errors) > 0) {
+            $first = $errors[0];
+            if (is_array($first)) {
+                if (! empty($first['detail']) && is_string($first['detail'])) {
+                    return $first['detail'];
                 }
-            } catch (\Exception $be) {
-                Log::error('Failed to update booking payment_status: '.$be->getMessage());
+                if (! empty($first['code']) && is_string($first['code'])) {
+                    return $first['code'];
+                }
             }
         }
+
+        if (! empty($decoded['message']) && is_string($decoded['message'])) {
+            return $decoded['message'];
+        }
+
+        return null;
     }
 }

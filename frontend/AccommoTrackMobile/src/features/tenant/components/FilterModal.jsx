@@ -27,6 +27,8 @@ export default function FilterModal({ visible, onClose, selectedFilter, onFilter
       visible={visible}
       onRequestClose={onClose}
       statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+      presentationStyle="overFullScreen"
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>

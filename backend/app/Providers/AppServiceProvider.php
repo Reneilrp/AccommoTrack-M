@@ -6,6 +6,12 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use App\Models\Property;
+use App\Models\Room;
+use App\Models\Review;
+use App\Observers\PropertyObserver;
+use App\Observers\RoomObserver;
+use App\Observers\ReviewObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,5 +37,10 @@ class AppServiceProvider extends ServiceProvider
         // Remove manual header() calls to avoid duplicate/multiple Access-Control-Allow-Origin
         // values which cause browsers to reject requests. See config/cors.php for allowed
         // origins and other CORS settings.
+
+        // Register Model Observers for Cloudflare On-Demand Cache Purging
+        Property::observe(PropertyObserver::class);
+        Room::observe(RoomObserver::class);
+        Review::observe(ReviewObserver::class);
     }
 }

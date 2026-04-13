@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Landlord/MaintenanceRequests.js';
 import MaintenanceService from '../../../../services/MaintenanceService.js';
+import PropertyService from '../../../../services/PropertyService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
 import {
@@ -26,21 +27,69 @@ import {
 } from '../../hooks/useLandlordQueryHelpers.js';
 
 const EMPTY_REQUESTS = [];
+const EMPTY_PROPERTIES = [];
 
-export default function MaintenanceRequests() {
+export default function MaintenanceRequests({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const queryClient = useQueryClient();
   
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+  const routePropertyId = route?.params?.propertyId || route?.params?.property?.id;
+  const [selectedPropertyId, setSelectedPropertyId] = useState(routePropertyId ? String(routePropertyId) : 'all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
-  const requestsQuery = useQuery({
-    queryKey: landlordQueryKeys.maintenanceRequests(statusFilter),
+
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
     queryFn: async () => {
-      const res = await MaintenanceService.getLandlordRequests({ status: statusFilter });
+      const response = await PropertyService.getMyProperties();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load properties');
+      }
+
+      return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const singlePropertyId = properties.length === 1 ? String(properties[0].id) : null;
+  const effectivePropertyScope = singlePropertyId || selectedPropertyId;
+  const showPropertySelector = properties.length > 1;
+
+  useEffect(() => {
+    if (singlePropertyId && selectedPropertyId !== singlePropertyId) {
+      setSelectedPropertyId(singlePropertyId);
+    }
+  }, [singlePropertyId, selectedPropertyId]);
+
+  useEffect(() => {
+    const nextRoutePropertyId = route?.params?.propertyId || route?.params?.property?.id;
+    if (!nextRoutePropertyId || singlePropertyId) return;
+    setSelectedPropertyId(String(nextRoutePropertyId));
+  }, [route?.params?.propertyId, route?.params?.property?.id, singlePropertyId]);
+
+  useEffect(() => {
+    if (singlePropertyId || selectedPropertyId === 'all') return;
+    const hasMatch = properties.some((property) => String(property.id) === String(selectedPropertyId));
+    if (!hasMatch) {
+      setSelectedPropertyId('all');
+    }
+  }, [properties, selectedPropertyId, singlePropertyId]);
+
+  const requestsQuery = useQuery({
+    queryKey: landlordQueryKeys.maintenanceRequests({ statusFilter, propertyScope: effectivePropertyScope }),
+    queryFn: async () => {
+      const params = { status: statusFilter };
+      if (effectivePropertyScope && effectivePropertyScope !== 'all') {
+        params.property_id = effectivePropertyScope;
+      }
+
+      const res = await MaintenanceService.getLandlordRequests(params);
       if (!res.success) {
         throw new Error(res.error || 'Failed to load maintenance requests');
       }
@@ -55,12 +104,13 @@ export default function MaintenanceRequests() {
   });
 
   const requests = requestsQuery.data || EMPTY_REQUESTS;
-  const loading = requestsQuery.isPending;
+  const loading = (propertiesQuery.isPending && properties.length === 0) || requestsQuery.isPending;
   const updating = updateStatusMutation.isPending;
+  const refetchProperties = propertiesQuery.refetch;
   const refetchRequests = requestsQuery.refetch;
   const maintenanceRefetchers = React.useMemo(
-    () => [refetchRequests],
-    [refetchRequests],
+    () => [refetchProperties, refetchRequests],
+    [refetchProperties, refetchRequests],
   );
 
   useLandlordFocusRefetch({ refetchers: maintenanceRefetchers });
@@ -71,10 +121,11 @@ export default function MaintenanceRequests() {
   });
 
   useEffect(() => {
-    if (requestsQuery.error) {
-      Alert.alert('Error', requestsQuery.error.message || 'Failed to load maintenance requests');
+    const fetchError = requestsQuery.error?.message || propertiesQuery.error?.message;
+    if (fetchError) {
+      showAlert('Error', fetchError || 'Failed to load maintenance requests');
     }
-  }, [requestsQuery.error]);
+  }, [requestsQuery.error, propertiesQuery.error]);
 
   useEffect(() => {
     if (!selectedRequest?.id) {
@@ -92,7 +143,7 @@ export default function MaintenanceRequests() {
       const res = await updateStatusMutation.mutateAsync({ id, status: newStatus });
 
       if (res.success) {
-        Alert.alert('Success', `Request marked as ${newStatus.replace('_', ' ')}`);
+        showAlert('Success', `Request marked as ${newStatus.replace('_', ' ')}`);
 
         if (selectedRequest?.id === id) {
           setSelectedRequest(prev => ({ ...prev, status: newStatus }));
@@ -100,10 +151,10 @@ export default function MaintenanceRequests() {
 
         await queryClient.invalidateQueries({ queryKey: landlordQueryKeys.maintenanceRequestsRoot() });
       } else {
-        Alert.alert('Error', res.error || 'Failed to update status');
+        showAlert('Error', res.error || 'Failed to update status');
       }
     } catch {
-      Alert.alert('Error', 'Failed to update status');
+      showAlert('Error', 'Failed to update status');
     }
   };
 
@@ -111,7 +162,7 @@ export default function MaintenanceRequests() {
     switch (status) {
       case 'pending': return '#F59E0B'; // yellow
       case 'in_progress': return '#3B82F6'; // blue
-      case 'completed': return '#059669'; // emerald
+      case 'completed': return '#16a34a'; // emerald
       case 'cancelled': return '#6B7280'; // gray
       default: return '#6B7280';
     }
@@ -174,8 +225,56 @@ export default function MaintenanceRequests() {
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Maintenance Requests</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerSpacer} />
       </View>
+
+      {showPropertySelector ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+          >
+            <TouchableOpacity
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: selectedPropertyId === 'all' ? theme.colors.primary : theme.colors.border,
+                backgroundColor: selectedPropertyId === 'all' ? theme.colors.primary : theme.colors.surface,
+              }}
+              onPress={() => setSelectedPropertyId('all')}
+            >
+              <Text style={{ color: selectedPropertyId === 'all' ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                All Properties
+              </Text>
+            </TouchableOpacity>
+            {properties.map((property) => {
+              const propertyKey = String(property.id);
+              const isActive = propertyKey === selectedPropertyId;
+              return (
+                <TouchableOpacity
+                  key={property.id}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: isActive ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: isActive ? theme.colors.primary : theme.colors.surface,
+                  }}
+                  onPress={() => setSelectedPropertyId(propertyKey)}
+                >
+                  <Text style={{ color: isActive ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                    {property.title || property.name || `Property ${property.id}`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
 
       {/* Filters */}
       <View style={styles.filterContainer}>
@@ -305,7 +404,7 @@ export default function MaintenanceRequests() {
                 )}
                 {selectedRequest.status === 'in_progress' && (
                   <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: '#059669' }]}
+                    style={[styles.actionButton, { backgroundColor: '#16a34a' }]}
                     onPress={() => handleUpdateStatus(selectedRequest.id, 'completed')}
                     disabled={updating}
                   >

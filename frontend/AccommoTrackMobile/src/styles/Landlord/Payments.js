@@ -100,6 +100,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100,
   },
   invoiceCard: {
     backgroundColor: theme.colors.surface,
@@ -290,6 +291,56 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
 
+  verificationSection: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 12,
+  },
+  verificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  verificationTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#9A3412',
+  },
+  verificationSubtitle: {
+    fontSize: 12,
+    color: '#C2410C',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  verificationActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  verifyButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  verifyApproveButton: {
+    backgroundColor: '#16A34A',
+  },
+  verifyRejectButton: {
+    backgroundColor: '#DC2626',
+  },
+  verifyButtonText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
   // ── Record-payment form ──────────────────────────────────────────────────
   sectionDivider: {
     borderTopWidth: 1,
@@ -351,7 +402,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   recordButton: {
     marginTop: 16,
-    backgroundColor: '#059669',
+    backgroundColor: '#16a34a',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',

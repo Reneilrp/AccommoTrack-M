@@ -7,7 +7,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert
+  TouchableWithoutFeedback,
+  Modal,
+  Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,12 +33,45 @@ import {
 } from '../../hooks/useLandlordQueryHelpers.js';
 
 
-const activityColorMap = {
-  green: { bg: '#DCFCE7', fg: '#166534' },
-  blue: { bg: '#DBEAFE', fg: '#1D4ED8' },
-  yellow: { bg: '#FEF9C3', fg: '#854D0E' },
-  red: { bg: '#FEE2E2', fg: '#991B1B' },
-  gray: { bg: '#E5E7EB', fg: '#374151' }
+const getActivityColorMap = (isDark) => ({
+  green: { bg: isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7', fg: isDark ? '#4ade80' : '#166534' },
+  blue: { bg: isDark ? 'rgba(30,64,175,0.2)' : '#DBEAFE', fg: isDark ? '#60a5fa' : '#1D4ED8' },
+  yellow: { bg: isDark ? 'rgba(146,64,14,0.2)' : '#FEF9C3', fg: isDark ? '#fbbf24' : '#854D0E' },
+  red: { bg: isDark ? 'rgba(153,27,27,0.2)' : '#FEE2E2', fg: isDark ? '#f87171' : '#991B1B' },
+  gray: { bg: isDark ? 'rgba(55,65,81,0.2)' : '#E5E7EB', fg: isDark ? '#9ca3af' : '#374151' }
+});
+
+const getStatusBadgeMap = (isDark) => {
+  const activity = getActivityColorMap(isDark);
+  return {
+    pending: activity.yellow,
+    pending_offline: activity.yellow,
+    in_progress: activity.yellow,
+    partial: activity.yellow,
+    'partial-completed': activity.yellow,
+    processing: activity.yellow,
+    confirmed: activity.green,
+    completed: activity.green,
+    paid: activity.green,
+    approved: activity.green,
+    active: activity.green,
+    available: activity.green,
+    resolved: activity.green,
+    succeeded: activity.green,
+    verified: activity.green,
+    occupied: activity.blue,
+    updated: activity.blue,
+    changed: activity.blue,
+    cancelled: activity.red,
+    canceled: activity.red,
+    rejected: activity.red,
+    failed: activity.red,
+    declined: activity.red,
+    overdue: activity.red,
+    inactive: activity.gray,
+    maintenance: activity.gray,
+    draft: activity.gray
+  };
 };
 
 const activityIconMap = {
@@ -46,19 +82,33 @@ const activityIconMap = {
   default: 'notifications-outline'
 };
 
-const statusBadgeMap = {
-  pending: { bg: '#FEF3C7', fg: '#92400E' },
-  confirmed: { bg: '#DCFCE7', fg: '#166534' },
-  available: { bg: '#DCFCE7', fg: '#166534' },
-  occupied: { bg: '#DBEAFE', fg: '#1D4ED8' },
-  cancelled: { bg: '#FEE2E2', fg: '#991B1B' }
+const normalizeActivityStatus = (status) => String(status || '').toLowerCase();
+
+const resolveActivityColorKey = (activity) => {
+  const status = normalizeActivityStatus(activity?.status);
+  const type = String(activity?.type || '').toLowerCase();
+
+  if (type === 'property' && (status === 'updated' || status === 'changed')) return 'blue';
+  if (type === 'room' && status === 'occupied') return 'blue';
+  if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'red';
+  if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
+  if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
+  if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
+
+  return 'gray';
 };
 
-const urgencyColorMap = {
-  high: { bg: '#FEE2E2', border: '#FCA5A5', fg: '#991B1B' },
-  medium: { bg: '#FEF3C7', border: '#FCD34D', fg: '#854D0E' },
-  low: { bg: '#DCFCE7', border: '#86EFAC', fg: '#166534' }
+const resolveStatusBadgeStyle = (activity, isDark) => {
+  const status = normalizeActivityStatus(activity?.status);
+  const badgeMap = getStatusBadgeMap(isDark);
+  return badgeMap[status] || getActivityColorMap(isDark)[resolveActivityColorKey(activity)] || { bg: isDark ? '#374151' : '#E5E7EB', fg: isDark ? '#9ca3af' : '#374151' };
 };
+
+const getUrgencyColorMap = (isDark) => ({
+  high: { bg: isDark ? 'rgba(153,27,27,0.2)' : '#FEE2E2', border: isDark ? '#991B1B' : '#FCA5A5', fg: isDark ? '#f87171' : '#991B1B' },
+  medium: { bg: isDark ? 'rgba(146,64,14,0.2)' : '#FEF3C7', border: isDark ? '#92400E' : '#FCD34D', fg: isDark ? '#fbbf24' : '#854D0E' },
+  low: { bg: isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7', border: isDark ? '#166534' : '#86EFAC', fg: isDark ? '#4ade80' : '#166534' }
+});
 
 const EMPTY_LIST = [];
 const EMPTY_DASHBOARD = {
@@ -90,15 +140,66 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [moreActionsVisible, setMoreActionsVisible] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [permissionModal, setPermissionModal] = useState({
+    visible: false,
+    actionTitle: '',
+  });
 
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const styles = React.useMemo(() => getStyles(theme, screenWidth, screenHeight), [theme, screenWidth, screenHeight]);
   const cachedDashboard = uiState.data?.[BUCKET];
+  const isCaretaker = user?.role === 'caretaker';
+  const isTablet = screenWidth >= 768;
+
+  const normalizePermissionValue = useCallback((value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+    return Boolean(value);
+  }, []);
+
+  const buildPermissionCandidates = useCallback((key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  }, []);
+
+  const hasPermission = useCallback((key, aliases = []) => {
+    if (!isCaretaker) return true;
+    const permissions = user?.caretaker_permissions;
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(permissions?.[candidate]),
+    );
+  }, [buildPermissionCandidates, isCaretaker, normalizePermissionValue, user?.caretaker_permissions]);
 
   const dashboardQuery = useQuery({
     queryKey: landlordQueryKeys.dashboardBundle(),
     queryFn: async () => {
-      const response = await LandlordDashboardService.fetchDashboard();
+      const response = await LandlordDashboardService.fetchDashboard({
+        includeRevenueChart: !isCaretaker,
+      });
       if (!response.success) {
         throw new Error(response.error || 'Failed to load dashboard');
       }
@@ -114,6 +215,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       const response = await ProfileService.getVerificationStatus();
       return response.success ? response.data : null;
     },
+    enabled: Boolean(user) && !isCaretaker,
   });
 
   const unreadCountQuery = useQuery({
@@ -145,18 +247,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     },
   });
 
-  const propertiesQuery = useQuery({
-    queryKey: landlordQueryKeys.properties(),
-    queryFn: async () => {
-      const response = await PropertyService.getMyProperties();
-      if (!response.success || !Array.isArray(response.data)) {
-        return EMPTY_LIST;
-      }
-
-      return response.data;
-    },
-  });
-
   const dashboardData = dashboardQuery.data ?? cachedDashboard ?? EMPTY_DASHBOARD;
   const hasDashboardData = Boolean(
     dashboardData?.stats
@@ -167,31 +257,218 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const dashboardError = !hasDashboardData && dashboardQuery.error
     ? dashboardQuery.error.message || 'Failed to load dashboard'
     : '';
-  const verificationStatus = verificationQuery.data || null;
+  const verificationStatus = isCaretaker ? null : (verificationQuery.data || null);
   const unreadNotificationCount = unreadCountQuery.data ?? 0;
   const pendingTransferCount = pendingTransfersQuery.data ?? 0;
-  const firstProperty = propertiesQuery.data?.[0] || null;
-  const loadingProperty = propertiesQuery.isPending;
 
-  const isCaretaker = user?.role === 'caretaker';
-  const hasPermission = useCallback((key) => {
-    if (!isCaretaker) return true;
-    const permissions = user?.caretaker_permissions;
-    return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
-  }, [isCaretaker, user?.caretaker_permissions]);
-
-  const quickActions = [
-    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties', show: !isCaretaker || hasPermission('properties') || hasPermission('rooms') || hasPermission('tenants') },
-    { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement', show: !isCaretaker || hasPermission('rooms') },
-    { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants', show: !isCaretaker || hasPermission('tenants') },
-    { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings', show: !isCaretaker || hasPermission('bookings') },
-    { id: 5, title: 'Payments', icon: 'cash', color: '#059669', screen: 'Payments', show: !isCaretaker },
-    { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics', show: !isCaretaker },
-    { id: 7, title: 'Transfers', icon: 'swap-horizontal', color: '#F43F5E', screen: 'TransferRequests', show: !isCaretaker || hasPermission('tenants'), badgeCount: pendingTransferCount },
-    { id: 8, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages', show: !isCaretaker || hasPermission('messages') },
-    { id: 9, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests', show: !isCaretaker || hasPermission('rooms') },
-    { id: 10, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews', show: !isCaretaker }
+  const majorQuickActions = [
+    {
+      id: 1,
+      title: 'Properties',
+      icon: 'business',
+      color: theme.colors.primary,
+      screen: 'Properties',
+      category: 'Core Category',
+      requiredPermission: { key: 'properties', aliases: ['property', 'property_management'] },
+    },
+    {
+      id: 2,
+      title: 'Rooms',
+      icon: 'bed',
+      color: '#8B5CF6',
+      screen: 'RoomManagement',
+      category: 'Core Category',
+      requiredPermission: { key: 'rooms' },
+    },
+    {
+      id: 3,
+      title: 'Tenants',
+      icon: 'people',
+      color: '#2196F3',
+      screen: 'Tenants',
+      category: 'Core Category',
+      requiredPermission: { key: 'tenants' },
+    },
+    {
+      id: 4,
+      title: 'Bookings',
+      icon: 'calendar',
+      color: '#FF9800',
+      screen: 'Bookings',
+      category: 'Core Category',
+      requiredPermission: { key: 'bookings' },
+    },
+    {
+      id: 5,
+      title: 'Payments',
+      icon: 'cash',
+      color: '#16a34a',
+      screen: 'Payments',
+      category: 'Core Category',
+      requiredPermission: { key: 'payments' },
+    },
+    {
+      id: 6,
+      title: 'Analytics',
+      icon: 'bar-chart',
+      color: '#9C27B0',
+      screen: 'Analytics',
+      category: 'Core Category',
+      requiredPermission: { key: 'analytics' },
+    },
   ];
+
+  const minorQuickActions = [
+    {
+      id: 7,
+      title: 'Transfers',
+      icon: 'swap-horizontal',
+      color: '#F43F5E',
+      screen: 'TransferRequests',
+      category: 'Room Category',
+      show: !isCaretaker || hasPermission('tenants'),
+      badgeCount: pendingTransferCount,
+    },
+    {
+      id: 8,
+      title: 'Add-ons',
+      icon: 'sparkles-outline',
+      color: '#14B8A6',
+      screen: 'AddonManagement',
+      category: 'Room Category',
+      show: !isCaretaker,
+    },
+    {
+      id: 9,
+      title: 'Maintenance',
+      icon: 'construct',
+      color: '#F59E0B',
+      screen: 'MaintenanceRequests',
+      category: 'Room Category',
+      show: !isCaretaker || hasPermission('maintenance'),
+    },
+    {
+      id: 10,
+      title: 'Reviews',
+      icon: 'star',
+      color: '#FCD34D',
+      screen: 'Reviews',
+      category: 'Reputation Category',
+      show: !isCaretaker,
+    },
+    {
+      id: 11,
+      title: 'Messages',
+      icon: 'chatbubbles',
+      color: theme.colors.primary,
+      screen: 'Messages',
+      category: 'Communication Category',
+      show: !isCaretaker || hasPermission('messages'),
+    },
+  ];
+
+  const hasQuickActionAccess = useCallback((action) => {
+    if (!isCaretaker) return true;
+
+    if (!action?.requiredPermission) {
+      return true;
+    }
+
+    return hasPermission(
+      action.requiredPermission.key,
+      action.requiredPermission.aliases || [],
+    );
+  }, [hasPermission, isCaretaker]);
+
+  const allQuickActions = [...majorQuickActions, ...minorQuickActions.filter((action) => action.show)];
+  const visibleQuickActions = allQuickActions.slice(0, 8);
+  const quickActionColumns = 4;
+  const quickActionGap = isTablet ? 12 : 8;
+  const quickActionAvailableWidth = Math.max(320, screenWidth - 32);
+  const quickActionRawSize = Math.floor(
+    (quickActionAvailableWidth - quickActionGap * (quickActionColumns - 1)) / quickActionColumns,
+  );
+  const quickActionTileSize = isTablet
+    ? Math.min(136, Math.max(98, quickActionRawSize))
+    : Math.min(96, Math.max(74, quickActionRawSize));
+  const quickActionsToRender = visibleQuickActions;
+  const showMoreQuickActions = allQuickActions.length > visibleQuickActions.length;
+  const quickActionsSectionStyle = isTablet
+    ? { width: '100%', maxWidth: 1080, alignSelf: 'center' }
+    : null;
+  const quickActionsGridStyle = {
+    justifyContent: 'center',
+    alignSelf: 'center',
+    columnGap: quickActionGap,
+    rowGap: quickActionGap,
+  };
+  const quickActionCardStyle = isTablet
+    ? {
+        width: quickActionTileSize,
+        minHeight: 102,
+        borderRadius: 14,
+        paddingHorizontal: 4,
+        paddingVertical: 8,
+      }
+    : {
+        width: quickActionTileSize,
+        minHeight: 84,
+        borderRadius: 12,
+        paddingHorizontal: 4,
+        paddingVertical: 8,
+      };
+  const quickActionIconStyle = {
+    width: isTablet ? 42 : 40,
+    height: isTablet ? 46 : 44,
+    borderRadius: 10,
+    marginBottom: isTablet ? 6 : 4,
+  };
+  const quickActionTitleStyle = {
+    fontSize: isTablet ? 12 : 10,
+    lineHeight: isTablet ? 14 : 12,
+    paddingHorizontal: 2,
+  };
+
+  const groupedQuickActionsForModal = (() => {
+    const categories = [
+      'Core Category',
+      'Room Category',
+      'Communication Category',
+      'Reputation Category',
+      'General Category',
+    ];
+
+    const grouped = categories
+      .map((category) => ({
+        category,
+        items: allQuickActions.filter((action) => (action.category || 'General Category') === category),
+      }))
+      .filter((group) => group.items.length > 0);
+
+    if (grouped.length > 0) {
+      return grouped;
+    }
+
+    return [
+      {
+        category: 'General Category',
+        items: allQuickActions,
+      },
+    ];
+  })();
+
+  const handleQuickActionPress = useCallback((action, closeMore = false) => {
+    if (closeMore) {
+      setMoreActionsVisible(false);
+    }
+
+    if (!hasQuickActionAccess(action)) {
+      setPermissionModal({ visible: true, actionTitle: action?.title || 'this module' });
+      return;
+    }
+
+    navigation.navigate(action.screen);
+  }, [hasQuickActionAccess, navigation]);
 
   useEffect(() => {
     if (dashboardQuery.data) {
@@ -215,7 +492,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   }, [user]);
 
   const refetchDashboard = dashboardQuery.refetch;
-  const refetchProperties = propertiesQuery.refetch;
   const refetchVerification = verificationQuery.refetch;
   const refetchUnreadCount = unreadCountQuery.refetch;
   const refetchPendingTransfers = pendingTransfersQuery.refetch;
@@ -223,14 +499,12 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const dashboardRefetchers = React.useMemo(
     () => [
       refetchDashboard,
-      refetchProperties,
       refetchVerification,
       refetchUnreadCount,
       refetchPendingTransfers,
     ],
     [
       refetchDashboard,
-      refetchProperties,
       refetchVerification,
       refetchUnreadCount,
       refetchPendingTransfers,
@@ -258,37 +532,22 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-                      if (onLogout) {
-                        await onLogout();
-                      } else {
-                        // Clear only auth-related data
-                        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
-                        triggerForcedLogout();
-                      }          } catch (error) {
-            console.error('Logout error:', error);
-          }
-        }
-      }
-    ]);
+    setLogoutModalVisible(true);
   };
 
-  const getFullAddress = (prop) => {
-    if (!prop) return 'Location not set';
-    const parts = [];
-    if (prop.street_address) parts.push(prop.street_address);
-    if (prop.barangay) parts.push(prop.barangay);
-    if (prop.city) parts.push(prop.city);
-    if (prop.province) parts.push(prop.province);
-    if (prop.postal_code) parts.push(prop.postal_code);
-    if (parts.length > 0) return parts.join(', ');
-    return 'Location not set';
+  const handleLogoutConfirm = async () => {
+    setLogoutModalVisible(false);
+    try {
+      if (onLogout) {
+        await onLogout();
+      } else {
+        // Clear only auth-related data
+        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
+        triggerForcedLogout();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const stats = dashboardData.stats;
@@ -306,63 +565,55 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     overdueInvoices: [],
     dueSoonInvoices: [],
   };
-  const propertyPerformance = dashboardData.propertyPerformance || [];
-
-  const findPropertyPerformance = () => {
-    if (!propertyPerformance.length) return null;
-    if (firstProperty) {
-      return propertyPerformance.find((perf) => perf.id === firstProperty.id) || propertyPerformance[0];
-    }
-    return propertyPerformance[0];
-  };
-
-  const firstPropertyPerformance = findPropertyPerformance();
-  const occupancyRate = firstPropertyPerformance?.occupancyRate;
-  const occupiedRooms = firstPropertyPerformance?.occupiedRooms ?? (
-    (firstProperty?.total_rooms || 0) - (firstProperty?.available_rooms || 0)
-  );
-  const totalRooms = firstPropertyPerformance?.totalRooms ?? firstProperty?.total_rooms;
-  const derivedAvailableRooms = firstProperty?.available_rooms ?? (
-    totalRooms && occupiedRooms != null ? totalRooms - occupiedRooms : 0
-  );
-  const derivedOccupancyPercent = totalRooms
-    ? Math.round(((totalRooms - derivedAvailableRooms) / totalRooms) * 100)
-    : 0;
-  const occupancyLabel = typeof occupancyRate === 'number'
-    ? `${occupancyRate}% Full`
-    : `${derivedOccupancyPercent}% Full`;
-  const tenantCount = occupiedRooms ?? 0;
   
   const renderVerificationBanner = () => {
-    if (!verificationStatus || verificationStatus.status === 'approved') return null;
+    if (isCaretaker) return null;
+    if (!verificationStatus) return null;
 
-    const isRejected = verificationStatus.status === 'rejected';
-    const isPending = verificationStatus.status === 'pending';
+    const verificationState = String(verificationStatus?.status || 'not_submitted').toLowerCase();
+    if (verificationState === 'approved' || verificationState === 'verified') return null;
+
+    const isRejected = verificationState === 'rejected';
+    const isPending = verificationState === 'pending';
+
+    let bannerBg = theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2';
+    let contentColor = theme.isDark ? '#f87171' : '#991B1B';
+    let borderColor = theme.isDark ? '#991B1B' : '#FCA5A5';
+
+    if (isPending) {
+      bannerBg = theme.isDark ? 'rgba(146,64,14,0.1)' : '#FFFBEB';
+      contentColor = theme.isDark ? '#fbbf24' : '#92400E';
+      borderColor = theme.isDark ? '#92400E' : '#FCD34D';
+    } else if (verificationState === 'not_submitted') {
+      bannerBg = theme.isDark ? 'rgba(124,45,18,0.1)' : '#FFF7ED';
+      contentColor = theme.isDark ? '#fb923c' : '#9A3412';
+      borderColor = theme.isDark ? '#9A3412' : '#FFEDD5';
+    }
 
     return (
       <TouchableOpacity 
         style={[
           styles.verificationBanner, 
-          isRejected ? styles.bannerRejected : isPending ? styles.bannerPending : styles.bannerNotSubmitted
+          { backgroundColor: bannerBg, borderColor: borderColor, borderWidth: 1 }
         ]}
         onPress={() => navigation.navigate('VerificationStatus')}
       >
         <Ionicons 
           name={isRejected ? "alert-circle" : isPending ? "time" : "shield-checkmark"} 
           size={24} 
-          color={isRejected ? "#991B1B" : isPending ? "#92400E" : "#9A3412"} 
+          color={contentColor} 
         />
         <View style={{ flex: 1, marginLeft: 16 }}>
-          <Text style={[styles.bannerTitle, { color: isRejected ? "#991B1B" : isPending ? "#92400E" : "#9A3412" }]}>
-            Verification: {verificationStatus.status.replace('_', ' ').toUpperCase()}
+          <Text style={[styles.bannerTitle, { color: contentColor }]}>
+            Verification: {verificationState.replace('_', ' ').toUpperCase()}
           </Text>
-          <Text style={styles.bannerText}>
-            {isRejected ? (verificationStatus.rejection_reason || "Your documents were rejected. Tap to view reason.") : 
+          <Text style={[styles.bannerText, { color: theme.colors.textSecondary }]}>
+            {isRejected ? (verificationStatus.rejection_reason || "Your landlord verification documents were rejected. This is separate from your property drafts. Tap to view reason.") : 
              isPending ? "Your documents are being reviewed." : 
              "Submit your documents to verify your account."}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
       </TouchableOpacity>
     );
   };
@@ -413,7 +664,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           <Ionicons name="menu" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.userName}>{user?.first_name || 'Dashboard'}</Text>
+          <Text style={styles.userName}>{'Dashboard'}</Text>
         </View>
         <TouchableOpacity
           style={styles.notificationButton}
@@ -445,69 +696,11 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={styles.statsGrid}>
-            {/* Total Properties */}
-            <View style={[styles.statCard, styles.statCardBlue]}>
-              <View style={styles.statCardLeft}>
-                <View style={[styles.statIconContainer, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="business" size={18} color="#1D4ED8" />
-                </View>
-                <View style={[styles.statBadge, { backgroundColor: '#DBEAFE' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#1D4ED8' }]}>
-                    {stats?.properties?.active ?? 0} Active
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.statCardRight}>
-                <Text style={styles.statValue}>{stats?.properties?.total ?? 0}</Text>
-                <Text style={styles.statLabel}>Total Properties</Text>
-              </View>
-            </View>
-
-            {/* Total Rooms */}
-            <View style={[styles.statCard, styles.statCardGreen]}>
-              <View style={styles.statCardLeft}>
-                <View style={[styles.statIconContainer, { backgroundColor: '#DCFCE7' }]}>
-                  <Ionicons name="home" size={18} color="#166534" />
-                </View>
-                <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#166534' }]}>
-                    {stats?.rooms?.occupancyRate ?? 0}% Occ
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.statCardRight}>
-                <Text style={styles.statValue}>{stats?.rooms?.total ?? 0}</Text>
-                <Text style={styles.statLabel}>Total Rooms</Text>
-              </View>
-            </View>
-
-            {/* Bookings */}
-            <View style={[styles.statCard, styles.statCardPurple]}>
-              <View style={styles.statCardLeft}>
-                <View style={[styles.statIconContainer, { backgroundColor: '#F3E8FF' }]}>
-                  <Ionicons name="calendar" size={18} color="#7E22CE" />
-                </View>
-                {(stats?.bookings?.pending ?? 0) > 0 ? (
-                  <View style={[styles.statBadge, { backgroundColor: '#FEF3C7' }]}>
-                    <Text style={[styles.statBadgeText, { color: '#D97706' }]}>
-                      {stats?.bookings?.pending ?? 0} Pend
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
-                    <Text style={[styles.statBadgeText, { color: '#166534' }]}>
-                      {stats?.bookings?.confirmed ?? 0} Conf
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.statCardRight}>
-                <Text style={styles.statValue}>{(stats?.bookings?.pending ?? 0) + (stats?.bookings?.confirmed ?? 0)}</Text>
-                <Text style={styles.statLabel}>Total Bookings</Text>
-              </View>
-            </View>
-
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.statsRow}
+          >
             {!isCaretaker && (
               <View style={[styles.statCard, styles.statCardAmber]}>
                 <View style={styles.statCardLeft}>
@@ -524,33 +717,286 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                 </View>
               </View>
             )}
-          </View>
+
+            <View style={[styles.statCard, styles.statCardPurple]}>
+              <View style={styles.statCardLeft}>
+                <View style={[styles.statIconContainer, { backgroundColor: '#F3E8FF' }]}>
+                  <Ionicons name="calendar" size={18} color="#7E22CE" />
+                </View>
+                {(stats?.bookings?.pending ?? 0) > 0 ? (
+                  <View style={[styles.statBadge, { backgroundColor: '#FEF3C7' }]}>
+                    <Text style={[styles.statBadgeText, { color: '#D97706' }]}> 
+                      {stats?.bookings?.pending ?? 0} Pend
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={[styles.statBadgeText, { color: '#166534' }]}> 
+                      {stats?.bookings?.confirmed ?? 0} Conf
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.statCardRight}>
+                <Text style={styles.statValue}>{(stats?.bookings?.pending ?? 0) + (stats?.bookings?.confirmed ?? 0)}</Text>
+                <Text style={styles.statLabel}>Total Bookings</Text>
+              </View>
+            </View>
+
+            <View style={[styles.statCard, styles.statCardGreen]}>
+              <View style={styles.statCardLeft}>
+                <View style={[styles.statIconContainer, { backgroundColor: '#DCFCE7' }]}>
+                  <Ionicons name="home" size={18} color="#166534" />
+                </View>
+                <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
+                  <Text style={[styles.statBadgeText, { color: '#166534' }]}> 
+                    {stats?.rooms?.occupancyRate ?? 0}% Occ
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.statCardRight}>
+                <Text style={styles.statValue}>{stats?.rooms?.total ?? 0}</Text>
+                <Text style={styles.statLabel}>Total Rooms</Text>
+              </View>
+            </View>
+
+            <View style={[styles.statCard, styles.statCardBlue]}>
+              <View style={styles.statCardLeft}>
+                <View style={[styles.statIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="business" size={18} color="#1D4ED8" />
+                </View>
+                <View style={[styles.statBadge, { backgroundColor: '#DBEAFE' }]}>
+                  <Text style={[styles.statBadgeText, { color: '#1D4ED8' }]}> 
+                    {stats?.properties?.active ?? 0} Active
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.statCardRight}>
+                <Text style={styles.statValue}>{stats?.properties?.total ?? 0}</Text>
+                <Text style={styles.statLabel}>Total Properties</Text>
+              </View>
+            </View>
+          </ScrollView>
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            {quickActions.filter(a => a.show).map((action) => (
-              <Button
-                key={action.id}
-                style={styles.actionCard}
-                onPress={() => navigation.navigate(action.screen)}
-                type="transparent"
+        <View style={[styles.quickActionsSection, quickActionsSectionStyle]}>
+          <View style={styles.quickActionsHeader}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            {showMoreQuickActions && (
+              <TouchableOpacity
+                style={styles.quickActionsMoreButton}
+                onPress={() => setMoreActionsVisible(true)}
               >
-                {action.badgeCount > 0 && (
-                  <View style={styles.actionBadge}>
-                    <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                <Text style={styles.quickActionsMoreText}>More</Text>
+                <Ionicons name="chevron-forward" size={14} color={theme.colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={[styles.actionsGrid, quickActionsGridStyle]}>
+            {quickActionsToRender.map((action) => {
+              const hasAccess = hasQuickActionAccess(action);
+              return (
+                <Button
+                  key={action.id}
+                  style={[
+                    styles.actionCard,
+                    quickActionCardStyle,
+                    !hasAccess && styles.actionCardRestricted,
+                  ]}
+                  onPress={() => handleQuickActionPress(action)}
+                  type="transparent"
+                >
+                  {!hasAccess && (
+                    <View style={styles.actionRestrictedBadge}>
+                      <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
+                    </View>
+                  )}
+                  {action.badgeCount > 0 && (
+                    <View style={styles.actionBadge}>
+                      <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                    </View>
+                  )}
+                  <View style={[styles.actionIcon, quickActionIconStyle, { backgroundColor: action.color + '20' }]}> 
+                    <Ionicons name={action.icon} size={20} color={action.color} />
                   </View>
-                )}
-                <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
-                  <Ionicons name={action.icon} size={20} color={action.color} />
-                </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-              </Button>
-            ))}
+                  <Text style={[styles.actionTitle, quickActionTitleStyle]}>{action.title}</Text>
+                </Button>
+              );
+            })}
           </View>
         </View>
+
+        {showMoreQuickActions && (
+          <Modal
+            transparent
+            visible={moreActionsVisible}
+            animationType="fade"
+            statusBarTranslucent
+            navigationBarTranslucent
+            presentationStyle="overFullScreen"
+            onRequestClose={() => setMoreActionsVisible(false)}
+          >
+            <Pressable
+              style={styles.quickActionsModalBackdrop}
+              onPress={() => setMoreActionsVisible(false)}
+            >
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.quickActionsModalCard}>
+                <View style={styles.quickActionsModalHeader}>
+                  <Text style={styles.quickActionsModalTitle}>More Actions</Text>
+                  <TouchableOpacity
+                    style={styles.quickActionsModalClose}
+                    onPress={() => setMoreActionsVisible(false)}
+                  >
+                    <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.quickActionsModalBody}
+                >
+                  {groupedQuickActionsForModal.map((group) => (
+                    <View key={group.category} style={styles.quickActionsCategorySection}>
+                      <View style={styles.quickActionsCategoryCard}>
+                        <View style={styles.quickActionsCategoryHeader}>
+                          <View
+                            style={[
+                              styles.quickActionsCategoryDot,
+                              { backgroundColor: group.items[0]?.color || theme.colors.primary },
+                            ]}
+                          />
+                          <Text style={styles.quickActionsCategoryTitle}>{group.category}</Text>
+                        </View>
+
+                        <ScrollView
+                          horizontal
+                          nestedScrollEnabled
+                          directionalLockEnabled
+                          keyboardShouldPersistTaps="handled"
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.quickActionsCategoryRow}
+                        >
+                          {group.items.map((action, index) => {
+                            const hasAccess = hasQuickActionAccess(action);
+                            const isLastItem = index === group.items.length - 1;
+
+                            return (
+                              <Button
+                                key={`more-${group.category}-${action.id}`}
+                                style={[
+                                  styles.actionCard,
+                                  styles.quickActionsCategoryAction,
+                                  isLastItem && styles.quickActionsCategoryActionLast,
+                                  quickActionCardStyle,
+                                  !hasAccess && styles.actionCardRestricted,
+                                ]}
+                                delayPressIn={100}
+                                onPress={() => handleQuickActionPress(action, true)}
+                                type="transparent"
+                              >
+                                {!hasAccess && (
+                                  <View style={styles.actionRestrictedBadge}>
+                                    <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
+                                  </View>
+                                )}
+                                {action.badgeCount > 0 && (
+                                  <View style={styles.actionBadge}>
+                                    <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                                  </View>
+                                )}
+                                <View style={[styles.actionIcon, quickActionIconStyle, { backgroundColor: action.color + '20' }]}> 
+                                  <Ionicons name={action.icon} size={20} color={action.color} />
+                                </View>
+                                <Text style={[styles.actionTitle, quickActionTitleStyle]}>{action.title}</Text>
+                              </Button>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </Pressable>
+          </Modal>
+        )}
+
+        <Modal
+          transparent
+          visible={permissionModal.visible}
+          animationType="fade"
+          statusBarTranslucent
+          navigationBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => setPermissionModal({ visible: false, actionTitle: '' })}
+        >
+          <Pressable
+            style={styles.permissionModalBackdrop}
+            onPress={() => setPermissionModal({ visible: false, actionTitle: '' })}
+          >
+            <Pressable style={styles.permissionModalCard} onPress={() => {}}>
+              <View style={styles.permissionModalIconWrap}>
+                <Ionicons name="lock-closed" size={22} color="#B45309" />
+              </View>
+              <Text style={styles.permissionModalTitle}>Permission Required</Text>
+              <Text style={styles.permissionModalMessage}>
+                You do not have permission to access {permissionModal.actionTitle || 'this module'}. Please contact the landlord.
+              </Text>
+              <TouchableOpacity
+                style={styles.permissionModalButton}
+                onPress={() => setPermissionModal({ visible: false, actionTitle: '' })}
+              >
+                <Text style={styles.permissionModalButtonText}>Okay</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        <Modal
+          transparent
+          visible={logoutModalVisible}
+          animationType="fade"
+          statusBarTranslucent
+          navigationBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => setLogoutModalVisible(false)}
+        >
+          <Pressable
+            style={styles.logoutModalBackdrop}
+            onPress={() => setLogoutModalVisible(false)}
+          >
+            <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+              <View style={styles.logoutModalIconWrap}>
+                <Ionicons name="log-out-outline" size={22} color="#B91C1C" />
+              </View>
+
+              <Text style={styles.logoutModalTitle}>Logout</Text>
+              <Text style={styles.logoutModalMessage}>
+                Are you sure you want to logout?
+              </Text>
+
+              <View style={styles.logoutModalActions}>
+                <TouchableOpacity
+                  style={styles.logoutModalCancelButton}
+                  onPress={() => setLogoutModalVisible(false)}
+                >
+                  <Text style={styles.logoutModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.logoutModalConfirmButton}
+                  onPress={handleLogoutConfirm}
+                >
+                  <Text style={styles.logoutModalConfirmText}>Logout</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {/* Recent Activity */}
         <View style={styles.section}>
@@ -558,7 +1004,10 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
             <Text style={styles.sectionTitle}>Recent Activity</Text>
             <Button 
               type="transparent"
-              onPress={() => navigation.navigate('AllActivities', { activities })}
+              onPress={() => navigation.navigate('AllActivities', {
+                activities,
+                isCaretaker,
+              })}
             >
               <Text style={styles.seeAllText}>See All</Text>
             </Button>
@@ -572,18 +1021,19 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
               </View>
             ) : (
               activities.slice(0, 5).map((activity, index) => {
-                const palette = activityColorMap[activity.color] || activityColorMap.gray;
+                const colorKey = resolveActivityColorKey(activity);
+                const palette = getActivityColorMap(theme.isDark)[colorKey] || getActivityColorMap(theme.isDark).gray;
                 const iconName = activityIconMap[activity.type] || activityIconMap.default;
-                const statusStyle = statusBadgeMap[activity.status] || { bg: '#E5E7EB', fg: '#374151' };
+                const statusStyle = resolveStatusBadgeStyle(activity, theme.isDark);
                 return (
-                  <View key={`${activity.action}-${index}`} style={styles.activityItem}>
+                  <View key={`${activity.action}-${index}`} style={[styles.activityItem, { borderBottomColor: theme.colors.border }]}>
                     <View style={[styles.activityIcon, { backgroundColor: palette.bg }]}>
                       <Ionicons name={iconName} size={20} color={palette.fg} />
                     </View>
                     <View style={styles.activityContent}>
-                      <Text style={styles.activityTitle}>{activity.action}</Text>
-                      <Text style={styles.activitySubtitle}>{activity.description}</Text>
-                      <Text style={styles.activityTimestamp}>{formatRelativeTime(activity.timestamp)}</Text>
+                      <Text style={[styles.activityTitle, { color: theme.colors.text }]}>{activity.action}</Text>
+                      <Text style={[styles.activitySubtitle, { color: theme.colors.textSecondary }]}>{activity.description}</Text>
+                      <Text style={[styles.activityTimestamp, { color: theme.colors.textTertiary }]}>{formatRelativeTime(activity.timestamp)}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}> 
                       <Text style={[styles.statusBadgeText, { color: statusStyle.fg }]}>
@@ -611,18 +1061,18 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
               </View>
             ) : (
               upcomingCheckouts.slice(0, 5).map((checkout) => {
-                const urgency = urgencyColorMap[checkout.urgency] || urgencyColorMap.low;
+                const urgency = getUrgencyColorMap(theme.isDark)[checkout.urgency] || getUrgencyColorMap(theme.isDark).low;
                 return (
                   <View
                     key={checkout.id}
-                    style={[styles.listItem, { borderColor: urgency.border, backgroundColor: urgency.bg }]}
+                    style={[styles.listItem, { borderColor: urgency.border, backgroundColor: urgency.bg, borderWidth: 1 }]}
                   >
                     <View style={styles.listContent}>
-                      <Text style={styles.listTitle}>{checkout.tenantName}</Text>
-                      <Text style={styles.listSubtitle}>{checkout.propertyTitle} • Room {checkout.roomNumber}</Text>
-                      <Text style={styles.listMeta}>{checkout.endDate}</Text>
+                      <Text style={[styles.listTitle, { color: theme.colors.text }]}>{checkout.tenantName}</Text>
+                      <Text style={[styles.listSubtitle, { color: theme.colors.textSecondary }]}>{checkout.propertyTitle} • Room {checkout.roomNumber}</Text>
+                      <Text style={[styles.listMeta, { color: theme.colors.textTertiary }]}>{checkout.endDate}</Text>
                     </View>
-                    <View style={[styles.pill, { backgroundColor: '#FFFFFF' }]}> 
+                    <View style={[styles.pill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}> 
                       <Text style={[styles.pillText, { color: urgency.fg }]}>{checkout.daysLeft}d</Text>
                     </View>
                   </View>
@@ -635,18 +1085,18 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         {/* Vacating Soon */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Vacating Soon</Text>
-            <Text style={styles.sectionHelper}>{vacatingSoon.length} noticed</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Vacating Soon</Text>
+            <Text style={[styles.sectionHelper, { color: theme.colors.textSecondary }]}>{vacatingSoon.length} noticed</Text>
           </View>
           <View style={styles.cardContainer}>
             {vacatingSoon.length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="checkmark-done-outline" size={36} color="#9CA3AF" />
-                <Text style={styles.emptyStateText}>No move-out notices</Text>
+                <Ionicons name="checkmark-done-outline" size={36} color={theme.colors.textTertiary} />
+                <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>No move-out notices</Text>
               </View>
             ) : (
               vacatingSoon.slice(0, 5).map((tenant) => {
-                const urgency = urgencyColorMap[tenant.urgency] || urgencyColorMap.low;
+                const urgency = getUrgencyColorMap(theme.isDark)[tenant.urgency] || getUrgencyColorMap(theme.isDark).low;
                 return (
                   <TouchableOpacity
                     key={tenant.id}
@@ -657,14 +1107,14 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                       focusBookingId: tenant.id,
                       drilldownToken: Date.now(),
                     })}
-                    style={[styles.listItem, { borderColor: urgency.border, backgroundColor: urgency.bg }]}
+                    style={[styles.listItem, { borderColor: urgency.border, backgroundColor: urgency.bg, borderWidth: 1 }]}
                   >
                     <View style={styles.listContent}>
-                      <Text style={styles.listTitle}>{tenant.tenantName}</Text>
-                      <Text style={styles.listSubtitle}>{tenant.propertyTitle} • Room {tenant.roomNumber}</Text>
-                      <Text style={styles.listMeta}>Move-out {tenant.endDate}</Text>
+                      <Text style={[styles.listTitle, { color: theme.colors.text }]}>{tenant.tenantName}</Text>
+                      <Text style={[styles.listSubtitle, { color: theme.colors.textSecondary }]}>{tenant.propertyTitle} • Room {tenant.roomNumber}</Text>
+                      <Text style={[styles.listMeta, { color: theme.colors.textTertiary }]}>Move-out {tenant.endDate}</Text>
                     </View>
-                    <View style={[styles.pill, { backgroundColor: '#FFFFFF' }]}>
+                    <View style={[styles.pill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
                       <Text style={[styles.pillText, { color: urgency.fg }]}>{tenant.daysLeft}d</Text>
                     </View>
                   </TouchableOpacity>
@@ -678,8 +1128,8 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         {!isCaretaker && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Billing Health</Text>
-              <Text style={styles.sectionHelper}>{billingHealth.overdueInvoicesCount || 0} overdue</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Billing Health</Text>
+              <Text style={[styles.sectionHelper, { color: theme.colors.error }]}>{billingHealth.overdueInvoicesCount || 0} overdue</Text>
             </View>
 
             <View style={[styles.cardContainer, { gap: 12 }]}> 
@@ -700,10 +1150,17 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
                     navigation.navigate('Payments', { filter: 'pending' });
                   }}
-                  style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#FCD34D', backgroundColor: '#FFFBEB' }}
+                  style={{ 
+                    flex: 1, 
+                    padding: 12, 
+                    borderRadius: 10, 
+                    borderWidth: 1, 
+                    borderColor: theme.isDark ? '#92400E' : '#FCD34D', 
+                    backgroundColor: theme.isDark ? 'rgba(146,64,14,0.1)' : '#FFFBEB' 
+                  }}
                 >
-                  <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '700' }}>Due This Week</Text>
-                  <Text style={{ fontSize: 20, color: '#92400E', fontWeight: '800', marginTop: 4 }}>{billingHealth.dueForBillingCount || 0}</Text>
+                  <Text style={{ fontSize: 11, color: theme.isDark ? '#fbbf24' : '#92400E', fontWeight: '700' }}>Due This Week</Text>
+                  <Text style={{ fontSize: 20, color: theme.isDark ? '#fbbf24' : '#92400E', fontWeight: '800', marginTop: 4 }}>{billingHealth.dueForBillingCount || 0}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.85}
@@ -721,16 +1178,23 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
                     navigation.navigate('Payments', { filter: 'overdue' });
                   }}
-                  style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }}
+                  style={{ 
+                    flex: 1, 
+                    padding: 12, 
+                    borderRadius: 10, 
+                    borderWidth: 1, 
+                    borderColor: theme.isDark ? '#991B1B' : '#FCA5A5', 
+                    backgroundColor: theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2' 
+                  }}
                 >
-                  <Text style={{ fontSize: 11, color: '#991B1B', fontWeight: '700' }}>Overdue Invoices</Text>
-                  <Text style={{ fontSize: 20, color: '#991B1B', fontWeight: '800', marginTop: 4 }}>{billingHealth.overdueInvoicesCount || 0}</Text>
+                  <Text style={{ fontSize: 11, color: theme.isDark ? '#f87171' : '#991B1B', fontWeight: '700' }}>Overdue Invoices</Text>
+                  <Text style={{ fontSize: 20, color: theme.isDark ? '#f87171' : '#991B1B', fontWeight: '800', marginTop: 4 }}>{billingHealth.overdueInvoicesCount || 0}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={{ paddingHorizontal: 4 }}>
-                <Text style={styles.listMeta}>Overdue Amount: ₱{Number(billingHealth.overdueInvoicesAmount || 0).toLocaleString()}</Text>
-                <Text style={styles.listMeta}>Due Soon Amount: ₱{Number(billingHealth.dueSoonInvoicesAmount || 0).toLocaleString()}</Text>
+                <Text style={[styles.listMeta, { color: theme.colors.textSecondary }]}>Overdue Amount: ₱{Number(billingHealth.overdueInvoicesAmount || 0).toLocaleString()}</Text>
+                <Text style={[styles.listMeta, { color: theme.colors.textSecondary }]}>Due Soon Amount: ₱{Number(billingHealth.dueSoonInvoicesAmount || 0).toLocaleString()}</Text>
               </View>
 
               {(billingHealth.overdueInvoices || []).slice(0, 3).map((invoice) => (
@@ -743,21 +1207,28 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                     focusInvoiceId: invoice.id,
                     drilldownToken: Date.now(),
                   })}
-                  style={[styles.listItem, { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }]}
+                  style={[
+                    styles.listItem, 
+                    { 
+                      borderColor: theme.isDark ? '#991B1B' : '#FCA5A5', 
+                      backgroundColor: theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2',
+                      borderWidth: 1
+                    }
+                  ]}
                 > 
                   <View style={styles.listContent}>
-                    <Text style={styles.listTitle}>{invoice.tenantName}</Text>
-                    <Text style={styles.listSubtitle}>{invoice.propertyTitle} • Room {invoice.roomNumber}</Text>
-                    <Text style={[styles.listMeta, { color: '#991B1B' }]}>Due {invoice.dueDate}</Text>
+                    <Text style={[styles.listTitle, { color: theme.colors.text }]}>{invoice.tenantName}</Text>
+                    <Text style={[styles.listSubtitle, { color: theme.colors.textSecondary }]}>{invoice.propertyTitle} • Room {invoice.roomNumber}</Text>
+                    <Text style={[styles.listMeta, { color: theme.isDark ? '#f87171' : '#991B1B' }]}>Due {invoice.dueDate}</Text>
                   </View>
-                  <Text style={styles.listAmount}>₱{Number(invoice.amount || 0).toLocaleString()}</Text>
+                  <Text style={[styles.listAmount, { color: theme.colors.text }]}>₱{Number(invoice.amount || 0).toLocaleString()}</Text>
                 </TouchableOpacity>
               ))}
 
               {(billingHealth.overdueInvoices || []).length === 0 && (
                 <View style={styles.emptyState}>
-                  <Ionicons name="checkmark-circle-outline" size={36} color="#9CA3AF" />
-                  <Text style={styles.emptyStateText}>No overdue invoices</Text>
+                  <Ionicons name="checkmark-circle-outline" size={36} color={theme.colors.success} />
+                  <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>No overdue invoices</Text>
                 </View>
               )}
             </View>
@@ -768,24 +1239,34 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         {!isCaretaker && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Unpaid Bookings</Text>
-              <Text style={styles.sectionHelper}>{unpaidBookings.length} pending</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Unpaid Bookings</Text>
+              <Text style={[styles.sectionHelper, { color: theme.colors.textSecondary }]}>{unpaidBookings.length} pending</Text>
             </View>
             <View style={styles.cardContainer}>
               {unpaidBookings.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Ionicons name="checkmark-circle-outline" size={36} color="#9CA3AF" />
-                  <Text style={styles.emptyStateText}>All payments are up to date</Text>
+                  <Ionicons name="checkmark-circle-outline" size={36} color={theme.colors.success} />
+                  <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>All payments are up to date</Text>
                 </View>
               ) : (
                 unpaidBookings.slice(0, 5).map((booking) => (
-                  <View key={booking.id} style={[styles.listItem, { borderColor: '#F87171', backgroundColor: '#FEF2F2' }]}> 
+                  <View 
+                    key={booking.id} 
+                    style={[
+                      styles.listItem, 
+                      { 
+                        borderColor: theme.isDark ? '#991B1B' : '#F87171', 
+                        backgroundColor: theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2',
+                        borderWidth: 1
+                      }
+                    ]}
+                  > 
                     <View style={styles.listContent}>
-                      <Text style={styles.listTitle}>{booking.tenantName}</Text>
-                      <Text style={styles.listSubtitle}>{booking.propertyTitle} • Room {booking.roomNumber}</Text>
-                      <Text style={[styles.listMeta, { color: '#B91C1C' }]}>{booking.paymentStatus}</Text>
+                      <Text style={[styles.listTitle, { color: theme.colors.text }]}>{booking.tenantName}</Text>
+                      <Text style={[styles.listSubtitle, { color: theme.colors.textSecondary }]}>{booking.propertyTitle} • Room {booking.roomNumber}</Text>
+                      <Text style={[styles.listMeta, { color: theme.isDark ? '#f87171' : '#B91C1C' }]}>{booking.paymentStatus}</Text>
                     </View>
-                    <Text style={styles.listAmount}>₱{booking.amount.toLocaleString()}</Text>
+                    <Text style={[styles.listAmount, { color: theme.colors.text }]}>₱{booking.amount.toLocaleString()}</Text>
                   </View>
                 ))
               )}
@@ -793,97 +1274,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           </View>
         )}
 
-        {/* Property Overview */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Property Overview</Text>
-
-          {loadingProperty ? (
-            <View style={{ padding: 16, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            </View>
-          ) : firstProperty ? (
-            <Button
-              style={styles.propertyCard}
-              onPress={() => navigation.navigate('Properties')}
-              type="transparent"
-            >
-              <View style={styles.propertyHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.propertyName} numberOfLines={1}>{firstProperty.name || firstProperty.title}</Text>
-                  <Text style={styles.propertyAddress} numberOfLines={2}>{getFullAddress(firstProperty)}</Text>
-                </View>
-                <View style={styles.occupancyBadge}>
-                  <Text style={styles.occupancyText}>{occupancyLabel}</Text>
-                </View>
-              </View>
-              <View style={styles.propertyStats}>
-                <View style={styles.propertyStatItem}>
-                  <Ionicons name="bed" size={20} color={theme.colors.primary} />
-                  <Text style={styles.propertyStatText}>{totalRooms || 0} Rooms</Text>
-                </View>
-                <View style={styles.propertyStatItem}>
-                  <Ionicons name="people" size={20} color={theme.colors.primary} />
-                  <Text style={styles.propertyStatText}>{tenantCount} Tenants</Text>
-                </View>
-              </View>
-            </Button>
-          ) : (
-            <View style={{ padding: 16 }}>
-              <Text>No properties yet. Create one to get started.</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Property Performance */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Property Performance</Text>
-          <View style={styles.cardContainer}>
-            {propertyPerformance.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="business-outline" size={36} color="#9CA3AF" />
-                <Text style={styles.emptyStateText}>Add a property to see performance</Text>
-              </View>
-            ) : (
-              propertyPerformance.map((property) => (
-                <TouchableOpacity 
-                  key={property.id} 
-                  style={styles.performanceCard}
-                  onPress={() => navigation.navigate('RoomManagement', { 
-                    propertyId: property.id, 
-                    filter: 'occupied' 
-                  })}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.performanceHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.performanceTitle}>{property.title}</Text>
-                      <Text style={styles.performanceSubtitle}>{property.status}</Text>
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: '#E0F2FE' }]}> 
-                      <Text style={[styles.statusBadgeText, { color: '#0369A1' }]}>Occ {property.occupancyRate}%</Text>
-                    </View>
-                  </View>
-                  <View style={styles.progressBar}>
-                    <View style={[styles.progressBarFill, { width: `${property.occupancyRate}%` }]} />
-                  </View>
-                  <View style={styles.performanceRow}>
-                    <View>
-                      <Text style={styles.performanceStatLabel}>Occupied</Text>
-                      <Text style={styles.performanceStatValue}>{property.occupiedRooms}/{property.totalRooms}</Text>
-                    </View>
-                    {!isCaretaker && (
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.performanceStatLabel}>Revenue</Text>
-                        <Text style={styles.performanceStatValue}>₱{(property.actualRevenue ?? 0).toLocaleString()}</Text>
-                      </View>
-                    )}
-                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                  </View>
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );

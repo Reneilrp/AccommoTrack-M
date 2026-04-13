@@ -30,10 +30,13 @@ import {
   Banknote,
   CalendarDays,
   CreditCard,
+  Users,
   Shuffle,
+  HelpCircle,
   MessageSquare
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
+import ReservationPolicyNotice from './components/ReservationPolicyNotice';
 
 const MyBookings = () => {
   const navigate = useNavigate();
@@ -214,7 +217,7 @@ const MyBookings = () => {
             bookingsResp?.data ||
             bookingsResp ||
             [];
-          const pendingStatuses = new Set(['pending', 'booked']);
+          const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked']);
           const pendingCheckInIds = new Set(pendingCheckInsData.map(pc => pc.id));
           pending = Array.isArray(bookingsList)
             ? bookingsList.filter((b) => 
@@ -290,6 +293,25 @@ const MyBookings = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!Array.isArray(activeStays) || activeStays.length === 0) {
+      if (selectedStayIndex !== 0) {
+        setSelectedStayIndex(0);
+      }
+      return;
+    }
+
+    if (selectedStayIndex < 0) {
+      setSelectedStayIndex(0);
+      return;
+    }
+
+    const lastIndex = activeStays.length - 1;
+    if (selectedStayIndex > lastIndex) {
+      setSelectedStayIndex(lastIndex);
+    }
+  }, [activeStays, selectedStayIndex]);
 
   useEffect(() => {
     const handleFocusRefresh = () => {
@@ -592,6 +614,20 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
+
+  useEffect(() => {
+    if (hasStays && !hasPending && viewMode !== 'active') {
+      setViewMode('active');
+      return;
+    }
+
+    if (!hasStays && hasPending && viewMode !== 'pending') {
+      setViewMode('pending');
+    }
+  }, [hasStays, hasPending, viewMode]);
+
+  const showActiveView = hasStays && (viewMode === 'active' || !hasPending);
+  const showPendingView = hasPending && (viewMode === 'pending' || !hasStays);
   
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -604,6 +640,30 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     } catch {
       return dateString;
     }
+  };
+
+  const toWholeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : fallback;
+  };
+
+  const resolveOccupantProfiles = (bookingEntry) => {
+    const source = Array.isArray(bookingEntry?.occupants) ? bookingEntry.occupants : [];
+
+    return source.map((occupant, index) => {
+      const fullName = String(occupant?.full_name || occupant?.fullName || '').trim() || `Occupant ${index + 1}`;
+      const relationship = String(occupant?.relationship_to_booker || occupant?.relationshipToBooker || '').trim();
+      const gender = String(occupant?.gender || '').trim();
+      const contact = [occupant?.phone, occupant?.email].filter(Boolean).join(' • ');
+
+      return {
+        id: occupant?.id || `${fullName}-${index}`,
+        fullName,
+        relationship,
+        gender,
+        contact,
+      };
+    });
   };
 
   if (!hasStays && !hasPending) {
@@ -697,7 +757,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
         ) : <div />}
 
         {/* Adaptive Stay Selector */}
-        {viewMode === 'active' && hasStays && (
+        {showActiveView && (
           <StaySelector 
             stays={stays} 
             selectedIndex={selectedIndex} 
@@ -707,7 +767,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       </div>
 
       {/* PENDING VIEW */}
-      {viewMode === 'pending' && (hasPending || (pendingCheckIns && pendingCheckIns.length > 0)) && (
+      {showPendingView && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {pendingCheckIns.map(pc => (
               <div key={pc.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
@@ -760,7 +820,21 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
           ))}
           {pendingBookings.map(pb => {
             const startDate = pb?.start_date ? new Date(pb.start_date) : null;
-            const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
+            if (startDate) startDate.setHours(0, 0, 0, 0);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - now) / (1000 * 60 * 60 * 24))) : null;
+            const pendingBedCount = Math.max(1, toWholeNumber(pb?.bed_count ?? pb?.bedCount, 1));
+            const pendingOccupantCount = Math.max(
+              1,
+              toWholeNumber(pb?.occupant_count ?? pb?.occupantCount, 0) || pendingBedCount,
+            );
+            const pendingRoomCapacity = toWholeNumber(pb?.room?.capacity, 0);
+            const pendingOccupancyLabel = pendingRoomCapacity > 0
+              ? `${pendingOccupantCount}/${pendingRoomCapacity} Occupancy`
+              : `${pendingOccupantCount} Occupant${pendingOccupantCount === 1 ? '' : 's'}`;
+            const pendingOccupants = resolveOccupantProfiles(pb);
+            const isProxyPending = String(pb?.booking_mode || pb?.bookingMode || '').toLowerCase() === 'proxy';
             
             return (
               <div key={pb.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
@@ -776,9 +850,26 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                                         <div className="text-left flex-1">
                                                           <p className="font-bold text-base leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
                                                           <p className="text-xs opacity-80 font-medium mt-0.5">Room {pb?.room_number || pb?.room?.room_number || '—'}</p>
+                                                          <p className="text-xs opacity-80 font-medium mt-0.5">{pendingOccupancyLabel}</p>
+                                                          {(isProxyPending || pendingOccupants.length > 0) && (
+                                                            <div className="mt-2 space-y-1">
+                                                              <p className="text-[10px] uppercase font-bold opacity-70">Proxy Occupants</p>
+                                                              {pendingOccupants.length > 0 ? pendingOccupants.map((occupant) => (
+                                                                <p key={occupant.id} className="text-[11px] opacity-85 leading-tight">
+                                                                  {occupant.fullName}
+                                                                  {(occupant.relationship || occupant.gender)
+                                                                    ? ` • ${[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}`
+                                                                    : ''}
+                                                                </p>
+                                                              )) : (
+                                                                <p className="text-[11px] opacity-70">Occupant details are still syncing.</p>
+                                                              )}
+                                                            </div>
+                                                          )}
                                                           <p className="text-xs opacity-80 font-medium mt-0.5">
-                                                            {daysUntil !== null ? `Tentative start: ${formatDate(pb.start_date)}` : 'Awaiting approval'}
+                                                            {daysUntil !== null ? `Move-in Date: ${formatDate(pb.start_date)}` : 'Move-in Date Awaiting Approval'}
                                                           </p>
+                                                          <ReservationPolicyNotice policy={pb?.reservation_policy} compact />
                                                         </div>
                                                       </div>
                                                       
@@ -819,13 +910,25 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       )}
 
       {/* ACTIVE STAY VIEW */}
-      {viewMode === 'active' && hasStays && (
+      {showActiveView && (
         <div className="space-y-6">
           {(() => {
             const data = stays[selectedIndex] || stays[0];
             const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
             const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
             const effectivePaymentStatus = booking.is_overdue || booking.isOverdue ? 'overdue' : booking.paymentStatus;
+            const resolvedBedCount = Math.max(1, toWholeNumber(booking?.bed_count ?? booking?.bedCount, 1));
+            const resolvedOccupantCount = Math.max(
+              1,
+              toWholeNumber(booking?.occupant_count ?? booking?.occupantCount, 0) || resolvedBedCount,
+            );
+            const resolvedRoomCapacity = toWholeNumber(room?.capacity ?? room?.raw_capacity, 0);
+            const occupancyLabel = resolvedRoomCapacity > 0 ? 'Occupancy' : 'Occupants';
+            const occupancyValue = resolvedRoomCapacity > 0
+              ? `${resolvedOccupantCount}/${resolvedRoomCapacity}`
+              : `${resolvedOccupantCount}`;
+            const occupantProfiles = resolveOccupantProfiles(booking);
+            const isProxyBooking = String(booking?.booking_mode || booking?.bookingMode || '').toLowerCase() === 'proxy';
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -838,6 +941,21 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                     <p className="text-sm font-bold text-purple-900 dark:text-purple-200">Payment Action Required</p>
                                     <p className="text-xs text-purple-700 dark:text-purple-400 mt-2">
                                       Your last payment was refunded. Please complete a new payment or contact your Property Manager to maintain your active status.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Move-out Notice Banner */}
+                              {(booking.notice_given_at || booking.noticeGivenAt) && (
+                                <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 p-4 rounded-xl flex items-start gap-4">
+                                  <DoorOpen className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-sm font-bold text-teal-900 dark:text-teal-200">Move-out Notice Submitted</p>
+                                    <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">
+                                      Your move-out notice was received. Planned departure:{' '}
+                                      <span className="font-bold">{booking.endDate ? formatDate(booking.endDate) : 'TBD'}</span>.
+                                      The landlord will confirm your checkout and finalize any billing adjustments.
                                     </p>
                                   </div>
                                 </div>
@@ -863,6 +981,38 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
+                          {(() => {
+                            const rawStatus = String(booking.status || booking.status_raw || '').toLowerCase();
+                            const effectiveStatus = rawStatus || 'confirmed';
+                            const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
+                            const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
+
+                            if (!canRequestMoveOut) {
+                              return null;
+                            }
+
+                            if (hasNotice) {
+                              return (
+                                <div
+                                  title="Move-out notice already submitted. The landlord will finalize your checkout."
+                                  className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2"
+                                >
+                                  <DoorOpen className="w-4 h-4" />
+                                  Notice Submitted
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <button
+                                onClick={() => onRequestMoveOut?.()}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-indigo-500/20"
+                              >
+                                <DoorOpen className="w-4 h-4" />
+                                Move-out
+                              </button>
+                            );
+                          })()}
                           <button 
                             onClick={() => navigate('/maintenance', { state: { propertyId: property.id } })}
                             className="bg-orange-400 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-orange-500/20"
@@ -890,8 +1040,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       </div>
                     </div>
                     <div className="p-6">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <StatCard label="Room" value={room.roomNumber} icon={DoorOpen} />
+                        <StatCard label={occupancyLabel} value={occupancyValue} icon={Users} />
                         <StatCard 
                           label={booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'} 
                           value={`₱${(booking.unit_price || booking.monthlyRent || 0).toLocaleString()}`} 
@@ -899,20 +1050,24 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         />
                         {(() => {
                           const start = new Date(booking.startDate);
+                          start.setHours(0, 0, 0, 0);
                           const now = new Date();
                           now.setHours(0, 0, 0, 0);
                           const isFuture = start > now;
                           const daysUntil = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+                          const hasCheckoutDate = Boolean(booking.endDate);
+                          const daysStayedValue = Math.max(0, Math.floor(Number(booking?.daysStayed || 0)));
+                          const daysLeftValue = booking?.daysRemaining == null
+                            ? '-'
+                            : Math.max(0, Math.ceil(Number(booking.daysRemaining)));
 
                           return (
                             <StatCard
-                              label={isFuture ? "Starts In" : "Days Left"}
+                              label={isFuture ? "Starts In" : (hasCheckoutDate ? "Days Left" : "Days Stayed")}
                               value={
                                 isFuture 
                                   ? `${daysUntil} ${daysUntil === 1 ? 'Day' : 'Days'}`
-                                  : (booking?.daysRemaining == null
-                                      ? '-'
-                                      : Math.max(0, Math.ceil(Number(booking.daysRemaining))))
+                                  : (hasCheckoutDate ? daysLeftValue : daysStayedValue)
                               }
                               icon={CalendarDays}
                             />
@@ -926,6 +1081,28 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           icon={CreditCard} 
                         />
                       </div>
+
+                      {(isProxyBooking || occupantProfiles.length > 0) && (
+                        <div className="mt-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-4">
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Proxy Occupants</p>
+                          {occupantProfiles.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {occupantProfiles.map((occupant) => (
+                                <p key={occupant.id} className="text-sm text-gray-700 dark:text-gray-300 leading-tight">
+                                  <span className="font-semibold text-gray-900 dark:text-white">{occupant.fullName}</span>
+                                  {(occupant.relationship || occupant.gender)
+                                    ? ` • ${[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}`
+                                    : ''}
+                                  {occupant.contact ? ` • ${occupant.contact}` : ''}
+                                </p>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-amber-700 dark:text-amber-300">Occupant details are still syncing for this proxy booking.</p>
+                          )}
+                        </div>
+                      )}
+
                       <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
@@ -1026,24 +1203,6 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                   </button>
                                 )}
                               </div>
-                            );
-                          })()}
-                          {(() => {
-                            const bookingStatus = String(booking.status || '').toLowerCase();
-                            const canRequestMoveOut = ['confirmed', 'active'].includes(bookingStatus);
-
-                            if (!canRequestMoveOut) {
-                              return null;
-                            }
-
-                            return (
-                              <button
-                                onClick={() => onRequestMoveOut?.()}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
-                              >
-                                <DoorOpen className="w-4 h-4" />
-                                Request Move-out
-                              </button>
                             );
                           })()}
                         </div>
@@ -1251,19 +1410,47 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
 
   const data = stays[selectedIndex] || stays[0];
   const { financials } = data;
+
+  const parseActivityTimestamp = (value) => {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+  };
   
   // Flatten all transactions from all invoices into a single sorted list
   const invoices = Array.isArray(financials?.invoices) ? financials.invoices : [];
   const allTransactions = invoices
-    .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ 
-      ...tx, 
-      date: tx.date || tx.created_at,
-      amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
-      invoiceRef: inv.id 
-    })))
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+    .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => {
+      const resolvedDate = tx.date || tx.created_at;
+      return {
+        ...tx,
+        date: resolvedDate,
+        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
+        invoiceRef: inv.id,
+        timestamp: parseActivityTimestamp(resolvedDate),
+        normalizedStatus: String(tx.status || '').toLowerCase(),
+      };
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp);
 
-  const recentTransactions = allTransactions.slice(0, 3);
+  // Hide outdated failed attempts when a newer transaction exists for the same invoice.
+  const newestTimestampByInvoice = new Map();
+  allTransactions.forEach((tx) => {
+    const key = String(tx.invoiceRef || tx.id || '');
+    if (!newestTimestampByInvoice.has(key)) {
+      newestTimestampByInvoice.set(key, tx.timestamp);
+    }
+  });
+
+  const recentTransactions = allTransactions
+    .filter((tx) => {
+      const key = String(tx.invoiceRef || tx.id || '');
+      const latestTimestamp = newestTimestampByInvoice.get(key) ?? tx.timestamp;
+      const hasNewerAttempt = latestTimestamp > tx.timestamp;
+      const isFailedAttempt = ['expired', 'failed', 'cancelled', 'voided'].includes(tx.normalizedStatus);
+
+      return !(hasNewerAttempt && isFailedAttempt);
+    })
+    .slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -1344,7 +1531,11 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
                     <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{(tx.amount || 0).toLocaleString()}</td>
                     <td className="py-4 px-6">
                       <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${
-                        tx.status === 'succeeded' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        ['succeeded', 'paid', 'completed', 'approved', 'verified'].includes(tx.normalizedStatus)
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : ['expired', 'failed', 'cancelled', 'voided'].includes(tx.normalizedStatus)
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                       }`}>
                         {tx.status}
                       </span>
@@ -1473,6 +1664,8 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                 </div>
               );
             })()}
+
+            <ReservationPolicyNotice policy={booking.reservation_policy} />
 
             {/* Activity Timeline */}
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
@@ -1644,47 +1837,68 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const AddonItem = ({ addon, status, onCancel }) => (
-  <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-    status === 'active' 
-      ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30' 
-      : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
-  }`}>
-    <div className="flex items-center gap-4">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${status === 'active' ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400'}`}>
-        <Sparkles className="w-5 h-5" />
+const resolveAddonDisplayPrice = (addon) => {
+  const candidates = [
+    addon?.pivot?.price_at_booking,
+    addon?.price_at_booking,
+    addon?.price,
+  ];
+
+  for (const candidate of candidates) {
+    const numericValue = Number(candidate);
+    if (Number.isFinite(numericValue) && numericValue > 0) {
+      return numericValue;
+    }
+  }
+
+  return 0;
+};
+
+const AddonItem = ({ addon, status, onCancel }) => {
+  const displayPrice = resolveAddonDisplayPrice(addon);
+
+  return (
+    <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+      status === 'active'
+        ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30'
+        : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
+    }`}>
+      <div className="flex items-center gap-4">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${status === 'active' ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400'}`}>
+          <Sparkles className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-base font-bold text-gray-900 dark:text-white leading-tight">{addon?.name || 'Add-on'}</p>
+          <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-2">
+            {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-2 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Usage Fee'}
+          </p>
+        </div>
       </div>
-      <div>
-        <p className="text-base font-bold text-gray-900 dark:text-white leading-tight">{addon?.name || 'Add-on'}</p>
-        <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-2">
-          {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-2 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Usage Fee'}
-        </p>
+      <div className="flex items-center gap-4">
+        <span className="text-base font-bold text-gray-900 dark:text-white">
+          ₱{displayPrice.toLocaleString()}
+          {addon?.price_type === 'monthly' && <span className="text-[10px] text-gray-500 font-medium ml-0.5">/mo</span>}
+        </span>
+        <div className="flex items-center gap-2">
+          {addon?.pivot?.cancellation_effective_at && (
+            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+              Ends {new Date(addon.pivot.cancellation_effective_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            </span>
+          )}
+          {onCancel && !addon?.pivot?.cancellation_effective_at && (
+            <button
+              onClick={onCancel}
+              className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+              title={status === 'active' ? 'Remove next month' : 'Cancel request'}
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
-    <div className="flex items-center gap-4">
-      <span className="text-base font-bold text-gray-900 dark:text-white">
-        ₱{parseFloat(addon?.price || 0).toLocaleString()}
-        {addon?.price_type === 'monthly' && <span className="text-[10px] text-gray-500 font-medium ml-0.5">/mo</span>}
-      </span>
-      <div className="flex items-center gap-2">
-        {addon?.pivot?.cancellation_effective_at && (
-          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-            Ends {new Date(addon.pivot.cancellation_effective_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-          </span>
-        )}
-        {onCancel && !addon?.pivot?.cancellation_effective_at && (
-          <button
-            onClick={onCancel}
-            className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-            title={status === 'active' ? 'Remove next month' : 'Cancel request'}
-          >
-            <XCircle className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requestingId }) => {
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -2137,12 +2351,45 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
   const [roomsMessage, setRoomsMessage] = useState('');
   const [leaseDurationPreference, setLeaseDurationPreference] = useState('keep_current');
   const [newEndDate, setNewEndDate] = useState('');
+  const [transferPreview, setTransferPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [formData, setFormData] = useState({
     requested_room_id: '',
     reason: '',
     booking_id: booking?.id || '',
     property_id: property?.id || '',
   });
+
+  useEffect(() => {
+    if (!formData.requested_room_id || !booking?.id) {
+      setTransferPreview(null);
+      return;
+    }
+    
+    let cancelled = false;
+    const fetchPreview = async () => {
+      setLoadingPreview(true);
+      try {
+        const res = await api.get('/tenant/transfers/preview', {
+          params: {
+            booking_id: booking.id,
+            requested_room_id: formData.requested_room_id,
+          }
+        });
+        if (!cancelled) {
+          setTransferPreview(res.data?.success ? res.data.data : null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch transfer preview', err);
+        if (!cancelled) setTransferPreview(null);
+      } finally {
+        if (!cancelled) setLoadingPreview(false);
+      }
+    };
+    
+    fetchPreview();
+    return () => { cancelled = true; };
+  }, [formData.requested_room_id, booking?.id]);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -2225,12 +2472,93 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
               >
                 <option value="">{loadingRooms ? 'Loading available rooms...' : 'Select a Room'}</option>
                 {availableRooms.map(r => (
-                  <option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>
+                  <option key={r.id} value={r.id}>
+                    Room {r.room_number} ({r.type_label}) — ₱{(r.monthly_rate ?? r.price ?? 0).toLocaleString()}/mo
+                  </option>
                 ))}
               </select>
               {availableRooms.length === 0 && !loadingRooms && (
                 <p className="text-[10px] text-red-500 mt-2 font-bold italic">{roomsMessage || 'No eligible transfer rooms are available in this property right now.'}</p>
               )}
+            </div>
+
+            {/* Financial Impact Preview */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">💰 Financial Impact Preview</label>
+                <div className="group relative">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-500 cursor-help" />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    Rent is prorated based on a standard 30-day month: (Monthly Rent ÷ 30) × remaining days. Any transfer fee is deducted from your unused credit.
+                  </div>
+                </div>
+              </div>
+
+              {loadingPreview ? (
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-center">
+                  <RefreshCw className="w-4 h-4 animate-spin mx-auto text-amber-500 mb-2" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Calculating impact...</p>
+                </div>
+              ) : transferPreview ? (
+                <div className={`rounded-xl border overflow-hidden transition-all ${
+                  transferPreview.suggested_adjustment > 0 ? 'border-amber-200 dark:border-amber-800' : 
+                  transferPreview.suggested_adjustment < 0 ? 'border-green-200 dark:border-green-800' : 'border-gray-200 dark:border-gray-700'
+                }`}>
+                  <div className="grid grid-cols-2 bg-gray-50 dark:bg-gray-700/50 divide-x divide-gray-200 dark:divide-gray-600">
+                    <div className="p-3 text-center">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">Current Rate</p>
+                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300">₱{transferPreview.current_room_rate.toLocaleString()}/mo</p>
+                    </div>
+                    <div className="p-3 text-center">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">New Rate</p>
+                      <p className="text-sm font-bold text-amber-600 dark:text-amber-400">₱{transferPreview.new_room_rate.toLocaleString()}/mo</p>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 space-y-2 bg-white dark:bg-gray-800">
+                    {!transferPreview.has_payment_this_period ? (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">ℹ️ No payment found for current period.</p>
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">Next invoice will reflect the new room rate. No immediate charge.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Remaining days this cycle</span>
+                          <span className="font-bold">{transferPreview.remaining_days} days</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Old room unused value</span>
+                          <span className="font-bold">₱{transferPreview.old_room_unused_value.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">New room cost (rem. days)</span>
+                          <span className="font-bold">₱{transferPreview.new_room_cost.toLocaleString()}</span>
+                        </div>
+                        
+                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                          <span className="text-xs font-bold uppercase text-gray-400">Net Adjustment</span>
+                          <div className="text-right">
+                            <p className={`text-base font-black ${
+                              transferPreview.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'
+                            }`}>
+                              {transferPreview.suggested_adjustment > 0 ? '+' : ''}
+                              ₱{Math.abs(transferPreview.suggested_adjustment).toLocaleString()}
+                            </p>
+                            <p className="text-[10px] text-gray-400 font-medium">
+                              {transferPreview.suggested_adjustment > 0 ? 'Additional charge' : 'Credit to next month'}
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : formData.requested_room_id ? (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl text-center">
+                  <p className="text-xs text-red-600 dark:text-red-400">Unable to calculate preview for this room.</p>
+                </div>
+              ) : null}
             </div>
 
             <div>

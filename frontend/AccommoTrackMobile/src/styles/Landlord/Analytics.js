@@ -1,8 +1,11 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-const { width } = Dimensions.get('window');
+export const getStyles = (theme, viewportWidth = 390) => {
+  const resolvedWidth = Math.max(320, viewportWidth || 390);
+  const isTablet = resolvedWidth >= 768;
+  const tableMinWidth = isTablet ? Math.max(700, resolvedWidth - 56) : 840;
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.primary
@@ -76,7 +79,6 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
-    maxHeight: 250,
     zIndex: 5000
   },
   dropdownItem: {
@@ -129,17 +131,22 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textSecondary
   },
   // Grid Layout for Metrics
+  metricsScroll: {
+    marginTop: 4
+  },
   metricsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
-    gap: 16
+    flexWrap: 'nowrap',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    gap: 12,
+    paddingRight: 20
   },
   metricCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
-    width: (width - 36) / 2, // 2-column grid
+    width: Math.min(isTablet ? 260 : 220, Math.max(180, resolvedWidth * 0.62)),
     borderWidth: 1,
     borderColor: theme.colors.border,
     elevation: 2,
@@ -247,6 +254,51 @@ export const getStyles = (theme) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border
   },
+  tableContentContainer: {
+    minWidth: tableMinWidth
+  },
+  tableGrid: {
+    minWidth: tableMinWidth
+  },
+  tableHeadRow: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border
+  },
+  tableHeadCell: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary
+  },
+  tableBodyRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+    alignItems: 'center'
+  },
+  tableCell: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 12,
+    color: theme.colors.text
+  },
+  tableStatusCell: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    justifyContent: 'center'
+  },
+  tableEmptyRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 20
+  },
+  tableEmptyText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    fontWeight: '500'
+  },
   tableTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -334,7 +386,113 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 16,
     fontSize: 14,
     color: theme.colors.textSecondary
+  },
+  exportModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 20
+  },
+  exportModalCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 12
+  },
+  exportModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text
+  },
+  exportLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase'
+  },
+  exportSegmentRow: {
+    flexDirection: 'row',
+    gap: 8
+  },
+  exportSegmentButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: theme.colors.backgroundSecondary
+  },
+  exportSegmentButtonActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight
+  },
+  exportSegmentText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary
+  },
+  exportSegmentTextActive: {
+    color: theme.colors.primary
+  },
+  exportStepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 8,
+    minHeight: 44
+  },
+  exportStepButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  exportStepperValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text
+  },
+  exportActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6
+  },
+  exportActionButton: {
+    flex: 1,
+    borderRadius: 10,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  exportCancelButton: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border
+  },
+  exportConfirmButton: {
+    backgroundColor: theme.colors.primary
+  },
+  exportCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text
+  },
+  exportConfirmText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.textInverse
   }
-});
+  });
+};
 
 export default getStyles;

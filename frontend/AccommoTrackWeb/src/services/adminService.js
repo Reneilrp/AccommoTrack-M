@@ -250,6 +250,17 @@ const adminService = {
   },
 
   /**
+   * Move a landlord to partial verification state.
+   * @param {number|string} userId
+   * @param {number} durationDays
+   */
+  async partialVerifyLandlord(userId, durationDays = 7) {
+    return await api.post(`/admin/users/${userId}/partial-verify`, {
+      duration_days: durationDays,
+    });
+  },
+
+  /**
    * Reject a landlord verification
    * @param {number|string} verificationId 
    * @param {string} reason 
@@ -357,6 +368,195 @@ const adminService = {
   },
 
   /**
+   * Update admin password.
+   * @param {{current_password: string, new_password: string, new_password_confirmation: string}} payload
+   */
+  async updatePassword(payload) {
+    try {
+      const response = await api.post('/change-password', payload);
+      return { success: true, message: response?.data?.message || 'Password updated successfully' };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Get admin payment control settings.
+   */
+  async getPaymentControlSettings() {
+    try {
+      const response = await api.get('/admin/settings/payment-controls');
+      const envelope = normalizeEnvelope(response?.data);
+      const payload = isPlainObject(envelope.data) ? envelope.data : {};
+
+      return {
+        success: envelope.success,
+        data: {
+          tenantPaymentsDisabled: toBoolean(payload.tenant_payments_disabled, false),
+          invoicePaymongoDisabled: toBoolean(
+            payload.invoice_paymongo_disabled,
+            toBoolean(payload.tenant_payments_disabled, false),
+          ),
+          reservationFeeDisabled: toBoolean(payload.reservation_fee_disabled, false),
+          mobileLatestVersion: toStringOrNull(payload.mobile_latest_version) || '1.0.0',
+          mobileDownloadUrl: toStringOrNull(payload.mobile_download_url) || 'https://accommotrack.me/downloads/AccommoTrack.apk',
+          mobileForceUpdate: toBoolean(payload.mobile_force_update, true),
+          systemForcedNow: toStringOrNull(payload.system_forced_now) || '',
+        },
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Update admin payment control settings.
+   * @param {{tenantPaymentsDisabled: boolean, reservationFeeDisabled: boolean, mobileLatestVersion: string, mobileDownloadUrl: string, mobileForceUpdate: boolean, systemForcedNow: string}} payload
+   */
+  async updatePaymentControlSettings(payload = {}) {
+    try {
+      const tenantPaymentsDisabled = Boolean(payload.tenantPaymentsDisabled);
+      const invoicePaymongoDisabled = payload.invoicePaymongoDisabled === undefined
+        ? tenantPaymentsDisabled
+        : Boolean(payload.invoicePaymongoDisabled);
+
+      const body = {
+        tenant_payments_disabled: tenantPaymentsDisabled,
+        invoice_paymongo_disabled: invoicePaymongoDisabled,
+        reservation_fee_disabled: Boolean(payload.reservationFeeDisabled),
+        mobile_latest_version: String(payload.mobileLatestVersion || '1.0.0'),
+        mobile_download_url: String(payload.mobileDownloadUrl || 'https://accommotrack.me/downloads/AccommoTrack.apk'),
+        mobile_force_update: Boolean(payload.mobileForceUpdate),
+        system_forced_now: String(payload.systemForcedNow || ''),
+      };
+      const response = await api.put('/admin/settings/payment-controls', body);
+      const envelope = normalizeEnvelope(response?.data);
+      const data = isPlainObject(envelope.data) ? envelope.data : {};
+
+      return {
+        success: envelope.success,
+        data: {
+          tenantPaymentsDisabled: toBoolean(data.tenant_payments_disabled, body.tenant_payments_disabled),
+          invoicePaymongoDisabled: toBoolean(data.invoice_paymongo_disabled, body.invoice_paymongo_disabled),
+          reservationFeeDisabled: toBoolean(data.reservation_fee_disabled, body.reservation_fee_disabled),
+          mobileLatestVersion: toStringOrNull(data.mobile_latest_version) || body.mobile_latest_version,
+          mobileDownloadUrl: toStringOrNull(data.mobile_download_url) || body.mobile_download_url,
+          mobileForceUpdate: toBoolean(data.mobile_force_update, body.mobile_force_update),
+          systemForcedNow: toStringOrNull(data.system_forced_now) || body.system_forced_now,
+        },
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Get subscription plans for admin grants UI.
+   * @param {{include_inactive?: boolean}} params
+   */
+  async getSubscriptionPlans(params = {}) {
+    try {
+      const response = await api.get('/admin/subscriptions/plans', {
+        params: buildQueryParams(params),
+      });
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: Array.isArray(envelope.data) ? envelope.data : [],
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to fetch subscription plans.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Grant a subscription plan to a landlord (admin override)
+   * @param {{landlord_id: number|string, plan_id: number|string, starts_at?: string, duration_months?: number, ends_at?: string, auto_renew?: boolean, notes?: string}} payload
+   */
+  async grantSubscription(payload = {}) {
+    try {
+      const response = await api.post('/admin/subscriptions/grants', payload);
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: envelope.data,
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to grant subscription.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Extend an existing admin grant
+   * @param {number|string} grantId
+   * @param {{add_months?: number, ends_at?: string, notes?: string}} payload
+   */
+  async extendSubscriptionGrant(grantId, payload = {}) {
+    try {
+      const response = await api.patch(`/admin/subscriptions/grants/${grantId}/extend`, payload);
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: envelope.data,
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to extend subscription grant.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Revoke an existing admin grant
+   * @param {number|string} grantId
+   * @param {{reason?: string}} payload
+   */
+  async revokeSubscriptionGrant(grantId, payload = {}) {
+    try {
+      const response = await api.post(`/admin/subscriptions/grants/${grantId}/revoke`, payload);
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: envelope.data,
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to revoke subscription grant.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Get current subscription + timeline for a landlord
+   * @param {number|string} landlordId
+   */
+  async getSubscriptionOverview(landlordId) {
+    try {
+      const response = await api.get(`/admin/subscriptions/landlords/${landlordId}`);
+      const envelope = normalizeEnvelope(response?.data);
+
+      return {
+        success: envelope.success,
+        data: envelope.data,
+        message: envelope.message,
+        error: envelope.success ? null : (envelope.message || 'Failed to fetch subscription overview.'),
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
    * Get payment oversight queue (manual payments)
    * @param {Object} params
    */
@@ -446,6 +646,18 @@ const adminService = {
    * Get audit timeline for an entity
    * @param {Object} params
    */
+  /**
+   * Clear all platform caches (Cloudflare edge + Laravel app cache)
+   */
+  async clearGlobalCache() {
+    try {
+      const response = await api.post('/admin/clear-cache');
+      return normalizeEnvelope(response?.data);
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
   async getAuditTimeline(params = {}) {
     try {
       const response = await api.get('/admin/audit-logs/timeline', {

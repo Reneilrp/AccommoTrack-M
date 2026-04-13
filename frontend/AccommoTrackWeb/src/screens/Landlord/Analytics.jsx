@@ -447,6 +447,30 @@ export default function Analytics() {
   const totalRevenueAllTime = Number(analytics?.overview?.total_revenue ?? 0);
   const collectedThisMonth = Number(analytics?.revenue?.actual_monthly ?? analytics?.overview?.monthly_revenue ?? 0);
   const monthlyRevenue = Number(analytics?.overview?.monthly_revenue ?? 0);
+  const roomPerformanceRows = analytics?.room_performance || [];
+
+  const getPerformanceStatus = (occupancyRateRaw) => {
+    const occupancyRate = Number(occupancyRateRaw || 0);
+
+    if (occupancyRate >= 90) {
+      return {
+        label: 'Optimal',
+        className: 'bg-green-100 text-green-700',
+      };
+    }
+
+    if (occupancyRate >= 50) {
+      return {
+        label: 'Stable',
+        className: 'bg-blue-100 text-blue-700',
+      };
+    }
+
+    return {
+      label: 'Needs Attention',
+      className: 'bg-orange-100 text-orange-700',
+    };
+  };
 
   const MetricCard = ({
     Icon,
@@ -795,7 +819,7 @@ export default function Analytics() {
               <div className="min-w-0 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 mb-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {selectedProperty === 'all' ? 'Income Breakdown by Property' : 'Income Breakdown'}
+                    {selectedProperty === 'all' ? 'Income Breakdown per Property' : 'Income Breakdown'}
                   </h2>
                   <PieChartIcon className="w-5 h-5 text-gray-400" />
                 </div>
@@ -970,49 +994,103 @@ export default function Analytics() {
               {/* Property Performance Breakdown */}
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden mb-8">
                 <div className="p-6 border-b border-gray-300 dark:border-gray-700">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Property Performance Breakdown</h2>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {selectedProperty === 'all' ? 'Property Performance Breakdown' : 'Room Performance Breakdown'}
+                  </h2>
                 </div>
                 <div className="overflow-x-auto no-scrollbar">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400">
-                      <tr>
-                        <th className="px-6 py-4 font-semibold">Property Name</th>
-                        <th className="px-6 py-4 font-semibold">Occupancy Rate</th>
-                        <th className="px-6 py-4 font-semibold">Rooms (Occ/Total)</th>
-                        <th className="px-6 py-4 font-semibold">Monthly Revenue</th>
-                        <th className="px-6 py-4 font-semibold">Income / Room</th>
-                        <th className="px-6 py-4 font-semibold">Status</th>
-                      </tr>
+                      {selectedProperty === 'all' ? (
+                        <tr>
+                          <th className="px-6 py-4 font-semibold">Property Name</th>
+                          <th className="px-6 py-4 font-semibold">Occupancy Rate</th>
+                          <th className="px-6 py-4 font-semibold">Rooms (Occ/Total)</th>
+                          <th className="px-6 py-4 font-semibold">Monthly Revenue</th>
+                          <th className="px-6 py-4 font-semibold">Income / Room</th>
+                          <th className="px-6 py-4 font-semibold">Status</th>
+                        </tr>
+                      ) : (
+                        <tr>
+                          <th className="px-6 py-4 font-semibold">Room Name</th>
+                          <th className="px-6 py-4 font-semibold">Occupancy Rate</th>
+                          <th className="px-6 py-4 font-semibold">Capacity</th>
+                          <th className="px-6 py-4 font-semibold">Monthly Revenue</th>
+                          <th className="px-6 py-4 font-semibold">Income / Room</th>
+                          <th className="px-6 py-4 font-semibold">Status</th>
+                        </tr>
+                      )}
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {analytics.properties.map((p, index) => (
-                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                          <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{p.name}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${p.occupancy_rate >= 80 ? 'bg-green-500' : p.occupancy_rate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`} 
-                                  style={{ width: `${p.occupancy_rate}%` }}
-                                />
-                              </div>
-                              <span className="text-gray-600 dark:text-gray-300">{p.occupancy_rate}%</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{p.occupied_slots} / {p.total_slots}</td>
-                          <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{(p.monthly_revenue || 0).toLocaleString()}</td>
-                          <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{(p.revpar || 0).toLocaleString()}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${
-                              p.occupancy_rate >= 90 ? 'bg-green-100 text-green-700' : 
-                              p.occupancy_rate >= 50 ? 'bg-blue-100 text-blue-700' : 
-                              'bg-orange-100 text-orange-700'
-                            }`}>
-                              {p.occupancy_rate >= 90 ? 'Optimal' : (p.occupancy_rate >= 50 ? 'Stable' : 'Needs Attention')}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {selectedProperty === 'all'
+                        ? analytics.properties.map((property, index) => {
+                            const occupancyRate = Number(property.occupancy_rate || 0);
+                            const statusMeta = getPerformanceStatus(occupancyRate);
+
+                            return (
+                              <tr key={property.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{property.name || property.title}</td>
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${occupancyRate >= 80 ? 'bg-green-500' : occupancyRate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`}
+                                        style={{ width: `${occupancyRate}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-gray-600 dark:text-gray-300">{occupancyRate}%</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{property.occupied_slots} / {property.total_slots}</td>
+                                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{(property.monthly_revenue || 0).toLocaleString()}</td>
+                                <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{(property.revpar || 0).toLocaleString()}</td>
+                                <td className="px-6 py-4">
+                                  <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${statusMeta.className}`}>
+                                    {statusMeta.label}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        : (roomPerformanceRows.length > 0 ? roomPerformanceRows.map((room, index) => {
+                            const occupancyRate = Number(room.occupancy_rate || 0);
+                            const statusMeta = getPerformanceStatus(occupancyRate);
+                            const monthlyRevenueValue = Number(room.revenue ?? room.monthly_revenue ?? 0);
+                            const incomePerRoomValue = Number(room.revpar ?? room.income_per_room ?? 0);
+
+                            return (
+                              <tr key={room.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                  {room.name || room.room_name || room.room_number || `Room ${index + 1}`}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${occupancyRate >= 80 ? 'bg-green-500' : occupancyRate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`}
+                                        style={{ width: `${occupancyRate}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-gray-600 dark:text-gray-300">{occupancyRate}%</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{Number(room.capacity || 0)}</td>
+                                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{monthlyRevenueValue.toLocaleString()}</td>
+                                <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{incomePerRoomValue.toLocaleString()}</td>
+                                <td className="px-6 py-4">
+                                  <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${statusMeta.className}`}>
+                                    {statusMeta.label}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          }) : (
+                            <tr>
+                              <td className="px-6 py-6 text-gray-500 dark:text-gray-400" colSpan={6}>
+                                No room performance data available.
+                              </td>
+                            </tr>
+                          ))}
                     </tbody>
                   </table>
                 </div>

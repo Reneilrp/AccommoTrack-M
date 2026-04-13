@@ -12,7 +12,7 @@ import {
   Platform,
   RefreshControl,
   Modal,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -26,8 +26,6 @@ import PropertyService from "../../../../services/PropertyService.js";
 import ReviewService from "../../../../services/ReviewService.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import IconWithBadge from '../../../../components/IconWithBadge.jsx';
 import {
   tenantQueryKeys,
   useTenantFocusRefetch,
@@ -35,12 +33,6 @@ import {
 } from "../../hooks/useTenantQueryHelpers.js";
 
 const REVIEWS_PAGE_SIZE = 5;
-const DEFAULT_NOTIFICATION_COUNTS = {
-  addons: 0,
-  maintenance: 0,
-  activity: 0,
-  reviews: 0,
-};
 
 const transformPropertyDetailsPayload = (rawData) => {
   const detailedAccommodation = {
@@ -80,36 +72,32 @@ const transformPropertyDetailsPayload = (rawData) => {
   };
 };
 
-export default function PropertyDetailsScreen({ route }) {
+export default function PropertyDetailsScreen({
+  route,
+  isGuest: isGuestProp = false,
+  onAuthRequired: onAuthRequiredProp,
+}) {
   const navigation = useNavigation();
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
-  const [user, setUser] = useState(null);
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
+  const showAlert = Alert.alert;
+  const routeParams = route?.params || {};
   const {
     accommodation,
     propertyId,
-    isGuest = false,
-    onAuthRequired,
+    isGuest: routeIsGuest,
+    onAuthRequired: routeOnAuthRequired,
     landlordPreview = false,
-  } = route.params || {};
+  } = routeParams;
+  const isGuest = routeIsGuest ?? isGuestProp;
+  const onAuthRequired = routeOnAuthRequired || onAuthRequiredProp;
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [videoVisible, setVideoVisible] = useState(false);
   const [reviewPage, setReviewPage] = useState(1);
 
   const effectiveId = accommodation?.id || propertyId;
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const userString = await AsyncStorage.getItem('user');
-        if (userString) {
-          setUser(JSON.parse(userString));
-        }
-      } catch (e) {}
-    };
-    loadUser();
-  }, []);
 
   const propertyDetailsQuery = useQuery({
     queryKey: tenantQueryKeys.explorePropertyDetails(effectiveId, landlordPreview),
@@ -150,23 +138,6 @@ export default function PropertyDetailsScreen({ route }) {
     placeholderData: (previousData) => previousData,
   });
 
-  const propertyStatsQuery = useQuery({
-    queryKey: tenantQueryKeys.explorePropertyStats(effectiveId, user?.id || null),
-    enabled: Boolean(effectiveId && user && !isGuest && !landlordPreview),
-    queryFn: async () => {
-      const result = await PropertyService.getPropertyStats(effectiveId);
-      if (!result?.success || !result?.data) {
-        return DEFAULT_NOTIFICATION_COUNTS;
-      }
-
-      return {
-        ...DEFAULT_NOTIFICATION_COUNTS,
-        ...result.data,
-      };
-    },
-    placeholderData: (previousData) => previousData || DEFAULT_NOTIFICATION_COUNTS,
-  });
-
   const detailedAccommodation = propertyDetailsQuery.data?.detailedAccommodation || null;
   const rooms = propertyDetailsQuery.data?.rooms || [];
   const roomsLoading = propertyDetailsQuery.isLoading && !propertyDetailsQuery.data;
@@ -177,23 +148,18 @@ export default function PropertyDetailsScreen({ route }) {
     ? null
     : (propertyReviewsQuery.data?.summary || null);
   const reviewsLoading = !landlordPreview && propertyReviewsQuery.isLoading && !propertyReviewsQuery.data;
-  const notificationCounts = propertyStatsQuery.data || DEFAULT_NOTIFICATION_COUNTS;
 
   const refetchPropertyDetails = propertyDetailsQuery.refetch;
   const refetchPropertyReviews = propertyReviewsQuery.refetch;
-  const refetchPropertyStats = propertyStatsQuery.refetch;
   const propertyDetailsRefetchers = React.useMemo(
     () => [
       refetchPropertyDetails,
       !landlordPreview ? refetchPropertyReviews : null,
-      !isGuest && !landlordPreview ? refetchPropertyStats : null,
     ],
     [
       refetchPropertyDetails,
       refetchPropertyReviews,
-      refetchPropertyStats,
       landlordPreview,
-      isGuest,
     ],
   );
 
@@ -210,9 +176,7 @@ export default function PropertyDetailsScreen({ route }) {
 
   useEffect(() => {
     if (!propertyDetailsQuery.error) return;
-
-    console.error("Failed to load rooms:", propertyDetailsQuery.error);
-    Alert.alert("Error", "Unable to load rooms for this property right now.");
+    console.error("Failed to load property:", propertyDetailsQuery.error);
   }, [propertyDetailsQuery.error]);
 
   useEffect(() => {
@@ -339,6 +303,7 @@ export default function PropertyDetailsScreen({ route }) {
     navigation.navigate("RoomDetails", {
       room,
       property: propertyData,
+      isGuest,
       hideLayout: true,
     });
   };
@@ -383,7 +348,7 @@ export default function PropertyDetailsScreen({ route }) {
     const src = detailedAccommodation || accommodation;
     const { latitude, longitude } = src || {};
     if (!latitude || !longitude) {
-      Alert.alert(
+      showAlert(
         "Location Not Available",
         "Map coordinates are not set for this property.",
       );
@@ -433,7 +398,7 @@ export default function PropertyDetailsScreen({ route }) {
       console.log("Extracted landlord info:", { landlordId, landlordName });
 
       if (!landlordId) {
-        Alert.alert(
+        showAlert(
           "Error",
           "Landlord information not available. Please try refreshing the property details.",
           [
@@ -470,7 +435,7 @@ export default function PropertyDetailsScreen({ route }) {
       });
     } catch (error) {
       console.error("Error navigating to messages:", error);
-      Alert.alert(
+      showAlert(
         "Error",
         `Failed to open messages: ${error.message}\n\nPlease try again.`,
       );
@@ -569,6 +534,86 @@ export default function PropertyDetailsScreen({ route }) {
     publicReviews.length,
   );
 
+  // Property is unavailable / hidden / deleted — show a proper error screen
+  if (!active && propertyDetailsQuery.isError) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <StatusBar barStyle="light-content" />
+        <View
+          style={{
+            height: 56,
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            backgroundColor: theme.colors.primary,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{ padding: 8, marginRight: 8, justifyContent: "center", alignItems: "center" }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={26} color="#ffffff" />
+          </TouchableOpacity>
+          <Text
+            style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: "700", color: "#ffffff", marginRight: 46 }}
+          >
+            Property Details
+          </Text>
+        </View>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 32,
+            backgroundColor: theme.colors.background,
+          }}
+        >
+          <Ionicons name="home-outline" size={64} color={theme.colors.textTertiary} />
+          <Text
+            style={{
+              marginTop: 16,
+              fontSize: 20,
+              fontWeight: "700",
+              color: theme.colors.text,
+              textAlign: "center",
+            }}
+          >
+            Property Not Available
+          </Text>
+          <Text
+            style={{
+              marginTop: 8,
+              fontSize: 14,
+              color: theme.colors.textSecondary,
+              textAlign: "center",
+              lineHeight: 20,
+            }}
+          >
+            This property may have been removed or is temporarily unavailable.
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{
+              marginTop: 24,
+              paddingVertical: 12,
+              paddingHorizontal: 28,
+              backgroundColor: theme.colors.primary,
+              borderRadius: 10,
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 15 }}>
+              Go Back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Still loading
   if (!active) {
     return (
       <SafeAreaView style={styles.container}>
@@ -692,11 +737,7 @@ export default function PropertyDetailsScreen({ route }) {
                         getImageUrl(img) ||
                         "https://via.placeholder.com/800x400",
                     }}
-                    style={{
-                      width: Dimensions.get("window").width - 32,
-                      height: 250,
-                      borderRadius: 12,
-                    }}
+                    style={styles.mainImage}
                     resizeMode="cover"
                   />
                 ))
@@ -733,6 +774,9 @@ export default function PropertyDetailsScreen({ route }) {
             visible={videoVisible}
             transparent={true}
             animationType="slide"
+            statusBarTranslucent={true}
+            navigationBarTranslucent={true}
+            presentationStyle="overFullScreen"
             onRequestClose={() => setVideoVisible(false)}
           >
             <View style={styles.videoModalContainer}>
@@ -786,34 +830,6 @@ export default function PropertyDetailsScreen({ route }) {
               <Text style={styles.description}>{active.description}</Text>
             </View>
           )}
-
-          {/* Features Section */}
-          <View style={styles.featuresContainer}>
-            <IconWithBadge
-              iconName="add-circle-outline"
-              label="Add-ons"
-              badgeCount={notificationCounts.addons}
-              onPress={() => navigation.navigate("Addons")}
-            />
-            <IconWithBadge
-              iconName="build-outline"
-              label="Maintenance"
-              badgeCount={notificationCounts.maintenance}
-              onPress={() => navigation.navigate("MyMaintenanceRequests")}
-            />
-            <IconWithBadge
-              iconName="list-outline"
-              label="Activity"
-              badgeCount={notificationCounts.activity}
-              onPress={() => navigation.navigate("Dashboard")}
-            />
-            <IconWithBadge
-              iconName="star-outline"
-              label="Reviews"
-              badgeCount={notificationCounts.reviews}
-              onPress={() => navigation.navigate("MyReviews")}
-            />
-          </View>
 
           {/* Amenities */}
           {active && active.amenities && active.amenities.length > 0 && (
@@ -982,26 +998,13 @@ export default function PropertyDetailsScreen({ route }) {
             </Text>
           </TouchableOpacity>
 
-          {!isGuest && !landlordPreview && (
-            <TouchableOpacity
-              style={styles.reportButton}
-              onPress={() =>
-                navigation.navigate('ReportProperty', {
-                  propertyId: active.id,
-                  propertyTitle: active.title || active.name,
-                })
-              }
-            >
-              <Ionicons name="flag-outline" size={18} color="#B91C1C" />
-              <Text style={styles.reportButtonText}>Report Listing</Text>
-            </TouchableOpacity>
-          )}
+
 
           {/* Report Maintenance removed from Property Details - only available via MyBookings */}
 
           <View style={styles.section}>
             <View style={styles.reviewsHeader}>
-              <Text style={styles.sectionTitle}>Guest Reviews</Text>
+              <Text style={styles.sectionTitle}>Reviews</Text>
               {publicReviewSummary?.average_rating ? (
                 <View style={styles.reviewsSummaryBadge}>
                   <Ionicons name="star" size={14} color="#D97706" />

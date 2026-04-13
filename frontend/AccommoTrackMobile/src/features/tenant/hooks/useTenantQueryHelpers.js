@@ -49,6 +49,7 @@ export const tenantQueryKeys = {
   notificationPreferences: () => ['tenantNotificationPreferences'],
   lifestylePreferences: () => ['tenantLifestylePreferences'],
   maintenanceRequests: () => ['tenantMaintenanceRequests'],
+  transferRequests: () => ['tenantTransferRequests'],
   myReviews: () => ['tenantMyReviews'],
   addonsBundle: ({ bookingId = null, propertyId = null } = {}) => ['tenantAddonsBundle', bookingId, propertyId],
 };

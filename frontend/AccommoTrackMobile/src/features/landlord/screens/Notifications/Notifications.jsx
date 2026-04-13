@@ -42,17 +42,17 @@ const mapNotification = (notification) => ({
   title: notification.data?.title || 'Notification',
   message: notification.data?.message || notification.data?.description || '',
   timestamp: notification.created_at,
-  read: Boolean(notification.read_at),
+  read: Boolean(notification.is_read || notification.read_at),
 });
 
 const notificationTypeMap = {
   booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
-  payment: { icon: 'cash-outline', color: '#059669', bg: '#DCFCE7' },
+  payment: { icon: 'cash-outline', color: '#16a34a', bg: '#DCFCE7' },
   message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
   maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
   alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
   move_out_notice: { icon: 'log-out-outline', color: '#EF4444', bg: '#FEE2E2' },
-  'App\\Notifications\\LandlordApprovedNotification': { icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
+  'App\\Notifications\\LandlordApprovedNotification': { icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
   'App\\Notifications\\LandlordRejectedNotification': { icon: 'close-circle', color: '#EF4444', bg: '#FEE2E2' },
   default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
 };
@@ -63,14 +63,18 @@ export default function NotificationsScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [actionError, setActionError] = useState('');
 
+  const extractNotificationRows = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+  };
+
   const notificationsQuery = useQuery({
     queryKey: landlordQueryKeys.notifications(),
     queryFn: async () => {
-      const response = await api.get('/notifications?role=landlord');
-      const payload = response.data;
-      const list = Array.isArray(payload?.data)
-        ? payload.data
-        : (Array.isArray(payload) ? payload : []);
+      const response = await api.get('/notifications?role=landlord&per_page=200');
+      const list = extractNotificationRows(response.data);
 
       return list.map(mapNotification);
     },
@@ -271,7 +275,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
@@ -362,7 +366,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#059669',
+    backgroundColor: '#16a34a',
     marginLeft: 8,
   },
   errorBanner: {

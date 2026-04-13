@@ -8,6 +8,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\User;
+use App\Support\SystemToggle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -52,6 +53,37 @@ class CashPaymentFlowTest extends TestCase
         ]);
     }
 
+    public function test_tenant_cannot_submit_second_offline_payment_while_pending_verification(): void
+    {
+        Notification::fake();
+
+        [, $tenant, $invoice] = $this->createCashPaymentScenario();
+
+        Sanctum::actingAs($tenant);
+
+        $this->postJson("/api/tenant/invoices/{$invoice->id}/record-offline", [
+            'amount_cents' => 30000,
+            'method' => 'cash',
+            'reference' => 'CASH-FIRST-001',
+        ])->assertStatus(201);
+
+        $this->postJson("/api/tenant/invoices/{$invoice->id}/record-offline", [
+            'amount_cents' => 10000,
+            'method' => 'cash',
+            'reference' => 'CASH-SECOND-001',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'A manual payment submission is already pending verification for this invoice.');
+
+        $this->assertSame(
+            1,
+            PaymentTransaction::query()
+                ->where('invoice_id', $invoice->id)
+                ->where('status', 'pending_offline')
+                ->count()
+        );
+    }
+
     public function test_landlord_approve_cash_payment_marks_invoice_paid_when_full_amount_received(): void
     {
         Notification::fake();
@@ -90,6 +122,17 @@ class CashPaymentFlowTest extends TestCase
             'method' => 'cash',
             'amount_cents' => 100000,
         ]);
+
+        $approvedTx = PaymentTransaction::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('status', 'succeeded')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($approvedTx);
+        $this->assertSame('approve', $approvedTx->gateway_response['verification_action'] ?? null);
+        $this->assertSame($landlord->id, $approvedTx->gateway_response['verified_by_user_id'] ?? null);
+        $this->assertNotEmpty($approvedTx->gateway_response['verified_at'] ?? null);
     }
 
     public function test_landlord_reject_cash_payment_voids_pending_transaction_and_resets_invoice_to_pending(): void
@@ -131,6 +174,77 @@ class CashPaymentFlowTest extends TestCase
             'method' => 'cash',
             'amount_cents' => 30000,
         ]);
+
+        $rejectedTx = PaymentTransaction::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('status', 'voided')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($rejectedTx);
+        $this->assertSame('reject', $rejectedTx->gateway_response['verification_action'] ?? null);
+        $this->assertSame($landlord->id, $rejectedTx->gateway_response['verified_by_user_id'] ?? null);
+        $this->assertNotEmpty($rejectedTx->gateway_response['verified_at'] ?? null);
+        $this->assertSame('Receipt image is unreadable.', $rejectedTx->gateway_response['denial_reason'] ?? null);
+        $this->assertSame('Receipt image is unreadable.', $rejectedTx->gateway_response['rejection_reason'] ?? null);
+    }
+
+    public function test_landlord_reject_requires_non_empty_reason_string(): void
+    {
+        Notification::fake();
+
+        [$landlord, $tenant, $invoice] = $this->createCashPaymentScenario();
+
+        Sanctum::actingAs($tenant);
+        $this->postJson("/api/tenant/invoices/{$invoice->id}/record-offline", [
+            'amount_cents' => 30000,
+            'method' => 'cash',
+            'reference' => 'CASH-REJECT-NEEDS-REASON',
+        ])->assertStatus(201);
+
+        Sanctum::actingAs($landlord);
+        $response = $this->postJson("/api/invoices/{$invoice->id}/verify-cash", [
+            'action' => 'reject',
+            'reason_code' => 'other',
+            'reason' => '   ',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['reason']);
+
+        $this->assertDatabaseHas('payment_transactions', [
+            'invoice_id' => $invoice->id,
+            'status' => 'pending_offline',
+        ]);
+    }
+
+    public function test_second_verification_attempt_after_approval_returns_no_pending_error(): void
+    {
+        Notification::fake();
+
+        [$landlord, $tenant, $invoice] = $this->createCashPaymentScenario();
+
+        Sanctum::actingAs($tenant);
+        $this->postJson("/api/tenant/invoices/{$invoice->id}/record-offline", [
+            'amount_cents' => 100000,
+            'method' => 'cash',
+            'reference' => 'CASH-VERIFY-ONCE',
+        ])->assertStatus(201);
+
+        Sanctum::actingAs($landlord);
+        $this->postJson("/api/invoices/{$invoice->id}/verify-cash", [
+            'action' => 'approve',
+        ])->assertStatus(200);
+
+        $this->postJson("/api/invoices/{$invoice->id}/verify-cash", [
+            'action' => 'approve',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'No pending manual payment found for verification.');
+
+        $invoice->refresh();
+        $this->assertSame('paid', $invoice->status);
     }
 
     public function test_tenant_cash_partial_payment_is_blocked_when_property_disallows_partial_payments(): void
@@ -161,11 +275,66 @@ class CashPaymentFlowTest extends TestCase
         ]);
     }
 
+    public function test_tenant_offline_payment_response_contract_and_cash_alias_normalization(): void
+    {
+        Notification::fake();
+
+        [, $tenant, $invoice] = $this->createCashPaymentScenario();
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->postJson("/api/tenant/invoices/{$invoice->id}/record-offline", [
+            'amount_cents' => 25000,
+            'method' => 'cash_on_site',
+            'reference' => 'ALIAS-CASH-001',
+            'notes' => 'Alias method contract test',
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('transaction.status', 'pending_offline')
+            ->assertJsonPath('transaction.method', 'cash')
+            ->assertJsonPath('transaction.amount_cents', 25000)
+            ->assertJsonPath('transaction.gateway_reference', 'ALIAS-CASH-001')
+            ->assertJsonStructure([
+                'success',
+                'transaction' => [
+                    'id',
+                    'invoice_id',
+                    'tenant_id',
+                    'amount_cents',
+                    'currency',
+                    'status',
+                    'method',
+                    'gateway_reference',
+                    'gateway_response',
+                    'created_at',
+                    'updated_at',
+                ],
+            ]);
+
+        $invoice->refresh();
+        $this->assertSame('pending_verification', $invoice->status);
+
+        $this->assertDatabaseHas('payment_transactions', [
+            'invoice_id' => $invoice->id,
+            'tenant_id' => $tenant->id,
+            'status' => 'pending_offline',
+            'method' => 'cash',
+            'amount_cents' => 25000,
+            'gateway_reference' => 'ALIAS-CASH-001',
+        ]);
+    }
+
     /**
      * @return array{User, User, Invoice, Booking}
      */
     private function createCashPaymentScenario(array $propertyOverrides = []): array
     {
+        // Keep this suite deterministic regardless of global admin payment-control defaults.
+        SystemToggle::setBool('tenant_payments_disabled', false, null);
+
         $suffix = uniqid();
 
         $landlord = User::create([

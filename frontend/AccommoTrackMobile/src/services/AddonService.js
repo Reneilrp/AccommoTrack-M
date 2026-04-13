@@ -132,12 +132,19 @@ const AddonService = {
     /**
      * Approve or reject an addon request (Landlord)
      */
-    async handleAddonRequest(bookingId, addonId, action, note = null) {
+    async handleAddonRequest(bookingId, addonId, action, note = null, approvedPrice = null) {
         try {
-            const response = await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, {
+            const payload = {
                 action, // 'approve' or 'reject'
                 note
-            });
+            };
+
+            const numericApprovedPrice = Number(approvedPrice);
+            if (action === 'approve' && Number.isFinite(numericApprovedPrice) && numericApprovedPrice > 0) {
+                payload.approved_price = numericApprovedPrice;
+            }
+
+            const response = await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, payload);
             return {
                 success: true,
                 data: response.data,

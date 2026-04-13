@@ -28,10 +28,11 @@ export default function CreateRequest() {
   const { bookingId = null, propertyId = null, roomId = null } = route.params || {};
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('normal');
+  const [priority, setPriority] = useState('medium');
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,7 +41,7 @@ export default function CreateRequest() {
       const ImagePicker = await import('expo-image-picker');
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Permission required', 'Please grant media library permissions to attach photos.');
+        showAlert('Permission required', 'Please grant media library permissions to attach photos.');
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({ 
@@ -188,7 +189,7 @@ export default function CreateRequest() {
                 <Text style={[styles.label, { color: theme.colors.textSecondary }]}>PRIORITY LEVEL</Text>
                 <View style={styles.priorityRow}>
                     <PriorityChip level="low" label="Low" />
-                    <PriorityChip level="normal" label="Normal" />
+                    <PriorityChip level="medium" label="Medium" />
                     <PriorityChip level="high" label="High" />
                 </View>
             </View>

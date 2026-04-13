@@ -15,7 +15,14 @@ class NotificationController extends Controller
     {
         $user = Auth::user();
         $role = $request->query('role');
+        $unreadOnly = filter_var($request->query('unread_only', false), FILTER_VALIDATE_BOOLEAN);
+        $perPage = (int) $request->query('per_page', 20);
+        $perPage = max(1, min($perPage, 200));
         $query = $user->notifications();
+
+        if ($unreadOnly) {
+            $query->where('is_read', false);
+        }
 
         if ($role === 'tenant') {
             $query->whereNotIn('type', ['booking', 'payment_received']);
@@ -24,7 +31,7 @@ class NotificationController extends Controller
         }
 
         // Get all notifications, paginated
-        $notifications = $query->paginate(20);
+        $notifications = $query->paginate($perPage);
 
         return response()->json($notifications);
     }

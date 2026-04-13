@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   StatusBar,
@@ -10,6 +9,8 @@ import {
   TouchableOpacity,
   View,
   Modal,
+  Pressable,
+  Switch,
 } from "react-native";
 import {
   SafeAreaView,
@@ -85,6 +86,10 @@ const initialForm = {
   rules: [],
   isEligible: false,
   acceptedPayments: ["cash"],
+  require1MonthAdvance: false,
+  allowPartialPayments: true,
+  requireReservationFee: false,
+  reservationFeeAmount: "",
 };
 
 const STEPS = [
@@ -92,6 +97,12 @@ const STEPS = [
   { id: 2, title: "Location", icon: "map" },
   { id: 3, title: "Rules & Perks", icon: "list" },
   { id: 4, title: "Credentials", icon: "shield-checkmark" },
+];
+
+const LANDLORD_ACCESS_STATUSES = [
+  "approved",
+  "partial_verified",
+  "pending_documents_review",
 ];
 
 export default function AddProperty({ navigation }) {
@@ -113,49 +124,65 @@ export default function AddProperty({ navigation }) {
     visible: false,
     isDraft: false,
   });
+  const [alertModal, setAlertModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+  });
+  const showAlert = (title, message) => setAlertModal({ visible: true, title, message });
+  const hideAlert = () => setAlertModal(prev => ({ ...prev, visible: false }));
   const webviewRef = useRef(null);
   const scrollRef = useRef(null);
 
   const addPropertyVerificationQuery = useQuery({
     queryKey: landlordQueryKeys.addPropertyVerification(),
     queryFn: async () => {
+      let isCaretaker = false;
       let isVerified = false;
       let isPayMongoVerified = false;
+      let verificationStatus = null;
 
       try {
-        const [verificationRes, userString] = await Promise.all([
-          ProfileService.getVerificationStatus(),
-          AsyncStorage.getItem("user"),
-        ]);
-
-        if (verificationRes?.success) {
-          isVerified =
-            verificationRes.data?.status === "approved" ||
-            verificationRes.data?.user?.is_verified === true;
-        }
+        const userString = await AsyncStorage.getItem("user");
 
         if (userString) {
           try {
             const user = JSON.parse(userString);
+            isCaretaker = user?.role === "caretaker";
             isPayMongoVerified =
               user?.paymongo_verification_status === "verified";
           } catch (_parseError) {
             isPayMongoVerified = false;
           }
         }
+
+        if (isCaretaker) {
+          isVerified = true;
+          return { isCaretaker, isVerified, isPayMongoVerified, verificationStatus };
+        }
+
+        const verificationRes = await ProfileService.getVerificationStatus();
+
+        if (verificationRes?.success) {
+          verificationStatus = verificationRes.data?.status ?? null;
+          isVerified =
+            LANDLORD_ACCESS_STATUSES.includes(verificationStatus) ||
+            verificationRes.data?.user?.is_verified === true;
+        }
       } catch (_error) {
         isVerified = false;
       }
 
-      return { isVerified, isPayMongoVerified };
+      return { isCaretaker, isVerified, isPayMongoVerified, verificationStatus };
     },
-    placeholderData: (previousData) => previousData,
   });
 
+  const isCaretaker = addPropertyVerificationQuery.data?.isCaretaker === true;
   const isVerified = addPropertyVerificationQuery.data?.isVerified ?? null;
+  const verificationStatus = addPropertyVerificationQuery.data?.verificationStatus ?? null;
   const isPayMongoVerified =
     addPropertyVerificationQuery.data?.isPayMongoVerified ?? false;
-  const canSubmitForApproval = isVerified === true;
+  const canSubmitForApproval = isCaretaker || isVerified === true;
   const refetchAddPropertyVerification = addPropertyVerificationQuery.refetch;
   const addPropertyVerificationRefetchers = useMemo(
     () => [refetchAddPropertyVerification],
@@ -282,7 +309,7 @@ export default function AddProperty({ navigation }) {
   const handlePickImages = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission required", "Please allow photo library access.");
+      showAlert("Permission required", "Please allow photo library access.");
       return;
     }
 
@@ -312,7 +339,7 @@ export default function AddProperty({ navigation }) {
       }
 
       if (tooLargeFiles.length > 0) {
-        Alert.alert(
+        showAlert(
           "Files too large",
           `The following images exceed the 5MB limit and were skipped:\n\n${tooLargeFiles.join("\n")}`,
         );
@@ -325,7 +352,7 @@ export default function AddProperty({ navigation }) {
   const handlePickVideo = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission required", "Please allow photo library access.");
+      showAlert("Permission Required", "Please allow photo library access to upload a video.");
       return;
     }
 
@@ -337,20 +364,20 @@ export default function AddProperty({ navigation }) {
     if (!result.canceled && result.assets.length > 0) {
       const video = result.assets[0];
 
-      // Strict 90MB size check
-      if (video.fileSize && video.fileSize > 90 * 1024 * 1024) {
-        Alert.alert(
-          "Video too large",
-          `The selected video is ${(video.fileSize / (1024 * 1024)).toFixed(1)}MB. Please choose a video under 90MB.`,
+      // Strict 200MB size check
+      if (video.fileSize && video.fileSize > 200 * 1024 * 1024) {
+        showAlert(
+          "Video Too Large",
+          `The selected video is ${(video.fileSize / (1024 * 1024)).toFixed(1)}MB. Please choose a video under 200MB.`,
         );
         return;
       }
 
       // 45 seconds duration check
       if (video.duration && video.duration > 45000) {
-        Alert.alert(
-          "Video too long",
-          "Video tours must be 45 seconds or less. Please trim your video.",
+        showAlert(
+          "Video Too Long",
+          "Video tours must be 45 seconds or less. Please trim your video before uploading.",
         );
         return;
       }
@@ -366,7 +393,10 @@ export default function AddProperty({ navigation }) {
   const handlePickCredentials = async () => {
     // For simplicity using ImagePicker, but could use DocumentPicker for PDF
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+    if (!permission.granted) {
+      showAlert("Permission Required", "Please allow photo library access to upload documents.");
+      return;
+    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsMultipleSelection: true,
@@ -475,6 +505,9 @@ export default function AddProperty({ navigation }) {
     const payload = new FormData();
     const propertyType =
       form.propertyType === "others" ? form.otherType : form.propertyType;
+    const parsedTotalRooms = Number.parseInt(String(form.totalRooms || "").trim(), 10);
+    const parsedMaxOccupants = Number.parseInt(String(form.maxOccupants || "").trim(), 10);
+    const parsedTotalFloors = Number.parseInt(String(form.totalFloors || "").trim(), 10);
 
     const entries = {
       title: form.title.trim(),
@@ -491,13 +524,28 @@ export default function AddProperty({ navigation }) {
       latitude: form.latitude,
       longitude: form.longitude,
       nearby_landmarks: form.nearbyLandmarks.trim(),
-      total_rooms: form.totalRooms || 0,
-      max_occupants: form.maxOccupants || 0,
-      total_floors: form.totalFloors || 1,
+      total_rooms:
+        Number.isNaN(parsedTotalRooms) || parsedTotalRooms < 1
+          ? null
+          : parsedTotalRooms,
+      max_occupants:
+        Number.isNaN(parsedMaxOccupants) || parsedMaxOccupants < 1
+          ? null
+          : parsedMaxOccupants,
+      total_floors:
+        Number.isNaN(parsedTotalFloors) || parsedTotalFloors < 1
+          ? 1
+          : parsedTotalFloors,
       floor_level: form.floorLevel.length > 0 ? form.floorLevel.join(",") : "",
       property_rules: form.rules.length ? JSON.stringify(form.rules) : null,
       is_eligible: form.isEligible ? "1" : "0",
       is_draft: isDraft ? "1" : "0",
+      require_1month_advance: form.require1MonthAdvance ? "1" : "0",
+      allow_partial_payments: form.allowPartialPayments ? "1" : "0",
+      require_reservation_fee: form.requireReservationFee ? "1" : "0",
+      reservation_fee_amount: form.requireReservationFee
+        ? form.reservationFeeAmount || "0"
+        : "0",
     };
 
     Object.entries(entries).forEach(([key, value]) => {
@@ -563,7 +611,7 @@ export default function AddProperty({ navigation }) {
 
       if (!canSubmitForApproval) {
         setError(
-          "Account verification is required before submitting for approval. You can still save as draft.",
+          "Your account needs partial verification (or approved status) before submitting for approval. You can still save as draft.",
         );
         return;
       }
@@ -636,6 +684,9 @@ export default function AddProperty({ navigation }) {
       visible={successModal.visible}
       transparent
       animationType="fade"
+      statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+      presentationStyle="overFullScreen"
       onRequestClose={() => {
         setSuccessModal({ visible: false, isDraft: false });
         navigation.goBack();
@@ -647,7 +698,7 @@ export default function AddProperty({ navigation }) {
             <Ionicons
               name={successModal.isDraft ? "document-text" : "checkmark-circle"}
               size={48}
-              color="#059669"
+              color="#16a34a"
             />
           </View>
           <Text style={styles.successTitle}>
@@ -715,7 +766,7 @@ export default function AddProperty({ navigation }) {
           </View>
         ) : null}
 
-        {isVerified === false && (
+        {!isCaretaker && isVerified === false && (
           <View style={styles.verificationWarning}>
             <Ionicons name="shield-alert" size={24} color="#D97706" />
             <View style={styles.inputHalf}>
@@ -723,8 +774,9 @@ export default function AddProperty({ navigation }) {
                 Account Verification Required
               </Text>
               <Text style={styles.warningText}>
-                You can save as draft, but you can't submit for approval until
-                your account is verified.
+                {verificationStatus === "pending"
+                  ? "You can save as draft while your account is under review. Submit for approval unlocks after partial verification or full approval."
+                  : "You can save as draft, but submit for approval unlocks after partial verification or full approval."}
               </Text>
             </View>
           </View>
@@ -874,6 +926,81 @@ export default function AddProperty({ navigation }) {
                   </View>
                 </View>
               )}
+
+              <View style={styles.switchSectionDivider}>
+                <View style={styles.switchRowContainer}>
+                  <View style={styles.switchTextBlock}>
+                    <Text style={styles.switchTitle}>Require 1-Month Advance Payment</Text>
+                    <Text style={styles.switchHelpText}>
+                      Tenant pays first month plus one advance month upon booking confirmation.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={form.require1MonthAdvance}
+                    onValueChange={(value) => updateForm("require1MonthAdvance", value)}
+                    trackColor={{ true: theme.colors.primary, false: "#CBD5E1" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={styles.switchRowContainer}>
+                  <View style={styles.switchTextBlock}>
+                    <Text style={styles.switchTitle}>Require Instant Reservation Fee</Text>
+                    <Text style={styles.switchHelpText}>
+                      Require a non-refundable reservation fee to secure the request.
+                    </Text>
+                    {!isPayMongoVerified ? (
+                      <Text style={styles.switchWarningText}>
+                        Complete PayMongo verification in Settings &gt; Payments to enable this.
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Switch
+                    value={form.requireReservationFee}
+                    onValueChange={(value) => {
+                      if (!isPayMongoVerified && value) {
+                        showAlert(
+                          "PayMongo Not Verified",
+                          "You need to complete PayMongo verification before enabling reservation fee.",
+                        );
+                        return;
+                      }
+                      updateForm("requireReservationFee", value);
+                    }}
+                    disabled={!isPayMongoVerified}
+                    trackColor={{ true: theme.colors.primary, false: "#CBD5E1" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                {form.requireReservationFee ? (
+                  <>
+                    <Text style={styles.label}>Reservation Fee Amount (PHP)</Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 500"
+                      value={form.reservationFeeAmount}
+                      onChangeText={(text) => updateForm("reservationFeeAmount", text)}
+                    />
+                  </>
+                ) : null}
+
+                <View style={[styles.switchRowContainer, styles.switchRowLast]}>
+                  <View style={styles.switchTextBlock}>
+                    <Text style={styles.switchTitle}>Allow Partial Payments</Text>
+                    <Text style={styles.switchHelpText}>
+                      Tenants can pay invoices in smaller increments instead of full one-time payment.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={form.allowPartialPayments}
+                    onValueChange={(value) => updateForm("allowPartialPayments", value)}
+                    trackColor={{ true: theme.colors.primary, false: "#CBD5E1" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              </View>
             </View>
 
             <View style={styles.sectionCard}>
@@ -916,7 +1043,7 @@ export default function AddProperty({ navigation }) {
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Property Video Tour</Text>
               <Text style={styles.sectionSubtitle}>
-                Add a short video tour (Max 45s, 90MB)
+                Add a short video tour (Max 45s, 200MB)
               </Text>
 
               <View style={styles.imagesRow}>
@@ -1163,7 +1290,7 @@ export default function AddProperty({ navigation }) {
                       <Ionicons
                         name="checkmark-circle"
                         size={18}
-                        color="#059669"
+                        color="#16a34a"
                       />
                       <Text style={[styles.inputHalf, { fontSize: 14 }]}>
                         {rule}
@@ -1247,10 +1374,9 @@ export default function AddProperty({ navigation }) {
                 }}
                 onPress={() => {
                   if (!isPayMongoVerified) {
-                    Alert.alert(
+                    showAlert(
                       "PayMongo Not Verified",
                       "You need to complete PayMongo verification before enabling online payments.\n\nGo to Settings > Payments to connect your account.",
-                      [{ text: "OK" }],
                     );
                     return;
                   }
@@ -1424,7 +1550,7 @@ export default function AddProperty({ navigation }) {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#059669" />
+              <ActivityIndicator size="small" color="#16a34a" />
             ) : (
               <Text style={[styles.buttonText, styles.buttonTextDraft]}>
                 Save Draft
@@ -1463,6 +1589,39 @@ export default function AddProperty({ navigation }) {
         )}
       </View>
       {renderSuccessModal()}
+
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={alertModal.visible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={hideAlert}
+      >
+        <Pressable style={styles.successModalOverlay} onPress={hideAlert}>
+          <Pressable style={styles.successModalCard} onPress={() => {}}>
+            <TouchableOpacity
+              onPress={hideAlert}
+              style={{ position: "absolute", top: 12, right: 12, padding: 4, zIndex: 1 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close alert"
+            >
+              <Ionicons name="close" size={22} color="#6B7280" />
+            </TouchableOpacity>
+            <View style={[styles.successIconContainer, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="warning-outline" size={36} color="#DC2626" />
+            </View>
+            <Text style={styles.successTitle}>{alertModal.title}</Text>
+            <Text style={styles.successMessage}>{alertModal.message}</Text>
+            <TouchableOpacity style={[styles.successButton, { backgroundColor: '#DC2626' }]} onPress={hideAlert}>
+              <Text style={styles.successButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

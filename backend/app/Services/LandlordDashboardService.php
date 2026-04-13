@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\Invoice;
-use App\Models\Payment;
+use App\Models\PaymentTransaction;
 use App\Models\Property;
 use App\Models\Room;
 use Illuminate\Support\Facades\DB;
@@ -131,7 +131,7 @@ class LandlordDashboardService
                 $activities = $activities->merge($propertyUpdatesQuery->limit(5)->get());
             }
 
-            $invoiceQuery = \App\Models\Invoice::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'booking.room'])->orderBy('updated_at', 'desc');
+            $invoiceQuery = Invoice::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'booking.room'])->orderBy('updated_at', 'desc');
             if ($roomId) {
                 $invoiceQuery->whereHas('booking', function ($q) use ($roomId) {
                     $q->where('room_id', $roomId);
@@ -167,9 +167,10 @@ class LandlordDashboardService
             // Add Addon Requests (from booking_addons)
             $addonQuery = DB::table('booking_addons')
                 ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
+                ->join('properties', 'addons.property_id', '=', 'properties.id')
                 ->join('bookings', 'booking_addons.booking_id', '=', 'bookings.id')
                 ->join('users', 'bookings.tenant_id', '=', 'users.id')
-                ->where('addons.property_id', '>', 0) // dummy where
+                ->where('properties.landlord_id', $landlordId)
                 ->select([
                     'booking_addons.*',
                     'addons.name as addon_name',
@@ -182,6 +183,8 @@ class LandlordDashboardService
                 $addonQuery->where('bookings.room_id', $roomId);
             } elseif ($propertyId) {
                 $addonQuery->where('addons.property_id', $propertyId);
+            } elseif ($assignedPropertyIds) {
+                $addonQuery->whereIn('addons.property_id', $assignedPropertyIds);
             }
 
             $addons = $addonQuery->orderBy('booking_addons.created_at', 'desc')->limit(10)->get();
@@ -298,18 +301,23 @@ class LandlordDashboardService
 
         $properties = $propertiesQuery->get();
 
-        // Pre-fetch actual paid revenue per property in one query to avoid N+1
-        $revenueByProperty = Payment::where('payments.status', 'paid')
-            ->whereHas('booking', function ($q) use ($landlordId, $assignedPropertyIds) {
-                $q->where('landlord_id', $landlordId);
-                if ($assignedPropertyIds) {
-                    $q->whereIn('property_id', $assignedPropertyIds);
-                }
+        // Aggregate actual collected revenue from the ledger source of truth.
+        $revenueByProperty = PaymentTransaction::query()
+            ->join('invoices', 'payment_transactions.invoice_id', '=', 'invoices.id')
+            ->where('invoices.landlord_id', $landlordId)
+            ->whereNotNull('invoices.property_id')
+            ->where('payment_transactions.amount_cents', '>', 0)
+            ->whereIn('payment_transactions.status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+            ->when($assignedPropertyIds, function ($query) use ($assignedPropertyIds) {
+                $query->whereIn('invoices.property_id', $assignedPropertyIds);
             })
-            ->join('bookings', 'payments.booking_id', '=', 'bookings.id')
-            ->select('bookings.property_id', DB::raw('SUM(payments.amount) as total_paid'))
-            ->groupBy('bookings.property_id')
-            ->pluck('total_paid', 'property_id');
+            ->select(
+                'invoices.property_id',
+                DB::raw('COALESCE(SUM(payment_transactions.amount_cents - payment_transactions.refunded_amount_cents), 0) as total_paid_cents')
+            )
+            ->groupBy('invoices.property_id')
+            ->pluck('total_paid_cents', 'invoices.property_id')
+            ->map(fn ($totalPaidCents) => (float) round(((int) $totalPaidCents) / 100, 2));
 
         return [
             'properties' => $properties,

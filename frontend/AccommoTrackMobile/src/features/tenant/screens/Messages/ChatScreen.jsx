@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking, useWindowDimensions, Animated, Pressable, Keyboard } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,6 @@ import MessageService from '../../../../services/MessageService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { showError } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/MessagesPage.js';
-import { API_BASE_URL, BASE_URL } from '../../../../config/index.js';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
 import {
     tenantQueryKeys,
@@ -18,17 +17,64 @@ import {
     useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 
+const ROLE_LABELS = {
+    tenant: 'Tenant',
+    caretaker: 'Caretaker',
+    landlord: 'Landlord',
+};
+
+const normalizeRole = (role) => String(role || '').trim().toLowerCase();
+
+const getRoleLabel = (role) => {
+    const normalized = normalizeRole(role);
+    if (ROLE_LABELS[normalized]) return ROLE_LABELS[normalized];
+    if (!normalized) return 'Participant';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const deriveConversationStatus = ({ role, lastMessage }) => {
+    const normalizedRole = normalizeRole(role);
+    const lastSenderRole = normalizeRole(lastMessage?.sender_role);
+    const lastMessageIsMine = Boolean(lastMessage?.is_mine);
+
+    if (normalizedRole === 'caretaker') {
+        return { key: 'caretaker', label: 'Caretaker' };
+    }
+
+    if (lastSenderRole === 'caretaker' && !lastMessageIsMine) {
+        return { key: 'caretaker-assisted', label: 'Caretaker-assisted' };
+    }
+
+    if (normalizedRole === 'landlord') {
+        return { key: 'owner', label: 'Property Owner' };
+    }
+
+    return { key: 'participant', label: getRoleLabel(normalizedRole) };
+};
+
 export default function ChatScreen({ navigation, route }) {
+    const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
+    const showAlert = Alert.alert;
+    const contentWrapStyle = React.useMemo(
+        () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
+        [viewportWidth],
+    );
     const queryClient = useQueryClient();
     const conv = route.params?.conversation || null;
     const [messageText, setMessageText] = useState('');
     const [selectedImage, setSelectedImage] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const insets = useSafeAreaInsets();
+    const safeAreaEdges = ['top', 'bottom'];
+    const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
     const scrollViewRef = useRef(null);
     const echoRef = useRef(null);
+    const detailsPanelWidth = Math.min(380, Math.round(viewportWidth * 0.9));
+    const detailsTranslateX = useRef(new Animated.Value(detailsPanelWidth)).current;
     const messagesQueryKey = React.useMemo(
         () => tenantQueryKeys.messagesConversation(conv?.id),
         [conv?.id],
@@ -114,45 +160,81 @@ export default function ChatScreen({ navigation, route }) {
     });
 
     useEffect(() => {
-        if (!conv) return;
-        setupEcho();
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        
+        const showSubscription = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+        const hideSubscription = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
         return () => {
-            if (echoRef.current) {
-                try { echoRef.current.leave(`conversation.${conv.id}`); } catch (e) {}
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!conv?.id) return;
+
+        const setupEcho = async () => {
+            try {
+                echoRef.current = await createEcho();
+                echoRef.current.private(`conversation.${conv.id}`).listen('.message.sent', (e) => {
+                    const incomingMessage = e.message;
+
+                    queryClient.setQueryData(messagesQueryKey, (old) => {
+                        const messages = old || [];
+                        // Avoid duplicates by checking ID (convert to string for safe comparison)
+                        if (messages.some((messageItem) => String(messageItem.id) === String(incomingMessage.id))) {
+                            return old;
+                        }
+                        return [...messages, incomingMessage];
+                    });
+                    queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
+                    scrollToBottom();
+                });
+            } catch (err) {
+                console.error('Echo setup failed:', err);
             }
         };
-    }, [conv]);
 
-    const setupEcho = async () => {
-        try {
-            echoRef.current = await createEcho();
-            echoRef.current.private(`conversation.${conv.id}`).listen('.message.sent', (e) => {
-                const incomingMessage = e.message;
-                
-                queryClient.setQueryData(messagesQueryKey, (old) => {
-                    const messages = old || [];
-                    // Avoid duplicates by checking ID (convert to string for safe comparison)
-                    if (messages.some(m => String(m.id) === String(incomingMessage.id))) {
-                        return old;
-                    }
-                    return [...messages, incomingMessage];
-                });
-                queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
-                scrollToBottom();
-            });
-        } catch (err) {
-            console.error('Echo setup failed:', err);
+        setupEcho();
+
+        return () => {
+            if (echoRef.current) {
+                try {
+                    echoRef.current.leave(`conversation.${conv.id}`);
+                } catch (_error) {}
+            }
+        };
+    }, [conv?.id, messagesQueryKey, queryClient]);
+
+    const scrollToBottom = (animated = true) => {
+        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated }), 100);
+    };
+
+    useEffect(() => {
+        if (!messages.length) return;
+        scrollToBottom(false);
+    }, [messages.length]);
+
+    useEffect(() => {
+        if (!isDetailsOpen) {
+            detailsTranslateX.setValue(detailsPanelWidth);
         }
-    };
+    }, [detailsPanelWidth, detailsTranslateX, isDetailsOpen]);
 
-    const scrollToBottom = () => {
-        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
-    };
+    useEffect(() => {
+        Animated.timing(detailsTranslateX, {
+            toValue: isDetailsOpen ? 0 : detailsPanelWidth,
+            duration: 220,
+            useNativeDriver: true,
+        }).start();
+    }, [detailsPanelWidth, detailsTranslateX, isDetailsOpen]);
 
     const handlePickImage = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-            Alert.alert('Permission required', 'Please allow photo library access to send images.');
+            showAlert('Permission required', 'Please allow photo library access to send images.');
             return;
         }
 
@@ -164,7 +246,7 @@ export default function ChatScreen({ navigation, route }) {
         if (!result.canceled && result.assets.length > 0) {
             const asset = result.assets[0];
             if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-                Alert.alert('File too large', 'Image exceeds the 5MB limit.');
+                showAlert('File too large', 'Image exceeds the 5MB limit.');
                 return;
             }
             setSelectedImage(asset.uri);
@@ -210,26 +292,38 @@ export default function ChatScreen({ navigation, route }) {
         return '??';
     };
 
-    const getDisplayName = (conv) => {
-        if (conv?.property?.title) return conv.property.title;
-        const user = conv?.other_user;
-        if (user?.first_name || user?.last_name) return `${user.first_name || ''} ${user.last_name || ''}`.trim();
-        return 'Unknown';
-    };
+    const participantMeta = route.params?.participantMeta || conv?.participantMeta || null;
+    const participantRole = normalizeRole(participantMeta?.role || conv?.other_user?.role);
+    const participantRoleLabel = participantMeta?.roleLabel || getRoleLabel(participantRole);
+    const derivedStatus = participantMeta?.statusLabel
+        ? { key: participantMeta?.statusKey || 'participant', label: participantMeta.statusLabel }
+        : deriveConversationStatus({ role: participantRole, lastMessage: conv?.last_message });
+    const participantStatusLabel = derivedStatus?.label || null;
+    const participantStatusLine = [participantRoleLabel, participantStatusLabel]
+        .filter((value, index, list) => value && list.indexOf(value) === index)
+        .join(' • ');
 
-    const getPropertyLabel = (conv) => {
-        const user = conv?.other_user;
-        const userName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Landlord';
-        if (conv?.property?.title) return userName;
-        if (user?.role) return user.role.charAt(0).toUpperCase() + user.role.slice(1);
-        return 'Landlord';
-    };
+    const participantName = conv?.other_user
+        ? `${conv.other_user.first_name || ''} ${conv.other_user.last_name || ''}`.trim()
+        : '';
+    const displayParticipantName = participantName || 'Landlord';
+    const participantPropertyLabel = participantMeta?.propertyLabel || conv?.property?.title || 'No linked property';
+    const participantPhone = conv?.other_user?.phone || participantMeta?.phone || null;
+    const participantEmail = conv?.other_user?.email || participantMeta?.email || null;
+
+    const detailRows = [
+        { label: 'Role', value: participantRoleLabel },
+        { label: 'Status', value: participantStatusLabel || participantRoleLabel },
+        { label: 'Property', value: participantPropertyLabel },
+        { label: 'Phone', value: participantPhone || 'Not provided' },
+        { label: 'Email', value: participantEmail || 'Not provided' },
+    ];
 
     return (
-        <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView edges={safeAreaEdges} style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
             <KeyboardAvoidingView
                 style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : (isKeyboardVisible ? 'height' : undefined)}
                 keyboardVerticalOffset={0}
             >
                 <StatusBar barStyle="light-content" />
@@ -262,21 +356,24 @@ export default function ChatScreen({ navigation, route }) {
                             )}
                         </View>
                         <View style={styles.chatHeaderText}>
-                            <Text style={styles.chatHeaderName} numberOfLines={1}>{getDisplayName(conv)}</Text>
-                            <Text style={styles.chatHeaderProperty} numberOfLines={1}>{getPropertyLabel(conv)}</Text>
+                            <Text style={styles.chatHeaderName} numberOfLines={1}>{displayParticipantName}</Text>
+                            {participantStatusLine ? (
+                                <Text style={styles.chatHeaderMeta} numberOfLines={1}>{participantStatusLine}</Text>
+                            ) : null}
+                            <Text style={styles.chatHeaderProperty} numberOfLines={1}>{participantPropertyLabel}</Text>
                         </View>
                     </View>
 
-                    {conv?.other_user?.phone && (
+                    {participantPhone && (
                         <TouchableOpacity 
                             style={[styles.headerIcon, { marginRight: 8 }]} 
-                            onPress={() => Linking.openURL(`tel:${conv.other_user.phone}`)}
+                            onPress={() => Linking.openURL(`tel:${participantPhone}`)}
                         >
                             <Ionicons name="call-outline" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                     )}
 
-                    <TouchableOpacity style={styles.headerIcon}>
+                    <TouchableOpacity style={styles.headerIcon} onPress={() => setIsDetailsOpen((prev) => !prev)}>
                         <Ionicons name="ellipsis-vertical" size={24} color="#FFFFFF" />
                     </TouchableOpacity>
                 </View>
@@ -285,9 +382,10 @@ export default function ChatScreen({ navigation, route }) {
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.messagesContainer}
-                    contentContainerStyle={styles.messagesContent}
+                    contentContainerStyle={[styles.messagesContent, contentWrapStyle]}
                     showsVerticalScrollIndicator={false}
-                    onContentSizeChange={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100)}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
                 >
                     {conv?.property && (
@@ -347,7 +445,7 @@ export default function ChatScreen({ navigation, route }) {
 
                 {/* Selected Image Preview */}
                 {selectedImage && (
-                    <View style={{ padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <View style={[{ padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }, contentWrapStyle]}>
                         <View style={{ position: 'relative' }}>
                             <Image source={{ uri: selectedImage }} style={{ width: 80, height: 80, borderRadius: 8 }} />
                             <TouchableOpacity 
@@ -361,21 +459,89 @@ export default function ChatScreen({ navigation, route }) {
                 )}
 
                 {/* Input Area */}
-                <SafeAreaView edges={["bottom"]} style={{ backgroundColor: 'transparent' }}>
-                    <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
-                        <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickImage}>
-                            <Ionicons name="image" size={28} color={theme.colors.primary} />
-                        </TouchableOpacity>
-                        <TextInput style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text }]} placeholder="Type a message..." placeholderTextColor="#9CA3AF" value={messageText} onChangeText={setMessageText} multiline />
-                        <TouchableOpacity 
-                            style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && { backgroundColor: theme.colors.primary }]} 
-                            onPress={handleSendMessage} 
-                            disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending}
+                <View
+                    style={[
+                        styles.inputContainer,
+                        contentWrapStyle,
+                        {
+                            backgroundColor: theme.colors.surface,
+                            borderTopColor: theme.colors.border,
+                            paddingBottom: 8,
+                        },
+                    ]}
+                >
+                    <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickImage}>
+                        <Ionicons name="image" size={28} color={theme.colors.primary} />
+                    </TouchableOpacity>
+                    <TextInput style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text }]} placeholder="Type a message..." placeholderTextColor="#9CA3AF" value={messageText} onChangeText={setMessageText} multiline />
+                    <TouchableOpacity 
+                        style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && { backgroundColor: theme.colors.primary }]} 
+                        onPress={handleSendMessage} 
+                        disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending}
+                    >
+                        {sendMessageMutation.isPending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={20} color="#FFFFFF" />}
+                    </TouchableOpacity>
+                </View>
+
+                {isDetailsOpen && (
+                    <Pressable
+                        style={styles.detailsBackdrop}
+                        onPress={() => setIsDetailsOpen(false)}
+                    />
+                )}
+
+                <Animated.View
+                    pointerEvents={isDetailsOpen ? 'auto' : 'none'}
+                    style={[
+                        styles.detailsDrawer,
+                        {
+                            width: detailsPanelWidth,
+                            backgroundColor: theme.colors.surface,
+                            borderLeftColor: theme.colors.border,
+                            transform: [{ translateX: detailsTranslateX }],
+                        },
+                    ]}
+                >
+                    <View style={styles.detailsHeader}>
+                        <View>
+                            <Text style={[styles.detailsHeaderTitle, { color: theme.colors.text }]}>Chat Details</Text>
+                            <Text style={[styles.detailsHeaderSubtitle, { color: theme.colors.textSecondary }]}>Personal details</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.detailsCloseButton}
+                            onPress={() => setIsDetailsOpen(false)}
                         >
-                            {sendMessageMutation.isPending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={20} color="#FFFFFF" />}
+                            <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                     </View>
-                </SafeAreaView>
+
+                    <ScrollView style={styles.detailsContent} contentContainerStyle={{ paddingBottom: 20 }}>
+                        <View style={[styles.detailsIdentityCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }]}> 
+                            <View style={[styles.detailsAvatarLarge, { backgroundColor: theme.colors.primaryLight }]}> 
+                                {conv?.other_user?.profile_image ? (
+                                    <Image
+                                        source={{ uri: getImageUrl(conv.other_user.profile_image) }}
+                                        style={{ width: '100%', height: '100%' }}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <Text style={[styles.chatHeaderAvatarText, { color: theme.colors.primary }]}>{getInitials(conv)}</Text>
+                                )}
+                            </View>
+                            <Text style={[styles.detailsIdentityName, { color: theme.colors.text }]}>{displayParticipantName}</Text>
+                            <Text style={[styles.detailsIdentityRole, { color: theme.colors.textSecondary }]}>{participantStatusLine || participantRoleLabel}</Text>
+                        </View>
+
+                        <View style={[styles.detailsSection, { borderColor: theme.colors.border }]}> 
+                            {detailRows.map((row) => (
+                                <View key={row.label} style={styles.detailRow}>
+                                    <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>{row.label}</Text>
+                                    <Text style={[styles.detailValue, { color: theme.colors.text }]} numberOfLines={2}>{row.value}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    </ScrollView>
+                </Animated.View>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

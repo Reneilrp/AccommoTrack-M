@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ShieldAlert, 
@@ -23,13 +23,10 @@ export default function Reports() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
+  const [issueStrike, setIssueStrike] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    fetchReports();
-  }, [statusFilter]);
-
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       setLoading(true);
       const res = await reportService.getReports({ status: statusFilter });
@@ -40,17 +37,22 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
 
   const handleUpdateStatus = async (id, status) => {
     setActionLoading(true);
     try {
-      await reportService.updateStatus(id, status, adminNotes);
-      toast.success(`Report marked as ${status}`);
+      const res = await reportService.updateStatus(id, status, adminNotes, issueStrike);
+      toast.success(res.data?.message || `Report marked as ${status}`);
       fetchReports();
       setShowModal(false);
       setSelectedReport(null);
       setAdminNotes('');
+      setIssueStrike(false);
     } catch (__err) {
       toast.error('Failed to update report');
     } finally {
@@ -61,6 +63,7 @@ export default function Reports() {
   const openDetails = (report) => {
     setSelectedReport(report);
     setAdminNotes(report.admin_notes || '');
+    setIssueStrike(false);
     setShowModal(true);
   };
 
@@ -238,6 +241,26 @@ export default function Reports() {
                   className="w-full p-4 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-500"
                   rows="3"
                 />
+                
+                {selectedReport.status === 'pending' && (
+                  <div className="mt-4 p-4 border border-orange-200 dark:border-orange-900/30 bg-orange-50 dark:bg-orange-900/10 rounded-xl flex items-start gap-3">
+                    <input 
+                      type="checkbox" 
+                      id="issueStrike" 
+                      checked={issueStrike} 
+                      onChange={(e) => setIssueStrike(e.target.checked)}
+                      className="mt-1 w-4 h-4 text-orange-600 bg-white border-gray-300 rounded focus:ring-orange-500 dark:focus:ring-orange-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <div>
+                      <label htmlFor="issueStrike" className="text-sm font-bold text-gray-900 dark:text-white cursor-pointer">
+                        Issue a Strike to the Landlord
+                      </label>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        If checked and marked as Resolved, the property owner will receive 1 Strike. Accumulating 3 strikes results in an automatic 30-day suspension.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

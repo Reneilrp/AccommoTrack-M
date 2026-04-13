@@ -51,13 +51,14 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 16,
+    rowGap: 12,
   },
   contactCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     width: '48%',
+    minHeight: 156,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -159,6 +160,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
@@ -179,6 +181,88 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textSecondary,
     marginTop: 2,
+  },
+  resourceContent: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 12,
+  },
+  resourceArrow: {
+    marginLeft: 'auto',
+  },
+  legalModalContainer: {
+    flex: 1,
+  },
+  legalModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  legalModalTitleWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  legalModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  legalModalUpdated: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  legalModalClose: {
+    padding: 6,
+    borderRadius: 20,
+  },
+  legalModalBody: {
+    flex: 1,
+  },
+  legalModalBodyContent: {
+    padding: 16,
+    paddingBottom: 32,
+    gap: 14,
+  },
+  legalIntroCard: {
+    borderLeftWidth: 3,
+    borderRadius: 10,
+    padding: 12,
+  },
+  legalIntroText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  legalSectionCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+  },
+  legalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  legalParagraph: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  legalBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    paddingRight: 4,
+  },
+  legalBulletMark: {
+    fontSize: 16,
+    lineHeight: 20,
+    marginRight: 8,
+  },
+  legalBulletText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 

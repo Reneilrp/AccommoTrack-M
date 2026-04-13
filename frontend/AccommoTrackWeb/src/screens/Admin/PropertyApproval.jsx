@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Check, X, Ban, Pencil, Loader2 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
+
+const normalizePropertyStatus = (value) => (typeof value === 'string' ? value.toLowerCase() : '');
 
 const PropertyApproval = ({ isEmbedded = false }) => {
   const [properties, setProperties] = useState([]);
@@ -11,10 +14,22 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   const [showModal, setShowModal] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [statusFilter, setStatusFilter] = useState('pending');
-  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [confirmModalState, setConfirmModalState] = useState({ 
+    isOpen: false, title: '', message: '', onConfirm: () => {}, requirePassword: false 
+  });
+  const [passwordValue, setPasswordValueState] = useState('');
+  const passwordValueRef = useRef('');
+
+  const setPasswordValue = (value) => {
+    passwordValueRef.current = value;
+    setPasswordValueState(value);
+  };
 
   const fetchProperties = async (status = 'pending') => {
     setLoading(true);
+    setSelectedIds([]); // Clear selection on tab change
     try {
       const res = await api.get(`/admin/properties/${status}`);
       setProperties(res.data.data || res.data || []);
@@ -30,6 +45,71 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     fetchProperties(statusFilter);
   }, [statusFilter]);
 
+  const toggleSelection = (id) => {
+    const targetProperty = properties.find((item) => item.id === id);
+    const targetStatus = normalizePropertyStatus(targetProperty?.current_status || targetProperty?.status || statusFilter);
+    if (targetStatus !== 'pending') return;
+
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAll = () => {
+    const selectableIds = properties
+      .filter((property) => normalizePropertyStatus(property?.current_status || property?.status || statusFilter) === 'pending')
+      .map((property) => property.id);
+
+    if (selectedIds.length === selectableIds.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(selectableIds);
+    }
+  };
+
+  const toggleEditMode = () => {
+    setIsEditMode((prev) => {
+      if (prev) {
+        setSelectedIds([]);
+      }
+      return !prev;
+    });
+  };
+
+  const runBulkAction = async (action) => {
+    if (selectedIds.length === 0) return;
+
+    const selectableIds = properties
+      .filter((property) => normalizePropertyStatus(property?.current_status || property?.status || statusFilter) === 'pending')
+      .map((property) => property.id);
+    const pendingSelectedIds = selectedIds.filter((id) => selectableIds.includes(id));
+
+    if (pendingSelectedIds.length === 0) {
+      toast.error('Only pending properties can be selected.');
+      setSelectedIds([]);
+      return;
+    }
+
+    if (pendingSelectedIds.length !== selectedIds.length) {
+      setSelectedIds(pendingSelectedIds);
+    }
+
+    setConfirmModalState({ isOpen: false });
+    setActionLoading(`bulk:${action}`);
+
+    try {
+      const res = await api.post(`/admin/properties/bulk-${action}`, { ids: pendingSelectedIds });
+      toast.success(res.data?.message || `Bulk ${action} successful`);
+      setProperties(prev => prev.filter(p => !pendingSelectedIds.includes(p.id)));
+      setSelectedIds([]);
+    } catch (err) {
+      console.error(`Failed to bulk ${action}`, err);
+      toast.error(err.response?.data?.message || err.message || `Failed to bulk ${action}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const runAction = async (propertyId, action) => {
     setConfirmModalState({ isOpen: false });
     setActionLoading(propertyId + ':' + action);
@@ -44,36 +124,54 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       } else if (action === 'maintenance') {
         await api.post(`/admin/properties/${propertyId}/maintenance`);
         toast.success('Property put under maintenance');
+      } else if (action === 'delete') {
+        await api.delete(`/admin/properties/${propertyId}`, {
+          data: { password: passwordValueRef.current },
+        });
+        toast.success('Property sent to archive');
       }
 
       setProperties(prev => prev.filter(p => p.id !== propertyId));
+      setSelectedIds(prev => prev.filter(id => id !== propertyId)); // Remove from selection
       setShowModal(false);
       setSelectedProperty(null);
+      setPasswordValue('');
     } catch (err) {
       console.error(`Failed to ${action} property`, err);
       toast.error(err.response?.data?.message || err.message || `Failed to ${action}`);
+      if (action === 'delete') setPasswordValue('');
     } finally {
       setActionLoading(null);
     }
   };
 
   const confirmAction = (propertyId, action) => {
+    setPasswordValue('');
     const isApprove = action === 'approve';
     const isMaintenance = action === 'maintenance';
+    const isDelete = action === 'delete';
     setConfirmModalState({
       isOpen: true,
-      title: `Confirm ${isApprove ? 'Approval' : isMaintenance ? 'Maintenance' : 'Rejection'}`,
-      message: `Are you sure you want to ${isMaintenance ? 'put this property under maintenance' : action + ' this property'}?`,
+      title: `Confirm ${isApprove ? 'Approval' : isMaintenance ? 'Maintenance' : isDelete ? 'Archive' : 'Rejection'}`,
+      message: isDelete
+        ? 'Are you sure you want to archive this property? It will be removed from active listings but can be restored later.'
+        : `Are you sure you want to ${isMaintenance ? 'put this property under maintenance' : action + ' this property'}?`,
       onConfirm: () => runAction(propertyId, action),
-      confirmText: isApprove ? 'Approve' : isMaintenance ? 'Maintenance' : 'Reject',
-      confirmButtonClass: isApprove ? 'bg-green-600 hover:bg-green-700' : isMaintenance ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700'
+      confirmText: isApprove ? 'Approve' : isMaintenance ? 'Maintenance' : isDelete ? 'Archive Property' : 'Reject',
+      confirmButtonClass: isApprove ? 'bg-green-600 hover:bg-green-700' : isMaintenance ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700',
+      requirePassword: isDelete
     });
   };
-
   const handleView = (property) => {
     setSelectedProperty(property);
     setShowModal(true);
   };
+
+  const selectableProperties = properties.filter(
+    (property) => normalizePropertyStatus(property?.current_status || property?.status || statusFilter) === 'pending'
+  );
+  const canShowSelectionColumn = isEditMode && selectableProperties.length > 0;
+  const bulkActionLoading = typeof actionLoading === 'string' && actionLoading.startsWith('bulk:');
 
   return (
     <div className={isEmbedded ? "w-full" : "w-full max-full px-6 py-6"}>
@@ -85,6 +183,9 @@ const PropertyApproval = ({ isEmbedded = false }) => {
         message={confirmModalState.message}
         confirmText={confirmModalState.confirmText}
         confirmButtonClass={confirmModalState.confirmButtonClass}
+        requirePassword={confirmModalState.requirePassword}
+        passwordValue={passwordValue}
+        setPasswordValue={setPasswordValue}
       />
       {!isEmbedded && (
         <>
@@ -134,6 +235,55 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       </div>
 
       <div className="mt-4">
+        <div className="mb-4 flex items-center justify-end gap-2">
+          {isEditMode ? (
+            <>
+              <span className="mr-2 text-sm text-gray-600 dark:text-gray-300">
+                {selectedIds.length} selected
+              </span>
+              <button
+                onClick={() => runBulkAction('approve')}
+                disabled={selectedIds.length === 0 || bulkActionLoading}
+                className="h-10 w-10 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Approve selected"
+                aria-label="Approve selected"
+              >
+                {actionLoading === 'bulk:approve' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedIds([]);
+                  setIsEditMode(false);
+                }}
+                disabled={bulkActionLoading}
+                className="h-10 w-10 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Cancel"
+                aria-label="Cancel"
+              >
+                <Ban className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => runBulkAction('reject')}
+                disabled={selectedIds.length === 0 || bulkActionLoading}
+                className="h-10 w-10 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Reject selected"
+                aria-label="Reject selected"
+              >
+                {actionLoading === 'bulk:reject' ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={toggleEditMode}
+              className="h-10 w-10 inline-flex items-center justify-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              title="Edit"
+              aria-label="Edit"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {loading ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
@@ -153,6 +303,17 @@ const PropertyApproval = ({ isEmbedded = false }) => {
             <table className="w-full">
               <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wide">
                 <tr>
+                  {canShowSelectionColumn && (
+                    <th className="px-6 py-4 text-left font-semibold w-12">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        checked={selectableProperties.length > 0 && selectedIds.length === selectableProperties.length}
+                        disabled={selectableProperties.length === 0}
+                        onChange={toggleAll}
+                      />
+                    </th>
+                  )}
                   <th className="px-6 py-4 text-left font-semibold">Title</th>
                   <th className="px-6 py-4 text-left font-semibold">Property Type</th>
                   <th className="px-6 py-4 text-left font-semibold">Location</th>
@@ -162,8 +323,22 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-                {properties.map(prop => (
-                  <tr key={prop.id} className="bg-white dark:bg-gray-800 even:bg-gray-50 dark:even:bg-gray-700/30 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/20 transition-colors">
+                {properties.map(prop => {
+                  const isSelectable = normalizePropertyStatus(prop.current_status || prop.status || statusFilter) === 'pending';
+
+                  return (
+                  <tr key={prop.id} className={`${isEditMode && selectedIds.includes(prop.id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'bg-white dark:bg-gray-800 even:bg-gray-50 dark:even:bg-gray-700/30'} hover:bg-emerald-50/40 dark:hover:bg-emerald-900/20 transition-colors`}>
+                    {canShowSelectionColumn && (
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                          checked={selectedIds.includes(prop.id)}
+                          disabled={!isSelectable}
+                          onChange={() => toggleSelection(prop.id)}
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{prop.title || 'Untitled'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{prop.property_type || '—'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{prop.city || prop.full_address || '—'}</td>
@@ -204,7 +379,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
@@ -410,6 +585,13 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                 className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
               >
                 Close
+              </button>
+              <button
+                onClick={() => confirmAction(selectedProperty.id, 'delete')}
+                disabled={actionLoading}
+                className="px-6 py-2 border-2 border-red-600 text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading === selectedProperty.id + ':delete' ? 'Deleting...' : 'Delete Completely'}
               </button>
               {selectedProperty.current_status === 'pending' && (
                 <>

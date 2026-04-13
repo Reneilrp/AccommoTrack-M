@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle } from 'lucide-react';
+import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle, KeyRound, Copy } from 'lucide-react';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUIState } from '../../contexts/UIStateContext';
@@ -12,7 +12,7 @@ import landlordService from '../../services/landlordService';
 import bookingService from '../../services/bookingService';
 import roomService from '../../services/roomService';
 
-export default function TenantManagement({ user, accessRole = 'landlord' }) {
+export default function TenantManagement() {
   const { uiState, updateData } = useUIState();
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,6 +47,24 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [loadingRoomsForAssign, setLoadingRoomsForAssign] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [assignData, setAssignData] = useState({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+  const [showCreateTenantModal, setShowCreateTenantModal] = useState(false);
+  const [availableRoomsForCreate, setAvailableRoomsForCreate] = useState([]);
+  const [loadingRoomsForCreate, setLoadingRoomsForCreate] = useState(false);
+  const [isCreatingTenant, setIsCreatingTenant] = useState(false);
+  const [createTenantData, setCreateTenantData] = useState({
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirm_password: '',
+    gender: 'prefer_not_to_say',
+    room_id: '',
+    move_in_date: '',
+    end_date: '',
+    notes: '',
+  });
   const [showUnassignModal, setShowUnassignModal] = useState(false);
   const [unassigningTenant, setUnassigningTenant] = useState(null);
   const [isUnassigning, setIsUnassigning] = useState(false);
@@ -55,11 +73,12 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(selectedPropertyId && !cachedTenants);
 
-  // New state for bulk actions & modals
-  const [selectedTenants, setSelectedTenants] = useState([]);
+  // Tenant action modals
   const [showEvictModal, setShowEvictModal] = useState(false);
   const [evictingTenant, setEvictingTenant] = useState(null);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('tenantViewMode') || 'card');
+  const [claimCodePayload, setClaimCodePayload] = useState(null);
+  const [isGeneratingClaimCode, setIsGeneratingClaimCode] = useState(false);
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -83,8 +102,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     return new Date(scheduledFor).getTime() <= Date.now();
   };
 
-  const normalizedRole = accessRole || user?.role || 'landlord';
-  const isCaretaker = normalizedRole === 'caretaker';
   const isFromProperty = Boolean(new URLSearchParams(location.search).get('property'));
   
   const handleBackClick = () => {
@@ -155,11 +172,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     if (!selectedPropertyId) return;
     loadTenants();
   }, [selectedPropertyId, loadTenants]);
-
-  useEffect(() => {
-    // Clear selections when filters change
-    setSelectedTenants([]);
-  }, [searchQuery, filter, selectedPropertyId]);
 
   const handleTransferInitiate = async (tenant) => {
     const defaultFee = tenant?.room?.property?.transfer_fee ?? 0;
@@ -304,6 +316,110 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     }
   };
 
+  const handleCreateTenantInitiate = async () => {
+    if (!selectedPropertyId) {
+      toast.error('Select a property before adding a tenant');
+      return;
+    }
+
+    setCreateTenantData({
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirm_password: '',
+      gender: 'prefer_not_to_say',
+      room_id: '',
+      move_in_date: '',
+      end_date: '',
+      notes: '',
+    });
+    setAvailableRoomsForCreate([]);
+    setShowCreateTenantModal(true);
+    setLoadingRoomsForCreate(true);
+
+    try {
+      const response = await roomService.getRoomsByProperty(selectedPropertyId);
+      const list = response.success
+        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        : [];
+      setAvailableRoomsForCreate(list.filter(r => isRoomBookable(r)));
+    } catch {
+      toast.error('Failed to load available rooms for new tenant assignment');
+    } finally {
+      setLoadingRoomsForCreate(false);
+    }
+  };
+
+  const handleCreateTenantSubmit = async (e) => {
+    e.preventDefault();
+
+    const firstName = createTenantData.first_name.trim();
+    const lastName = createTenantData.last_name.trim();
+    const email = createTenantData.email.trim();
+    const phone = createTenantData.phone.trim();
+    const password = createTenantData.password;
+    const confirmPassword = createTenantData.confirm_password;
+
+    if (!firstName || !lastName || !email) {
+      toast.error('First name, last name, and email are required.');
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password || password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+
+    if (!createTenantData.room_id) {
+      toast.error('Please select a room for immediate assignment.');
+      return;
+    }
+
+    setIsCreatingTenant(true);
+
+    try {
+      const createPayload = {
+        first_name: firstName,
+        middle_name: createTenantData.middle_name.trim() || undefined,
+        last_name: lastName,
+        email,
+        phone: phone || undefined,
+        password,
+        gender: createTenantData.gender || undefined,
+        room_id: Number(createTenantData.room_id),
+        move_in_date: createTenantData.move_in_date || undefined,
+        end_date: createTenantData.end_date || undefined,
+        notes: createTenantData.notes.trim() || undefined,
+      };
+
+      const createResponse = await landlordService.createTenant(createPayload);
+      if (!createResponse.success) {
+        throw new Error(createResponse.error || 'Failed to add tenant.');
+      }
+
+      toast.success('Tenant added and assigned successfully.');
+      setShowCreateTenantModal(false);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.message || 'Failed to add tenant.');
+    } finally {
+      setIsCreatingTenant(false);
+    }
+  };
+
   const handleAssignSubmit = async (e) => {
     e.preventDefault();
     if (!assigningTenant) return;
@@ -380,12 +496,42 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     }
   };
 
-  const handleSelectTenant = (tenantId) => {
-    setSelectedTenants(prev => 
-      prev.includes(tenantId)
-        ? prev.filter(id => id !== tenantId)
-        : [...prev, tenantId]
-    );
+  const handleGenerateClaimCode = async (tenant) => {
+    if (!tenant?.id) {
+      toast.error('Invalid tenant selection.');
+      return;
+    }
+
+    setIsGeneratingClaimCode(true);
+    try {
+      const response = await landlordService.generateTenantClaimCode(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to generate claim code.');
+      }
+
+      const payload = response.data || {};
+      setClaimCodePayload({
+        tenantName: `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim(),
+        claimCode: payload.claim_code || '',
+        expiresAt: payload.expires_at || null,
+      });
+      toast.success('Claim code generated successfully.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to generate claim code.');
+    } finally {
+      setIsGeneratingClaimCode(false);
+    }
+  };
+
+  const handleCopyClaimCode = async () => {
+    if (!claimCodePayload?.claimCode) return;
+
+    try {
+      await navigator.clipboard.writeText(claimCodePayload.claimCode);
+      toast.success('Claim code copied.');
+    } catch {
+      toast.error('Unable to copy claim code automatically.');
+    }
   };
 
   const filteredTenants = tenants.filter(tenant => {
@@ -405,15 +551,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     
     return true;
   });
-
-  const handleSelectAll = () => {
-    if (selectedTenants.length === filteredTenants.length) {
-      setSelectedTenants([]);
-    } else {
-      setSelectedTenants(filteredTenants.map(t => t.id));
-    }
-  };
-
 
   const stats = {
     total: tenants.length,
@@ -479,22 +616,21 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                 </button>
               </div>
 
+              <button
+                onClick={handleCreateTenantInitiate}
+                disabled={loading || !selectedPropertyId}
+                className="px-3 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-md shadow-emerald-500/20"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="text-sm font-bold hidden sm:inline">Add Tenant</span>
+              </button>
+
               <button onClick={loadTenants} disabled={loading} title="Refresh" className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
               </button>
             </div>
           </div>
         </div>
-
-        {selectedTenants.length > 0 && (
-          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-700 mb-6 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-            <input type="checkbox" checked={selectedTenants.length === filteredTenants.length} onChange={handleSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
-            <span className="text-sm font-bold text-green-700 dark:text-green-300 flex-1">{selectedTenants.length} tenant{selectedTenants.length !== 1 ? 's' : ''} selected</span>
-            <button onClick={() => setSelectedTenants([])} className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-800 rounded-lg" title="Clear selection">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
 
         {viewMode === 'card' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -505,34 +641,28 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
               </div>
             ) : (
               filteredTenants.map(tenant => (
-                <div key={tenant.id} className="relative">
-                  <div className="absolute top-3 left-3 z-10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-2 rounded-full">
-                    <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => handleSelectTenant(tenant.id)} className="w-4 h-4 text-green-600 rounded-full border-gray-300 focus:ring-green-500" />
-                  </div>
-                  <TenantCard
-                    tenant={tenant}
-                    onTransfer={handleTransferInitiate}
-                    onAssign={handleAssignInitiate}
-                    onUnassign={handleUnassignInitiate}
-                    onEvict={handleEvictInitiate}
-                    onEvictionFinalize={handleEvictionFinalize}
-                    onEvictionCancel={handleEvictionCancel}
-                    onEvictionUndo={handleEvictionUndo}
-                    onApproveReservation={handleApproveReservation}
-                    onCheckIn={handleCheckInTenant}
-                    canTransfer={!isCaretaker}
-                    isEvictionDue={isEvictionDue(tenant)}
-                  />
-                </div>
+                <TenantCard
+                  key={tenant.id}
+                  tenant={tenant}
+                  onTransfer={handleTransferInitiate}
+                  onAssign={handleAssignInitiate}
+                  onUnassign={handleUnassignInitiate}
+                  onEvict={handleEvictInitiate}
+                  onEvictionFinalize={handleEvictionFinalize}
+                  onEvictionCancel={handleEvictionCancel}
+                  onEvictionUndo={handleEvictionUndo}
+                  onGenerateClaimCode={handleGenerateClaimCode}
+                  onApproveReservation={handleApproveReservation}
+                  onCheckIn={handleCheckInTenant}
+                  canTransfer={true}
+                  isEvictionDue={isEvictionDue(tenant)}
+                />
               ))
             )}
           </div>
         ) : (
           <TenantListView
             tenants={filteredTenants}
-            selectedTenants={selectedTenants}
-            onSelect={handleSelectTenant}
-            onSelectAll={handleSelectAll}
             onTransfer={handleTransferInitiate}
             onAssign={handleAssignInitiate}
             onUnassign={handleUnassignInitiate}
@@ -540,14 +670,27 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             onEvictionFinalize={handleEvictionFinalize}
             onEvictionCancel={handleEvictionCancel}
             onEvictionUndo={handleEvictionUndo}
+            onGenerateClaimCode={handleGenerateClaimCode}
             onApproveReservation={handleApproveReservation}
             onCheckIn={handleCheckInTenant}
-            canTransfer={!isCaretaker}
+            canTransfer={true}
             searchQuery={searchQuery}
             isEvictionDue={isEvictionDue}
           />
         )}
       </div>
+
+      {showCreateTenantModal && (
+        <CreateTenantModal
+          data={createTenantData}
+          setData={setCreateTenantData}
+          availableRooms={availableRoomsForCreate}
+          loading={loadingRoomsForCreate}
+          isSubmitting={isCreatingTenant}
+          onClose={() => setShowCreateTenantModal(false)}
+          onSubmit={handleCreateTenantSubmit}
+        />
+      )}
 
       {showAssignModal && (
         <AssignModal
@@ -571,6 +714,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         />
       )}
       {showEvictModal && <EvictionModal tenant={evictingTenant} onClose={() => setShowEvictModal(false)} onConfirm={loadTenants} />}
+      {claimCodePayload && (
+        <ClaimCodeModal
+          data={claimCodePayload}
+          isGenerating={isGeneratingClaimCode}
+          onCopy={handleCopyClaimCode}
+          onClose={() => setClaimCodePayload(null)}
+        />
+      )}
     </div>
   );
 }
@@ -598,6 +749,238 @@ const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
     </div>
   );
 };
+
+const ClaimCodeModal = ({ data, isGenerating, onCopy, onClose }) => {
+  const expiryLabel = data?.expiresAt
+    ? new Date(data.expiresAt).toLocaleString()
+    : 'Not available';
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <KeyRound className="w-5 h-5 text-indigo-500" />
+            Claim Existing Account
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Share this code with <strong>{data?.tenantName || 'the tenant'}</strong>. The tenant should use the small <strong>Claim Existing Account</strong> entry on the auth screen.
+          </p>
+
+          <div className="rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/60 dark:bg-indigo-900/20 p-4 text-center">
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-300 mb-2">Claim Code</p>
+            <p className="text-3xl tracking-[0.25em] font-extrabold text-indigo-700 dark:text-indigo-200">{data?.claimCode || '--------'}</p>
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400">Expires: {expiryLabel}</p>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCopy}
+              disabled={isGenerating}
+              className="flex-1 px-4 py-3 rounded-lg border border-indigo-300 text-indigo-700 dark:text-indigo-300 font-semibold hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Copy className="w-4 h-4" /> Copy Code
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CreateTenantModal = ({ data, setData, availableRooms, loading, isSubmitting, onClose, onSubmit }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><UserPlus className="w-5 h-5 text-emerald-500" />Add Tenant</h2>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+      </div>
+
+      <form onSubmit={onSubmit} className="p-6 space-y-5">
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg text-sm text-emerald-800 dark:text-emerald-300">
+          New tenants are added with immediate room assignment so they appear in tenant management right away.
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">First Name *</label>
+            <input
+              required
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.first_name}
+              onChange={e => setData({ ...data, first_name: e.target.value })}
+              placeholder="Juan"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Middle Name</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.middle_name}
+              onChange={e => setData({ ...data, middle_name: e.target.value })}
+              placeholder="Santos"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Last Name *</label>
+            <input
+              required
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.last_name}
+              onChange={e => setData({ ...data, last_name: e.target.value })}
+              placeholder="Dela Cruz"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Email *</label>
+            <input
+              required
+              type="email"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.email}
+              onChange={e => setData({ ...data, email: e.target.value })}
+              placeholder="tenant@example.com"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Phone</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.phone}
+              onChange={e => setData({ ...data, phone: e.target.value })}
+              placeholder="09XXXXXXXXX"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Password *</label>
+            <input
+              required
+              type="password"
+              minLength={8}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.password}
+              onChange={e => setData({ ...data, password: e.target.value })}
+              placeholder="Minimum 8 characters"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Confirm Password *</label>
+            <input
+              required
+              type="password"
+              minLength={8}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.confirm_password}
+              onChange={e => setData({ ...data, confirm_password: e.target.value })}
+              placeholder="Retype password"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Gender</label>
+            <select
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.gender}
+              onChange={e => setData({ ...data, gender: e.target.value })}
+            >
+              <option value="prefer_not_to_say">Prefer Not to Say</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="rather_not_say">Rather Not Say</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Room Assignment *</label>
+            <select
+              required
+              disabled={loading}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.room_id}
+              onChange={e => setData({ ...data, room_id: e.target.value })}
+            >
+              <option value="">{loading ? 'Loading rooms...' : 'Select room'}</option>
+              {availableRooms.map(room => (
+                <option key={room.id} value={room.id}>
+                  Room {room.room_number} ({room.type_label || 'Room'})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {availableRooms.length === 0 && !loading && (
+          <p className="text-[11px] text-red-500 font-bold italic">No available rooms in this property. Add or free up a room before creating a tenant.</p>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Move-in Date</label>
+            <input
+              type="date"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.move_in_date}
+              onChange={e => setData({ ...data, move_in_date: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contract End Date</label>
+            <input
+              type="date"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.end_date}
+              onChange={e => setData({ ...data, end_date: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Notes</label>
+          <textarea
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none"
+            value={data.notes}
+            onChange={e => setData({ ...data, notes: e.target.value })}
+            placeholder="Optional assignment notes"
+          />
+        </div>
+
+        <div className="flex gap-4 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+          <button type="submit" disabled={isSubmitting || availableRooms.length === 0} className="flex-1 px-4 py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Adding...</> : 'Create & Assign'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+);
 
 const AssignModal = ({ tenant, availableRooms, loading, isSubmitting, data, setData, onClose, onSubmit }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -817,9 +1200,6 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
 
 const TenantListView = ({
   tenants,
-  selectedTenants,
-  onSelect,
-  onSelectAll,
   onTransfer,
   onAssign,
   onUnassign,
@@ -827,6 +1207,7 @@ const TenantListView = ({
   onEvictionFinalize,
   onEvictionCancel,
   onEvictionUndo,
+  onGenerateClaimCode,
   onApproveReservation,
   onCheckIn,
   canTransfer,
@@ -878,8 +1259,6 @@ const TenantListView = ({
     return map[status] || 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800';
   };
 
-  const allSelected = tenants.length > 0 && selectedTenants.length === tenants.length;
-
   if (tenants.length === 0) {
     return (
       <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
@@ -895,9 +1274,6 @@ const TenantListView = ({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
-              <th className="px-4 py-3 text-left">
-                <input type="checkbox" checked={allSelected} onChange={onSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
-              </th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Full Name</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Email</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Room</th>
@@ -920,11 +1296,6 @@ const TenantListView = ({
               return (
                 <React.Fragment key={tenant.id}>
                   <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group">
-                    {/* Checkbox */}
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => onSelect(tenant.id)} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
-                    </td>
-
                     {/* Full Name + behavioral badges */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1018,6 +1389,13 @@ const TenantListView = ({
                           >
                             <Users className="w-3.5 h-3.5 text-gray-500" /> View Logs
                           </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); onGenerateClaimCode?.(tenant); }}
+                            disabled={!canTransfer}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" /> Generate Claim Code
+                          </button>
                           <div className="border-t border-gray-100 dark:border-gray-700" />
                           {tenant.latestBooking?.status === 'pending_reservation' && (
                             <button
@@ -1110,7 +1488,7 @@ const TenantListView = ({
                   {/* Emergency Contact Expandable Row */}
                   {showEmergency && profile && (
                     <tr key={`${tenant.id}-emergency`} className="bg-purple-50 dark:bg-purple-900/10">
-                      <td colSpan={7} className="px-8 py-3">
+                      <td colSpan={6} className="px-8 py-3">
                         <div className="flex items-center gap-6 text-xs text-gray-700 dark:text-gray-300">
                           <span className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-400 uppercase text-[10px]">
                             <ShieldAlert className="w-3 h-3" /> Emergency Contact

@@ -1,10 +1,10 @@
 import api from "./api.js";
-import { API_BASE_URL, BASE_URL } from "../config/index.js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImageUrl } from "../utils/imageUtils.js";
 import { extractErrorMessage } from "../utils/error.js";
-import cacheManager from "../utils/cache.js";
+import cacheStore from "../utils/cache.js";
 
-const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
+const cacheManager = cacheStore;
 
 const isFormData = (data) => data instanceof FormData;
 
@@ -12,6 +12,65 @@ const CACHE_KEYS = {
   PUBLIC_PROPERTIES: "public_properties",
   PUBLIC_PROPERTY: "public_property_", // + id
   LANDLORD_PROPERTIES: "landlord_properties",
+};
+
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+};
+
+const extractCaretakerAssignedPropertyIds = (user) => {
+  if (!user || user.role !== "caretaker") return [];
+
+  const ids = new Set();
+  const pushId = (value) => {
+    const normalized = normalizeId(value);
+    if (normalized) ids.add(normalized);
+  };
+
+  pushId(user.assigned_property_id);
+  pushId(user.property_id);
+
+  if (Array.isArray(user.assigned_property_ids)) {
+    user.assigned_property_ids.forEach(pushId);
+  }
+
+  if (Array.isArray(user.assigned_properties)) {
+    user.assigned_properties.forEach((property) => {
+      if (property && typeof property === "object") {
+        pushId(property.id ?? property.property_id);
+      }
+    });
+  }
+
+  return [...ids];
+};
+
+const scopePropertiesForCaretaker = (properties, user) => {
+  if (!Array.isArray(properties)) return [];
+  if (!user || user.role !== "caretaker") return properties;
+
+  const assignedIds = extractCaretakerAssignedPropertyIds(user);
+  if (!assignedIds.length) {
+    return properties.slice(0, 1);
+  }
+
+  const assignedSet = new Set(assignedIds);
+  const filtered = properties.filter((property) =>
+    assignedSet.has(normalizeId(property?.id)),
+  );
+
+  if (filtered.length > 0) {
+    return filtered;
+  }
+
+  return properties.slice(0, 1);
+};
+
+const buildLandlordPropertiesCacheKey = (user) => {
+  const role = user?.role || "unknown";
+  const userId = user?.id ?? "anon";
+  return `${CACHE_KEYS.LANDLORD_PROPERTIES}_${role}_${userId}`;
 };
 
 const PropertyService = {
@@ -298,13 +357,31 @@ const PropertyService = {
    */
   async getMyProperties() {
     try {
-      const cached = await cacheManager.get(CACHE_KEYS.LANDLORD_PROPERTIES);
-      if (cached) return { success: true, data: cached, error: null };
+      let currentUser = null;
+      try {
+        const userString = await AsyncStorage.getItem("user");
+        currentUser = userString ? JSON.parse(userString) : null;
+      } catch (_parseError) {
+        currentUser = null;
+      }
+
+      const cacheKey = buildLandlordPropertiesCacheKey(currentUser);
+      const cached = await cacheManager.get(cacheKey);
+      if (cached) {
+        return {
+          success: true,
+          data: scopePropertiesForCaretaker(cached, currentUser),
+          error: null,
+        };
+      }
 
       const response = await api.get(`/landlord/properties`);
-      const data = response.data?.data || response.data || [];
+      const data = scopePropertiesForCaretaker(
+        response.data?.data || response.data || [],
+        currentUser,
+      );
 
-      await cacheManager.set(CACHE_KEYS.LANDLORD_PROPERTIES, data);
+      await cacheManager.set(cacheKey, data);
 
       return {
         success: true,
@@ -980,6 +1057,35 @@ const PropertyService = {
   },
 
   /**
+   * Generate one-time claim code for an existing tenant account
+   * Matches: POST /api/landlord/tenants/{id}/claim-code
+   */
+  async generateTenantClaimCode(tenantId) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/claim-code`,
+        {},
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error generating tenant claim code:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
    * Update tenant details
    * Matches: PUT /api/landlord/tenants/{id}
    */
@@ -1349,9 +1455,11 @@ const PropertyService = {
    * Fetch tenant transfer requests for landlord
    * Matches: GET /api/landlord/transfers
    */
-  async getTransferRequests() {
+  async getTransferRequests(params = {}) {
     try {
-      const response = await api.get(`/landlord/transfers`);
+      const response = await api.get(`/landlord/transfers`, {
+        params,
+      });
       return {
         success: true,
         data: response.data?.data || response.data || [],
@@ -1453,11 +1561,25 @@ const PropertyService = {
    * @param {number} roomId - Room ID
    * @param {string} startDate - YYYY-MM-DD
    * @param {string} endDate - YYYY-MM-DD
+   * @param {object} options - Optional params (contractMode, bedCount)
    */
-  async getRoomPricing(roomId, startDate, endDate) {
+  async getRoomPricing(roomId, startDate, endDate, options = {}) {
     try {
+      const params = {
+        start_date: startDate,
+        end_date: endDate,
+      };
+
+      if (options?.contractMode) {
+        params.contract_mode = options.contractMode;
+      }
+
+      if (options?.bedCount) {
+        params.bed_count = options.bedCount;
+      }
+
       const response = await api.get(`/rooms/${roomId}/pricing`, {
-        params: { start_date: startDate, end_date: endDate },
+        params,
       });
       return {
         success: true,

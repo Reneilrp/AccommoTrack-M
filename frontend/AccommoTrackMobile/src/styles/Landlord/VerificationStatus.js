@@ -271,10 +271,18 @@ export const getStyles = (theme) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight,
   },
+  modalHeaderTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  modalCloseButton: {
+    padding: 4,
   },
   modalSubtitle: {
     fontSize: 13,

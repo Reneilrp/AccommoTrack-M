@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
+  Modal,
+  Pressable,
   ScrollView,
   RefreshControl,
   StatusBar,
@@ -18,7 +20,9 @@ import { useQuery } from "@tanstack/react-query";
 import { getStyles } from "../../../../styles/Landlord/Settings.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { triggerForcedLogout, triggerRoleSwitch } from "../../../../navigation/RootNavigation.js";
+import { showError } from "../../../../utils/toast.js";
 import { useAuthStore } from "../../../../stores/auth/authStore.js";
+import { useAppVersion } from "../../../../shared/hooks/useAppVersion.js";
 import {
   landlordQueryKeys,
   useLandlordFocusRefetch,
@@ -27,6 +31,16 @@ import {
 
 import ProfileService from "../../../../services/ProfileService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
+
+const LANDLORD_SWITCH_READY_STATUSES = new Set([
+  "approved",
+  "partial_verified",
+  "pending_documents_review",
+  "verified",
+]);
+
+const normalizeLandlordVerificationStatus = (status) =>
+  String(status || "not_submitted").toLowerCase();
 
 const SettingRow = ({ item, onPress, onToggle, theme, styles }) => {
   const content = (
@@ -143,6 +157,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [comingSoonVisible, setComingSoonVisible] = useState(false);
+  const [comingSoonInfo, setComingSoonInfo] = useState({ title: "Coming Soon", message: "This option will be available soon." });
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState({ title: "", message: "", confirmText: "Confirm", onConfirm: () => {}, singleAction: false });
   const [notificationPrefs, setNotificationPrefs] = useState({
     payments: true,
     messages: true,
@@ -152,23 +171,36 @@ export default function SettingsScreen({ navigation, onLogout }) {
   });
   const [fetchError, setFetchError] = useState("");
 
+  const { 
+    currentVersion, 
+    latestVersion, 
+    updateAvailable, 
+    downloadUrl, 
+    refetch: refetchVersion,
+    otaUpdateId,
+    otaCreatedAt
+  } = useAppVersion();
+
   const settingsQuery = useQuery({
     queryKey: landlordQueryKeys.settingsHub(),
     queryFn: async () => {
-      const [profileRes, verificationRes] = await Promise.all([
-        ProfileService.getProfile(),
-        ProfileService.getVerificationStatus(),
-      ]);
+      const profileRes = await ProfileService.getProfile();
 
       if (!profileRes.success || !profileRes.data) {
         throw new Error(profileRes.error || "Failed to load settings");
       }
 
+      let verificationStatus = null;
+      if (profileRes.data.role !== "caretaker") {
+        const verificationRes = await ProfileService.getVerificationStatus();
+        verificationStatus = verificationRes.success
+          ? normalizeLandlordVerificationStatus(verificationRes.data?.status)
+          : null;
+      }
+
       return {
         profile: profileRes.data,
-        verificationStatus: verificationRes.success
-          ? (verificationRes.data?.status || "not_submitted")
-          : null,
+        verificationStatus,
       };
     },
     placeholderData: (previousData) => previousData,
@@ -182,7 +214,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
 
   const handleRefresh = useLandlordRefreshHandler({
     setRefreshing,
-    refetchers: settingsRefetchers,
+    refetchers: [...settingsRefetchers, refetchVersion],
   });
 
   useEffect(() => {
@@ -206,9 +238,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
       });
     }
 
-    if (settingsQuery.data.verificationStatus !== null) {
-      setVerificationStatus(settingsQuery.data.verificationStatus);
-    }
+    setVerificationStatus(settingsQuery.data.verificationStatus);
   }, [settingsQuery.data, setActiveRole]);
 
   useEffect(() => {
@@ -223,124 +253,137 @@ export default function SettingsScreen({ navigation, onLogout }) {
     );
   }, [settingsQuery.error]);
 
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          try {
-                      if (onLogout) {
-                        await onLogout();
-                      } else {
-                        // Clear only auth-related data
-                        clearAuthSession();
-                        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
-                        triggerForcedLogout();
-                      }          } catch (error) {
-            console.error("Logout error:", error);
-          }
-        },
-      },
-    ]);
+  const handleLogout = () => {
+    setLogoutModalVisible(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setLogoutModalVisible(false);
+    try {
+      if (onLogout) {
+        await onLogout();
+      } else {
+        // Clear only auth-related data
+        clearAuthSession();
+        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
+        triggerForcedLogout();
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const handleSwitchRole = useCallback(async () => {
     const newRole = userRole === "landlord" ? "tenant" : "landlord";
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
+    const normalizedVerificationStatus = normalizeLandlordVerificationStatus(verificationStatus);
 
     if (userRole === 'tenant' && newRole === 'landlord') {
-      if (verificationStatus === 'approved') {
-        Alert.alert('Switch to Landlord', 'Your landlord registration is approved. Switch to landlord mode now?', [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Switch',
-            onPress: async () => {
-              try {
-                setActionLoading(true);
-                const res = await ProfileService.switchRole('landlord');
-                if (res.success) {
-                  const userJson = await AsyncStorage.getItem('user');
-                  if (userJson) {
-                    const parsed = JSON.parse(userJson);
-                    parsed.role = 'landlord';
-                    await AsyncStorage.setItem('user', JSON.stringify(parsed));
-                    if (parsed.id) {
-                      await AsyncStorage.setItem(`user_role_${parsed.id}`, 'landlord');
-                    }
+      if (LANDLORD_SWITCH_READY_STATUSES.has(normalizedVerificationStatus)) {
+        setConfirmModalConfig({
+          title: 'Switch to Landlord',
+          message: 'Your landlord access is active. Switch to landlord mode now?',
+          confirmText: 'Switch',
+          singleAction: false,
+          onConfirm: async () => {
+            setConfirmModalVisible(false);
+            try {
+              setActionLoading(true);
+              const res = await ProfileService.switchRole('landlord');
+              if (res.success) {
+                const userJson = await AsyncStorage.getItem('user');
+                if (userJson) {
+                  const parsed = JSON.parse(userJson);
+                  parsed.role = 'landlord';
+                  await AsyncStorage.setItem('user', JSON.stringify(parsed));
+                  if (parsed.id) {
+                    await AsyncStorage.setItem(`user_role_${parsed.id}`, 'landlord');
                   }
-                  setActiveRole('landlord');
-                  triggerRoleSwitch('landlord');
-                } else {
-                  Alert.alert('Error', res.error || 'Failed to switch role');
                 }
-              } catch (error) {
-                console.error('Role switch error:', error);
-                Alert.alert('Error', 'An unexpected error occurred while switching roles.');
-              } finally {
-                setActionLoading(false);
+                setActiveRole('landlord');
+                triggerRoleSwitch('landlord');
+              } else {
+                showError('Error', res.error || 'Failed to switch role');
               }
-            },
-          },
-        ]);
-      } else if (verificationStatus === 'pending') {
-        Alert.alert('Registration Pending', 'Your landlord registration is still under review. Please wait for approval before switching.');
+            } catch (error) {
+              console.error('Role switch error:', error);
+              showError('Error', 'An unexpected error occurred while switching roles.');
+            } finally {
+              setActionLoading(false);
+            }
+          }
+        });
+        setConfirmModalVisible(true);
+      } else if (normalizedVerificationStatus === 'pending') {
+        setConfirmModalConfig({
+          title: 'Registration Pending',
+          message: 'Your landlord registration is still under review. Please wait for approval before switching.',
+          confirmText: 'Got it',
+          singleAction: true,
+          onConfirm: () => setConfirmModalVisible(false)
+        });
+        setConfirmModalVisible(true);
       } else {
-        Alert.alert('Register as Landlord', 'Complete landlord registration first by submitting your valid ID and business permit.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Proceed', onPress: () => navigation.navigate('VerificationStatus') },
-        ]);
+        setConfirmModalConfig({
+          title: 'Register as Landlord',
+          message: 'Complete landlord registration first by submitting your valid ID and business permit.',
+          confirmText: 'Proceed',
+          singleAction: false,
+          onConfirm: () => {
+            setConfirmModalVisible(false);
+            navigation.navigate('VerificationStatus');
+          }
+        });
+        setConfirmModalVisible(true);
       }
       return;
     }
 
-    Alert.alert(
-      `Switch to ${roleName}`,
-      `Are you sure you want to switch your account to ${roleName} mode?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Switch",
-          onPress: async () => {
-            try {
-              setActionLoading(true);
-              const res = await ProfileService.switchRole(newRole);
-              if (res.success) {
-                // Update local storage
-                const userJson = await AsyncStorage.getItem("user");
-                if (userJson) {
-                  const user = JSON.parse(userJson);
-                  user.role = newRole;
-                  await AsyncStorage.setItem("user", JSON.stringify(user));
-                  // Persist role preference across logout/login cycles
-                  if (user.id) {
-                    await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
-                  }
-                }
-                setActiveRole(newRole);
-                // Trigger navigation refresh
-                triggerRoleSwitch(newRole);
-              } else {
-                Alert.alert("Error", res.error || "Failed to switch role");
+    setConfirmModalConfig({
+      title: `Switch to ${roleName}`,
+      message: `Are you sure you want to switch your account to ${roleName} mode?`,
+      confirmText: 'Switch',
+      singleAction: false,
+      onConfirm: async () => {
+        setConfirmModalVisible(false);
+        try {
+          setActionLoading(true);
+          const res = await ProfileService.switchRole(newRole);
+          if (res.success) {
+            // Update local storage
+            const userJson = await AsyncStorage.getItem("user");
+            if (userJson) {
+              const user = JSON.parse(userJson);
+              user.role = newRole;
+              await AsyncStorage.setItem("user", JSON.stringify(user));
+              // Persist role preference across logout/login cycles
+              if (user.id) {
+                await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
               }
-            } catch (error) {
-              console.error("Role switch error:", error);
-              Alert.alert(
-                "Error",
-                "An unexpected error occurred while switching roles.",
-              );
-            } finally {
-              setActionLoading(false);
             }
-          },
-        },
-      ],
-    );
+            setActiveRole(newRole);
+            // Trigger navigation refresh
+            triggerRoleSwitch(newRole);
+          } else {
+            showError("Error", res.error || "Failed to switch role");
+          }
+        } catch (error) {
+          console.error("Role switch error:", error);
+          showError("Error", "An unexpected error occurred while switching roles.");
+        } finally {
+          setActionLoading(false);
+        }
+      }
+    });
+    setConfirmModalVisible(true);
   }, [navigation, setActiveRole, userRole, verificationStatus]);
 
   const handleUnavailable = (label) => {
-    Alert.alert(label, "This option will be available soon.");
+    setComingSoonInfo({
+      title: label,
+      message: "This option will be available soon."
+    });
+    setComingSoonVisible(true);
   };
 
   const handleConnectPayMongo = async () => {
@@ -351,16 +394,16 @@ export default function SettingsScreen({ navigation, onLogout }) {
     //     await Linking.openURL(res.data.onboarding_url);
     //     loadSettings();
     //   } else {
-    //     Alert.alert('Error', res.error || 'Could not start PayMongo connection.');
+    //     showError('Error', res.error || 'Could not start PayMongo connection.');
     //   }
     // } catch (error) {
-    //   Alert.alert('Error', 'An unexpected error occurred.');
+    //   showError('Error', 'An unexpected error occurred.');
     // }
-    Alert.alert(
-      "Coming Soon",
-      "PayMongo online payment onboarding is currently being set up. We will notify you once it is available.",
-      [{ text: "OK" }],
-    );
+    setComingSoonInfo({
+      title: "PayMongo Coming Soon",
+      message: "PayMongo online payment onboarding is currently being set up. We will notify you once it is available."
+    });
+    setComingSoonVisible(true);
   };
 
   const handleItemPress = (item) => {
@@ -413,13 +456,28 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ? "Verified"
         : "Pending";
 
-    const idStatusLabel = !verificationStatus || verificationStatus === 'not_submitted'
+    const securityPrefs = user?.preferences?.security;
+    const emailRecoveryEnabled = Boolean(securityPrefs?.emailRecoveryEnabled);
+    const emailRecoveryVerifiedAt = securityPrefs?.emailRecoveryVerifiedAt || null;
+    const emailRecoveryDescription = !emailRecoveryEnabled
+      ? 'Enable OTP verification for forgot/reset password access'
+      : emailRecoveryVerifiedAt
+        ? 'Enabled and verified from Settings'
+        : 'OTP sent. Verify code to complete setup';
+
+    const normalizedVerificationStatus = normalizeLandlordVerificationStatus(verificationStatus);
+
+    const idStatusLabel = !verificationStatus || normalizedVerificationStatus === 'not_submitted'
       ? "Not Submitted"
-      : verificationStatus === 'pending'
+      : normalizedVerificationStatus === 'pending'
         ? "Pending"
-        : verificationStatus === 'rejected'
-          ? "Rejected"
-          : "Verified";
+        : normalizedVerificationStatus === 'pending_documents_review'
+          ? "In Review"
+          : normalizedVerificationStatus === 'partial_verified'
+            ? "Action Required"
+            : normalizedVerificationStatus === 'rejected'
+              ? "Rejected"
+              : "Verified";
 
     const allSections = [
       {
@@ -427,9 +485,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
         items: [
           {
             id: "verification",
-            label: verificationStatus === 'not_submitted' ? "Submit Documents" : "ID Verification",
+            label: normalizedVerificationStatus === 'not_submitted' ? "Submit Documents" : "ID Verification",
             description: "ID and business permit status",
-            icon: verificationStatus === 'approved' ? "shield-checkmark-outline" : "alert-circle-outline",
+            icon: LANDLORD_SWITCH_READY_STATUSES.has(normalizedVerificationStatus)
+              ? "shield-checkmark-outline"
+              : "alert-circle-outline",
             type: "status",
             value: idStatusLabel,
             target: "VerificationStatus",
@@ -447,7 +507,30 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ],
       },
       {
-        title: "Payments",
+          title: "Billing",
+          items: [
+            {
+              id: "subscription-plan",
+              label: "Subscription Plan",
+              description: "Manage plan limits, status, and upgrades",
+              icon: "rocket-outline",
+              type: "navigate",
+              target: "SubscriptionPlan",
+              role: "landlord",
+            },
+            {
+              id: "billing-center",
+              label: "Billing Center",
+              description: "Review billing, payments, invoices, and history",
+              icon: "receipt-outline",
+              type: "navigate",
+              target: "BillingCenter",
+              role: "landlord",
+            },
+          ],
+        },
+        {
+          title: "Payment Methods",
         items: [
           {
             id: "paymongo-status",
@@ -488,6 +571,15 @@ export default function SettingsScreen({ navigation, onLogout }) {
       {
         title: "Security",
         items: [
+          {
+            id: "email-recovery-security",
+            label: "Email Recovery Verification",
+            description: emailRecoveryDescription,
+            icon: "mail-outline",
+            type: "navigate",
+            target: "EmailRecoverySecurity",
+            role: "landlord",
+          },
           {
             id: "change-password",
             label: "Change Password",
@@ -541,17 +633,18 @@ export default function SettingsScreen({ navigation, onLogout }) {
           {
             id: "report",
             label: "Report a Problem",
+            description: "Send technical issue details",
             icon: "flag-outline",
             type: "action",
-            action: () => handleUnavailable("Report a Problem"),
+            action: () => navigation.navigate('HelpSupport', { openResource: 'report' }),
           },
           {
-            id: "about",
-            label: "About AccommoTrack",
-            description: "Release notes, dev team, and terms",
-            icon: "information-circle-outline",
-            type: "navigate",
-            target: "About",
+            id: "terms",
+            label: "Terms & Conditions",
+            description: "Landlord terms and policies",
+            icon: "document-text-outline",
+            type: "action",
+            action: () => navigation.navigate('HelpSupport', { openResource: 'terms' }),
           },
         ],
       },
@@ -570,26 +663,43 @@ export default function SettingsScreen({ navigation, onLogout }) {
             id: "switch-role",
             label: userRole === 'landlord'
               ? 'Switch to Tenant'
-              : verificationStatus === 'approved'
+              : LANDLORD_SWITCH_READY_STATUSES.has(normalizedVerificationStatus)
                 ? 'Switch to Landlord'
                 : 'Register as Landlord',
             icon: "swap-horizontal-outline",
             type: "action",
             action: () => handleSwitchRole(),
+            role: "landlord",
+          },
+          ...(updateAvailable ? [{
+            id: "update-available",
+            label: "Update App",
+            icon: "cloud-download-outline",
+            type: "action",
+            description: `Tap to download v${latestVersion}`,
+            action: () => {
+              if (downloadUrl) {
+                import('react-native').then(({ Linking }) => {
+                  Linking.openURL(downloadUrl);
+                });
+              }
+            },
+          }] : []),
+          {
+            id: "ota-update-id",
+            label: "What's New",
+            description: "Check what's new in the latest update",
+            icon: "sparkles-outline",
+            type: "navigate",
+            value: otaUpdateId ? otaUpdateId.substring(0, 8) : "View details",
+            target: "UpdateDetails",
           },
           {
             id: "version",
             label: "Version",
             icon: "albums-outline",
             type: "info",
-            value: "1.0.0",
-          },
-          {
-            id: "updates",
-            label: "Release Channel",
-            icon: "cloud-download-outline",
-            type: "info",
-            value: "Testing",
+            value: currentVersion,
           },
         ],
       },
@@ -767,6 +877,173 @@ export default function SettingsScreen({ navigation, onLogout }) {
           © 2026 AccommoTrack. All rights reserved.
         </Text>
       </ScrollView>
+
+      <Modal
+        visible={logoutModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <Pressable
+          style={styles.logoutModalBackdrop}
+          onPress={() => setLogoutModalVisible(false)}
+        >
+          <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+            <View style={styles.logoutModalIconWrap}>
+              <Ionicons name="log-out-outline" size={22} color="#B91C1C" />
+            </View>
+
+            <Text style={styles.logoutModalTitle}>Logout</Text>
+            <Text style={styles.logoutModalMessage}>
+              Are you sure you want to logout?
+            </Text>
+
+            <View style={styles.logoutModalActions}>
+              <TouchableOpacity
+                style={styles.logoutModalCancelButton}
+                onPress={() => setLogoutModalVisible(false)}
+              >
+                <Text style={styles.logoutModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutModalConfirmButton}
+                onPress={handleLogoutConfirm}
+              >
+                <Text style={styles.logoutModalConfirmText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={confirmModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setConfirmModalVisible(false)}
+      >
+        <Pressable
+          style={styles.logoutModalBackdrop}
+          onPress={() => setConfirmModalVisible(false)}
+        >
+          <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+            <View style={[styles.logoutModalIconWrap, { backgroundColor: theme.isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7' }]}>
+              <Ionicons name="information-circle-outline" size={22} color={theme.colors.primary} />
+            </View>
+
+            <Text style={styles.logoutModalTitle}>{confirmModalConfig.title}</Text>
+            <Text style={styles.logoutModalMessage}>
+              {confirmModalConfig.message}
+            </Text>
+
+            <View style={styles.logoutModalActions}>
+              {!confirmModalConfig.singleAction && (
+                <TouchableOpacity
+                  style={styles.logoutModalCancelButton}
+                  onPress={() => setConfirmModalVisible(false)}
+                >
+                  <Text style={styles.logoutModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.logoutModalConfirmButton, { backgroundColor: theme.colors.primary }]}
+                onPress={confirmModalConfig.onConfirm}
+              >
+                <Text style={styles.logoutModalConfirmText}>{confirmModalConfig.confirmText}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={comingSoonVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              borderRadius: 20,
+              backgroundColor: theme.colors.surface,
+              paddingHorizontal: 20,
+              paddingVertical: 22,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+            }}
+          >
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                alignSelf: 'center',
+                backgroundColor: '#DBEAFE',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <Ionicons name="construct-outline" size={28} color="#2563EB" />
+            </View>
+
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: '700',
+                textAlign: 'center',
+                color: theme.colors.text,
+                marginBottom: 10,
+              }}
+            >
+              {comingSoonInfo.title}
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 14,
+                lineHeight: 20,
+                textAlign: 'center',
+                color: theme.colors.textSecondary,
+                marginBottom: 20,
+              }}
+            >
+              {comingSoonInfo.message}
+            </Text>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: theme.colors.primary,
+                borderRadius: 12,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+              onPress={() => setComingSoonVisible(false)}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700' }}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

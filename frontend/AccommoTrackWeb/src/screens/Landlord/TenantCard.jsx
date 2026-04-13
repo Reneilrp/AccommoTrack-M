@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, ChevronDown, RefreshCw, CheckCircle, Clock3 } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, RefreshCw, CheckCircle, Clock3, FileText, ChevronDown, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TenantCard({
@@ -11,6 +11,7 @@ export default function TenantCard({
   onEvictionFinalize,
   onEvictionCancel,
   onEvictionUndo,
+  onGenerateClaimCode,
   onApproveReservation,
   onCheckIn,
   canTransfer = true,
@@ -136,42 +137,57 @@ export default function TenantCard({
       
       {/* Footer Actions */}
       <div className="flex flex-col gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
-        {/* Row 1: Message */}
-        <button
-          onClick={handleMessageTenant}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
-        >
-          <MessageSquare className="w-3.5 h-3.5" /> Message
-        </button>
-
-        {/* Row 2: Payments and View Logs */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => navigate(`/payments?search=${tenant.email}`)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
-          >
-            <CreditCard className="w-3.5 h-3.5" /> Payments
-          </button>
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => navigate(`/tenants/${tenant.id}`)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent"
+            className="min-w-0 flex items-center justify-center gap-1.5 px-2 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-[11px] sm:text-xs font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent whitespace-nowrap"
           >
-            View Logs
+            <FileText className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">View Logs</span>
+          </button>
+          <button
+            onClick={handleMessageTenant}
+            className="min-w-0 flex items-center justify-center gap-1.5 px-2 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] sm:text-xs font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap"
+          >
+            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Message</span>
+          </button>
+          <button
+            onClick={() => onTransfer?.(tenant)}
+            disabled={!canTransfer || !tenant.room || hasPendingEviction}
+            className="min-w-0 flex items-center justify-center gap-1.5 px-2 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] sm:text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            <Shuffle className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Transfer</span>
           </button>
         </div>
 
-        {/* Row 3: More action */}
         <button
           onClick={() => setShowMoreActions(!showMoreActions)}
-          className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all border active:scale-95
-            ${showMoreActions ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white border-gray-300' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
+          className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition-all border active:scale-95
+            ${showMoreActions
+              ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white border-gray-300'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
         >
+          <span>{showMoreActions ? 'Hide more actions' : 'View more actions'}</span>
           <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreActions ? 'rotate-180' : ''}`} />
-          More action
         </button>
 
         {showMoreActions && (
           <div className="flex flex-col gap-2 mt-1 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-1 duration-200">
+            <button
+              onClick={() => navigate(`/payments?search=${tenant.email}`)}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-blue-600" /> Payments
+            </button>
+            <button
+              onClick={() => onGenerateClaimCode?.(tenant)}
+              disabled={!canTransfer}
+              className="flex items-center gap-2 px-3 py-2 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              <KeyRound className="w-3.5 h-3.5" /> Generate Claim Code
+            </button>
             {isPendingReservation && (
               <button
                 onClick={() => onApproveReservation?.(tenant)}
@@ -196,13 +212,6 @@ export default function TenantCard({
               className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
             >
               <UserPlus className="w-3.5 h-3.5 text-emerald-500" /> Assign Room
-            </button>
-            <button
-              onClick={() => onTransfer?.(tenant)}
-              disabled={!canTransfer || !tenant.room || hasPendingEviction}
-              className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
-            >
-              <Shuffle className="w-3.5 h-3.5 text-amber-500" /> Transfer
             </button>
             <button
               onClick={() => onUnassign?.(tenant)}

@@ -62,6 +62,20 @@ const greenMarkerIcon = new L.Icon({
   popupAnchor: [0, -36],
 });
 
+const parseBooleanFlag = (value, fallback = false) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off", ""].includes(normalized)) return false;
+  }
+
+  return fallback;
+};
+
 export default function DormProfileSettings({
   propertyId,
   onBack,
@@ -217,13 +231,18 @@ export default function DormProfileSettings({
         floor_area: data.floor_area || 0,
         floor_level: data.floor_level || "",
         total_floors: data.total_floors || 1,
-        require_1month_advance: Boolean(data.require_1month_advance),
-        allow_partial_payments: data.allow_partial_payments !== undefined ? Boolean(data.allow_partial_payments) : true,
-        require_reservation_fee: Boolean(data.require_reservation_fee),
+        require_1month_advance: parseBooleanFlag(data.require_1month_advance, false),
+        allow_partial_payments: parseBooleanFlag(data.allow_partial_payments, true),
+        require_reservation_fee: parseBooleanFlag(data.require_reservation_fee, false),
         reservation_fee_amount: data.reservation_fee_amount || '',
+        reservation_fee_gap_days:
+          data.reservation_fee_gap_days !== undefined
+            ? String(data.reservation_fee_gap_days)
+            : "3",
         gcash_name: data.gcash_name || '',
         gcash_number: data.gcash_number || '',
         gcash_qr_path: data.gcash_qr_path || '',
+        is_published: parseBooleanFlag(data.is_published, false),
         transfer_fee: data.transfer_fee || 0,
         latitude: data.latitude,
         longitude: data.longitude,
@@ -440,8 +459,8 @@ export default function DormProfileSettings({
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 90 * 1024 * 1024) {
-      toast.error("Video is too large. Maximum size is 90MB.");
+    if (file.size > 200 * 1024 * 1024) {
+      toast.error("Video is too large. Maximum size is 200MB.");
       return;
     }
 
@@ -632,6 +651,10 @@ export default function DormProfileSettings({
       );
 
       const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type);
+      const parsedGapDays = Number.parseInt(dormData.reservation_fee_gap_days, 10);
+      const reservationFeeGapDays = Number.isNaN(parsedGapDays)
+        ? 3
+        : Math.max(0, parsedGapDays);
 
       const updateData = {
         title: dormData.name,
@@ -655,11 +678,13 @@ export default function DormProfileSettings({
         allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
         require_reservation_fee: dormData.require_reservation_fee ? 1 : 0,
         reservation_fee_amount: dormData.require_reservation_fee ? dormData.reservation_fee_amount : 0,
+        reservation_fee_gap_days: reservationFeeGapDays,
         gcash_name: dormData.require_reservation_fee ? dormData.gcash_name : "",
         gcash_number: dormData.require_reservation_fee ? dormData.gcash_number : "",
         transfer_fee: parseFloat(dormData.transfer_fee) || 0,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
+        is_published: dormData.status === 'active' ? (dormData.is_published ? 1 : 0) : 0,
         current_status: dormData.status,
       };
 
@@ -869,14 +894,15 @@ export default function DormProfileSettings({
         toast.success("Property submitted for admin approval");
         fetchPropertyDetails();
       } else {
-        setError("Failed to submit draft");
+        const message = response.data?.message || "Failed to submit draft";
+        setError(message);
       }
     } catch (err) {
       console.error("Error submitting draft:", err);
-      setError(err.message || "Failed to submit draft");
-      toast.error(
-        "Failed to submit draft: " + (err.message || "Unknown error"),
-      );
+      const backendMessage = err?.response?.data?.message;
+      const message = backendMessage || err.message || "Failed to submit draft";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -1151,6 +1177,30 @@ export default function DormProfileSettings({
                         * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
                       </p>
                     )}
+
+                    <label
+                      className={`mt-4 flex items-start space-x-3 ${
+                        !isEditing || dormData.status !== 'active'
+                          ? 'opacity-60 cursor-not-allowed'
+                          : 'cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={!isEditing || dormData.status !== 'active'}
+                        checked={dormData.status === 'active' && dormData.is_published !== false}
+                        onChange={(e) => handleInputChange('is_published', e.target.checked)}
+                        className="mt-1 w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Show this property on public listings
+                      </span>
+                    </label>
+                    {dormData.status !== 'active' && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Public visibility can only be enabled when property status is Active.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1309,6 +1359,24 @@ export default function DormProfileSettings({
                                     className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
                                     placeholder="e.g. 500"
                                   />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Require fee when move-in is more than (days)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    disabled={!isEditing}
+                                    value={dormData.reservation_fee_gap_days ?? "3"}
+                                    onChange={(e) => handleInputChange("reservation_fee_gap_days", e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                    placeholder="3"
+                                  />
+                                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    Default is 3 days. Reservation fee applies only when the booking gap is above this value.
+                                  </p>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                   <div>
@@ -1786,7 +1854,7 @@ export default function DormProfileSettings({
                   </span>
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Max <strong>45 seconds</strong> and <strong>90MB</strong>.
+                  Max <strong>45 seconds</strong> and <strong>200MB</strong>.
                   Uploading a new video replaces the existing one.
                 </p>
               </div>
@@ -1824,7 +1892,7 @@ export default function DormProfileSettings({
                       Click to upload video
                     </span>
                     <span className="text-xs">
-                      MP4, MOV, AVI (max 90MB, 45s)
+                      MP4, MOV, AVI (max 200MB, 45s)
                     </span>
                   </div>
                   <input

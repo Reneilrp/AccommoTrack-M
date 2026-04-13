@@ -56,13 +56,21 @@ export default function NotificationsPage() {
   const [fetchError, setFetchError] = useState('');
   const [actionError, setActionError] = useState('');
 
-  const fetchNotifications = useCallback(async () => {
+  const extractNotificationRows = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+  };
+
+  const fetchNotifications = useCallback(async (options = {}) => {
+    const unreadOnly = Boolean(options.unreadOnly);
     try {
       setLoading(true);
       setFetchError('');
       const [notifRes, activitiesRes] = await Promise.allSettled([
-        api.get('/notifications?role=landlord'),
-        api.get('/landlord/dashboard/recent-activities'),
+        api.get(`/notifications?role=landlord&per_page=200${unreadOnly ? '&unread_only=true' : ''}`),
+        unreadOnly ? Promise.resolve({ data: [] }) : api.get('/landlord/dashboard/recent-activities'),
       ]);
 
       const notifFailed = notifRes.status !== 'fulfilled';
@@ -76,7 +84,7 @@ export default function NotificationsPage() {
       }
 
       const rawNotifs = notifRes.status === 'fulfilled'
-        ? (notifRes.value.data?.data || notifRes.value.data || [])
+        ? extractNotificationRows(notifRes.value.data)
         : [];
       const safeNotifs = (Array.isArray(rawNotifs) ? rawNotifs : []).map(n => ({
         id: n.id,
@@ -85,7 +93,7 @@ export default function NotificationsPage() {
         title: n.data?.title || 'Notification',
         message: n.data?.message || n.data?.body || '',
         timestamp: n.created_at,
-        read: !!n.read_at,
+        read: Boolean(n.is_read || n.read_at),
         data: n.data,
       }));
 
@@ -113,7 +121,9 @@ export default function NotificationsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+  useEffect(() => {
+    fetchNotifications({ unreadOnly: filter === 'unread' });
+  }, [fetchNotifications, filter]);
 
   const markAsRead = async (id) => {
     const previousState = notifications;
@@ -121,6 +131,7 @@ export default function NotificationsPage() {
     try {
       await api.patch(`/notifications/${id}/read`);
       setActionError('');
+      fetchNotifications({ unreadOnly: filter === 'unread' });
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
       setNotifications(previousState);
@@ -134,6 +145,7 @@ export default function NotificationsPage() {
     try {
       await api.patch('/notifications/read-all?role=landlord');
       setActionError('');
+      fetchNotifications({ unreadOnly: filter === 'unread' });
     } catch (err) {
       console.error('Failed to mark all notifications as read:', err);
       setNotifications(previousState);

@@ -13,9 +13,11 @@ use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\BookingDepositSettlement;
 use App\Services\BookingService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class LandlordBookingController extends Controller
 {
@@ -37,7 +39,8 @@ class LandlordBookingController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
 
-            $query = Booking::with(['property', 'tenant', 'landlord', 'room'])
+            $query = Booking::with(['property', 'tenant', 'landlord', 'room', 'occupants'])
+                ->withCount('occupants')
                 ->forLandlord($context['landlord_id']);
 
             // If caretaker, filter by assigned properties only
@@ -81,10 +84,22 @@ class LandlordBookingController extends Controller
     public function store(StoreBookingRequest $request)
     {
         try {
-            Log::info('Booking request received', $request->validated());
+            $validated = $request->validated();
+            Log::info('Booking request received', $validated);
 
             $user = $request->user();
             $tenantId = $request->input('tenant_id');
+
+            if ($user && in_array($user->role, ['landlord', 'caretaker'], true)) {
+                $context = $this->resolveLandlordContext($request);
+                $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+                $room = \App\Models\Room::query()
+                    ->select('id', 'property_id')
+                    ->findOrFail($validated['room_id']);
+
+                $this->checkPropertyAccess($context, (int) $room->property_id);
+            }
 
             // If a tenant is logged in and creating a booking, use their ID
             if (! $tenantId && $user && $user->role === 'tenant') {
@@ -92,7 +107,7 @@ class LandlordBookingController extends Controller
             }
 
             $booking = $this->bookingService->createBooking(
-                $request->validated(),
+                $validated,
                 $tenantId
             );
 
@@ -102,10 +117,15 @@ class LandlordBookingController extends Controller
                 ->where('status', 'pending')
                 ->first();
 
+            $bookingPayload = $booking->load(['property', 'tenant', 'room', 'occupants'])
+                ->loadCount('occupants');
+            $reservationPolicy = $this->buildReservationPolicy($bookingPayload);
+
             return response()->json([
                 'message' => 'Booking created successfully',
-                'booking' => (new BookingResource($booking->load(['property', 'tenant', 'room'])))->resolve(),
+                'booking' => (new BookingResource($bookingPayload))->resolve(),
                 'reservation_invoice' => $reservationInvoice,
+                'reservation_policy' => $reservationPolicy,
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed', ['errors' => $e->errors()]);
@@ -126,6 +146,10 @@ class LandlordBookingController extends Controller
                 'message' => 'Room not found',
                 'error' => $e->getMessage(),
             ], 404);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             Log::error('Failed to create booking', [
                 'error' => $e->getMessage(),
@@ -137,6 +161,38 @@ class LandlordBookingController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function buildReservationPolicy(Booking $booking): array
+    {
+        $thresholdDays = max(0, (int) ($booking->property?->reservation_fee_gap_days ?? 3));
+        $issuedDate = ($booking->created_at ?? now())->copy()->startOfDay();
+        $moveInDate = $booking->start_date ? Carbon::parse($booking->start_date)->startOfDay() : null;
+        $daysGap = $moveInDate ? max(0, $issuedDate->diffInDays($moveInDate, false)) : 0;
+
+        $reservationFeeAmount = (float) ($booking->property?->reservation_fee ?? 0);
+        $reservationFeeEnabled = (bool) ($booking->property?->require_reservation_fee ?? false);
+        $reservationFeeConfigured = $reservationFeeEnabled && $reservationFeeAmount > 0;
+        $feeRequired = $reservationFeeConfigured && $daysGap > $thresholdDays;
+
+        if (! $reservationFeeConfigured) {
+            $message = 'No reservation fee is configured for this property.';
+        } elseif ($feeRequired) {
+            $message = "Reservation fee is required because move-in is {$daysGap} days after booking date.";
+        } else {
+            $message = "No reservation fee is required because move-in is within {$thresholdDays} days from booking date.";
+        }
+
+        return [
+            'fee_required' => $feeRequired,
+            'fee_amount' => $reservationFeeAmount,
+            'days_gap' => $daysGap,
+            'threshold_days' => $thresholdDays,
+            'comparator' => 'days_gap > threshold_days',
+            'booking_issued_date' => $issuedDate->toDateString(),
+            'move_in_date' => $moveInDate?->toDateString(),
+            'message' => $message,
+        ];
     }
 
     /**
@@ -196,9 +252,17 @@ class LandlordBookingController extends Controller
             $booking = Booking::forLandlord($context['landlord_id'])->findOrFail($id);
             $this->checkPropertyAccess($context, $booking->property_id);
 
+            $validated = $request->validated();
+
             $result = $this->bookingService->updatePaymentStatus(
                 $booking,
-                $request->validated()['payment_status']
+                $validated['payment_status'],
+                [
+                    'payment_method' => $validated['payment_method'] ?? null,
+                    'payment_reference' => $validated['payment_reference'] ?? null,
+                    'notes' => $validated['notes'] ?? null,
+                    'actor_id' => $context['user']->id,
+                ]
             );
 
             return response()->json([
@@ -466,7 +530,8 @@ class LandlordBookingController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
 
-            $query = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room'])
+            $query = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room', 'occupants'])
+                ->withCount('occupants')
                 ->forLandlord($context['landlord_id']);
 
             // If caretaker, filter by assigned properties only
@@ -503,7 +568,7 @@ class LandlordBookingController extends Controller
                 return response()->json(['message' => 'Only pending reservations can be approved.'], 422);
             }
 
-            $booking = $this->bookingService->approveReservation($booking);
+            $booking = $this->bookingService->approveReservation($booking, $context['user']->id);
 
             return response()->json([
                 'message' => 'Reservation approved successfully.',

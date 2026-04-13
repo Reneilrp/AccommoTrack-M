@@ -16,6 +16,9 @@ import api from "../../utils/api";
 import ImagePlaceholder from "../Shared/ImagePlaceholder";
 import ImageCarousel from "../Shared/ImageCarousel";
 import bookingServiceDefault from "../../services/bookingService";
+import systemToggleService from "../../services/systemToggleService";
+
+const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
 export default function RoomDetailsModal({
   room,
@@ -27,6 +30,7 @@ export default function RoomDetailsModal({
   onBookingSuccess,
   bookingService,
 }) {
+  const PROXY_MINIMUM_AGE = 18;
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
   const [bedCount, setBedCount] = useState(1);
@@ -43,6 +47,7 @@ export default function RoomDetailsModal({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [promoOffer, setPromoOffer] = useState(null);
   const [duration, setDuration] = useState(null);
   const [_pricingBreakdown, setPricingPreview] = useState(null);
   const [loadingPricing, setLoadingPricing] = useState(false);
@@ -51,15 +56,63 @@ export default function RoomDetailsModal({
   const [autoNavTimer, setAutoNavTimer] = useState(null);
   const [bookingMode, setBookingMode] = useState("normal");
   const [proxyOccupants, setProxyOccupants] = useState([]);
+  const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(DEFAULT_TOGGLES.reservationFeeDisabled);
 
-  const createEmptyOccupant = () => ({
+  const createEmptyOccupant = (defaultGender = "") => ({
     full_name: "",
     date_of_birth: "",
-    gender: "",
+    gender: defaultGender,
     relationship_to_booker: "",
     phone: "",
     email: "",
   });
+
+  const normalizePropertyTypeToken = (propertyType) =>
+    String(propertyType || "")
+      .toLowerCase()
+      .replace(/[\s_-]/g, "");
+
+  const normalizeTenantGender = (gender) => {
+    const normalized = String(gender || "").toLowerCase().trim();
+    if (["male", "boy", "boys"].includes(normalized)) return "male";
+    if (["female", "girl", "girls"].includes(normalized)) return "female";
+    return null;
+  };
+
+  const normalizeRoomRestriction = (restriction) => {
+    const normalized = String(restriction || "mixed").toLowerCase().trim();
+    if (["male", "boy", "boys"].includes(normalized)) return "male";
+    if (["female", "girl", "girls"].includes(normalized)) return "female";
+    return "mixed";
+  };
+
+  const normalizeProxyOccupantGender = (gender) => {
+    const normalized = String(gender || "").toLowerCase().trim();
+    if (!normalized) return "";
+    if (["male", "boy", "boys"].includes(normalized)) return "male";
+    if (["female", "girl", "girls"].includes(normalized)) return "female";
+    if (["other", "prefer_not_to_say"].includes(normalized)) return normalized;
+    return normalized;
+  };
+
+  const resolveStoredTenantGender = () => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const raw = window.localStorage?.getItem("userData");
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw);
+      return (
+        parsed?.gender ||
+        parsed?.user?.gender ||
+        parsed?.data?.gender ||
+        null
+      );
+    } catch {
+      return null;
+    }
+  };
 
   const toMoneyNumber = (value, fallback = 0) => {
     if (typeof value === "number") {
@@ -84,6 +137,73 @@ export default function RoomDetailsModal({
     }
 
     return fallback;
+  };
+
+  const toLocalDate = (value) => {
+    if (!value) return null;
+    const [year, month, day] = String(value).split("-").map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  };
+
+  const parseIsoDateOnly = (value) => {
+    const trimmed = String(value || "").trim();
+    const matches = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!matches) return null;
+
+    const year = Number(matches[1]);
+    const month = Number(matches[2]);
+    const day = Number(matches[3]);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      Number.isNaN(parsed.getTime()) ||
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const getAgeInYears = (dateOfBirth, referenceDate = new Date()) => {
+    const dob = new Date(dateOfBirth);
+    const ref = new Date(referenceDate);
+    let age = ref.getFullYear() - dob.getFullYear();
+    const monthDiff = ref.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < dob.getDate())) {
+      age -= 1;
+    }
+    return age;
+  };
+
+  const toDateInputValue = (dateValue) => {
+    const year = dateValue.getFullYear();
+    const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+    const day = String(dateValue.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const latestAllowedAdultDob = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    today.setFullYear(today.getFullYear() - PROXY_MINIMUM_AGE);
+    return toDateInputValue(today);
+  })();
+
+  const toBooleanFlag = (value) => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value === 1;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (["1", "true", "yes", "on"].includes(normalized)) return true;
+      if (["0", "false", "no", "off", ""].includes(normalized)) return false;
+    }
+    return null;
   };
 
   const formatMoney = (value) => {
@@ -123,9 +243,20 @@ export default function RoomDetailsModal({
     .toLowerCase()
     .replace(/[\s_-]/g, "");
   const isBedSpacerRoom = normalizedRoomType === "bedspacer";
+  const maxBookableBeds = pricingModel === "per_bed"
+    ? Math.max(
+        1,
+        resolvedAvailableSlots >= 0 ? resolvedAvailableSlots : resolvedCapacity,
+      )
+    : 1;
+  const showBedCountSelector = pricingModel === "per_bed";
+  const roomGender = normalizeRoomRestriction(room?.gender_restriction);
+  const requiredProxyGender = roomGender === "male" || roomGender === "female"
+    ? roomGender
+    : "";
   const occupantLimit =
     pricingModel === "per_bed"
-      ? Math.max(1, bedCount)
+      ? Math.max(1, Math.min(bedCount, maxBookableBeds))
       : resolvedCapacity;
   const monthlyRate = toMoneyNumber(
     room?.monthly_rate ?? room?.monthlyRate ?? room?.price,
@@ -138,6 +269,41 @@ export default function RoomDetailsModal({
 
   const primaryRate = isDailyContract ? dailyRate : monthlyRate;
   const primaryRateLabel = isDailyContract ? "Daily Rate" : "Monthly Rate";
+  const reservationFeeAmount = toMoneyNumber(
+    property?.reservation_fee_amount ?? property?.reservation_fee,
+    0,
+  );
+  const reservationFeeSetting =
+    property?.require_reservation_fee ?? property?.requireReservationFee;
+  const normalizedReservationFeeSetting = toBooleanFlag(reservationFeeSetting);
+
+  useEffect(() => {
+    let mounted = true;
+    systemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setReservationFeeTempDisabled(Boolean(result.data.reservationFeeDisabled));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const isReservationFeeEnabled = !reservationFeeTempDisabled && (
+    reservationFeeSetting === undefined || reservationFeeSetting === null
+      ? reservationFeeAmount > 0
+      : (normalizedReservationFeeSetting ?? reservationFeeAmount > 0)
+  );
+  const isReservationFeeConfigured = isReservationFeeEnabled && reservationFeeAmount > 0;
+  const reservationFeeThresholdDays = 3;
+  const moveInDate = toLocalDate(startDate);
+  const bookingIssuedDate = new Date();
+  bookingIssuedDate.setHours(0, 0, 0, 0);
+  const daysUntilMoveIn = moveInDate
+    ? Math.max(0, Math.floor((moveInDate.getTime() - bookingIssuedDate.getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+  const isReservationFeeRequired =
+    isReservationFeeConfigured && daysUntilMoveIn > reservationFeeThresholdDays;
 
   useEffect(() => {
     if (billingPolicy === "daily") {
@@ -169,6 +335,7 @@ export default function RoomDetailsModal({
     const fetchPricing = async () => {
       if (!room?.id || !startDate) {
         setTotalPrice(0);
+        setPromoOffer(null);
         setDuration(null);
         return;
       }
@@ -185,6 +352,7 @@ export default function RoomDetailsModal({
 
       if (!pricingEndDate || new Date(pricingEndDate) <= start) {
         setTotalPrice(0);
+        setPromoOffer(null);
         setDuration(null);
         return;
       }
@@ -192,13 +360,20 @@ export default function RoomDetailsModal({
       setLoadingPricing(true);
       try {
         const res = await api.get(`/rooms/${room.id}/pricing`, {
-          params: { start: startDate, end: pricingEndDate, bed_count: bedCount }
+          params: {
+            start: startDate,
+            end: pricingEndDate,
+            bed_count: bedCount,
+            contract_mode: isDailyContract ? "daily" : "monthly",
+          },
         });
-        
-        setTotalPrice(res.data.total);
+
+        const baseTotal = Number(res.data.base_total ?? res.data.total ?? 0);
+        setTotalPrice(baseTotal);
+        setPromoOffer(res.data.promo_offer || null);
         setPricingPreview(res.data.breakdown);
         setDuration({
-          days: res.data.days,
+        days: res.data.days || 0,
           months: res.data.breakdown?.months || 0,
           extraDays: res.data.breakdown?.remaining_days || 0
         });
@@ -206,6 +381,7 @@ export default function RoomDetailsModal({
         console.error('Pricing calculation failed', err);
         // Fallback to 0 or error state
         setTotalPrice(0);
+        setPromoOffer(null);
       } finally {
         setLoadingPricing(false);
       }
@@ -227,10 +403,63 @@ export default function RoomDetailsModal({
     }
 
     setProxyOccupants((prev) => {
-      const base = prev.length > 0 ? prev : [createEmptyOccupant()];
-      return base.slice(0, occupantLimit);
+      const base = prev.length > 0 ? prev : [createEmptyOccupant(requiredProxyGender)];
+      const limited = base.slice(0, occupantLimit);
+
+      if (!requiredProxyGender) {
+        return limited;
+      }
+
+      return limited.map((occupant) => ({
+        ...occupant,
+        gender: requiredProxyGender,
+      }));
     });
-  }, [bookingMode, occupantLimit]);
+  }, [bookingMode, occupantLimit, requiredProxyGender]);
+
+  useEffect(() => {
+    if (bedCount > maxBookableBeds) {
+      setBedCount(maxBookableBeds);
+    }
+  }, [bedCount, maxBookableBeds]);
+
+  useEffect(() => {
+    if (isDailyContract) {
+      setPaymentPlan("full");
+      return;
+    }
+
+    const hasCheckout = Boolean(endDate) && new Date(endDate) > new Date(startDate);
+    if (!hasCheckout) {
+      setPaymentPlan("monthly");
+      return;
+    }
+
+    const showSelector = Boolean(
+      duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0)),
+    );
+    if (!showSelector) {
+      setPaymentPlan("full");
+      return;
+    }
+
+    const promoEligible = Boolean(promoOffer);
+    if (promoEligible && !["monthly", "promo_one_time"].includes(paymentPlan)) {
+      setPaymentPlan("monthly");
+      return;
+    }
+
+    if (!promoEligible && !["monthly", "full"].includes(paymentPlan)) {
+      setPaymentPlan("full");
+    }
+  }, [
+    isDailyContract,
+    endDate,
+    startDate,
+    duration,
+    promoOffer,
+    paymentPlan,
+  ]);
 
   if (!room) return null;
 
@@ -254,21 +483,26 @@ export default function RoomDetailsModal({
   const handleAddProxyOccupant = () => {
     setProxyOccupants((prev) => {
       if (prev.length >= occupantLimit) return prev;
-      return [...prev, createEmptyOccupant()];
+      return [...prev, createEmptyOccupant(requiredProxyGender)];
     });
   };
 
   const handleRemoveProxyOccupant = (index) => {
     setProxyOccupants((prev) => {
       const next = prev.filter((_, idx) => idx !== index);
-      return next.length > 0 ? next : [createEmptyOccupant()];
+      return next.length > 0 ? next : [createEmptyOccupant(requiredProxyGender)];
     });
   };
 
   const handleProxyOccupantChange = (index, field, value) => {
+    let nextValue = value;
+    if (field === "gender") {
+      nextValue = requiredProxyGender || normalizeProxyOccupantGender(value);
+    }
+
     setProxyOccupants((prev) =>
       prev.map((occupant, idx) =>
-        idx === index ? { ...occupant, [field]: value } : occupant,
+        idx === index ? { ...occupant, [field]: nextValue } : occupant,
       ),
     );
   };
@@ -299,14 +533,14 @@ export default function RoomDetailsModal({
         }
     } else {
         if (start < today) {
-            toast.error("Check-in date cannot be in the past.");
+            toast.error(`${isDailyContract ? 'Check-in' : 'Move-in'} date cannot be in the past.`);
             return;
         }
     }
 
     const hasCheckout = Boolean(endDate) && new Date(endDate) > start;
     if (endDate && !hasCheckout) {
-      toast.error("Check-out date must be after check-in date.");
+      toast.error(`${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
       return;
     }
 
@@ -337,7 +571,7 @@ export default function RoomDetailsModal({
       .map((occupant) => ({
         full_name: String(occupant.full_name || "").trim(),
         date_of_birth: String(occupant.date_of_birth || "").trim(),
-        gender: String(occupant.gender || "").trim().toLowerCase(),
+        gender: normalizeProxyOccupantGender(occupant.gender),
         relationship_to_booker: String(
           occupant.relationship_to_booker || "",
         ).trim(),
@@ -361,6 +595,9 @@ export default function RoomDetailsModal({
         return;
       }
 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       for (let i = 0; i < normalizedOccupants.length; i += 1) {
         const occupant = normalizedOccupants[i];
         if (
@@ -374,24 +611,63 @@ export default function RoomDetailsModal({
           );
           return;
         }
+
+        const parsedDob = parseIsoDateOnly(occupant.date_of_birth);
+        if (!parsedDob) {
+          toast.error(`Occupant ${i + 1}: please select a valid date of birth.`);
+          return;
+        }
+
+        if (parsedDob >= today) {
+          toast.error(`Occupant ${i + 1}: date of birth must be before today.`);
+          return;
+        }
+
+        const age = getAgeInYears(parsedDob, today);
+        if (age < PROXY_MINIMUM_AGE) {
+          toast.error(`Occupant ${i + 1} must be at least ${PROXY_MINIMUM_AGE} years old.`);
+          return;
+        }
+
+        if (requiredProxyGender && occupant.gender !== requiredProxyGender) {
+          toast.error(
+            `Occupant ${i + 1} must be ${requiredProxyGender}. This room is ${requiredProxyGender === "male" ? "for boys" : "for girls"} only.`,
+          );
+          return;
+        }
       }
     }
 
     // Check if selector should be shown
     const isMonthlyBilling = !isDailyContract;
     const showSelector = isMonthlyBilling && hasCheckout && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+    const promoEligible = Boolean(promoOffer);
+
+    let resolvedPaymentPlan = paymentPlan;
+    if (promoEligible && !['monthly', 'promo_one_time'].includes(resolvedPaymentPlan)) {
+      resolvedPaymentPlan = 'monthly';
+    }
+    if (!promoEligible && !['monthly', 'full'].includes(resolvedPaymentPlan)) {
+      resolvedPaymentPlan = 'full';
+    }
 
     const finalPaymentPlan = isDailyContract
       ? 'full'
-      : (hasCheckout ? (showSelector ? paymentPlan : 'full') : 'monthly');
+      : (hasCheckout ? (showSelector ? resolvedPaymentPlan : 'full') : 'monthly');
 
     // Submit booking to server (use shared /bookings endpoint)
     setIsSubmitting(true);
     try {
+      let finalBedCount = bedCount;
+      if (bookingMode === "proxy") {
+        // Force bed_count to match the number of occupants if it's higher
+        finalBedCount = Math.max(bedCount, normalizedOccupants.length);
+      }
+
       const payload = {
         room_id: room.id,
         booking_mode: bookingMode,
-        bed_count: bedCount,
+        bed_count: finalBedCount,
         start_date: startDate,
         end_date: hasCheckout ? endDate : null,
         notes: notes || "",
@@ -513,15 +789,39 @@ export default function RoomDetailsModal({
 
   const genderMeta = getGenderRestrictionMeta(room.gender_restriction);
   const propertyType = String(property?.property_type || "").toLowerCase().trim();
-  const roomGender = String(room?.gender_restriction || "mixed").toLowerCase().trim();
+  const normalizedPropertyType = normalizePropertyTypeToken(property?.property_type);
   const showGenderBadge = !(propertyType === "apartment" && roomGender === "mixed");
   const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
-  
-  // Use the API-provided flags if available, otherwise fallback to local logic
-  const isGenderCompatible = room.is_gender_compatible !== undefined ? room.is_gender_compatible : true;
+
+  const isTargetGenderRestrictedType = ["dormitory", "boardinghouse", "bedspacer"].includes(normalizedPropertyType);
+  const tenantGender = normalizeTenantGender(resolveStoredTenantGender());
+  const fallbackGenderCompatible = (() => {
+    if (!isAuthenticated) return true;
+    if (normalizedPropertyType === "apartment" || !isTargetGenderRestrictedType) return true;
+    if (roomGender === "mixed") return true;
+    if (!tenantGender) return false;
+    return roomGender === tenantGender;
+  })();
+
+  // Use backend compatibility when provided; otherwise derive it from local tenant profile.
+  const isGenderCompatible = room.is_gender_compatible !== undefined
+    ? Boolean(room.is_gender_compatible)
+    : fallbackGenderCompatible;
   const isRoomAvailable = room.is_available !== undefined ? room.is_available : (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
-  
+
   const canBook = displayStatus === "available" && isRoomAvailable && isGenderCompatible;
+  const baseTotalPrice = Number(totalPrice || 0);
+  const promoDiscountedTotal = Number(promoOffer?.discounted_total ?? baseTotalPrice);
+  const hasPromoOffer = Boolean(
+    promoOffer && Number.isFinite(promoDiscountedTotal) && promoDiscountedTotal < baseTotalPrice,
+  );
+  const promoDiscountAmount = hasPromoOffer
+    ? Math.max(0, baseTotalPrice - promoDiscountedTotal)
+    : 0;
+  const selectedPlanTotal =
+    paymentPlan === "promo_one_time" && hasPromoOffer
+      ? promoDiscountedTotal
+      : baseTotalPrice;
 
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -823,6 +1123,17 @@ export default function RoomDetailsModal({
                 </div>
               ) : (
                 <div className="max-w-xl mx-auto space-y-6">
+                  {isAuthenticated && !isGenderCompatible && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-xl">
+                      <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                        This room is restricted to {genderMeta.label.toLowerCase()}.
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                        Choose a compatible room or update your profile gender before booking this room type.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                     <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
                       Booking Type
@@ -885,22 +1196,28 @@ export default function RoomDetailsModal({
 
                   {/* Date Selection */}
                   <div className="space-y-4">
-                    {isBedSpacerRoom && (
+                    {showBedCountSelector && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Number of Beds
+                          Number of Beds <span className="text-red-500">*</span>
                         </label>
-                        <select
-                          value={bedCount}
-                          onChange={(e) => setBedCount(parseInt(e.target.value))}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                          {[...Array(Math.max(1, room.available_slots || 1))].map((_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                              {i + 1} {i === 0 ? 'Bed' : 'Beds'}
-                            </option>
-                          ))}
-                        </select>
+                        {maxBookableBeds > 1 ? (
+                          <select
+                            value={bedCount}
+                            onChange={(e) => setBedCount(parseInt(e.target.value, 10))}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            {[...Array(maxBookableBeds)].map((_, i) => (
+                              <option key={i + 1} value={i + 1}>
+                                {i + 1} {i === 0 ? 'Bed' : 'Beds'}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/70 text-gray-700 dark:text-gray-200">
+                            1 Bed
+                          </div>
+                        )}
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
                           Occupied: {resolvedOccupiedCount} / {resolvedCapacity}
                         </p>
@@ -934,7 +1251,7 @@ export default function RoomDetailsModal({
                         </div>
                       )}
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {isDailyContract ? 'Check-in Date' : 'Move-in Date'}
+                        {isDailyContract ? 'Check-in Date' : 'Move-in Date'} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
@@ -950,11 +1267,30 @@ export default function RoomDetailsModal({
                           ? 'Bookings can be made up to 3 months in advance'
                           : 'Move-ins can be scheduled up to 3 months in advance'}
                       </p>
+                      {isReservationFeeConfigured && (
+                        <p
+                          className={`text-xs mt-1 ${
+                            isReservationFeeRequired
+                              ? "text-amber-700 dark:text-amber-400"
+                              : "text-green-700 dark:text-green-400"
+                          }`}
+                        >
+                          {isReservationFeeRequired
+                            ? `Reservation fee is required because move-in is ${daysUntilMoveIn} days after booking date.`
+                            : 'No reservation fee for move-in within 3 days from booking date.'}
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {isDailyContract ? 'Check-out Date' : 'Planned Move-out Date (Optional)'}
+                        {isDailyContract ? (
+                          <>
+                            Check-out Date <span className="text-red-500">*</span>
+                          </>
+                        ) : (
+                          'Planned Move-out Date (Optional)'
+                        )}
                       </label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
@@ -992,6 +1328,9 @@ export default function RoomDetailsModal({
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         Provide details of the people who will actually stay in this room.
                       </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Fields marked with <span className="text-red-500">*</span> are required.
+                      </p>
 
                       {proxyOccupants.map((occupant, index) => (
                         <div
@@ -1014,67 +1353,120 @@ export default function RoomDetailsModal({
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <input
-                              type="text"
-                              value={occupant.full_name}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "full_name", e.target.value)
-                              }
-                              placeholder="Full name*"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <input
-                              type="date"
-                              value={occupant.date_of_birth}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "date_of_birth", e.target.value)
-                              }
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <select
-                              value={occupant.gender}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "gender", e.target.value)
-                              }
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            >
-                              <option value="">Gender*</option>
-                              <option value="male">Male</option>
-                              <option value="female">Female</option>
-                              <option value="other">Other</option>
-                              <option value="prefer_not_to_say">Prefer not to say</option>
-                            </select>
-                            <input
-                              type="text"
-                              value={occupant.relationship_to_booker}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(
-                                  index,
-                                  "relationship_to_booker",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Relationship to booker*"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <input
-                              type="text"
-                              value={occupant.phone}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "phone", e.target.value)
-                              }
-                              placeholder="Phone (optional)"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <input
-                              type="email"
-                              value={occupant.email}
-                              onChange={(e) =>
-                                handleProxyOccupantChange(index, "email", e.target.value)
-                              }
-                              placeholder="Email (optional)"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Full Name <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={occupant.full_name}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "full_name", e.target.value)
+                                }
+                                placeholder="Full name"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Date of Birth <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="date"
+                                value={occupant.date_of_birth}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "date_of_birth", e.target.value)
+                                }
+                                onKeyDown={(e) => e.preventDefault()}
+                                onClick={(e) => e.currentTarget.showPicker?.()}
+                                onFocus={(e) => e.currentTarget.showPicker?.()}
+                                max={latestAllowedAdultDob}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Gender <span className="text-red-500">*</span>
+                              </label>
+                              <select
+                                value={occupant.gender}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "gender", e.target.value)
+                                }
+                                disabled={Boolean(requiredProxyGender)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              >
+                                {requiredProxyGender ? (
+                                  <option value={requiredProxyGender}>
+                                    {requiredProxyGender === "male" ? "Male" : "Female"}
+                                  </option>
+                                ) : (
+                                  <>
+                                    <option value="">Select gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                    <option value="prefer_not_to_say">Prefer not to say</option>
+                                  </>
+                                )}
+                              </select>
+                              {requiredProxyGender ? (
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                  This room is restricted to {requiredProxyGender === "male" ? "boys" : "girls"} only.
+                                </p>
+                              ) : null}
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Relationship to Booker <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={occupant.relationship_to_booker}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(
+                                    index,
+                                    "relationship_to_booker",
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="Relationship to booker"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Phone (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={occupant.phone}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "phone", e.target.value)
+                                }
+                                placeholder="Phone"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Email (Optional)
+                              </label>
+                              <input
+                                type="email"
+                                value={occupant.email}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "email", e.target.value)
+                                }
+                                placeholder="Email"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1098,19 +1490,31 @@ export default function RoomDetailsModal({
                           {loadingPricing ? (
                             <span className="animate-pulse opacity-50">Calculating...</span>
                           ) : (
-                            `₱${totalPrice.toLocaleString()}`
+                            `₱${selectedPlanTotal.toLocaleString()}`
                           )}
                         </span>
                       </div>
+                      {!loadingPricing && hasPromoOffer && paymentPlan === "promo_one_time" && (
+                        <p className="text-xs text-green-700 dark:text-green-400 text-right">
+                          Promo applied. You save ₱{promoDiscountAmount.toLocaleString()} on this stay.
+                        </p>
+                      )}
                       {/* Reservation Fee UI Details */}
-                      {(property?.require_reservation_fee || Number(property?.require_reservation_fee) === 1) && (
+                      {isReservationFeeRequired && (
                         <div className="mt-4 p-4 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
                           <div className="flex justify-between text-amber-800 dark:text-amber-300 font-semibold mb-2">
                             <span>Instant Reservation Fee:</span>
-                            <span>₱{(property?.reservation_fee_amount || 0).toLocaleString()}</span>
+                            <span>₱{reservationFeeAmount.toLocaleString()}</span>
                           </div>
                           <p className="text-xs text-amber-700 dark:text-amber-400">
                             A non-refundable reservation fee is required to secure this booking. You will be redirected to PayMongo to pay this amount immediately.
+                          </p>
+                        </div>
+                      )}
+                      {isReservationFeeConfigured && !isReservationFeeRequired && (
+                        <div className="mt-4 p-4 bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-800 rounded-lg">
+                          <p className="text-xs text-green-700 dark:text-green-400">
+                            No reservation fee is required because move-in is within 3 days from booking date.
                           </p>
                         </div>
                       )}
@@ -1122,6 +1526,8 @@ export default function RoomDetailsModal({
                     const isMonthlyBilling = !isDailyContract;
                     const hasCheckoutDate = Boolean(endDate) && new Date(endDate) > new Date(startDate);
                     const showPaymentPlanSelector = isMonthlyBilling && hasCheckoutDate && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+                    const promoLabel = promoOffer?.term_label || (promoOffer?.term_months ? `${promoOffer.term_months} months` : "long-term term");
+                    const promoPercent = Number(promoOffer?.discount_percent || 0);
 
                     if (isMonthlyBilling && !hasCheckoutDate) {
                       return (
@@ -1155,23 +1561,46 @@ export default function RoomDetailsModal({
                               <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Pay rent at the beginning of each billing cycle.</span>
                             </div>
                           </label>
-                          
-                          <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'full' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
-                            <div className="pt-0.5">
-                              <input 
-                                type="radio" 
-                                name="payment_plan" 
-                                value="full" 
-                                checked={paymentPlan === 'full'} 
-                                onChange={() => setPaymentPlan('full')} 
-                                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
-                              />
-                            </div>
-                            <div>
-                              <span className="block font-bold text-gray-900 dark:text-gray-100">Full Duration Upfront</span>
-                              <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Pay the entire lease amount at once.</span>
-                            </div>
-                          </label>
+
+                          {hasPromoOffer ? (
+                            <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'promo_one_time' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
+                              <div className="pt-0.5">
+                                <input
+                                  type="radio"
+                                  name="payment_plan"
+                                  value="promo_one_time"
+                                  checked={paymentPlan === 'promo_one_time'}
+                                  onChange={() => setPaymentPlan('promo_one_time')}
+                                  className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+                                />
+                              </div>
+                              <div>
+                                <span className="block font-bold text-gray-900 dark:text-gray-100">
+                                  Pay One-Time Promo ({promoPercent}% off)
+                                </span>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                                  Exact {promoLabel} term only. Pay ₱{promoDiscountedTotal.toLocaleString()} upfront and save ₱{promoDiscountAmount.toLocaleString()}.
+                                </span>
+                              </div>
+                            </label>
+                          ) : (
+                            <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'full' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
+                              <div className="pt-0.5">
+                                <input
+                                  type="radio"
+                                  name="payment_plan"
+                                  value="full"
+                                  checked={paymentPlan === 'full'}
+                                  onChange={() => setPaymentPlan('full')}
+                                  className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+                                />
+                              </div>
+                              <div>
+                                <span className="block font-bold text-gray-900 dark:text-gray-100">Full Duration Upfront</span>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Pay the entire lease amount at once.</span>
+                              </div>
+                            </label>
+                          )}
                         </div>
                       </div>
                     );
@@ -1241,8 +1670,8 @@ export default function RoomDetailsModal({
                       >
                         {isSubmitting
                           ? "Processing..."
-                          : ((property?.require_reservation_fee || Number(property?.require_reservation_fee) === 1)
-                              ? `Pay ₱${(property?.reservation_fee_amount || 0).toLocaleString()} to Reserve`
+                          : (isReservationFeeRequired
+                              ? `Pay ₱${reservationFeeAmount.toLocaleString()} to Reserve`
                               : "Confirm Booking Request")}
                       </button>
                     ) : (

@@ -24,6 +24,13 @@ const INITIAL_STATE = {
   messages: {
     searchQuery: "",
   },
+  alert: {
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [],
+    options: {}
+  },
   // Data buckets for instant UI mounting
   data: {
     dashboard: null,
@@ -47,6 +54,10 @@ const INITIAL_STATE = {
 const mergeUIState = (persistedUIState = {}) => ({
   ...INITIAL_STATE,
   ...persistedUIState,
+  // Alerts are transient UI and should never be restored from persisted state.
+  alert: {
+    ...INITIAL_STATE.alert,
+  },
   data: {
     ...INITIAL_STATE.data,
     ...(persistedUIState.data || {}),
@@ -123,11 +134,43 @@ export const useUIStateStore = create(
             },
           };
         }),
+
+      showAlert: (title, message, buttons = [], options = {}) =>
+        set((state) => ({
+          uiState: {
+            ...state.uiState,
+            alert: {
+              visible: true,
+              title,
+              message,
+              buttons,
+              options
+            }
+          }
+        })),
+
+      hideAlert: () =>
+        set((state) => ({
+          uiState: {
+            ...state.uiState,
+            alert: {
+              ...state.uiState.alert,
+              visible: false
+            }
+          }
+        })),
     }),
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ uiState: state.uiState }),
+      partialize: (state) => ({
+        uiState: {
+          ...state.uiState,
+          alert: {
+            ...INITIAL_STATE.alert,
+          },
+        },
+      }),
       merge: (persistedState, currentState) => {
         const persistedUIState =
           persistedState && typeof persistedState === 'object'
@@ -157,6 +200,8 @@ export const UIStateProvider = ({ children }) => {
   const updateData = useUIStateStore((state) => state.updateData);
   const invalidateData = useUIStateStore((state) => state.invalidateData);
   const resetScreenState = useUIStateStore((state) => state.resetScreenState);
+  const showAlert = useUIStateStore((state) => state.showAlert);
+  const hideAlert = useUIStateStore((state) => state.hideAlert);
 
   const value = useMemo(
     () => ({
@@ -166,8 +211,10 @@ export const UIStateProvider = ({ children }) => {
       updateData,
       invalidateData,
       resetScreenState,
+      showAlert,
+      hideAlert,
     }),
-    [uiState, hasHydrated, updateScreenState, updateData, invalidateData, resetScreenState],
+    [uiState, hasHydrated, updateScreenState, updateData, invalidateData, resetScreenState, showAlert, hideAlert],
   );
 
   return (

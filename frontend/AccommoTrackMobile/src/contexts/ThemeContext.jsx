@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Appearance } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -13,7 +12,7 @@ export const lightTheme = {
   isDark: false,
   colors: {
     // Brand/Primary colors (Emerald palette - matching web guest brand colors)
-    primary: '#047857', // emerald-700 (Increased for contrast)
+    primary: '#16a34a', // brand-600 (web parity)
     primaryDark: '#047857', // emerald-700
     primaryLight: '#d1fae5', // emerald-100
     brand50: '#ecfdf5', // emerald-50
@@ -22,7 +21,7 @@ export const lightTheme = {
     brand300: '#6ee7b7', // emerald-300
     brand400: '#34d399', // emerald-400
     brand500: '#10b981', // emerald-500
-    brand600: '#059669', // emerald-600
+    brand600: '#16a34a', // emerald-600
     brand700: '#047857', // emerald-700
     brand800: '#065f46', // emerald-800
     brand900: '#064e3b', // emerald-900
@@ -35,6 +34,7 @@ export const lightTheme = {
     // Surface colors
     surface: '#ffffff', // white
     surfaceHover: '#f9fafb', // gray-50
+    card: '#ffffff', // Added for card backgrounds
     
     // Text colors (matching CSS variables)
     text: '#111827', // --text-primary / gray-900
@@ -47,7 +47,7 @@ export const lightTheme = {
     borderLight: '#f3f4f6', // --border-light / gray-100
     
     // Status colors (matching web app usage)
-    success: '#047857', // emerald-700 (Increased for contrast)
+    success: '#16a34a', // brand-600 (web parity)
     successLight: '#d1fae5', // emerald-100
     successDark: '#047857', // emerald-700
     error: '#ef4444', // red-500
@@ -78,7 +78,7 @@ export const darkTheme = {
   isDark: true,
   colors: {
     // Brand/Primary colors (Emerald palette - matching web guest brand colors)
-    primary: '#34d399', // emerald-400 (Lighter for dark mode contrast)
+    primary: '#16a34a', // brand-600 (web parity)
     primaryDark: '#047857', // emerald-700
     primaryLight: '#064e3b', // emerald-900
     brand50: '#ecfdf5', // emerald-50
@@ -87,7 +87,7 @@ export const darkTheme = {
     brand300: '#6ee7b7', // emerald-300
     brand400: '#34d399', // emerald-400
     brand500: '#10b981', // emerald-500
-    brand600: '#059669', // emerald-600
+    brand600: '#16a34a', // emerald-600
     brand700: '#047857', // emerald-700
     brand800: '#065f46', // emerald-800
     brand900: '#064e3b', // emerald-900
@@ -100,6 +100,7 @@ export const darkTheme = {
     // Surface colors
     surface: '#1f2937', // gray-800
     surfaceHover: '#374151', // gray-700
+    card: '#1f2937', // Added for card backgrounds
     
     // Text colors (matching CSS variables)
     text: '#f9fafb', // --text-primary / gray-50
@@ -112,7 +113,7 @@ export const darkTheme = {
     borderLight: '#4b5563', // --border-light / gray-600
     
     // Status colors (matching web app usage)
-    success: '#34d399', // emerald-400 (Lighter for dark mode contrast)
+    success: '#16a34a', // brand-600 (web parity)
     successLight: '#064e3b', // emerald-900 (dark mode)
     successDark: '#047857', // emerald-700
     error: '#ef4444', // red-500
@@ -142,22 +143,31 @@ export const darkTheme = {
 const THEME_STORAGE_KEY = 'theme_store';
 const LEGACY_THEME_STORAGE_KEY = 'theme';
 
-const getSystemDarkPreference = () => Appearance.getColorScheme() === 'dark';
-
 export const useThemeStore = create(
   persist(
     (set) => ({
-      isDarkMode: getSystemDarkPreference(),
+      // Default to light theme for first launch/guest mode unless user explicitly toggles.
+      isDarkMode: false,
+      hasExplicitPreference: false,
       hasHydrated: false,
 
       setHydrated: (value) => set({ hasHydrated: Boolean(value) }),
-      toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
-      setTheme: (themeMode) => set({ isDarkMode: themeMode === 'dark' }),
+      toggleTheme: () => set((state) => ({
+        isDarkMode: !state.isDarkMode,
+        hasExplicitPreference: true,
+      })),
+      setTheme: (themeMode, markExplicit = true) => set({
+        isDarkMode: themeMode === 'dark',
+        hasExplicitPreference: Boolean(markExplicit),
+      }),
     }),
     {
       name: THEME_STORAGE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ isDarkMode: state.isDarkMode }),
+      partialize: (state) => ({
+        isDarkMode: state.isDarkMode,
+        hasExplicitPreference: state.hasExplicitPreference,
+      }),
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.error('Error loading theme preference:', error);
@@ -171,6 +181,7 @@ export const useThemeStore = create(
 
 export const ThemeProvider = ({ children }) => {
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  const hasExplicitPreference = useThemeStore((state) => state.hasExplicitPreference);
   const hasHydrated = useThemeStore((state) => state.hasHydrated);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -200,6 +211,25 @@ export const ThemeProvider = ({ children }) => {
 
     migrateLegacyThemePreference();
   }, [hasHydrated, setTheme]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    const enforceGuestDefaultTheme = async () => {
+      try {
+        const userJson = await AsyncStorage.getItem('user');
+        const isGuestSession = !userJson;
+
+        if (isGuestSession && !hasExplicitPreference && isDarkMode) {
+          setTheme('light', false);
+        }
+      } catch (error) {
+        console.error('Error enforcing guest default theme:', error);
+      }
+    };
+
+    enforceGuestDefaultTheme();
+  }, [hasHydrated, hasExplicitPreference, isDarkMode, setTheme]);
 
   const theme = isDarkMode ? darkTheme : lightTheme;
 

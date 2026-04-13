@@ -11,7 +11,13 @@ export const landlordQueryKeys = {
   bookingStats: () => ['landlordBookingStats'],
   extensionRequests: () => ['landlordExtensionRequests'],
   maintenanceRequestsRoot: () => ['landlordMaintenanceRequests'],
-  maintenanceRequests: (statusFilter = 'all') => ['landlordMaintenanceRequests', statusFilter],
+  maintenanceRequests: (options = 'all') => {
+    if (typeof options === 'object' && options !== null) {
+      const { statusFilter = 'all', propertyScope = 'all' } = options;
+      return ['landlordMaintenanceRequests', statusFilter, propertyScope];
+    }
+    return ['landlordMaintenanceRequests', options, 'all'];
+  },
   dashboardBundle: () => ['landlordDashboardBundle'],
   unreadNotificationCount: () => ['landlordUnreadNotificationCount'],
   pendingTransferCount: () => ['landlordPendingTransferCount'],
@@ -22,8 +28,14 @@ export const landlordQueryKeys = {
   propertySummaryActivity: (propertyId) => ['landlordPropertySummaryActivity', propertyId],
   tenantDetails: (tenantId) => ['landlordTenantDetails', tenantId],
   tenantInvoices: (tenantId) => ['landlordTenantInvoices', tenantId],
-  transferRequests: () => ['landlordTransferRequests'],
-  reviews: () => ['landlordReviews'],
+  transferRequests: (options = {}) => {
+    if (typeof options === 'object' && options !== null) {
+      const { propertyScope = 'all' } = options;
+      return ['landlordTransferRequests', propertyScope];
+    }
+    return ['landlordTransferRequests', options || 'all'];
+  },
+  reviews: (propertyScope = 'all') => ['landlordReviews', propertyScope],
   notifications: () => ['landlordNotifications'],
   messagesConversations: () => ['landlordMessagesConversations'],
   messagesConversation: (conversationId) => ['landlordMessagesConversation', conversationId],
@@ -36,9 +48,31 @@ export const landlordQueryKeys = {
   caretakersBundle: () => ['landlordCaretakersBundle'],
   invoices: () => ['landlordInvoices'],
   invoiceSummary: (range = 'month') => ['landlordInvoiceSummary', range],
-  propertyAddons: (propertyId) => ['landlordPropertyAddons', propertyId],
-  addonPendingRequests: (propertyId) => ['landlordAddonPendingRequests', propertyId],
-  addonActiveAddons: (propertyId) => ['landlordAddonActiveAddons', propertyId],
+  subscriptionPlans: () => ['landlordSubscriptionPlans'],
+  currentSubscription: () => ['landlordCurrentSubscription'],
+  subscriptionBundle: () => ['landlordSubscriptionBundle'],
+  billingCenterBundle: () => ['landlordBillingCenterBundle'],
+  propertyAddons: (options = 'all') => {
+    if (typeof options === 'object' && options !== null) {
+      const { propertyScope = 'all', propertyIdsKey = 'none' } = options;
+      return ['landlordPropertyAddons', propertyScope, propertyIdsKey];
+    }
+    return ['landlordPropertyAddons', options, 'none'];
+  },
+  addonPendingRequests: (options = 'all') => {
+    if (typeof options === 'object' && options !== null) {
+      const { propertyScope = 'all', propertyIdsKey = 'none' } = options;
+      return ['landlordAddonPendingRequests', propertyScope, propertyIdsKey];
+    }
+    return ['landlordAddonPendingRequests', options, 'none'];
+  },
+  addonActiveAddons: (options = 'all') => {
+    if (typeof options === 'object' && options !== null) {
+      const { propertyScope = 'all', propertyIdsKey = 'none' } = options;
+      return ['landlordAddonActiveAddons', propertyScope, propertyIdsKey];
+    }
+    return ['landlordAddonActiveAddons', options, 'none'];
+  },
   analyticsProperties: () => ['landlordAnalyticsProperties'],
   analyticsDashboard: ({ propertyId = 'all', timeRange = 'month' } = {}) => [
     'landlordAnalyticsDashboard',

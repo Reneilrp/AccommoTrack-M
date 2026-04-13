@@ -1,9 +1,11 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
-const actionCardSize = 80;
+export const getStyles = (theme, viewportWidth = 390, viewportHeight = 844) => {
+  const screenWidth = Math.max(320, viewportWidth || 390);
+  const screenHeight = Math.max(480, viewportHeight || 844);
+  const actionCardSize = Math.min(84, Math.max(72, (screenWidth - 56) / 3));
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background
@@ -107,13 +109,13 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 16
   },
-  statsGrid: {
+  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
+    gap: 10,
+    paddingRight: 6
   },
   statCard: {
-    width: '48%',
+    width: Math.min(230, Math.max(185, screenWidth * 0.62)),
     backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
@@ -126,6 +128,7 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 2,
+    marginRight: 2,
   },
   statCardLeft: {
     alignItems: 'center',
@@ -230,30 +233,40 @@ export const getStyles = (theme) => StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    gap: 6,
+    justifyContent: 'center',
+    rowGap: 10,
+    columnGap: 8,
     marginTop: 8
   },
   actionCard: {
     width: actionCardSize,
-    height: actionCardSize,
-    backgroundColor: theme.colors.surface,
-    borderRadius: actionCardSize / 2,
+    minHeight: 84,
+    backgroundColor: 'transparent',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: theme.isDark ? 0.4 : 0.15,
-    shadowRadius: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     position: 'relative',
+  },
+  actionCardRestricted: {
+    opacity: 0.6,
+  },
+  actionRestrictedBadge: {
+    position: 'absolute',
+    top: 2,
+    left: 8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#B45309',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionBadge: {
     position: 'absolute',
-    top: 4,
-    right: 2,
+    top: 2,
+    right: 8,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -268,15 +281,15 @@ export const getStyles = (theme) => StyleSheet.create({
     color: '#FFFFFF',
   },
   actionIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 40,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   actionTitle: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '600',
     color: theme.colors.text,
     textAlign: 'center',
@@ -285,6 +298,246 @@ export const getStyles = (theme) => StyleSheet.create({
   quickActionsSection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
+    marginTop: 4,
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  quickActionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quickActionsMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  quickActionsMoreText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  quickActionsModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  quickActionsModalCard: {
+    width: Math.min(screenWidth - 24, 440),
+    maxHeight: Math.min(screenHeight * 0.7 + 10, screenHeight - 32),
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  quickActionsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    paddingBottom: 10,
+    marginBottom: 12,
+  },
+  quickActionsModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  quickActionsModalClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  quickActionsModalBody: {
+    paddingHorizontal: 2,
+    paddingBottom: 6,
+  },
+  quickActionsCategorySection: {
+    marginBottom: 14,
+  },
+  quickActionsCategoryCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    backgroundColor: theme.colors.backgroundSecondary,
+    overflow: 'hidden',
+  },
+  quickActionsCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  quickActionsCategoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  quickActionsCategoryTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
+    marginBottom: 0,
+    paddingHorizontal: 0,
+  },
+  quickActionsCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
+  quickActionsCategoryAction: {
+    backgroundColor: 'transparent',
+    marginRight: 8,
+  },
+  quickActionsCategoryActionLast: {
+    marginRight: 0,
+  },
+  logoutModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  logoutModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    alignItems: 'center',
+  },
+  logoutModalIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  logoutModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  logoutModalMessage: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  logoutModalActions: {
+    marginTop: 18,
+    width: '100%',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  logoutModalCancelButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutModalCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  logoutModalConfirmButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutModalConfirmText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  permissionModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  permissionModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    alignItems: 'center',
+  },
+  permissionModalIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  permissionModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  permissionModalMessage: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  permissionModalButton: {
+    marginTop: 18,
+    minWidth: 120,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  permissionModalButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   actionArrow: {
     marginTop: 2
@@ -538,6 +791,7 @@ export const getStyles = (theme) => StyleSheet.create({
       color: theme.colors.textSecondary,
       lineHeight: 16,
     }
-  });
+    });
+  };
 
 export default getStyles;

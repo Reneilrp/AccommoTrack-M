@@ -89,6 +89,50 @@ class RefundServiceLogicTest extends TestCase
         $this->assertSame(50000, $result['final_credit_cents']);
     }
 
+    public function test_calculate_prorated_credit_uses_actual_days_in_cycle_for_month_precision(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-16'));
+        config()->set('refunds.fixed_penalty_cents', 0);
+
+        [$landlord, $tenant, $booking] = $this->buildScenario('2026-03-01', '2026-06-01');
+
+        $rentInvoice = Invoice::create([
+            'reference' => 'INV-MARCH-'.uniqid(),
+            'landlord_id' => $landlord->id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $tenant->id,
+            'description' => 'March rent invoice',
+            'invoice_type' => 'rent',
+            'amount_cents' => 100000,
+            'currency' => 'PHP',
+            'status' => 'pending',
+            'issued_at' => now(),
+            'due_date' => '2026-03-05',
+        ]);
+
+        PaymentTransaction::create([
+            'invoice_id' => $rentInvoice->id,
+            'tenant_id' => $tenant->id,
+            'amount_cents' => 100000,
+            'currency' => 'PHP',
+            'status' => 'paid',
+            'method' => 'cash',
+            'refunded_amount_cents' => 0,
+        ]);
+
+        $service = app(RefundService::class);
+        $result = $service->calculateProratedCredit($booking);
+
+        // March has 31 days; remaining from Mar 16 to Apr 1 is 16 days.
+        // Unused value uses full monthly rent, while final credit is capped by actual paid amount.
+        $this->assertSame(31, $result['days_in_cycle']);
+        $this->assertSame(16, $result['remaining_days']);
+        $this->assertSame(516129, $result['unused_value_cents']);
+        $this->assertSame(100000, $result['refundable_amount_cents']);
+        $this->assertSame(100000, $result['final_credit_cents']);
+    }
+
     public function test_apply_credit_to_invoice_reduces_amount_and_stores_metadata(): void
     {
         [$landlord, $tenant, $booking] = $this->buildScenario(now()->toDateString(), now()->addMonth()->toDateString());

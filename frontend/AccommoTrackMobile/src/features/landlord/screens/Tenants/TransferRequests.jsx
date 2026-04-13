@@ -25,13 +25,17 @@ import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/TransferRequests.js';
 
 const EMPTY_TRANSFER_REQUESTS = [];
+const EMPTY_PROPERTIES = [];
 
-export default function TransferRequests({ navigation }) {
+export default function TransferRequests({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
 
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
+  const routePropertyId = route?.params?.propertyId || route?.params?.property?.id;
+  const [selectedPropertyId, setSelectedPropertyId] = useState(routePropertyId ? String(routePropertyId) : 'all');
   const [actionError, setActionError] = useState('');
   
   const [handlingAction, setHandlingAction] = useState('');
@@ -40,10 +44,53 @@ export default function TransferRequests({ navigation }) {
   const [activeApprovalRequest, setActiveApprovalRequest] = useState(null);
   const [transferForms, setTransferForms] = useState({});
 
-  const transferRequestsQuery = useQuery({
-    queryKey: landlordQueryKeys.transferRequests(),
+  const propertiesQuery = useQuery({
+    queryKey: landlordQueryKeys.properties(),
     queryFn: async () => {
-      const response = await PropertyService.getTransferRequests();
+      const response = await PropertyService.getMyProperties();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load properties');
+      }
+
+      return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const properties = propertiesQuery.data || EMPTY_PROPERTIES;
+  const singlePropertyId = properties.length === 1 ? String(properties[0].id) : null;
+  const effectivePropertyScope = singlePropertyId || selectedPropertyId;
+  const showPropertySelector = properties.length > 1;
+
+  React.useEffect(() => {
+    if (singlePropertyId && selectedPropertyId !== singlePropertyId) {
+      setSelectedPropertyId(singlePropertyId);
+    }
+  }, [singlePropertyId, selectedPropertyId]);
+
+  React.useEffect(() => {
+    const nextRoutePropertyId = route?.params?.propertyId || route?.params?.property?.id;
+    if (!nextRoutePropertyId || singlePropertyId) return;
+    setSelectedPropertyId(String(nextRoutePropertyId));
+  }, [route?.params?.propertyId, route?.params?.property?.id, singlePropertyId]);
+
+  React.useEffect(() => {
+    if (singlePropertyId || selectedPropertyId === 'all') return;
+    const hasMatch = properties.some((property) => String(property.id) === String(selectedPropertyId));
+    if (!hasMatch) {
+      setSelectedPropertyId('all');
+    }
+  }, [properties, selectedPropertyId, singlePropertyId]);
+
+  const transferRequestsQuery = useQuery({
+    queryKey: landlordQueryKeys.transferRequests({ propertyScope: effectivePropertyScope }),
+    queryFn: async () => {
+      const params = {};
+      if (effectivePropertyScope && effectivePropertyScope !== 'all') {
+        params.property_id = effectivePropertyScope;
+      }
+
+      const response = await PropertyService.getTransferRequests(params);
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch transfer requests');
       }
@@ -54,12 +101,13 @@ export default function TransferRequests({ navigation }) {
   });
 
   const requests = transferRequestsQuery.data || EMPTY_TRANSFER_REQUESTS;
-  const loading = transferRequestsQuery.isPending && requests.length === 0;
-  const fetchError = transferRequestsQuery.error?.message || '';
+  const loading = ((propertiesQuery.isPending && properties.length === 0) || transferRequestsQuery.isPending) && requests.length === 0;
+  const fetchError = transferRequestsQuery.error?.message || propertiesQuery.error?.message || '';
+  const refetchProperties = propertiesQuery.refetch;
   const refetchTransferRequests = transferRequestsQuery.refetch;
   const transferRefetchers = useMemo(
-    () => [refetchTransferRequests],
-    [refetchTransferRequests],
+    () => [refetchProperties, refetchTransferRequests],
+    [refetchProperties, refetchTransferRequests],
   );
 
   useLandlordFocusRefetch({ refetchers: transferRefetchers });
@@ -130,7 +178,7 @@ export default function TransferRequests({ navigation }) {
         });
       } else {
         updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
-        Alert.alert('Error', 'Failed to calculate rent proration details');
+        showAlert('Error', 'Failed to calculate rent proration details');
       }
     } catch (_err) {
       updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
@@ -143,12 +191,12 @@ export default function TransferRequests({ navigation }) {
     const landlordNotes = String(form.landlord_notes || '').trim();
 
     if (action === 'approve' && damageCharge > 0 && !String(form.damage_description || '').trim()) {
-      Alert.alert('Error', 'Damage description is required when damage charge is set.');
+      showAlert('Error', 'Damage description is required when damage charge is set.');
       return;
     }
 
     if (action === 'reject' && !landlordNotes) {
-      Alert.alert('Error', 'Please provide a reason before rejecting this request.');
+      showAlert('Error', 'Please provide a reason before rejecting this request.');
       return;
     }
 
@@ -165,7 +213,7 @@ export default function TransferRequests({ navigation }) {
     try {
       const res = await PropertyService.handleTransferRequest(transferId, payload);
       if (res.success) {
-        Alert.alert('Success', `Transfer request ${action}d successfully`);
+        showAlert('Success', `Transfer request ${action}d successfully`);
         setActionError('');
         await refetchLandlordQueries(transferRefetchers);
         if (action === 'approve') {
@@ -173,7 +221,7 @@ export default function TransferRequests({ navigation }) {
         }
       } else {
         setActionError(res.error || `Failed to ${action} transfer request`);
-        Alert.alert('Error', res.error || `Failed to ${action} transfer request`);
+        showAlert('Error', res.error || `Failed to ${action} transfer request`);
       }
     } catch (err) {
       console.error(`Failed to ${action} request`, err);
@@ -211,7 +259,7 @@ export default function TransferRequests({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color="#059669" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.emptyTitle}>Loading transfer requests...</Text>
         </View>
       </SafeAreaView>
@@ -220,14 +268,59 @@ export default function TransferRequests({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Transfer Requests</Text>
+        <View style={styles.headerSpacer} />
       </View>
+
+      {showPropertySelector ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            <TouchableOpacity
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: selectedPropertyId === 'all' ? theme.colors.primary : theme.colors.border,
+                backgroundColor: selectedPropertyId === 'all' ? theme.colors.primary : theme.colors.surface,
+              }}
+              onPress={() => setSelectedPropertyId('all')}
+            >
+              <Text style={{ color: selectedPropertyId === 'all' ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                All Properties
+              </Text>
+            </TouchableOpacity>
+            {properties.map((property) => {
+              const propertyKey = String(property.id);
+              const isActive = propertyKey === selectedPropertyId;
+              return (
+                <TouchableOpacity
+                  key={property.id}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: isActive ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: isActive ? theme.colors.primary : theme.colors.surface,
+                  }}
+                  onPress={() => setSelectedPropertyId(propertyKey)}
+                >
+                  <Text style={{ color: isActive ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                    {property.title || property.name || `Property ${property.id}`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
 
       <View style={{ padding: 16, paddingBottom: 0 }}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
@@ -247,7 +340,7 @@ export default function TransferRequests({ navigation }) {
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#059669']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#16a34a']} />}
       >
         {(fetchError || actionError) ? (
           <View
@@ -315,6 +408,10 @@ export default function TransferRequests({ navigation }) {
 
                 <View style={styles.detailsSection}>
                   <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Property</Text>
+                    <Text style={styles.detailValue}>{req.requested_room?.property?.title || 'Property'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>From Room</Text>
                     <Text style={styles.detailValue}>{req.current_room?.room_number || 'N/A'}</Text>
                   </View>
@@ -369,6 +466,9 @@ export default function TransferRequests({ navigation }) {
         visible={approvalModalVisible}
         animationType="slide"
         transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={closeApprovalModal}
       >
         <View style={styles.modalOverlay}>

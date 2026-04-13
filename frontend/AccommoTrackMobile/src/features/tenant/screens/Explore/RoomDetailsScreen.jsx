@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Dimensions,
   Modal,
   TextInput,
   Alert,
@@ -14,28 +13,29 @@ import {
   Platform,
   RefreshControl,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { getStyles } from '../../../../styles/Tenant/RoomDetailsScreen.js';
-import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import BookingService from '../../../../services/BookingService.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
+import SystemToggleService from '../../../../services/SystemToggleService.js';
+import { showError } from '../../../../utils/toast.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import {
   tenantQueryKeys,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
-
-const { width } = Dimensions.get('window');
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {
@@ -55,10 +55,40 @@ const getRoomImageUrl = (imageUrl) => {
 };
 
 export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequired }) {
+  const PROXY_MINIMUM_AGE = 18;
   const navigation = useNavigation();
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
+  const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
   const { room, property } = route.params;
+
+  const toBooleanFlag = (value) => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+      if (['0', 'false', 'no', 'off', ''].includes(normalized)) return false;
+    }
+    return null;
+  };
+
+  const normalizeGenderValue = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return '';
+    if (['male', 'boy', 'boys'].includes(normalized)) return 'male';
+    if (['female', 'girl', 'girls'].includes(normalized)) return 'female';
+    if (['other', 'prefer_not_to_say'].includes(normalized)) return normalized;
+    return normalized;
+  };
+
+  const normalizeRoomRestriction = (value) => {
+    const normalized = normalizeGenderValue(value);
+    return ['male', 'female'].includes(normalized) ? normalized : 'mixed';
+  };
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,15 +97,62 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [roomData, setRoomData] = useState(room || null);
   const [receiptImage, setReceiptImage] = useState(null);
   const [bookingMode, setBookingMode] = useState('normal');
-  const createEmptyOccupant = () => ({
+  const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(
+    SystemToggleService.getDefaults().reservationFeeDisabled,
+  );
+  const createEmptyOccupant = (defaultGender = '') => ({
     full_name: '',
     date_of_birth: '',
-    gender: '',
+    gender: defaultGender,
     relationship_to_booker: '',
     phone: '',
     email: '',
   });
+
+  const parseIsoDateOnly = (rawDate) => {
+    const trimmed = String(rawDate || '').trim();
+    const datePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+    const matches = trimmed.match(datePattern);
+    if (!matches) return null;
+
+    const year = Number(matches[1]);
+    const month = Number(matches[2]);
+    const day = Number(matches[3]);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      Number.isNaN(parsed.getTime())
+      || parsed.getFullYear() !== year
+      || parsed.getMonth() !== month - 1
+      || parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const toIsoDateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getAgeInYears = (dateOfBirth, referenceDate = new Date()) => {
+    const dob = new Date(dateOfBirth);
+    const ref = new Date(referenceDate);
+    let age = ref.getFullYear() - dob.getFullYear();
+    const monthDiff = ref.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < dob.getDate())) {
+      age -= 1;
+    }
+    return age;
+  };
+
   const [proxyOccupants, setProxyOccupants] = useState([createEmptyOccupant()]);
+  const [activeProxyDobPickerIndex, setActiveProxyDobPickerIndex] = useState(null);
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param
   const activeRoom = roomData || room;
@@ -113,11 +190,34 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     placeholderData: (previousData) => previousData,
   });
 
-  const reservationFee = propertyData?.reservation_fee || activeRoom?.property?.reservation_fee || 0;
-  const isReservationRequired = Number(reservationFee) > 0;
+  const reservationFeeAmount = Number(
+    propertyData?.reservation_fee ?? activeRoom?.property?.reservation_fee ?? 0,
+  ) || 0;
+  const reservationFeeSetting =
+    propertyData?.require_reservation_fee ?? activeRoom?.property?.require_reservation_fee;
+  const normalizedReservationFeeSetting = toBooleanFlag(reservationFeeSetting);
+  const isReservationFeeEnabled = !reservationFeeTempDisabled && (
+    reservationFeeSetting === undefined || reservationFeeSetting === null
+      ? reservationFeeAmount > 0
+      : (normalizedReservationFeeSetting ?? reservationFeeAmount > 0)
+  );
+  const isReservationConfigured = isReservationFeeEnabled && reservationFeeAmount > 0;
+  const reservationFeeThresholdDays = 3;
   const gcashName = propertyData?.gcash_name || activeRoom?.property?.gcash_name || '';
   const gcashNumber = propertyData?.gcash_number || activeRoom?.property?.gcash_number || '';
   const gcashQrPath = propertyData?.gcash_qr_path || activeRoom?.property?.gcash_qr_path || '';
+
+  useEffect(() => {
+    let mounted = true;
+    SystemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setReservationFeeTempDisabled(Boolean(result.data.reservationFeeDisabled));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     // keep roomData in sync when navigation param changes
@@ -127,37 +227,33 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   // Hide parent tab bar and mark route to hide layout (TenantLayout)
   useEffect(() => {
-    let isMounted = true;
     try {
       navigation.setParams?.({ hideLayout: true });
-    } catch (e) {}
+    } catch (_e) {}
     const parent = navigation.getParent?.();
     try {
       parent?.setOptions?.({ tabBarStyle: { display: 'none' } });
-    } catch (e) {}
+    } catch (_e) {}
     return () => {
-      isMounted = false;
       try { 
         if (navigation.isFocused()) {
           navigation.setParams?.({ hideLayout: false }); 
         }
-      } catch (e) {}
-      try { parent?.setOptions?.({ tabBarStyle: undefined }); } catch (e) {}
+      } catch (_e) {}
+      try { parent?.setOptions?.({ tabBarStyle: undefined }); } catch (_e) {}
     };
   }, [navigation]);
 
   // Set a friendly title for TenantLayout to use
   useEffect(() => {
-    let isMounted = true;
     const title = (roomData && (roomData.title || roomData.name)) || (room && (room.title || room.name)) || (propertyData && (propertyData.title || propertyData.name));
-    try { navigation.setParams?.({ layoutTitle: title, hideLayout: true }); } catch (e) {}
+    try { navigation.setParams?.({ layoutTitle: title, hideLayout: true }); } catch (_e) {}
     return () => { 
-      isMounted = false;
       try { 
         if (navigation.isFocused()) {
           navigation.setParams?.({ layoutTitle: undefined, hideLayout: false }); 
         }
-      } catch (e) {} 
+      } catch (_e) {} 
     };
   }, [roomData, room, propertyData, property, navigation]);
 
@@ -170,6 +266,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   // Date picker states
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const latestAllowedAdultDob = React.useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setFullYear(cutoff.getFullYear() - PROXY_MINIMUM_AGE);
+    return cutoff;
+  }, []);
 
   const [bookingData, setBookingData] = useState({
     start_date: new Date(),
@@ -177,11 +279,28 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     contract_mode: 'monthly',
     notes: '',
     payment_method: 'cash',
-    payment_plan: 'full',
+    payment_plan: 'monthly',
   });
+
+  const daysUntilMoveIn = React.useMemo(() => {
+    if (!bookingData.start_date) return 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const moveInDate = new Date(bookingData.start_date);
+    moveInDate.setHours(0, 0, 0, 0);
+
+    return Math.max(0, Math.floor((moveInDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+  }, [bookingData.start_date]);
+
+  const isReservationRequired =
+    isReservationConfigured && daysUntilMoveIn > reservationFeeThresholdDays;
 
   const roomBillingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
   const roomPricingModel = String(activeRoom?.pricing_model || 'full_room').toLowerCase();
+  const roomGenderRestriction = normalizeRoomRestriction(activeRoom?.gender_restriction);
+  const requiredProxyGender = roomGenderRestriction !== 'mixed' ? roomGenderRestriction : '';
   const occupantLimit = Math.max(1, Number(activeRoom?.available_slots ?? activeRoom?.capacity ?? 1));
   const supportsContractModeSwitch = roomBillingPolicy === 'monthly_with_daily';
   const isDailyContract = roomBillingPolicy === 'daily' || (supportsContractModeSwitch && bookingData.contract_mode === 'daily');
@@ -190,10 +309,24 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (bookingMode !== 'proxy') return;
 
     setProxyOccupants((prev) => {
-      const next = prev.length > 0 ? prev : [createEmptyOccupant()];
-      return next.slice(0, occupantLimit);
+      const next = (prev.length > 0 ? prev : [createEmptyOccupant(requiredProxyGender)]).slice(0, occupantLimit);
+
+      if (!requiredProxyGender) {
+        return next;
+      }
+
+      return next.map((occupant) => ({
+        ...occupant,
+        gender: requiredProxyGender,
+      }));
     });
-  }, [bookingMode, occupantLimit]);
+  }, [bookingMode, occupantLimit, requiredProxyGender]);
+
+  useEffect(() => {
+    if (bookingMode !== 'proxy') {
+      setActiveProxyDobPickerIndex(null);
+    }
+  }, [bookingMode]);
 
   const pricingStartDate = bookingData.start_date
     ? bookingData.start_date.toISOString().split('T')[0]
@@ -217,23 +350,48 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       && new Date(pricingEndDate) > new Date(pricingStartDate),
   );
 
+  const previewBedCount = React.useMemo(() => {
+    if (roomPricingModel !== 'per_bed') {
+      return 1;
+    }
+
+    if (bookingMode === 'proxy') {
+      return Math.max(1, proxyOccupants.length || 1);
+    }
+
+    return 1;
+  }, [roomPricingModel, bookingMode, proxyOccupants.length]);
+
   const roomPricingQuery = useQuery({
     queryKey: tenantQueryKeys.exploreRoomPricing({
       roomId: activeRoomId,
       startDate: pricingStartDate,
       endDate: pricingEndDate,
-      contractMode: bookingData.contract_mode,
+      contractMode: isDailyContract ? 'daily' : 'monthly',
+      bedCount: previewBedCount,
     }),
     enabled: shouldFetchPricing,
     queryFn: async () => {
-      const res = await PropertyService.getRoomPricing(activeRoomId, pricingStartDate, pricingEndDate);
+      const res = await PropertyService.getRoomPricing(
+        activeRoomId,
+        pricingStartDate,
+        pricingEndDate,
+        {
+          contractMode: isDailyContract ? 'daily' : 'monthly',
+          bedCount: previewBedCount,
+        },
+      );
       if (!res?.success || !res?.data) {
         throw new Error(res?.error || 'Pricing calculation failed');
       }
 
+      const baseTotal = Number(res.data.base_total ?? res.data.total ?? 0);
+
       return {
-        total: Number(res.data.total || 0),
+        total: baseTotal,
         breakdown: res.data.breakdown || null,
+        promoOffer: res.data.promo_offer || null, // Capture promo offer
+        promoTotal: res.data.promo_total || null, // Capture promo total
       };
     },
     placeholderData: (previousData) => previousData,
@@ -245,7 +403,39 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const pricingBreakdown = shouldFetchPricing
     ? (roomPricingQuery.data?.breakdown || null)
     : null;
+  const promoOffer = roomPricingQuery.data?.promoOffer || null;
+  const promoDiscountedTotal = roomPricingQuery.data?.promoTotal || null;
+
   const isPricingLoading = shouldFetchPricing && roomPricingQuery.isFetching;
+  const hasCheckoutDate = Boolean(
+    bookingData.start_date &&
+    bookingData.end_date && new Date(bookingData.end_date) > new Date(bookingData.start_date),
+  );
+  const showPaymentPlanSelector = Boolean(
+    !isDailyContract
+      && hasCheckoutDate
+      && pricingBreakdown
+      && (
+        (Number(pricingBreakdown.months || 0) > 1)
+        || (
+          Number(pricingBreakdown.months || 0) === 1
+          && Number(pricingBreakdown.remaining_days || 0) > 0
+        )
+      ),
+  );
+  const hasPromoOffer = Boolean(
+    promoOffer
+      && Number.isFinite(Number(promoDiscountedTotal))
+      && Number(promoDiscountedTotal) < Number(totalPrice || 0),
+  );
+  const promoDiscountAmount = hasPromoOffer
+    ? Math.max(0, Number(totalPrice || 0) - Number(promoDiscountedTotal))
+    : 0;
+  const selectedPlanTotal = (
+    bookingData.payment_plan === 'promo_one_time' && hasPromoOffer
+      ? promoDiscountedTotal
+      : Number(totalPrice || 0)
+  );
 
   useEffect(() => {
     if (!roomPaymentOptionsQuery.error) return;
@@ -257,9 +447,34 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     console.error('Pricing calculation failed', roomPricingQuery.error);
   }, [roomPricingQuery.error]);
 
-  // Get allowed methods from landlord settings, default to cash only if not set
-  const allowedMethods = activeRoom?.landlord?.payment_methods_settings?.allowed || ['cash'];
-  const gcashDetails = activeRoom?.landlord?.payment_methods_settings?.details?.gcash_info;
+  useEffect(() => {
+    setBookingData((prev) => {
+      let nextPaymentPlan = prev.payment_plan;
+
+      if (isDailyContract) {
+        nextPaymentPlan = 'full';
+      } else if (!hasCheckoutDate) {
+        nextPaymentPlan = 'monthly';
+      } else if (!showPaymentPlanSelector) {
+        nextPaymentPlan = 'full';
+      } else if (hasPromoOffer) {
+        if (!['monthly', 'promo_one_time'].includes(nextPaymentPlan)) {
+          nextPaymentPlan = 'monthly';
+        }
+      } else if (!['monthly', 'full'].includes(nextPaymentPlan)) {
+        nextPaymentPlan = 'full';
+      }
+
+      if (nextPaymentPlan === prev.payment_plan) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        payment_plan: nextPaymentPlan,
+      };
+    });
+  }, [isDailyContract, hasCheckoutDate, showPaymentPlanSelector, hasPromoOffer]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -323,7 +538,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (selectedDate) {
       // Ensure selected start date is within allowed range
       if (!isStartWithinAllowedRange(selectedDate)) {
-        Alert.alert('Invalid Check-in', 'Check-in must be within the next 3 months.');
+        showAlert(
+          `Invalid ${isDailyContract ? 'Check-in' : 'Move-in'}`,
+          `${isDailyContract ? 'Check-in' : 'Move-in'} must be within the next 3 months.`
+        );
         return;
       }
 
@@ -350,7 +568,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (selectedDate) {
       // Ensure end date is after start date
       if (bookingData.start_date && selectedDate <= bookingData.start_date) {
-        Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
+        showAlert('Invalid Date', `${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
         return;
       }
       setBookingData(prev => ({ ...prev, end_date: selectedDate }));
@@ -360,13 +578,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   // AUTH GATE: Check if user is authenticated before booking
   const handleBook = () => {
     if (activeRoom.status !== 'available') {
-      Alert.alert('Unavailable', 'This room is not available for booking.');
+      showAlert('Unavailable', 'This room is not available for booking.');
       return;
     }
 
     // If guest user, trigger auth requirement
     if (isGuest) {
-      Alert.alert(
+      showAlert(
         'Sign In Required',
         'You need to sign in to book a room. Create an account or log in to continue.',
         [
@@ -402,6 +620,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     });
     setBookingMode('normal');
     setProxyOccupants([createEmptyOccupant()]);
+    setActiveProxyDobPickerIndex(null);
     setReceiptImage(null);
 
     setBookingModalVisible(true);
@@ -438,12 +657,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   const validateDates = () => {
     if (!bookingData.start_date) {
-      Alert.alert('Missing Information', 'Please select a check-in date.');
+      showError('Missing Information', `Please select a ${isDailyContract ? 'check-in' : 'move-in'} date.`);
       return false;
     }
 
     if (isDailyContract && !bookingData.end_date) {
-      Alert.alert('Missing Information', 'Please select both check-in and check-out dates for daily contracts.');
+      showError('Missing Information', 'Please select both check-in and check-out dates for daily contracts.');
       return false;
     }
 
@@ -453,17 +672,17 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     today.setHours(0, 0, 0, 0);
 
     if (start < today) {
-      Alert.alert('Invalid Date', 'Check-in date cannot be in the past.');
+      showError('Invalid Date', `${isDailyContract ? 'Check-in' : 'Move-in'} date cannot be in the past.`);
       return false;
     }
     if (end && end <= start) {
-      Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
+      showError('Invalid Date', `${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
       return false;
     }
 
     // Ensure start is within allowed range (3 months)
     if (!isStartWithinAllowedRange(start)) {
-      Alert.alert('Invalid Date', 'Check-in must be within the next 3 months.');
+      showError('Invalid Date', `${isDailyContract ? 'Check-in' : 'Move-in'} must be within the next 3 months.`);
       return false;
     }
 
@@ -475,21 +694,52 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const handleAddProxyOccupant = () => {
     setProxyOccupants((prev) => {
       if (prev.length >= occupantLimit) return prev;
-      return [...prev, createEmptyOccupant()];
+      return [...prev, createEmptyOccupant(requiredProxyGender)];
     });
   };
 
   const handleRemoveProxyOccupant = (index) => {
     setProxyOccupants((prev) => {
       const next = prev.filter((_, idx) => idx !== index);
-      return next.length > 0 ? next : [createEmptyOccupant()];
+      return next.length > 0 ? next : [createEmptyOccupant(requiredProxyGender)];
+    });
+
+    setActiveProxyDobPickerIndex((prevIndex) => {
+      if (prevIndex === null) return null;
+      if (prevIndex === index) return null;
+      if (prevIndex > index) return prevIndex - 1;
+      return prevIndex;
     });
   };
 
   const handleProxyOccupantChange = (index, field, value) => {
+    let nextValue = value;
+    if (field === 'gender') {
+      const normalizedGender = normalizeGenderValue(value);
+      nextValue = requiredProxyGender || normalizedGender;
+    }
+
     setProxyOccupants((prev) => prev.map((occupant, idx) => (
-      idx === index ? { ...occupant, [field]: value } : occupant
+      idx === index ? { ...occupant, [field]: nextValue } : occupant
     )));
+  };
+
+  const getProxyDobPickerValue = (index) => {
+    const existingDate = parseIsoDateOnly(proxyOccupants[index]?.date_of_birth);
+    return existingDate || latestAllowedAdultDob;
+  };
+
+  const handleProxyDobChange = (index, event, selectedDate) => {
+    setActiveProxyDobPickerIndex(Platform.OS === 'ios' ? index : null);
+
+    if (!selectedDate || event?.type === 'dismissed') {
+      return;
+    }
+
+    const normalizedDate = new Date(selectedDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+
+    handleProxyOccupantChange(index, 'date_of_birth', toIsoDateString(normalizedDate));
   };
 
     const pickReceiptImage = async () => {
@@ -512,7 +762,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         .map((occupant) => ({
           full_name: String(occupant.full_name || '').trim(),
           date_of_birth: String(occupant.date_of_birth || '').trim(),
-          gender: String(occupant.gender || '').trim().toLowerCase(),
+          gender: normalizeGenderValue(occupant.gender),
           relationship_to_booker: String(occupant.relationship_to_booker || '').trim(),
           phone: String(occupant.phone || '').trim(),
           email: String(occupant.email || '').trim(),
@@ -521,26 +771,57 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
       if (bookingMode === 'proxy') {
         if (normalizedOccupants.length === 0) {
-          Alert.alert('Missing Information', 'Proxy booking requires at least one occupant.');
+          showError('Missing Information', 'Proxy booking requires at least one occupant.');
           return;
         }
 
         if (normalizedOccupants.length > occupantLimit) {
-          Alert.alert('Occupant Limit', `This booking can only hold up to ${occupantLimit} occupant${occupantLimit > 1 ? 's' : ''}.`);
+          showError('Occupant Limit', `This booking can only hold up to ${occupantLimit} occupant${occupantLimit > 1 ? 's' : ''}.`);
           return;
         }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
         for (let i = 0; i < normalizedOccupants.length; i += 1) {
           const occupant = normalizedOccupants[i];
           if (!occupant.full_name || !occupant.date_of_birth || !occupant.gender || !occupant.relationship_to_booker) {
-            Alert.alert('Missing Information', `Occupant ${i + 1} is missing required information.`);
+            showError(
+              'Missing Information',
+              `Occupant ${i + 1} is missing required information (full name, date of birth, gender, relationship).`,
+            );
+            return;
+          }
+
+          const parsedDateOfBirth = parseIsoDateOnly(occupant.date_of_birth);
+          if (!parsedDateOfBirth) {
+            showError('Invalid Date of Birth', `Occupant ${i + 1}: please select a valid date of birth.`);
+            return;
+          }
+
+          if (parsedDateOfBirth >= today) {
+            showError('Invalid Date of Birth', `Occupant ${i + 1}: date of birth must be before today.`);
+            return;
+          }
+
+          const occupantAge = getAgeInYears(parsedDateOfBirth, today);
+          if (occupantAge < PROXY_MINIMUM_AGE) {
+            showError('Age Restriction', `Occupant ${i + 1} must be at least ${PROXY_MINIMUM_AGE} years old.`);
+            return;
+          }
+
+          if (requiredProxyGender && occupant.gender !== requiredProxyGender) {
+            showError(
+              'Gender Restriction',
+              `Occupant ${i + 1} must be ${requiredProxyGender}. This room is ${requiredProxyGender === 'male' ? 'for boys' : 'for girls'} only.`,
+            );
             return;
           }
         }
       }
 
       if (isReservationRequired && !receiptImage) {
-        Alert.alert('Required', 'Please attach your GCash receipt to confirm your reservation.');
+        showError('Required', 'Please attach your GCash receipt to confirm your reservation.');
         return;
       }
 
@@ -557,9 +838,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       if (bookingData.notes) data.append('notes', bookingData.notes);
 
       if (bookingMode === 'proxy') {
-        const inferredBedCount = roomPricingModel === 'per_bed'
-          ? Math.max(1, normalizedOccupants.length)
-          : Math.max(1, Number(activeRoom?.capacity || 1));
+        const inferredBedCount = Math.max(1, normalizedOccupants.length);
         data.append('bed_count', String(inferredBedCount));
 
         normalizedOccupants.forEach((occupant, index) => {
@@ -606,7 +885,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             if (payRes.success && payRes.data.checkout_url) {
               await Linking.openURL(payRes.data.checkout_url);
             } else {
-              Alert.alert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
+              showAlert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
             }
           }
         } else if (bookingData.payment_method === 'cash') {
@@ -616,7 +895,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           }
         }
 
-        Alert.alert(
+        showAlert(
           'Success',
           `Booking submitted successfully! Reference: ${bookingObj?.booking_reference || 'N/A'}`,
           [
@@ -642,14 +921,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
         if (result.details) {
           const errorMessages = Object.values(result.details).flat().join('\n');
-          Alert.alert('Validation Error', errorMessages);
+          showAlert('Validation Error', errorMessages);
         } else {
-          Alert.alert('Error', result.error || 'Failed to submit booking.');
+          showAlert('Error', result.error || 'Failed to submit booking.');
         }
       }
     } catch (error) {
       console.error('Booking submission error:', error);
-      Alert.alert('Error', error.message || 'An unexpected error occurred.');
+      showAlert('Error', error.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -658,7 +937,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   // AUTH GATE: Contact landlord also requires auth
   const handleContactLandlord = async () => {
     if (isGuest) {
-      Alert.alert(
+      showAlert(
         'Sign In Required',
         'You need to sign in to contact the landlord.',
         [
@@ -712,7 +991,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         console.error('LANDLORD ID NOT FOUND!');
         console.error('Available property data:', Object.keys(property));
 
-        Alert.alert(
+        showAlert(
           'Debug Info',
           `Property ID: ${property.id}\n\nAvailable fields: ${Object.keys(property).join(', ')}\n\nPlease screenshot this and check the backend response.`,
           [
@@ -720,7 +999,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               text: 'OK',
               onPress: () => {
                 // Show more detailed error
-                Alert.alert(
+                showAlert(
                   'Error',
                   'Landlord information not available. This might be an older property listing. Please try viewing the property again from the home page.',
                   [
@@ -765,7 +1044,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     } catch (error) {
       console.error('Error navigating to messages:', error);
       console.error('Error stack:', error.stack);
-      Alert.alert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
+      showAlert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
     }
   };
 
@@ -950,6 +1229,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         animationType="fade"
         transparent={true}
         statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={() => !isSubmitting && setBookingModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
@@ -1054,14 +1335,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.summaryNote}>
-                  Monthly contracts may leave check-out blank for open-ended stay.
+                  Monthly contracts may leave move-out blank for open-ended stay.
                 </Text>
               </View>
             )}
 
             {/* Start Date Picker */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Check-in Date <Text style={{color: '#ef4444'}}>*</Text></Text>
+              <Text style={styles.inputLabel}>{isDailyContract ? 'Check-in Date' : 'Move-in Date'} <Text style={{color: '#ef4444'}}>*</Text></Text>
               <TouchableOpacity
                 style={styles.dateButton}
                 onPress={() => setShowStartDatePicker(true)}
@@ -1080,6 +1361,21 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   minimumDate={new Date()}
                   maximumDate={getAllowedMaxDate()}
                 />
+              )}
+              {isReservationConfigured && (
+                <Text
+                  style={[
+                    styles.summaryNote,
+                    {
+                      marginTop: 8,
+                      color: isReservationRequired ? (theme.colors.warning || '#f59e0b') : (theme.colors.success || '#16a34a'),
+                    },
+                  ]}
+                >
+                  {isReservationRequired
+                    ? `Reservation fee required: move-in is ${daysUntilMoveIn} days after booking date.`
+                    : 'No reservation fee for move-in within 3 days from booking date.'}
+                </Text>
               )}
             </View>
 
@@ -1121,6 +1417,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.summaryNote}>Provide details of the people who will actually stay in this room.</Text>
+                <Text style={styles.summaryNote}>Fields marked with <Text style={styles.requiredAsterisk}>*</Text> are required.</Text>
 
                 {proxyOccupants.map((occupant, index) => (
                   <View
@@ -1136,34 +1433,85 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       )}
                     </View>
 
+                    <Text style={styles.proxyFieldLabel}>Full Name <Text style={styles.requiredAsterisk}>*</Text></Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="Full name*"
+                      placeholder="Full name"
                       placeholderTextColor="#999"
                       value={occupant.full_name}
                       onChangeText={(text) => handleProxyOccupantChange(index, 'full_name', text)}
                     />
+
+                    <Text style={styles.proxyFieldLabel}>Date of Birth <Text style={styles.requiredAsterisk}>*</Text></Text>
+                    <TouchableOpacity
+                      testID={`proxy-occupant-dob-button-${index}`}
+                      style={styles.proxyDateButton}
+                      onPress={() => setActiveProxyDobPickerIndex(index)}
+                      disabled={isSubmitting}
+                    >
+                      <Ionicons name="calendar-outline" size={20} color={theme.colors.textTertiary} />
+                      <Text
+                        style={[
+                          styles.proxyDateButtonText,
+                          !occupant.date_of_birth && styles.proxyDateButtonTextPlaceholder,
+                        ]}
+                      >
+                        {occupant.date_of_birth || 'Select date of birth'}
+                      </Text>
+                    </TouchableOpacity>
+                    {activeProxyDobPickerIndex === index && (
+                      <DateTimePicker
+                        testID={`proxy-occupant-dob-picker-${index}`}
+                        value={getProxyDobPickerValue(index)}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        maximumDate={latestAllowedAdultDob}
+                        onChange={(event, selectedDate) => handleProxyDobChange(index, event, selectedDate)}
+                      />
+                    )}
+                    <Text style={styles.proxyFieldHelp}>Birth date only, not move-in date. Occupant must be at least 18 years old.</Text>
+
+                    <Text style={styles.proxyFieldLabel}>Gender <Text style={styles.requiredAsterisk}>*</Text></Text>
+                    <View style={styles.proxyGenderPickerWrapper}>
+                      <Picker
+                        testID={`proxy-occupant-gender-${index}`}
+                        selectedValue={occupant.gender || requiredProxyGender || ''}
+                        onValueChange={(value) => handleProxyOccupantChange(index, 'gender', value)}
+                        enabled={!requiredProxyGender}
+                        style={styles.proxyGenderPicker}
+                      >
+                        {requiredProxyGender ? (
+                          <Picker.Item
+                            label={requiredProxyGender === 'male' ? 'Male' : 'Female'}
+                            value={requiredProxyGender}
+                          />
+                        ) : (
+                          <>
+                            <Picker.Item label="Select gender" value="" />
+                            <Picker.Item label="Male" value="male" />
+                            <Picker.Item label="Female" value="female" />
+                            <Picker.Item label="Other" value="other" />
+                            <Picker.Item label="Prefer not to say" value="prefer_not_to_say" />
+                          </>
+                        )}
+                      </Picker>
+                    </View>
+                    {requiredProxyGender ? (
+                      <Text style={[styles.proxyFieldHelp, { color: theme.colors.error || '#ef4444' }]}>
+                        This room is restricted to {requiredProxyGender === 'male' ? 'boys' : 'girls'} only.
+                      </Text>
+                    ) : null}
+
+                    <Text style={styles.proxyFieldLabel}>Relationship to Booker <Text style={styles.requiredAsterisk}>*</Text></Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="Date of birth (YYYY-MM-DD)*"
-                      placeholderTextColor="#999"
-                      value={occupant.date_of_birth}
-                      onChangeText={(text) => handleProxyOccupantChange(index, 'date_of_birth', text)}
-                    />
-                    <TextInput
-                      style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="Gender (male/female/other/prefer_not_to_say)*"
-                      placeholderTextColor="#999"
-                      value={occupant.gender}
-                      onChangeText={(text) => handleProxyOccupantChange(index, 'gender', text)}
-                    />
-                    <TextInput
-                      style={[styles.input, { marginBottom: 10 }]}
-                      placeholder="Relationship to booker*"
+                      placeholder="Relationship to booker"
                       placeholderTextColor="#999"
                       value={occupant.relationship_to_booker}
                       onChangeText={(text) => handleProxyOccupantChange(index, 'relationship_to_booker', text)}
                     />
+
+                    <Text style={styles.proxyFieldLabel}>Phone (Optional)</Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 10 }]}
                       placeholder="Phone (optional)"
@@ -1171,6 +1519,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       value={occupant.phone}
                       onChangeText={(text) => handleProxyOccupantChange(index, 'phone', text)}
                     />
+
+                    <Text style={styles.proxyFieldLabel}>Email (Optional)</Text>
                     <TextInput
                       style={[styles.input, { marginBottom: 0 }]}
                       placeholder="Email (optional)"
@@ -1221,24 +1571,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             </View>
 
             {/* Payment Plan Selection - Only for monthly contract stays >= 2 months */}
-            {!isDailyContract && pricingBreakdown && pricingBreakdown.months >= 2 && (
+            {showPaymentPlanSelector && (
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Payment Plan <Text style={{color: '#ef4444'}}>*</Text></Text>
                 
                 <View style={styles.paymentMethodRow}>
-                  <TouchableOpacity 
-                    style={[
-                      styles.paymentMethodBtn, 
-                      bookingData.payment_plan === 'full' && styles.paymentMethodBtnActive
-                    ]}
-                    onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'full' }))}
-                  >
-                     <Text style={[
-                       styles.paymentMethodBtnText, 
-                       bookingData.payment_plan === 'full' && styles.paymentMethodBtnTextActive
-                     ]}>Full</Text>
-                  </TouchableOpacity>
-
                   <TouchableOpacity 
                     style={[
                       styles.paymentMethodBtn, 
@@ -1251,17 +1588,40 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                        bookingData.payment_plan === 'monthly' && styles.paymentMethodBtnTextActive
                      ]}>Monthly</Text>
                   </TouchableOpacity>
+
+                  {hasPromoOffer ? (
+                    <TouchableOpacity
+                      style={[styles.paymentMethodBtn, bookingData.payment_plan === 'promo_one_time' && styles.paymentMethodBtnActive]}
+                      onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'promo_one_time' }))}
+                    >
+                      <Text style={[styles.paymentMethodBtnText, bookingData.payment_plan === 'promo_one_time' && styles.paymentMethodBtnTextActive]}>
+                        Pay One-Time Promo
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.paymentMethodBtn, bookingData.payment_plan === 'full' && styles.paymentMethodBtnActive]}
+                      onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'full' }))}
+                    >
+                      <Text style={[styles.paymentMethodBtnText, bookingData.payment_plan === 'full' && styles.paymentMethodBtnTextActive]}>
+                        Full
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Text style={[styles.summaryNote, { marginTop: 8, fontStyle: 'italic' }]}>
                   {bookingData.payment_plan === 'monthly' 
                     ? 'Pay the first month now to confirm, then pay monthly.'
-                    : 'Pay the total amount within 3 days to confirm your booking.'}
+                    : bookingData.payment_plan === 'promo_one_time'
+                    ? `Pay the discounted total of ₱${promoDiscountedTotal.toLocaleString()} upfront to avail the promo.`
+                    : 'Pay the total amount within 3 days to confirm your booking.'
+                  }
                 </Text>
               </View>
             )}
 
             {/* Duration & Cost Summary */}
-            {(bookingData.end_date || !isDailyContract) && (
+            {(hasCheckoutDate || !isDailyContract) && (
               <View style={styles.summaryContainer}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Duration</Text>
@@ -1287,7 +1647,16 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Reservation Fee</Text>
                     <Text style={styles.summaryValue}>
-                      ₱{Number(reservationFee).toLocaleString()}
+                      ₱{reservationFeeAmount.toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+
+                {hasPromoOffer && bookingData.payment_plan === 'promo_one_time' && (
+                  <View style={styles.summaryRow}>
+                    <Text style={[styles.summaryLabel, { color: theme.colors.success }]}>Promo Discount</Text>
+                    <Text style={[styles.summaryValue, { color: theme.colors.success }]}>
+                      - ₱{promoDiscountAmount.toLocaleString()}
                     </Text>
                   </View>
                 )}
@@ -1295,11 +1664,31 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
                   <Text style={styles.summaryLabelBold}>Total Amount</Text>
                   <Text style={styles.summaryValueBold}>
-                    {isPricingLoading ? '...' : `₱${(
-                      (Number(totalPrice) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? Number(reservationFee) : 0)
+                    {isPricingLoading ? '...' : `₱${( // Use selectedPlanTotal which already accounts for promo
+                      (Number(selectedPlanTotal) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? reservationFeeAmount : 0)
                     ).toLocaleString()}`}
                   </Text>
                 </View>
+
+                {isReservationConfigured && !isReservationRequired && (
+                  <View
+                    style={{
+                      marginTop: 16,
+                      padding: 12,
+                      backgroundColor: theme.colors.surface || '#f8fafc',
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border || '#e2e8f0',
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.success || '#16a34a' }}>
+                      No Reservation Fee Required
+                    </Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
+                      Move-in is within 3 days from booking date.
+                    </Text>
+                  </View>
+                )}
 
                 {isReservationRequired && (
                   <View style={{ marginTop: 24, padding: 12, backgroundColor: theme.colors.surface || '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border || '#e2e8f0' }}>
@@ -1307,7 +1696,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       <Ionicons name="warning-outline" size={14} /> Reservation Payment Required
                     </Text>
                     <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 16 }}>
-                      This property requires a ₱{Number(reservationFee).toLocaleString()} reservation fee paid manually via GCash.
+                      This property requires a ₱{reservationFeeAmount.toLocaleString()} reservation fee paid manually via GCash.
                     </Text>
                     
                     <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8, marginBottom: 16 }}>

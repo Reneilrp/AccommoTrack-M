@@ -7,6 +7,8 @@ use App\Models\Booking;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\RoomImage;
+use App\Models\User;
+use App\Services\Subscription\SubscriptionResolverService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -16,12 +18,18 @@ use Intervention\Image\ImageManager;
 
 class RoomService
 {
+    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService)
+    {
+    }
+
     /**
      * Create a new room.
      */
     public function createRoom(array $validatedData, Property $property): Room
     {
         return DB::transaction(function () use ($validatedData, $property) {
+            $this->assertCanCreateRoomUnderSubscription($property);
+
             $this->validateRoomTypeForProperty($property, $validatedData['room_type'] ?? null);
 
             if ($this->isRoomNumberDuplicate($validatedData['room_number'], $property->id)) {
@@ -31,6 +39,9 @@ class RoomService
 
             $capacity = $validatedData['capacity'] ?? 1;
             $pricingModel = $validatedData['pricing_model'] ?? (($validatedData['room_type'] === 'bedSpacer') ? 'per_bed' : 'full_room');
+            $durationPricing = array_key_exists('duration_pricing', $validatedData)
+                ? Room::sanitizeDurationPricing($validatedData['duration_pricing'])
+                : [];
 
             $propertyGender = strtolower($property->gender_restriction ?? 'mixed');
             $defaultGender = in_array($propertyGender, ['male', 'female', 'boys', 'girls'])
@@ -53,6 +64,7 @@ class RoomService
                 'require_1month_advance' => $validatedData['require_1month_advance'] ?? false,
                 'description' => $validatedData['description'] ?? null,
                 'rules' => $validatedData['rules'] ?? [],
+                'duration_pricing' => $durationPricing,
             ]);
 
             $this->syncAmenities($room, $validatedData['amenities'] ?? []);
@@ -79,6 +91,10 @@ class RoomService
                 if ($this->isRoomNumberDuplicate($validatedData['room_number'], $room->property_id, $room->id)) {
                     throw ValidationException::withMessages(['room_number' => 'Room number already exists for this property.']);
                 }
+            }
+
+            if (array_key_exists('duration_pricing', $validatedData)) {
+                $validatedData['duration_pricing'] = Room::sanitizeDurationPricing($validatedData['duration_pricing']);
             }
 
             $oldStatus = $room->status;
@@ -122,7 +138,8 @@ class RoomService
 
             $room->amenities()->detach();
             foreach ($room->images as $image) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $image->image_url));
+                $filename = basename($image->image_url);
+                Storage::delete('room_images/' . $filename);
                 $image->delete();
             }
             DB::table('room_tenant_assignments')->where('room_id', $room->id)->delete();
@@ -267,6 +284,36 @@ class RoomService
         return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
     }
 
+    private function assertCanCreateRoomUnderSubscription(Property $property): void
+    {
+        /** @var User|null $landlord */
+        $landlord = $property->relationLoaded('landlord')
+            ? $property->landlord
+            : $property->landlord()->first();
+
+        if (! $landlord) {
+            throw ValidationException::withMessages([
+                'subscription' => 'Unable to resolve landlord subscription context for this property.',
+            ]);
+        }
+
+        $usage = $this->subscriptionResolverService->getUsageSummary($landlord);
+
+        if ((bool) ($usage['can_create_room'] ?? true)) {
+            return;
+        }
+
+        $limit = $usage['rooms_limit'];
+
+        throw ValidationException::withMessages([
+            'subscription' => sprintf(
+                'Room limit reached (%d/%s). Upgrade your subscription or remove rooms before adding another one.',
+                (int) ($usage['rooms_count'] ?? 0),
+                $limit === null ? 'plan limits' : (string) $limit
+            ),
+        ]);
+    }
+
     private function isRoomNumberDuplicate(string $roomNumber, int $propertyId, ?int $excludeRoomId = null): bool
     {
         $query = Room::where('property_id', $propertyId)->where('room_number', $roomNumber);
@@ -297,7 +344,7 @@ class RoomService
                 $encoded = $image->toWebp(80);
                 $filename = 'room_'.time().'_'.uniqid().'.webp';
                 $path = 'room_images/'.$filename;
-                Storage::disk('public')->put($path, (string) $encoded);
+                Storage::put($path, (string) $encoded);
                 RoomImage::create([
                     'room_id' => $room->id,
                     'image_url' => Storage::url($path),

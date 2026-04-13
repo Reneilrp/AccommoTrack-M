@@ -35,7 +35,7 @@ class SwitchRoleCredentialRequirementTest extends TestCase
 
         $response
             ->assertStatus(403)
-            ->assertJsonPath('message', 'Your landlord registration is not yet approved. Please complete landlord registration first.')
+            ->assertJsonPath('message', 'Your landlord registration is not yet in an active state. Please wait for admin partial verification first.')
             ->assertJsonPath('status', 'not_submitted');
 
         $this->assertDatabaseHas('users', [
@@ -99,7 +99,7 @@ class SwitchRoleCredentialRequirementTest extends TestCase
 
         $response
             ->assertStatus(403)
-            ->assertJsonPath('message', 'Your landlord registration is not yet approved. Please complete landlord registration first.')
+            ->assertJsonPath('message', 'Your landlord registration is not yet in an active state. Please wait for admin partial verification first.')
             ->assertJsonPath('status', 'pending');
 
         $this->assertDatabaseHas('users', [
@@ -129,7 +129,85 @@ class SwitchRoleCredentialRequirementTest extends TestCase
         ]);
     }
 
+    public function test_tenant_to_landlord_succeeds_with_partial_verified_verification(): void
+    {
+        $tenant = $this->createVerifiedTenantWithLandlordVerificationStatus(LandlordVerification::STATUS_PARTIAL_VERIFIED);
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->postJson('/api/switch-role', [
+            'role' => 'landlord',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', 'Role switched to landlord')
+            ->assertJsonPath('user.role', 'landlord');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $tenant->id,
+            'role' => 'landlord',
+        ]);
+    }
+
+    public function test_tenant_to_landlord_succeeds_with_pending_documents_review_verification(): void
+    {
+        $tenant = $this->createVerifiedTenantWithLandlordVerificationStatus(LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW);
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->postJson('/api/switch-role', [
+            'role' => 'landlord',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', 'Role switched to landlord')
+            ->assertJsonPath('user.role', 'landlord');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $tenant->id,
+            'role' => 'landlord',
+        ]);
+    }
+
+    public function test_landlord_to_tenant_switch_succeeds(): void
+    {
+        $landlord = User::create([
+            'role' => 'landlord',
+            'email' => 'landlord-switch@example.com',
+            'password' => Hash::make('Password12!'),
+            'date_of_birth' => now()->subYears(30)->toDateString(),
+            'is_verified' => true,
+            'is_active' => true,
+            'first_name' => 'Landlord',
+            'middle_name' => null,
+            'last_name' => 'Switcher',
+        ]);
+
+        Sanctum::actingAs($landlord);
+
+        $response = $this->postJson('/api/switch-role', [
+            'role' => 'tenant',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', 'Role switched to tenant')
+            ->assertJsonPath('user.role', 'tenant');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $landlord->id,
+            'role' => 'tenant',
+        ]);
+    }
+
     private function createVerifiedTenantWithApprovedLandlordVerification(): User
+    {
+        return $this->createVerifiedTenantWithLandlordVerificationStatus(LandlordVerification::STATUS_APPROVED);
+    }
+
+    private function createVerifiedTenantWithLandlordVerificationStatus(string $status): User
     {
         $tenant = User::create([
             'role' => 'tenant',
@@ -152,7 +230,7 @@ class SwitchRoleCredentialRequirementTest extends TestCase
             'valid_id_other' => null,
             'valid_id_path' => 'landlord_ids/test-id.pdf',
             'permit_path' => 'landlord_permits/test-permit.pdf',
-            'status' => 'approved',
+            'status' => $status,
         ]);
 
         return $tenant;

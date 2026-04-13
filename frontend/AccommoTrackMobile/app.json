@@ -2,7 +2,7 @@
   "expo": {
     "name": "AccommoTrack",
     "slug": "AccommoTrack",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/Logo-Square.png",
     "newArchEnabled": true,
@@ -39,6 +39,12 @@
     },
     "plugins": [
       "expo-video"
-    ]
+    ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ba4d987b-e108-4a3a-a2e5-3a3f9d1c02f4"
+    }
   }
 }

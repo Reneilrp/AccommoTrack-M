@@ -1,0 +1,27 @@
+name: Generate Repository QR Code
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate QR Code
+        uses: snow-actions/qrcode@v1.2.0
+        with:
+          text: "https://github.com/${{ github.repository }}"
+          path: "qrcode.png"
+
+      - name: Auto-Commit QR Code
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: update repository qr code"
+          file_pattern: 'qrcode.png'

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property int $id
@@ -91,7 +92,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Property extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     // Status Constants
     const STATUS_DRAFT = 'draft';
@@ -155,6 +156,7 @@ class Property extends Model
         'allow_partial_payments',
         'require_reservation_fee',
         'reservation_fee',
+        'reservation_fee_gap_days',
         'gcash_name',
         'gcash_number',
         'gcash_qr_path',
@@ -178,6 +180,7 @@ class Property extends Model
         'allow_partial_payments' => 'boolean',
         'require_reservation_fee' => 'boolean',
         'reservation_fee' => 'decimal:2',
+        'reservation_fee_gap_days' => 'integer',
         'property_rules' => 'array',
         'accepted_payments' => 'array',
     ];
@@ -310,7 +313,7 @@ class Property extends Model
     {
         $firstImage = $this->images()->where('media_type', 'image')->first();
 
-        return $firstImage ? asset('storage/'.$firstImage->image_url) : null;
+        return $firstImage ? \Illuminate\Support\Facades\Storage::url($firstImage->image_url) : null;
     }
 
     /**

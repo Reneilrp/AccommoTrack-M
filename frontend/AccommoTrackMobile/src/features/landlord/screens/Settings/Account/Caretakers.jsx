@@ -9,7 +9,6 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Alert,
   Switch,
   KeyboardAvoidingView,
   Platform
@@ -47,11 +46,20 @@ export default function Caretakers() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [permissionPrompt, setPermissionPrompt] = useState({ visible: false, key: null });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
+  const [resetPasswordModal, setResetPasswordModal] = useState({
+    show: false,
+    caretaker: null,
+    loading: false,
+    tempPassword: '',
+  });
 
-  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties']);
+  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics']);
   const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
     rooms: 'Enabling Room Management allows caretakers to modify availability and tenant placements.',
     properties: 'Enabling Properties allows caretakers to update core property details and settings.',
+    maintenance: 'Enabling Maintenance allows caretakers to process and update maintenance workflows.',
+    payments: 'Enabling Payments allows caretakers to manage sensitive billing and payment operations.',
+    analytics: 'Enabling Analytics allows caretakers to view occupancy, revenue, and trend insights.',
   };
 
   // Form State
@@ -71,6 +79,9 @@ export default function Caretakers() {
       tenants: false,
       rooms: false,
       properties: false,
+      maintenance: false,
+      payments: false,
+      analytics: false,
     },
     propertyIds: []
   });
@@ -131,13 +142,17 @@ export default function Caretakers() {
       dateOfBirth: '',
       password: '',
       passwordConfirmation: '',
-          permissions: {
-            bookings: false,
-            messages: false,
-            tenants: false,
-            rooms: false,
-            properties: false,
-          },      propertyIds: []
+      permissions: {
+        bookings: false,
+        messages: false,
+        tenants: false,
+        rooms: false,
+        properties: false,
+        maintenance: false,
+        payments: false,
+        analytics: false,
+      },
+      propertyIds: []
     });
     setFieldErrors({});
     setIsEditing(false);
@@ -179,6 +194,9 @@ export default function Caretakers() {
         tenants: permMap.tenants || permMap.can_view_tenants || false,
         rooms: permMap.rooms || permMap.can_view_rooms || false,
         properties: permMap.properties || permMap.can_view_properties || false,
+        maintenance: permMap.maintenance || permMap.can_manage_maintenance || false,
+        payments: permMap.payments || permMap.can_manage_payments || false,
+        analytics: permMap.analytics || permMap.can_view_analytics || false,
       },
       propertyIds: item.assigned_property_ids || []
     });
@@ -187,27 +205,56 @@ export default function Caretakers() {
   };
 
   const handleResetPassword = (item) => {
-    Alert.alert(
-      'Reset Password',
-      `Are you sure you want to reset the password for ${item.caretaker.first_name}? A temporary password will be generated.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
-          onPress: async () => {
-            const res = await CaretakerService.resetPassword(item.id);
-            if (res.success) {
-              Alert.alert('Password Reset', `New temporary password: ${res.data.temporary_password}\n\nPlease share this with the caretaker.`);
-            } else {
-              showError('Error', res.error);
-            }
-          } 
+    setResetPasswordModal({
+      show: true,
+      caretaker: item,
+      loading: false,
+      tempPassword: '',
+    });
+  };
+
+  const handleResetPasswordConfirm = async () => {
+    if (!resetPasswordModal.caretaker) {
+      return;
+    }
+
+    setResetPasswordModal((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await CaretakerService.resetPassword(resetPasswordModal.caretaker.id);
+      if (res.success) {
+        const nextPassword = res.data?.temporary_password || '';
+        setResetPasswordModal((prev) => ({
+          ...prev,
+          loading: false,
+          tempPassword: nextPassword,
+        }));
+
+        if (!nextPassword) {
+          showSuccess('Success', 'Password reset successfully.');
         }
-      ]
-    );
+      } else {
+        setResetPasswordModal((prev) => ({ ...prev, loading: false }));
+        showError('Error', res.error || 'Failed to reset password');
+      }
+    } catch (_err) {
+      setResetPasswordModal((prev) => ({ ...prev, loading: false }));
+      showError('Error', 'Failed to reset password');
+    }
+  };
+
+  const refreshCaretakerBundleSafe = async () => {
+    try {
+      await refetchLandlordQueries(caretakerRefetchers);
+    } catch (error) {
+      console.warn('Failed to refresh caretakers after mutation:', error);
+    }
   };
 
   const handleSubmit = async () => {
+    if (submitting) {
+      return;
+    }
+
     // Validations
     const errors = {
       firstName: validateField('firstName', formData.firstName),
@@ -247,6 +294,9 @@ export default function Caretakers() {
           can_view_tenants: formData.permissions.tenants,
           can_view_rooms: formData.permissions.rooms,
           can_view_properties: formData.permissions.properties,
+          can_manage_maintenance: formData.permissions.maintenance,
+          can_manage_payments: formData.permissions.payments,
+          can_view_analytics: formData.permissions.analytics,
         }
       };
 
@@ -263,9 +313,10 @@ export default function Caretakers() {
 
         const res = await CaretakerService.createCaretaker(payload);
         if (res.success) {
-          await refetchLandlordQueries(caretakerRefetchers);
-          showSuccess('Success', `Caretaker created! Temp password: ${res.data.temporary_password || formData.password}`);
           setModalVisible(false);
+          resetForm();
+          showSuccess('Success', `Caretaker created! Temp password: ${res.data.temporary_password || formData.password}`);
+          await refreshCaretakerBundleSafe();
         } else {
           showError('Error', res.error);
         }
@@ -280,13 +331,16 @@ export default function Caretakers() {
 
         const res = await CaretakerService.updateCaretaker(formData.assignmentId, payload);
         if (res.success) {
-          await refetchLandlordQueries(caretakerRefetchers);
-          showSuccess('Success', 'Caretaker updated');
           setModalVisible(false);
+          resetForm();
+          showSuccess('Success', 'Caretaker updated');
+          await refreshCaretakerBundleSafe();
         } else {
           showError('Error', res.error);
         }
       }
+    } catch (_err) {
+      showError('Error', 'Failed to save caretaker changes');
     } finally {
       setSubmitting(false);
     }
@@ -374,10 +428,13 @@ export default function Caretakers() {
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity 
             onPress={() => {
-              navigation.navigate('Messages', { 
-                startConversation: true, 
-                tenant: { ...item.caretaker, user_id: item.caretaker.id },
-                propertyId: item.assigned_property_ids?.[0] || null
+              navigation.navigate('MainTabs', {
+                screen: 'Messages',
+                params: {
+                  startConversation: true,
+                  tenant: { ...item.caretaker, user_id: item.caretaker.id },
+                  propertyId: item.assigned_property_ids?.[0] || null,
+                },
               });
             }} 
             style={styles.editButton}
@@ -601,7 +658,10 @@ export default function Caretakers() {
                        key === 'tenants' ? 'Access profiles and room assignments' : 
                        key === 'messages' ? 'Chat with prospects and residents' : 
                        key === 'rooms' ? 'Full control over room availability' :
-                       'View and manage property details'}
+                       key === 'properties' ? 'View and manage property details' :
+                       key === 'maintenance' ? 'Handle repairs and upkeep requests' :
+                       key === 'payments' ? 'Track and verify rental transactions' :
+                       'View occupancy and revenue insights'}
                     </Text>
                   </View>
                   <Switch
@@ -635,7 +695,14 @@ export default function Caretakers() {
       </Modal>
 
       {/* Security Alert Modal for Landlord-Level Permissions */}
-      <Modal visible={permissionPrompt.visible} transparent animationType="fade">
+      <Modal
+        visible={permissionPrompt.visible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
         <View style={styles.alertOverlay}>
           <View style={[styles.alertBox, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.alertIconContainer}>
@@ -659,7 +726,14 @@ export default function Caretakers() {
       </Modal>
 
       {/* Revoke Access Modal */}
-      <Modal visible={revocationModal.show} transparent animationType="fade">
+      <Modal
+        visible={revocationModal.show}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
         <View style={styles.alertOverlay}>
           <View style={[styles.alertBox, { backgroundColor: theme.colors.surface }]}>
             <View style={[styles.alertIconContainer, { backgroundColor: '#FEE2E2' }]}>
@@ -687,6 +761,91 @@ export default function Caretakers() {
                 <Text style={styles.alertConfirmText}>Confirm</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        visible={resetPasswordModal.show}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+      >
+        <View style={styles.alertOverlay}>
+          <View style={[styles.alertBox, { backgroundColor: theme.colors.surface }]}> 
+            <View style={[styles.alertIconContainer, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="key-outline" size={32} color="#B45309" />
+            </View>
+
+            <Text style={[styles.alertTitle, { color: theme.colors.text }]}>Reset Password</Text>
+
+            {!resetPasswordModal.tempPassword ? (
+              <Text style={[styles.alertMsg, { color: theme.colors.textSecondary }]}> 
+                Are you sure you want to reset the password for{' '}
+                <Text style={{ fontWeight: 'bold' }}>
+                  {resetPasswordModal.caretaker?.caretaker?.first_name || 'this caretaker'}
+                </Text>
+                ? A temporary password will be generated.
+              </Text>
+            ) : (
+              <>
+                <Text style={[styles.alertMsg, { color: theme.colors.textSecondary, marginBottom: 12 }]}> 
+                  New temporary password generated. Share this with the caretaker.
+                </Text>
+                <View
+                  style={{
+                    width: '100%',
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    marginBottom: 24,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 4 }}>
+                    Temporary Password
+                  </Text>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: theme.colors.text }}>
+                    {resetPasswordModal.tempPassword}
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {!resetPasswordModal.tempPassword ? (
+              <View style={styles.alertActions}>
+                <TouchableOpacity
+                  style={styles.alertCancel}
+                  onPress={() => setResetPasswordModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
+                  disabled={resetPasswordModal.loading}
+                >
+                  <Text style={styles.alertCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.alertConfirm, { backgroundColor: '#D97706' }]}
+                  onPress={handleResetPasswordConfirm}
+                  disabled={resetPasswordModal.loading}
+                >
+                  {resetPasswordModal.loading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={styles.alertConfirmText}>Confirm</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.alertConfirm, { backgroundColor: theme.colors.primary, width: '100%' }]}
+                onPress={() => setResetPasswordModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
+              >
+                <Text style={styles.alertConfirmText}>Done</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>

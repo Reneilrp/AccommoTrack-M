@@ -1,11 +1,36 @@
+# Dependencies
 backend/vendor/
 node_modules/
+
+# Environment
 .env
-/vendor
-Diagrams
+.env.*
+
+# IDE / Editor
 .idea/
+.vscode/
+.continue/
+
+# Build / generated
+.expo/
+docs/
 repomix-output.xml
+Diagrams
+
+# Patches & diffs
+*.patch
+
+# Audit / scratch files
+.unused_vars.json
+extract_unused.json
+unused_vars.json
+
+# Docs (ignored)
 AGENTS.md
 *.md
 *.txt
-*.md
+!README.md
+!backend/public/robots.txt
+
+# OS
+.DS_Store

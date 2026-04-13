@@ -380,6 +380,7 @@ export default function Payments() {
       const summaryRange = range === "month" ? "month" : "all";
       const response = await invoiceService.getSummary({
         range: summaryRange,
+        exclude_invoice_type: "subscription",
         t: Date.now(),
       });
 
@@ -413,7 +414,10 @@ export default function Payments() {
     try {
       if (!cachedData) setLoading(true);
       setError(null);
-      const response = await invoiceService.getInvoices({ t: Date.now() });
+      const response = await invoiceService.getInvoices({
+        exclude_invoice_type: "subscription",
+        t: Date.now(),
+      });
       if (!response.success) {
         throw new Error(response.error || "Failed to load invoices");
       }

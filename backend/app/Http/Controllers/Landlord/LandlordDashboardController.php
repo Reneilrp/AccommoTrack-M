@@ -58,27 +58,36 @@ class LandlordDashboardController extends Controller
             // Transformation logic standardized for Mobile activity maps
             $formattedActivities = $activities->map(function ($item) {
                 if (is_array($item)) {
-                    return $item;
-                } // already formatted
+                    return $this->normalizeActivityPayload($item);
+                }
 
                 if ($item instanceof \App\Models\Booking) {
+                    $status = strtolower((string) $item->status);
+
                     return [
                         'id' => $item->id, 'type' => 'booking',
                         'action' => 'New booking request',
                         'description' => ($item->tenant->first_name ?? 'Someone').' requested '.($item->property->title ?? 'Property').' - Room '.($item->room->room_number ?? 'N/A'),
                         'by' => ($item->tenant->first_name ?? 'Someone').' '.($item->tenant->last_name ?? ''),
-                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'calendar', 'color' => $item->status === 'pending' ? 'yellow' : 'green',
+                        'status' => $status,
+                        'timestamp' => $item->created_at,
+                        'icon' => 'calendar',
+                        'color' => $this->resolveActivityColor('booking', $status),
                     ];
                 }
                 if ($item instanceof \App\Models\Room) {
                     $isNew = $item->created_at->diffInMinutes($item->updated_at) < 5;
+                    $status = strtolower((string) $item->status);
 
                     return [
                         'id' => $item->id, 'type' => 'room',
                         'action' => $isNew ? 'New Room Added' : 'Room Status Updated',
                         'description' => "Room {$item->room_number} in {$item->property->title} is now ".ucfirst($item->status),
                         'by' => 'System',
-                        'status' => $item->status, 'timestamp' => $item->updated_at, 'icon' => 'bed', 'color' => $item->status === 'occupied' ? 'blue' : ($item->status === 'available' ? 'green' : 'yellow'),
+                        'status' => $status,
+                        'timestamp' => $item->updated_at,
+                        'icon' => 'bed',
+                        'color' => $this->resolveActivityColor('room', $status),
                     ];
                 }
                 if ($item instanceof \App\Models\Property) {
@@ -87,43 +96,68 @@ class LandlordDashboardController extends Controller
                         'action' => 'Property Updated',
                         'description' => "Details for property '{$item->title}' were recently updated.",
                         'by' => 'Landlord',
-                        'status' => 'active', 'timestamp' => $item->updated_at, 'icon' => 'business', 'color' => 'blue',
+                        'status' => 'updated',
+                        'timestamp' => $item->updated_at,
+                        'icon' => 'business',
+                        'color' => $this->resolveActivityColor('property', 'updated', 'blue'),
                     ];
                 }
                 if ($item instanceof \App\Models\Invoice) {
+                    $status = strtolower((string) $item->status);
+
                     return [
                         'id' => $item->id, 'type' => 'payment',
                         'action' => 'New Invoice Generated',
                         'description' => "Invoice #{$item->reference} created for room ".($item->booking->room->room_number ?? 'N/A'),
                         'by' => 'System',
-                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'gray',
+                        'status' => $status,
+                        'timestamp' => $item->created_at,
+                        'icon' => 'cash-outline',
+                        'color' => $this->resolveActivityColor('payment', $status, 'gray'),
                     ];
                 }
                 if ($item instanceof \App\Models\PaymentTransaction) {
                     $isPending = $item->status === 'pending_offline';
+                    $invoiceStatus = (string) ($item->invoice->status ?? '');
+                    $method = (string) ($item->method ?? '');
+                    $isPaymongoMethod = str_starts_with($method, 'paymongo_');
+
+                    // Only for PayMongo: avoid misleading "Payment Received" items
+                    // for attempts that did not settle the invoice.
+                    if (! $isPending && $isPaymongoMethod && $invoiceStatus !== 'paid') {
+                        return null;
+                    }
+
+                    $status = $isPending ? 'pending' : 'confirmed';
 
                     return [
                         'id' => $item->id, 'type' => 'payment',
                         'action' => $isPending ? 'Cash Payment Awaiting Verification' : 'Payment Received',
                         'description' => ($isPending ? 'Recorded ' : 'Received ').'₱'.number_format($item->amount_cents / 100, 2).' via '.ucfirst($item->method).' for Room '.($item->invoice->booking->room->room_number ?? 'N/A'),
                         'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
-                        'status' => $isPending ? 'pending' : 'confirmed', 'timestamp' => $item->created_at, 'icon' => 'cash-outline',
-                        'color' => $isPending ? 'yellow' : 'green',
+                        'status' => $status,
+                        'timestamp' => $item->created_at,
+                        'icon' => 'cash-outline',
+                        'color' => $this->resolveActivityColor('payment', $status),
                     ];
                 }
                 if ($item instanceof \App\Models\MaintenanceRequest) {
+                    $status = strtolower((string) $item->status);
+
                     return [
                         'id' => $item->id, 'type' => 'maintenance',
                         'action' => 'Maintenance Request '.ucfirst($item->status),
                         'description' => "{$item->title} - Room ".($item->booking->room->room_number ?? 'N/A'),
                         'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
-                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'wrench',
-                        'color' => $item->status === 'pending' ? 'red' : 'green',
+                        'status' => $status,
+                        'timestamp' => $item->created_at,
+                        'icon' => 'wrench',
+                        'color' => $this->resolveActivityColor('maintenance', $status),
                     ];
                 }
 
-                return (array) $item;
-            });
+                return $this->normalizeActivityPayload((array) $item);
+            })->filter()->values();
 
             $limit = $propertyId ? 50 : 20;
 
@@ -131,6 +165,77 @@ class LandlordDashboardController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch recent activities', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    private function normalizeActivityPayload(array $payload): array
+    {
+        $type = isset($payload['type']) ? (string) $payload['type'] : 'generic';
+        $status = isset($payload['status']) ? strtolower((string) $payload['status']) : null;
+        $providedColor = isset($payload['color']) ? (string) $payload['color'] : null;
+
+        if ($status !== null) {
+            $payload['status'] = $status;
+        }
+
+        $payload['color'] = $this->resolveActivityColor($type, $status, $providedColor);
+
+        return $payload;
+    }
+
+    private function resolveActivityColor(string $type, ?string $status, ?string $providedColor = null): string
+    {
+        $mappedColor = $this->mapActivityStatusToColor($type, $status);
+
+        if ($mappedColor !== null) {
+            return $mappedColor;
+        }
+
+        $normalizedProvidedColor = strtolower((string) $providedColor);
+        if (in_array($normalizedProvidedColor, ['green', 'blue', 'yellow', 'red', 'gray'], true)) {
+            return $normalizedProvidedColor;
+        }
+
+        return 'gray';
+    }
+
+    private function mapActivityStatusToColor(string $type, ?string $status): ?string
+    {
+        $normalizedType = strtolower(trim($type));
+        $normalizedStatus = strtolower(trim((string) $status));
+
+        if ($normalizedStatus === '') {
+            return null;
+        }
+
+        if ($normalizedType === 'property' && in_array($normalizedStatus, ['updated', 'changed'], true)) {
+            return 'blue';
+        }
+
+        if ($normalizedType === 'room' && $normalizedStatus === 'occupied') {
+            return 'blue';
+        }
+
+        if ($normalizedType === 'maintenance' && $normalizedStatus === 'pending') {
+            return 'red';
+        }
+
+        if (in_array($normalizedStatus, ['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'], true)) {
+            return 'red';
+        }
+
+        if (in_array($normalizedStatus, ['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'], true)) {
+            return 'yellow';
+        }
+
+        if (in_array($normalizedStatus, ['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'], true)) {
+            return 'green';
+        }
+
+        if (in_array($normalizedStatus, ['inactive', 'maintenance', 'draft'], true)) {
+            return 'gray';
+        }
+
+        return null;
     }
 
     public function getUpcomingPayments(Request $request)

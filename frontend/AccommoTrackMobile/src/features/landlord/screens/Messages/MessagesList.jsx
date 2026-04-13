@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, FlatList, Text, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, TextInput, TouchableOpacity, ScrollView, FlatList, Text, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ConversationSkeleton } from '../../../../components/Skeletons/index.jsx';
@@ -41,6 +41,46 @@ const getInitials = (user) => {
     .toUpperCase() || 'TN';
 };
 
+const getRolePalette = (theme, role) => {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+
+    if (normalizedRole === 'caretaker') {
+        return theme.isDark
+            ? { background: 'rgba(245, 158, 11, 0.2)', border: 'rgba(245, 158, 11, 0.45)', text: '#FCD34D' }
+            : { background: '#FEF3C7', border: '#FCD34D', text: '#92400E' };
+    }
+
+    if (normalizedRole === 'tenant') {
+        return theme.isDark
+            ? { background: 'rgba(16, 185, 129, 0.2)', border: 'rgba(16, 185, 129, 0.45)', text: '#6EE7B7' }
+            : { background: '#D1FAE5', border: '#6EE7B7', text: '#065F46' };
+    }
+
+    return theme.isDark
+        ? { background: 'rgba(148, 163, 184, 0.2)', border: 'rgba(148, 163, 184, 0.4)', text: '#CBD5E1' }
+        : { background: '#F1F5F9', border: '#CBD5E1', text: '#334155' };
+};
+
+const getOccupancyPalette = (theme, occupancyKey) => {
+    const normalizedKey = String(occupancyKey || '').trim().toLowerCase();
+
+    if (normalizedKey === 'tenant' || normalizedKey === 'current') {
+        return theme.isDark
+            ? { background: 'rgba(59, 130, 246, 0.2)', border: 'rgba(59, 130, 246, 0.45)', text: '#93C5FD' }
+            : { background: '#DBEAFE', border: '#93C5FD', text: '#1D4ED8' };
+    }
+
+    if (normalizedKey === 'guest') {
+        return theme.isDark
+            ? { background: 'rgba(244, 114, 182, 0.2)', border: 'rgba(244, 114, 182, 0.45)', text: '#F9A8D4' }
+            : { background: '#FCE7F3', border: '#F9A8D4', text: '#9D174D' };
+    }
+
+    return theme.isDark
+        ? { background: 'rgba(148, 163, 184, 0.2)', border: 'rgba(148, 163, 184, 0.4)', text: '#CBD5E1' }
+        : { background: '#F1F5F9', border: '#CBD5E1', text: '#334155' };
+};
+
 export default function MessagesList({
     theme,
     styles,
@@ -75,45 +115,50 @@ export default function MessagesList({
             </View>
 
             {/* Property Filters (If Landlord has multiple properties) */}
-            {!loading && properties.length > 0 && (
-                <View style={{ paddingVertical: 16, backgroundColor: theme.colors.backgroundSecondary }}>
+            {!loading && properties.length > 1 && (
+                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                     <ScrollView 
                         horizontal 
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+                        contentContainerStyle={{ gap: 8 }}
                     >
                         <TouchableOpacity
-                            style={[
-                                { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
-                                !selectedPropertyId 
-                                    ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } 
-                                    : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
-                            ]}
+                            style={{
+                                paddingHorizontal: 14,
+                                paddingVertical: 8,
+                                borderRadius: 999,
+                                borderWidth: 1,
+                                borderColor: !selectedPropertyId ? theme.colors.primary : theme.colors.border,
+                                backgroundColor: !selectedPropertyId ? theme.colors.primary : theme.colors.surface,
+                            }}
                             onPress={() => setSelectedPropertyId(null)}
                         >
-                            <Text style={{ 
-                                color: !selectedPropertyId ? '#FFF' : theme.colors.textSecondary,
-                                fontWeight: !selectedPropertyId ? '600' : '400'
-                            }}>All Properties</Text>
+                            <Text style={{ color: !selectedPropertyId ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                                All Properties
+                            </Text>
                         </TouchableOpacity>
 
-                        {properties.map((prop) => (
-                            <TouchableOpacity
-                                key={prop.id}
-                                style={[
-                                    { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
-                                    selectedPropertyId === prop.id 
-                                        ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } 
-                                        : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
-                                ]}
-                                onPress={() => setSelectedPropertyId(prop.id)}
-                            >
-                                <Text style={{ 
-                                    color: selectedPropertyId === prop.id ? '#FFF' : theme.colors.textSecondary,
-                                    fontWeight: selectedPropertyId === prop.id ? '600' : '400'
-                                }}>{prop.title}</Text>
-                            </TouchableOpacity>
-                        ))}
+                        {properties.map((prop) => {
+                            const isActive = selectedPropertyId === prop.id;
+                            return (
+                                <TouchableOpacity
+                                    key={prop.id}
+                                    style={{
+                                        paddingHorizontal: 14,
+                                        paddingVertical: 8,
+                                        borderRadius: 999,
+                                        borderWidth: 1,
+                                        borderColor: isActive ? theme.colors.primary : theme.colors.border,
+                                        backgroundColor: isActive ? theme.colors.primary : theme.colors.surface,
+                                    }}
+                                    onPress={() => setSelectedPropertyId(prop.id)}
+                                >
+                                    <Text style={{ color: isActive ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                                        {prop.title || prop.name || `Property ${prop.id}`}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </ScrollView>
                 </View>
             )}
@@ -132,7 +177,7 @@ export default function MessagesList({
                     <Ionicons name="chatbubbles-outline" size={64} color={theme.colors.textTertiary} />
                     <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No conversations yet</Text>
                     <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-                        Contact a tenant from their profile to start chatting
+                        Contact a tenant or caretaker from their profile to start chatting
                     </Text>
                 </View>
             ) : (
@@ -142,11 +187,27 @@ export default function MessagesList({
                     renderItem={({ item: conv }) => {
                         const isNew = conv.id === newConversationId;
                         const initials = getInitials(conv.other_user);
+                        const participantMeta = conv?.participantMeta || null;
+                        const role = participantMeta?.role || conv?.other_user?.role || 'participant';
+                        const roleLabel = participantMeta?.roleLabel || role;
+                        const occupancyLabel = participantMeta?.occupancyLabel || null;
+                        const roomLabel = participantMeta?.roomLabel || null;
+                        const tenantIndicatorLabel = occupancyLabel || roleLabel;
+                        const isTenantParticipant = String(role).trim().toLowerCase() === 'tenant';
+
+                        const rolePalette = getRolePalette(theme, role);
+                        const occupancyPalette = getOccupancyPalette(theme, participantMeta?.occupancyKey);
+                        const shouldShowOccupancyBadge = Boolean(occupancyLabel)
+                            && String(occupancyLabel).trim().toLowerCase() !== String(roleLabel).trim().toLowerCase();
+
                         return (
                             <TouchableOpacity
                                 style={[styles.conversationItem, isNew && styles.newConversation]}
                                 onPress={() => {
-                                    navigation.navigate('Chat', { conversation: conv });
+                                    navigation.navigate('Chat', {
+                                        conversation: conv,
+                                        participantMeta,
+                                    });
                                     if (isNew) {
                                         setNewConversationId(null);
                                     }
@@ -165,18 +226,74 @@ export default function MessagesList({
                                         </Text>
                                         <Text style={styles.conversationTime}>{formatTime(conv.last_message_at)}</Text>
                                     </View>
+
+                                    <View style={styles.participantMetaRow}>
+                                        {isTenantParticipant ? (
+                                            <View
+                                                style={[
+                                                    styles.participantBadge,
+                                                    {
+                                                        backgroundColor: occupancyPalette.background,
+                                                        borderColor: occupancyPalette.border,
+                                                    },
+                                                ]}
+                                            >
+                                                <Text style={[styles.participantBadgeText, { color: occupancyPalette.text }]}>
+                                                    {tenantIndicatorLabel}
+                                                </Text>
+                                            </View>
+                                        ) : (
+                                            <View
+                                                style={[
+                                                    styles.participantBadge,
+                                                    {
+                                                        backgroundColor: rolePalette.background,
+                                                        borderColor: rolePalette.border,
+                                                    },
+                                                ]}
+                                            >
+                                                <Text style={[styles.participantBadgeText, { color: rolePalette.text }]}>
+                                                    {roleLabel}
+                                                </Text>
+                                            </View>
+                                        )}
+
+                                        {!isTenantParticipant && shouldShowOccupancyBadge && (
+                                            <View
+                                                style={[
+                                                    styles.participantBadge,
+                                                    {
+                                                        backgroundColor: occupancyPalette.background,
+                                                        borderColor: occupancyPalette.border,
+                                                    },
+                                                ]}
+                                            >
+                                                <Text style={[styles.participantBadgeText, { color: occupancyPalette.text }]}>
+                                                    {occupancyLabel}
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+
                                     {conv.property?.title && (
                                         <Text style={styles.propertyName} numberOfLines={1}>
                                             {conv.property.title}
                                         </Text>
                                     )}
+
+                                    {roomLabel && role === 'tenant' && (
+                                        <Text style={styles.participantRoomMeta} numberOfLines={1}>
+                                            {roomLabel}
+                                        </Text>
+                                    )}
+
                                     <Text style={styles.lastMessage} numberOfLines={1}>
                                         {conv.last_message?.message || 'No messages yet'}
                                     </Text>
                                 </View>
 
                                 {conv.unread_count > 0 && (
-                                    <View style={[styles.unreadBadge, { backgroundColor: theme.colors.primary }]}>
+                                    <View style={[styles.unreadBadge, { backgroundColor: '#EF4444' }]}>
                                         <Text style={styles.unreadCount}>{conv.unread_count}</Text>
                                     </View>
                                 )}

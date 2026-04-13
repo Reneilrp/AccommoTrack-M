@@ -12,6 +12,7 @@ export default function LeaveReview() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const { bookingId = null, propertyId = null, reviewId = null, initialRating = 5, initialComment = '' } = route.params || {};
 
   const [rating, setRating] = useState(initialRating);
@@ -22,7 +23,7 @@ export default function LeaveReview() {
 
   const submit = async () => {
     if (!propertyId) {
-      Alert.alert('Missing data', 'Property information is missing.');
+      showAlert('Missing data', 'Property information is missing.');
       return;
     }
     setSubmitting(true);
@@ -40,14 +41,14 @@ export default function LeaveReview() {
         res = await tenantService.submitReview(payload);
       }
       if (res.success) {
-        Alert.alert('Thanks!', reviewId ? 'Your review has been updated.' : 'Your review has been submitted.');
+        showAlert('Thanks!', reviewId ? 'Your review has been updated.' : 'Your review has been submitted.');
         navigation.goBack();
       } else {
-        Alert.alert('Error', res.error || 'Failed to submit review');
+        showAlert('Error', res.error || 'Failed to submit review');
       }
     } catch (err) {
       console.error('Submit review error', err);
-      Alert.alert('Error', 'Failed to submit review');
+      showAlert('Error', 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }

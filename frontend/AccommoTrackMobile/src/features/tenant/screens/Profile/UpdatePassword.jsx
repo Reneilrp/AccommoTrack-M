@@ -22,6 +22,7 @@ export default function UpdatePasswordPage() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -69,15 +70,15 @@ export default function UpdatePasswordPage() {
 
   const validate = () => {
     if (!currentPassword) {
-      Alert.alert('Validation', 'Current password is required');
+      showAlert('Validation', 'Current password is required');
       return false;
     }
     if (!passwordChecks.minLen || !passwordChecks.hasUpper || !passwordChecks.numCount || !passwordChecks.hasSpecial) {
-      Alert.alert('Validation', 'New password does not meet requirements');
+      showAlert('Validation', 'New password does not meet requirements');
       return false;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Validation', 'New password and confirmation do not match');
+      showAlert('Validation', 'New password and confirmation do not match');
       return false;
     }
     return true;
@@ -109,15 +110,15 @@ export default function UpdatePasswordPage() {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        Alert.alert('Success', 'Password updated successfully', [
+        showAlert('Success', 'Password updated successfully', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       } else {
-        Alert.alert('Error', data.message || 'Failed to change password');
+        showAlert('Error', data.message || 'Failed to change password');
       }
     } catch (error) {
       console.error('Change password error:', error);
-      Alert.alert('Error', 'Network error while changing password');
+      showAlert('Error', 'Network error while changing password');
     } finally {
       setSaving(false);
     }

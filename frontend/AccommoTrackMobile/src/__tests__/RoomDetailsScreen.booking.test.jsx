@@ -6,6 +6,13 @@ import RoomDetailsScreen from '../features/tenant/screens/Explore/RoomDetailsScr
 import BookingService from '../services/BookingService.js';
 import PropertyService from '../services/PropertyService.js';
 import PaymentService from '../services/PaymentService.js';
+import { showError } from '../utils/toast.js';
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
+jest.setTimeout(20000);
 
 const mockNavigation = {
   goBack: jest.fn(),
@@ -24,7 +31,7 @@ jest.mock('../contexts/ThemeContext.jsx', () => ({
     theme: {
       isDark: false,
       colors: {
-        primary: '#059669',
+        primary: '#16a34a',
         text: '#0f172a',
         textSecondary: '#475569',
         textTertiary: '#94a3b8',
@@ -90,6 +97,14 @@ jest.mock('../services/PaymentService.js', () => ({
   },
 }));
 
+jest.mock('../utils/toast.js', () => ({
+  showSuccess: jest.fn(),
+  showError: jest.fn(),
+  showInfo: jest.fn(),
+  showWarning: jest.fn(),
+  hideToast: jest.fn(),
+}));
+
 const originalFormData = global.FormData;
 
 class MockFormData {
@@ -132,7 +147,24 @@ const waitForInitialQueries = async () => {
   });
 };
 
-const renderScreen = () => {
+const selectProxyDateOfBirth = (index, year, month, day) => {
+  fireEvent.press(screen.getByTestId(`proxy-occupant-dob-button-${index}`));
+  const selectedDate = new Date(year, month - 1, day);
+  fireEvent(
+    screen.getByTestId(`proxy-occupant-dob-picker-${index}`),
+    'onChange',
+    { type: 'set' },
+    selectedDate,
+  );
+};
+
+const renderScreen = (overrides = {}) => {
+  const routeRoom = overrides.room || room;
+  const routeProperty = {
+    ...property,
+    ...(overrides.property || {}),
+  };
+
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -148,7 +180,7 @@ const renderScreen = () => {
   return render(
     <QueryClientProvider client={queryClient}>
       <RoomDetailsScreen
-        route={{ params: { room, property } }}
+        route={{ params: { room: routeRoom, property: routeProperty } }}
         isGuest={false}
         onAuthRequired={jest.fn()}
       />
@@ -204,7 +236,7 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Submit Booking'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
+      expect(showError).toHaveBeenCalledWith(
         'Missing Information',
         'Proxy booking requires at least one occupant.',
       );
@@ -220,10 +252,10 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Book This Room'));
     fireEvent.press(screen.getByText('Proxy'));
 
-    fireEvent.changeText(screen.getByPlaceholderText('Full name*'), 'Jane Proxy');
-    fireEvent.changeText(screen.getByPlaceholderText('Date of birth (YYYY-MM-DD)*'), '2011-06-01');
-    fireEvent.changeText(screen.getByPlaceholderText('Gender (male/female/other/prefer_not_to_say)*'), 'female');
-    fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker*'), 'child');
+    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Jane Proxy');
+    selectProxyDateOfBirth(0, 1995, 6, 1);
+    fireEvent(screen.getByTestId('proxy-occupant-gender-0'), 'valueChange', 'female');
+    fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'child');
 
     fireEvent.press(screen.getByText('Submit Booking'));
 
@@ -236,10 +268,103 @@ describe('RoomDetailsScreen proxy booking', () => {
       expect.arrayContaining([
         ['booking_mode', 'proxy'],
         ['occupants[0][full_name]', 'Jane Proxy'],
-        ['occupants[0][date_of_birth]', '2011-06-01'],
+        ['occupants[0][date_of_birth]', '1995-06-01'],
         ['occupants[0][gender]', 'female'],
         ['occupants[0][relationship_to_booker]', 'child'],
       ]),
     );
+  });
+
+  it('blocks proxy submit when occupant age is below 18', async () => {
+    renderScreen();
+    await waitForInitialQueries();
+
+    fireEvent.press(screen.getByText('Book This Room'));
+    fireEvent.press(screen.getByText('Proxy'));
+
+    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Young Occupant');
+    selectProxyDateOfBirth(0, 2012, 6, 1);
+    fireEvent(screen.getByTestId('proxy-occupant-gender-0'), 'valueChange', 'female');
+    fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
+
+    fireEvent.press(screen.getByText('Submit Booking'));
+
+    await waitFor(() => {
+      expect(showError).toHaveBeenCalledWith('Age Restriction', 'Occupant 1 must be at least 18 years old.');
+    });
+
+    expect(BookingService.createBooking).not.toHaveBeenCalled();
+  });
+
+  it('opens proxy DOB picker with 18+ cutoff as default and max date', async () => {
+    renderScreen();
+    await waitForInitialQueries();
+
+    fireEvent.press(screen.getByText('Book This Room'));
+    fireEvent.press(screen.getByText('Proxy'));
+    fireEvent.press(screen.getByTestId('proxy-occupant-dob-button-0'));
+
+    const dobPicker = screen.getByTestId('proxy-occupant-dob-picker-0');
+    const expectedAdultCutoff = new Date();
+    expectedAdultCutoff.setHours(0, 0, 0, 0);
+    expectedAdultCutoff.setFullYear(expectedAdultCutoff.getFullYear() - 18);
+
+    expect(dobPicker.props.value.toDateString()).toBe(expectedAdultCutoff.toDateString());
+    expect(dobPicker.props.maximumDate.toDateString()).toBe(expectedAdultCutoff.toDateString());
+  });
+
+  it('defaults proxy occupant gender to room restriction for restricted rooms', async () => {
+    renderScreen({
+      room: {
+        ...room,
+        gender_restriction: 'female',
+      },
+    });
+
+    await waitForInitialQueries();
+
+    fireEvent.press(screen.getByText('Book This Room'));
+    fireEvent.press(screen.getByText('Proxy'));
+
+    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Default Gender Occupant');
+    selectProxyDateOfBirth(0, 1994, 6, 1);
+    fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
+
+    fireEvent.press(screen.getByText('Submit Booking'));
+
+    await waitFor(() => {
+      expect(BookingService.createBooking).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = BookingService.createBooking.mock.calls[0][0];
+    expect(payload.fields).toEqual(
+      expect.arrayContaining([
+        ['booking_mode', 'proxy'],
+        ['occupants[0][gender]', 'female'],
+      ]),
+    );
+  });
+
+  it('does not require receipt when move-in is within three days even if reservation fee is configured', async () => {
+    renderScreen({
+      property: {
+        require_reservation_fee: true,
+        reservation_fee: 1200,
+      },
+    });
+
+    await waitForInitialQueries();
+
+    fireEvent.press(screen.getByText('Book This Room'));
+    fireEvent.press(screen.getByText('Submit Booking'));
+
+    await waitFor(() => {
+      expect(BookingService.createBooking).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = BookingService.createBooking.mock.calls[0][0];
+    const hasReceiptField = payload.fields.some(([key]) => key === 'receipt_image');
+
+    expect(hasReceiptField).toBe(false);
   });
 });

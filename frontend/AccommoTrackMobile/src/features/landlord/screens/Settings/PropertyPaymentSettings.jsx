@@ -28,6 +28,7 @@ const EMPTY_PROPERTIES = [];
 
 export default function PropertyPaymentSettings({ navigation }) {
   const { theme } = useTheme();
+  const showAlert = Alert.alert;
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(null); // propertyId being saved
   const [actionError, setActionError] = useState('');
@@ -115,7 +116,7 @@ export default function PropertyPaymentSettings({ navigation }) {
     if (!property) return;
 
     if (method === 'online' && !isPayMongoVerified) {
-      Alert.alert(
+      showAlert(
         'PayMongo Not Verified',
         'You need to complete PayMongo verification before enabling online payments. Go to Settings > Payments to connect.',
         [{ text: 'OK' }]
@@ -128,7 +129,7 @@ export default function PropertyPaymentSettings({ navigation }) {
     if (current.includes(method)) {
       // Prevent removing cash if it is the only method
       if (method === 'cash' && current.length === 1) {
-        Alert.alert('Required', 'At least one payment method (Cash) must be enabled.');
+        showAlert('Required', 'At least one payment method (Cash) must be enabled.');
         return;
       }
       updated = current.filter((m) => m !== method);
@@ -165,7 +166,7 @@ export default function PropertyPaymentSettings({ navigation }) {
       );
       const message = err.response?.data?.message || err.message || 'Failed to update payment methods';
       setActionError(message);
-      Alert.alert('Error', message);
+      showAlert('Error', message);
     } finally {
       setSaving(null);
     }
@@ -290,7 +291,7 @@ export default function PropertyPaymentSettings({ navigation }) {
               {/* Cash toggle */}
               <View style={styles.methodRow}>
                 <View style={styles.methodLeft}>
-                  <Ionicons name="cash-outline" size={20} color="#059669" />
+                  <Ionicons name="cash-outline" size={20} color="#16a34a" />
                   <View>
                     <Text style={styles.methodLabel}>Cash</Text>
                     <Text style={styles.methodDesc}>In-person cash payment</Text>

@@ -110,8 +110,27 @@ export default function DashboardPage({ user }) {
     }
   };
 
-  const getActivityColor = (color) => {
-    switch (color) {
+  const resolveActivityColor = (activity) => {
+    const explicitColor = String(activity?.color || '').toLowerCase();
+    if (['green', 'blue', 'yellow', 'red', 'gray'].includes(explicitColor)) {
+      return explicitColor;
+    }
+
+    const status = String(activity?.status || '').toLowerCase();
+    const type = String(activity?.type || '').toLowerCase();
+
+    if (type === 'property' && (status === 'updated' || status === 'changed')) return 'blue';
+    if (type === 'room' && status === 'occupied') return 'blue';
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'red';
+    if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
+    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
+    if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
+
+    return 'gray';
+  };
+
+  const getActivityColor = (activity) => {
+    switch (resolveActivityColor(activity)) {
       case 'green': return 'bg-green-100 text-green-600';
       case 'blue': return 'bg-blue-100 text-blue-600';
       case 'yellow': return 'bg-yellow-100 text-yellow-600';
@@ -119,6 +138,18 @@ export default function DashboardPage({ user }) {
       case 'gray': return 'bg-gray-100 text-gray-600';
       default: return 'bg-gray-100 text-gray-600';
     }
+  };
+
+  const getStatusColor = (activity) => {
+    const status = String(activity?.status || '').toLowerCase();
+
+    if (status === 'updated' || status === 'changed') return 'bg-blue-100 text-blue-600';
+    if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'bg-yellow-100 text-yellow-600';
+    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'bg-green-100 text-green-600';
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'bg-red-100 text-red-600';
+    if (['inactive', 'maintenance', 'draft'].includes(status)) return 'bg-gray-100 text-gray-600';
+
+    return getActivityColor(activity);
   };
 
   const getUrgencyColor = (urgency) => {
@@ -169,6 +200,45 @@ export default function DashboardPage({ user }) {
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
   };
+
+  const getVerificationBannerConfig = (status) => {
+    switch (status) {
+      case 'pending':
+        return {
+          wrapperClass: 'bg-yellow-50 border-yellow-200',
+          icon: <Clock className="w-6 h-6 text-yellow-600" />,
+          message: 'Your registration is waiting for admin to enable the document submission stage.',
+        };
+      case 'partial_verified':
+        return {
+          wrapperClass: 'bg-blue-50 border-blue-200',
+          icon: <ShieldAlert className="w-6 h-6 text-blue-600" />,
+          message: 'Your account is partially verified. Submit your documents in Settings to complete full verification.',
+        };
+      case 'pending_documents_review':
+        return {
+          wrapperClass: 'bg-indigo-50 border-indigo-200',
+          icon: <Clock className="w-6 h-6 text-indigo-600" />,
+          message: 'Your documents are under admin review. Full verification is still in progress.',
+        };
+      case 'rejected':
+        return {
+          wrapperClass: 'bg-red-50 border-red-200',
+          icon: <FileWarning className="w-6 h-6 text-red-600" />,
+          message: 'Your landlord verification submission was rejected. This is separate from your property drafts. Check Settings for the reason and resubmit documents.',
+        };
+      case 'approved':
+        return null;
+      default:
+        return {
+          wrapperClass: 'bg-orange-50 border-orange-200',
+          icon: <ShieldAlert className="w-6 h-6 text-orange-600" />,
+          message: 'Please complete your verification in Settings to unlock all features.',
+        };
+    }
+  };
+
+  const verificationBanner = verificationStatus ? getVerificationBannerConfig(verificationStatus.status) : null;
 
   if (loading) {
     return (
@@ -224,18 +294,14 @@ export default function DashboardPage({ user }) {
   return (
     <div className="space-y-6">
       {/* Verification Status Banner */}
-      {verificationStatus && verificationStatus.status !== 'approved' && (
-        <div className={`rounded-xl border p-4 ${
-          verificationStatus.status === 'rejected' ? 'bg-red-50 border-red-200' : 
-          verificationStatus.status === 'pending' ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200'
-        }`}>
+      {verificationBanner && (
+        <div className={`rounded-xl border p-4 ${verificationBanner.wrapperClass}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              {verificationStatus.status === 'rejected' ? <FileWarning className="w-6 h-6 text-red-600" /> : 
-               verificationStatus.status === 'pending' ? <Clock className="w-6 h-6 text-yellow-600" /> : <ShieldAlert className="w-6 h-6 text-orange-600" />}
+              {verificationBanner.icon}
               <div>
-                <h3 className="font-semibold text-gray-900">Account Status: {verificationStatus.status.replace('_', ' ').toUpperCase()}</h3>
-                <p className="text-sm text-gray-600">Please complete your verification in Settings to unlock all features.</p>
+                <h3 className="font-semibold text-gray-900">Verification Status: {verificationStatus.status.replace('_', ' ').toUpperCase()}</h3>
+                <p className="text-sm text-gray-600">{verificationBanner.message}</p>
               </div>
             </div>
             <Link to="/settings" state={{ tab: 'verification' }} className="px-4 py-2 bg-white dark:bg-gray-800 border rounded-lg text-sm font-medium shadow-sm">View Status</Link>
@@ -294,13 +360,13 @@ export default function DashboardPage({ user }) {
             {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> : 
               activities.slice(0, 6).map((activity, index) => (
                 <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity.color)}`}>{getActivityIcon(activity.type)}</div>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity)}`}>{getActivityIcon(activity.type)}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{activity.description}</p>
                     <p className="text-xs text-gray-500 mt-2">{formatDate(activity.timestamp)}</p>
                   </div>
-                  <span className={`px-2 py-2 text-xs font-medium rounded-full capitalize ${getActivityColor(activity.color)}`}>{activity.status}</span>
+                  <span className={`px-2 py-2 text-xs font-medium rounded-full capitalize ${getStatusColor(activity)}`}>{activity.status}</span>
                 </div>
               ))
             }

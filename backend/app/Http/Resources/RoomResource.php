@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Room as RoomModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,7 @@ class RoomResource extends JsonResource
     public function toArray(Request $request): array
     {
         $lock = $this->active_eviction_lock;
+        $durationPricing = $this->normalizedDurationPricing();
 
         return [
             'id' => $this->id,
@@ -29,6 +31,8 @@ class RoomResource extends JsonResource
             'unit_price' => (float) ($this->billing_policy === 'daily' ? ($this->daily_rate ?? ($this->monthly_rate / 30)) : $this->monthly_rate),
             'billing_policy' => $this->billing_policy ?? 'monthly',
             'pricing_model' => $this->pricing_model ?? 'full_room',
+            'duration_pricing' => $durationPricing,
+            'long_term_promos' => $this->formatLongTermPromos($durationPricing),
             'capacity' => $this->capacity,
             'occupied' => (int) $this->occupied,
             'occupied_count' => (int) $this->occupied,
@@ -65,13 +69,47 @@ class RoomResource extends JsonResource
             }),
             'tenant' => $this->tenant,
             'tenants' => $this->whenLoaded('tenants', function () {
-                $list = $this->tenants->map(function ($t) {
+                $latestBookingByTenantId = collect($this->whenLoaded('bookings', function () {
+                    return $this->bookings;
+                }, collect()))
+                    ->filter(fn ($booking) => ! is_null($booking->tenant_id))
+                    ->sortByDesc(fn ($booking) => optional($booking->start_date)->timestamp ?? 0)
+                    ->groupBy('tenant_id')
+                    ->map(fn ($tenantBookings) => $tenantBookings->first());
+
+                $list = $this->tenants->map(function ($t) use ($latestBookingByTenantId) {
+                    $tenantBooking = $latestBookingByTenantId->get($t->id);
+                    $bookingMode = $tenantBooking?->booking_mode;
+                    $bedCount = max(1, (int) ($tenantBooking?->bed_count ?? 1));
+                    $occupants = collect($tenantBooking?->occupants ?? [])->map(function ($occupant) {
+                        return [
+                            'id' => $occupant->id,
+                            'full_name' => $occupant->full_name,
+                            'gender' => $occupant->gender,
+                            'date_of_birth' => $occupant->date_of_birth,
+                            'relationship_to_booker' => $occupant->relationship_to_booker,
+                            'email' => $occupant->email,
+                            'phone' => $occupant->phone,
+                        ];
+                    })->values()->toArray();
+
+                    $occupantCount = count($occupants);
+                    if ($occupantCount <= 0 && $bookingMode === 'proxy') {
+                        $occupantCount = $bedCount;
+                    }
+
                     return [
                         'id' => $t->id,
                         'name' => $t->first_name.' '.$t->last_name,
                         'email' => $t->email,
                         'phone' => $t->phone,
                         'is_user' => true,
+                        'booking_id' => $tenantBooking?->id,
+                        'booking_mode' => $bookingMode,
+                        'bed_count' => $bedCount,
+                        'occupant_count' => max(1, $occupantCount),
+                        'is_proxy_account' => $bookingMode === 'proxy',
+                        'occupants' => $occupants,
                     ];
                 })->toArray();
 
@@ -84,8 +122,26 @@ class RoomResource extends JsonResource
                         $query->whereNull('end_date')
                             ->orWhere('end_date', '>=', now());
                     })
+                    ->with('occupants')
                     ->get()
                     ->map(function ($b) {
+                        $occupants = $b->occupants->map(function ($occupant) {
+                            return [
+                                'id' => $occupant->id,
+                                'full_name' => $occupant->full_name,
+                                'gender' => $occupant->gender,
+                                'date_of_birth' => $occupant->date_of_birth,
+                                'relationship_to_booker' => $occupant->relationship_to_booker,
+                                'email' => $occupant->email,
+                                'phone' => $occupant->phone,
+                            ];
+                        })->values()->toArray();
+
+                        $occupantCount = count($occupants);
+                        if ($occupantCount <= 0 && $b->booking_mode === 'proxy') {
+                            $occupantCount = max(1, (int) $b->bed_count);
+                        }
+
                         return [
                             'id' => null,
                             'booking_id' => $b->id,
@@ -93,6 +149,11 @@ class RoomResource extends JsonResource
                             'email' => null,
                             'phone' => null,
                             'is_user' => false,
+                            'booking_mode' => $b->booking_mode,
+                            'bed_count' => max(1, (int) ($b->bed_count ?? 1)),
+                            'occupant_count' => max(1, $occupantCount),
+                            'is_proxy_account' => $b->booking_mode === 'proxy',
+                            'occupants' => $occupants,
                         ];
                     })->toArray();
 
@@ -107,7 +168,7 @@ class RoomResource extends JsonResource
             'rules' => $this->rules ?? [],
             'amenities' => $this->whenLoaded('amenities', fn () => $this->amenities->pluck('name')->toArray(), []),
             'images' => $this->whenLoaded('images', fn () => $this->images->pluck('image_url')->map(function ($url) {
-                return str_starts_with($url, 'http') ? $url : asset('storage/'.ltrim($url, '/'));
+                return str_starts_with($url, 'http') ? $url : \Illuminate\Support\Facades\Storage::url($url);
             })->toArray(), []),
             'landlord' => $this->whenLoaded('property', fn () => $this->property->landlord ? [
                 'id' => $this->property->landlord->id,
@@ -120,6 +181,48 @@ class RoomResource extends JsonResource
                 ? $this->bookings->first()->only(['id', 'status', 'start_date', 'end_date'])
                 : null, null),
         ];
+    }
+
+    /**
+     * @return array<string, array{discount_type: string, discount_value: float}>
+     */
+    private function normalizedDurationPricing(): array
+    {
+        return RoomModel::sanitizeDurationPricing($this->duration_pricing);
+    }
+
+    /**
+     * @param  array<string, array{discount_type: string, discount_value: float}>  $durationPricing
+     * @return array<int, array{months: int, discount_type: string, discount_value: float, label: string}>
+     */
+    private function formatLongTermPromos(array $durationPricing): array
+    {
+        return collect($durationPricing)
+            ->map(function (array $promo, string $months): array {
+                $termMonths = (int) $months;
+
+                return [
+                    'months' => $termMonths,
+                    'discount_type' => $promo['discount_type'],
+                    'discount_value' => (float) $promo['discount_value'],
+                    'label' => $this->buildPromoLabel($termMonths, $promo),
+                ];
+            })
+            ->sortBy('months')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array{discount_type: string, discount_value: float}  $promo
+     */
+    private function buildPromoLabel(int $months, array $promo): string
+    {
+        $discountLabel = $promo['discount_type'] === 'percent'
+            ? rtrim(rtrim(number_format((float) $promo['discount_value'], 2), '0'), '.').'% off'
+            : 'PHP '.number_format((float) $promo['discount_value'], 2).' off';
+
+        return $months.'-month promo: '.$discountLabel;
     }
 
     private function getRoomTypeLabel($roomType)

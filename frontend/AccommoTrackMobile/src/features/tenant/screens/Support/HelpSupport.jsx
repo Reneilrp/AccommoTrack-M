@@ -1,55 +1,74 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StatusBar, Linking, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { getStyles } from '../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import Header from '../../components/Header.jsx';
 import Toast from 'react-native-toast-message';
+import { helpService } from '../../../../services/helpService.js';
+import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../../shared/LegalContent.js';
 
 export default function HelpSupport() {
   const navigation = useNavigation();
+  const route = useRoute();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [expandedFAQ, setExpandedFAQ] = useState(null);
+  const [faqs, setFaqs] = useState([]);
+  const [loadingFaqs, setLoadingFaqs] = useState(true);
   const [message, setMessage] = useState('');
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [legalType, setLegalType] = useState('terms');
+  const supportEmail = 'support@accommotrack.com';
+  const supportPhone = '+631234567890';
+  const supportFacebookUrl = 'https://www.facebook.com/AccommoTrack';
 
-  const faqs = [
-    {
-      id: 1,
-      question: "How do I book an accommodation?",
-      answer: "Browse accommodations, select one you like, and click 'View Details'. Then click 'Book Now' to start your reservation."
-    },
-    {
-      id: 2,
-      question: "What payment methods are accepted?",
-      answer: "We accept credit cards, debit cards, GCash, PayMaya, and bank transfers."
-    },
-    {
-      id: 3,
-      question: "Can I cancel my booking?",
-      answer: "Yes, you can cancel your booking. Cancellation policies vary by property. Check the cancellation policy before booking."
-    },
-    {
-      id: 4,
-      question: "How do I contact a landlord?",
-      answer: "Go to the accommodation details page and click the 'Message Landlord' button to start a conversation."
-    },
-    {
-      id: 5,
-      question: "Is my payment information secure?",
-      answer: "Yes, all payment information is encrypted and processed securely through our payment partners."
+  useEffect(() => {
+    let mounted = true;
+
+    const loadFaqs = async () => {
+      setLoadingFaqs(true);
+      try {
+        const data = await helpService.getFAQs();
+        if (mounted) {
+          setFaqs(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        if (mounted) {
+          setFaqs([]);
+        }
+      } finally {
+        if (mounted) {
+          setLoadingFaqs(false);
+        }
+      }
+    };
+
+    loadFaqs();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const openResource = route.params?.openResource;
+    if (openResource !== 'terms' && openResource !== 'privacy') {
+      return;
     }
-  ];
+
+    setLegalType(openResource);
+    setShowLegalModal(true);
+    navigation.setParams({ openResource: undefined });
+  }, [navigation, route.params?.openResource]);
 
   const getContactOptions = () => [
     {
       id: 1,
       icon: 'mail',
       title: 'Email Support',
-      subtitle: 'support@accommodtrack.com',
+      subtitle: 'support@accommotrack.com',
       color: theme.colors.info
     },
     {
@@ -81,22 +100,114 @@ export default function HelpSupport() {
     setExpandedFAQ(expandedFAQ === id ? null : id);
   };
 
-  const handleSubmit = () => {
-    if (message.trim()) {
+  const openExternalLink = async (url, errorText) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) throw new Error('Unsupported link');
+      await Linking.openURL(url);
+      return true;
+    } catch (error) {
       Toast.show({
-        type: 'success',
-        text1: 'Success',
-        text2: "Thank you! Your message has been sent. We'll get back to you soon."
+        type: 'error',
+        text1: 'Action unavailable',
+        text2: errorText,
       });
-      setMessage('');
-    } else {
+      return false;
+    }
+  };
+
+  const handleContactPress = async (option) => {
+    switch (option.id) {
+      case 1: {
+        await openExternalLink(
+          `mailto:${supportEmail}?subject=${encodeURIComponent('AccommoTrack Support Request')}`,
+          'Unable to open your email app.'
+        );
+        break;
+      }
+      case 2: {
+        await openExternalLink(`tel:${supportPhone}`, 'Unable to start a phone call on this device.');
+        break;
+      }
+      case 3: {
+        await openExternalLink(supportFacebookUrl, 'Unable to open AccommoTrack Facebook page.');
+        break;
+      }
+      case 4: {
+        navigation.navigate('Messages');
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
+  const handleSubmit = async () => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) {
       Toast.show({
         type: 'error',
         text1: 'Error',
         text2: 'Please enter a message.'
       });
+      return;
+    }
+
+    const opened = await openExternalLink(
+      `mailto:${supportEmail}?subject=${encodeURIComponent('AccommoTrack Tenant Concern')}&body=${encodeURIComponent(trimmedMessage)}`,
+      'Unable to open your email app.'
+    );
+
+    if (opened) {
+      Toast.show({
+        type: 'success',
+        text1: 'Draft Ready',
+        text2: 'Your support message was prepared in your email app.'
+      });
+      setMessage('');
     }
   };
+
+  const openLegalModal = (type) => {
+    setLegalType(type);
+    setShowLegalModal(true);
+  };
+
+  const handleResourcePress = (resource) => {
+    switch (resource) {
+      case 'guide':
+        Toast.show({
+          type: 'info',
+          text1: 'Guide coming soon',
+          text2: 'User guide content is being prepared.',
+        });
+        break;
+      case 'privacy':
+        openLegalModal('privacy');
+        break;
+      case 'terms':
+        openLegalModal('terms');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const legalSections = React.useMemo(() => {
+    if (legalType === 'privacy') {
+      return UNIFIED_TERMS_AND_CONDITIONS.sections.filter((section) =>
+        /privacy/i.test(section.title)
+      );
+    }
+
+    return UNIFIED_TERMS_AND_CONDITIONS.sections;
+  }, [legalType]);
+
+  const legalTitle = legalType === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions';
+  const legalIntro =
+    legalType === 'privacy'
+      ? 'This policy explains how AccommoTrack collects, stores, and protects personal data.'
+      : 'These terms govern the use of AccommoTrack for both tenants and landlords.';
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -126,7 +237,7 @@ export default function HelpSupport() {
               <TouchableOpacity 
                 key={option.id} 
                 style={styles.contactCard}
-                onPress={() => console.log('Contact:', option.title)}
+                onPress={() => handleContactPress(option)}
               >
                 <View style={[styles.contactIconContainer, { backgroundColor: option.color + '20' }]}>
                   <Ionicons name={option.icon} size={28} color={option.color} />
@@ -141,25 +252,34 @@ export default function HelpSupport() {
         {/* FAQs */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
-          {faqs.map((faq) => (
-            <TouchableOpacity
-              key={faq.id}
-              style={styles.faqCard}
-              onPress={() => toggleFAQ(faq.id)}
-            >
-              <View style={styles.faqHeader}>
-                <Text style={[styles.faqQuestion, { color: theme.colors.text }]}>{faq.question}</Text>
-                <Ionicons
-                  name={expandedFAQ === faq.id ? 'chevron-up' : 'chevron-down'}
-                  size={24}
-                  color={theme.colors.textSecondary}
-                />
-              </View>
-              {expandedFAQ === faq.id && (
-                <Text style={[styles.faqAnswer, { color: theme.colors.textSecondary }]}>{faq.answer}</Text>
-              )}
-            </TouchableOpacity>
-          ))}
+          {loadingFaqs ? (
+            <View style={styles.faqCard}>
+              <Text style={[styles.faqAnswer, { color: theme.colors.textSecondary }]}>Loading FAQs...</Text>
+            </View>
+          ) : (
+            faqs.map((faq, index) => {
+              const faqId = faq.id || index;
+              return (
+                <TouchableOpacity
+                  key={faqId}
+                  style={styles.faqCard}
+                  onPress={() => toggleFAQ(faqId)}
+                >
+                  <View style={styles.faqHeader}>
+                    <Text style={[styles.faqQuestion, { color: theme.colors.text }]}>{faq.question}</Text>
+                    <Ionicons
+                      name={expandedFAQ === faqId ? 'chevron-up' : 'chevron-down'}
+                      size={24}
+                      color={theme.colors.textSecondary}
+                    />
+                  </View>
+                  {expandedFAQ === faqId && (
+                    <Text style={[styles.faqAnswer, { color: theme.colors.textSecondary }]}>{faq.answer}</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
 
         {/* Send Message */}
@@ -186,34 +306,88 @@ export default function HelpSupport() {
         {/* Additional Resources */}
         <View style={[styles.section, { marginBottom: 40 }]}>
           <Text style={styles.sectionTitle}>Additional Resources</Text>
-          <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
+          <TouchableOpacity
+            style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleResourcePress('guide')}
+          >
             <Ionicons name="document-text" size={24} color={theme.colors.primary} />
-            <View style={homeStyles.flex1MarginLeft12}>
+            <View style={styles.resourceContent}>
               <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>User Guide</Text>
               <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>Learn how to use AccommoTrack</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} style={styles.resourceArrow} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
+          <TouchableOpacity
+            style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleResourcePress('privacy')}
+          >
             <Ionicons name="shield-checkmark" size={24} color={theme.colors.info} />
-            <View style={homeStyles.flex1MarginLeft12}>
+            <View style={styles.resourceContent}>
               <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Privacy Policy</Text>
               <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>How we protect your data</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} style={styles.resourceArrow} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
+          <TouchableOpacity
+            style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleResourcePress('terms')}
+          >
             <Ionicons name="newspaper" size={24} color={theme.colors.warning} />
-            <View style={homeStyles.flex1MarginLeft12}>
-              <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Terms of Service</Text>
+            <View style={styles.resourceContent}>
+              <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Terms & Conditions</Text>
               <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>Our terms and conditions</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} style={styles.resourceArrow} />
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showLegalModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowLegalModal(false)}
+      >
+        <View style={[styles.legalModalContainer, { backgroundColor: theme.colors.background }]}> 
+          <View style={[styles.legalModalHeader, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}> 
+            <View style={styles.legalModalTitleWrap}>
+              <Text style={[styles.legalModalTitle, { color: theme.colors.text }]}>{legalTitle}</Text>
+              <Text style={[styles.legalModalUpdated, { color: theme.colors.textSecondary }]}>Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</Text>
+            </View>
+            <TouchableOpacity style={styles.legalModalClose} onPress={() => setShowLegalModal(false)}>
+              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.legalModalBody} contentContainerStyle={styles.legalModalBodyContent}>
+            <View style={[styles.legalIntroCard, { backgroundColor: `${theme.colors.primary}15`, borderLeftColor: theme.colors.primary }]}> 
+              <Text style={[styles.legalIntroText, { color: theme.colors.textSecondary }]}>{legalIntro}</Text>
+            </View>
+
+            {legalSections.map((section, index) => (
+              <View
+                key={`${section.title}-${index}`}
+                style={[styles.legalSectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              >
+                <Text style={[styles.legalSectionTitle, { color: theme.colors.text }]}>{section.title}</Text>
+
+                {Array.isArray(section.content) ? (
+                  section.content.map((item, itemIndex) => (
+                    <View key={`${section.title}-${itemIndex}`} style={styles.legalBulletRow}>
+                      <Text style={[styles.legalBulletMark, { color: theme.colors.primary }]}>-</Text>
+                      <Text style={[styles.legalBulletText, { color: theme.colors.textSecondary }]}>{item}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[styles.legalParagraph, { color: theme.colors.textSecondary }]}>{section.content}</Text>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }

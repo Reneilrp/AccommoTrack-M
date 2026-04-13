@@ -3,7 +3,11 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminPaymentOversightController;
+use App\Http\Controllers\Admin\AdminSubscriptionGrantController;
+use App\Http\Controllers\Admin\AdminDisputeController;
+use App\Http\Controllers\Admin\AdminBroadcastController;
 use App\Http\Controllers\Common\AuthController;
+use App\Http\Controllers\Common\ClaimAccountController;
 use App\Http\Controllers\Common\ForgotPasswordController;
 use App\Http\Controllers\Common\GeocodeController;
 use App\Http\Controllers\Common\InquiryController;
@@ -16,6 +20,7 @@ use App\Http\Controllers\Common\PaymongoController;
 use App\Http\Controllers\Common\PaymongoWebhookController;
 use App\Http\Controllers\Common\ReportController;
 use App\Http\Controllers\Common\ReviewController;
+use App\Http\Controllers\Common\SystemToggleController;
 use App\Http\Controllers\Common\TransactionController;
 use App\Http\Controllers\ReservationDisputeController;
 use App\Http\Controllers\Landlord\AddonController;
@@ -24,6 +29,7 @@ use App\Http\Controllers\Landlord\CaretakerController;
 use App\Http\Controllers\Landlord\LandlordBookingController;
 use App\Http\Controllers\Landlord\LandlordController;
 use App\Http\Controllers\Landlord\LandlordDashboardController;
+use App\Http\Controllers\Landlord\LandlordSubscriptionController;
 use App\Http\Controllers\Landlord\LandlordVerificationController;
 use App\Http\Controllers\Landlord\PropertyController;
 use App\Http\Controllers\Landlord\RoomController;
@@ -37,6 +43,7 @@ use App\Http\Middleware\EnsureUserIsLandlord;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
+use App\Http\Middleware\EdgeCacheMiddleware;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -46,6 +53,7 @@ Route::post('/register', [AuthController::class, 'register'])->middleware('throt
 Route::post('/verify-email-otp', [AuthController::class, 'verifyEmailOtp'])->middleware('throttle:auth-attempts');
 Route::post('/resend-email-otp', [AuthController::class, 'resendEmailOtp'])->middleware('throttle:auth-attempts');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-attempts');
+Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('throttle:auth-attempts');
 Route::post('/inquiries', [InquiryController::class, 'store']);
 
 // Forgot Password Routes
@@ -53,20 +61,36 @@ Route::post('/forgot-password', [ForgotPasswordController::class, 'sendCode'])->
 Route::post('/verify-code', [ForgotPasswordController::class, 'verifyCode'])->middleware('throttle:auth-attempts');
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->middleware('throttle:auth-attempts');
 
+// Claim Existing Tenant Account
+Route::post('/claim-account/verify-code', [ClaimAccountController::class, 'verifyCode'])->middleware('throttle:auth-attempts');
+Route::post('/claim-account/send-otp', [ClaimAccountController::class, 'sendOtp'])->middleware('throttle:auth-attempts');
+Route::post('/claim-account/resend-otp', [ClaimAccountController::class, 'resendOtp'])->middleware('throttle:auth-attempts');
+Route::post('/claim-account/verify-otp', [ClaimAccountController::class, 'verifyOtp'])->middleware('throttle:auth-attempts');
+
 // Public: check if email exists
 Route::get('/check-email', [AuthController::class, 'checkEmail'])->middleware('throttle:10,1');
 
-Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
-Route::get('/public/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
-Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
-Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
-
-// --- Add aliases to match frontend Service calls that omit /public prefix ---
-Route::get('/properties', [PropertyController::class, 'getAllProperties']);
-Route::get('/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
+// Authenticated accessible properties (NOT edge cached)
+// Must be defined before /properties/{id} to prevent wildcard matching
 Route::middleware('auth:sanctum')->get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
-Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
-// ---------------------------------------------------------------------------
+
+// --- Edge Cached Public Endpoints ---
+Route::middleware([EdgeCacheMiddleware::class])->group(function () {
+    Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
+    Route::get('/public/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
+    Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+    Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
+
+    // --- Add aliases to match frontend Service calls that omit /public prefix ---
+    Route::get('/properties', [PropertyController::class, 'getAllProperties']);
+    Route::get('/property-types', [PropertyController::class, 'getPublicPropertyTypes']);
+    Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+
+    // System Toggles
+    Route::get('/system/toggles', [SystemToggleController::class, 'index']);
+    Route::get('/system/toggle', [SystemToggleController::class, 'index']); // Alias for singular
+});
+
 
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
 
@@ -195,6 +219,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/verification-history', [LandlordVerificationController::class, 'getVerificationHistory']);
         Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
 
+        // Landlord Security: Email recovery OTP enrollment (Settings > Security)
+        Route::post('/security/email-recovery/send-otp', [AuthController::class, 'sendLandlordEmailRecoveryOtp'])->middleware('throttle:auth-attempts');
+        Route::post('/security/email-recovery/verify-otp', [AuthController::class, 'verifyLandlordEmailRecoveryOtp'])->middleware('throttle:auth-attempts');
+        Route::post('/security/email-recovery/disable', [AuthController::class, 'disableLandlordEmailRecovery']);
+
         // Landlord: Reviews
         Route::get('/reviews', [ReviewController::class, 'getLandlordReviews']);
         Route::post('/reviews/{id}/respond', [ReviewController::class, 'respond']);
@@ -205,6 +234,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Landlord: PayMongo Onboarding
         Route::get('/paymongo/onboarding', [LandlordController::class, 'getOnboardingUrl']);
+
+        // Landlord: Subscriptions and billing plan visibility
+        Route::get('/subscriptions/plans', [LandlordSubscriptionController::class, 'plans']);
+        Route::get('/subscriptions/current', [LandlordSubscriptionController::class, 'current']);
+        Route::get('/subscriptions/usage', [LandlordSubscriptionController::class, 'usage']);
+        Route::post('/subscriptions/checkout', [LandlordSubscriptionController::class, 'checkout']);
+        Route::post('/subscriptions/checkout/{subscriptionId}/payment-link', [LandlordSubscriptionController::class, 'checkoutPayment']);
+        Route::post('/subscriptions/checkout/{subscriptionId}/sync', [LandlordSubscriptionController::class, 'syncCheckout']);
 
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
@@ -236,6 +273,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/tenants', [AnalyticsController::class, 'getTenantAnalytics']);
         Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
         Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
+        Route::get('/analytics/export-csv', [AnalyticsController::class, 'exportAnalyticsCsv']);
 
         // Reports (Tenant)
         Route::post('/reports', [ReportController::class, 'store']);
@@ -243,6 +281,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/tenants', [TenantController::class, 'store']);
         Route::put('/tenants/{id}', [TenantController::class, 'update']);
         Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
+        Route::post('/tenants/{id}/claim-code', [TenantController::class, 'generateClaimCode']);
         Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
         Route::post('/tenants/{id}/transfer-room', [TenantController::class, 'transferRoom']);
         Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);
@@ -336,18 +375,36 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function () {
         Route::get('/dashboard/stats', [AdminController::class, 'getDashboardStats']);
         Route::get('/dashboard/recent-activities', [AdminController::class, 'getRecentActivities']);
+        Route::get('/settings/payment-controls', [AdminController::class, 'getPaymentControlSettings']);
+        Route::put('/settings/payment-controls', [AdminController::class, 'updatePaymentControlSettings']);
+        Route::post('/clear-cache', [AdminController::class, 'clearGlobalCache']);
         Route::get('/users', [AdminController::class, 'getUsers']);
+        Route::get('/users/archived', [AdminController::class, 'getArchivedUsers']);
+        Route::patch('/users/{id}/email', [AdminController::class, 'updateUserEmail']);
+        Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+        Route::post('/users/{id}/restore', [AdminController::class, 'restoreUser']);
+        Route::delete('/users/{id}/force', [AdminController::class, 'purgeUser']);
         // Route::post('/users', [AdminController::class, 'createAdmin']);
+        Route::post('/users/bulk-approve', [AdminController::class, 'bulkApproveLandlords']);
+        Route::post('/users/bulk-reject', [AdminController::class, 'bulkRejectLandlords']);
+        Route::post('/users/{id}/partial-verify', [AdminController::class, 'partialVerifyUser']);
         Route::post('/users/{id}/approve', [AdminController::class, 'approveUser']);
         Route::post('/users/{id}/block', [AdminController::class, 'blockUser']);
         Route::post('/users/{id}/unblock', [AdminController::class, 'unblockUser']);
+        Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser']);
         Route::get('/properties/pending', [AdminController::class, 'getPendingProperties']);
         Route::get('/properties/approved', [AdminController::class, 'getApprovedProperties']);
         Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);
         Route::get('/properties/maintenance', [AdminController::class, 'getMaintenanceProperties']);
+        Route::get('/properties/archived', [AdminController::class, 'getArchivedProperties']);
+        Route::post('/properties/bulk-approve', [AdminController::class, 'bulkApproveProperties']);
+        Route::post('/properties/bulk-reject', [AdminController::class, 'bulkRejectProperties']);
         Route::post('/properties/{id}/approve', [AdminController::class, 'approveProperty']);
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
         Route::post('/properties/{id}/maintenance', [AdminController::class, 'putUnderMaintenance']);
+        Route::post('/properties/{id}/restore', [AdminController::class, 'restoreProperty']);
+        Route::delete('/properties/{id}', [AdminController::class, 'deleteProperty']);
+        Route::delete('/properties/{id}/force', [AdminController::class, 'purgeProperty']);
 
         // Admin: Inquiries
         Route::prefix('inquiries')->group(function () {
@@ -371,6 +428,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/payments/{invoiceId}/override-approve', [AdminPaymentOversightController::class, 'overrideApprove']);
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index']);
         Route::get('/audit-logs/timeline', [AdminAuditLogController::class, 'entityTimeline']);
+
+        // Admin: Dynamic subscription grants
+        Route::get('/subscriptions/plans', [AdminSubscriptionGrantController::class, 'plans']);
+        Route::post('/subscriptions/grants', [AdminSubscriptionGrantController::class, 'grant']);
+        Route::patch('/subscriptions/grants/{grantId}/extend', [AdminSubscriptionGrantController::class, 'extend']);
+        Route::post('/subscriptions/grants/{grantId}/revoke', [AdminSubscriptionGrantController::class, 'revoke']);
+        Route::get('/subscriptions/landlords/{landlordId}', [AdminSubscriptionGrantController::class, 'overview']);
+
+        // Admin: Dispute Arbitration
+        Route::get('/disputes', [AdminDisputeController::class, 'index']);
+        Route::post('/disputes/{id}/resolve', [AdminDisputeController::class, 'resolve']);
+        Route::patch('/disputes/{id}/notes', [AdminDisputeController::class, 'updateNotes']);
+
+        // Admin: Global Broadcasts
+        Route::get('/broadcasts', [AdminBroadcastController::class, 'index']);
+        Route::post('/broadcasts', [AdminBroadcastController::class, 'store']);
+        Route::patch('/broadcasts/{id}/toggle', [AdminBroadcastController::class, 'toggle']);
+        Route::delete('/broadcasts/{id}', [AdminBroadcastController::class, 'destroy']);
     });
 
     Route::prefix('messages')->group(function () {

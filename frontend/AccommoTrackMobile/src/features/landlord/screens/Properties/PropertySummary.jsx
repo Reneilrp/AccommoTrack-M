@@ -1,12 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
-  View
+  View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +20,6 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
-import PropertyService from '../../../../services/PropertyService.js';
 import api from '../../../../services/api.js';
 import { getStyles } from '../../../../styles/Landlord/DormProfile.js';
 
@@ -49,25 +51,73 @@ const EMPTY_DASH_DATA = {
   recentReviews: [],
 };
 
+const HEADER_MENU_WIDTH = 220;
+const FILTER_MENU_WIDTH = 200;
+const FILTER_MENU_HEIGHT = 304;
+const MENU_VERTICAL_GAP = 2;
+
 export default function PropertySummaryScreen({ route, navigation }) {
   const { theme } = useTheme();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const propertyId = route.params?.propertyId || route.params?.property?.id;
+  const propertyTitle = route.params?.property?.title || route.params?.property?.name || 'Property';
 
+  const filterButtonRef = React.useRef(null);
+  const [filterMenuPos, setFilterMenuPos] = useState({ top: 120, left: 16 });
   const [refreshing, setRefreshing] = useState(false);
-  const propertyQuery = useQuery({
-    queryKey: landlordQueryKeys.propertySummary(propertyId),
-    enabled: Boolean(propertyId),
-    queryFn: async () => {
-      const response = await PropertyService.getProperty(propertyId);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load property');
+  const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
+  const [filterMenuVisible, setFilterMenuVisible] = useState(false);
+  const [activityFilter, setActivityFilter] = useState('all');
+
+  const openAnchoredMenu = (ref, menuWidth, menuHeight, setPosition, setVisible, fallbackTop) => {
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const minLeft = 8;
+    const maxLeft = Math.max(8, screenWidth - menuWidth - 8);
+    const minTop = 8;
+    const maxTop = Math.max(8, screenHeight - menuHeight - 8);
+
+    const node = ref.current;
+    if (!node) {
+      setPosition({
+        top: clamp(fallbackTop, minTop, maxTop),
+        left: clamp(screenWidth - menuWidth - 16, minLeft, maxLeft),
+      });
+      setVisible(true);
+      return;
+    }
+
+    const setFromCoords = (x, y, width, height) => {
+      const rawLeft = x + width - menuWidth;
+      const left = clamp(rawLeft, minLeft, maxLeft);
+      const belowTop = y + height + MENU_VERTICAL_GAP;
+      const aboveTop = y - menuHeight - MENU_VERTICAL_GAP;
+      let top = belowTop;
+
+      if (belowTop + menuHeight > screenHeight - 8 && aboveTop >= 8) {
+        top = aboveTop;
       }
 
-      return response.data;
-    },
-    placeholderData: (previousData) => previousData,
-  });
+      setPosition({ top: clamp(top, minTop, maxTop), left });
+      setVisible(true);
+    };
+
+    if (typeof node.measureInWindow === 'function') {
+      node.measureInWindow((x, y, width, height) => setFromCoords(x, y, width, height));
+      return;
+    }
+
+    if (typeof node.measure === 'function') {
+      node.measure((fx, fy, width, height, px, py) => setFromCoords(px, py, width, height));
+      return;
+    }
+
+    setPosition({
+      top: clamp(fallbackTop, minTop, maxTop),
+      left: clamp(screenWidth - menuWidth - 16, minLeft, maxLeft),
+    });
+    setVisible(true);
+  };
 
   const activityQuery = useQuery({
     queryKey: landlordQueryKeys.propertySummaryActivity(propertyId),
@@ -102,26 +152,12 @@ export default function PropertySummaryScreen({ route, navigation }) {
     placeholderData: (previousData) => previousData,
   });
 
-  const property = propertyQuery.data || null;
-  const loading = propertyQuery.isPending && !property;
-  const error = propertyQuery.error?.message || '';
+  const loading = activityQuery.isPending && !activityQuery.data;
+  const error = activityQuery.error?.message || '';
   const dashData = activityQuery.data || EMPTY_DASH_DATA;
   const dashLoading = activityQuery.isPending && !activityQuery.data;
-  const refetchProperty = propertyQuery.refetch;
   const refetchActivity = activityQuery.refetch;
-  const summaryRefetchers = useMemo(
-    () => [refetchProperty, refetchActivity],
-    [refetchProperty, refetchActivity],
-  );
-
-  const occupancy = useMemo(() => {
-    if (!property) return { total: 0, available: 0, occupied: 0, percentage: 0 };
-    const total = Number(property.total_rooms) || 0;
-    const available = Number(property.available_rooms) || 0;
-    const occupied = Math.max(total - available, 0);
-    const percentage = total ? Math.round((occupied / total) * 100) : 0;
-    return { total, available, occupied, percentage };
-  }, [property]);
+  const summaryRefetchers = useMemo(() => [refetchActivity], [refetchActivity]);
 
   useLandlordFocusRefetch({ enabled: Boolean(propertyId), refetchers: summaryRefetchers });
 
@@ -243,6 +279,38 @@ export default function PropertySummaryScreen({ route, navigation }) {
     ].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
   }, [dashData]);
 
+  const activityFilterOptions = useMemo(
+    () => [
+      { key: 'all', label: 'All Activity' },
+      { key: 'booking', label: 'Bookings' },
+      { key: 'payment', label: 'Payments' },
+      { key: 'maintenance', label: 'Maintenance' },
+      { key: 'transfer', label: 'Transfers' },
+      { key: 'addon', label: 'Add-ons' },
+      { key: 'review', label: 'Reviews' },
+    ],
+    [],
+  );
+
+  const filteredActivityItems = useMemo(() => {
+    if (activityFilter === 'all') return activityItems;
+    return activityItems.filter((item) => item.type === activityFilter);
+  }, [activityItems, activityFilter]);
+
+  const headerMenuActions = useMemo(
+    () => [
+      { key: 'rooms', label: 'Manage Rooms', icon: 'bed-outline', onPress: () => navigation.navigate('RoomManagement', { propertyId: propertyId }) },
+      { key: 'tenants', label: 'Manage Tenants', icon: 'people-outline', onPress: () => navigation.navigate('Tenants', { propertyId: propertyId }) },
+      { key: 'maintenance', label: 'Maintenance Requests', icon: 'construct-outline', onPress: () => navigation.navigate('MaintenanceRequests', { propertyId: propertyId, propertyTitle: propertyTitle }) },
+      { key: 'reviews', label: 'Reviews', icon: 'star-outline', onPress: () => navigation.navigate('Reviews', { propertyId: propertyId, propertyTitle: propertyTitle }) },
+      { key: 'transfers', label: 'Transfer Requests', icon: 'swap-horizontal-outline', onPress: () => navigation.navigate('TransferRequests', { propertyId: propertyId, propertyTitle: propertyTitle }) },
+      { key: 'settings', label: 'Property Settings', icon: 'settings-outline', onPress: () => navigation.navigate('DormProfileSettings', { propertyId: propertyId }) },
+      { key: 'addons', label: 'Manage Add-ons', icon: 'sparkles-outline', onPress: () => navigation.navigate('AddonManagement', { propertyId: propertyId, propertyTitle: propertyTitle }) },
+      { key: 'logs', label: 'Activity Logs', icon: 'list-outline', onPress: () => navigation.navigate('PropertyActivityLogs', { propertyId: propertyId, propertyTitle: propertyTitle }) },
+    ],
+    [navigation, propertyId, propertyTitle],
+  );
+
   if (!propertyId) {
     return (
       <SafeAreaView style={styles.container}>
@@ -255,15 +323,6 @@ export default function PropertySummaryScreen({ route, navigation }) {
     );
   }
 
-  const title = property?.title || property?.name || 'Property Name';
-  const street = property?.street_address || '';
-  const city = property?.city || '';
-  const province = property?.province || '';
-  const status = property?.current_status || 'pending';
-  const id = property?.id;
-  
-  const address = [street, city, province].filter(Boolean).join(', ') || 'No address set';
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
@@ -271,8 +330,66 @@ export default function PropertySummaryScreen({ route, navigation }) {
         <TouchableOpacity style={styles.iconButtonBg} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Property Profile</Text>
-        <View style={{ width: 44 }} />
+        <Text style={styles.headerTitle}>Property Summary</Text>
+        <View style={{ width: 48, alignItems: 'flex-end', justifyContent: 'center', position: 'relative', zIndex: 40 }}>
+          <TouchableOpacity
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={() => setHeaderMenuVisible((current) => !current)}
+          >
+            <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {headerMenuVisible && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 38,
+                right: 0,
+                width: HEADER_MENU_WIDTH,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                borderRadius: 12,
+                backgroundColor: theme.colors.backgroundSecondary,
+                paddingVertical: 4,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: theme.isDark ? 0.3 : 0.12,
+                shadowRadius: 8,
+                elevation: 8,
+                zIndex: 41,
+                overflow: 'hidden',
+              }}
+            >
+              {headerMenuActions.map((action) => (
+                <TouchableOpacity
+                  key={action.key}
+                  onPress={() => {
+                    setHeaderMenuVisible(false);
+                    action.onPress();
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    borderBottomWidth: action.key === 'logs' ? 0 : 1,
+                    borderBottomColor: theme.colors.borderLight,
+                  }}
+                >
+                  <Ionicons name={action.icon} size={16} color={theme.colors.textSecondary} />
+                  <Text style={{ color: theme.colors.text, fontSize: 14, fontWeight: '600' }}>{action.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
 
       {loading ? (
@@ -282,102 +399,44 @@ export default function PropertySummaryScreen({ route, navigation }) {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
+          onScrollBeginDrag={() => setHeaderMenuVisible(false)}
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} colors={[theme.colors.primary]} />}
         >
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {property && (
-            <>
+          <>
+              {/* Activity & Requests Section ONLY */}
               <View style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <Text style={styles.sectionTitle}>{title}</Text>
-                    <Text style={styles.helperText}>{address}</Text>
-                  </View>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{status}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statsRow}>
-                  <View style={styles.statCard}>
-                    <Text style={styles.statValue}>{occupancy.total}</Text>
-                    <Text style={styles.statLabel}>Total Rooms</Text>
-                  </View>
-                  <View style={styles.statCard}>
-                    <Text style={styles.statValue}>{occupancy.available}</Text>
-                    <Text style={styles.statLabel}>Available</Text>
-                  </View>
-                  <View style={styles.statCard}>
-                    <Text style={styles.statValue}>{`${occupancy.percentage}%`}</Text>
-                    <Text style={styles.statLabel}>Occupancy</Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity 
-                  style={styles.primaryBtn}
-                  onPress={() => navigation.navigate('RoomManagement', { propertyId: id })}
-                >
-                  <Ionicons name="bed-outline" size={20} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>Manage Rooms</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.outlineBtn, styles.outlineBtnBlue]}
-                  onPress={() => navigation.navigate('Tenants', { propertyId: id })}
-                >
-                  <Ionicons name="people-outline" size={20} color="#2563EB" />
-                  <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 14 }}>Manage Tenants</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.outlineBtn, { borderColor: '#F59E0B' }]}
-                  onPress={() => navigation.navigate('MaintenanceRequests')}
-                >
-                  <Ionicons name="construct-outline" size={20} color="#F59E0B" />
-                  <Text style={{ color: '#F59E0B', fontWeight: '600', fontSize: 14 }}>Maintenance Requests</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.outlineBtn, { borderColor: '#F43F5E' }]}
-                  onPress={() => navigation.navigate('Reviews')}
-                >
-                  <Ionicons name="star-outline" size={20} color="#F43F5E" />
-                  <Text style={{ color: '#F43F5E', fontWeight: '600', fontSize: 14 }}>Guest Reviews</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.outlineBtn, styles.outlineBtnPrimary]}
-                  onPress={() => navigation.navigate('DormProfileSettings', { propertyId: id })}
-                >
-                  <Ionicons name="settings-outline" size={20} color={theme.colors.primary} />
-                  <Text style={{ color: theme.colors.primary, fontWeight: '600', fontSize: 14 }}>Property Settings</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.outlineBtn, styles.outlineBtnPrimary]}
-                  onPress={() => navigation.navigate('AddonManagement', { propertyId: id, propertyTitle: title })}
-                >
-                  <Ionicons name="sparkles-outline" size={20} color={theme.colors.primary} />
-                  <Text style={{ color: theme.colors.primary, fontWeight: '600', fontSize: 14 }}>Manage Add-ons</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.outlineBtn, styles.outlineBtnSecondary]}
-                  onPress={() => navigation.navigate('PropertyActivityLogs', { propertyId: id, propertyTitle: title })}
-                >
-                  <Ionicons name="list-outline" size={20} color="#6B7280" />
-                  <Text style={{ color: '#6B7280', fontWeight: '600', fontSize: 14 }}>Activity Logs</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Activity & Requests Section */}
-              <View style={[styles.sectionCard, { marginTop: 16 }]}>
-                <View style={[styles.sectionHeader, { marginBottom: 8 }]}>
+                <View style={[styles.sectionHeader, { marginBottom: 8 }]}> 
                   <Text style={styles.sectionTitle}>Activity & Requests</Text>
-                  <View style={{ backgroundColor: theme.colors.backgroundSecondary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' }}>{activityItems.length} items</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ backgroundColor: theme.colors.backgroundSecondary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' }}>{filteredActivityItems.length} items</Text>
+                    </View>
+                    <TouchableOpacity
+                      ref={filterButtonRef}
+                      onPress={() => {
+                        setHeaderMenuVisible(false);
+                        openAnchoredMenu(filterButtonRef, FILTER_MENU_WIDTH, FILTER_MENU_HEIGHT, setFilterMenuPos, setFilterMenuVisible, 120);
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        backgroundColor: theme.colors.background,
+                      }}
+                    >
+                      <Ionicons name="filter-outline" size={14} color={theme.colors.textSecondary} />
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' }}>
+                        {activityFilterOptions.find((option) => option.key === activityFilter)?.label || 'Filter'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -385,22 +444,36 @@ export default function PropertySummaryScreen({ route, navigation }) {
                   <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                     <ActivityIndicator size="small" color={theme.colors.primary} />
                   </View>
-                ) : activityItems.length === 0 ? (
+                ) : filteredActivityItems.length === 0 ? (
                   <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                     <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>No activities found.</Text>
                   </View>
                 ) : (
                   <View style={{ gap: 12, marginTop: 12 }}>
-                    {activityItems.map((item) => (
+                    {filteredActivityItems.map((item) => (
                       <View key={item.key} style={{ padding: 12, borderWidth: 1, borderColor: theme.colors.borderLight, borderRadius: 12, backgroundColor: theme.colors.background }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <View style={{ flex: 1, paddingRight: 8 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                               <Text style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: getThemeColorForType(item.type, theme) }}>{item.type}</Text>
+                              {item.type === 'addon' && item.note ? (
+                                <Text
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: '700',
+                                    color: getThemeColorForType(item.type, theme),
+                                    marginLeft: 8,
+                                    flexShrink: 1,
+                                  }}
+                                  numberOfLines={1}
+                                >
+                                  {item.note}
+                                </Text>
+                              ) : null}
                             </View>
                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text }}>{item.tenant}</Text>
                             <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>{item.room}</Text>
-                            {item.note ? <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>{item.note}</Text> : null}
+                            {item.note && item.type !== 'addon' ? <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>{item.note}</Text> : null}
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>{formatDisplayDate(item.date)}</Text>
@@ -413,11 +486,17 @@ export default function PropertySummaryScreen({ route, navigation }) {
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
                           <TouchableOpacity 
                             onPress={() => {
-                              if (item.type === 'payment') navigation.navigate('Payments');
-                              else if (item.type === 'maintenance') navigation.navigate('MaintenanceRequests');
-                              else if (item.type === 'review') navigation.navigate('Reviews');
-                              else if (item.type === 'transfer') navigation.navigate('Bookings', { propertyId: propertyId });
-                              else if (item.type === 'addon') navigation.navigate('AddonManagement', { propertyId: propertyId });
+                              if (item.type === 'payment') {
+                                navigation.navigate('Payments', {
+                                  filter: 'overdue',
+                                  searchQuery: propertyTitle || '',
+                                  drilldownToken: Date.now(),
+                                });
+                              }
+                              else if (item.type === 'maintenance') navigation.navigate('MaintenanceRequests', { propertyId: propertyId, propertyTitle: propertyTitle });
+                              else if (item.type === 'review') navigation.navigate('Reviews', { propertyId: propertyId, propertyTitle: propertyTitle });
+                              else if (item.type === 'transfer') navigation.navigate('TransferRequests', { propertyId: propertyId, propertyTitle: propertyTitle });
+                              else if (item.type === 'addon') navigation.navigate('AddonManagement', { propertyId: propertyId, propertyTitle: propertyTitle });
                               else navigation.navigate('Bookings', { propertyId: propertyId });
                             }}
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
@@ -431,8 +510,58 @@ export default function PropertySummaryScreen({ route, navigation }) {
                   </View>
                 )}
               </View>
-            </>
-          )}
+
+              <Modal
+                transparent
+                statusBarTranslucent
+                navigationBarTranslucent
+                presentationStyle="overFullScreen"
+                visible={filterMenuVisible}
+                animationType="fade"
+                onRequestClose={() => setFilterMenuVisible(false)}
+              >
+                <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)' }} onPress={() => setFilterMenuVisible(false)}>
+                  <View style={{ position: 'absolute', top: filterMenuPos.top, left: filterMenuPos.left }}>
+                    <Pressable
+                      onPress={() => {}}
+                      style={{
+                        width: FILTER_MENU_WIDTH,
+                        backgroundColor: theme.colors.surface,
+                        borderRadius: 12,
+                        paddingVertical: 6,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                      }}
+                    >
+                      {activityFilterOptions.map((option) => {
+                        const isActive = option.key === activityFilter;
+                        return (
+                          <TouchableOpacity
+                            key={option.key}
+                            onPress={() => {
+                              setActivityFilter(option.key);
+                              setFilterMenuVisible(false);
+                            }}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              paddingHorizontal: 12,
+                              paddingVertical: 10,
+                            }}
+                          >
+                            <Text style={{ color: isActive ? theme.colors.primary : theme.colors.text, fontSize: 14, fontWeight: isActive ? '700' : '500' }}>
+                              {option.label}
+                            </Text>
+                            {isActive ? <Ionicons name="checkmark" size={16} color={theme.colors.primary} /> : null}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </Pressable>
+                  </View>
+                </Pressable>
+              </Modal>
+          </>
         </ScrollView>
       )}
     </SafeAreaView>

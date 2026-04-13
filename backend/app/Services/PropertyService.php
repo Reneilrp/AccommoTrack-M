@@ -2,29 +2,54 @@
 
 namespace App\Services;
 
+use App\Models\LandlordVerification;
 use App\Models\Property;
 use App\Models\PropertyImage;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionResolverService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 class PropertyService
 {
+    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService)
+    {
+    }
+
+    public function canLandlordSubmitProperties(User $user): bool
+    {
+        if ((bool) ($user->is_verified ?? false)) {
+            return true;
+        }
+
+        if ($user->role !== 'landlord') {
+            return false;
+        }
+
+        $verification = LandlordVerification::where('user_id', $user->id)->first();
+
+        return (bool) ($verification
+            && in_array($verification->status, LandlordVerification::LANDLORD_ACCESS_STATUSES, true));
+    }
+
     public function createProperty(array $validated, User $user): Property
     {
         return DB::transaction(function () use ($validated, $user) {
-            $isVerified = $user->is_verified ?? false;
+            $this->assertCanCreatePropertyUnderSubscription($user);
+
+            $canSubmitProperties = $this->canLandlordSubmitProperties($user);
 
             $currentStatus = Property::STATUS_DRAFT;
             $isPublished = false;
             $isAvailable = false;
 
-            if ($isVerified) {
+            if ($canSubmitProperties) {
                 $currentStatus = ($validated['is_draft'] ?? false) ? Property::STATUS_DRAFT : ($validated['current_status'] ?? Property::STATUS_PENDING);
                 // New properties (Draft/Pending) should NOT be published or available initially
                 $isPublished = false;
@@ -43,6 +68,15 @@ class PropertyService
             };
 
             $propertyType = $this->normalizePropertyTypeValue($validated['property_type'] ?? '');
+
+            $reservationFeeAmountRaw = $validated['reservation_fee_amount']
+                ?? $validated['reservation_fee']
+                ?? 0;
+            $reservationFeeAmount = is_numeric($reservationFeeAmountRaw)
+                ? (float) $reservationFeeAmountRaw
+                : 0.0;
+            $reservationFeeGapDaysRaw = $validated['reservation_fee_gap_days'] ?? 3;
+            $reservationFeeGapDays = max(0, (int) $reservationFeeGapDaysRaw);
 
             $property = Property::create([
                 'landlord_id' => $user->id,
@@ -71,6 +105,13 @@ class PropertyService
                 'is_published' => $isPublished,
                 'is_available' => $isAvailable,
                 'is_eligible' => $validated['is_eligible'] ?? false,
+                'require_1month_advance' => (bool) ($validated['require_1month_advance'] ?? false),
+                'allow_partial_payments' => array_key_exists('allow_partial_payments', $validated)
+                    ? (bool) $validated['allow_partial_payments']
+                    : true,
+                'require_reservation_fee' => (bool) ($validated['require_reservation_fee'] ?? false),
+                'reservation_fee' => $reservationFeeAmount,
+                'reservation_fee_gap_days' => $reservationFeeGapDays,
                 'accepted_payments' => $validated['accepted_payments'] ?? null,
             ]);
 
@@ -88,13 +129,15 @@ class PropertyService
     {
         return DB::transaction(function () use ($property, $validated, $request) {
             $user = Auth::user();
-            $isVerified = $user->is_verified ?? false;
+            $canSubmitProperties = $user instanceof User
+                ? $this->canLandlordSubmitProperties($user)
+                : false;
 
             if (isset($validated['is_draft']) && $validated['is_draft']) {
                 $validated['current_status'] = Property::STATUS_DRAFT;
             }
 
-            if (! $isVerified) {
+            if (! $canSubmitProperties) {
                 $validated['current_status'] = Property::STATUS_DRAFT;
                 $validated['is_published'] = false;
             }
@@ -106,15 +149,45 @@ class PropertyService
                 }
             }
 
-            // Automatically handle visibility based on status
-            if (isset($validated['current_status'])) {
-                if ($validated['current_status'] === Property::STATUS_MAINTENANCE || $validated['current_status'] === Property::STATUS_INACTIVE) {
+            $hasStatusUpdate = array_key_exists('current_status', $validated);
+            $hasPublishUpdate = array_key_exists('is_published', $validated);
+            $hasAvailabilityUpdate = array_key_exists('is_available', $validated);
+
+            if ($hasPublishUpdate) {
+                $validated['is_published'] = (bool) $validated['is_published'];
+            }
+
+            if ($hasAvailabilityUpdate) {
+                $validated['is_available'] = (bool) $validated['is_available'];
+            }
+
+            // Keep status authoritative while still allowing explicit publish toggle for active properties.
+            if ($hasStatusUpdate) {
+                if (in_array($validated['current_status'], [
+                    Property::STATUS_MAINTENANCE,
+                    Property::STATUS_INACTIVE,
+                    Property::STATUS_DRAFT,
+                    Property::STATUS_PENDING,
+                ], true)) {
                     $validated['is_published'] = false;
                     $validated['is_available'] = false;
                 } elseif ($validated['current_status'] === Property::STATUS_ACTIVE) {
-                    $validated['is_published'] = true;
-                    $validated['is_available'] = true;
+                    if (! $hasPublishUpdate) {
+                        $validated['is_published'] = true;
+                    }
+
+                    if (! $hasAvailabilityUpdate) {
+                        $validated['is_available'] = true;
+                    }
                 }
+            }
+
+            $effectiveStatus = $hasStatusUpdate
+                ? $validated['current_status']
+                : $property->current_status;
+
+            if ($effectiveStatus !== Property::STATUS_ACTIVE) {
+                $validated['is_published'] = false;
             }
 
             if (isset($validated['property_rules']) && is_string($validated['property_rules'])) {
@@ -132,6 +205,28 @@ class PropertyService
 
             if (isset($validated['property_type'])) {
                 $validated['property_type'] = $this->normalizePropertyTypeValue($validated['property_type']);
+            }
+
+            if (array_key_exists('require_1month_advance', $validated)) {
+                $validated['require_1month_advance'] = (bool) $validated['require_1month_advance'];
+            }
+
+            if (array_key_exists('allow_partial_payments', $validated)) {
+                $validated['allow_partial_payments'] = (bool) $validated['allow_partial_payments'];
+            }
+
+            if (array_key_exists('require_reservation_fee', $validated)) {
+                $validated['require_reservation_fee'] = (bool) $validated['require_reservation_fee'];
+            }
+
+            if (array_key_exists('reservation_fee_amount', $validated) && ! array_key_exists('reservation_fee', $validated)) {
+                $validated['reservation_fee'] = (float) $validated['reservation_fee_amount'];
+            } elseif (array_key_exists('reservation_fee', $validated)) {
+                $validated['reservation_fee'] = (float) $validated['reservation_fee'];
+            }
+
+            if (array_key_exists('reservation_fee_gap_days', $validated)) {
+                $validated['reservation_fee_gap_days'] = max(0, (int) $validated['reservation_fee_gap_days']);
             }
 
             $property->update($validated);
@@ -191,6 +286,18 @@ class PropertyService
                         [$normalizedType]
                     );
             });
+        }
+
+        if ($request->filled('gender_policy')) {
+            $genderPolicy = strtolower(trim((string) $request->input('gender_policy')));
+
+            if (in_array($genderPolicy, ['male', 'boys', 'boy'], true)) {
+                $query->whereIn('gender_restriction', ['male', 'boys']);
+            } elseif (in_array($genderPolicy, ['female', 'girls', 'girl'], true)) {
+                $query->whereIn('gender_restriction', ['female', 'girls']);
+            } elseif ($genderPolicy === 'mixed') {
+                $query->where('gender_restriction', 'mixed');
+            }
         }
 
         if ($request->has('min_price') || $request->has('max_price')) {
@@ -323,25 +430,58 @@ class PropertyService
         };
     }
 
-    public function deleteProperty(Property $property): void
+    private function assertCanCreatePropertyUnderSubscription(User $landlord): void
     {
-        DB::transaction(function () use ($property) {
-            $activeBookings = $property->bookings()->whereIn('status', ['pending', 'confirmed'])->count();
-            if ($activeBookings > 0) {
-                throw new \Exception('Cannot delete property with active bookings. Please cancel or complete all bookings first.');
-            }
+        if ($landlord->role !== 'landlord') {
+            return;
+        }
 
-            foreach ($property->images as $image) {
-                Storage::disk('public')->delete($image->image_url);
-            }
+        $usage = $this->subscriptionResolverService->getUsageSummary($landlord);
 
-            foreach ($property->rooms as $room) {
-                foreach ($room->images as $roomImage) {
-                    Storage::disk('public')->delete($roomImage->image_url);
+        if ((bool) ($usage['can_create_property'] ?? true)) {
+            return;
+        }
+
+        $limit = $usage['properties_limit'];
+        $limitLabel = $limit === null ? 'plan limits' : sprintf('%d-property plan limit', (int) $limit);
+
+        throw ValidationException::withMessages([
+            'subscription' => sprintf(
+                'Property limit reached (%d/%s). Upgrade your subscription or reduce properties before creating a new listing.',
+                (int) ($usage['properties_count'] ?? 0),
+                $limit === null ? $limitLabel : (string) $limit
+            ),
+        ]);
+    }
+
+    public function safeSoftDeleteProperty(Property $property, bool $isLandlord): void
+    {
+        DB::transaction(function () use ($property, $isLandlord) {
+            if ($isLandlord) {
+                $activeBookings = $property->bookings()->whereIn('status', ['pending', 'confirmed'])->count();
+                if ($activeBookings > 0) {
+                    throw new \Exception('Cannot delete property with active bookings. Please cancel or complete all bookings first.');
                 }
             }
 
             $property->delete();
+        });
+    }
+
+    public function forceDeleteProperty(Property $property): void
+    {
+        DB::transaction(function () use ($property) {
+            foreach ($property->images as $image) {
+                Storage::delete($image->image_url);
+            }
+
+            foreach ($property->rooms as $room) {
+                foreach ($room->images as $roomImage) {
+                    Storage::delete($roomImage->image_url);
+                }
+            }
+
+            $property->forceDelete();
         });
     }
 
@@ -367,7 +507,7 @@ class PropertyService
                 $encoded = $image->toWebp(80);
                 $filename = 'property_'.time().'_'.uniqid().'.webp';
                 $path = 'property_images/'.$filename;
-                Storage::disk('public')->put($path, (string) $encoded);
+                Storage::put($path, (string) $encoded);
                 PropertyImage::create([
                     'property_id' => $property->id,
                     'image_url' => $path,
@@ -389,7 +529,7 @@ class PropertyService
 
         if ($request->hasFile('credentials')) {
             foreach ($request->file('credentials') as $file) {
-                $path = $file->store('property_credentials', 'public');
+                $path = $file->store('property_credentials');
                 \App\Models\PropertyCredential::create([
                     'property_id' => $property->id,
                     'file_path' => $path,
@@ -410,18 +550,18 @@ class PropertyService
     {
         $existingVideos = $property->images()->where('media_type', 'video')->get();
         foreach ($existingVideos as $ev) {
-            Storage::disk('public')->delete($ev->image_url);
+            Storage::delete($ev->image_url);
             $ev->delete();
         }
     }
 
     private function uploadVideo(Property $property, $videoFile): void
     {
-        $path = $videoFile->store('property_videos', 'public');
+        $path = $videoFile->store('property_videos');
         try {
-            $duration = FFMpeg::fromDisk('public')->open($path)->getDurationInSeconds();
+            $duration = FFMpeg::fromDisk(config('filesystems.default'))->open($path)->getDurationInSeconds();
             if ($duration > 45) {
-                Storage::disk('public')->delete($path);
+                Storage::delete($path);
                 throw new \Exception('Video duration must not exceed 45 seconds.');
             }
             PropertyImage::create([
@@ -429,7 +569,7 @@ class PropertyService
                 'display_order' => 99, 'media_type' => 'video',
             ]);
         } catch (\Exception $e) {
-            Storage::disk('public')->delete($path);
+            Storage::delete($path);
             throw new \Exception('Could not process video file: '.$e->getMessage());
         }
     }
@@ -440,7 +580,7 @@ class PropertyService
             $deletedIds = is_array($request->input('deleted_credentials')) ? $request->input('deleted_credentials') : [$request->input('deleted_credentials')];
             $credentials = \App\Models\PropertyCredential::where('property_id', $property->id)->whereIn('id', $deletedIds)->get();
             foreach ($credentials as $cred) {
-                Storage::disk('public')->delete($cred->file_path);
+                Storage::delete($cred->file_path);
                 $cred->delete();
             }
         }
@@ -450,7 +590,7 @@ class PropertyService
             if ($property->images()->count() - count($deletedImageIds) >= 1) {
                 $images = PropertyImage::where('property_id', $property->id)->whereIn('id', $deletedImageIds)->get();
                 foreach ($images as $image) {
-                    Storage::disk('public')->delete($image->image_url);
+                    Storage::delete($image->image_url);
                     $image->delete();
                 }
             }

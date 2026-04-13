@@ -32,9 +32,12 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
 
+const LANDLORD_ACCESS_STATUSES = ['approved', 'partial_verified', 'pending_documents_review'];
+
 export default function AddProperty({ onBack, onSave }) {
   const { effectiveTheme } = usePreferences();
   const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
+  const isCaretaker = user?.role === 'caretaker';
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,6 +47,7 @@ export default function AddProperty({ onBack, onSave }) {
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
   const [isVerified, setIsVerified] = useState(null); // null = loading, true/false = loaded
+  const [verificationStatus, setVerificationStatus] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState({ visible: false, isDraft: false, result: null });
   const formContentRef = useRef(null);
 
@@ -122,16 +126,25 @@ export default function AddProperty({ onBack, onSave }) {
   useEffect(() => {
     // Check verification status
     const checkVerification = async () => {
+      if (isCaretaker) {
+        setIsVerified(true);
+        return;
+      }
+
       try {
         const res = await api.get('/landlord/my-verification');
-        setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
+        const status = res.data?.status;
+        const hasLandlordAccess = LANDLORD_ACCESS_STATUSES.includes(status);
+        setVerificationStatus(status || null);
+        setIsVerified(hasLandlordAccess || res.data?.user?.is_verified === true);
       } catch {
         // If 404 or error, assume not verified
+        setVerificationStatus(null);
         setIsVerified(false);
       }
     };
     checkVerification();
-  }, []);
+  }, [isCaretaker]);
 
   // Auto-fill address fields when latitude/longitude changes
   useEffect(() => {
@@ -244,8 +257,8 @@ export default function AddProperty({ onBack, onSave }) {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 90 * 1024 * 1024) {
-      toast.error('Video is too large. Maximum size is 90MB.');
+    if (file.size > 200 * 1024 * 1024) {
+      toast.error('Video is too large. Maximum size is 200MB.');
       return;
     }
 
@@ -589,15 +602,16 @@ export default function AddProperty({ onBack, onSave }) {
       )}
 
       {/* Verification Warning Banner */}
-      {isVerified === false && (
+      {!isCaretaker && isVerified === false && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-4">
             <ShieldAlert className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <h4 className="text-yellow-800 dark:text-yellow-300 font-semibold">Account Verification Required</h4>
               <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-2">
-                Your account is pending verification. You can create and save properties as drafts, 
-                but you won't be able to submit them for approval or publish until your documents are verified.
+                {verificationStatus === 'pending'
+                  ? 'Your account is under review. You can create and save properties as drafts now. Submit for approval and publishing unlock after partial verification or full approval.'
+                  : 'You can create and save properties as drafts. Submit for approval and publishing unlock after partial verification or full approval.'}
               </p>
             </div>
           </div>
@@ -977,7 +991,7 @@ export default function AddProperty({ onBack, onSave }) {
                   <span className="text-sm font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Upload a short video tour of your property. Max <strong>45 seconds</strong> and <strong>90MB</strong>.
+                  Upload a short video tour of your property. Max <strong>45 seconds</strong> and <strong>200MB</strong>.
                 </p>
               </div>
 
@@ -989,7 +1003,7 @@ export default function AddProperty({ onBack, onSave }) {
                   <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-green-500 transition-colors">
                     <Play className="w-10 h-10" />
                     <span className="text-sm font-medium">Click to upload video</span>
-                    <span className="text-xs">MP4, MOV, AVI (max 90MB, 45s)</span>
+                    <span className="text-xs">MP4, MOV, AVI (max 200MB, 45s)</span>
                   </div>
                   <input
                     id="video-upload"
@@ -1505,7 +1519,7 @@ export default function AddProperty({ onBack, onSave }) {
                 ) : (
                   <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                     <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    <span className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">Verify account to submit</span>
+                    <span className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">Complete partial verification to submit</span>
                   </div>
                 )}
               </>

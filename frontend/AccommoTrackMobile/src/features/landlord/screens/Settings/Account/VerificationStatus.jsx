@@ -11,12 +11,14 @@ import {
   Image,
   RefreshControl,
   Modal,
+  Pressable,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { useQuery } from "@tanstack/react-query";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from "../../../../../contexts/ThemeContext.jsx";
 import ProfileService from "../../../../../services/ProfileService.js";
 import { getImageUrl } from "../../../../../utils/imageUtils.js";
@@ -29,10 +31,17 @@ import {
 } from "../../../hooks/useLandlordQueryHelpers.js";
 
 const EMPTY_ID_TYPES = [];
+const DOCUMENT_SUBMISSION_STATUSES = new Set([
+  "not_submitted",
+  "rejected",
+  "partial_verified",
+]);
 
 export default function VerificationStatus({ navigation }) {
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
+  const insets = useSafeAreaInsets();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showResubmitForm, setShowResubmitForm] = useState(false);
@@ -51,19 +60,40 @@ export default function VerificationStatus({ navigation }) {
   const verificationBundleQuery = useQuery({
     queryKey: landlordQueryKeys.verificationStatusBundle(),
     queryFn: async () => {
-      const [statusRes, typesRes, profileRes] = await Promise.all([
+      const [statusRes, typesRes, profileRes, meRes, storedUserJson] = await Promise.all([
         ProfileService.getVerificationStatus(),
         ProfileService.getValidIdTypes(),
         ProfileService.getProfile(),
+        ProfileService.getCurrentUser(),
+        AsyncStorage.getItem('user'),
       ]);
+
+      let storedRole = null;
+      if (storedUserJson) {
+        try {
+          const parsedUser = JSON.parse(storedUserJson);
+          if (parsedUser?.role) {
+            storedRole = String(parsedUser.role).toLowerCase();
+          }
+        } catch {
+          storedRole = null;
+        }
+      }
+
+      const profileRole = profileRes?.success && profileRes?.data?.role
+        ? String(profileRes.data.role).toLowerCase()
+        : null;
+
+      const meRole = meRes?.success && meRes?.data?.role
+        ? String(meRes.data.role).toLowerCase()
+        : null;
+
+      const resolvedRole = meRole || profileRole || storedRole || 'tenant';
 
       return {
         verification: statusRes?.success ? statusRes.data : null,
         idTypes: Array.isArray(typesRes?.data) ? typesRes.data : EMPTY_ID_TYPES,
-        userRole:
-          profileRes?.success && profileRes.data
-            ? profileRes.data.role || "landlord"
-            : "landlord",
+        userRole: resolvedRole,
       };
     },
     placeholderData: (previousData) => previousData,
@@ -71,7 +101,7 @@ export default function VerificationStatus({ navigation }) {
 
   const verification = verificationBundleQuery.data?.verification || null;
   const idTypes = verificationBundleQuery.data?.idTypes || EMPTY_ID_TYPES;
-  const userRole = verificationBundleQuery.data?.userRole || "landlord";
+  const userRole = verificationBundleQuery.data?.userRole || "tenant";
   const loading = verificationBundleQuery.isPending && !verificationBundleQuery.data;
   const fetchError = verificationBundleQuery.error?.message || "";
   const refetchVerificationBundle = verificationBundleQuery.refetch;
@@ -92,80 +122,150 @@ export default function VerificationStatus({ navigation }) {
     console.error("Error fetching verification data:", fetchError);
   }, [fetchError]);
 
-  const handlePickDocument = async (field) => {
+  const updatePickedDocument = (field, asset) => {
+    const filename = asset.uri.split("/").pop();
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : "image/jpeg";
+
+    setFormData((prev) => ({
+      ...prev,
+      [field]: {
+        uri: asset.uri,
+        name: filename,
+        type,
+      },
+    }));
+  };
+
+  const pickDocumentFromLibrary = async (field) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Denied",
-        "Sorry, we need camera roll permissions to upload documents.",
+      showAlert(
+        "Permission Required",
+        "Please allow photo library access to upload documents.",
       );
       return;
     }
 
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const asset = result.assets[0];
-      const filename = asset.uri.split("/").pop();
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : "image/jpeg";
-
-      setFormData((prev) => ({
-        ...prev,
-        [field]: {
-          uri: asset.uri,
-          name: filename,
-          type: type,
-        },
-      }));
+      updatePickedDocument(field, result.assets[0]);
     }
   };
 
+  const takeDocumentPhoto = async (field) => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      showAlert(
+        "Permission Required",
+        "Please allow camera access to capture documents.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      updatePickedDocument(field, result.assets[0]);
+    }
+  };
+
+  const handlePickDocument = (field) => {
+    showAlert("Upload Document", "Choose a source for your document image.", [
+      {
+        text: "Take Photo",
+        onPress: () => {
+          void takeDocumentPhoto(field);
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: () => {
+          void pickDocumentFromLibrary(field);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ], {
+      showCloseButton: true,
+      cancelable: true,
+    });
+  };
+
   const handleSubmit = async () => {
-    if (!formData.validIdType || !formData.validIdFront || !formData.validIdBack || !formData.permit) {
-      Alert.alert(
+    if (!formData.validIdType || !formData.validIdFront || !formData.permit) {
+      showAlert(
         "Validation",
-        "Please select an ID type and upload valid ID front/back images plus business/accommodation permit.",
+        "Please select an ID type and upload your valid ID plus business/accommodation permit.",
       );
       return;
     }
 
     if (formData.validIdType === "other" && !formData.validIdOther) {
-      Alert.alert("Validation", "Please specify your ID type.");
+      showAlert("Validation", "Please specify your ID type.");
       return;
     }
 
     setSubmitting(true);
     try {
-      const submitData = new FormData();
+      const normalizedUserRole = String(userRole || '').toLowerCase();
       const idType =
         formData.validIdType === "other"
-          ? formData.validIdOther
+          ? formData.validIdOther.trim()
           : formData.validIdType;
 
-      submitData.append('valid_id_type', idType);
-      submitData.append("permit", formData.permit);
+      const buildTenantPayload = () => {
+        const payload = new FormData();
+        payload.append('valid_id_type', idType);
+        payload.append('permit', formData.permit);
+        payload.append('valid_id_front', formData.validIdFront);
+        if (formData.validIdBack) {
+          payload.append('valid_id_back', formData.validIdBack);
+        }
+        return payload;
+      };
+
+      const buildLandlordPayload = () => {
+        const payload = new FormData();
+        payload.append('valid_id_type', idType);
+        payload.append('permit', formData.permit);
+        payload.append('valid_id', formData.validIdFront);
+        if (formData.validIdBack) {
+          payload.append('valid_id_back', formData.validIdBack);
+        }
+        return payload;
+      };
 
       let res;
+      let usedTenantFlow = normalizedUserRole === 'tenant';
 
-      if (userRole === 'tenant') {
-        submitData.append('valid_id_front', formData.validIdFront);
-        submitData.append('valid_id_back', formData.validIdBack);
-        res = await ProfileService.registerAsLandlord(submitData);
+      if (usedTenantFlow) {
+        res = await ProfileService.registerAsLandlord(buildTenantPayload());
       } else {
-        submitData.append('valid_id', formData.validIdFront);
-        submitData.append('valid_id_back', formData.validIdBack);
-        res = await ProfileService.resubmitVerification(submitData);
+        res = await ProfileService.resubmitVerification(buildLandlordPayload());
+
+        // Fallback for stale role state: tenant account accidentally routed to landlord endpoint.
+        if (!res.success && (res.status === 401 || res.status === 403)) {
+          const tenantRetry = await ProfileService.registerAsLandlord(buildTenantPayload());
+          if (tenantRetry.success) {
+            res = tenantRetry;
+            usedTenantFlow = true;
+          }
+        }
       }
 
       if (res.success) {
-        Alert.alert(
+        showAlert(
           "Success",
-          userRole === 'tenant'
+          usedTenantFlow
             ? "Landlord registration submitted! Please wait for admin review."
             : "Verification documents submitted! Please wait for admin review.",
         );
@@ -179,26 +279,49 @@ export default function VerificationStatus({ navigation }) {
         });
         await refetchLandlordQueries(verificationRefetchers);
       } else {
-        Alert.alert("Error", res.error || "Failed to submit documents");
+        showAlert("Error", res.error || "Failed to submit documents");
       }
     } catch (_error) {
-      Alert.alert("Error", "An unexpected error occurred");
+      showAlert("Error", "An unexpected error occurred");
     } finally {
       setSubmitting(false);
     }
   };
 
   const getStatusConfig = (status) => {
-    switch (status) {
+    const normalizedStatus = String(status || "not_submitted").toLowerCase();
+
+    switch (normalizedStatus) {
+      case "verified":
       case "approved":
         return {
           icon: "checkmark-circle",
-          color: "#059669",
+          color: "#16a34a",
           bg: "#DCFCE7",
           border: "#86EFAC",
           label: "Verified",
           description:
             "Your account is verified. You can now publish properties and manage bookings.",
+        };
+      case "partial_verified":
+        return {
+          icon: "shield-checkmark",
+          color: "#2563EB",
+          bg: "#DBEAFE",
+          border: "#93C5FD",
+          label: "Partial Verified",
+          description:
+            "Landlord mode is active. Submit your valid ID and permit to complete verification.",
+        };
+      case "pending_documents_review":
+        return {
+          icon: "time",
+          color: "#4F46E5",
+          bg: "#E0E7FF",
+          border: "#A5B4FC",
+          label: "Documents Under Review",
+          description:
+            "Your documents are being reviewed. You can continue using landlord features while waiting.",
         };
       case "rejected":
         return {
@@ -208,7 +331,7 @@ export default function VerificationStatus({ navigation }) {
           border: "#FECACA",
           label: "Rejected",
           description:
-            "Your verification was rejected. Please review the reason and resubmit.",
+            "Your landlord verification submission was rejected. This is separate from property draft status. Please review the reason and resubmit your documents.",
         };
       case "pending":
         return {
@@ -233,13 +356,19 @@ export default function VerificationStatus({ navigation }) {
     }
   };
 
-  const statusConfig = getStatusConfig(verification?.status);
+  const normalizedVerificationStatus = String(
+    verification?.status || "not_submitted",
+  ).toLowerCase();
+  const statusConfig = getStatusConfig(normalizedVerificationStatus);
+  const canSubmitDocuments = DOCUMENT_SUBMISSION_STATUSES.has(
+    normalizedVerificationStatus,
+  );
 
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#059669" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.loadingText}>Loading status...</Text>
         </View>
       </SafeAreaView>
@@ -247,8 +376,8 @@ export default function VerificationStatus({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -267,7 +396,7 @@ export default function VerificationStatus({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={["#059669"]}
+            colors={["#16a34a"]}
           />
         }
       >
@@ -295,6 +424,11 @@ export default function VerificationStatus({ navigation }) {
             <Text style={styles.statusDescription}>
               {statusConfig.description}
             </Text>
+            {normalizedVerificationStatus === "partial_verified" && verification?.document_due_at ? (
+              <Text style={styles.lastReviewed}>
+                Document reminder due: {new Date(verification.document_due_at).toLocaleDateString()}
+              </Text>
+            ) : null}
             {verification?.reviewed_at && (
               <Text style={styles.lastReviewed}>
                 Reviewed on:{" "}
@@ -310,7 +444,7 @@ export default function VerificationStatus({ navigation }) {
             <View style={styles.rejectionCard}>
               <Ionicons name="warning" size={20} color="#991B1B" />
               <View style={{ flex: 1 }}>
-                <Text style={styles.rejectionTitle}>Reason for Rejection</Text>
+                <Text style={styles.rejectionTitle}>Landlord Verification Rejection Reason</Text>
                 <Text style={styles.rejectionReason}>
                   {verification.rejection_reason}
                 </Text>
@@ -325,7 +459,7 @@ export default function VerificationStatus({ navigation }) {
             <View style={styles.documentGrid}>
               <View style={styles.documentCard}>
                 <View style={styles.documentHeader}>
-                  <Ionicons name="image-outline" size={18} color="#059669" />
+                  <Ionicons name="image-outline" size={18} color="#16a34a" />
                   <Text style={styles.documentLabel}>
                     Valid ID Front ({verification.valid_id_type})
                   </Text>
@@ -344,7 +478,7 @@ export default function VerificationStatus({ navigation }) {
 
               <View style={styles.documentCard}>
                 <View style={styles.documentHeader}>
-                  <Ionicons name="image-outline" size={18} color="#059669" />
+                  <Ionicons name="image-outline" size={18} color="#16a34a" />
                   <Text style={styles.documentLabel}>
                     Valid ID Back ({verification.valid_id_type})
                   </Text>
@@ -478,9 +612,8 @@ export default function VerificationStatus({ navigation }) {
       </ScrollView>
 
       {/* Fixed Footer with Action Button */}
-      {(verification?.status === "rejected" ||
-        verification?.status === "not_submitted") && (
-        <View style={styles.footer}>
+      {canSubmitDocuments && (
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 20, 28) }]}>
           <TouchableOpacity
             style={styles.resubmitButton}
             onPress={() => setShowResubmitForm(true)}
@@ -488,12 +621,16 @@ export default function VerificationStatus({ navigation }) {
             <Ionicons name="cloud-upload-outline" size={22} color="#FFFFFF" />
             <Text style={styles.resubmitButtonText}>
               {userRole === 'tenant'
-                ? verification?.status === 'rejected'
+                ? normalizedVerificationStatus === 'rejected'
                   ? 'Update Landlord Registration'
-                  : 'Register as Landlord'
-                : verification?.status === "rejected"
+                  : normalizedVerificationStatus === 'partial_verified'
+                    ? 'Complete Landlord Registration'
+                    : 'Register as Landlord'
+                : normalizedVerificationStatus === "rejected"
                   ? "Resubmit Documents"
-                  : "Submit Verification"}
+                  : normalizedVerificationStatus === "partial_verified"
+                    ? "Submit Required Documents"
+                    : "Submit Verification"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -504,12 +641,36 @@ export default function VerificationStatus({ navigation }) {
         visible={showResubmitForm}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowResubmitForm(false)}
+        statusBarTranslucent={true}
+        navigationBarTranslucent={false}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => {
+          if (!submitting) {
+            setShowResubmitForm(false);
+          }
+        }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            if (!submitting) {
+              setShowResubmitForm(false);
+            }
+          }}
+        >
+          <Pressable style={styles.modalContent} onPress={() => {}}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Submit Verification</Text>
+              <View style={styles.modalHeaderTopRow}>
+                <Text style={styles.modalTitle}>Submit Verification</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowResubmitForm(false)}
+                  disabled={submitting}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
               <Text style={styles.modalSubtitle}>
                 Please provide clear images of your documents.
               </Text>
@@ -572,7 +733,7 @@ export default function VerificationStatus({ navigation }) {
                   style={styles.uploadBox}
                   onPress={() => handlePickDocument("validIdFront")}
                 >
-                  <Ionicons name="camera-outline" size={32} color="#059669" />
+                  <Ionicons name="camera-outline" size={32} color="#16a34a" />
                   <Text style={styles.uploadBoxText}>
                     Capture or Pick Front Image
                   </Text>
@@ -586,13 +747,13 @@ export default function VerificationStatus({ navigation }) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>
-                  Upload Valid ID Back <Text style={styles.required}>*</Text>
+                  Upload Valid ID Back
                 </Text>
                 <TouchableOpacity
                   style={styles.uploadBox}
                   onPress={() => handlePickDocument("validIdBack")}
                 >
-                  <Ionicons name="camera-outline" size={32} color="#059669" />
+                  <Ionicons name="camera-outline" size={32} color="#16a34a" />
                   <Text style={styles.uploadBoxText}>
                     Capture or Pick Back Image
                   </Text>
@@ -616,7 +777,7 @@ export default function VerificationStatus({ navigation }) {
                   <Ionicons
                     name="document-attach-outline"
                     size={32}
-                    color="#059669"
+                    color="#16a34a"
                   />
                   <Text style={styles.uploadBoxText}>
                     Upload Permit Document
@@ -629,7 +790,7 @@ export default function VerificationStatus({ navigation }) {
                 )}
               </View>
 
-              <View style={styles.formActions}>
+              <View style={[styles.formActions, { marginBottom: Math.max(insets.bottom + 16, 32) }]}>
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={() => setShowResubmitForm(false)}
@@ -650,8 +811,8 @@ export default function VerificationStatus({ navigation }) {
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );

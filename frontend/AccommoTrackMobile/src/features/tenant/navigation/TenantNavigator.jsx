@@ -33,6 +33,8 @@ import BookingDetails from '../screens/Bookings/BookingDetails.jsx';
 import ReportProperty from '../screens/Support/ReportProperty.jsx';
 import ServiceRequests from '../screens/ServiceRequests/ServiceRequests.jsx';
 import VerificationStatus from '../../landlord/screens/Settings/Account/VerificationStatus.jsx';
+import LandlordRegisterScreen from '../../auth/screens/LandlordRegisterScreen.jsx';
+import UpdateDetails from '../../../shared/screens/UpdateDetails.jsx';
 
 const RootStack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator();
@@ -69,6 +71,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <AccommodationDetails 
               {...props}
               isGuest={isGuest}
+              onAuthRequired={onAuthRequired}
             />
           )}
         </MainStack.Screen>
@@ -106,6 +109,8 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
 
         <MainStack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
         <MainStack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
+        <MainStack.Screen name="LandlordRegister" component={LandlordRegisterScreen} options={{ animation: 'none' }} />
+        <MainStack.Screen name="UpdateDetails" component={UpdateDetails} options={{ animation: 'none' }} />
         
         <MainStack.Screen name="Messages" options={{ animation: 'none' }}>
           {(props) => (

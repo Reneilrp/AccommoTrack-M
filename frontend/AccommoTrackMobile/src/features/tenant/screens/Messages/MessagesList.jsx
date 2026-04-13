@@ -26,6 +26,46 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+const getRolePalette = (theme, role) => {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+
+    if (normalizedRole === 'caretaker') {
+        return theme.isDark
+            ? { background: 'rgba(245, 158, 11, 0.2)', border: 'rgba(245, 158, 11, 0.45)', text: '#FCD34D' }
+            : { background: '#FEF3C7', border: '#FCD34D', text: '#92400E' };
+    }
+
+    if (normalizedRole === 'landlord') {
+        return theme.isDark
+            ? { background: 'rgba(16, 185, 129, 0.2)', border: 'rgba(16, 185, 129, 0.45)', text: '#6EE7B7' }
+            : { background: '#D1FAE5', border: '#6EE7B7', text: '#065F46' };
+    }
+
+    return theme.isDark
+        ? { background: 'rgba(148, 163, 184, 0.2)', border: 'rgba(148, 163, 184, 0.4)', text: '#CBD5E1' }
+        : { background: '#F1F5F9', border: '#CBD5E1', text: '#334155' };
+};
+
+const getStatusPalette = (theme, statusKey) => {
+    const normalized = String(statusKey || '').trim().toLowerCase();
+
+    if (normalized === 'caretaker-assisted') {
+        return theme.isDark
+            ? { background: 'rgba(59, 130, 246, 0.2)', border: 'rgba(59, 130, 246, 0.45)', text: '#93C5FD' }
+            : { background: '#DBEAFE', border: '#93C5FD', text: '#1D4ED8' };
+    }
+
+    if (normalized === 'owner') {
+        return theme.isDark
+            ? { background: 'rgba(20, 184, 166, 0.2)', border: 'rgba(20, 184, 166, 0.45)', text: '#5EEAD4' }
+            : { background: '#CCFBF1', border: '#5EEAD4', text: '#115E59' };
+    }
+
+    return theme.isDark
+        ? { background: 'rgba(148, 163, 184, 0.2)', border: 'rgba(148, 163, 184, 0.4)', text: '#CBD5E1' }
+        : { background: '#F1F5F9', border: '#CBD5E1', text: '#334155' };
+};
+
 export default function MessagesList({
     theme,
     styles,
@@ -69,44 +109,49 @@ export default function MessagesList({
 
                     {/* Property Filters */}
                     {!loading && properties.length > 0 && (
-                        <View style={{ marginBottom: 16 }}>
+                        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 }}>
                             <ScrollView 
                                 horizontal 
                                 showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+                                contentContainerStyle={{ gap: 8 }}
                             >
                                 <TouchableOpacity
-                                    style={[
-                                        { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
-                                        !selectedPropertyId 
-                                            ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } 
-                                            : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
-                                    ]}
+                                    style={{
+                                        paddingHorizontal: 14,
+                                        paddingVertical: 8,
+                                        borderRadius: 999,
+                                        borderWidth: 1,
+                                        borderColor: !selectedPropertyId ? theme.colors.primary : theme.colors.border,
+                                        backgroundColor: !selectedPropertyId ? theme.colors.primary : theme.colors.surface,
+                                    }}
                                     onPress={() => setSelectedPropertyId(null)}
                                 >
-                                    <Text style={{ 
-                                        color: !selectedPropertyId ? '#FFF' : theme.colors.textSecondary,
-                                        fontWeight: !selectedPropertyId ? '600' : '400'
-                                    }}>All</Text>
+                                    <Text style={{ color: !selectedPropertyId ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                                        All Properties
+                                    </Text>
                                 </TouchableOpacity>
 
-                                {properties.map((prop) => (
-                                    <TouchableOpacity
-                                        key={prop.id}
-                                        style={[
-                                            { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
-                                            selectedPropertyId === prop.id 
-                                                ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } 
-                                                : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
-                                        ]}
-                                        onPress={() => setSelectedPropertyId(prop.id)}
-                                    >
-                                        <Text style={{ 
-                                            color: selectedPropertyId === prop.id ? '#FFF' : theme.colors.textSecondary,
-                                            fontWeight: selectedPropertyId === prop.id ? '600' : '400'
-                                        }}>{prop.title}</Text>
-                                    </TouchableOpacity>
-                                ))}
+                                {properties.map((prop) => {
+                                    const isActive = selectedPropertyId === prop.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={prop.id}
+                                            style={{
+                                                paddingHorizontal: 14,
+                                                paddingVertical: 8,
+                                                borderRadius: 999,
+                                                borderWidth: 1,
+                                                borderColor: isActive ? theme.colors.primary : theme.colors.border,
+                                                backgroundColor: isActive ? theme.colors.primary : theme.colors.surface,
+                                            }}
+                                            onPress={() => setSelectedPropertyId(prop.id)}
+                                        >
+                                            <Text style={{ color: isActive ? '#FFFFFF' : theme.colors.textSecondary, fontWeight: '600', fontSize: 12 }}>
+                                                {prop.title || prop.name || `Property ${prop.id}`}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </ScrollView>
                         </View>
                     )}
@@ -141,15 +186,17 @@ export default function MessagesList({
                                     <TouchableOpacity
                                         style={[styles.conversationItem, isNew && styles.newConversation]}
                                         onPress={() => {
+                                            const participantMeta = conv?.participantMeta || null;
                                             // Navigate to standalone Chat route so header and bottom nav are hidden
                                             try {
                                                 navigation.navigate('Chat', { 
                                                     conversation: conv,
+                                                    participantMeta,
                                                     hideLayout: true 
                                                 });
-                                            } catch (e) {
+                                            } catch (_navigationError) {
                                                 // fallback: keep local behavior
-                                                try { navigation.setParams({ hideLayout: true }); } catch (err) {}
+                                                try { navigation.setParams({ hideLayout: true }); } catch (_paramsError) {}
                                             }
                                             if (isNew) {
                                                 setNewConversationId(null);
@@ -165,6 +212,51 @@ export default function MessagesList({
                                         </View>
 
                                         <View style={styles.conversationInfo}>
+                                            {(() => {
+                                                const participantMeta = conv?.participantMeta || null;
+                                                const role = participantMeta?.role || conv?.other_user?.role || 'participant';
+                                                const roleLabel = participantMeta?.roleLabel || 'Participant';
+                                                const statusLabel = participantMeta?.statusLabel || null;
+                                                const rolePalette = getRolePalette(theme, role);
+                                                const statusPalette = getStatusPalette(theme, participantMeta?.statusKey);
+                                                const shouldShowStatusBadge = Boolean(statusLabel)
+                                                    && String(statusLabel).trim().toLowerCase() !== String(roleLabel).trim().toLowerCase();
+
+                                                return (
+                                                    <View style={styles.participantMetaRow}>
+                                                        <View
+                                                            style={[
+                                                                styles.participantBadge,
+                                                                {
+                                                                    backgroundColor: rolePalette.background,
+                                                                    borderColor: rolePalette.border,
+                                                                },
+                                                            ]}
+                                                        >
+                                                            <Text style={[styles.participantBadgeText, { color: rolePalette.text }]}>
+                                                                {roleLabel}
+                                                            </Text>
+                                                        </View>
+
+                                                        {shouldShowStatusBadge && (
+                                                            <View
+                                                                style={[
+                                                                    styles.participantBadge,
+                                                                    {
+                                                                        backgroundColor: statusPalette.background,
+                                                                        borderColor: statusPalette.border,
+                                                                    },
+                                                                ]}
+                                                            >
+                                                                <Text style={[styles.participantBadgeText, { color: statusPalette.text }]}>
+                                                                    {statusLabel}
+                                                                </Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                );
+                                            })()}
+
                                             <View style={styles.conversationHeader}>
                                                 <Text style={[styles.conversationName, { color: theme.colors.text }]}>{conv.property?.title || `${conv.other_user?.first_name || ''} ${conv.other_user?.last_name || ''}`.trim()}</Text>
                                                 <Text style={styles.conversationTime}>{formatTime(conv.last_message_at)}</Text>
@@ -174,7 +266,7 @@ export default function MessagesList({
                                         </View>
 
                                         {conv.unread_count > 0 && (
-                                            <View style={[styles.unreadBadge, { backgroundColor: theme.colors.primary }]}>
+                                            <View style={[styles.unreadBadge, { backgroundColor: '#EF4444' }]}>
                                                 <Text style={styles.unreadCount}>{conv.unread_count}</Text>
                                             </View>
                                         )}

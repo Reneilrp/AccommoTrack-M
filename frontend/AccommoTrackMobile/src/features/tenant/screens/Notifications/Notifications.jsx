@@ -11,15 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
-import {
-  loadPrefsMobile,
-  DEFAULT_PREFS,
-} from "../../../../shared/notificationPrefs.js";
-
-import BookingService from "../../../../services/BookingService.js";
-import PaymentService from "../../../../services/PaymentService.js";
 import api from "../../../../services/api.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import {
@@ -183,6 +175,20 @@ const getStyles = (theme) =>
       color: theme.colors.textSecondary,
       fontWeight: "600",
     },
+    unreadOnlyButton: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      borderRadius: 16,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    unreadOnlyText: {
+      fontSize: 12,
+      fontWeight: "600",
+      marginLeft: 6,
+    },
     errorBanner: {
       marginHorizontal: 16,
       marginTop: 12,
@@ -215,99 +221,38 @@ export default function TenantNotifications({ navigation }) {
   const [notifications, setNotifications] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filterType, setFilterType] = useState("all");
-  const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS });
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  const extractNotificationRows = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+  };
 
   const notificationsFeedQuery = useQuery({
     queryKey: tenantQueryKeys.notificationsFeed(),
     queryFn: async () => {
       try {
-        const [backendResult, bookingsResult, paymentsResult] =
-          await Promise.allSettled([
-            api.get("/notifications?role=tenant"),
-            BookingService.getMyBookings(),
-            PaymentService.getPayments(),
-          ]);
+        const backendResult = await api.get("/notifications?role=tenant&per_page=200");
+        const backendNotifs = extractNotificationRows(backendResult?.data);
 
-        const items = [];
-        let failedSources = 0;
-
-        if (backendResult.status === "fulfilled") {
-          const backendPayload =
-            backendResult.value?.data?.data || backendResult.value?.data || [];
-          const backendNotifs = Array.isArray(backendPayload)
-            ? backendPayload
-            : [];
-
-          backendNotifs.forEach((n) => {
-            items.push({
-              id: `n-${n.id}`,
-              type: n.data?.type || "default",
-              title: n.data?.title || "Notification",
-              message: n.data?.message || "",
-              timestamp: n.created_at || new Date().toISOString(),
-              read: !!n.read_at,
-              raw: n,
-            });
-          });
-        } else {
-          failedSources += 1;
-        }
-
-        if (bookingsResult.status === "fulfilled") {
-          const bookingsRes = bookingsResult.value;
-          if (bookingsRes?.success && Array.isArray(bookingsRes.data)) {
-            bookingsRes.data.forEach((b) => {
-              items.push({
-                id: `b-${b.id}`,
-                type: "booking",
-                title: `Booking ${b.reference || b.id}`,
-                message: `Status: ${b.status}`,
-                timestamp:
-                  b.updated_at || b.created_at || new Date().toISOString(),
-                read: b.status === "confirmed" || b.status === "cancelled",
-                raw: b,
-              });
-            });
-          } else {
-            failedSources += 1;
-          }
-        } else {
-          failedSources += 1;
-        }
-
-        if (paymentsResult.status === "fulfilled") {
-          const paymentsRes = paymentsResult.value;
-          if (paymentsRes?.success && Array.isArray(paymentsRes.data)) {
-            paymentsRes.data.forEach((p) => {
-              items.push({
-                id: `p-${p.id}`,
-                type: "payment",
-                title: `Invoice ${p.invoice_reference || p.id}`,
-                message: `Payment status: ${p.status}`,
-                timestamp:
-                  p.updated_at || p.created_at || new Date().toISOString(),
-                read: p.status === "paid",
-                raw: p,
-              });
-            });
-          } else {
-            failedSources += 1;
-          }
-        } else {
-          failedSources += 1;
-        }
+        const items = backendNotifs.map((n) => ({
+          id: `n-${n.id}`,
+          type: n.data?.type || "default",
+          title: n.data?.title || "Notification",
+          message: n.data?.message || "",
+          timestamp: n.created_at || new Date().toISOString(),
+          read: Boolean(n.is_read || n.read_at),
+          raw: n,
+        }));
 
         items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         return {
           items,
-          fetchError:
-            failedSources === 0
-              ? ""
-              : failedSources === 3
-                ? "Unable to load notifications right now. Pull to refresh."
-                : "Some notification data could not be loaded. Pull to refresh.",
+          fetchError: "",
         };
       } catch (err) {
         console.warn("Error fetching tenant notifications", err);
@@ -341,23 +286,10 @@ export default function TenantNotifications({ navigation }) {
     setNotifications(incomingItems);
   }, [notificationsFeedQuery.data]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const next = await loadPrefsMobile(AsyncStorage);
-        setPrefs(next);
-      } catch (e) {
-        console.warn("Load prefs error", e);
-      }
-    })();
-  }, []);
-
   const displayedNotifications = notifications.filter((n) => {
     if (filterType === "bookings" && n.type !== "booking") return false;
     if (filterType === "payments" && n.type !== "payment") return false;
-    if (n.type === "booking" && prefs.email_booking === false) return false;
-    if (n.type === "payment" && prefs.email_payment === false) return false;
-    if (n.type === "message" && prefs.push_messages === false) return false;
+    if (unreadOnly && n.read) return false;
     return true;
   });
 
@@ -447,7 +379,7 @@ export default function TenantNotifications({ navigation }) {
         <View style={styles.headerSide}>
           {unreadCount > 0 ? (
             <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
-              <Text style={styles.markAllText}>Mark all</Text>
+              <Text style={styles.markAllText}>Mark all read</Text>
             </TouchableOpacity>
           ) : (
             <View style={{ width: 40 }} />
@@ -537,6 +469,39 @@ export default function TenantNotifications({ navigation }) {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          onPress={() => setUnreadOnly((prev) => !prev)}
+          style={[
+            styles.unreadOnlyButton,
+            {
+              backgroundColor: unreadOnly
+                ? theme.colors.primary
+                : theme.colors.surface,
+              borderColor: unreadOnly
+                ? theme.colors.primary
+                : theme.colors.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={unreadOnly ? "mail-unread" : "mail-unread-outline"}
+            size={14}
+            color={unreadOnly ? theme.colors.textInverse : theme.colors.textSecondary}
+          />
+          <Text
+            style={[
+              styles.unreadOnlyText,
+              {
+                color: unreadOnly
+                  ? theme.colors.textInverse
+                  : theme.colors.textSecondary,
+              },
+            ]}
+          >
+            Unread only
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {(fetchError || actionError) && (
@@ -603,7 +568,7 @@ export default function TenantNotifications({ navigation }) {
                 { color: theme.colors.textSecondary },
               ]}
             >
-              You're all caught up!
+              {unreadOnly ? "No unread notifications." : "You're all caught up!"}
             </Text>
           </View>
         ) : (

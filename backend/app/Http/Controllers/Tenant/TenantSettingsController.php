@@ -23,7 +23,7 @@ class TenantSettingsController extends Controller
             $user = User::select([
                 'id', 'first_name', 'middle_name', 'last_name', 'email', 'phone',
                 'profile_image', 'is_verified', 'is_active', 'notification_preferences',
-                'date_of_birth', 'gender',
+                'date_of_birth', 'gender', 'identified_as',
             ])->findOrFail($userId);
 
             // Get tenant profile directly
@@ -46,7 +46,14 @@ class TenantSettingsController extends Controller
             // Format profile image URL
             $profileImage = null;
             if ($user->profile_image) {
-                $profileImage = asset('storage/'.$user->profile_image);
+                $rawPath = ltrim($user->profile_image, '/');
+                $cleanPath = str_replace('storage/', '', $rawPath);
+                
+                try {
+                    $profileImage = Storage::url($cleanPath);
+                } catch (\Exception $e) {
+                    $profileImage = \Illuminate\Support\Facades\Storage::url($cleanPath);
+                }
             }
 
             return response()->json([
@@ -62,6 +69,7 @@ class TenantSettingsController extends Controller
                 'notification_preferences' => $user->notification_preferences,
                 'age' => $age,
                 'gender' => $user->gender,
+                'identified_as' => $user->identified_as,
                 'date_of_birth' => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
                 'tenant_profile' => $tenantProfile ? [
                     'move_in_date' => $tenantProfile->move_in_date ? $tenantProfile->move_in_date->format('Y-m-d') : null,
@@ -95,7 +103,8 @@ class TenantSettingsController extends Controller
                 'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($userId)],
                 'phone' => 'nullable|string|max:20',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'identified_as' => 'nullable|string|max:50',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
                 'notification_preferences' => 'nullable',
 
                 // TenantProfile fields
@@ -143,6 +152,9 @@ class TenantSettingsController extends Controller
             if ($request->has('gender')) {
                 $userData['gender'] = $validated['gender'];
             }
+            if ($request->has('identified_as')) {
+                $userData['identified_as'] = $validated['identified_as'] ?? null;
+            }
             if ($request->has('notification_preferences')) {
                 $prefs = $validated['notification_preferences'];
                 // When sent as a JSON string via FormData, decode it first
@@ -162,9 +174,11 @@ class TenantSettingsController extends Controller
             if ($request->hasFile('profile_image')) {
                 // Delete old image if exists
                 if ($user->profile_image) {
-                    Storage::disk('public')->delete($user->profile_image);
+                    $oldPath = str_replace('/storage/', '', $user->profile_image);
+                    $oldPath = str_replace('storage/', '', $oldPath);
+                    Storage::delete($oldPath);
                 }
-                $path = $request->file('profile_image')->store('profile_images', 'public');
+                $path = $request->file('profile_image')->store('profile-images');
                 $userData['profile_image'] = $path;
             }
 

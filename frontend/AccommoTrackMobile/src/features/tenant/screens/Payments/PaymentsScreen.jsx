@@ -4,25 +4,21 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   RefreshControl,
-  Dimensions,
-  Modal,
   ActivityIndicator,
   Alert,
-  Linking,
-  TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
 import PaymentService from '../../../../services/PaymentService.js';
-import { API_BASE_URL } from '../../../../config/index.js';
+import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
 import { showError } from '../../../../utils/toast.js';
-import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { getStyles } from '../../../../styles/Tenant/WalletStyles.js';
 import createEcho from '../../../../services/echo.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,15 +30,24 @@ import {
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 
-const { width } = Dimensions.get('window');
-
 export default function PaymentsScreen() {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const navigation = useNavigation();
+  const contentWrapStyle = React.useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 860, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
   const [statusFilter, setStatusFilter] = useState('all');
-  const [timeRange, setTimeRange] = useState('1m');
+  const [timeRange, setTimeRange] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [resolvingPaymentId, setResolvingPaymentId] = useState(null);
+  const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
+    SystemToggleService.getDefaults().tenantPaymentsDisabled,
+  );
 
   const currentUserIdQuery = useQuery({
     queryKey: tenantQueryKeys.paymentsCurrentUserId(),
@@ -58,7 +63,7 @@ export default function PaymentsScreen() {
 
         const storedId = await AsyncStorage.getItem('user_id');
         return storedId ? String(storedId) : null;
-      } catch (e) {
+      } catch (_error) {
         return null;
       }
     },
@@ -121,6 +126,18 @@ export default function PaymentsScreen() {
 
   // Real-time updates
   useEffect(() => {
+    let mounted = true;
+    SystemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!userId) return;
 
     let echoInstance = null;
@@ -155,23 +172,50 @@ export default function PaymentsScreen() {
     };
   }, [userId, triggerPaymentDataRefresh]);
 
-  // --- Payment / Checkout flow (merged from Payments.jsx) ---
-  const paymentMethods = [
-    { id: 1, name: 'GCash', key: 'gcash', enabled: true },
-    { id: 2, name: 'Cash on site', key: 'cash', enabled: true },
-  ];
+  const openCheckout = async (payment) => {
+    if (tenantPaymentsTempDisabled) {
+      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
 
-  const [checkoutVisible, setCheckoutVisible] = useState(false);
-  const [checkoutItem, setCheckoutItem] = useState(null);
-  const [checkoutMethod, setCheckoutMethod] = useState('gcash');
-  const [offlineDetails, setOfflineDetails] = useState({ reference: '', notes: '' });
-  const [processingPayment, setProcessingPayment] = useState(false);
+    const item = typeof payment === 'object'
+      ? payment
+      : (payments.find((entry) => entry.id === payment) || { id: payment });
 
-  const openCheckout = (payment) => {
-    setCheckoutItem(payment);
-    setCheckoutMethod('gcash');
-    setOfflineDetails({ reference: '', notes: '' });
-    setCheckoutVisible(true);
+    let invoiceId = item?.invoiceId || item?.invoice_id || item?.id || null;
+
+    if (!invoiceId) {
+      const bookingId = item?.bookingId || item?.booking_id || null;
+      if (!bookingId) {
+        showAlert('Payment Error', 'No booking or invoice linked to this payment. Please contact the landlord.');
+        return;
+      }
+
+      try {
+        setResolvingPaymentId(item?.id || bookingId);
+
+        const response = await PaymentService.createBookingInvoice(bookingId);
+        if (!response.success || !response.data) {
+          showAlert('Payment Error', response.error || 'Failed to prepare invoice checkout.');
+          return;
+        }
+
+        invoiceId = response.data?.id || response.data?.data?.id || null;
+      } catch (error) {
+        console.error('Invoice resolution error:', error);
+        showAlert('Payment Error', 'Failed to prepare invoice checkout.');
+        return;
+      } finally {
+        setResolvingPaymentId(null);
+      }
+    }
+
+    if (!invoiceId) {
+      showAlert('Payment Error', 'Unable to resolve invoice checkout for this payment.');
+      return;
+    }
+
+    navigation.navigate('PaymentDetail', { invoiceId });
   };
 
   const isPayable = (payment) => {
@@ -182,106 +226,6 @@ export default function PaymentsScreen() {
     return payableStatus.includes(status) || payableBookingStatus.includes(paymentStatus);
   };
 
-  const handlePayInvoice = async (paymentItem, paymentMethod = 'gcash', details = {}) => {
-    try {
-      setProcessingPayment(true);
-
-      const item = typeof paymentItem === 'object' ? paymentItem : payments.find(p => p.id === paymentItem) || { id: paymentItem };
-
-      let invoiceId = item.invoiceId || item.invoice_id || null;
-
-      if (!invoiceId) {
-        const bookingId = item.bookingId || item.booking_id || null;
-        if (!bookingId) {
-          Alert.alert('Payment Error', 'No booking or invoice linked to this payment. Please contact landlord.');
-          return;
-        }
-
-        try {
-          const token = await PaymentService.getAuthToken();
-          if (!token) {
-            Alert.alert('Authentication', 'Please login to continue');
-            return;
-          }
-
-          const resp = await fetch(`${API_BASE_URL}/tenant/bookings/${bookingId}/invoice`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            }
-          });
-
-          const body = await resp.json();
-          if (!resp.ok) {
-            console.error('Create invoice failed', body);
-            Alert.alert('Payment Error', body.message || 'Failed to create invoice');
-            return;
-          }
-
-          invoiceId = body.data?.id || body.id || null;
-          if (!invoiceId) {
-            Alert.alert('Payment Error', 'Invoice creation succeeded but no invoice id returned');
-            return;
-          }
-        } catch (err) {
-          console.error('Invoice creation error:', err);
-          Alert.alert('Payment Error', 'Failed to create invoice for this booking');
-          return;
-        }
-      }
-
-      if (paymentMethod !== 'cash' && paymentMethod !== 'cash_on_site') {
-        const res = await PaymentService.createPaymongoSource(invoiceId, paymentMethod, null);
-        if (!res.success) {
-          Alert.alert('Payment Error', res.error || 'Failed to create payment source');
-          return;
-        }
-
-        const sourceBody = res.data?.source || res.data;
-        const checkoutUrl = sourceBody?.data?.attributes?.redirect?.checkout_url || sourceBody?.data?.attributes?.redirect_url || sourceBody?.redirect_url || null;
-        if (checkoutUrl) {
-          await Linking.openURL(checkoutUrl);
-        } else {
-          Alert.alert('Payment', 'No checkout URL returned.');
-        }
-      } else {
-        const amountToPay = paymentItem.remainingBalance !== undefined ? paymentItem.remainingBalance : (paymentItem.amount || 0);
-        const amountCents = Math.round(amountToPay * 100);
-        const resp = await PaymentService.createOfflineRecord(invoiceId, { 
-          amount_cents: amountCents, 
-          method: 'cash_on_site', 
-          reference: details.reference || null,
-          notes: details.notes || 'Tenant indicated cash on site payment' 
-        });
-        if (!resp.success) {
-          Alert.alert('Payment Error', resp.error || 'Failed to request cash payment');
-        } else {
-          Alert.alert('Request Sent', 'Your landlord has been notified to expect a cash payment.');
-        }
-      }
-    } catch (error) {
-      console.error('Error initiating payment:', error);
-      Alert.alert('Payment Error', 'Failed to initiate payment.');
-    } finally {
-      setProcessingPayment(false);
-      setCheckoutVisible(false);
-      await triggerPaymentDataRefresh();
-    }
-  };
-
-  const confirmCheckout = async () => {
-    if (!checkoutItem) return;
-    setCheckoutVisible(false);
-    if (checkoutMethod === 'cash') {
-      await handlePayInvoice(checkoutItem, 'cash', offlineDetails);
-    } else {
-      await handlePayInvoice(checkoutItem, checkoutMethod);
-    }
-  };
-  // --- end payment flow ---
-
   const filterOptions = [
     { value: 'all', label: 'All' },
     { value: 'paid', label: 'Paid' },
@@ -289,10 +233,10 @@ export default function PaymentsScreen() {
     { value: 'overdue', label: 'Overdue' },
   ];
 
-  const timeRanges = [
-    { value: '1w', label: '1W' },
-    { value: '1m', label: '1M' },
-    { value: '1y', label: '1Y' },
+  const timeRangeOptions = [
+    { value: 'w', label: 'W' },
+    { value: 'm', label: 'M' },
+    { value: 'y', label: 'Y' },
     { value: 'all', label: 'All' },
   ];
 
@@ -300,41 +244,63 @@ export default function PaymentsScreen() {
     if (!range || range === 'all') return null;
     const now = new Date();
     switch (range) {
-      case '1w':
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      case '1m':
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      case '1y':
-        return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-      default:
-        return null;
+      case 'w': return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case 'm': return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case 'y': return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      default: return null;
     }
   };
 
-  const getFilteredPayments = () => {
+  const filteredPayments = React.useMemo(() => {
     const threshold = getThresholdDate(timeRange);
-    const list = payments.filter((p) => {
+    
+    // Initial sort and date filter
+    let list = [...payments].filter((p) => {
       if (!threshold) return true;
-      const d = new Date(p.date);
-      return !isNaN(d) && d >= threshold;
+      const d = new Date(p.date || p.created_at);
+      return isNaN(d.getTime()) ? true : d >= threshold;
     });
-    return list.sort((a, b) => new Date(b.date) - new Date(a.date));
-  };
+
+    // Search filter (property, room, reference, method)
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (q) {
+      list = list.filter((p) => {
+        const prop = (p.propertyName || p.property_title || p.property?.title || '').toString().toLowerCase();
+        const ref = (p.referenceNo || p.reference || '').toString().toLowerCase();
+        const method = (p.method || '').toString().toLowerCase();
+        const room = (p.roomNumber || (p.room && p.room.roomNumber) || p.room?.room_number || '').toString().toLowerCase();
+        const desc = (p.description || '').toString().toLowerCase();
+        return prop.includes(q) || ref.includes(q) || method.includes(q) || room.includes(q) || desc.includes(q);
+      });
+    }
+
+    return list.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+  }, [payments, timeRange, searchQuery]);
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'PHP',
-    }).format(amount || 0);
+    const value = Number(amount) || 0;
+    return `₱${new Intl.NumberFormat('en-PH', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value)}`;
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return 'None';
+
+    const parsedDate = new Date(dateString);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return 'None';
+    }
+
+    return parsedDate.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
   };
+
+  const nextDueDateValue = stats?.nextDueDate ?? stats?.next_due_date ?? null;
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -355,38 +321,6 @@ export default function PaymentsScreen() {
     }
   };
 
-  // Generate chart data
-  const getChartData = () => {
-    const filtered = getFilteredPayments();
-    if (filtered.length === 0) {
-      return {
-        labels: ['No Data'],
-        datasets: [{ data: [0] }],
-      };
-    }
-
-    // Group by month for display
-    const monthlyData = {};
-    filtered.forEach((payment) => {
-      if (payment.status?.toLowerCase() === 'paid' || payment.status?.toLowerCase() === 'completed') {
-        const date = new Date(payment.date);
-        const monthKey = `${date.getMonth() + 1}/${date.getFullYear()}`;
-        monthlyData[monthKey] = (monthlyData[monthKey] || 0) + (payment.amount || 0);
-      }
-    });
-
-    const labels = Object.keys(monthlyData).slice(-6);
-    const data = labels.map((label) => monthlyData[label]);
-
-    return {
-      labels: labels.map((l) => l.split('/')[0]), // Just show month number
-      datasets: [{ data: data.length > 0 ? data : [0] }],
-    };
-  };
-
-  const chartData = getChartData();
-
-  const filteredPayments = getFilteredPayments();
   const loading = paymentsLoading || statsLoading;
 
   return (
@@ -396,128 +330,147 @@ export default function PaymentsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
       >
 
+      <View style={contentWrapStyle}>
+
       {/* Stats Cards */}
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
-          <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary} />
-          <Text style={[styles.statValue, { color: '#166534' }]}>
+          <Ionicons name="checkmark-circle" size={26} color={theme.colors.primary} />
+          <Text numberOfLines={1} style={[styles.statValue, { color: '#166534' }]}>
             {formatCurrency(stats?.totalPaidThisMonth || 0)}
           </Text>
           <Text style={[styles.statLabel, { color: '#15803D' }]}>Paid This Month</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: '#FEF3C7' }]}>
-          <Ionicons name="time" size={32} color="#F59E0B" />
-          <Text style={[styles.statValue, { color: '#92400E' }]}>
+          <Ionicons name="time" size={26} color="#F59E0B" />
+          <Text numberOfLines={1} style={[styles.statValue, { color: '#92400E' }]}>
             {formatCurrency(stats?.pendingAmount || 0)}
           </Text>
           <Text style={[styles.statLabel, { color: '#B45309' }]}>Pending</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: '#DBEAFE' }]}>
-          <Ionicons name="calendar" size={32} color="#3B82F6" />
-          <Text style={[styles.statValue, { color: '#1E3A8A' }]}>
-            {stats?.nextDueDate ? formatDate(stats.nextDueDate) : 'N/A'}
+          <Ionicons name="calendar" size={26} color="#3B82F6" />
+          <Text numberOfLines={1} style={[styles.statValue, { color: '#1E3A8A' }]}>
+            {formatDate(nextDueDateValue)}
           </Text>
           <Text style={[styles.statLabel, { color: '#1E40AF' }]}>Next Due</Text>
         </View>
       </View>
 
-      {/* Payment Chart */}
-      <View style={[styles.chartCard, { backgroundColor: theme.colors.surface }]}>
-        <View style={styles.chartHeader}>
-          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Payment History</Text>
-          <View style={styles.timeRangeContainer}>
-            {timeRanges.map((range) => (
-              <TouchableOpacity
-                key={range.value}
-                style={[
-                  styles.timeRangeButton,
-                  {
-                    backgroundColor:
-                      timeRange === range.value ? theme.colors.primary : theme.colors.backgroundSecondary,
-                  },
-                ]}
-                onPress={() => setTimeRange(range.value)}
-              >
-                <Text
-                  style={[
-                    styles.timeRangeText,
-                    { color: timeRange === range.value ? '#fff' : theme.colors.text },
-                  ]}
-                >
-                  {range.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {chartData.datasets[0].data.length > 0 && chartData.datasets[0].data[0] > 0 ? (
-          <LineChart
-            data={chartData}
-            width={width - 64}
-            height={200}
-            chartConfig={{
-              backgroundColor: theme.colors.surface,
-              backgroundGradientFrom: theme.colors.surface,
-              backgroundGradientTo: theme.colors.surface,
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
-              labelColor: (opacity = 1) =>
-                theme.isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-              style: {
-                borderRadius: 16,
-              },
-              propsForDots: {
-                r: '6',
-                strokeWidth: '2',
-                stroke: theme.colors.primary,
-              },
+      {/* Search Bar */}
+      <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: theme.colors.surface,
+          borderRadius: 12,
+          paddingHorizontal: 12,
+          height: 48,
+          borderWidth: 1,
+          borderColor: theme.colors.border
+        }}>
+          <Ionicons name="search-outline" size={20} color={theme.colors.textTertiary} />
+          <TextInput
+            placeholder="Search property, room, ref..."
+            placeholderTextColor={theme.colors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              color: theme.colors.text,
+              fontSize: 14,
             }}
-            bezier
-            style={styles.chart}
           />
-        ) : (
-          <View style={styles.noDataContainer}>
-            <Ionicons name="bar-chart-outline" size={48} color={theme.colors.textTertiary} />
-            <Text style={[styles.noDataText, { color: theme.colors.textSecondary }]}>
-              No payment data for selected period
-            </Text>
-          </View>
-        )}
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={theme.colors.textTertiary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
-        {filterOptions.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.filterTab,
-              {
-                backgroundColor:
-                  statusFilter === option.value ? theme.colors.primary : theme.colors.backgroundSecondary,
-                borderColor: statusFilter === option.value ? theme.colors.primary : theme.colors.border,
-              },
-            ]}
-            onPress={() => setStatusFilter(option.value)}
-          >
-            <Text
+      {/* Filter Tabs Container */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        {/* Status Filter Tabs */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.filterContainer, { marginBottom: 0, paddingRight: 8 }]}
+          style={{ flex: 1 }}
+        >
+          {filterOptions.map((option) => (
+            <TouchableOpacity
+              key={option.value}
               style={[
-                styles.filterText,
-                { color: statusFilter === option.value ? '#fff' : theme.colors.text },
+                styles.filterTab,
+                {
+                  backgroundColor:
+                    statusFilter === option.value ? theme.colors.primary : theme.colors.backgroundSecondary,
+                  borderColor: statusFilter === option.value ? theme.colors.primary : theme.colors.border,
+                },
               ]}
+              onPress={() => setStatusFilter(option.value)}
             >
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.filterText,
+                  { color: statusFilter === option.value ? '#fff' : theme.colors.text },
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Time Range Tabs */}
+        <View style={{ 
+          flexDirection: 'row', 
+          backgroundColor: theme.colors.backgroundSecondary, 
+          borderRadius: 10, 
+          padding: 2,
+          marginRight: 16
+        }}>
+          {timeRangeOptions.map((r) => (
+            <TouchableOpacity
+              key={r.value}
+              onPress={() => setTimeRange(r.value)}
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 6,
+                borderRadius: 8,
+                backgroundColor: timeRange === r.value ? theme.colors.surface : 'transparent',
+                borderWidth: timeRange === r.value ? 1 : 0,
+                borderColor: theme.colors.border,
+              }}
+            >
+              <Text style={{ 
+                fontSize: 10, 
+                fontWeight: 'bold', 
+                color: timeRange === r.value ? theme.colors.primary : theme.colors.textSecondary 
+              }}>
+                {r.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* Payment List */}
       <View style={[styles.listCard, { backgroundColor: theme.colors.surface }]}>
         <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Transactions</Text>
+
+        {tenantPaymentsTempDisabled && (
+          <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 10 }}>
+            <Text style={{ color: '#92400e', fontWeight: '600' }}>
+              Tenant payments are temporarily unavailable while payment compliance updates are in progress.
+            </Text>
+          </View>
+        )}
 
         {loading && payments.length === 0 ? (
           <>
@@ -586,12 +539,23 @@ export default function PaymentsScreen() {
                   </Text>
                 </View>
 
-                {isPayable(payment) && (
+                {!tenantPaymentsTempDisabled && isPayable(payment) && (
                   <TouchableOpacity
+                    disabled={resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId)}
                     onPress={() => openCheckout(payment)}
-                    style={[styles.payBtn, { backgroundColor: theme.colors.primary }]}
+                    style={[
+                      styles.payBtn,
+                      {
+                        backgroundColor: theme.colors.primary,
+                        opacity: resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId) ? 0.65 : 1,
+                      },
+                    ]}
                   >
-                    <Text style={styles.payBtnText}>Pay</Text>
+                    {resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId) ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.payBtnText}>Pay</Text>
+                    )}
                   </TouchableOpacity>
                 )}
               </View>
@@ -599,98 +563,7 @@ export default function PaymentsScreen() {
           ))
         )}
       </View>
-
-      {/* Checkout Modal */}
-      <Modal visible={checkoutVisible} animationType="slide" transparent onRequestClose={() => setCheckoutVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Checkout</Text>
-            {checkoutItem ? (
-              <View style={styles.checkoutInfo}>
-                <Text style={[styles.checkoutPropName, { color: theme.colors.text }]}>{checkoutItem.propertyName || checkoutItem.description || `Payment #${checkoutItem.id}`}</Text>
-                <Text style={[styles.checkoutRoom, { color: theme.colors.textSecondary }]}>{checkoutItem.roomNumber ? `Room ${checkoutItem.roomNumber}` : ''}</Text>
-                <Text style={[styles.checkoutAmount, { color: theme.colors.text }]}>
-                  ₱{Number(checkoutItem.remainingBalance !== undefined ? checkoutItem.remainingBalance : checkoutItem.amount || 0).toLocaleString()}
-                </Text>
-                {checkoutItem.remainingBalance !== undefined && checkoutItem.remainingBalance < checkoutItem.amount && (
-                  <Text style={[styles.checkoutRoom, { color: theme.colors.textSecondary, fontSize: 12 }]}>
-                    Remaining balance of ₱{Number(checkoutItem.amount).toLocaleString()}
-                  </Text>
-                )}
-              </View>
-            ) : null}
-
-            <Text style={[styles.methodTitle, { color: theme.colors.text }]}>Choose payment method</Text>
-            <View style={styles.methodsRow}>
-              {paymentMethods.map((m, i) => (
-                <TouchableOpacity 
-                    key={m.key} 
-                    onPress={() => setCheckoutMethod(m.key)} 
-                    style={[
-                        styles.methodBtn, 
-                        { backgroundColor: checkoutMethod === m.key ? theme.colors.primary : theme.colors.backgroundSecondary }
-                    ]}
-                >
-                  <Text style={[styles.methodName, { color: checkoutMethod === m.key ? '#fff' : theme.colors.text }]}>{m.name}</Text>
-                  <Text style={[styles.methodDesc, { color: checkoutMethod === m.key ? 'rgba(255,255,255,0.8)' : theme.colors.textSecondary }]}>
-                      {m.key === 'gcash' ? 'Pay via GCash (online)' : 'Pay with cash upon arrival'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {checkoutMethod === 'cash' && (
-              <View style={{ marginTop: 16 }}>
-                <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 8 }}>Additional Details (Optional)</Text>
-                <TextInput
-                  placeholder="Reference Number (if bank transfer)"
-                  placeholderTextColor="#9CA3AF"
-                  style={{
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: 10,
-                    padding: 16,
-                    color: theme.colors.text,
-                    backgroundColor: theme.colors.backgroundSecondary,
-                    marginBottom: 8,
-                    fontSize: 14
-                  }}
-                  value={offlineDetails.reference}
-                  onChangeText={(v) => setOfflineDetails(prev => ({ ...prev, reference: v }))}
-                />
-                <TextInput
-                  placeholder="Additional Notes"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                  numberOfLines={3}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: 10,
-                    padding: 16,
-                    color: theme.colors.text,
-                    backgroundColor: theme.colors.backgroundSecondary,
-                    height: 80,
-                    textAlignVertical: 'top',
-                    fontSize: 14
-                  }}
-                  value={offlineDetails.notes}
-                  onChangeText={(v) => setOfflineDetails(prev => ({ ...prev, notes: v }))}
-                />
-              </View>
-            )}
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity onPress={() => setCheckoutVisible(false)} style={[styles.cancelBtn, { backgroundColor: theme.colors.backgroundSecondary }]}>
-                <Text style={[styles.btnText, { color: theme.colors.text }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={confirmCheckout} style={[styles.confirmBtn, { backgroundColor: theme.colors.primary }]}>
-                {processingPayment ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Pay Now</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      </View>
       </ScrollView>
     </SafeAreaView>
   );

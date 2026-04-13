@@ -43,4 +43,9 @@ return [
         'verify_ssl' => env('PAYMONGO_VERIFY_SSL', true),
     ],
 
+    'cloudflare' => [
+        'zone_id' => env('CLOUDFLARE_ZONE_ID'),
+        'api_token' => env('CLOUDFLARE_API_TOKEN'),
+    ],
+
 ];

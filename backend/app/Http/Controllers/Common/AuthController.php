@@ -6,6 +6,7 @@ use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
 use App\Http\Controllers\Controller;
 use App\Mail\EmailOtpMail;
+use App\Models\LandlordVerification;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\AuthService;
@@ -20,9 +21,15 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
+    private const ACCESS_TOKEN_NAME = 'access_token';
+    private const REFRESH_TOKEN_NAME = 'refresh_token';
+    private const REFRESH_TOKEN_ABILITY = 'token:refresh';
+    private const LANDLORD_EMAIL_RECOVERY_OTP_TTL_MINUTES = 10;
+
     protected AuthService $authService;
     protected LegalConsentService $legalConsentService;
     protected AuditLogService $auditLogService;
@@ -77,6 +84,82 @@ class AuthController extends Controller
         return filter_var(env('AUTH_WEB_COOKIE_STRICT_MODE', false), FILTER_VALIDATE_BOOL);
     }
 
+    protected function isTrustedDeviceRequest(Request $request): bool
+    {
+        $headerValue = $request->header('X-Device-Trusted');
+
+        if ($headerValue === null) {
+            return false;
+        }
+
+        return filter_var($headerValue, FILTER_VALIDATE_BOOL);
+    }
+
+    protected function resolveAccessTokenTtlMinutes(Request $request, User $user): int
+    {
+        $ttlMinutes = max((int) config('sanctum.access_token_ttl_minutes', 15), 1);
+
+        if ($this->isTrustedDeviceRequest($request)) {
+            $ttlMinutes = max((int) config('sanctum.access_token_ttl_minutes_trusted_device', $ttlMinutes), 1);
+        }
+
+        if ($user->role === 'admin') {
+            $ttlMinutes = max((int) config('sanctum.access_token_ttl_minutes_admin', $ttlMinutes), 1);
+        }
+
+        return $ttlMinutes;
+    }
+
+    protected function resolveRefreshTokenTtlDays(Request $request, User $user): int
+    {
+        $ttlDays = max((int) config('sanctum.refresh_token_ttl_days', 30), 1);
+
+        if ($this->isTrustedDeviceRequest($request)) {
+            $ttlDays = max((int) config('sanctum.refresh_token_ttl_days_trusted_device', $ttlDays), 1);
+        }
+
+        if ($user->role === 'admin') {
+            $ttlDays = max((int) config('sanctum.refresh_token_ttl_days_admin', $ttlDays), 1);
+        }
+
+        return $ttlDays;
+    }
+
+    protected function issueTokenPair(Request $request, User $user): array
+    {
+        $accessExpiresAt = now()->addMinutes($this->resolveAccessTokenTtlMinutes($request, $user));
+        $refreshExpiresAt = now()->addDays($this->resolveRefreshTokenTtlDays($request, $user));
+
+        $accessToken = $user->createToken(self::ACCESS_TOKEN_NAME, ['*'], $accessExpiresAt)->plainTextToken;
+        $refreshToken = $user->createToken(self::REFRESH_TOKEN_NAME, [self::REFRESH_TOKEN_ABILITY], $refreshExpiresAt)->plainTextToken;
+
+        return [
+            // Backward compatibility for existing clients that read `token`.
+            'token' => $accessToken,
+            'access_token' => $accessToken,
+            'refresh_token' => $refreshToken,
+            'token_type' => 'Bearer',
+            'expires_in' => now()->diffInSeconds($accessExpiresAt),
+            'expires_at' => $accessExpiresAt->toISOString(),
+            'refresh_expires_in' => now()->diffInSeconds($refreshExpiresAt),
+            'refresh_expires_at' => $refreshExpiresAt->toISOString(),
+        ];
+    }
+
+    protected function isRefreshTokenRecord(?PersonalAccessToken $token): bool
+    {
+        if (! $token) {
+            return false;
+        }
+
+        if ($token->name === self::REFRESH_TOKEN_NAME) {
+            return true;
+        }
+
+        return is_array($token->abilities)
+            && in_array(self::REFRESH_TOKEN_ABILITY, $token->abilities, true);
+    }
+
     protected function buildAuthResponse(Request $request, User $user, string $message, array $extra = []): JsonResponse
     {
         $cookieRequested = $this->webCookieModeRequested($request);
@@ -121,14 +204,13 @@ class AuthController extends Controller
             ], $extra));
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $tokenPayload = $this->issueTokenPair($request, $user);
 
         return response()->json(array_merge([
             'user' => $user,
-            'token' => $token,
             'message' => $message,
             'auth_mode' => 'token',
-        ], $extra));
+        ], $tokenPayload, $extra));
     }
 
     private function normalizeGenderForStorage(?string $gender): ?string
@@ -169,8 +251,14 @@ class AuthController extends Controller
                 'first_name' => 'required|string|max:100',
                 'middle_name' => 'nullable|string|max:100',
                 'last_name' => 'required|string|max:100',
-                // Require RFC syntax during registration
-                'email' => 'required|string|email:rfc|max:255|unique:users',
+                // Require RFC syntax during registration, explicitly ignore soft-deleted records
+                'email' => [
+                    'required',
+                    'string',
+                    'email:rfc',
+                    'max:255',
+                    Rule::unique('users')->whereNull('deleted_at'),
+                ],
                 'password' => [
                     'required',
                     'string',
@@ -406,11 +494,88 @@ class AuthController extends Controller
         }
     }
 
+    public function refreshToken(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'refresh_token' => 'required|string',
+        ]);
+
+        $refreshToken = PersonalAccessToken::findToken($validated['refresh_token']);
+
+        if (! $this->isRefreshTokenRecord($refreshToken)) {
+            return response()->json([
+                'message' => 'Invalid refresh token.',
+            ], 401);
+        }
+
+        if ($refreshToken->expires_at && $refreshToken->expires_at->isPast()) {
+            $refreshToken->delete();
+
+            return response()->json([
+                'message' => 'Refresh token has expired.',
+            ], 401);
+        }
+
+        $user = $refreshToken->tokenable;
+
+        if (! $user instanceof User) {
+            $refreshToken->delete();
+
+            return response()->json([
+                'message' => 'Invalid refresh token owner.',
+            ], 401);
+        }
+
+        if ($user->is_blocked) {
+            $refreshToken->delete();
+
+            return response()->json([
+                'status' => 'blocked',
+                'message' => 'Your account has been permanently blocked by the administrator. Please contact support for assistance.',
+            ], 403);
+        }
+
+        if ($user->suspended_until && Carbon::now()->isBefore($user->suspended_until)) {
+            $refreshToken->delete();
+            $formattedDate = Carbon::parse($user->suspended_until)->format('F j, Y, g:i a');
+
+            return response()->json([
+                'status' => 'blocked',
+                'message' => "Your account is temporarily suspended until {$formattedDate}. Please contact support for assistance.",
+            ], 403);
+        }
+
+        if ($user->role === 'caretaker') {
+            $user->load('caretakerAssignment');
+        }
+
+        $refreshToken->delete();
+
+        return response()->json(array_merge([
+            'user' => $user,
+            'message' => 'Token refreshed successfully.',
+            'auth_mode' => 'token',
+        ], $this->issueTokenPair($request, $user)));
+    }
+
     public function logout(Request $request)
     {
         $currentToken = $request->user()?->currentAccessToken();
         if ($currentToken) {
             $currentToken->delete();
+        }
+
+        $providedRefreshToken = (string) $request->input('refresh_token', '');
+        if ($providedRefreshToken !== '') {
+            $refreshToken = PersonalAccessToken::findToken($providedRefreshToken);
+
+            if (
+                $this->isRefreshTokenRecord($refreshToken)
+                && $refreshToken->tokenable_type === User::class
+                && (int) $refreshToken->tokenable_id === (int) $request->user()?->id
+            ) {
+                $refreshToken->delete();
+            }
         }
 
         if ($this->shouldUseWebCookieAuth($request)) {
@@ -465,11 +630,17 @@ class AuthController extends Controller
                 ], 403);
             }
 
-            $verification = \App\Models\LandlordVerification::where('user_id', $user->id)->first();
+            $verification = LandlordVerification::where('user_id', $user->id)->first();
+            $allowedStatuses = [
+                LandlordVerification::STATUS_PARTIAL_VERIFIED,
+                LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
+                LandlordVerification::STATUS_APPROVED,
+                LandlordVerification::STATUS_VERIFIED,
+            ];
 
-            if (! $verification || $verification->status !== 'approved') {
+            if (! $verification || ! in_array($verification->status, $allowedStatuses, true)) {
                 return response()->json([
-                    'message' => 'Your landlord registration is not yet approved. Please complete landlord registration first.',
+                    'message' => 'Your landlord registration is not yet in an active state. Please wait for admin partial verification first.',
                     'status' => $verification ? $verification->status : 'not_submitted',
                 ], 403);
             }
@@ -499,7 +670,7 @@ class AuthController extends Controller
                 'date_of_birth' => 'nullable|date',
                 'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
                 'identified_as' => 'nullable|string|max:50',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'payment_methods_settings' => 'nullable|array',
                 'payment_methods_settings.allowed' => 'nullable|array',
                 'payment_methods_settings.details' => 'nullable|array',
@@ -529,13 +700,14 @@ class AuthController extends Controller
             if ($request->hasFile('profile_image')) {
                 $image = $request->file('profile_image');
                 $filename = 'profile_'.$user->id.'_'.time().'.'.$image->getClientOriginalExtension();
-                $path = $image->storeAs('profile-images', $filename, 'public');
-                $validated['profile_image'] = '/storage/'.$path;
+                $path = $image->storeAs('profile-images', $filename);
+                $validated['profile_image'] = $path;
 
                 // Delete old profile image if exists
                 if ($user->profile_image) {
                     $oldPath = str_replace('/storage/', '', $user->profile_image);
-                    Storage::disk('public')->delete($oldPath);
+                    $oldPath = str_replace('storage/', '', $oldPath);
+                    Storage::delete($oldPath);
                 }
             }
 
@@ -576,7 +748,10 @@ class AuthController extends Controller
                 'user' => $user->fresh()->load('tenantProfile'),
                 'message' => 'Profile updated successfully',
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
+            Log::error('updateProfile error', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'message' => 'Failed to update profile',
                 'error' => $e->getMessage(),
@@ -626,6 +801,160 @@ class AuthController extends Controller
         }
     }
 
+    public function sendLandlordEmailRecoveryOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'landlord') {
+            return response()->json([
+                'message' => 'This feature is available for landlord accounts only.',
+            ], 403);
+        }
+
+        $otp = (string) random_int(100000, 999999);
+
+        $user->forceFill([
+            'email_otp_code' => Hash::make($otp),
+            'email_otp_expires_at' => Carbon::now()->addMinutes(self::LANDLORD_EMAIL_RECOVERY_OTP_TTL_MINUTES),
+        ])->save();
+
+        try {
+            Mail::to($user->email)->send(new EmailOtpMail($otp));
+        } catch (\Throwable $mailException) {
+            Log::warning('Landlord email recovery OTP send failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $mailException->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to send verification code. Please try again later.',
+            ], 500);
+        }
+
+        $user = $this->persistLandlordEmailRecoverySecurityState($user, true, null);
+
+        return response()->json([
+            'message' => 'Verification code sent to your email address.',
+            'user' => $user,
+            'email_recovery' => $this->extractLandlordEmailRecoveryStatus($user),
+        ]);
+    }
+
+    public function verifyLandlordEmailRecoveryOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'landlord') {
+            return response()->json([
+                'message' => 'This feature is available for landlord accounts only.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'email_otp_code' => 'required|digits:6',
+        ]);
+
+        if (! $user->email_otp_code || ! $user->email_otp_expires_at) {
+            return response()->json([
+                'message' => 'Verification code not found. Please request a new code from Settings.',
+            ], 404);
+        }
+
+        if (Carbon::now()->isAfter($user->email_otp_expires_at)) {
+            return response()->json([
+                'message' => 'Verification code has expired. Please request a new code.',
+            ], 422);
+        }
+
+        if (! Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
+            return response()->json([
+                'message' => 'Invalid verification code.',
+            ], 422);
+        }
+
+        $user->forceFill([
+            'email_otp_code' => null,
+            'email_otp_expires_at' => null,
+        ])->save();
+
+        $user = $this->persistLandlordEmailRecoverySecurityState($user, true, now()->toIso8601String());
+
+        return response()->json([
+            'message' => 'Email recovery verified successfully.',
+            'user' => $user,
+            'email_recovery' => $this->extractLandlordEmailRecoveryStatus($user),
+        ]);
+    }
+
+    public function disableLandlordEmailRecovery(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'landlord') {
+            return response()->json([
+                'message' => 'This feature is available for landlord accounts only.',
+            ], 403);
+        }
+
+        $user->forceFill([
+            'email_otp_code' => null,
+            'email_otp_expires_at' => null,
+        ])->save();
+
+        $user = $this->persistLandlordEmailRecoverySecurityState($user, false, null);
+
+        return response()->json([
+            'message' => 'Email recovery has been disabled.',
+            'user' => $user,
+            'email_recovery' => $this->extractLandlordEmailRecoveryStatus($user),
+        ]);
+    }
+
+    private function extractLandlordEmailRecoveryStatus(User $user): array
+    {
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        return [
+            'enabled' => (bool) $securityPreferences['emailRecoveryEnabled'],
+            'verified_at' => $securityPreferences['emailRecoveryVerifiedAt'] ?: null,
+        ];
+    }
+
+    private function persistLandlordEmailRecoverySecurityState(User $user, bool $enabled, ?string $verifiedAt): User
+    {
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        $securityPreferences['emailRecoveryEnabled'] = $enabled;
+        $securityPreferences['emailRecoveryVerifiedAt'] = $verifiedAt;
+
+        $preferences['security'] = $securityPreferences;
+
+        $user->forceFill([
+            'preferences' => $preferences,
+        ])->save();
+
+        return $user->fresh();
+    }
+
+    private function getNormalizedSecurityPreferences(User $user): array
+    {
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
+        $security = $preferences['security'] ?? [];
+
+        if (! is_array($security)) {
+            $security = [];
+        }
+
+        return [
+            'twoFactorAuth' => (bool) ($security['twoFactorAuth'] ?? false),
+            'loginAlerts' => array_key_exists('loginAlerts', $security) ? (bool) $security['loginAlerts'] : true,
+            'emailRecoveryEnabled' => (bool) ($security['emailRecoveryEnabled'] ?? false),
+            'emailRecoveryVerifiedAt' => ! empty($security['emailRecoveryVerifiedAt']) ? (string) $security['emailRecoveryVerifiedAt'] : null,
+        ];
+    }
+
     public function removeProfileImage(Request $request)
     {
         try {
@@ -634,7 +963,8 @@ class AuthController extends Controller
             if ($user->profile_image) {
                 // Delete the image file
                 $oldPath = str_replace('/storage/', '', $user->profile_image);
-                Storage::disk('public')->delete($oldPath);
+                $oldPath = str_replace('storage/', '', $oldPath);
+                Storage::delete($oldPath);
 
                 // Update user record
                 $user->update(['profile_image' => null]);

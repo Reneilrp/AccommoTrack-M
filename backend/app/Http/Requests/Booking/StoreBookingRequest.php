@@ -71,6 +71,7 @@ class StoreBookingRequest extends FormRequest
                 }
             },
         ];
+        $minimumAdultDob = Carbon::today()->subYears(18)->toDateString();
 
         $rules = [
             'room_id' => 'required|exists:rooms,id',
@@ -79,14 +80,29 @@ class StoreBookingRequest extends FormRequest
             'bed_count' => 'nullable|integer|min:1',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => $endDateRules,
-            'move_in_date' => 'nullable|date|after_or_equal:start_date',
+            'move_in_date' => [
+                'nullable',
+                'date',
+                'after_or_equal:start_date',
+                function ($attribute, $value, $fail) {
+                    $startDate = $this->input('start_date');
+
+                    if (! $value || ! $startDate) {
+                        return;
+                    }
+
+                    if (Carbon::parse($value)->toDateString() !== Carbon::parse($startDate)->toDateString()) {
+                        $fail('Move-in date must match the selected check-in date.');
+                    }
+                },
+            ],
             'notes' => 'nullable|string|max:1000',
-            'payment_plan' => 'nullable|string|in:full,monthly',
+            'payment_plan' => 'nullable|string|in:full,monthly,promo_one_time',
             'contract_mode' => ['nullable', 'string', 'in:daily,monthly'],
             'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             'occupants' => 'required_if:booking_mode,proxy|array|min:1',
             'occupants.*.full_name' => 'required_with:occupants|string|max:255',
-            'occupants.*.date_of_birth' => 'required_with:occupants|date|before:today',
+            'occupants.*.date_of_birth' => ['required_with:occupants', 'date', 'before_or_equal:'.$minimumAdultDob],
             'occupants.*.gender' => 'required_with:occupants|string|in:male,female,other,prefer_not_to_say|max:32',
             'occupants.*.relationship_to_booker' => 'required_with:occupants|string|max:64',
             'occupants.*.phone' => 'nullable|string|max:32',
@@ -139,11 +155,13 @@ class StoreBookingRequest extends FormRequest
             'occupants.min' => 'Proxy booking requires at least one occupant.',
             'occupants.*.full_name.required_with' => 'Each occupant must include a full name.',
             'occupants.*.date_of_birth.required_with' => 'Each occupant must include a date of birth.',
+            'occupants.*.date_of_birth.before_or_equal' => 'Each occupant must be at least 18 years old.',
             'occupants.*.gender.required_with' => 'Each occupant must include a gender.',
             'occupants.*.gender.in' => 'Each occupant gender must be one of: male, female, other, prefer_not_to_say.',
             'occupants.*.relationship_to_booker.required_with' => 'Each occupant must include relationship to booker.',
             'start_date.required' => 'Please select a check-in date.',
             'start_date.after_or_equal' => 'Check-in date must be today or later.',
+            'move_in_date.after_or_equal' => 'Move-in date cannot be earlier than the selected check-in date.',
             'end_date.required' => 'Please select a check-out date for daily bookings.',
             'end_date.after' => 'Check-out date must be after check-in date.',
             'contract_mode.required' => 'Please choose a booking mode for this room.',

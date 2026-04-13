@@ -1,8 +1,10 @@
-import { StyleSheet, Dimensions, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
+export const getStyles = (theme, viewportWidth = 390) => {
+    const heroWidth = Math.max(280, viewportWidth || 390);
+    const roomImageWidth = Math.min(420, Math.max(180, heroWidth * 0.6));
 
-export const getStyles = (theme) => StyleSheet.create({
+    return StyleSheet.create({
     centered: {
         flex: 1,
         justifyContent: 'center',
@@ -42,7 +44,7 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     heroSection: {
         height: 280,
-        width: screenWidth,
+        width: heroWidth,
         position: 'relative',
         backgroundColor: theme.colors.backgroundTertiary
     },
@@ -355,7 +357,8 @@ export const getStyles = (theme) => StyleSheet.create({
         backgroundColor: theme.colors.surface, 
         borderRadius: 10, 
         padding: 16, 
-        width: '90%'
+        width: '90%',
+        maxWidth: 560,
     },
     modalFooter: {
         marginTop: 24
@@ -369,7 +372,7 @@ export const getStyles = (theme) => StyleSheet.create({
         paddingTop: 16
     },
     roomImage: {
-        width: screenWidth * 0.6, 
+        width: roomImageWidth,
         height: 150, 
         borderRadius: 8, 
         marginRight: 8
@@ -408,6 +411,7 @@ export const getStyles = (theme) => StyleSheet.create({
         color: theme.colors.text, 
         marginLeft: 5
     },
-});
+    });
+};
 
 export default getStyles;

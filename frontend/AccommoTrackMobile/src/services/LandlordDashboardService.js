@@ -17,14 +17,19 @@ const withTimeout = (promise, ms = 15000) => {
 // Change the Timeout logic
 
 const LandlordDashboardService = {
-    async fetchDashboard() {
+    async fetchDashboard(options = {}) {
         try {
+            const { includeRevenueChart = true } = options;
+            const revenueChartRequest = includeRevenueChart
+                ? api.get('/landlord/dashboard/revenue-chart')
+                : Promise.resolve({ data: { labels: [], data: [] } });
+
             const results = await withTimeout(
                 Promise.allSettled([
                     api.get('/landlord/dashboard/stats'),
                     api.get('/landlord/dashboard/recent-activities'),
                     api.get('/landlord/dashboard/upcoming-payments'),
-                    api.get('/landlord/dashboard/revenue-chart'),
+                    revenueChartRequest,
                     api.get('/landlord/dashboard/property-performance'),
                 ]),
                 20000 // 20 second timeout for all requests

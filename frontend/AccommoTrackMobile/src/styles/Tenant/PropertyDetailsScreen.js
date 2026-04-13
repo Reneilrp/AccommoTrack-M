@@ -1,8 +1,9 @@
-import { StyleSheet, Dimensions } from "react-native";
+import { StyleSheet } from "react-native";
 
-const { width: screenWidth } = Dimensions.get('window');
+export const getStyles = (theme, viewportWidth = 390) => {
+  const contentWidth = Math.max(280, Math.min((viewportWidth || 390) - 32, 900));
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -82,10 +83,14 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
+    alignItems: 'center',
+  },
+  imageCarousel: {
+    width: contentWidth,
   },
   mainImage: {
-    width: screenWidth - 32,
-    height: (screenWidth - 32) * 0.75, 
+    width: contentWidth,
+    height: contentWidth * 0.75,
     borderRadius: 12,
     backgroundColor: theme.colors.backgroundTertiary,
   },
@@ -194,12 +199,6 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginVertical: 24,
-  },
-  featuresContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 24,
-    paddingHorizontal: 16,
   },
   statItem: {
     alignItems: 'center',
@@ -610,4 +609,5 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textSecondary,
     paddingVertical: 6,
   },
-});
+  });
+};

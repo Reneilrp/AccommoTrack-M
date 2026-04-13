@@ -7,6 +7,9 @@ import { useUIState } from "../../contexts/UIStateContext";
 import toast from 'react-hot-toast';
 import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt } from 'lucide-react';
 import createEcho from '../../utils/echo';
+import systemToggleService from '../../services/systemToggleService';
+
+const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
 export default function TenantPayments({ user }) {
   const navigate = useNavigate();
@@ -25,6 +28,7 @@ export default function TenantPayments({ user }) {
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
   const initialLoadRef = useRef(!cachedData);
   const hadCachedDataOnMountRef = useRef(Boolean(cachedData));
   const didInitialFetchRef = useRef(false);
@@ -37,7 +41,7 @@ export default function TenantPayments({ user }) {
 
     try {
       const searchParams = new URLSearchParams(window.location.search);
-      if (searchParams.get('payment_refresh') === 'true') {
+      if (searchParams.get('payment_refresh') === 'true' && !tenantPaymentsTempDisabled) {
         // Find any pending/unpaid invoices and trigger a background refresh
         toast.loading('Updating payment status...', { id: 'refreshing' });
         const listRes = await paymentService.getPayments('all');
@@ -75,13 +79,25 @@ export default function TenantPayments({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [updateData, navigate]);
+  }, [updateData, navigate, tenantPaymentsTempDisabled]);
 
   useEffect(() => {
     if (didInitialFetchRef.current) return;
     didInitialFetchRef.current = true;
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    let mounted = true;
+    systemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Real-time updates
   useEffect(() => {
@@ -128,13 +144,14 @@ export default function TenantPayments({ user }) {
     }
   };
 
-  const getFilteredPayments = () => {
+  const filteredPayments = useMemo(() => {
     const threshold = getThresholdDate(timeRange);
-    const list = [...payments].filter(p => {
+    const list = [...payments].filter((p) => {
       if (!threshold) return true;
       const d = new Date(p.date);
       return isNaN(d) ? true : d >= threshold;
     });
+
     const statusFiltered = list.filter((payment) => {
       if (statusFilter === 'all') return true;
       const normalized = (payment.status || '').toLowerCase();
@@ -143,6 +160,7 @@ export default function TenantPayments({ user }) {
       }
       return normalized === statusFilter;
     });
+
     // Apply search query (property name, room number, reference, method)
     const q = (searchQuery || '').trim().toLowerCase();
     const filtered = statusFiltered.filter((payment) => {
@@ -153,13 +171,9 @@ export default function TenantPayments({ user }) {
       const room = (payment.roomNumber || (payment.room && payment.room.roomNumber) || '').toString().toLowerCase();
       return prop.includes(q) || ref.includes(q) || method.includes(q) || room.includes(q);
     });
-    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-  };
 
-  const filteredPayments = useMemo(
-    () => getFilteredPayments(),
-    [payments, statusFilter, timeRange, searchQuery],
-  );
+    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [payments, statusFilter, timeRange, searchQuery]);
 
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900">
@@ -214,6 +228,12 @@ export default function TenantPayments({ user }) {
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
             {error}
             <button onClick={loadData} className="ml-2 underline font-semibold">Try again</button>
+          </div>
+        )}
+
+        {tenantPaymentsTempDisabled && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            Tenant payments are temporarily unavailable while payment compliance updates are in progress.
           </div>
         )}
 
@@ -324,7 +344,7 @@ export default function TenantPayments({ user }) {
                       </td>
                       <td className="px-6 py-4 text-sm font-mono text-gray-700 dark:text-gray-300">{payment.referenceNo || '—'}</td>
                       <td className="px-6 py-4 text-sm">
-                        {['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) ? (
+                        {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) ? (
                           <button
                             onClick={() => navigate(`/checkout/${payment.id}`)}
                             className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap"
@@ -397,7 +417,7 @@ export default function TenantPayments({ user }) {
                   {payment.referenceNo && (
                     <p className="text-xs text-gray-500 dark:text-gray-500 font-mono">Ref: {payment.referenceNo}</p>
                   )}
-                  {['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
+                  {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
                     <button
                       onClick={() => navigate(`/checkout/${payment.id}`)}
                       className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors"

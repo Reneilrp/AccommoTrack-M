@@ -56,6 +56,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API Token TTL Policy
+    |--------------------------------------------------------------------------
+    |
+    | These values are used by AuthController when issuing access and refresh
+    | token pairs for bearer-token clients (web token mode / mobile).
+    |
+    */
+
+    'access_token_ttl_minutes' => (int) env('SANCTUM_ACCESS_TOKEN_TTL_MINUTES', 30),
+    'access_token_ttl_minutes_admin' => (int) env('SANCTUM_ACCESS_TOKEN_TTL_MINUTES_ADMIN', 10),
+    'access_token_ttl_minutes_trusted_device' => (int) env('SANCTUM_ACCESS_TOKEN_TTL_MINUTES_TRUSTED_DEVICE', 60),
+
+    'refresh_token_ttl_days' => (int) env('SANCTUM_REFRESH_TOKEN_TTL_DAYS', 30),
+    'refresh_token_ttl_days_admin' => (int) env('SANCTUM_REFRESH_TOKEN_TTL_DAYS_ADMIN', 14),
+    'refresh_token_ttl_days_trusted_device' => (int) env('SANCTUM_REFRESH_TOKEN_TTL_DAYS_TRUSTED_DEVICE', 60),
+
+    /*
+    |--------------------------------------------------------------------------
     | Token Prefix
     |--------------------------------------------------------------------------
     |

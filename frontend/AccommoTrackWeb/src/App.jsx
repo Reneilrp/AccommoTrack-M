@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api, {
+  clearStoredTokenAuth,
   clearPersistedAuthMode,
   shouldUseBearerForRequest,
 } from "./utils/api";
@@ -10,10 +11,12 @@ import LandingPage from "./screens/Guest/LandingPage.jsx";
 import AuthScreen from "./screens/Auth/Web-Auth";
 import LandlordRegister from "./screens/Auth/LandlordRegister";
 import Help from "./screens/Guest/Help";
+import MobileAppPage from "./screens/Guest/MobileAppPage";
 import ErrorBoundary from "./components/Shared/ErrorBoundary";
 import { getDefaultLandingRoute } from "./utils/userRoutes";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { UIStateProvider } from "./contexts/UIStateContext";
+import { cacheManager } from "./utils/cache";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -26,18 +29,26 @@ function App() {
     const bootstrapAuth = async () => {
       const token = localStorage.getItem("authToken");
       const userData = localStorage.getItem("userData");
+      let hasHydratedCachedUser = false;
       const publicRoutes = new Set([
         "/",
         "/login",
         "/register",
         "/help",
         "/become-landlord",
+        "/browse-properties",
       ]);
-      const currentPath = window.location.pathname;
+      const normalizePath = (path) => {
+        if (!path || path === "/") return "/";
+        return path.replace(/\/+$/, "");
+      };
+      const currentPath = normalizePath(window.location.pathname);
+      const isGuestPropertyRoute = /^\/property\/[^/]+$/.test(currentPath);
+      const isGuestPublicRoute =
+        publicRoutes.has(currentPath) || isGuestPropertyRoute;
 
       if (!shouldUseBearerForRequest()) {
-        localStorage.removeItem("authToken");
-        delete api.defaults.headers.common["Authorization"];
+        clearStoredTokenAuth();
       } else if (token) {
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       } else {
@@ -46,20 +57,22 @@ function App() {
 
       if (userData) {
         try {
-          if (isActive) setUser(JSON.parse(userData));
+          if (isActive) {
+            setUser(JSON.parse(userData));
+            setIsLoading(false);
+          }
+          hasHydratedCachedUser = true;
         } catch (error) {
           console.error("Error parsing cached user data:", error);
           localStorage.removeItem("userData");
         }
       }
 
-      const shouldProbeSession =
-        !!token ||
-        !!userData ||
-        !publicRoutes.has(currentPath);
+      // Skip auth probing on guest-public routes to avoid expected 401 noise.
+      const shouldProbeSession = !isGuestPublicRoute;
 
       if (!shouldProbeSession) {
-        if (isActive) setIsLoading(false);
+        if (isActive && !hasHydratedCachedUser) setIsLoading(false);
         return;
       }
 
@@ -76,13 +89,12 @@ function App() {
         const status = error?.response?.status;
         if (status === 401 || status === 403 || status === 419) {
           localStorage.removeItem("userData");
-          localStorage.removeItem("authToken");
+          clearStoredTokenAuth();
           clearPersistedAuthMode();
-          delete api.defaults.headers.common["Authorization"];
           if (isActive) setUser(null);
         }
       } finally {
-        if (isActive) setIsLoading(false);
+        if (isActive && !hasHydratedCachedUser) setIsLoading(false);
       }
     };
 
@@ -108,9 +120,9 @@ function App() {
 
       setUser(null);
       localStorage.removeItem("userData");
-      localStorage.removeItem("authToken");
+      clearStoredTokenAuth();
       clearPersistedAuthMode();
-      delete api.defaults.headers.common["Authorization"];
+      cacheManager.clearAll();
       navigate("/login", { replace: true });
     };
 
@@ -125,9 +137,9 @@ function App() {
       setUser(null);
       localStorage.removeItem("userData");
       localStorage.removeItem("lastLoginAt");
-      localStorage.removeItem("authToken");
+      clearStoredTokenAuth();
       clearPersistedAuthMode();
-      delete api.defaults.headers.common["Authorization"];
+      cacheManager.clearAll();
       toast.error("Your account has been blocked. Please contact support.", {
         duration: 6000,
       });
@@ -141,9 +153,9 @@ function App() {
     setUser(null);
     localStorage.removeItem("userData");
     localStorage.removeItem("lastLoginAt");
-    localStorage.removeItem("authToken");
+    clearStoredTokenAuth();
     clearPersistedAuthMode();
-    delete api.defaults.headers.common["Authorization"];
+    cacheManager.clearAll();
   };
 
   const handleLogin = (userData) => {
@@ -205,6 +217,7 @@ function App() {
             {/* 4. Landlord and Help Pages */}
             <Route path="/become-landlord" element={<LandlordRegister />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/mobile-app" element={<MobileAppPage />} />
 
             {/* 5. All Other Routes Handled by WebNavigator */}
             <Route

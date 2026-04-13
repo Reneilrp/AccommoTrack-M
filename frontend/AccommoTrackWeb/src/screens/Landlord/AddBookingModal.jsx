@@ -39,6 +39,13 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     const selectedRoomData = rooms.find((r) => String(r.id) === String(formData.roomId));
     const selectedRoomBillingPolicy = getRoomBillingPolicy(selectedRoomData);
     const requiresCheckOut = !selectedRoomData || selectedRoomBillingPolicy === 'daily';
+    const maxSelectableBeds = Math.max(
+      1,
+      parseInt(
+        selectedRoomData?.available_slots ?? selectedRoomData?.capacity ?? 1,
+        10,
+      ) || 1,
+    );
 
     useEffect(() => {
       if (isOpen) {
@@ -181,23 +188,33 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       setFieldErrors({});
 
       if ((!selectedGuest && !formData.guestName.trim()) || !formData.roomId || !formData.checkIn || (requiresCheckOut && !formData.checkOut)) {
-        setError('Please fill in all required fields.');
+        const msg = requiresCheckOut
+          ? 'Please complete all required fields: guest/tenant, room, check-in, and check-out.'
+          : 'Please complete all required fields: guest/tenant, room, and move-in.';
+        setError(msg);
+        toast.error(msg);
         return;
       }
 
       if (genderMismatch) {
-        setError('Selected tenant is not eligible for this room because of the room gender restriction.');
+        const msg = 'Selected tenant is not eligible for this room because of the room gender restriction.';
+        setError(msg);
+        toast.error(msg);
         return;
       }
 
       const today = getTodayDate();
       if (formData.checkIn < today) {
-        setError('Check-in date cannot be in the past.');
+        const msg = `${requiresCheckOut ? 'Check-in' : 'Move-in'} date cannot be in the past.`;
+        setError(msg);
+        toast.error(msg);
         return;
       }
 
       if (formData.checkOut && formData.checkOut <= formData.checkIn) {
-        setError('Check-out date must be after check-in date.');
+        const msg = `${requiresCheckOut ? 'Check-out' : 'Move-out'} date must be after ${requiresCheckOut ? 'check-in' : 'move-in'} date.`;
+        setError(msg);
+        toast.error(msg);
         return;
       }
 
@@ -292,8 +309,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               </div>
             )}
 
+            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+              Fields marked with <span className="text-red-500">*</span> are required.
+            </p>
+
             <div>
-              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Guest / Tenant Name</label>
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                Guest / Tenant Name <span className="text-red-500">*</span>
+              </label>
               <div className="relative">
                 <UserSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
@@ -353,7 +376,9 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Property</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Property <span className="text-red-500">*</span>
+                </label>
                 <select
                   required
                   className="w-full border rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white border-gray-200 dark:border-gray-600"
@@ -368,7 +393,9 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Room</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Room <span className="text-red-500">*</span>
+                </label>
                 <select
                   required
                   disabled={!formData.propertyId}
@@ -389,7 +416,9 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Check-in</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  {requiresCheckOut ? 'Check-in' : 'Move-in'} <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="date"
                   required
@@ -404,7 +433,15 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Check-out</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  {requiresCheckOut ? (
+                    <>
+                      Check-out <span className="text-red-500">*</span>
+                    </>
+                  ) : (
+                    'Move-out (Optional)'
+                  )}
+                </label>
                 <input
                   type="date"
                   required={requiresCheckOut}
@@ -431,15 +468,21 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               <div>
                   <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Number of Beds</label>
                   <div className="flex items-center gap-4">
-                      <select
-                          className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
-                          value={formData.bedCount}
-                          onChange={e => setFormData({ ...formData, bedCount: parseInt(e.target.value) })}
-                      >
-                          {[...Array(Math.max(1, selectedRoomData.available_slots || 1))].map((_, i) => (
-                              <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? 'Bed' : 'Beds'}</option>
-                          ))}
-                      </select>
+                  {maxSelectableBeds > 1 ? (
+                  <select
+                    className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
+                    value={formData.bedCount}
+                    onChange={e => setFormData({ ...formData, bedCount: parseInt(e.target.value, 10) })}
+                  >
+                    {[...Array(maxSelectableBeds)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? 'Bed' : 'Beds'}</option>
+                    ))}
+                  </select>
+                  ) : (
+                  <div className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 bg-gray-50 dark:bg-gray-700/70 text-gray-700 dark:text-gray-200">
+                    1 Bed
+                  </div>
+                  )}
                       <div className="flex-shrink-0 text-sm text-gray-500 dark:text-gray-400">
                           Available: {selectedRoomData.available_slots} / {selectedRoomData.capacity}
                       </div>

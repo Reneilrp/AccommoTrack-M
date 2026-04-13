@@ -48,39 +48,34 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingBottom: 40
   },
   propertySelector: {
-    marginTop: 16,
+    marginTop: 0,
   },
   propertyScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 16
+    paddingTop: 12,
+    gap: 8,
   },
   propertyChip: {
-    width: 150,
-    padding: 16,
-    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
-    marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: theme.isDark ? 0.3 : 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: theme.isDark ? 1 : 0,
-    borderColor: theme.colors.border
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   propertyChipActive: {
-    borderWidth: 2,
-    borderColor: theme.colors.primary
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   propertyChipTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.text
-  },
-  propertyChipMeta: {
     fontSize: 12,
+    fontWeight: '600',
     color: theme.colors.textSecondary,
-    marginTop: 8
+  },
+  propertyChipTitleActive: {
+    color: '#FFFFFF',
   },
   statsRow: {
     flexDirection: 'row',
@@ -168,13 +163,27 @@ export const getStyles = (theme) => StyleSheet.create({
     height: 190,
     backgroundColor: theme.colors.backgroundTertiary
   },
-  statusBadge: {
+  imageOverlayRow: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 14,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    zIndex: 30
+  },
+  statusBadge: {
     borderRadius: 999,
     paddingHorizontal: 14,
-    paddingVertical: 6
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.75)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3
   },
   statusText: {
     fontSize: 12,
@@ -211,6 +220,57 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textTertiary,
     marginTop: 2
   },
+  roomMenuAnchor: {
+    position: 'relative',
+    alignItems: 'flex-end'
+  },
+  roomMenuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border
+  },
+  roomMenuButtonActive: {
+    backgroundColor: theme.isDark ? '#334155' : '#E2E8F0'
+  },
+  roomMenuSheet: {
+    position: 'absolute',
+    top: 38,
+    right: 0,
+    minWidth: 168,
+    borderRadius: 12,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: theme.isDark ? 0.35 : 0.12,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: 'hidden',
+    zIndex: 20
+  },
+  roomMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight
+  },
+  roomMenuItemLast: {
+    borderBottomWidth: 0
+  },
+  roomMenuItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text
+  },
   capacityRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -229,6 +289,92 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16
+  },
+  proxyHierarchySection: {
+    gap: 10,
+    marginBottom: 10,
+  },
+  proxyAccountCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surface,
+    padding: 10,
+    gap: 8,
+  },
+  proxyAccountHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  proxyAccountName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  proxyAccountMeta: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  proxyToggleButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: theme.colors.primaryLight,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  proxyToggleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.primaryDark,
+    textTransform: 'uppercase',
+  },
+  proxyOccupantList: {
+    gap: 8,
+    marginTop: 2,
+  },
+  proxyOccupantRow: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 3,
+  },
+  proxyOccupantName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  proxyOccupantMeta: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+  },
+  regularTenantSection: {
+    gap: 6,
+  },
+  roomDetailsLink: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  roomDetailsLinkText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.primaryDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   tenantLabel: {
     fontSize: 11,
@@ -527,6 +673,105 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end'
+  },
+  detailsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 20,
+  },
+  detailsModalCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
+    maxHeight: '90%',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  detailsModalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    gap: 10,
+  },
+  detailsModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  detailsModalMeta: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  detailsProxyBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    backgroundColor: theme.isDark ? 'rgba(245,158,11,0.18)' : '#FFFBEB',
+  },
+  detailsProxyBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    color: theme.isDark ? '#FCD34D' : '#B45309',
+  },
+  detailsModalCloseButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  detailsModalScroll: {
+    flex: 1,
+  },
+  detailsModalContent: {
+    padding: 14,
+    gap: 12,
+  },
+  detailsStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  detailsStatCard: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  detailsStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  detailsStatValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  detailsTenantSection: {
+    gap: 10,
   },
   statusSheet: {
     backgroundColor: theme.colors.surface,

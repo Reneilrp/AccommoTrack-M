@@ -34,6 +34,7 @@ export default function AppNavigator() {
       try {
         clearAuthSession();
         await AsyncStorage.removeItem('token');
+        await AsyncStorage.removeItem('refresh_token');
         await AsyncStorage.removeItem('user');
         await AsyncStorage.removeItem('user_id');
         await AsyncStorage.removeItem('isGuest');
@@ -67,6 +68,7 @@ export default function AppNavigator() {
       clearAuthSession();
       // Remove auth-related data and guest flag, keep hasLaunched
       await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('refresh_token');
       await AsyncStorage.removeItem('user');
       await AsyncStorage.removeItem('user_id');
       await AsyncStorage.removeItem('isGuest');
@@ -80,6 +82,10 @@ export default function AppNavigator() {
   const enterGuestMode = async () => {
     try {
       clearAuthSession();
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('refresh_token');
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('user_id');
       await AsyncStorage.setItem('hasLaunched', 'true');
       await AsyncStorage.setItem('isGuest', 'true');
       setAuthContext(null);
@@ -117,9 +123,12 @@ export default function AppNavigator() {
       if (userString) {
         const user = JSON.parse(userString);
         const storedToken = user?.token || (await AsyncStorage.getItem('token')) || null;
+        const storedRefreshToken =
+          user?.refresh_token || (await AsyncStorage.getItem('refresh_token')) || null;
 
         setAuthSession({
           authToken: storedToken,
+          refreshToken: storedRefreshToken,
           userId: user?.id ?? null,
           activeRole: user?.role ?? null,
         });

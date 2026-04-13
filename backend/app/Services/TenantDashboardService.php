@@ -120,8 +120,9 @@ class TenantDashboardService
             ->whereHas('room.tenants', function ($query) use ($tenantId) {
                 $query->where('users.id', $tenantId);
             })
+            ->withCount('occupants')
             ->with([
-                'room.images', 'property.landlord', 'property.images', 'landlord', 'review',
+                'room.images', 'property.landlord', 'property.images', 'landlord', 'review', 'occupants',
                 'addons' => fn ($q) => $q->wherePivotIn('status', ['approved', 'active', 'pending']),
                 'payments' => fn ($q) => $q->orderBy('payment_date', 'desc'),
                 'invoices' => fn ($q) => $q->orderBy('due_date', 'desc')->with('transactions'),
@@ -143,7 +144,9 @@ class TenantDashboardService
     {
         return Booking::where('tenant_id', $tenantId)
             ->where('status', 'confirmed')
-            ->where('start_date', '>', now())
+            // Use startOfDay() so that a booking starting today is still shown as "upcoming"
+            // until the landlord actually moves the tenant into the room.
+            ->where('start_date', '>=', now()->startOfDay())
             ->with(['room', 'property.landlord', 'landlord'])
             ->orderBy('start_date', 'asc')
             ->first();
@@ -153,7 +156,8 @@ class TenantDashboardService
     {
         return Booking::where('tenant_id', $tenantId)
             ->whereIn('status', ['pending', 'confirmed'])
-            ->where('start_date', '<=', now())
+            // Use startOfDay() so bookings whose start_date is today are caught
+            ->where('start_date', '<=', now()->endOfDay())
             // Not assigned to room yet
             ->whereDoesntHave('room.tenants', function ($query) use ($tenantId) {
                 $query->where('users.id', $tenantId);
@@ -336,6 +340,7 @@ class TenantDashboardService
                             ->where('end_date', '>=', now()->subDays(30));
                     });
             })
+                    ->withCount('occupants')
             ->with($relations)
             ->orderByDesc('start_date')
             ->first();

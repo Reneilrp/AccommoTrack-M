@@ -9,6 +9,8 @@ use App\Services\AuditLogService;
 use Illuminate\Support\Facades\Notification;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
+use App\Models\Invoice;
+use App\Models\PaymentTransaction;
 use App\Models\Room;
 use App\Models\TenantProfile;
 use Carbon\Carbon;
@@ -25,7 +27,8 @@ class TenantBookingController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Booking::with(['property.images', 'landlord', 'room', 'review'])
+            $query = Booking::with(['property.images', 'landlord', 'room', 'review', 'occupants'])
+                ->withCount('occupants')
                 ->where('tenant_id', Auth::id());
 
             // Filter by status if provided
@@ -61,6 +64,8 @@ class TenantBookingController extends Controller
 
             // Only allow cancellation for non-completed bookings
             if (in_array($booking->status, ['completed', 'partial-completed', 'cancelled'])) {
+                DB::rollBack();
+
                 return response()->json(['message' => 'Cannot cancel this booking'], 422);
             }
 
@@ -81,6 +86,8 @@ class TenantBookingController extends Controller
                 } catch (\Exception $e) {
                 }
             }
+
+            [$cancelledInvoiceIds, $voidedPendingTransactionIds] = $this->cancelOpenBookingInvoices($booking);
 
             // Update tenant profile if exists
             $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
@@ -108,6 +115,8 @@ class TenantBookingController extends Controller
                 'summary' => 'Booking cancelled by tenant.',
                 'metadata' => [
                     'cancellation_reason' => $booking->cancellation_reason,
+                    'cancelled_invoice_ids' => $cancelledInvoiceIds,
+                    'voided_pending_transaction_ids' => $voidedPendingTransactionIds,
                 ],
             ]);
 
@@ -123,12 +132,82 @@ class TenantBookingController extends Controller
     }
 
     /**
+     * Cancel open booking invoices and void pending offline submissions so
+     * cancelled bookings do not continue to appear as payable.
+     *
+     * @return array{0: array<int>, 1: array<int>}
+     */
+    private function cancelOpenBookingInvoices(Booking $booking): array
+    {
+        $openInvoiceStatuses = ['pending', 'overdue', 'pending_verification', 'unpaid'];
+
+        $openInvoices = Invoice::query()
+            ->where('booking_id', $booking->id)
+            ->whereIn('status', $openInvoiceStatuses)
+            ->lockForUpdate()
+            ->get();
+
+        $cancelledInvoiceIds = [];
+
+        foreach ($openInvoices as $invoice) {
+            $description = trim((string) ($invoice->description ?? ''));
+            $suffix = '(Cancelled due to booking cancellation)';
+            if ($description === '') {
+                $description = $suffix;
+            } elseif (! str_contains($description, $suffix)) {
+                $description .= ' '.$suffix;
+            }
+
+            $invoice->status = 'cancelled';
+            $invoice->description = $description;
+            $invoice->save();
+
+            $cancelledInvoiceIds[] = (int) $invoice->id;
+        }
+
+        if (empty($cancelledInvoiceIds)) {
+            return [[], []];
+        }
+
+        $pendingTransactions = PaymentTransaction::query()
+            ->whereIn('invoice_id', $cancelledInvoiceIds)
+            ->where('status', 'pending_offline')
+            ->lockForUpdate()
+            ->get();
+
+        $voidedPendingTransactionIds = [];
+        foreach ($pendingTransactions as $transaction) {
+            $gatewayResponse = is_array($transaction->gateway_response) ? $transaction->gateway_response : [];
+            $gatewayResponse['verification_action'] = 'booking_cancelled';
+            $gatewayResponse['rejection_reason'] = 'Booking was cancelled before manual verification.';
+            $gatewayResponse['cancelled_at'] = now()->toIso8601String();
+
+            $transaction->status = 'voided';
+            $transaction->gateway_response = $gatewayResponse;
+            $transaction->save();
+
+            $voidedPendingTransactionIds[] = (int) $transaction->id;
+        }
+
+        return [$cancelledInvoiceIds, $voidedPendingTransactionIds];
+    }
+
+    /**
      * Get single booking details
      */
     public function show($id)
     {
         try {
-            $booking = Booking::with(['property.images', 'landlord', 'room.images', 'room.amenities', 'addons', 'maintenanceRequests'])
+            $booking = Booking::with([
+                'property.images',
+                'landlord',
+                'room.images',
+                'room.amenities',
+                'addons',
+                'maintenanceRequests',
+                'occupants',
+            ])
+                ->withCount('occupants')
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 
@@ -147,23 +226,19 @@ class TenantBookingController extends Controller
      */
     public function createInvoice(Request $request, $id)
     {
+        DB::beginTransaction();
         try {
             $booking = Booking::with(['room', 'property'])
                 ->where('tenant_id', Auth::id())
-                ->findOrFail($id);
+                ->whereKey($id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             // Only allow invoice creation for confirmed bookings
             if ($booking->status !== 'confirmed') {
-                return response()->json(['message' => 'Invoice can only be created for confirmed bookings'], 422);
-            }
+                DB::rollBack();
 
-            // If a rent invoice already exists for this booking, return it.
-            // Explicitly exclude reservation fee invoices so we don't confuse them with the rent invoice.
-            $existing = \App\Models\Invoice::where('booking_id', $booking->id)
-                ->where('description', 'not like', 'Reservation Fee%')
-                ->first();
-            if ($existing) {
-                return response()->json(['success' => true, 'data' => $existing], 200);
+                return response()->json(['message' => 'Invoice can only be created for confirmed bookings'], 422);
             }
 
             // Create an invoice for the current billing cycle.
@@ -181,6 +256,30 @@ class TenantBookingController extends Controller
 
             // cycleStart is the start date for the current billing cycle
             $cycleStart = $startDate->copy()->addMonths($months)->startOfDay();
+            $cycleEnd = $cycleStart->copy()->addMonthNoOverflow()->subDay();
+            $periodKey = $cycleStart->format('Y-m-d');
+
+            // De-dupe on booking + rent invoice + billing period, including legacy rows
+            // that may be missing billing_period_key but were issued in the same month.
+            $existing = Invoice::query()
+                ->where('booking_id', $booking->id)
+                ->where('invoice_type', 'rent')
+                ->where(function ($query) use ($periodKey, $cycleStart) {
+                    $query->where('billing_period_key', $periodKey)
+                        ->orWhere(function ($legacy) use ($cycleStart) {
+                            $legacy->whereNull('billing_period_key')
+                                ->whereYear('issued_at', $cycleStart->year)
+                                ->whereMonth('issued_at', $cycleStart->month);
+                        });
+                })
+                ->orderByDesc('id')
+                ->first();
+
+            if ($existing) {
+                DB::commit();
+
+                return response()->json(['success' => true, 'data' => $existing], 200);
+            }
 
             // Base monthly amount (use booking.monthly_rent for tenant-specific rent)
             $monthlyDue = (float) ($booking->monthly_rent ?? $booking->room->monthly_rate ?? 0);
@@ -204,30 +303,42 @@ class TenantBookingController extends Controller
 
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
 
-            $invoice = \App\Models\Invoice::create([
+            $invoice = Invoice::create([
                 'reference' => $reference,
                 'landlord_id' => $booking->landlord_id,
                 'property_id' => $booking->property_id,
                 'booking_id' => $booking->id,
                 'tenant_id' => $booking->tenant_id,
                 'description' => 'Invoice for booking '.$booking->booking_reference,
+                'invoice_type' => 'rent',
+                'billing_period_start' => $cycleStart,
+                'billing_period_end' => $cycleEnd,
+                'billing_period_key' => $periodKey,
                 'amount_cents' => $amountCents,
                 'currency' => 'PHP',
                 'status' => 'pending',
                 'issued_at' => now(),
+                'due_date' => $cycleStart,
                 'metadata' => [
                     'monthly_due' => $monthlyDue,
                     'partial_days' => $daysOverdue,
                     'partial_charge' => $partialCharge,
                     'days_in_month' => $daysInMonth,
                     'cycle_start' => $cycleStart->format('Y-m-d'),
+                    'billing_period_key' => $periodKey,
                 ],
             ]);
 
+            DB::commit();
+
             return response()->json(['success' => true, 'data' => $invoice], 201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+
             return response()->json(['success' => false, 'message' => 'Booking not found'], 404);
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json(['success' => false, 'message' => 'Failed to create invoice', 'error' => $e->getMessage()], 500);
         }
     }

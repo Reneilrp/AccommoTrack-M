@@ -29,6 +29,15 @@ class FinalizeDailyCheckouts extends Command
      */
     public function handle(BookingService $bookingService): int
     {
+        $forcedNow = \App\Support\SystemToggle::getString('system_forced_now');
+        if ($forcedNow && $forcedNow !== '') {
+            try {
+                Carbon::setTestNow(Carbon::parse($forcedNow));
+            } catch (\Exception $e) {
+                // Ignore parsing errors
+            }
+        }
+
         $today = Carbon::today();
 
         $candidates = Booking::query()

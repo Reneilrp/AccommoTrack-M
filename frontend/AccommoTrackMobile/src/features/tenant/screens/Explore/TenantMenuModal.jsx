@@ -18,11 +18,14 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
   const handleMenuItemPress = (title) => {
     // If guest, protect certain routes and prompt to sign in
     const protectedItems = [
-      'Dashboard', 
-      'My Bookings', 
-      'Payments', 
-      'Notifications', 
-      'Service Requests'
+      'Dashboard',
+      'My Bookings',
+      'Billing & Payments',
+      'Notifications',
+      'Maintenance & Add-ons',
+      // Backward compatibility for stale menu labels.
+      'Payments',
+      'Service Requests',
     ];
     
     if (isGuest && protectedItems.includes(title)) {
@@ -44,12 +47,14 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
       case 'My Bookings':
         rootNavigate('MyBookings');
         break;
+      case 'Maintenance & Add-ons':
       case 'Service Requests':
         rootNavigate('ServiceRequests');
         break;
       case 'Notifications':
         rootNavigate('Notifications');
         break;
+      case 'Billing & Payments':
       case 'Payments':
         rootNavigate('Payments');
         break;

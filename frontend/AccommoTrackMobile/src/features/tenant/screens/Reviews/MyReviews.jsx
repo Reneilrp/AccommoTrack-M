@@ -9,9 +9,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../../styles/Tenant/ReviewStyles.js';
 import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
 
-export default function MyReviews() {
+export default function MyReviews({ hideHeader = false, historyOnly = false }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const showAlert = Alert.alert;
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
@@ -42,11 +43,11 @@ export default function MyReviews() {
 
   useEffect(() => {
     if (!myReviewsQuery.error) return;
-    Alert.alert('Error', myReviewsQuery.error.message || 'Failed to load your reviews');
+    showAlert('Error', myReviewsQuery.error.message || 'Failed to load your reviews');
   }, [myReviewsQuery.error]);
 
   const confirmDelete = (id) => {
-    Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
+    showAlert('Delete Review', 'Are you sure you want to delete this review?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => handleDelete(id) }
     ]);
@@ -57,17 +58,17 @@ export default function MyReviews() {
     try {
       const res = await tenantService.deleteReview(id);
       if (res.success) {
-        Alert.alert('Deleted', 'Review deleted');
+        showAlert('Deleted', 'Review deleted');
         queryClient.setQueryData(tenantQueryKeys.myReviews(), (prev) => {
           if (!Array.isArray(prev)) return [];
           return prev.filter((review) => review.id !== id);
         });
       } else {
-        Alert.alert('Error', res.error || 'Failed to delete review');
+        showAlert('Error', res.error || 'Failed to delete review');
       }
     } catch (err) {
       console.error('Delete review error', err);
-      Alert.alert('Error', 'Failed to delete review');
+      showAlert('Error', 'Failed to delete review');
     } finally {
       setDeletingId(null);
     }
@@ -90,35 +91,51 @@ export default function MyReviews() {
       </View>
       {item.comment ? <Text style={[styles.commentText, { color: theme.colors.text }]}>{item.comment}</Text> : null}
 
-      <View style={styles.actionRow}>
-        <TouchableOpacity 
-            onPress={() => navigation.navigate('LeaveReview', { 
-                reviewId: item.id, 
-                initialRating: item.rating, 
-                initialComment: item.comment, 
-                propertyId: item.property_id 
-            })} 
-            style={[styles.editBtn, { backgroundColor: theme.colors.primary }]}
-        >
-          <Text style={[styles.btnText, { color: theme.colors.textInverse }]}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
-          {deletingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Delete</Text>}
-        </TouchableOpacity>
-      </View>
+      {!historyOnly && (
+        <View style={styles.actionRow}>
+          <TouchableOpacity 
+              onPress={() => navigation.navigate('LeaveReview', { 
+                  reviewId: item.id, 
+                  initialRating: item.rating, 
+                  initialComment: item.comment, 
+                  propertyId: item.property_id 
+              })} 
+              style={[styles.editBtn, { backgroundColor: theme.colors.primary }]}
+          >
+            <Text style={[styles.btnText, { color: theme.colors.textInverse }]}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
+            {deletingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Delete</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
-  if (loading) return (
-    <SafeAreaView style={[styles.centered, { backgroundColor: theme.colors.background }]}>
-      <ActivityIndicator />
-    </SafeAreaView>
+  if (loading) {
+    const loadingView = (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator />
+      </View>
+    );
+
+    if (hideHeader) return loadingView;
+
+    return (
+      <SafeAreaView style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator />
+      </SafeAreaView>
+    );
+  }
+
+  const content = (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {!hideHeader && <Text style={[styles.title, { color: theme.colors.text }]}>My Reviews</Text>}
+      <FlatList data={reviews} keyExtractor={(i) => String(i.id)} renderItem={renderItem} />
+    </View>
   );
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>My Reviews</Text>
-      <FlatList data={reviews} keyExtractor={(i) => String(i.id)} renderItem={renderItem} />
-    </SafeAreaView>
-  );
+  if (hideHeader) return content;
+
+  return <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>{content}</SafeAreaView>;
 }

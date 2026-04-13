@@ -7,7 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Services\AuditLogService;
-use Carbon\Carbon;
+use App\Services\PaymentLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +21,10 @@ class AdminPaymentOversightController extends Controller
         'maya',
     ];
 
-    public function __construct(protected AuditLogService $auditLogService)
+    public function __construct(
+        protected AuditLogService $auditLogService,
+        private readonly PaymentLedgerService $paymentLedgerService,
+    )
     {
     }
 
@@ -164,13 +167,17 @@ class AdminPaymentOversightController extends Controller
             'note' => 'required|string|max:500',
         ]);
 
-        $invoice = Invoice::with(['transactions', 'booking'])->findOrFail($invoiceId);
-
         DB::beginTransaction();
         try {
+            $invoice = Invoice::with(['booking'])
+                ->whereKey($invoiceId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $voidedTx = $invoice->transactions()
                 ->whereIn(DB::raw($this->normalizedMethodSqlExpression()), self::OVERSIGHT_MANUAL_METHODS)
                 ->where('status', 'voided')
+                ->lockForUpdate()
                 ->latest('updated_at')
                 ->first();
 
@@ -196,7 +203,7 @@ class AdminPaymentOversightController extends Controller
             $voidedTx->gateway_response = $gatewayResponse;
             $voidedTx->save();
 
-            $this->recomputeInvoiceAndBookingStatus($invoice);
+            $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, auth()->id());
 
             $this->auditLogService->paymentEvent('payment.admin_overridden', [
                 'severity' => 'info',
@@ -236,82 +243,6 @@ class AdminPaymentOversightController extends Controller
                 'message' => 'Failed to override payment: '.$e->getMessage(),
             ], 500);
         }
-    }
-
-    private function recomputeInvoiceAndBookingStatus(Invoice $invoice): void
-    {
-        $netPaidCents = $this->calculateInvoiceNetPaidCents($invoice);
-        $resolvedStatus = $this->resolveInvoiceStatus($invoice, $netPaidCents);
-
-        $invoice->status = $resolvedStatus;
-        if ($resolvedStatus === 'paid') {
-            $invoice->paid_at = $invoice->paid_at ?? now();
-        } else {
-            $invoice->paid_at = null;
-        }
-        $invoice->save();
-
-        if ($invoice->booking) {
-            $invoice->booking->payment_status = $this->mapInvoiceStatusToBookingPaymentStatus($resolvedStatus);
-            $invoice->booking->save();
-        }
-    }
-
-    private function calculateInvoiceNetPaidCents(Invoice $invoice): int
-    {
-        $netPaidCents = $invoice->transactions()
-            ->where('amount_cents', '>', 0)
-            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
-            ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
-            ->value('net_cents');
-
-        return max(0, (int) ($netPaidCents ?? 0));
-    }
-
-    private function resolveInvoiceStatus(Invoice $invoice, int $netPaidCents): string
-    {
-        $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
-
-        if ($invoiceTotalCents > 0 && $netPaidCents >= $invoiceTotalCents) {
-            return 'paid';
-        }
-
-        if ($netPaidCents > 0) {
-            return 'partial';
-        }
-
-        if ($this->hasRefundActivity($invoice)) {
-            return 'refunded';
-        }
-
-        $dueDate = $invoice->due_date ? Carbon::parse($invoice->due_date)->startOfDay() : null;
-        if ($dueDate && $dueDate->lt(now()->startOfDay())) {
-            return 'overdue';
-        }
-
-        return 'pending';
-    }
-
-    private function hasRefundActivity(Invoice $invoice): bool
-    {
-        return $invoice->transactions()
-            ->where(function ($query) {
-                $query->where(function ($nested) {
-                    $nested->where('amount_cents', '<', 0)
-                        ->where('status', 'refunded');
-                })->orWhere('refunded_amount_cents', '>', 0);
-            })
-            ->exists();
-    }
-
-    private function mapInvoiceStatusToBookingPaymentStatus(string $invoiceStatus): string
-    {
-        return match ($invoiceStatus) {
-            'paid' => 'paid',
-            'partial' => 'partial',
-            'refunded' => 'refunded',
-            default => 'unpaid',
-        };
     }
 
     private function normalizedMethodSqlExpression(): string

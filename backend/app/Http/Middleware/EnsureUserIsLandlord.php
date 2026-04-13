@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\LandlordVerification;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,10 +23,15 @@ class EnsureUserIsLandlord
 
         // Additional check for unverified landlords
         if ($user->role === 'landlord') {
-            $verification = \App\Models\LandlordVerification::where('user_id', $user->id)->first();
-            if (! $verification || $verification->status !== 'approved') {
+            // Treat fully verified landlords as having full landlord access, even for legacy/missing verification rows.
+            if ((bool) ($user->is_verified ?? false)) {
+                return $next($request);
+            }
+
+            $verification = LandlordVerification::where('user_id', $user->id)->first();
+            if (! $verification || ! in_array($verification->status, LandlordVerification::LANDLORD_ACCESS_STATUSES, true)) {
                 return response()->json([
-                    'message' => 'Your landlord account is still pending verification. Access to landlord features is restricted until approved.',
+                    'message' => 'Your landlord account is not yet in an active verification stage. Access to landlord features is restricted.',
                     'status' => $verification ? $verification->status : 'not_submitted',
                 ], 403);
             }

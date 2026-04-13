@@ -9,16 +9,14 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   const getStatusClasses = (status, occupied, capacity, displayStatus) => {
     if (displayStatus === 'reserved') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
     if (status === 'maintenance') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-    if (displayStatus === 'occupied' || status === 'occupied' || occupied >= capacity) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-    if (occupied > 0) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+    if (status === 'occupied' || occupied >= capacity) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
     return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
   };
 
   const statusLabel = (status, occupied, capacity, displayStatus) => {
     if (displayStatus === 'reserved') return 'Reserved';
     if (status === 'maintenance') return 'Maintenance';
-    if (displayStatus === 'occupied' || status === 'occupied' || occupied >= capacity) return 'Occupied';
-    if (occupied > 0) return 'Partial';
+    if (status === 'occupied' || occupied >= capacity) return 'Occupied';
     return 'Available';
   };
 
@@ -26,6 +24,15 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   const normalizedGender = String(room.gender_restriction || 'mixed').toLowerCase().trim();
   const normalizedPropertyType = String(propertyType || room.property_type || room.property?.property_type || '').toLowerCase().trim();
   const showGenderBadge = !(normalizedPropertyType === 'apartment' && normalizedGender === 'mixed');
+
+  const calculatedOccupiedCount = (room.tenants || []).reduce((acc, t) => {
+    const isProxy = Boolean(t?.is_proxy_account) || String(t?.booking_mode || '').toLowerCase() === 'proxy';
+    const tCount = isProxy 
+      ? Math.max(1, Number(t?.occupant_count || (Array.isArray(t?.occupants) ? t.occupants.length : 0) || t?.bed_count || 1))
+      : 1;
+    return acc + tCount;
+  }, 0);
+  const occupiedCount = calculatedOccupiedCount > 0 ? calculatedOccupiedCount : Number(room.occupied || 0);
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col ${className}`} onClick={onClick}>
@@ -38,8 +45,8 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
           </div>
         )}
 
-        <span className={`absolute top-3 right-3 px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider shadow-sm ${getStatusClasses(room.status, room.occupied || 0, room.capacity || 1, displayStatus)}`}>
-          {statusLabel(room.status, room.occupied || 0, room.capacity || 1, displayStatus)}
+        <span className={`absolute top-3 right-3 px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider shadow-sm ${getStatusClasses(room.status, occupiedCount, room.capacity || 1, displayStatus)}`}>
+          {statusLabel(room.status, occupiedCount, room.capacity || 1, displayStatus)}
         </span>
       </div>
 
@@ -79,7 +86,7 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
         <div className="flex items-center gap-2.5 text-sm text-gray-600 dark:text-gray-300 mb-4">
           <Users className="w-4 h-4" />
           <span className="font-medium">
-            {room.occupied || 0}/{room.capacity || 1} {((room.occupied || 0) === 1 ? 'Tenant' : 'Tenants')}
+            {occupiedCount}/{room.capacity || 1} {(occupiedCount === 1 ? 'Tenant' : 'Tenants')}
             {room.available_slots > 0 && (
               <span className="text-green-600 dark:text-green-400 ml-2">({room.available_slots} available)</span>
             )}
@@ -90,11 +97,13 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
           <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mb-4 border border-gray-200 dark:border-gray-700">
             <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Current Occupants</p>
             <div className="flex flex-wrap gap-2.5">
-              {room.tenants.map((t, idx) => (
-                <span key={t.id || idx} className="px-2 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-200">
-                  {t.name}
-                </span>
-              ))}
+              {room.tenants.map((t, idx) => {
+                return (
+                  <span key={t.id || idx} className="px-2 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    <span className="block">{t.name}</span>
+                  </span>
+                );
+              })}
             </div>
           </div>
         ) : room.tenant ? (

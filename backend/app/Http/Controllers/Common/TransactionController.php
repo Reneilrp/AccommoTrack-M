@@ -7,6 +7,7 @@ use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Services\AuditLogService;
+use App\Services\PaymentLedgerService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,16 +16,24 @@ class TransactionController extends Controller
 {
     use ResolvesLandlordAccess;
 
-    public function __construct(protected AuditLogService $auditLogService)
+    public function __construct(
+        protected AuditLogService $auditLogService,
+        private readonly PaymentLedgerService $paymentLedgerService,
+    )
     {
     }
 
     public function show(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
         $tx = PaymentTransaction::with('invoice')->findOrFail($id);
         if ($tx->invoice && $tx->invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($tx->invoice && $tx->invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $tx->invoice->property_id);
         }
 
         return response()->json($tx, 200);
@@ -36,10 +45,15 @@ class TransactionController extends Controller
     public function refund(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
         $tx = PaymentTransaction::with(['invoice.booking.room', 'invoice.transactions'])->findOrFail($id);
         $invoice = $tx->invoice;
         if ($invoice && $invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['success' => false, 'data' => null, 'message' => 'Unauthorized'], 403);
+        }
+
+        if ($invoice && $invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $invoice->property_id);
         }
 
         if ($tx->amount_cents <= 0) {
@@ -119,7 +133,7 @@ class TransactionController extends Controller
 
             // Recompute invoice and booking payment state from net paid values.
             if ($invoice) {
-                $this->recomputeInvoiceAndBookingStatus($invoice);
+                $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, auth()->id());
 
                 $this->auditLogService->invoiceEvent('invoice.refunded', [
                     'subject_type' => 'invoice',
@@ -162,82 +176,6 @@ class TransactionController extends Controller
                 'message' => 'Refund failed: '.$e->getMessage(),
             ], 500);
         }
-    }
-
-    private function recomputeInvoiceAndBookingStatus(Invoice $invoice): void
-    {
-        $netPaidCents = $this->calculateInvoiceNetPaidCents($invoice);
-        $resolvedStatus = $this->resolveInvoiceStatus($invoice, $netPaidCents);
-
-        $invoice->status = $resolvedStatus;
-        if ($resolvedStatus === 'paid') {
-            $invoice->paid_at = $invoice->paid_at ?? now();
-        } else {
-            $invoice->paid_at = null;
-        }
-        $invoice->save();
-
-        if ($invoice->booking) {
-            $invoice->booking->payment_status = $this->mapInvoiceStatusToBookingPaymentStatus($resolvedStatus);
-            $invoice->booking->save();
-        }
-    }
-
-    private function calculateInvoiceNetPaidCents(Invoice $invoice): int
-    {
-        $netPaidCents = $invoice->transactions()
-            ->where('amount_cents', '>', 0)
-            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
-            ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
-            ->value('net_cents');
-
-        return max(0, (int) ($netPaidCents ?? 0));
-    }
-
-    private function resolveInvoiceStatus(Invoice $invoice, int $netPaidCents): string
-    {
-        $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
-
-        if ($invoiceTotalCents > 0 && $netPaidCents >= $invoiceTotalCents) {
-            return 'paid';
-        }
-
-        if ($netPaidCents > 0) {
-            return 'partial';
-        }
-
-        if ($this->hasRefundActivity($invoice)) {
-            return 'refunded';
-        }
-
-        $dueDate = $invoice->due_date ? Carbon::parse($invoice->due_date)->startOfDay() : null;
-        if ($dueDate && $dueDate->lt(now()->startOfDay())) {
-            return 'overdue';
-        }
-
-        return 'pending';
-    }
-
-    private function hasRefundActivity(Invoice $invoice): bool
-    {
-        return $invoice->transactions()
-            ->where(function ($query) {
-                $query->where(function ($nested) {
-                    $nested->where('amount_cents', '<', 0)
-                        ->where('status', 'refunded');
-                })->orWhere('refunded_amount_cents', '>', 0);
-            })
-            ->exists();
-    }
-
-    private function mapInvoiceStatusToBookingPaymentStatus(string $invoiceStatus): string
-    {
-        return match ($invoiceStatus) {
-            'paid' => 'paid',
-            'partial' => 'partial',
-            'refunded' => 'refunded',
-            default => 'unpaid',
-        };
     }
 
     private function computeMaxRefundForTransaction($invoice, PaymentTransaction $tx, int $remainingForTx): int

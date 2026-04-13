@@ -1,7 +1,11 @@
 import api, {
+  applyTokenAuthPayload,
+  clearStoredTokenAuth,
   clearPersistedAuthMode,
   initCsrfCookie,
+  setTrustedDevicePreference,
   setPersistedAuthMode,
+  TRUSTED_DEVICE_HEADER,
   shouldUseBearerForRequest,
 } from "../utils/api";
 
@@ -32,23 +36,26 @@ export const authService = {
       response.data?.auth_mode || (response.data?.token ? "token" : "cookie");
     setPersistedAuthMode(responseAuthMode);
 
-    if (responseAuthMode === "token" && response.data.token) {
-      localStorage.setItem("authToken", response.data.token);
-      api.defaults.headers.common["Authorization"] =
-        `Bearer ${response.data.token}`;
+    if (responseAuthMode === "token") {
+      applyTokenAuthPayload(response.data);
     } else {
-      localStorage.removeItem("authToken");
-      delete api.defaults.headers.common["Authorization"];
+      clearStoredTokenAuth();
     }
     return response.data;
   },
 
-  async login(email, password) {
+  async login(email, password, options = {}) {
     await ensureCsrfCookieOrFallback();
+
+    const rememberDevice = Boolean(options?.rememberDevice);
 
     const response = await api.post("/login", {
       email: (email || "").trim(),
       password,
+    }, {
+      headers: {
+        [TRUSTED_DEVICE_HEADER]: rememberDevice ? "true" : "false",
+      },
     });
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));
@@ -57,25 +64,25 @@ export const authService = {
       response.data?.auth_mode || (response.data?.token ? "token" : "cookie");
     setPersistedAuthMode(responseAuthMode);
 
-    if (responseAuthMode === "token" && response.data.token) {
-      localStorage.setItem("authToken", response.data.token);
-      api.defaults.headers.common["Authorization"] =
-        `Bearer ${response.data.token}`;
+    if (responseAuthMode === "token") {
+      applyTokenAuthPayload(response.data);
     } else {
-      localStorage.removeItem("authToken");
-      delete api.defaults.headers.common["Authorization"];
+      clearStoredTokenAuth();
     }
+
+    setTrustedDevicePreference(rememberDevice);
     return response.data;
   },
 
   async logout() {
+    const refreshToken = localStorage.getItem("refreshToken");
+
     try {
-      await api.post("/logout");
+      await api.post("/logout", refreshToken ? { refresh_token: refreshToken } : {});
     } finally {
       localStorage.removeItem("userData");
-      localStorage.removeItem("authToken");
+      clearStoredTokenAuth();
       clearPersistedAuthMode();
-      delete api.defaults.headers.common["Authorization"];
     }
   },
 
@@ -109,6 +116,8 @@ export const authService = {
   },
 
   async switchRole(role, payload = {}) {
+    await ensureCsrfCookieOrFallback();
+
     const response = await api.post("/switch-role", { role, ...payload });
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));

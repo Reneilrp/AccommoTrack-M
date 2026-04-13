@@ -17,14 +17,20 @@ import {
   RefreshCw,
   Upload,
   X,
+  MoreVertical,
 } from "lucide-react";
 import Logo from "../../assets/Logo.png";
 import api, {
+  applyTokenAuthPayload,
+  clearStoredTokenAuth,
+  getTrustedDevicePreference,
   isCancel,
   rootApi,
   initCsrfCookie,
+  setTrustedDevicePreference,
   shouldUseBearerForRequest,
   setPersistedAuthMode,
+  TRUSTED_DEVICE_HEADER,
 } from "../../utils/api";
 import { getDefaultLandingRoute } from "../../utils/userRoutes";
 import toast, { Toaster } from "react-hot-toast";
@@ -449,6 +455,281 @@ const OtpVerificationScreen = ({
   );
 };
 
+const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [claimData, setClaimData] = useState({
+    claimCode: '',
+    dateOfBirth: '',
+    challengeToken: '',
+    email: '',
+    password: '',
+    passwordConfirmation: '',
+    otp: '',
+    tenantName: '',
+  });
+
+  useEffect(() => {
+    if (!isOpen) {
+      setStep(1);
+      setLoading(false);
+      setError('');
+      setResendCooldown(0);
+      setClaimData({
+        claimCode: '',
+        dateOfBirth: '',
+        challengeToken: '',
+        email: '',
+        password: '',
+        passwordConfirmation: '',
+        otp: '',
+        tenantName: '',
+      });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const handleVerifyClaimCode = async (e) => {
+    e.preventDefault();
+    const normalizedClaimCode = (claimData.claimCode || '').trim();
+    if (!/^\d{8}$/.test(normalizedClaimCode)) {
+      setError('Please enter the 8-digit claim code.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await api.post('/claim-account/verify-code', {
+        claim_code: normalizedClaimCode,
+      });
+
+      const payload = response.data?.data || response.data || {};
+      setClaimData((prev) => ({
+        ...prev,
+        challengeToken: payload.challenge_token || '',
+        tenantName: payload?.tenant
+          ? `${payload.tenant.first_name || ''} ${payload.tenant.last_name || ''}`.trim()
+          : '',
+      }));
+      setStep(2);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to verify claim code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await api.post('/claim-account/send-otp', {
+        challenge_token: claimData.challengeToken,
+        date_of_birth: claimData.dateOfBirth,
+        email: (claimData.email || '').trim(),
+        password: claimData.password,
+        password_confirmation: claimData.passwordConfirmation,
+      });
+
+      const payload = response.data?.data || response.data || {};
+      setResendCooldown(Number(payload.retry_after_seconds || 60));
+      setStep(3);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      await api.post('/claim-account/verify-otp', {
+        challenge_token: claimData.challengeToken,
+        otp: (claimData.otp || '').trim(),
+      });
+
+      onClaimed?.((claimData.email || '').trim());
+      onClose?.();
+    } catch (err) {
+      setError(err.response?.data?.message || 'OTP verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || loading) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.post('/claim-account/resend-otp', {
+        challenge_token: claimData.challengeToken,
+      });
+
+      const payload = response.data?.data || response.data || {};
+      setResendCooldown(Number(payload.retry_after_seconds || 60));
+      toast.success('A new OTP has been sent to your email.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-green-100 dark:border-gray-700 w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Claim Existing Account</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Step {step} of 3</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-5">
+          {error && (
+            <div className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm font-semibold">
+              {error}
+            </div>
+          )}
+
+          {step === 1 && (
+            <form className="space-y-4" onSubmit={handleVerifyClaimCode}>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Enter the 8-digit claim code from your landlord.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="\\d{8}"
+                maxLength={8}
+                value={claimData.claimCode}
+                onChange={(e) => setClaimData((prev) => ({ ...prev, claimCode: e.target.value.replace(/\D/g, '') }))}
+                placeholder="8-digit claim code"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Verify Claim Code
+              </button>
+            </form>
+          )}
+
+          {step === 2 && (
+            <form className="space-y-4" onSubmit={handleSendOtp}>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {claimData.tenantName
+                  ? `Code verified for ${claimData.tenantName}.`
+                  : 'Code verified.'}{' '}
+                Enter your date of birth, then set your login credentials and we will send OTP to your email.
+              </p>
+              <input
+                type="date"
+                value={claimData.dateOfBirth}
+                onChange={(e) => setClaimData((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+              <input
+                type="email"
+                value={claimData.email}
+                onChange={(e) => setClaimData((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="Email"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+              <input
+                type="password"
+                value={claimData.password}
+                onChange={(e) => setClaimData((prev) => ({ ...prev, password: e.target.value }))}
+                placeholder="Password"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+              <input
+                type="password"
+                value={claimData.passwordConfirmation}
+                onChange={(e) => setClaimData((prev) => ({ ...prev, passwordConfirmation: e.target.value }))}
+                placeholder="Confirm password"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Send OTP
+              </button>
+            </form>
+          )}
+
+          {step === 3 && (
+            <form className="space-y-4" onSubmit={handleVerifyOtp}>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Enter the 6-digit OTP sent to <strong>{claimData.email}</strong> to complete account claim.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="\\d{6}"
+                maxLength={6}
+                value={claimData.otp}
+                onChange={(e) => setClaimData((prev) => ({ ...prev, otp: e.target.value.replace(/\D/g, '') }))}
+                placeholder="6-digit OTP"
+                className="w-full text-center tracking-[0.35em] text-2xl font-bold px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Complete Claim
+              </button>
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={loading || resendCooldown > 0}
+                className="w-full text-sm font-semibold text-green-700 hover:text-green-900 disabled:text-gray-500"
+              >
+                {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const navigate = useNavigate();
   const { effectiveTheme } = usePreferences();
@@ -468,6 +749,8 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const [showResubmitModal, setShowResubmitModal] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showAuthMenu, setShowAuthMenu] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({
     title: "",
     message: "",
@@ -479,6 +762,10 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const [otpInitialCooldown, setOtpInitialCooldown] = useState(0);
   const [__isMobileDevice, setIsMobileDevice] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(() => {
+    const storedPreference = getTrustedDevicePreference();
+    return storedPreference === null ? false : storedPreference;
+  });
 
   // Detect if user is on mobile device
   useEffect(() => {
@@ -801,10 +1088,20 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
           api.defaults.headers?.common?.["X-Client-Platform"],
       });
 
-      const result = await api.post("/login", {
-        email: (formData.email || "").trim(),
-        password: formData.password,
-      });
+      const loginTrustedDevice = Boolean(rememberDevice);
+
+      const result = await api.post(
+        "/login",
+        {
+          email: (formData.email || "").trim(),
+          password: formData.password,
+        },
+        {
+          headers: {
+            [TRUSTED_DEVICE_HEADER]: loginTrustedDevice ? "true" : "false",
+          },
+        },
+      );
 
       const data = result.data;
 
@@ -818,20 +1115,21 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
       const responseAuthMode = data?.auth_mode || (data?.token ? "token" : "cookie");
       setPersistedAuthMode(responseAuthMode);
+      setTrustedDevicePreference(loginTrustedDevice);
 
-      if (responseAuthMode === "token" && data?.token) {
+      if (responseAuthMode === "token") {
         try {
-          localStorage.setItem("authToken", data.token);
-          localStorage.setItem("lastLoginAt", Date.now().toString());
-          api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+          const accessToken = applyTokenAuthPayload(data);
+          if (accessToken) {
+            localStorage.setItem("lastLoginAt", Date.now().toString());
+          }
           console.log('[AUTH_DEBUG] Auth token stored, bearer auth enabled');
         } catch (__e) {
           // ignore
         }
       } else {
         // Cookie-auth response mode intentionally omits token.
-        localStorage.removeItem("authToken");
-        delete api.defaults.headers.common["Authorization"];
+        clearStoredTokenAuth();
         console.log('[AUTH_DEBUG] Cookie mode: bearer auth disabled, relying on session cookie');
       }
 
@@ -1126,12 +1424,13 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
     const responseAuthMode = data?.auth_mode || (data?.token ? "token" : "cookie");
     setPersistedAuthMode(responseAuthMode);
 
-    if (responseAuthMode === "token" && data?.token) {
-      localStorage.setItem("authToken", data.token);
-      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+    if (responseAuthMode === "token") {
+      const accessToken = applyTokenAuthPayload(data);
+      if (accessToken) {
+        localStorage.setItem("lastLoginAt", Date.now().toString());
+      }
     } else {
-      localStorage.removeItem("authToken");
-      delete api.defaults.headers.common["Authorization"];
+      clearStoredTokenAuth();
     }
     localStorage.setItem("userData", JSON.stringify(me));
     onLogin(me);
@@ -1141,9 +1440,22 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
   const toggleScreen = () => {
     setIsLogin(!isLogin);
+    setShowAuthMenu(false);
     setError("");
     setEmailAvailable(null);
     setEmailCheckMsg("");
+  };
+
+  const handleClaimSuccess = (claimedEmail) => {
+    setIsLogin(true);
+    setError('');
+    setFormData((prev) => ({
+      ...prev,
+      email: claimedEmail || prev.email,
+      password: '',
+      password_confirmation: '',
+    }));
+    toast.success('Account claimed successfully. Sign in with your new credentials.');
   };
 
   const inputClasses =
@@ -1181,7 +1493,20 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
             isOpen={showForgotPassword}
             onClose={() => setShowForgotPassword(false)}
           />
+          <ClaimExistingAccountModal
+            isOpen={showClaimModal}
+            onClose={() => setShowClaimModal(false)}
+            onClaimed={handleClaimSuccess}
+          />
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
+            {isLogin && showAuthMenu && (
+              <button
+                type="button"
+                aria-hidden="true"
+                className="absolute inset-0 z-10 cursor-default"
+                onClick={() => setShowAuthMenu(false)}
+              />
+            )}
             {/* Back/Sign In Button */}
             {isLogin ? (
               <button
@@ -1201,6 +1526,34 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
               >
                 <ChevronLeft className="w-7 h-7" />
               </button>
+            )}
+
+            {isLogin && (
+              <div className="absolute top-4 right-4 z-20">
+                <button
+                  type="button"
+                  onClick={() => setShowAuthMenu((prev) => !prev)}
+                  className="h-8 w-8 inline-flex items-center justify-center rounded-md text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-gray-700 transition-colors"
+                  aria-label="Open authentication menu"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+
+                {showAuthMenu && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAuthMenu(false);
+                        setShowClaimModal(true);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      Claim Existing Account
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
             {/* Logo and Header */}
             <div className="flex flex-col items-center justify-center mb-4">
@@ -1322,7 +1675,20 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                 </div>
 
                 {/* Forgot Password */}
-                <div className="text-right">
+                <div className="flex items-center justify-start">
+                  <label className="inline-flex items-center gap-2 text-sm text-green-900/90 dark:text-gray-300 select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberDevice}
+                      onChange={(e) => setRememberDevice(e.target.checked)}
+                      disabled={loading}
+                      className="h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span>Remember this device</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-end">
                   <button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}

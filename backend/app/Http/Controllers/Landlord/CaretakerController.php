@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CaretakerController extends Controller
 {
@@ -50,6 +51,7 @@ class CaretakerController extends Controller
                         'properties' => $assignment->can_view_properties,
                         'maintenance' => $assignment->can_manage_maintenance,
                         'payments' => $assignment->can_manage_payments,
+                        'analytics' => $assignment->can_view_analytics,
                     ],
                     'assigned_properties' => $assignment->properties->map(fn ($p) => [
                         'id' => $p->id,
@@ -86,15 +88,22 @@ class CaretakerController extends Controller
             'permissions.can_view_properties' => 'sometimes|boolean',
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
             'permissions.can_manage_payments' => 'sometimes|boolean',
+            'permissions.can_view_analytics' => 'sometimes|boolean',
             'property_ids' => 'sometimes|array',
             'property_ids.*' => 'integer|exists:properties,id',
         ]);
 
-        // ... validation logic ...
+        $propertyIds = collect($validated['property_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->assertPropertyIdsBelongToLandlord($propertyIds, (int) $context['landlord_id']);
 
         $temporaryPassword = $validated['password'] ?? Str::random(12);
 
-        $created = DB::transaction(function () use ($validated, $context, $temporaryPassword) {
+        $created = DB::transaction(function () use ($validated, $context, $temporaryPassword, $propertyIds) {
             $caretaker = User::create([
                 'first_name' => $validated['first_name'],
                 'middle_name' => $validated['middle_name'] ?? null,
@@ -116,6 +125,7 @@ class CaretakerController extends Controller
                 'can_view_properties' => data_get($validated, 'permissions.can_view_properties', false),
                 'can_manage_maintenance' => data_get($validated, 'permissions.can_manage_maintenance', false),
                 'can_manage_payments' => data_get($validated, 'permissions.can_manage_payments', false),
+                 'can_view_analytics' => data_get($validated, 'permissions.can_view_analytics', false),
             ];
 
             $assignment = CaretakerAssignment::create(array_merge(
@@ -126,8 +136,8 @@ class CaretakerController extends Controller
                 $permissions
             ));
 
-            if (! empty($validated['property_ids'])) {
-                $assignment->syncProperties($validated['property_ids']);
+            if ($propertyIds !== []) {
+                $assignment->syncProperties($propertyIds);
             }
 
             $assignment->load('properties:id,title');
@@ -162,6 +172,7 @@ class CaretakerController extends Controller
                     'properties' => $permissions['can_view_properties'],
                     'maintenance' => $permissions['can_manage_maintenance'],
                     'payments' => $permissions['can_manage_payments'],
+                      'analytics' => $permissions['can_view_analytics'],
                 ],
                 'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,
@@ -197,9 +208,21 @@ class CaretakerController extends Controller
             'permissions.can_view_properties' => 'sometimes|boolean',
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
             'permissions.can_manage_payments' => 'sometimes|boolean',
+            'permissions.can_view_analytics' => 'sometimes|boolean',
             'property_ids' => 'sometimes|array|min:1',
             'property_ids.*' => 'integer|exists:properties,id',
         ]);
+
+        $propertyIds = null;
+        if (array_key_exists('property_ids', $validated)) {
+            $propertyIds = collect($validated['property_ids'])
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            $this->assertPropertyIdsBelongToLandlord($propertyIds, (int) $context['landlord_id']);
+        }
 
         // ... caretaker details update ...
 
@@ -223,6 +246,9 @@ class CaretakerController extends Controller
                 'can_view_properties' => array_key_exists('can_view_properties', $payload)
                     ? (bool) $payload['can_view_properties']
                     : $assignment->can_view_properties,
+                'can_view_analytics' => array_key_exists('can_view_analytics', $payload)
+                    ? (bool) $payload['can_view_analytics']
+                    : $assignment->can_view_analytics,
                 'can_manage_maintenance' => array_key_exists('can_manage_maintenance', $payload)
                     ? (bool) $payload['can_manage_maintenance']
                     : $assignment->can_manage_maintenance,
@@ -234,7 +260,9 @@ class CaretakerController extends Controller
             $assignment->update($updates);
         }
 
-        // ... property assignments update ...
+        if (is_array($propertyIds)) {
+            $assignment->syncProperties($propertyIds);
+        }
 
         $assignment->refresh();
         $assignment->load('properties:id,title');
@@ -257,6 +285,7 @@ class CaretakerController extends Controller
                     'properties' => $assignment->can_view_properties,
                     'maintenance' => $assignment->can_manage_maintenance,
                     'payments' => $assignment->can_manage_payments,
+                      'analytics' => $assignment->can_view_analytics,
                 ],
                 'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,
@@ -303,5 +332,22 @@ class CaretakerController extends Controller
             'message' => 'Caretaker password reset.',
             'temporary_password' => $temporaryPassword,
         ]);
+    }
+
+    protected function assertPropertyIdsBelongToLandlord(array $propertyIds, int $landlordId): void
+    {
+        if ($propertyIds === []) {
+            return;
+        }
+
+        $ownedCount = Property::where('landlord_id', $landlordId)
+            ->whereIn('id', $propertyIds)
+            ->count();
+
+        if ($ownedCount !== count($propertyIds)) {
+            throw ValidationException::withMessages([
+                'property_ids' => ['One or more selected properties are not owned by this landlord.'],
+            ]);
+        }
     }
 }

@@ -11,7 +11,8 @@ import {
   Alert,
   Image,
   StatusBar,
-  Modal
+  Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,8 +27,12 @@ import ForgotPasswordModal from '../../../components/ForgotPasswordModal.jsx';
 import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { useAuthStore } from '../../../stores/auth/authStore.js';
+import { useUIState } from '../../../contexts/UIStateContext.jsx';
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
+
+const TRUSTED_DEVICE_STORAGE_KEY = 'trusted_device';
+const TRUSTED_DEVICE_HEADER = 'X-Device-Trusted';
 
 const TermsModal = ({ visible, onClose, theme }) => {
   const styles = getStyles(theme);
@@ -94,6 +99,9 @@ const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress, the
       animationType="fade"
       transparent={true}
       visible={visible}
+      statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
@@ -143,6 +151,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
   const [loading, setLoading] = useState(false);
   const [idTypes, setIdTypes] = useState([]);
   const styles = getStyles(theme);
+  const { showAlert } = useUIState();
   const [form, setForm] = useState({
     validIdType: '',
     validIdOther: '',
@@ -173,7 +182,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
 
   const handleSubmit = async () => {
     if (!form.validIdType || !form.validId || !form.permit) {
-      Alert.alert('Error', 'Please fill in all fields and upload both documents.');
+      showAlert('Error', 'Please fill in all fields and upload both documents.');
       return;
     }
 
@@ -212,13 +221,13 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'Documents resubmitted successfully! Please wait for admin review.');
+        showAlert('Success', 'Documents resubmitted successfully! Please wait for admin review.');
         onClose();
       } else {
-        Alert.alert('Error', data.message || 'Failed to resubmit documents.');
+        showAlert('Error', data.message || 'Failed to resubmit documents.');
       }
     } catch (err) {
-      Alert.alert('Error', 'An error occurred while resubmitting documents.');
+      showAlert('Error', 'An error occurred while resubmitting documents.');
     } finally {
       setLoading(false);
     }
@@ -295,9 +304,379 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
   );
 };
 
+const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [showClaimDobPicker, setShowClaimDobPicker] = useState(false);
+  const [claimData, setClaimData] = useState({
+    claimCode: '',
+    dateOfBirth: '',
+    challengeToken: '',
+    tenantName: '',
+    email: '',
+    password: '',
+    passwordConfirmation: '',
+    otp: '',
+  });
+
+  useEffect(() => {
+    if (!visible) {
+      setStep(1);
+      setLoading(false);
+      setError('');
+      setResendCooldown(0);
+      setShowClaimDobPicker(false);
+      setClaimData({
+        claimCode: '',
+        dateOfBirth: '',
+        challengeToken: '',
+        tenantName: '',
+        email: '',
+        password: '',
+        passwordConfirmation: '',
+        otp: '',
+      });
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const formatDateForApi = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getClaimDobPickerValue = () => {
+    if (claimData.dateOfBirth) {
+      const [year, month, day] = claimData.dateOfBirth.split('-').map(Number);
+      if (year && month && day) {
+        return new Date(year, month - 1, day);
+      }
+    }
+
+    return new Date(new Date().setFullYear(new Date().getFullYear() - 18));
+  };
+
+  const postClaim = async (endpoint, body, fallbackMessage) => {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.message || fallbackMessage);
+    }
+
+    return payload?.data || payload;
+  };
+
+  const handleVerifyCode = async () => {
+    const normalizedClaimCode = claimData.claimCode.trim();
+    if (!/^\d{8}$/.test(normalizedClaimCode)) {
+      setError('Please enter the 8-digit claim code.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const data = await postClaim(
+        '/claim-account/verify-code',
+        {
+          claim_code: normalizedClaimCode,
+        },
+        'Failed to verify claim code.',
+      );
+
+      setClaimData((prev) => ({
+        ...prev,
+        challengeToken: data.challenge_token || '',
+        tenantName: data?.tenant
+          ? `${data.tenant.first_name || ''} ${data.tenant.last_name || ''}`.trim()
+          : '',
+      }));
+      setStep(2);
+    } catch (err) {
+      setError(err.message || 'Failed to verify claim code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!claimData.dateOfBirth || !claimData.email || !claimData.password || !claimData.passwordConfirmation) {
+      setError('Date of birth, email, password, and confirmation are required.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const data = await postClaim(
+        '/claim-account/send-otp',
+        {
+          challenge_token: claimData.challengeToken,
+          date_of_birth: claimData.dateOfBirth.trim(),
+          email: claimData.email.trim(),
+          password: claimData.password,
+          password_confirmation: claimData.passwordConfirmation,
+        },
+        'Failed to send OTP.',
+      );
+
+      setResendCooldown(Number(data.retry_after_seconds || 60));
+      setStep(3);
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!claimData.otp) {
+      setError('OTP is required.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      await postClaim(
+        '/claim-account/verify-otp',
+        {
+          challenge_token: claimData.challengeToken,
+          otp: claimData.otp.trim(),
+        },
+        'Failed to verify OTP.',
+      );
+
+      onClaimed?.(claimData.email.trim());
+      onClose?.();
+    } catch (err) {
+      setError(err.message || 'Failed to verify OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (loading || resendCooldown > 0) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await postClaim(
+        '/claim-account/resend-otp',
+        { challenge_token: claimData.challengeToken },
+        'Failed to resend OTP.',
+      );
+
+      setResendCooldown(Number(data.retry_after_seconds || 60));
+      showSuccess('OTP Sent', 'A new OTP has been sent to your email.');
+    } catch (err) {
+      setError(err.message || 'Failed to resend OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 }}>
+          <View
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 760,
+              alignSelf: 'center',
+              borderWidth: theme.isDark ? 1 : 0,
+              borderColor: theme.colors.border,
+              maxHeight: '92%',
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingTop: 18, paddingBottom: 12 }}>
+              <View>
+                <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 18 }}>Claim Existing Account</Text>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginTop: 2 }}>Step {step} of 3</Text>
+              </View>
+              <TouchableOpacity onPress={onClose}>
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 18 }}
+            >
+              {error ? (
+                <View style={{ backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2', borderWidth: 1, borderColor: theme.colors.error, borderRadius: 10, padding: 10, marginBottom: 12 }}>
+                  <Text style={{ color: theme.colors.error, fontSize: 13 }}>{error}</Text>
+                </View>
+              ) : null}
+
+              {step === 1 && (
+                <View style={{ gap: 10 }}>
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
+                    Enter the 8-digit claim code from your landlord.
+                  </Text>
+                  <TextInput
+                    value={claimData.claimCode}
+                    onChangeText={(text) => setClaimData((prev) => ({ ...prev, claimCode: text.replace(/\D/g, '') }))}
+                    keyboardType="number-pad"
+                    maxLength={8}
+                    placeholder="8-digit claim code"
+                    placeholderTextColor="#9CA3AF"
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text }}
+                  />
+
+                  <TouchableOpacity
+                    onPress={handleVerifyCode}
+                    disabled={loading}
+                    style={{ backgroundColor: theme.colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4, opacity: loading ? 0.7 : 1 }}
+                  >
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Verify Claim Code</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {step === 2 && (
+                <View style={{ gap: 10 }}>
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
+                    {claimData.tenantName
+                      ? `Code verified for ${claimData.tenantName}.`
+                      : 'Code verified.'}{' '}
+                    Enter your date of birth, then set your email and password to continue.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowClaimDobPicker(true)}
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 }}
+                  >
+                    <Text style={{ color: claimData.dateOfBirth ? theme.colors.text : '#9CA3AF' }}>
+                      {claimData.dateOfBirth || 'Select date of birth'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showClaimDobPicker && (
+                    <DateTimePicker
+                      value={getClaimDobPickerValue()}
+                      mode="date"
+                      maximumDate={new Date()}
+                      display="default"
+                      onChange={(event, date) => {
+                        setShowClaimDobPicker(Platform.OS === 'ios');
+                        if (date) {
+                          setClaimData((prev) => ({ ...prev, dateOfBirth: formatDateForApi(date) }));
+                        }
+                      }}
+                    />
+                  )}
+                  <TextInput
+                    value={claimData.email}
+                    onChangeText={(text) => setClaimData((prev) => ({ ...prev, email: text }))}
+                    placeholder="Email"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text }}
+                  />
+                  <TextInput
+                    value={claimData.password}
+                    onChangeText={(text) => setClaimData((prev) => ({ ...prev, password: text }))}
+                    placeholder="Password"
+                    placeholderTextColor="#9CA3AF"
+                    secureTextEntry
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text }}
+                  />
+                  <TextInput
+                    value={claimData.passwordConfirmation}
+                    onChangeText={(text) => setClaimData((prev) => ({ ...prev, passwordConfirmation: text }))}
+                    placeholder="Confirm password"
+                    placeholderTextColor="#9CA3AF"
+                    secureTextEntry
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text }}
+                  />
+                  <TouchableOpacity
+                    onPress={handleSendOtp}
+                    disabled={loading}
+                    style={{ backgroundColor: theme.colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4, opacity: loading ? 0.7 : 1 }}
+                  >
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Send OTP</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {step === 3 && (
+                <View style={{ gap: 10 }}>
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
+                    Enter the 6-digit OTP sent to {claimData.email}.
+                  </Text>
+                  <TextInput
+                    value={claimData.otp}
+                    onChangeText={(text) => setClaimData((prev) => ({ ...prev, otp: text.replace(/\D/g, '') }))}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    placeholder="6-digit OTP"
+                    placeholderTextColor="#9CA3AF"
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text, textAlign: 'center', letterSpacing: 4, fontSize: 20, fontWeight: '700' }}
+                  />
+                  <TouchableOpacity
+                    onPress={handleVerifyOtp}
+                    disabled={loading}
+                    style={{ backgroundColor: theme.colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4, opacity: loading ? 0.7 : 1 }}
+                  >
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Complete Claim</Text>}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleResendOtp} disabled={loading || resendCooldown > 0}>
+                    <Text style={{ textAlign: 'center', color: resendCooldown > 0 ? theme.colors.textTertiary : theme.colors.primary, fontWeight: '600' }}>
+                      {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+};
+
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme, isDarkMode } = useTheme();
+  const { showAlert } = useUIState();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const contentWrapStyle = React.useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 760, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
   const setAuthSession = useAuthStore((state) => state.setAuthSession);
   const [isLogin, setIsLogin] = useState(true);
   const [signupStep, setSignupStep] = useState(1);
@@ -311,7 +690,10 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const [resubmitModalVisible, setResubmitModalVisible] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showAuthMenu, setShowAuthMenu] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
   const [emailAvailable, setEmailAvailable] = useState(null);
   const [emailCheckMsg, setEmailCheckMsg] = useState('');
@@ -358,6 +740,9 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             gender: parsed.gender || '',
           }));
         }
+
+        const savedTrustedDevice = await AsyncStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY);
+        setRememberDevice(savedTrustedDevice === '1' || savedTrustedDevice === 'true');
       } catch { /* ignore */ }
     };
     restoreFormData();
@@ -533,6 +918,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'X-Client-Platform': 'mobile',
+          [TRUSTED_DEVICE_HEADER]: rememberDevice ? 'true' : 'false',
         },
         body: JSON.stringify({
           email: formData.email,
@@ -541,6 +927,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       });
 
       const data = await response.json();
+      const accessToken = data?.access_token || data?.token || data?.user?.token || null;
+      const refreshToken = data?.refresh_token || null;
 
       if (response.ok) {
         // If login succeeded but account is unverified landlord, we handle it
@@ -553,14 +941,24 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               reason: data.rejection_reason || 'No reason provided'
             });
             // Still save token because resubmit might need it
-            if (data.token) await AsyncStorage.setItem('token', data.token);
+            if (accessToken) {
+              await AsyncStorage.setItem('token', accessToken);
+            }
+            if (refreshToken) {
+              await AsyncStorage.setItem('refresh_token', refreshToken);
+            }
             setPendingModalVisible(true);
             return;
           }
         }
 
         // Persist token inside the user object for standardized access across the app
-        const userObj = { ...(data.user || {}), token: data.token || (data.user && data.user.token) };
+        const userObj = {
+          ...(data.user || {}),
+          token: accessToken,
+          refresh_token: refreshToken,
+          trusted_device: rememberDevice,
+        };
         
         // Restore previously switched role if any (helps for unverified landlords)
         let effectiveRole = data.user.role;
@@ -580,15 +978,24 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         }
 
         await AsyncStorage.setItem('user', JSON.stringify(userObj));
+        await AsyncStorage.setItem(TRUSTED_DEVICE_STORAGE_KEY, rememberDevice ? '1' : '0');
         // Keep legacy `token` key for backward compatibility
-        if (data.token) {
-          await AsyncStorage.setItem('token', data.token);
+        if (accessToken) {
+          await AsyncStorage.setItem('token', accessToken);
+        } else {
+          await AsyncStorage.removeItem('token');
+        }
+        if (refreshToken) {
+          await AsyncStorage.setItem('refresh_token', refreshToken);
+        } else {
+          await AsyncStorage.removeItem('refresh_token');
         }
         await AsyncStorage.setItem('user_id', String(data.user.id));
         await AsyncStorage.setItem('hasLaunched', 'true');
 
         setAuthSession({
-          authToken: data.token || data.user?.token || null,
+          authToken: accessToken,
+          refreshToken,
           userId: data.user?.id ?? null,
           activeRole: effectiveRole,
         });
@@ -635,6 +1042,9 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         if (response.status === 403 && data.status === 'blocked') {
           setShowBlockedModal(true);
           return;
+        }
+        if (data.errors) {
+          setFieldErrors(data.errors);
         }
         setError(data.message || 'Login failed. Please check your credentials.');
       }
@@ -733,6 +1143,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
 
   const toggleScreen = () => {
     setIsLogin(!isLogin);
+    setShowAuthMenu(false);
     setSignupStep(1);
     setFormData({ firstName: '', middleName: '', lastName: '', phone: '', email: '', password: '', confirmPassword: '', role: 'tenant', dateOfBirth: null, gender: '' });
     setAgreedToTerms(false);
@@ -740,6 +1151,19 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     // Ensure password visibility is reset when switching screens
     setShowPassword(false);
     setShowConfirmPassword(false);
+  };
+
+  const handleClaimSuccess = (claimedEmail) => {
+    setIsLogin(true);
+    setError('');
+    setFieldErrors({});
+    setFormData((prev) => ({
+      ...prev,
+      email: claimedEmail || prev.email,
+      password: '',
+      confirmPassword: '',
+    }));
+    showSuccess('Account Claimed', 'Your account is now claimed. Sign in with your new credentials.');
   };
 
   return (
@@ -765,6 +1189,12 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         visible={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}
       />
+      <ClaimExistingAccountModal
+        visible={showClaimModal}
+        onClose={() => setShowClaimModal(false)}
+        onClaimed={handleClaimSuccess}
+        theme={theme}
+      />
       <TermsModal 
         visible={showTermsModal} 
         onClose={() => setShowTermsModal(false)} 
@@ -775,7 +1205,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         style={styles.container}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, contentWrapStyle]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -793,6 +1223,40 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             />
           </View>
           <View style={styles.card}>
+            {isLogin && showAuthMenu && (
+              <TouchableOpacity
+                style={styles.authMenuBackdrop}
+                activeOpacity={1}
+                onPress={() => setShowAuthMenu(false)}
+              />
+            )}
+
+            {isLogin && (
+              <View style={styles.authMenuAnchor}>
+                <TouchableOpacity
+                  style={styles.authMenuButton}
+                  onPress={() => setShowAuthMenu((prev) => !prev)}
+                  accessibilityLabel="Open authentication menu"
+                >
+                  <Ionicons name="ellipsis-vertical" size={18} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+
+                {showAuthMenu && (
+                  <View style={styles.authMenuDropdown}>
+                    <TouchableOpacity
+                      style={styles.authMenuItem}
+                      onPress={() => {
+                        setShowAuthMenu(false);
+                        setShowClaimModal(true);
+                      }}
+                    >
+                      <Text style={styles.authMenuItemText}>Claim Existing Account</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>
@@ -865,13 +1329,26 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               </View>
               {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
 
-              {/* Forgot Password */}
-              <TouchableOpacity 
-                style={styles.forgotPassword}
-                onPress={() => setShowForgotPasswordModal(true)}
+              <TouchableOpacity
+                onPress={() => setRememberDevice((prev) => !prev)}
+                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
+                disabled={loading}
               >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                <View style={[styles.checkbox, { marginRight: 10, marginTop: 0 }, rememberDevice && styles.checkboxChecked]}>
+                  {rememberDevice ? (
+                    <Ionicons name="checkmark" size={14} color={theme.colors.textInverse} />
+                  ) : null}
+                </View>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 13, fontWeight: '500' }}>
+                  Remember this device
+                </Text>
               </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => setShowForgotPasswordModal(true)}>
+                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Submit Button */}
               <TouchableOpacity
@@ -1005,7 +1482,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                 <View style={styles.form}>
                   {/* Back Button */}
                   <TouchableOpacity style={styles.backButton} onPress={handleBackStep}>
-                    <Ionicons name="arrow-back" size={20} color="#059669" />
+                    <Ionicons name="arrow-back" size={20} color="#16a34a" />
                     <Text style={styles.backButtonText}>Back</Text>
                   </TouchableOpacity>
 
@@ -1184,18 +1661,6 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             </TouchableOpacity>
           </View>
 
-          {/* Register as Landlord */}
-          {isLogin && (
-            <View style={{ alignItems: 'center', marginBottom: 8 }}>
-              <TouchableOpacity onPress={() => navigation.navigate('LandlordRegister')}>
-                <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
-                  Want to list your property?{' '}
-                  <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Register as Landlord</Text>
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
           {/* Continue as Guest Button - Only show when user logged out */}
           {onContinueAsGuest && (
             <View style={styles.guestOptionContainer}>
@@ -1215,6 +1680,18 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               <Text style={styles.guestHintText}>
                 Browse properties without signing in
               </Text>
+            </View>
+          )}
+
+          {/* Register as Landlord */}
+          {isLogin && (
+            <View style={{ alignItems: 'center', marginTop: onContinueAsGuest ? 16 : 8, marginBottom: 12 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('LandlordRegister')}>
+                <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
+                  Want to list your property?{' '}
+                  <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Register as Landlord</Text>
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>

@@ -1,15 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AOS from 'aos';
-import 'aos/dist/aos.css';
-import { Search, MapPin, ArrowRight, FileText, MousePointer, UserPlus, CheckCircle, ShieldCheck, CircleDollarSign, Smartphone, Download, X } from 'lucide-react'; 
+import { Search, MapPin, ArrowRight, ShieldCheck, CircleDollarSign, Smartphone, X } from 'lucide-react';
 import { useUIState } from '../../contexts/UIStateContext';
 
 const HomePage = ({ onGetStarted }) => {
   const navigate = useNavigate();
   const { updateScreenState } = useUIState();
-  const [modalImages, setModalImages] = useState([]);
-  const [__currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showAppPromo, setShowAppPromo] = useState(false);
 
   useEffect(() => {
@@ -17,31 +13,10 @@ const HomePage = ({ onGetStarted }) => {
     return () => clearTimeout(promoTimer);
   }, []);
 
-  useEffect(() => {
-    AOS.init({ 
-      duration: 600, 
-      once: true,
-      offset: 50,
-      disable: 'mobile'
-    });
-    window.addEventListener('load', AOS.refresh);
-    return () => window.removeEventListener('load', AOS.refresh);
-  }, []);
-
   const handlePropertyTypeClick = (type) => {
     updateScreenState('explore', { selectedType: type, currentPage: 1 });
     navigate('/browse-properties');
   };
-
-  const __scrollToHowItWorks = () => {
-    const element = document.getElementById('how-it-works');
-    if (element) element.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const __openModal = (images) => { setModalImages(images); setCurrentImageIndex(0); };
-  const __closeModal = () => { setModalImages([]); setCurrentImageIndex(0); };
-  const __nextImage = (e) => { e.stopPropagation(); setCurrentImageIndex((prev) => (prev + 1) % modalImages.length); };
-  const __prevImage = (e) => { e.stopPropagation(); setCurrentImageIndex((prev) => (prev - 1 + modalImages.length) % modalImages.length); };
 
   return (
     <>
@@ -72,10 +47,17 @@ const HomePage = ({ onGetStarted }) => {
       `}</style>
 
       {/* --- HERO SECTION ONLY --- */}
-      <section className="h-[calc(100vh-56px)] md:h-[calc(100vh-72px)] w-full flex flex-col items-center px-6 max-w-7xl mx-auto relative overflow-hidden py-8 md:py-0 bg-gray-50 dark:bg-gray-900 theme-transition">
+      <section className="min-h-[calc(100vh-56px)] md:min-h-[calc(100vh-72px)] w-full flex flex-col items-center relative overflow-hidden bg-gray-50 dark:bg-gray-900 theme-transition">
 
-        {/* Main Hero Content */}
-        <div data-aos="fade-up" className="flex-1 flex flex-col items-center justify-center text-center max-w-[900px] z-10 w-full py-8 md:py-16">
+        {/* Background Blobs - Absolute relative to section */}
+        <div className="absolute top-[10%] left-[5%] w-48 h-48 md:w-64 md:h-64 bg-green-200 dark:bg-green-800 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 dark:opacity-10 animate-blob pointer-events-none z-0"></div>
+        <div className="absolute top-[10%] right-[5%] w-48 h-48 md:w-64 md:h-64 bg-blue-200 dark:bg-blue-800 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 dark:opacity-10 animate-blob animation-delay-2000 pointer-events-none z-0"></div>
+
+        {/* Inner Content Wrapper */}
+        <div className="w-full max-w-7xl mx-auto px-6 flex-1 flex flex-col items-center relative z-10 py-8 md:py-0">
+          
+          {/* Main Hero Content */}
+          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-[900px] w-full py-8 md:py-16">
           <h1 className="no-scale text-[clamp(32px,8vw,64px)] lg:text-7xl font-bold leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
             Find Your Next <br className="md:hidden" />
             Home <span className="md:hidden no-scale font-bold">in</span> <br className="hidden md:block" />
@@ -87,8 +69,8 @@ const HomePage = ({ onGetStarted }) => {
             Discover and book student-friendly dorms, apartments, and boarding houses. Verified landlords, secure payments, and zero hassle.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs md:max-w-lg mx-auto relative">
-            <button 
-              onClick={onGetStarted} 
+            <button
+              onClick={onGetStarted}
               className="w-full sm:flex-1 flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-4 md:px-8 md:py-4 min-h-[56px] text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 hover:bg-green-700 transition-all duration-300"
             >
               Browse Properties <Search className="w-4 h-4 md:w-5 md:h-5" />
@@ -102,37 +84,33 @@ const HomePage = ({ onGetStarted }) => {
                       <span className="text-blue-100 font-medium">New Feature!</span>
                       <span>AccommoTrack Mobile is here 📱</span>
                     </div>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); setShowAppPromo(false); }}
                       className="p-2 hover:bg-white/20 rounded-lg transition-colors"
                       aria-label="Close promo"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
-                    <div className="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-600 rotate-45 
+                    <div className="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-600 rotate-45
                       -top-1.5 border-l border-t border-blue-400/50
                       md:top-auto md:-bottom-1.5 md:border-l-0 md:border-t-0 md:border-r md:border-b">
                     </div>
                   </div>
                 </div>
               )}
-              <button 
-                onClick={() => window.open('https://expo.dev/accounts/pheinz/projects/AccommoTrack/builds/6bdfdbe8-0379-4bb4-8477-47c897aa067d', '_blank')} 
+              <button
+                onClick={() => navigate('/mobile-app')}
                 className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 border border-gray-200 dark:border-gray-700 px-6 py-4 md:px-8 md:py-4 min-h-[56px] text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
-                Download App 
+                Get the App
                 <Smartphone className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>
         </div>
-        
-        {/* Background Blobs */}
-        <div className="absolute top-[10%] left-[5%] w-48 h-48 md:w-64 md:h-64 bg-green-200 dark:bg-green-800 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 dark:opacity-10 animate-blob pointer-events-none"></div>
-        <div className="absolute top-[10%] right-[5%] w-48 h-48 md:w-64 md:h-64 bg-blue-200 dark:bg-blue-800 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 dark:opacity-10 animate-blob animation-delay-2000 pointer-events-none"></div>
-        
+
         {/* University Logos */}
-        <div className="w-full z-10 pb-10 md:pb-12 flex-none">
+        <div className="w-full pb-10 md:pb-12 flex-none">
           <p className="text-center text-[10px] md:text-xs font-bold uppercase mb-6 text-gray-500 dark:text-gray-500">Built for students from</p>
           <div className="flex justify-center gap-6 md:gap-16 flex-wrap">
             <span className="text-lg md:text-xl font-bold text-[#DC143C] dark:text-red-400">WMSU</span>
@@ -140,6 +118,8 @@ const HomePage = ({ onGetStarted }) => {
             <span className="text-lg md:text-xl font-bold text-green-600 dark:text-green-400">UZ</span>
             <span className="text-lg md:text-xl font-bold text-[#800000] dark:text-red-500">ZPPSU</span>
           </div>
+        </div>
+
         </div>
       </section>
 
@@ -156,7 +136,7 @@ const HomePage = ({ onGetStarted }) => {
           </div>
           <div className="flex-1 flex flex-col items-center md:pb-20 w-full">
             <div className="carousel-container flex flex-row md:grid md:grid-cols-3 gap-4 md:gap-8 w-full overflow-x-auto md:overflow-x-visible snap-x snap-mandatory no-scrollbar p-2 md:p-0">
-              <div data-aos="fade-up" data-aos-delay="0" className="flex-none w-[85%] sm:w-[60%] md:w-auto snap-center md:snap-start">
+              <div className="flex-none w-[85%] sm:w-[60%] md:w-auto snap-center md:snap-start">
                 <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center text-center h-full">
                   <div className="bg-green-100 dark:bg-green-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                     <MapPin className="w-6 h-6 md:w-7 md:h-7 text-green-600" />
@@ -167,7 +147,7 @@ const HomePage = ({ onGetStarted }) => {
                   </p>
                 </div>
               </div>
-              <div data-aos="fade-up" data-aos-delay="100" className="flex-none w-[85%] sm:w-[60%] md:w-auto snap-center md:snap-start">
+              <div className="flex-none w-[85%] sm:w-[60%] md:w-auto snap-center md:snap-start">
                 <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center text-center h-full">
                   <div className="bg-blue-100 dark:bg-blue-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                     <ShieldCheck className="w-6 h-6 md:w-7 md:h-7 text-blue-600" />
@@ -178,7 +158,7 @@ const HomePage = ({ onGetStarted }) => {
                   </p>
                 </div>
               </div>
-              <div data-aos="fade-up" data-aos-delay="200" className="flex-none w-[85%] sm:w-[60%] md:w-auto snap-center md:snap-start">
+              <div className="flex-none w-[85%] sm:w-[60%] md:w-auto snap-center md:snap-start">
                 <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center text-center h-full">
                   <div className="bg-orange-100 dark:bg-orange-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                     <CircleDollarSign className="w-6 h-6 md:w-7 md:h-7 text-orange-600" />

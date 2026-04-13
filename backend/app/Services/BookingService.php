@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\PaymentTransaction;
 use App\Models\Room;
 use App\Models\TenantProfile;
 use App\Models\User;
+use App\Notifications\RentPaidSuccess;
 use App\Notifications\NewBookingNotification;
+use App\Support\SystemToggle;
 use App\Services\AuditLogService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +18,10 @@ use Illuminate\Support\Str;
 
 class BookingService
 {
-    public function __construct(protected AuditLogService $auditLogService)
+    public function __construct(
+        protected AuditLogService $auditLogService,
+        private readonly PaymentLedgerService $paymentLedgerService,
+    )
     {
     }
 
@@ -117,6 +123,8 @@ class BookingService
                 throw new \DomainException('Room is temporarily locked for new bookings due to a pending eviction process.');
             }
 
+            $roomRestriction = $this->normalizeRoomRestriction((string) ($room->gender_restriction ?? 'mixed'));
+
             // Check Gender Compatibility
             $tenant = $tenantId ? User::find($tenantId) : null;
             if ($tenant && $tenant->role === 'tenant') {
@@ -128,7 +136,6 @@ class BookingService
                 // Only enforce for specific property types
                 if ($propertyType !== 'apartment' && in_array($propertyType, $targetTypes)) {
                     $tenantGender = $this->normalizeGender($tenant->gender);
-                    $roomRestriction = strtolower((string) ($room->gender_restriction ?? 'mixed'));
 
                     if ($roomRestriction !== 'mixed') {
                         if (! $tenantGender) {
@@ -137,6 +144,16 @@ class BookingService
                         if ($roomRestriction !== $tenantGender) {
                             throw new \DomainException("Sorry, this room is only for specifically {$roomRestriction} only");
                         }
+                    }
+                }
+            }
+
+            if ($bookingMode === 'proxy' && $roomRestriction !== 'mixed') {
+                foreach ($occupantsPayload as $index => $occupant) {
+                    $occupantGender = $this->normalizeGender((string) ($occupant['gender'] ?? ''));
+
+                    if ($occupantGender !== $roomRestriction) {
+                        throw new \DomainException('Occupant '.($index + 1).' gender must match the room restriction ('.$roomRestriction.').');
                     }
                 }
             }
@@ -210,12 +227,44 @@ class BookingService
                 ? ($priceResult['breakdown']['months'] ?? intdiv($days, 30))
                 : 1;
 
-            $requestedPaymentPlan = $data['payment_plan'] ?? 'full';
+            $effectiveMoveInDate = $startDate->copy()->startOfDay();
+            $bookingIssuedDate = Carbon::today();
+            $daysUntilMoveIn = max(0, $bookingIssuedDate->diffInDays($effectiveMoveInDate, false));
+            $reservationFeeTemporarilyDisabled = SystemToggle::getBool(
+                'reservation_fee_disabled',
+                (bool) config('app.reservation_fee_disabled', false)
+            );
+            $reservationFeeEnabled = ! $reservationFeeTemporarilyDisabled
+                && (bool) ($room->property->require_reservation_fee ?? false);
+            $reservationFeeAmount = (float) ($room->property->reservation_fee ?? 0);
+            $reservationFeeThresholdDays = max(0, (int) ($room->property->reservation_fee_gap_days ?? 3));
+            $requiresReservationFee = $reservationFeeEnabled
+                && $reservationFeeAmount > 0
+                && $daysUntilMoveIn > $reservationFeeThresholdDays;
+
+            $requestedPaymentPlan = strtolower((string) ($data['payment_plan'] ?? 'full'));
+            if (! in_array($requestedPaymentPlan, ['full', 'monthly', 'promo_one_time'], true)) {
+                $requestedPaymentPlan = 'full';
+            }
+
             if ($contractMode === 'daily') {
                 $requestedPaymentPlan = 'full';
             }
             if (! $endDate && $contractMode === 'monthly') {
                 $requestedPaymentPlan = 'monthly';
+            }
+
+            if ($requestedPaymentPlan === 'promo_one_time') {
+                if ($contractMode !== 'monthly' || !$endDate) {
+                    throw new \DomainException('Long-term promo one-time payment is only available for fixed monthly stays.');
+                }
+
+                $promoDiscount = $this->resolveLongTermPromoDiscount($room, $priceResult, $totalAmount);
+                if (! $promoDiscount) {
+                    throw new \DomainException('Long-term promo is only available for exact 3, 6, 9, or 12-month stays with configured discounts.');
+                }
+
+                $totalAmount = $promoDiscount['discounted_total'];
             }
 
             $bookingReference = 'BK-'.strtoupper(Str::random(8));
@@ -224,12 +273,12 @@ class BookingService
             $receiptImagePath = null;
             $reservationRef = null;
 
-            if (isset($data['receipt_image'])) {
+            if ($requiresReservationFee && isset($data['receipt_image'])) {
                 $status = 'pending_reservation';
-                // Store image in public disk
-                $receiptImagePath = $data['receipt_image']->store('receipts', 'public');
-                $reservationRef = 'RES-'.strtoupper(Str::random(8));
-            } elseif ($room->property->require_reservation_fee && $room->property->reservation_fee > 0) {
+                // Store image in default disk
+                $receiptImagePath = $data['receipt_image']->store('receipts');
+                $reservationRef = 'RES-' . strtoupper(Str::random(8));
+            } elseif ($requiresReservationFee) {
                // If property requires reservation but no image was provided 
                // (handled loosely here, can depend on UI strictness)
             }
@@ -246,7 +295,7 @@ class BookingService
                 'booking_group_reference' => $data['booking_group_reference'] ?? null,
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate?->format('Y-m-d'),
-                'move_in_date' => isset($data['move_in_date']) ? Carbon::parse($data['move_in_date'])->format('Y-m-d') : null,
+                'move_in_date' => $effectiveMoveInDate->format('Y-m-d'),
                 'total_months' => max(1, $totalMonths),
                 'monthly_rent' => $room->monthly_rate ?? 0.00,
                 'total_amount' => $totalAmount,
@@ -282,8 +331,8 @@ class BookingService
             }
 
             // GENERATE RESERVATION FEE INVOICE IF REQUIRED
-            if ($room->property->require_reservation_fee && $room->property->reservation_fee > 0) {
-                $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
+            if ($requiresReservationFee) {
+                $reference = 'RES-' . date('Ymd') . '-' . strtoupper(Str::random(6));
 
                 $reservationInvoice = \App\Models\Invoice::create([
                     'reference' => $reference,
@@ -293,7 +342,7 @@ class BookingService
                     'tenant_id' => $tenantId,
                     'description' => 'Reservation Fee for booking '.$bookingReference,
                     'invoice_type' => 'reservation_fee',
-                    'amount_cents' => (int) round($room->property->reservation_fee * 100),
+                    'amount_cents' => (int) round($reservationFeeAmount * 100),
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),
@@ -346,6 +395,22 @@ class BookingService
     private function normalizePropertyTypeToken(?string $propertyType): string
     {
         return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
+    }
+
+    /**
+     * @return array{months: int, discount_type: string, discount_value: float, discount_amount: float, discounted_total: float}|null
+     */
+    private function resolveLongTermPromoDiscount(Room $room, array $priceResult, float $baseTotal): ?array
+    {
+        $breakdown = $priceResult['breakdown'] ?? [];
+        $months = (int) ($breakdown['months'] ?? 0);
+        $remainingDays = (int) ($breakdown['remaining_days'] ?? 0);
+
+        if ($months < 1 || $remainingDays !== 0) {
+            return null;
+        }
+
+        return $room->calculateDurationDiscount($baseTotal, $months);
     }
 
     /**
@@ -450,24 +515,50 @@ class BookingService
         }
     }
 
-    public function approveReservation(Booking $booking): Booking
+    public function approveReservation(Booking $booking, ?int $actorUserId = null): Booking
     {
         DB::beginTransaction();
         try {
             $booking->status = 'reserved';
-            $booking->payment_status = 'paid';
             $booking->save();
 
-            // Find reservation invoice and mark as paid
+            $resolvedActorId = $actorUserId ?? auth()->id();
+
+            // Find reservation invoice and settle it through a ledger transaction entry.
             $invoice = \App\Models\Invoice::where('booking_id', $booking->id)
                 ->where('invoice_type', 'reservation_fee')
-                ->where('status', 'pending')
+                ->whereIn('status', ['pending', 'partial', 'pending_verification', 'overdue', 'unpaid'])
                 ->first();
-                
+
             if ($invoice) {
-                $invoice->status = 'paid';
-                $invoice->paid_at = now();
-                $invoice->save();
+                $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
+                $alreadyPaidCents = (int) ($invoice->transactions()
+                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                    ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
+                    ->value('net_cents') ?? 0);
+
+                $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
+                if ($remainingCents > 0) {
+                    PaymentTransaction::create([
+                        'invoice_id' => $invoice->id,
+                        'tenant_id' => $invoice->tenant_id,
+                        'amount_cents' => $remainingCents,
+                        'currency' => $invoice->currency ?? 'PHP',
+                        'status' => 'succeeded',
+                        'method' => 'reservation_fee_entry',
+                        'gateway_reference' => null,
+                        'gateway_response' => [
+                            'source' => 'landlord_reservation_approval',
+                            'actor_id' => $resolvedActorId,
+                            'booking_id' => $booking->id,
+                        ],
+                    ]);
+                }
+
+                $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, $resolvedActorId);
+            } else {
+                $booking->payment_status = 'paid';
+                $booking->save();
             }
 
             DB::commit();
@@ -662,23 +753,30 @@ class BookingService
             ->first();
         if (! $existingInvoice) {
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
-
+    
             $billingPolicy = $booking->room->billing_policy ?? 'monthly';
 
-            // For monthly-billed rooms, the first invoice always covers 1 full month's rent.
-            // This is critical for transfer bookings where start_date = today and the period
-            // may be < 30 days, which would cause total_amount to be a tiny prorated figure.
+            // For monthly billing policies:
+            // - monthly plan starts with one monthly invoice and then recurring cycles
+            // - full and promo_one_time plans issue one upfront invoice for total_amount
             if ($billingPolicy !== 'daily') {
-                $amount = $booking->monthly_rent;
-                $description = 'Monthly rent for booking '.$booking->booking_reference;
+                if (in_array($booking->payment_plan, ['full', 'promo_one_time'], true)) {
+                    $amount = (float) $booking->total_amount; // This already includes promo discount if applicable
+                    $description = $booking->payment_plan === 'promo_one_time'
+                        ? 'Promo one-time rent for booking '.$booking->booking_reference
+                        : 'Full duration upfront rent for booking '.$booking->booking_reference;
+                } else {
+                    // Keep monthly behavior unchanged: first invoice covers one month plus recurring addons.
+                    $amount = $booking->monthly_rent;
+                    $description = 'Monthly rent for booking '.$booking->booking_reference;
 
-                // Add recurring monthly addons to first invoice if any
-                $recurringAddonAmount = $booking->addons()
-                    ->where('booking_addons.status', 'active')
-                    ->where('price_type', 'monthly')
-                    ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+                    $recurringAddonAmount = $booking->addons()
+                        ->where('booking_addons.status', 'active')
+                        ->where('price_type', 'monthly')
+                        ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
 
-                $amount += $recurringAddonAmount;
+                    $amount += $recurringAddonAmount;
+                }
             } else {
                 // For daily-rate rooms, use the exact period total
                 $amount = $booking->total_amount;
@@ -821,6 +919,8 @@ class BookingService
             ]);
         }
 
+        [$cancelledInvoiceIds, $voidedPendingTransactionIds] = $this->cancelOpenInvoicesForCancelledBooking($booking);
+
         // Remove tenant from room only if we had a tenant_id
         if ($booking->tenant_id) {
             $booking->room->removeTenant($booking->tenant_id);
@@ -841,9 +941,72 @@ class BookingService
         Log::info('Booking cancelled', [
             'booking_id' => $booking->id,
             'tenant_id' => $booking->tenant_id,
+            'cancelled_invoice_ids' => $cancelledInvoiceIds,
+            'voided_pending_transaction_ids' => $voidedPendingTransactionIds,
         ]);
 
         $booking->room->property->updateAvailableRooms();
+    }
+
+    /**
+     * Cancel open invoices and void pending manual proofs linked to a booking
+     * that was cancelled before settlement.
+     *
+     * @return array{0: array<int>, 1: array<int>}
+     */
+    private function cancelOpenInvoicesForCancelledBooking(Booking $booking): array
+    {
+        $openInvoiceStatuses = ['pending', 'overdue', 'pending_verification', 'unpaid'];
+
+        $openInvoices = \App\Models\Invoice::query()
+            ->where('booking_id', $booking->id)
+            ->whereIn('status', $openInvoiceStatuses)
+            ->lockForUpdate()
+            ->get();
+
+        $cancelledInvoiceIds = [];
+
+        foreach ($openInvoices as $invoice) {
+            $description = trim((string) ($invoice->description ?? ''));
+            $suffix = '(Cancelled due to booking cancellation)';
+            if ($description === '') {
+                $description = $suffix;
+            } elseif (! str_contains($description, $suffix)) {
+                $description .= ' '.$suffix;
+            }
+
+            $invoice->status = 'cancelled';
+            $invoice->description = $description;
+            $invoice->save();
+
+            $cancelledInvoiceIds[] = (int) $invoice->id;
+        }
+
+        if (empty($cancelledInvoiceIds)) {
+            return [[], []];
+        }
+
+        $pendingTransactions = PaymentTransaction::query()
+            ->whereIn('invoice_id', $cancelledInvoiceIds)
+            ->where('status', 'pending_offline')
+            ->lockForUpdate()
+            ->get();
+
+        $voidedPendingTransactionIds = [];
+        foreach ($pendingTransactions as $transaction) {
+            $gatewayResponse = is_array($transaction->gateway_response) ? $transaction->gateway_response : [];
+            $gatewayResponse['verification_action'] = 'booking_cancelled';
+            $gatewayResponse['rejection_reason'] = 'Booking was cancelled before manual verification.';
+            $gatewayResponse['cancelled_at'] = now()->toIso8601String();
+
+            $transaction->status = 'voided';
+            $transaction->gateway_response = $gatewayResponse;
+            $transaction->save();
+
+            $voidedPendingTransactionIds[] = (int) $transaction->id;
+        }
+
+        return [$cancelledInvoiceIds, $voidedPendingTransactionIds];
     }
 
     /**
@@ -851,25 +1014,81 @@ class BookingService
      *
      * @return array{booking: Booking, status_upgraded: bool, completion_blocked: bool}
      */
-    public function updatePaymentStatus(Booking $booking, string $paymentStatus): array
+    public function updatePaymentStatus(Booking $booking, string $paymentStatus, array $paymentContext = []): array
     {
         $statusUpgraded = false;
         $completionBlocked = false;
-        $booking->payment_status = $paymentStatus;
 
-        $booking->save();
+        DB::transaction(function () use ($booking, $paymentStatus, $paymentContext): void {
+            $booking->payment_status = $paymentStatus;
+            $booking->save();
 
-        // Synchronize only rent invoices to avoid mutating add-on and other special invoices.
-        $this->rentInvoicesForPaymentSync($booking)->update(['status' => $paymentStatus]);
-        if ($paymentStatus === 'paid') {
-            $this->rentInvoicesForPaymentSync($booking)->update(['paid_at' => now()]);
-        }
+            // Keep invoice statuses ledger-driven. Booking-level manual updates should not
+            // bulk-overwrite invoice statuses for non-paid operations.
+            if ($paymentStatus !== 'paid') {
+                return;
+            }
+
+            $paymentMethod = $this->normalizeRecordedPaymentMethod($paymentContext['payment_method'] ?? null);
+            $actorId = isset($paymentContext['actor_id']) ? (int) $paymentContext['actor_id'] : null;
+
+            $rentInvoices = $this->rentInvoicesForPaymentSync($booking)->get();
+
+            foreach ($rentInvoices as $invoice) {
+                $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
+                $alreadyPaidCents = (int) ($invoice->transactions()
+                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+                    ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
+                    ->value('net_cents') ?? 0);
+
+                $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
+
+                if ($remainingCents > 0) {
+                    PaymentTransaction::create([
+                        'invoice_id' => $invoice->id,
+                        'tenant_id' => $booking->tenant_id,
+                        'amount_cents' => $remainingCents,
+                        'currency' => $invoice->currency ?? 'PHP',
+                        'status' => 'paid',
+                        'method' => $paymentMethod,
+                        'gateway_reference' => $paymentContext['payment_reference'] ?? null,
+                        'gateway_response' => [
+                            'source' => 'landlord_payment_status_update',
+                            'notes' => $paymentContext['notes'] ?? null,
+                            'actor_id' => $actorId,
+                        ],
+                    ]);
+                }
+
+                $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, $actorId);
+            }
+
+            if ($booking->tenant) {
+                $booking->tenant->notify(new RentPaidSuccess($paymentMethod));
+            }
+
+            $booking->refresh();
+        });
 
         return [
             'booking' => $booking,
             'status_upgraded' => $statusUpgraded,
             'completion_blocked' => $completionBlocked,
         ];
+    }
+
+    private function normalizeRecordedPaymentMethod(?string $method): string
+    {
+        $normalized = strtolower(trim((string) $method));
+
+        if ($normalized === '') {
+            return 'cash';
+        }
+
+        return match ($normalized) {
+            'paymongo', 'paymongo_gcash', 'gcash', 'cash', 'bank_transfer', 'paymaya' => $normalized,
+            default => 'cash',
+        };
     }
 
     protected function rentInvoicesForPaymentSync(Booking $booking)
@@ -928,5 +1147,16 @@ class BookingService
             'female', 'girl', 'girls' => 'female',
             default => null,
         };
+    }
+
+    protected function normalizeRoomRestriction(?string $restriction): string
+    {
+        $normalized = strtolower(trim((string) $restriction));
+
+        if ($normalized === '' || $normalized === 'mixed') {
+            return 'mixed';
+        }
+
+        return $this->normalizeGender($normalized) ?? 'mixed';
     }
 }

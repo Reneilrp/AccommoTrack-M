@@ -111,8 +111,33 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     const occupancyLabel = hasOccupancyData && roomCapacity > 1
       ? `${occupiedCount}/${roomCapacity} Pax`
       : `${roomCapacity} Pax`;
+    const amenityLabels = (Array.isArray(room?.amenities) ? room.amenities : [])
+      .map((amenity) => {
+        if (typeof amenity === 'string') return amenity.trim();
+        return String(amenity?.name || amenity?.title || '').trim();
+      })
+      .filter(Boolean);
+    const longTermPromos = (Array.isArray(room?.long_term_promos) ? room.long_term_promos : [])
+      .map((promo) => {
+        const months = Number(promo?.months);
+        if (!Number.isFinite(months) || months <= 0) return null;
 
-    return {
+        const discountType = String(promo?.discount_type || 'percent').toLowerCase() === 'fixed'
+          ? 'fixed'
+          : 'percent';
+        const discountValue = Number(promo?.discount_value || 0);
+        if (!Number.isFinite(discountValue) || discountValue <= 0) return null;
+
+        return {
+          months,
+          discountType,
+          discountValue,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.months - b.months);
+
+    const normalizedRoom = {
       ...room,
       billingPolicy,
       genderRestriction,
@@ -123,8 +148,12 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       displayName: displayName,
       roomTypeLabel: roomType,
       occupancyLabel,
+      amenityLabels,
+      longTermPromos,
       imageSource: room?.image || room?.images?.[0] || null,
+      is_available: room.is_available, // Pass through for filtering
     };
+    return normalizedRoom;
   };
 
   const getGenderBadge = (restriction) => {
@@ -159,6 +188,14 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     const amount = Number(value);
     if (!Number.isFinite(amount) || amount <= 0) return 'N/A';
     return `₱${amount.toLocaleString()}`;
+  };
+
+  const formatPromoLabel = (promo) => {
+    const discountLabel = promo.discountType === 'fixed'
+      ? `PHP ${Math.round(promo.discountValue).toLocaleString()} off`
+      : `${promo.discountValue}% off`;
+
+    return `${promo.months}M ${discountLabel}`;
   };
 
   const checkArrows = () => {
@@ -202,10 +239,24 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       {/* Carousel */}
       <div
         ref={carouselRef}
-        className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-2"
+        className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide px-2"
       >
         {(Array.isArray(property?.rooms) ? property.rooms : [])
           .map(normalizeRoom)
+          .filter((room) => {
+            const rawStatus = (room.display_status || room.status || 'available').toLowerCase();
+            const effectiveStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawStatus === 'available') ? 'reserved' : rawStatus;
+
+            const parsedCapacity = Number(room.raw_capacity ?? room.capacity);
+            const parsedAvailableSlots = Number(room.available_slots ?? room.availableSlots);
+            const parsedOccupied = Number(room.occupied_count ?? room.occupied);
+            const isFullyOccupied = Number.isFinite(parsedCapacity) && parsedCapacity > 0 && (
+              (Number.isFinite(parsedAvailableSlots) && parsedAvailableSlots <= 0)
+              || (Number.isFinite(parsedOccupied) && parsedOccupied >= parsedCapacity)
+              || (room.status === 'occupied' && room.is_available === false) // Explicitly occupied and not available
+            );
+            return effectiveStatus !== 'occupied' && !isFullyOccupied && room.status !== 'maintenance'; // Also exclude maintenance rooms
+          })
           .sort((a, b) => {
             const aStatus = (a.display_status || a.status || 'available').toString().toLowerCase();
             const bStatus = (b.display_status || b.status || 'available').toString().toLowerCase();
@@ -227,30 +278,45 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             const displayStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawDisplayStatus === 'available')
               ? 'reserved'
               : rawDisplayStatus;
-            const isOccupied = displayStatus === 'occupied';
-            const hasAlternatePrice =
-              Number.isFinite(Number(room.alternatePrice)) && Number(room.alternatePrice) > 0;
+            const parsedCapacity = Number(room.raw_capacity ?? room.capacity);
+            const parsedAvailableSlots = Number(room.available_slots ?? room.availableSlots);
+            const parsedOccupied = Number(room.occupied_count ?? room.occupied);
+            const isFullyOccupied = Number.isFinite(parsedCapacity) && parsedCapacity > 0 && (
+              (Number.isFinite(parsedAvailableSlots) && parsedAvailableSlots <= 0)
+              || (Number.isFinite(parsedOccupied) && parsedOccupied >= parsedCapacity)
+            );
+            const effectiveDisplayStatus = displayStatus === 'occupied' && !isFullyOccupied
+              ? 'available'
+              : displayStatus;
+            const isOccupied = effectiveDisplayStatus === 'occupied';
+            const hasAdjustedDisplayStatus = effectiveDisplayStatus !== displayStatus;
             const statusBadgeText = room.reserved_by_me
               ? 'Reserved by you (Pending)'
-              : (room.display_status_label || displayStatus || '').toString().charAt(0).toUpperCase() +
-                (room.display_status_label || displayStatus || '').toString().slice(1);
+              : (hasAdjustedDisplayStatus
+                ? effectiveDisplayStatus
+                : (room.display_status_label || effectiveDisplayStatus || '')
+              ).toString().charAt(0).toUpperCase() +
+                (hasAdjustedDisplayStatus
+                  ? effectiveDisplayStatus
+                  : (room.display_status_label || effectiveDisplayStatus || '')
+                ).toString().slice(1);
             const statusBadgeClassName = room.reserved_by_me
               ? 'bg-amber-50 text-amber-800 border border-amber-100'
-              : displayStatus === 'occupied'
+              : effectiveDisplayStatus === 'occupied'
                 ? 'bg-red-50 text-red-700 border border-red-100'
-                : displayStatus === 'reserved'
+                : effectiveDisplayStatus === 'reserved'
                   ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                  : displayStatus === 'maintenance'
+                  : effectiveDisplayStatus === 'maintenance'
                     ? 'bg-yellow-50 text-yellow-700 border border-yellow-100'
                     : 'bg-green-50 text-green-700 border border-green-100';
 
             return (
           <div
             key={room.id}
-            className={`flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isOccupied ? 'opacity-50' : ''}`}
+            className={`flex-none w-[210px] sm:w-[200px] md:w-[190px] lg:w-[calc((100%-2.25rem)/4.25)] xl:w-[calc((100%-3rem)/4.25)] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isOccupied ? 'opacity-50' : ''}`}
           >
             {/* Image Click -> Open Room Details */}
-            <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
+            <div className="relative h-32 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
               {getImageUrl(room.imageSource) ? (
                 <img
                   src={getImageUrl(room.imageSource)}
@@ -261,13 +327,13 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               ) : (
                 <ImagePlaceholder className="w-full h-full" />
               )}
-              <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
-                <span className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm max-w-[70%] ${statusBadgeClassName}`}>
+              <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">
+                <span className={`px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide shadow-sm max-w-[72%] ${statusBadgeClassName}`}>
                   {statusBadgeText}
                 </span>
                 {showGenderBadge && (
                   <span
-                    className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
+                    className={`px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
                   >
                     {genderBadge.label}
                   </span>
@@ -275,39 +341,75 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               </div>
             </div>
 
-            <div className="p-6 flex-1 flex flex-col">
-              <div className="flex justify-between items-start mb-2">
+            <div className="p-3 flex-1 flex flex-col">
+              <div className="flex items-center justify-between gap-1.5 mb-1">
                 <h4
-                  className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                  className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"
                   title={room.displayName}
                   onClick={() => onOpenDetails(room, property)}
                 >
                   {room.displayName}
                 </h4>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="inline-flex items-center px-2.5 py-2 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                  {room.roomTypeLabel}
-                </span>
-                <span className="inline-flex items-center px-2.5 py-2 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-700 border border-gray-200 whitespace-nowrap shrink-0">
                   {room.occupancyLabel}
                 </span>
               </div>
 
-              <div className="flex items-end justify-between mt-auto pt-4">
-                <div className="flex flex-col">
-                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">{room.primaryLabel}</span>
-                  <span className="text-lg font-extrabold text-green-600">{formatCurrency(room.primaryPrice)}</span>
-                  {hasAlternatePrice && (
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                      {room.alternateLabel}: {formatCurrency(room.alternatePrice)}
+              <div className="flex flex-wrap gap-1 mb-2">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                  {room.roomTypeLabel}
+                </span>
+              </div>
+
+              {room.longTermPromos.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {room.longTermPromos.slice(0, 2).map((promo) => (
+                    <span
+                      key={`${room.id}-promo-${promo.months}`}
+                      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+                    >
+                      {formatPromoLabel(promo)}
+                    </span>
+                  ))}
+                  {room.longTermPromos.length > 2 && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                      +{room.longTermPromos.length - 2} more
                     </span>
                   )}
                 </div>
+              )}
+
+              {room.amenityLabels.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {room.amenityLabels.slice(0, 3).map((label, idx) => (
+                    <span
+                      key={`${label}-${idx}`}
+                      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100"
+                      title={label}
+                    >
+                      {label}
+                    </span>
+                  ))}
+                  {room.amenityLabels.length > 3 && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                      +{room.amenityLabels.length - 3} more
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between mt-auto pt-2">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-extrabold text-green-600 leading-none">
+                    {formatCurrency(room.primaryPrice)}
+                  </span>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold leading-none">
+                    / {room.billingPolicy === 'daily' ? 'D' : 'M'}
+                  </span>
+                </div>
                 <button
                   onClick={() => onOpenDetails(room, property)}
-                  className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm whitespace-nowrap shrink-0"
+                  className="px-2.5 py-1 rounded-md bg-gray-900 text-white text-[11px] font-semibold hover:bg-green-600 transition-colors shadow-sm whitespace-nowrap shrink-0"
                 >
                   View Details
                 </button>

@@ -1,8 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
-export default function Button({ children, onPress, style, disabled, loading, type = 'primary' }) {
+export default function Button({ children, onPress, style, disabled, loading, type = 'primary', ...touchableProps }) {
   const { theme } = useTheme();
   const bg = type === 'primary' ? theme.colors.primary : 'transparent';
   const color = type === 'primary' ? theme.colors.textInverse : theme.colors.primary;
@@ -14,6 +14,7 @@ export default function Button({ children, onPress, style, disabled, loading, ty
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
+      {...touchableProps}
       style={[
         {
           backgroundColor: bg,

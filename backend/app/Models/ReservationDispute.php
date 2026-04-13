@@ -16,6 +16,13 @@ class ReservationDispute extends Model
         'reason',
         'status',
         'admin_notes',
+        'resolution',
+        'resolved_by',
+        'resolved_at',
+    ];
+
+    protected $casts = [
+        'resolved_at' => 'datetime',
     ];
 
     public function booking()
@@ -31,5 +38,10 @@ class ReservationDispute extends Model
     public function landlord()
     {
         return $this->belongsTo(User::class, 'landlord_id');
+    }
+
+    public function resolvedBy()
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
     }
 }

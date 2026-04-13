@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -68,7 +70,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use HasApiTokens, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'role',
@@ -92,6 +94,8 @@ class User extends Authenticatable
         'paymongo_verification_status',
         'email_otp_code',
         'email_otp_expires_at',
+        'strikes',
+        'suspended_until',
     ];
 
     protected $hidden = [
@@ -102,12 +106,18 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'is_verified' => 'boolean',
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'is_blocked' => 'boolean',
         'is_active' => 'boolean',
+        'push_notifications_enabled' => 'boolean',
+        'email_notifications_enabled' => 'boolean',
+        'last_active_at' => 'datetime',
+        'suspended_until' => 'datetime',
+        'strikes' => 'integer',
         'payment_methods_settings' => 'array',
         'notification_preferences' => 'array',
         'preferences' => 'array',
-        'is_blocked' => 'boolean',
         'date_of_birth' => 'date',
     ];
 
@@ -115,6 +125,37 @@ class User extends Authenticatable
         'caretaker_permissions',
         'name',
     ];
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted()
+    {
+        static::deleting(function ($user) {
+            // Check if this is a soft delete (not a force delete)
+            if (method_exists($user, 'isForceDeleting') && ! $user->isForceDeleting()) {
+                // To avoid conflict with UNIQUE email constraint while allowing re-registration,
+                // we append a timestamp suffix to the email of the deleted record.
+                // We only do this if it hasn't been renamed yet (avoiding multiple suffixes).
+                if (! str_contains($user->email, '.deleted.')) {
+                    $originalEmail = $user->email;
+                    $user->email = $originalEmail . '.deleted.' . time();
+                    // We must save manually here because runSoftDelete only updates deleted_at
+                    $user->save();
+                }
+            }
+        });
+
+        static::restoring(function ($user) {
+            if (str_contains($user->email, '.deleted.')) {
+                $restoredEmail = explode('.deleted.', $user->email)[0];
+                // Only restore original email if it's not taken by another ACTIVE user
+                if (! static::where('email', $restoredEmail)->exists()) {
+                    $user->email = $restoredEmail;
+                }
+            }
+        });
+    }
 
     /**
      * Tenant Profile relationship (for tenants only)
@@ -157,6 +198,40 @@ class User extends Authenticatable
     public function properties()
     {
         return $this->hasMany(Property::class, 'landlord_id');
+    }
+
+    /**
+     * Subscription records for landlord accounts.
+     */
+    public function landlordSubscriptions()
+    {
+        return $this->hasMany(LandlordSubscription::class, 'landlord_id');
+    }
+
+    /**
+     * Active/effective subscription record for landlord accounts.
+     */
+    public function activeLandlordSubscription()
+    {
+        return $this->hasOne(LandlordSubscription::class, 'landlord_id')
+            ->whereIn('status', [
+                LandlordSubscription::STATUS_ACTIVE,
+                LandlordSubscription::STATUS_GRACE,
+                LandlordSubscription::STATUS_RESTRICTED,
+            ])
+            ->where('starts_at', '<=', now())
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>=', now());
+            })
+            ->latestOfMany('starts_at');
+    }
+
+    /**
+     * Admin grant records for landlord subscriptions.
+     */
+    public function subscriptionGrants()
+    {
+        return $this->hasMany(SubscriptionGrant::class, 'landlord_id');
     }
 
     /**
@@ -292,6 +367,27 @@ class User extends Authenticatable
     }
 
     /**
+     * Get profile image URL — automatically resolves to CDN/storage URL.
+     * Handles both old full-URL values and new relative path values.
+     */
+    public function getProfileImageAttribute(?string $value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+
+        // Already a full URL (e.g. old records or already-transformed values)
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
+
+        // Strip any stale leading /storage/ or storage/ prefix from old DB values
+        $clean = ltrim(preg_replace('#^/?storage/#', '', $value), '/');
+
+        return Storage::url($clean);
+    }
+
+    /**
      * Custom notifications relationship to override the default Laravel one.
      */
     public function notifications()
@@ -316,6 +412,9 @@ class User extends Authenticatable
                 'tenants' => true,
                 'rooms' => true,
                 'properties' => true,
+                'maintenance' => true,
+                'payments' => true,
+                'analytics' => true,
             ];
         }
 
@@ -332,6 +431,9 @@ class User extends Authenticatable
             'tenants' => (bool) optional($assignment)->can_view_tenants,
             'rooms' => (bool) optional($assignment)->can_view_rooms,
             'properties' => (bool) optional($assignment)->can_view_properties,
+            'maintenance' => (bool) optional($assignment)->can_manage_maintenance,
+            'payments' => (bool) optional($assignment)->can_manage_payments,
+            'analytics' => (bool) optional($assignment)->can_view_analytics,
         ];
     }
 }

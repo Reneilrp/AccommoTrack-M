@@ -33,7 +33,6 @@ export const getStyles = (theme) => StyleSheet.create({
   filterScroll: {
     paddingVertical: 16,
     paddingHorizontal: 16,
-    maxHeight: 64,
   },
   filterButton: {
     paddingVertical: 8,

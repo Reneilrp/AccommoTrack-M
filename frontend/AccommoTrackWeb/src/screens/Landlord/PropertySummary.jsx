@@ -4,7 +4,7 @@ import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
 import { 
   Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star,
-  AlertCircle, Clock, Home, PackagePlus, CreditCard, BookOpen, ArrowLeftRight, ChevronRight
+  AlertCircle, Clock, Home, PackagePlus, CreditCard, BookOpen, ArrowLeftRight, ChevronRight, Check, X
 } from 'lucide-react';
 import RoomDetails from '../../components/Rooms/RoomDetails';
 import PropertyActivityLogs from './PropertyActivityLogs';
@@ -250,15 +250,22 @@ function PropertyDashboard({ propertyId, navigate }) {
     }
   };
 
-  const handleAddonRequestAction = async (requestId, bookingId, addonId, action, note = null) => {
+  const handleAddonRequestAction = async (requestId, bookingId, addonId, action, note = null, approvedPrice = null) => {
     const key = `addon_${requestId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
     const toastId = toast.loading(action === 'approve' ? 'Approving add-on...' : 'Rejecting add-on...');
     try {
-      await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, {
+      const payload = {
         action,
         note: typeof note === 'string' && note.trim() ? note.trim() : null,
-      });
+      };
+
+      const normalizedApprovedPrice = normalizeAmount(approvedPrice);
+      if (action === 'approve' && normalizedApprovedPrice !== null && normalizedApprovedPrice > 0) {
+        payload.approved_price = normalizedApprovedPrice;
+      }
+
+      await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, payload);
       setDashData(p => ({
         ...p,
         pendingAddonRequests: p.pendingAddonRequests.filter(r => r.requestId !== requestId),
@@ -447,38 +454,54 @@ function PropertyDashboard({ propertyId, navigate }) {
 
   const renderActionButtons = (item) => {
     if (item.type === 'booking') {
+      const confirming = !!actionLoading[`booking_${item.id}_confirm`];
+      const declining = !!actionLoading[`booking_${item.id}_decline`];
       return (
-        <div className="inline-flex items-center gap-1.5">
+        <div className="inline-flex items-center gap-1">
           <button
             onClick={() => handleBookingAction(item.id, 'confirm')}
-            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+            title="Confirm booking"
+            aria-label="Confirm booking"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
+            disabled={confirming || declining}
           >
-            {actionLoading[`booking_${item.id}_confirm`] ? '...' : 'Confirm'}
+            {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => handleBookingAction(item.id, 'decline')}
-            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+            title="Decline booking"
+            aria-label="Decline booking"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-60"
+            disabled={confirming || declining}
           >
-            {actionLoading[`booking_${item.id}_decline`] ? '...' : 'Decline'}
+            {declining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
           </button>
         </div>
       );
     }
 
     if (item.type === 'transfer') {
+      const approvingTransfer = !!actionLoading[`transfer_${item.id}_approve`];
+      const rejectingTransfer = !!actionLoading[`transfer_${item.id}_reject`];
       return (
-        <div className="inline-flex items-center gap-1.5">
+        <div className="inline-flex items-center gap-1">
           <button
             onClick={() => handleTransferAction(item.id, 'approve')}
-            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+            title="Approve transfer request"
+            aria-label="Approve transfer request"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
+            disabled={approvingTransfer || rejectingTransfer}
           >
-            {actionLoading[`transfer_${item.id}_approve`] ? '...' : 'Approve'}
+            {approvingTransfer ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => handleTransferAction(item.id, 'reject')}
-            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+            title="Reject transfer request"
+            aria-label="Reject transfer request"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-60"
+            disabled={approvingTransfer || rejectingTransfer}
           >
-            {actionLoading[`transfer_${item.id}_reject`] ? '...' : 'Reject'}
+            {rejectingTransfer ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
           </button>
         </div>
       );
@@ -486,25 +509,36 @@ function PropertyDashboard({ propertyId, navigate }) {
 
     if (item.type === 'addon') {
       const savedActionNote = addonActionNotes[item.id] || '';
+      const approving = !!actionLoading[`addon_${item.id}_approve`];
+      const rejecting = !!actionLoading[`addon_${item.id}_reject`];
       return (
-        <div className="inline-flex items-center gap-1.5">
+        <div className="inline-flex items-center gap-1">
           <button
-            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve', savedActionNote)}
-            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve', savedActionNote, item.amount)}
+            title="Approve add-on request"
+            aria-label="Approve add-on request"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
+            disabled={approving || rejecting}
           >
-            {actionLoading[`addon_${item.id}_approve`] ? '...' : 'Approve'}
+            {approving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => openAddonActionModal('edit', item)}
-            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors"
+            title="Edit add-on action details"
+            aria-label="Edit add-on action details"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors disabled:opacity-60"
+            disabled={approving || rejecting}
           >
-            Edit
+            <Edit className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => openAddonActionModal('reject', item)}
-            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+            title="Reject add-on request"
+            aria-label="Reject add-on request"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-60"
+            disabled={approving || rejecting}
           >
-            {actionLoading[`addon_${item.id}_reject`] ? '...' : 'Reject'}
+            {rejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
           </button>
         </div>
       );
@@ -654,16 +688,21 @@ function PropertyDashboard({ propertyId, navigate }) {
                       className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
                     >
                       <td className="px-5 py-3.5">
-                        <TypeBadge type={item.type} />
+                        <div className="inline-flex items-center gap-2 min-w-0">
+                          <TypeBadge type={item.type} />
+                          {item.type === 'addon' && item.note ? (
+                            <span
+                              className="text-xs font-semibold text-teal-700 dark:text-teal-300 truncate max-w-[14rem]"
+                              title={item.note}
+                            >
+                              {item.note}
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-5 py-3.5 font-medium text-gray-800 dark:text-gray-200">{item.tenant}</td>
                       <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">
-                        <div className="space-y-1">
-                          <p>{item.room}</p>
-                          {item.type === 'addon' && item.requestNote ? (
-                            <p className="text-xs text-gray-400 dark:text-gray-500" title={item.requestNote}>Note: {item.requestNote}</p>
-                          ) : null}
-                        </div>
+                        <p>{item.room}</p>
                       </td>
                       <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 tabular-nums">
                         {formatDisplayDate(item.date)}
@@ -698,13 +737,15 @@ function PropertyDashboard({ propertyId, navigate }) {
                 <div key={item.key} className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1 min-w-0">
-                      <TypeBadge type={item.type} />
+                      <div className="flex items-center gap-2 min-w-0">
+                        <TypeBadge type={item.type} />
+                        {item.type === 'addon' && item.note ? (
+                          <p className="text-xs font-semibold text-teal-700 dark:text-teal-300 truncate" title={item.note}>{item.note}</p>
+                        ) : null}
+                      </div>
                       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{item.tenant}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.room}</p>
-                      {item.note && <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{item.note}</p>}
-                      {item.type === 'addon' && item.requestNote ? (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 truncate" title={item.requestNote}>Note: {item.requestNote}</p>
-                      ) : null}
+                      {item.note && item.type !== 'addon' ? <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{item.note}</p> : null}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs text-gray-500 dark:text-gray-400">{formatDisplayDate(item.date)}</p>
@@ -1000,7 +1041,7 @@ export default function PropertySummary() {
               <button
                 onClick={() => navigate(`/reviews?property_id=${id}`)}
                 className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Guest Reviews"
+                title="Reviews"
               >
                 <Star className="w-5 h-5" />
               </button>

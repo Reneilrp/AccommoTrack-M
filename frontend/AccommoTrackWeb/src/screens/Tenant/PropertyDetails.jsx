@@ -32,6 +32,8 @@ import {
   VenetianMask,
   Landmark,
   UserCircle,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import api, { getImageUrl } from "../../utils/api";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
@@ -48,7 +50,7 @@ import "leaflet/dist/leaflet.css";
 import RoomDetailsModal from "../../components/Modals/RoomDetailsModal";
 import bookingService from "../../services/bookingService";
 import NotFoundPage from "../NotFoundPage";
-import ReportPropertyModal from "../../components/Tenant/ReportPropertyModal";
+
 
 // --- CUSTOM HOUSE ICON ---
 const houseSvg = encodeURIComponent(`
@@ -82,8 +84,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
   const [galleryItems, setGalleryItems] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
-  // Report Modal State
-  const [showReportModal, setShowReportModal] = useState(false);
+  // Hero image carousel index
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
+
+
 
   const parseMoney = (value, fallback = 0) => {
     if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
@@ -110,6 +114,42 @@ export default function PropertyDetails({ propertyId, onBack }) {
       amount,
       suffix,
     };
+  };
+
+  const getRoomPromoTerms = (room) => {
+    const promos = Array.isArray(room?.long_term_promos)
+      ? room.long_term_promos
+      : [];
+
+    return promos
+      .map((promo) => {
+        const months = Number(promo?.months);
+        if (!Number.isFinite(months) || months <= 0) return null;
+
+        const discountType =
+          String(promo?.discount_type || "percent").toLowerCase() === "fixed"
+            ? "fixed"
+            : "percent";
+        const discountValue = Number(promo?.discount_value || 0);
+        if (!Number.isFinite(discountValue) || discountValue <= 0) return null;
+
+        return {
+          months,
+          discountType,
+          discountValue,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.months - b.months);
+  };
+
+  const formatPromoTermLabel = (promo) => {
+    const valueLabel =
+      promo.discountType === "fixed"
+        ? `PHP ${Math.round(promo.discountValue).toLocaleString()} off`
+        : `${promo.discountValue}% off`;
+
+    return `${promo.months}M ${valueLabel}`;
   };
 
   const getGenderBadge = (restriction) => {
@@ -239,6 +279,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
       fetchProperty();
       fetchReviews(propertyId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId]);
 
   // If navigation included state or query params to open booking, handle it after property loads
@@ -276,12 +317,40 @@ export default function PropertyDetails({ propertyId, onBack }) {
     try {
       setLoading(true);
 
-      // --- FIX: USE PUBLIC ROUTE ---
-      // Changed from '/landlord/properties/...' to '/public/properties/...'
-      // This allows guests to view data without being redirected to login.
-      const res = await api.get(`/public/properties/${propertyId}`);
+      // Authenticated tenants should use protected tenant endpoint so room
+      // resources include auth-aware compatibility flags (e.g., gender).
+      const endpointCandidates = isAuthenticated
+        ? [`/properties/${propertyId}`, `/public/properties/${propertyId}`]
+        : [`/public/properties/${propertyId}`];
 
-      const data = res.data;
+      let data = null;
+      let lastError = null;
+
+      for (let i = 0; i < endpointCandidates.length; i += 1) {
+        const endpoint = endpointCandidates[i];
+        try {
+          const res = await api.get(endpoint);
+          data = res.data;
+          break;
+        } catch (error) {
+          lastError = error;
+          const status = error?.response?.status;
+          const isLastAttempt = i === endpointCandidates.length - 1;
+
+          if (isLastAttempt) {
+            throw error;
+          }
+
+          // Fallback from protected endpoint to public endpoint only for auth errors.
+          if (status !== 401 && status !== 403) {
+            throw error;
+          }
+        }
+      }
+
+      if (!data && lastError) {
+        throw lastError;
+      }
 
       const images = (data.images || [])
         .map((img) => {
@@ -422,9 +491,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   && Number(room.available_slots ?? 1) > 0
                   && !room.is_booking_locked
                 );
+              const promoTerms = getRoomPromoTerms(room);
               return (
               <div
-                key={room.id}
+                key={room.id || `room-${room.room_number}`}
                 className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-shadow flex flex-col"
               >
                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
@@ -438,7 +508,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   ) : (
                     <ImagePlaceholder className="w-full h-full" />
                   )}
-                  <div className="absolute top-3 right-3 flex flex-col gap-2.5 items-end">
+                  <div className="absolute top-3 left-3 flex">
                     {room.reserved_by_me ? (
                       <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
                         Reserved by you (Pending)
@@ -457,6 +527,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
                           (room.display_status_label || displayStatus || "").toString().slice(1)}
                       </span>
                     )}
+                  </div>
+                  <div className="absolute top-3 right-3 flex">
                     {showGenderBadge && (
                       <span
                         className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
@@ -467,48 +539,86 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   </div>
                 </div>
                 <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                        Room {room.room_number}
-                      </h4>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/30 capitalize">
-                          {(
-                            room.type_label ||
-                            room.room_type ||
-                            "Standard Room"
-                          ).replace(/_/g, " ")}
-                        </span>
-                        {room.floor && (
-                          <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm">
-                            Flr {room.floor}
-                          </span>
-                        )}
-                        <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
-                          {(room.billing_policy || "Monthly")
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}{" "}
-                          Billing
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 flex-1 mr-2">
+                      Room {room.room_number}
+                    </h4>
+                    <div className="text-right flex items-baseline justify-end gap-1 shrink-0">
                       {(() => {
                         const pricing = getRoomPriceDisplay(room);
                         return (
                           <>
-                      <span className="block text-xl font-bold text-green-600">
+                      <span className="text-xl font-bold text-green-600 leading-none">
                         ₱{pricing.amount.toLocaleString()}
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {pricing.suffix}
+                      <span className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-none">
+                        / {pricing.suffix === '/day' ? 'D' : 'M'}
                       </span>
                           </>
                         );
                       })()}
                     </div>
                   </div>
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/30 capitalize">
+                      {(room.type_label || room.room_type || "Standard Room").replace(/_/g, " ")}
+                    </span>
+                    {room.floor && (
+                      <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm">
+                        Flr {room.floor}
+                      </span>
+                    )}
+                    <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
+                      {(room.billing_policy || "Monthly").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} Billing
+                    </span>
+                  </div>
+
+                  {promoTerms.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {promoTerms.slice(0, 2).map((promo) => (
+                        <span
+                          key={`${room.id}-promo-${promo.months}`}
+                          className="inline-flex px-2 py-1 rounded-md text-[10px] font-semibold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50"
+                        >
+                          {formatPromoTermLabel(promo)}
+                        </span>
+                      ))}
+                      {promoTerms.length > 2 && (
+                        <span className="inline-flex px-2 py-1 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                          +{promoTerms.length - 2} more terms
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {(() => {
+                    const roomAmenities = (Array.isArray(room.amenities) ? room.amenities : [])
+                      .map((amenity) => (typeof amenity === 'string' ? amenity.trim() : String(amenity?.name || amenity?.title || '').trim()))
+                      .filter(Boolean);
+
+                    if (roomAmenities.length > 0) {
+                      return (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {roomAmenities.slice(0, 3).map((label, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/30"
+                              title={label}
+                            >
+                              {label}
+                            </span>
+                          ))}
+                          {roomAmenities.length > 3 && (
+                            <span className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                              +{roomAmenities.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
                   <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
                     {room.description || "No description available."}
@@ -519,7 +629,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
                       <Users className="w-4 h-4" />
                       <span>{room.capacity} Pax</span>
                     </div>
-                    {/* Add more details if available */}
                   </div>
 
                   <div className="mt-auto">
@@ -814,7 +923,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
     <div className="animate-in fade-in duration-300">
       <div className="flex items-center gap-2 mb-6">
         <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-          Guest Reviews
+          Reviews
         </h3>
         {reviews.summary?.average_rating && (
           <span className="px-2 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs font-bold rounded-full flex items-center gap-2">
@@ -900,20 +1009,66 @@ export default function PropertyDetails({ propertyId, onBack }) {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Toaster />
       {/* HEADER */}
-      <div
-        className="relative w-full h-[350px] md:h-[450px] group cursor-pointer"
-        onClick={() => openFullGallery(0)}
-      >
-        {getImageUrl(property.images?.[0]) ? (
-          <img
-            src={getImageUrl(property.images?.[0])}
-            alt={property.title}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
+      <div className="relative w-full h-[350px] md:h-[450px]">
+        {/* Multi-image hero carousel */}
+        {(property.images || []).length > 1 ? (
+          <>
+            <img
+              key={heroImageIndex}
+              src={getImageUrl(property.images[heroImageIndex]) || ''}
+              alt={property.title}
+              className="w-full h-full object-cover transition-opacity duration-500"
+              onClick={() => openFullGallery(heroImageIndex)}
+              style={{ cursor: 'pointer' }}
+            />
+            {/* Prev / Next arrows */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setHeroImageIndex(i => (i - 1 + property.images.length) % property.images.length); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all"
+              aria-label="Previous photo"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setHeroImageIndex(i => (i + 1) % property.images.length); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all"
+              aria-label="Next photo"
+            >
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            {/* Dot indicator */}
+            <div className="absolute bottom-28 md:bottom-24 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+              {property.images.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); setHeroImageIndex(i); }}
+                  className={`rounded-full transition-all ${
+                    i === heroImageIndex
+                      ? 'w-5 h-2 bg-white'
+                      : 'w-2 h-2 bg-white/50 hover:bg-white/80'
+                  }`}
+                  aria-label={`Photo ${i + 1}`}
+                />
+              ))}
+            </div>
+            {/* Photo counter */}
+            <span className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/50 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full">
+              {heroImageIndex + 1} / {property.images.length}
+            </span>
+          </>
         ) : (
-          <ImagePlaceholder className="w-full h-full" />
+          getImageUrl(property.images?.[0]) ? (
+            <img
+              src={getImageUrl(property.images?.[0])}
+              alt={property.title}
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => openFullGallery(0)}
+            />
+          ) : (
+            <ImagePlaceholder className="w-full h-full" />
+          )
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
         <div className="absolute inset-0 flex flex-col justify-between px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full">
           <div className="mt-4 flex justify-between items-start">
@@ -929,34 +1084,42 @@ export default function PropertyDetails({ propertyId, onBack }) {
             </button>
 
             {/* Contact Landlord Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleContactLandlord();
-              }}
-              className="bg-white text-gray-900 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-gray-100 transition-colors"
-            >
-              <MessageCircle className="w-5 h-5 text-green-600" />
-              <span className="hidden sm:inline">Contact Landlord</span>
-            </button>
-
-            {/* Report Listing Button (authenticated tenants only) */}
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <button
-                onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
-                className="bg-red-500/80 hover:bg-red-600 text-white px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-colors backdrop-blur-sm"
-                title="Report Listing"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleContactLandlord();
+                }}
+                className="bg-white text-gray-900 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-gray-100 transition-colors"
               >
-                <Flag className="w-5 h-5" />
-                <span className="hidden sm:inline">Report</span>
+                <MessageCircle className="w-5 h-5 text-green-600" />
+                <span className="hidden sm:inline">Contact Landlord</span>
               </button>
+            ) : (
+              <a
+                href="/login"
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white/90 text-gray-800 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-white transition-colors border border-gray-200"
+                title="Login to message the landlord"
+              >
+                <Lock className="w-4 h-4 text-gray-500" />
+                <span className="hidden sm:inline text-sm">Login to Message</span>
+              </a>
             )}
+
+
           </div>
 
           <div className="text-white pb-6">
             <div className="flex flex-wrap items-center gap-4 mb-2">
               <span className="bg-green-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
-                {property.property_type || "Property"}
+                {(property.property_type || 'Property')
+                  .replace(/boardinghouse/i, 'Boarding House')
+                  .replace(/bedspacer/i, 'Bed Spacer')
+                  .replace(/([a-z])([A-Z])/g, '$1 $2')
+                  .split(/[-_\s]+/)
+                  .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                  .join(' ')}
               </span>
               {reviews.summary?.average_rating && (
                 <span className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-2 py-2 rounded-lg text-sm font-medium">
@@ -964,6 +1127,19 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   {reviews.summary.average_rating}
                 </span>
               )}
+              {/* Starting price badge */}
+              {property.rooms && property.rooms.length > 0 && (() => {
+                const rates = property.rooms
+                  .map(r => parseFloat(r.monthly_rate || r.rate || 0))
+                  .filter(r => r > 0);
+                if (!rates.length) return null;
+                const minRate = Math.min(...rates);
+                return (
+                  <span className="bg-white/20 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-bold border border-white/30">
+                    From ₱{minRate.toLocaleString()} / M
+                  </span>
+                );
+              })()}
             </div>
             <h1 className="text-3xl md:text-5xl font-extrabold mb-2 tracking-tight">
               {property.title}
@@ -1189,13 +1365,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
         </div>
       )}
 
-      {/* Report Property Modal */}
-      <ReportPropertyModal
-        isOpen={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        propertyId={property?.id}
-        propertyTitle={property?.title}
-      />
+
     </div>
   );
 }

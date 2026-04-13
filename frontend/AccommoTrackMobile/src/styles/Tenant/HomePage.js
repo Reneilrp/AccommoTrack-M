@@ -1,9 +1,9 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-const { width } = Dimensions.get('window');
-const sideWidth = Math.max(56, Math.round(width * 0.05));
+export const getStyles = (theme, viewportWidth = 390) => {
+  const sideWidth = Math.max(56, Math.round((viewportWidth || 390) * 0.05));
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -52,6 +52,7 @@ export const getStyles = (theme) => StyleSheet.create({
     top: 0,
     bottom: 0,
     width: '80%',
+    maxWidth: 360,
     backgroundColor: theme.colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
@@ -63,7 +64,7 @@ export const getStyles = (theme) => StyleSheet.create({
   menuHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     padding: 16,
     backgroundColor: theme.colors.backgroundSecondary,
     borderBottomWidth: 1,
@@ -74,6 +75,10 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     flex: 1,
+  },
+  menuUserTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   menuAvatar: {
     width: 60,
@@ -87,11 +92,24 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.text,
+    flexShrink: 1,
   },
   menuUserEmail: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.textSecondary,
     marginTop: 2,
+    flexShrink: 1,
+  },
+  menuHeaderClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   menuItems: {
     flex: 1,
@@ -338,11 +356,12 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
+    elevation: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+    zIndex: 40,
   },
 
   // UTILS
@@ -438,6 +457,7 @@ export const getStyles = (theme) => StyleSheet.create({
   navContainer: {
     backgroundColor: theme.colors.surface,
     position: 'relative',
+    zIndex: 10,
   },
   tabButtonContainer: {
     backgroundColor: theme.colors.surface,
@@ -451,7 +471,8 @@ export const getStyles = (theme) => StyleSheet.create({
     position: 'absolute', 
     left: 0, 
     right: 0, 
-    zIndex: 30, 
+    zIndex: 50, 
+    elevation: 15,
     alignItems: 'center',
     justifyContent: 'flex-end',
     height: 100,
@@ -477,6 +498,78 @@ export const getStyles = (theme) => StyleSheet.create({
   fullFlex: {
     flex: 1,
   },
+  drawerConfirmOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1100,
+  },
+  drawerConfirmBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  drawerConfirmCard: {
+    width: '82%',
+    borderRadius: 16,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOpacity: theme.isDark ? 0.35 : 0.18,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  drawerConfirmTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 6,
+  },
+  drawerConfirmMessage: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  drawerConfirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  drawerConfirmButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawerConfirmCancelButton: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  drawerConfirmLogoutButton: {
+    backgroundColor: theme.colors.error,
+  },
+  drawerConfirmCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  drawerConfirmLogoutText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 
   // MODAL STYLES
   centeredView: {
@@ -500,6 +593,7 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     width: '80%',
+    maxWidth: 520,
   },
   modalText: {
     marginBottom: 15,
@@ -521,6 +615,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center"
   },
-});
+  });
+};
 
 export default getStyles;

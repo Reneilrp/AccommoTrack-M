@@ -12,12 +12,14 @@ class RentPaidSuccess extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    private string $paymentMethod;
+
     /**
      * Create a new notification instance.
      */
-    public function __construct()
+    public function __construct(?string $paymentMethod = null)
     {
-        //
+        $this->paymentMethod = $this->normalizeMethod($paymentMethod);
     }
 
     /**
@@ -35,9 +37,11 @@ class RentPaidSuccess extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $methodLabel = $this->methodLabel();
+
         return (new MailMessage)
             ->subject('Rent Payment Successful')
-            ->line('Your rent payment was successful.')
+            ->line("Your rent payment was successful via {$methodLabel}.")
             ->line('Thank you for your payment!');
     }
 
@@ -48,12 +52,44 @@ class RentPaidSuccess extends Notification implements ShouldQueue
      */
     public function toArray(object $notifiable): array
     {
+        $methodLabel = $this->methodLabel();
+
         return [
             'type' => 'rent_paid',
             'title' => 'Rent Payment Successful',
-            'message' => 'Your rent payment was successful.',
+            'message' => "Your rent payment was successful via {$methodLabel}.",
             'url' => '/tenant/payments',
+            'payment_method' => $this->paymentMethod,
+            'payment_method_label' => $methodLabel,
         ];
+    }
+
+    private function normalizeMethod(?string $method): string
+    {
+        $normalized = strtolower(trim((string) $method));
+
+        if ($normalized === '') {
+            return 'paymongo';
+        }
+
+        return match ($normalized) {
+            'paymongo', 'paymongo_gcash', 'paymongo_card', 'paymongo_payment', 'gcash', 'cash', 'bank_transfer', 'paymaya' => $normalized,
+            default => 'paymongo',
+        };
+    }
+
+    private function methodLabel(): string
+    {
+        return match ($this->paymentMethod) {
+            'paymongo_gcash' => 'PayMongo (GCash)',
+            'paymongo_card' => 'PayMongo (Card)',
+            'paymongo_payment', 'paymongo' => 'PayMongo',
+            'gcash' => 'GCash',
+            'cash' => 'Cash',
+            'bank_transfer' => 'Bank Transfer',
+            'paymaya' => 'PayMaya',
+            default => ucfirst(str_replace('_', ' ', $this->paymentMethod)),
+        };
     }
 
     /**

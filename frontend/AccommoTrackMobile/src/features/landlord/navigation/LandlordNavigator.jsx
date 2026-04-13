@@ -5,6 +5,7 @@ import LandlordBottomNavigation from '../components/LandlordBottomNavigation.jsx
 
 // Import screens
 import LandlordDashboard from '../screens/Dashboard/DashboardPage.jsx';
+import CaretakerDashboard from '../screens/Dashboard/CaretakerDashboard.jsx';
 import RoomManagement from '../screens/Rooms/RoomManagement.jsx';
 import Tenants from '../screens/Tenants/TenantManagement.jsx';
 import ChatScreen from '../screens/Messages/ChatScreen.jsx';
@@ -32,8 +33,12 @@ import MaintenanceRequests from '../screens/Maintenance/MaintenanceRequests.jsx'
 import Reviews from '../screens/Reviews/Reviews.jsx';
 import Caretakers from '../screens/Settings/Account/Caretakers.jsx';
 import UpdatePassword from '../../tenant/screens/Profile/UpdatePassword.jsx';
+import EmailRecoverySecurity from '../screens/Settings/Account/EmailRecoverySecurity.jsx';
 import PropertyPaymentSettings from '../screens/Settings/PropertyPaymentSettings.jsx';
 import ManualPaymentSettings from '../screens/Settings/ManualPaymentSettings.jsx';
+import SubscriptionPlanScreen from '../screens/Settings/Billing/SubscriptionPlan.jsx';
+import BillingCenterScreen from '../screens/Settings/Billing/BillingCenter.jsx';
+import UpdateDetails from '../../../shared/screens/UpdateDetails.jsx';
 
 const Stack = createNativeStackNavigator();
 
@@ -51,35 +56,72 @@ export default function LandlordNavigator({ onLogout }) {
           setUser(parsedUser);
           setUserRole(parsedUser.role || 'landlord');
         }
-      } catch (e) {}
+      } catch (_error) {}
     };
     checkRole();
   }, []);
 
   const isCaretaker = userRole === 'caretaker';
-  const permissions = user?.caretaker_permissions || {};
+  const permissions = React.useMemo(() => user?.caretaker_permissions || {}, [user?.caretaker_permissions]);
+
+  const normalizePermissionValue = React.useCallback((value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+    return Boolean(value);
+  }, []);
+
+  const buildPermissionCandidates = React.useCallback((key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  }, []);
+
   const hasPermission = React.useCallback(
-    (key) => {
+    (key, aliases = []) => {
       if (!isCaretaker) return true;
-      return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
+      return buildPermissionCandidates(key, aliases).some((candidate) =>
+        normalizePermissionValue(permissions?.[candidate]),
+      );
     },
-    [isCaretaker, permissions]
+    [buildPermissionCandidates, isCaretaker, normalizePermissionValue, permissions]
   );
 
   const canAccessRooms = hasPermission('rooms');
+  const canAccessMaintenance = hasPermission('maintenance');
   const canAccessBookings = hasPermission('bookings');
   const canAccessTenants = hasPermission('tenants');
   const canAccessMessages = hasPermission('messages');
 
-  const canAccessPropertyManagement = !isCaretaker || hasPermission('properties');
+  const canAccessPropertyManagement = !isCaretaker || hasPermission('properties', ['property', 'property_management']);
   const canAccessMyProperties = canAccessPropertyManagement;
-  const canAccessAnalytics = !isCaretaker;
-  const canAccessPayments = !isCaretaker;
+  const canAccessAnalytics = !isCaretaker || hasPermission('analytics');
+  const canAccessPayments = !isCaretaker || hasPermission('payments');
   const canAccessReviews = !isCaretaker;
   const canAccessAddonManagement = !isCaretaker;
   const canAccessNotifications = !isCaretaker;
   const canAccessPropertyActivityLogs = !isCaretaker;
   const canAccessPropertyPaymentSettings = !isCaretaker;
+  const dashboardComponent = isCaretaker ? CaretakerDashboard : LandlordDashboard;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -92,7 +134,10 @@ export default function LandlordNavigator({ onLogout }) {
       {canAccessMyProperties && (
         <Stack.Screen name="MyProperties" component={MyProperties} options={{ animation: 'none' }}/>
       )}
-      <Stack.Screen name="DashboardPage" component={LandlordDashboard} options={{ animation: 'none' }}/>
+      <Stack.Screen name="DashboardPage" component={dashboardComponent} options={{ animation: 'none' }}/>
+      {isCaretaker && (
+        <Stack.Screen name="CaretakerDashboard" component={CaretakerDashboard} options={{ animation: 'none' }}/>
+      )}
       {canAccessTenants && (
         <Stack.Screen name="Tenants" component={Tenants} options={{ animation: 'none' }}/>
       )}
@@ -139,13 +184,16 @@ export default function LandlordNavigator({ onLogout }) {
       {canAccessTenants && (
         <Stack.Screen name="TransferRequests" component={TransferRequests} options={{ animation: 'none' }} />
       )}
-      {canAccessRooms && (
+      {canAccessMaintenance && (
         <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />
       )}
       {canAccessReviews && (
         <Stack.Screen name="Reviews" component={Reviews} options={{ animation: 'none' }} />
       )}
       <Stack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
+      {userRole === 'landlord' && (
+        <Stack.Screen name="EmailRecoverySecurity" component={EmailRecoverySecurity} options={{ animation: 'none' }} />
+      )}
       {canAccessPropertyPaymentSettings && (
         <Stack.Screen name="PropertyPaymentSettings" component={PropertyPaymentSettings} options={{ animation: 'none' }} />
       )}
@@ -153,11 +201,18 @@ export default function LandlordNavigator({ onLogout }) {
         <Stack.Screen name="ManualPaymentSettings" component={ManualPaymentSettings} options={{ animation: 'none' }} />
       )}
       {userRole === 'landlord' && (
+        <Stack.Screen name="SubscriptionPlan" component={SubscriptionPlanScreen} options={{ animation: 'none' }} />
+      )}
+      {userRole === 'landlord' && (
+        <Stack.Screen name="BillingCenter" component={BillingCenterScreen} options={{ animation: 'none' }} />
+      )}
+      {userRole === 'landlord' && (
         <Stack.Screen name="Caretakers" component={Caretakers} options={{ animation: 'none' }} />
       )}
       {canAccessMessages && (
         <Stack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none' }} />
       )}
+      <Stack.Screen name="UpdateDetails" component={UpdateDetails} options={{ animation: 'none' }} />
       <Stack.Screen name="Settings">
         {(props) => <Settings {...props} onLogout={onLogout} />}
       </Stack.Screen>

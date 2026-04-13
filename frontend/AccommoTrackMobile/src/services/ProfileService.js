@@ -42,6 +42,27 @@ const ProfileService = {
   },
 
   /**
+   * Get authenticated user payload from /me (includes canonical role)
+   */
+  async getCurrentUser() {
+    try {
+      const response = await api.get('/me');
+      return {
+        success: true,
+        data: response.data.user || response.data,
+        status: response.status,
+      };
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch current user',
+        status: error.response?.status || null,
+      };
+    }
+  },
+
+  /**
    * Update user profile
    * @param {Object} profileData - Profile data to update
    * @param {Object} image - Selected image from image picker (optional)
@@ -80,11 +101,7 @@ const ProfileService = {
         
         // Laravel requires POST for FormData with PUT method spoofing
         formData.append('_method', 'PUT');
-        response = await api.post(endpoint, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        response = await api.post(endpoint, formData);
       } else {
         // Regular JSON update without image
         response = await api.put(endpoint, profileData);
@@ -127,6 +144,41 @@ const ProfileService = {
   },
 
   /**
+   * Update tenant preferences and lifestyle using the same payload shape as web.
+   * @param {Object} preferenceData
+   */
+  async updateTenantPreferences(preferenceData) {
+    try {
+      const formData = new FormData();
+      formData.append('preference[room_preference]', preferenceData?.room_preference || '');
+      formData.append('preference[budget_range]', preferenceData?.budget_range || '');
+      formData.append('preference[attitude]', preferenceData?.attitude || '');
+      formData.append('preference[behavior]', preferenceData?.behavior || '');
+      formData.append('preference[lifestyle_notes]', preferenceData?.lifestyle_notes || '');
+      formData.append(
+        'preference[custom_preferences]',
+        JSON.stringify(Array.isArray(preferenceData?.custom_preferences) ? preferenceData.custom_preferences : []),
+      );
+      formData.append('_method', 'PUT');
+
+      const response = await api.post('/tenant/profile', formData);
+
+      return {
+        success: true,
+        data: response.data.user || response.data,
+        message: response.data.message || 'Preferences updated successfully',
+      };
+    } catch (error) {
+      console.error('Error updating tenant preferences:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to update preferences',
+        errors: error.response?.data?.errors || {},
+      };
+    }
+  },
+
+  /**
    * Change password
    * @param {Object} passwordData - { current_password, new_password, new_password_confirmation }
    */
@@ -151,6 +203,71 @@ const ProfileService = {
         success: false,
         error: error.response?.data?.message || 'Failed to change password',
         errors: error.response?.data?.errors || {}
+      };
+    }
+  },
+
+  /**
+   * Landlord only: send email recovery OTP from Settings > Security
+   */
+  async sendLandlordEmailRecoveryOtp() {
+    try {
+      const response = await api.post('/landlord/security/email-recovery/send-otp');
+      return {
+        success: true,
+        data: response.data.user || null,
+        emailRecovery: response.data.email_recovery || null,
+        message: response.data.message || 'Verification code sent to your email address.',
+      };
+    } catch (error) {
+      console.error('Error sending landlord email recovery OTP:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to send verification code',
+      };
+    }
+  },
+
+  /**
+   * Landlord only: verify email recovery OTP from Settings > Security
+   */
+  async verifyLandlordEmailRecoveryOtp(emailOtpCode) {
+    try {
+      const response = await api.post('/landlord/security/email-recovery/verify-otp', {
+        email_otp_code: emailOtpCode,
+      });
+      return {
+        success: true,
+        data: response.data.user || null,
+        emailRecovery: response.data.email_recovery || null,
+        message: response.data.message || 'Email recovery verified successfully.',
+      };
+    } catch (error) {
+      console.error('Error verifying landlord email recovery OTP:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to verify code',
+      };
+    }
+  },
+
+  /**
+   * Landlord only: disable email recovery from Settings > Security
+   */
+  async disableLandlordEmailRecovery() {
+    try {
+      const response = await api.post('/landlord/security/email-recovery/disable');
+      return {
+        success: true,
+        data: response.data.user || null,
+        emailRecovery: response.data.email_recovery || null,
+        message: response.data.message || 'Email recovery has been disabled.',
+      };
+    } catch (error) {
+      console.error('Error disabling landlord email recovery:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to disable email recovery',
       };
     }
   },
@@ -203,20 +320,18 @@ const ProfileService = {
    */
   async resubmitVerification(formData) {
     try {
-      const response = await api.post('/landlord/resubmit-verification', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/landlord/resubmit-verification', formData);
       return {
         success: true,
-        data: response.data
+        data: response.data,
+        status: response.status,
       };
     } catch (error) {
       console.error('Verification resubmission failed:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to resubmit verification'
+        error: error.response?.data?.message || 'Failed to resubmit verification',
+        status: error.response?.status || null,
       };
     }
   },
@@ -226,16 +341,13 @@ const ProfileService = {
    */
   async registerAsLandlord(formData) {
     try {
-      const response = await api.post('/tenant/register-landlord', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/tenant/register-landlord', formData);
 
       return {
         success: true,
         data: response.data,
         message: response.data.message || 'Landlord registration submitted successfully',
+        status: response.status,
       };
     } catch (error) {
       console.error('Tenant landlord registration failed:', error);
@@ -283,13 +395,15 @@ const ProfileService = {
       return {
         success: true,
         data: response.data.user || response.data,
-        message: response.data.message || 'Role switched successfully'
+        message: response.data.message || 'Role switched successfully',
+        status: response.status,
       };
     } catch (error) {
       console.error('Error switching role:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to switch role'
+        error: error.response?.data?.message || 'Failed to switch role',
+        status: error.response?.status || null,
       };
     }
   }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, Check, Calendar, Home, Users, CreditCard, AlertCircle } from 'lucide-react';
 import api from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,15 @@ const ACTIVITY_COLOR_MAP = {
   red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
 };
 
+const isNotificationRead = (item) => Boolean(item?.is_read || item?.read_at);
+
+const extractNotificationRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  return [];
+};
+
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -26,7 +35,7 @@ const NotificationDropdown = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -36,7 +45,7 @@ const NotificationDropdown = () => {
       const isTenant = role === 'tenant';
 
       const [notifRes, activitiesRes] = await Promise.allSettled([
-        api.get(`/notifications?role=${role}`),
+        api.get(`/notifications?role=${role}&per_page=200`),
         isLandlordOrCaretaker 
           ? api.get('/landlord/dashboard/recent-activities') 
           : (isTenant ? api.get('/tenant/dashboard/activities') : Promise.resolve({ data: [] })),
@@ -44,7 +53,7 @@ const NotificationDropdown = () => {
 
       // DB notifications
       const rawNotifs = notifRes.status === 'fulfilled'
-        ? (notifRes.value.data?.data || notifRes.value.data || [])
+        ? extractNotificationRows(notifRes.value.data)
         : [];
       const safeNotifs = (Array.isArray(rawNotifs) ? rawNotifs : []).map(n => ({
         ...n,
@@ -77,7 +86,7 @@ const NotificationDropdown = () => {
         .sort((a, b) => b._sortKey - a._sortKey);
 
       setNotifications(merged);
-      setUnreadCount(safeNotifs.filter(n => !n.read_at).length);
+      setUnreadCount(safeNotifs.filter(n => !isNotificationRead(n)).length);
 
       if (role === 'tenant') {
         window.dispatchEvent(new CustomEvent('accommo:tenant-data-refresh'));
@@ -87,13 +96,13 @@ const NotificationDropdown = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifications]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -129,7 +138,7 @@ const NotificationDropdown = () => {
   };
 
   const handleNotificationClick = (notification) => {
-    if (notification._kind === 'notification' && !notification.read_at) {
+    if (notification._kind === 'notification' && !isNotificationRead(notification)) {
       handleMarkAsRead(notification.id);
     }
     setIsOpen(false);
@@ -179,13 +188,13 @@ const NotificationDropdown = () => {
       <li
         key={key}
         role="menuitem"
-        className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!item.read_at ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
+        className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!isNotificationRead(item) ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
         onClick={() => handleNotificationClick(item)}
       >
         <div className="px-4 py-4 flex gap-4">
-          <div className={`mt-2 h-2 w-2 rounded-full flex-shrink-0 ${!item.read_at ? 'bg-brand-500' : 'bg-transparent'}`} />
+          <div className={`mt-2 h-2 w-2 rounded-full flex-shrink-0 ${!isNotificationRead(item) ? 'bg-brand-500' : 'bg-transparent'}`} />
           <div className="flex-1 min-w-0">
-            <p className={`text-sm ${!item.read_at ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+            <p className={`text-sm ${!isNotificationRead(item) ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
               {item.data?.title || 'Notification'}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">

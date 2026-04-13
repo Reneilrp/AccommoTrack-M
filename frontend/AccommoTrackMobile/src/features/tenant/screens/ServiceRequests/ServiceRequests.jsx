@@ -1,17 +1,30 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import Header from '../../components/Header.jsx';
 import MyMaintenanceRequests from '../Maintenance/MyRequests.jsx';
 import AddonsScreen from '../Addons/AddonsScreen.jsx';
+import MyReviews from '../Reviews/MyReviews.jsx';
+import TransferRequests from './TransferRequests.jsx';
+
+const TABS = ['Maintenance', 'Add-ons', 'Reviews', 'Transfers'];
+
+const normalizeTab = (value) => {
+  if (!value) return 'Maintenance';
+  return TABS.includes(value) ? value : 'Maintenance';
+};
 
 export default function ServiceRequests() {
   const { theme } = useTheme();
-  const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('Maintenance');
+  const route = useRoute();
+  const routeParams = route.params || {};
+  const [activeTab, setActiveTab] = useState(() => normalizeTab(routeParams.initialTab));
 
-  const tabs = ['Maintenance', 'Add-ons'];
+  useEffect(() => {
+    if (!routeParams.initialTab) return;
+    setActiveTab(normalizeTab(routeParams.initialTab));
+  }, [routeParams.initialTab]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -19,7 +32,7 @@ export default function ServiceRequests() {
 
       {/* Tab Switcher */}
       <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-        {tabs.map((tab) => {
+        {TABS.map((tab) => {
           const isActive = activeTab === tab;
           return (
             <TouchableOpacity
@@ -42,12 +55,18 @@ export default function ServiceRequests() {
         })}
       </View>
 
+      <View style={[styles.historyBanner, { backgroundColor: theme.colors.backgroundSecondary, borderBottomColor: theme.colors.border }]}> 
+        <Ionicons name="time-outline" size={16} color={theme.colors.primary} />
+        <Text style={[styles.historyBannerText, { color: theme.colors.textSecondary }]}> 
+          History only. Create new requests in MyBookings MyStay.
+        </Text>
+      </View>
+
       <View style={{ flex: 1 }}>
-        {activeTab === 'Maintenance' ? (
-          <MyMaintenanceRequests hideHeader={true} />
-        ) : (
-          <AddonsScreen hideHeader={true} />
-        )}
+        {activeTab === 'Maintenance' && <MyMaintenanceRequests hideHeader={true} historyOnly={true} />}
+        {activeTab === 'Add-ons' && <AddonsScreen hideHeader={true} historyOnly={true} />}
+        {activeTab === 'Reviews' && <MyReviews hideHeader={true} historyOnly={true} />}
+        {activeTab === 'Transfers' && <TransferRequests hideHeader={true} historyOnly={true} />}
       </View>
     </View>
   );
@@ -65,7 +84,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '500',
+  },
+  historyBanner: {
+    borderBottomWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  historyBannerText: {
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
+    lineHeight: 17,
   },
 });

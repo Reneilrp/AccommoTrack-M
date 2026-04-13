@@ -248,7 +248,6 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                     onClick={() => {
                       if (!hasNameErrors) {
                         handleSaveProfile();
-                        setIsEditingProfile(false);
                       }
                     }}
                     disabled={hasNameErrors}

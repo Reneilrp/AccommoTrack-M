@@ -1,9 +1,77 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { ArrowLeft, CreditCard, Wallet, Landmark, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import PriceRow from '../../components/Shared/PriceRow';
 import toast from 'react-hot-toast';
+import systemToggleService from '../../services/systemToggleService';
+
+const DEFAULT_TOGGLES = systemToggleService.getDefaults();
+
+const REFUND_SETTLED_STATUSES = new Set([
+  'succeeded',
+  'paid',
+  'partially_refunded',
+  'refunded',
+]);
+
+const toPositiveInteger = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.round(parsed);
+};
+
+const normalizeInvoiceAddonLines = (invoice) => {
+  const lines = [];
+
+  const metadataAddonsRaw = invoice?.metadata?.addons;
+  const metadataAddons = Array.isArray(metadataAddonsRaw)
+    ? metadataAddonsRaw
+    : (metadataAddonsRaw && typeof metadataAddonsRaw === 'object' ? Object.values(metadataAddonsRaw) : []);
+
+  const metadataAddonIds = new Set();
+
+  metadataAddons.forEach((addon, idx) => {
+    const amountCents = toPositiveInteger(addon?.amount_cents ?? addon?.price_cents ?? addon?.price);
+    if (!amountCents) return;
+
+    const quantity = Math.max(1, toPositiveInteger(addon?.quantity) || 1);
+    const addonId = addon?.addon_id ?? addon?.id ?? null;
+    if (addonId !== null && addonId !== undefined) {
+      metadataAddonIds.add(String(addonId));
+    }
+
+    lines.push({
+      key: `meta-${addonId ?? idx}`,
+      addonId: addonId ?? null,
+      name: addon?.addon_name || addon?.name || 'Add-on',
+      quantity,
+      amountCents,
+    });
+  });
+
+  const bookingAddons = Array.isArray(invoice?.booking?.addons) ? invoice.booking.addons : [];
+  bookingAddons.forEach((addon, idx) => {
+    const addonId = addon?.id ?? addon?.addon_id ?? null;
+    if (addonId !== null && addonId !== undefined && metadataAddonIds.has(String(addonId))) {
+      return;
+    }
+
+    const quantity = Math.max(1, toPositiveInteger(addon?.pivot?.quantity ?? addon?.quantity) || 1);
+    const unitPrice = Number(addon?.pivot?.price_at_booking ?? addon?.price_at_booking ?? addon?.price ?? 0);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) return;
+
+    lines.push({
+      key: `booking-${addon?.pivot?.id ?? addonId ?? idx}`,
+      addonId: addonId ?? null,
+      name: addon?.name || addon?.addon_name || 'Add-on',
+      quantity,
+      amountCents: Math.round(unitPrice * 100 * quantity),
+    });
+  });
+
+  return lines;
+};
 
 export default function InvoiceCheckout() {
   const { id } = useParams();
@@ -16,12 +84,10 @@ export default function InvoiceCheckout() {
   const [remainingBalance, setRemainingBalance] = useState(0);
   const [pendingOffline, setPendingOffline] = useState(0);
   const [offlineDetails, setOfflineDetails] = useState({ method: '', reference: '', notes: '', show: false });
+  const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
+  const [invoicePaymongoDisabled, setInvoicePaymongoDisabled] = useState(DEFAULT_TOGGLES.invoicePaymongoDisabled);
 
-  useEffect(() => {
-    loadInvoice();
-  }, [id]);
-
-  const loadInvoice = async () => {
+  const loadInvoice = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get(`/tenant/payments/${id}`);
@@ -32,8 +98,18 @@ export default function InvoiceCheckout() {
       // Only count verified/succeeded transactions toward remaining balance shown at top
       // pending_offline is shown separately as a notice, not deducted from accessible balance
       const paidAmount = invData.transactions
-        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
-        .reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)), 0) || 0;
+        ?.filter(tx => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
+        .reduce((sum, tx) => {
+          const txAmountCents = Number(tx?.amount_cents ?? 0);
+          const txRefundedCents = Number(tx?.refunded_amount_cents ?? 0);
+
+          if (Number.isFinite(txAmountCents) && txAmountCents > 0) {
+            return sum + Math.max(0, (txAmountCents - Math.max(0, txRefundedCents)) / 100);
+          }
+
+          const txAmount = Number(tx?.amount || 0);
+          return Number.isFinite(txAmount) && txAmount > 0 ? sum + txAmount : sum;
+        }, 0) || 0;
       
       const pendingOfflineAmount = invData.transactions
         ?.filter(tx => tx.status === 'pending_offline')
@@ -49,9 +125,37 @@ export default function InvoiceCheckout() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadInvoice();
+  }, [loadInvoice]);
+
+  useEffect(() => {
+    let mounted = true;
+    systemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+      setInvoicePaymongoDisabled(Boolean(result.data.invoicePaymongoDisabled));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handlePayMongoSource = async (method) => {
+    if (String(invoice?.status || '').toLowerCase() === 'pending_verification') {
+      return toast.error('This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.');
+    }
+
+    if (invoicePaymongoDisabled) {
+      return toast.error('Online invoice payments are temporarily unavailable while payment compliance updates are in progress.');
+    }
+
+    if (tenantPaymentsTempDisabled) {
+      return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+    }
+
     const amountToPay = Number(paymentAmount);
     if (isNaN(amountToPay) || amountToPay <= 0) {
       return toast.error('Please enter a valid amount');
@@ -87,6 +191,10 @@ export default function InvoiceCheckout() {
   };
 
   const handleOfflinePayment = async () => {
+    if (tenantPaymentsTempDisabled) {
+      return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+    }
+
     const amountToPay = Number(paymentAmount);
     if (isNaN(amountToPay) || amountToPay <= 0) {
       return toast.error('Please enter a valid amount');
@@ -151,10 +259,14 @@ export default function InvoiceCheckout() {
   const globalSettings = landlord?.payment_methods_settings || { allowed: ['cash'], details: {} };
   
   const allowPartialPayments = property?.allow_partial_payments !== 0 && property?.allow_partial_payments !== false;
+  const isPendingManualVerification = String(invoice?.status || '').toLowerCase() === 'pending_verification';
   
-  const showOnline = acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
-  const showCash = acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
-  const showManualGcash = globalSettings.allowed?.includes('gcash');
+  const showOnline = !tenantPaymentsTempDisabled && !invoicePaymongoDisabled && !isPendingManualVerification && acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
+  const showCash = !tenantPaymentsTempDisabled && acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
+  const showManualGcash = !tenantPaymentsTempDisabled && globalSettings.allowed?.includes('gcash');
+
+  const addonLines = normalizeInvoiceAddonLines(invoice);
+  const addonTotalCents = addonLines.reduce((sum, line) => sum + line.amountCents, 0);
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4">
@@ -170,6 +282,21 @@ export default function InvoiceCheckout() {
         {/* Left Column: Payment Actions */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-700 overflow-hidden">
+            {tenantPaymentsTempDisabled && (
+              <div className="mx-8 mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                Tenant payments are temporarily unavailable while payment compliance updates are in progress.
+              </div>
+            )}
+            {!tenantPaymentsTempDisabled && invoicePaymongoDisabled && (
+              <div className="mx-8 mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                Online invoice payments are temporarily unavailable while payment compliance updates are in progress.
+              </div>
+            )}
+            {!tenantPaymentsTempDisabled && !invoicePaymongoDisabled && isPendingManualVerification && (
+              <div className="mx-8 mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.
+              </div>
+            )}
             <div className="p-8 md:p-10 border-b border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
           <div className="flex flex-col md:flex-row justify-between items-start gap-6">
             <div>
@@ -449,6 +576,29 @@ export default function InvoiceCheckout() {
                   <PriceRow amount={invoice.booking.monthly_rent} />
                 </span>
               </div>
+              {addonTotalCents > 0 && (
+                <>
+                  <div className="space-y-2">
+                    {addonLines.map((line) => (
+                      <div key={line.key} className="flex justify-between items-start text-sm">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">
+                          {line.name}
+                          {line.quantity > 1 ? ` x ${line.quantity}` : ''}
+                        </span>
+                        <span className="text-gray-900 dark:text-white font-bold">
+                          <PriceRow amount={line.amountCents / 100} />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between items-center text-sm pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Add-ons Total</span>
+                    <span className="text-gray-900 dark:text-white font-bold">
+                      <PriceRow amount={addonTotalCents / 100} />
+                    </span>
+                  </div>
+                </>
+              )}
               {(invoice.booking.room?.require_1month_advance || 
                 invoice.booking.property?.require_1month_advance ||
                 invoice.description?.toLowerCase().includes('1 month advance')) && (

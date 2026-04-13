@@ -44,6 +44,26 @@ class LandlordVerification extends Model
 {
     use HasFactory;
 
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_PARTIAL_VERIFIED = 'partial_verified';
+
+    public const STATUS_PENDING_DOCUMENTS_REVIEW = 'pending_documents_review';
+
+    public const STATUS_APPROVED = 'approved';
+
+    // Legacy status used by older verification flows.
+    public const STATUS_VERIFIED = 'verified';
+
+    public const STATUS_REJECTED = 'rejected';
+
+    public const LANDLORD_ACCESS_STATUSES = [
+        self::STATUS_PARTIAL_VERIFIED,
+        self::STATUS_PENDING_DOCUMENTS_REVIEW,
+        self::STATUS_APPROVED,
+        self::STATUS_VERIFIED,
+    ];
+
     protected $fillable = [
         'user_id',
         'first_name',
@@ -58,10 +78,12 @@ class LandlordVerification extends Model
         'rejection_reason',
         'reviewed_at',
         'reviewed_by',
+        'document_due_at',
     ];
 
     protected $casts = [
         'reviewed_at' => 'datetime',
+        'document_due_at' => 'datetime',
     ];
 
     public function user()

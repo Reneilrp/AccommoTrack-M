@@ -9,8 +9,7 @@ import {
     Alert, 
     RefreshControl,
     StatusBar,
-    Dimensions,
-    Modal
+    useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -29,8 +28,6 @@ import {
     useTenantFocusRefetch,
     useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 const InfoRow = ({ icon, label, value, color, theme, styles }) => (
     <View style={styles.infoRow}>
@@ -94,63 +91,19 @@ const RoomDetails = ({ room, theme, styles }) => {
     );
 };
 
-const MaintenanceRequestModal = ({ visible, onClose, theme }) => {
-    const styles = getStyles(theme);
-    return (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={visible}
-            onRequestClose={onClose}
-        >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalInner}>
-                    <Text style={styles.modalTitle}>Request Maintenance</Text>
-                    {/* Form will go here */}
-                    <TouchableOpacity onPress={onClose} style={styles.modalFooter}>
-                        <Text style={styles.modalCloseBtn}>Close</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Modal>
-    );
-};
-
-const AddonModal = ({ visible, onClose, theme }) => {
-    const styles = getStyles(theme);
-    return (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={visible}
-            onRequestClose={onClose}
-        >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalInner}>
-                    <Text style={styles.modalTitle}>Request Addon</Text>
-                    {/* Form will go here */}
-                    <TouchableOpacity onPress={onClose} style={styles.modalFooter}>
-                        <Text style={styles.modalCloseBtn}>Close</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Modal>
-    );
-};
-
 export default function BookingDetails() {
     const route = useRoute();
     const navigation = useNavigation();
+    const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
-    const styles = React.useMemo(() => getStyles(theme), [theme]);
+    const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
+    const showAlert = Alert.alert;
     const insets = useSafeAreaInsets();
     const { bookingId } = route.params || {};
 
     const [refreshing, setRefreshing] = useState(false);
     const [isCanceling, setIsCanceling] = useState(false);
     const [cancelingAddonId, setCancelingAddonId] = useState(null);
-    const [maintenanceModalVisible, setMaintenanceModalVisible] = useState(false);
-    const [addonModalVisible, setAddonModalVisible] = useState(false);
 
     const bookingDetailsQuery = useQuery({
         queryKey: tenantQueryKeys.bookingDetails(bookingId),
@@ -247,12 +200,14 @@ export default function BookingDetails() {
     const bookingStatus = (booking.isOverdue || booking.is_overdue) ? 'overdue' : booking.status;
     const statusStyle = getStatusStyles(bookingStatus);
     const paymentStyle = getStatusStyles(booking.paymentStatus);
+    const reservationPolicy = booking.reservation_policy || null;
+    const isDailyContract = String(booking.contract_mode || booking.contractMode || '').toLowerCase() === 'daily';
 
     const handleCancelAddon = (addon) => {
         const reqId = addon?.pivot?.id || addon?.request_id || addon?.id;
         if (!reqId) return;
 
-        Alert.alert('Cancel Add-on', 'Are you sure you want to cancel this add-on request?', [
+        showAlert('Cancel Add-on', 'Are you sure you want to cancel this add-on request?', [
             { text: 'No', style: 'cancel' },
             { 
                 text: 'Yes, Cancel', 
@@ -278,7 +233,7 @@ export default function BookingDetails() {
     };
 
     const handleCancelBooking = () => {
-        Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking? This action might be subject to terms and conditions.', [
+        showAlert('Cancel Booking', 'Are you sure you want to cancel this booking? This action might be subject to terms and conditions.', [
             { text: 'No', style: 'cancel' },
             { 
                 text: 'Confirm Cancellation', 
@@ -353,7 +308,7 @@ export default function BookingDetails() {
                     {/* Check-in/Out Dates */}
                     <View style={[styles.dateCard, { backgroundColor: theme.colors.surface }]}>
                         <View style={styles.dateBlock}>
-                            <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>CHECK-IN</Text>
+                            <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>{isDailyContract ? 'CHECK-IN' : 'MOVE-IN'}</Text>
                             <Text style={[styles.dateValue, { color: theme.colors.text }]}>{checkIn}</Text>
                         </View>
                         <View style={styles.dateDivider}>
@@ -362,10 +317,51 @@ export default function BookingDetails() {
                             <Text style={[styles.durationText, { color: theme.colors.textSecondary }]}>{booking.duration || 'N/A'}</Text>
                         </View>
                         <View style={styles.dateBlock}>
-                            <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>CHECK-OUT</Text>
+                            <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>{isDailyContract ? 'CHECK-OUT' : 'MOVE-OUT'}</Text>
                             <Text style={[styles.dateValue, { color: theme.colors.text }]}>{checkOut}</Text>
                         </View>
                     </View>
+
+                    {reservationPolicy?.message && (
+                        <View
+                            style={[
+                                styles.sectionCard,
+                                {
+                                    backgroundColor: reservationPolicy.fee_required
+                                        ? (theme.isDark ? 'rgba(120,53,15,0.25)' : '#FFF7ED')
+                                        : (theme.isDark ? 'rgba(20,83,45,0.25)' : '#ECFDF5'),
+                                    borderWidth: 1,
+                                    borderColor: reservationPolicy.fee_required
+                                        ? (theme.isDark ? 'rgba(251,191,36,0.35)' : '#FED7AA')
+                                        : (theme.isDark ? 'rgba(74,222,128,0.35)' : '#BBF7D0'),
+                                },
+                            ]}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 12,
+                                    fontWeight: '700',
+                                    color: reservationPolicy.fee_required
+                                        ? (theme.isDark ? '#FCD34D' : '#9A3412')
+                                        : (theme.isDark ? '#86EFAC' : '#166534'),
+                                    marginBottom: 4,
+                                }}
+                            >
+                                Reservation Policy
+                            </Text>
+                            <Text
+                                style={{
+                                    fontSize: 12,
+                                    lineHeight: 18,
+                                    color: reservationPolicy.fee_required
+                                        ? (theme.isDark ? '#FCD34D' : '#7C2D12')
+                                        : (theme.isDark ? '#86EFAC' : '#166534'),
+                                }}
+                            >
+                                {reservationPolicy.message}
+                            </Text>
+                        </View>
+                    )}
 
                     {booking.room && <RoomDetails room={booking.room} theme={theme} styles={styles} />}
 
@@ -381,12 +377,12 @@ export default function BookingDetails() {
                                         color={booking.status === 'reserved' ? '#0D9488' : '#EA580C'}
                                     />
                                     <Text style={{ fontWeight: '700', fontSize: 14, color: booking.status === 'reserved' ? '#0D9488' : '#EA580C' }}>
-                                        {booking.status === 'reserved' ? 'Room Reserved — Awaiting Check-in' : 'Receipt Under Review'}
+                                        {booking.status === 'reserved' ? `Room Reserved — Awaiting ${isDailyContract ? 'Check-in' : 'Move-in'}` : 'Receipt Under Review'}
                                     </Text>
                                 </View>
                                 <Text style={{ fontSize: 13, color: booking.status === 'reserved' ? '#134E4A' : '#7C2D12', lineHeight: 20 }}>
                                     {booking.status === 'reserved'
-                                        ? 'Your GCash payment was verified. The landlord will check you in on your move-in date.'
+                                        ? `Your GCash payment was verified. The landlord will ${isDailyContract ? 'check you in on your check-in date' : 'check you in on your move-in date'}.`
                                         : 'Your GCash receipt was submitted and is being reviewed. You will be notified once confirmed.'}
                                 </Text>
                                 {booking.reference_number && (
@@ -506,18 +502,6 @@ export default function BookingDetails() {
                 </View>
             </ScrollView>
 
-            <MaintenanceRequestModal 
-                visible={maintenanceModalVisible} 
-                onClose={() => setMaintenanceModalVisible(false)}
-                theme={theme}
-            />
-
-            <AddonModal 
-                visible={addonModalVisible} 
-                onClose={() => setAddonModalVisible(false)}
-                theme={theme}
-            />
-
             {/* Bottom Action Footer */}
             <SafeAreaView edges={['bottom']} style={[styles.footer, {
                 backgroundColor: theme.colors.surface,
@@ -529,7 +513,7 @@ export default function BookingDetails() {
                     {(booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
                         <TouchableOpacity
                             onPress={() => {
-                                Alert.alert(
+                                showAlert(
                                     'Report an Issue',
                                     'What issue are you experiencing with this reservation?',
                                     [
@@ -568,7 +552,12 @@ export default function BookingDetails() {
                     ) : (
                         <>
                             <TouchableOpacity
-                                onPress={() => setMaintenanceModalVisible(true)}
+                                onPress={() => navigation.navigate('ServiceRequests', {
+                                    initialTab: 'Maintenance',
+                                    bookingId: booking.id,
+                                    propertyId: property.id,
+                                    roomId: booking.room?.id || booking.room_id || null,
+                                })}
                                 style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
                             >
                                 <Ionicons name="build-outline" size={18} color={theme.colors.primary} />
@@ -576,7 +565,11 @@ export default function BookingDetails() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                onPress={() => setAddonModalVisible(true)}
+                                onPress={() => navigation.navigate('ServiceRequests', {
+                                    initialTab: 'Add-ons',
+                                    bookingId: booking.id,
+                                    propertyId: property.id,
+                                })}
                                 style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
                             >
                                 <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />

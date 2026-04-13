@@ -13,6 +13,7 @@ export default function Header({
   title: propTitle, 
   showRightIcon: propShowRightIcon, 
   rightIcon = 'notifications-outline',
+  rightActions,
   onBack, 
   notificationCount = 0 
 }) {
@@ -26,6 +27,7 @@ export default function Header({
 
   const title = propTitle || (routeName === 'Settings' ? 'Settings' : 'AccommoTrack');
   const showRightIcon = typeof propShowRightIcon === 'boolean' ? propShowRightIcon : (routeName !== 'Settings');
+  const hasCustomRightActions = Array.isArray(rightActions) && rightActions.length > 0;
 
   return (
     <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
@@ -46,8 +48,26 @@ export default function Header({
           <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
         </View>
 
-        <View style={styles.headerSide}>
-          {showRightIcon && (
+        <View
+          style={[
+            styles.headerSide,
+            hasCustomRightActions && { flexDirection: 'row', justifyContent: 'flex-end' },
+          ]}
+        >
+          {hasCustomRightActions ? rightActions.map((action, index) => (
+            <TouchableOpacity
+              key={`${action.icon || 'icon'}-${index}`}
+              style={[styles.headerIcon, action.disabled && { opacity: 0.45 }]}
+              onPress={action.onPress}
+              disabled={action.disabled}
+            >
+              <Ionicons
+                name={action.icon || 'ellipse-outline'}
+                size={action.size || 24}
+                color={action.color || theme.colors.textInverse}
+              />
+            </TouchableOpacity>
+          )) : showRightIcon && (
             <TouchableOpacity style={styles.headerIcon} onPress={onRightPress}>
               <View>
                 <Ionicons name={rightIcon} size={28} color={theme.colors.textInverse} />

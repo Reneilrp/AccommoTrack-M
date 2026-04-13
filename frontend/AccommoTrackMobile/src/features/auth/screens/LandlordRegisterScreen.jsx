@@ -11,7 +11,8 @@ import {
   Alert,
   Image,
   StatusBar,
-  Modal
+  Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,6 +22,7 @@ import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
 import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
+import { useUIState } from '../../../contexts/UIStateContext.jsx';
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
 
@@ -83,8 +85,14 @@ const TermsModal = ({ visible, onClose, theme }) => {
 
 // —————— Main Screen ——————
 export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }) {
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme, isDarkMode } = useTheme();
+  const { showAlert } = useUIState();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const contentWrapStyle = useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 760, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
 
   // Wizard state
   const [step, setStep] = useState(1);
@@ -262,16 +270,62 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   const handleBack = () => { setError(''); setStep(prev => prev - 1); };
 
   // ——— Image picker ———
-  const pickImage = async (field) => {
+  const applySelectedAsset = (field, result) => {
+    if (result.canceled || !result.assets || result.assets.length === 0) return;
+    setForm(prev => ({ ...prev, [field]: result.assets[0] }));
+    setFieldErrors(prev => ({ ...prev, [field]: '' }));
+  };
+
+  const pickImageFromLibrary = async (field) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert('Permission Required', 'Please allow photo library access to upload documents.');
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
-    if (!result.canceled) {
-      setForm(prev => ({ ...prev, [field]: result.assets[0] }));
-      setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    applySelectedAsset(field, result);
+  };
+
+  const takePhotoWithCamera = async (field) => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert('Permission Required', 'Please allow camera access to capture documents.');
+      return;
     }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    applySelectedAsset(field, result);
+  };
+
+  const pickImage = (field) => {
+    showAlert(
+      'Upload Document',
+      'Choose a source for your document image.',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => { void takePhotoWithCamera(field); },
+        },
+        {
+          text: 'Choose from Library',
+          onPress: () => { void pickImageFromLibrary(field); },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      {
+        showCloseButton: true,
+        cancelable: true,
+      },
+    );
   };
 
   // ——— Submit ———
@@ -323,7 +377,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert(
+        showAlert(
           'Application Submitted!',
           'Your landlord registration has been successfully submitted. Our administrators will review your documents within 1-3 business days. You will receive an email once your account is verified.',
           [{ text: 'Return to Login', onPress: () => navigation.goBack() }]
@@ -402,7 +456,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]}
+          contentContainerStyle={[styles.scrollContent, contentWrapStyle, { paddingBottom: 40 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

@@ -31,7 +31,7 @@ class MessageResource extends JsonResource
             'actual_sender_id' => $this->actual_sender_id,
             'sender_role' => $this->sender_role,
             'message' => $this->message,
-            'image_url' => $this->image_url ? (str_starts_with($this->image_url, 'http') ? $this->image_url : asset('storage/'.$this->image_url)) : null,
+            'image_url' => $this->image_url ? (str_starts_with($this->image_url, 'http') ? $this->image_url : \Illuminate\Support\Facades\Storage::url($this->image_url)) : null,
             'is_read' => (bool) $this->is_read,
             'read_at' => $this->read_at,
             'is_mine' => $isMine,

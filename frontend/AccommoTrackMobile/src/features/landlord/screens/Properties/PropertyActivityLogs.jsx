@@ -99,33 +99,129 @@ export default function PropertyActivityLogs({ route, navigation }) {
     });
   }, [logs, activeFilter]);
 
-  const renderLogItem = ({ item }) => (
-    <View style={styles.logItem}>
-      <View style={styles.logHeader}>
-        <Text style={styles.logTitle}>{item.title || item.action || item.type || 'Activity'}</Text>
-        {(item.amount || item.amount_cents) ? (
-          <Text style={styles.logAmount}>
-            {item.amount ? item.amount : `₱${(Number(item.amount_cents || 0) / 100).toLocaleString()}`}
-          </Text>
+  const formatLogTimestamp = (log) => {
+    const raw = log?.created_at || log?.time || log?.timestamp;
+    if (!raw) return '—';
+
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return String(raw);
+
+    return date.toLocaleString('en-PH', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const formatStatus = (status) => {
+    if (!status) return '';
+    return String(status)
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const resolveStatusTone = (log) => {
+    const fromColor = String(log?.color || '').toLowerCase();
+    const status = String(log?.status || '').toLowerCase();
+
+    const tone = (name) => {
+      if (name === 'green') {
+        return theme.isDark
+          ? { bg: 'rgba(22, 101, 52, 0.35)', border: 'rgba(74, 222, 128, 0.35)', text: '#86EFAC' }
+          : { bg: '#DCFCE7', border: '#BBF7D0', text: '#166534' };
+      }
+      if (name === 'yellow') {
+        return theme.isDark
+          ? { bg: 'rgba(133, 77, 14, 0.35)', border: 'rgba(251, 191, 36, 0.35)', text: '#FDE68A' }
+          : { bg: '#FEF3C7', border: '#FDE68A', text: '#92400E' };
+      }
+      if (name === 'red') {
+        return theme.isDark
+          ? { bg: 'rgba(127, 29, 29, 0.35)', border: 'rgba(248, 113, 113, 0.35)', text: '#FCA5A5' }
+          : { bg: '#FEE2E2', border: '#FECACA', text: '#B91C1C' };
+      }
+      if (name === 'blue') {
+        return theme.isDark
+          ? { bg: 'rgba(30, 64, 175, 0.35)', border: 'rgba(96, 165, 250, 0.35)', text: '#93C5FD' }
+          : { bg: '#DBEAFE', border: '#BFDBFE', text: '#1D4ED8' };
+      }
+      return theme.isDark
+        ? { bg: 'rgba(55, 65, 81, 0.35)', border: 'rgba(156, 163, 175, 0.35)', text: '#D1D5DB' }
+        : { bg: '#F3F4F6', border: '#E5E7EB', text: '#374151' };
+    };
+
+    if (fromColor === 'green' || fromColor === 'yellow' || fromColor === 'red' || fromColor === 'blue') {
+      return tone(fromColor);
+    }
+
+    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'verified'].includes(status)) {
+      return tone('green');
+    }
+    if (['pending', 'pending_offline', 'partial', 'partial-completed', 'processing', 'in_progress'].includes(status)) {
+      return tone('yellow');
+    }
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) {
+      return tone('red');
+    }
+
+    return tone('gray');
+  };
+
+  const renderLogItem = ({ item }) => {
+    const statusLabel = formatStatus(item?.status);
+    const statusTone = resolveStatusTone(item);
+    const typeLabel = String(item?.type || '').trim();
+    const hasAmount = item?.amount !== null && item?.amount !== undefined && item?.amount !== '';
+    const hasAmountCents = item?.amount_cents !== null && item?.amount_cents !== undefined;
+
+    return (
+      <View style={styles.logItem}>
+        <View style={styles.logHeader}>
+          <View style={styles.logHeadingWrap}>
+            {typeLabel ? (
+              <View style={styles.logTypeBadge}>
+                <Text style={styles.logTypeText}>{typeLabel}</Text>
+              </View>
+            ) : null}
+            <Text style={styles.logTitle}>{item.title || item.action || item.type || 'Activity'}</Text>
+          </View>
+
+          {(hasAmount || hasAmountCents) ? (
+            <Text style={styles.logAmount}>
+              {hasAmount
+                ? String(item.amount)
+                : `₱${(Number(item.amount_cents || 0) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`}
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.logMeta}>
+          <View style={styles.logActorBadge}>
+            <Ionicons name="person-circle-outline" size={13} color={styles.logUser.color} />
+            <Text style={styles.logUser}>{item.by || item.user || item.actor || 'System'}</Text>
+          </View>
+          <Text style={styles.logDate}>{formatLogTimestamp(item)}</Text>
+        </View>
+
+        {(item.details || item.description) ? (
+          <Text style={styles.logDetails}>{item.details || item.description}</Text>
+        ) : null}
+
+        {statusLabel ? (
+          <View style={[styles.statusBadge, { backgroundColor: statusTone.bg, borderColor: statusTone.border }]}> 
+            <Text style={[styles.statusBadgeText, { color: statusTone.text }]}>{statusLabel}</Text>
+          </View>
         ) : null}
       </View>
-      
-      <View style={styles.logMeta}>
-        <Ionicons name="person-circle-outline" size={14} color="#6B7280" />
-        <Text style={styles.logUser}>{item.by || item.user || item.actor || 'System'}</Text>
-        <Text style={{ color: '#E5E7EB' }}>•</Text>
-        <Text style={styles.logDate}>{item.created_at || item.time || ''}</Text>
-      </View>
-
-      {item.details || item.description ? (
-        <Text style={styles.logDetails}>{item.details || item.description}</Text>
-      ) : null}
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -165,20 +261,26 @@ export default function PropertyActivityLogs({ route, navigation }) {
       <FlatList
         data={filteredLogs}
         renderItem={renderLogItem}
-        keyExtractor={(item, index) => index.toString()}
+        keyExtractor={(item, index) => String(item?.id ?? `${item?.type || 'activity'}-${item?.timestamp || item?.created_at || index}`)}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#059669']}
+            colors={['#16a34a']}
           />
         }
         ListEmptyComponent={
           logsQuery.isPending ? (
             <View style={styles.emptyState}>
-              <ActivityIndicator size="large" color="#059669" />
+              <ActivityIndicator size="large" color="#16a34a" />
               <Text style={styles.emptySubtitle}>Loading activity logs...</Text>
+            </View>
+          ) : logsQuery.isError ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
+              <Text style={styles.emptyTitle}>Failed to load logs</Text>
+              <Text style={styles.emptySubtitle}>{logsQuery.error?.message || 'Something went wrong while loading activity logs.'}</Text>
             </View>
           ) : (
             <View style={styles.emptyState}>

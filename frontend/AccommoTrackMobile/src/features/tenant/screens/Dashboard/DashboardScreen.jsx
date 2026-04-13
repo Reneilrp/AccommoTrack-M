@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   UIManager,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -28,13 +29,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'PHP',
+const pesoFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 });
 
-const formatCurrency = (amount) => currencyFormatter.format(Number(amount || 0));
+const formatCurrency = (amount) => `₱${pesoFormatter.format(Number(amount || 0))}`;
 
 const formatDate = (value) => {
   if (!value) {
@@ -75,10 +74,50 @@ const getNumeric = (...values) => {
   return 0;
 };
 
+const estimateColumnWidth = (values, { min = 64, max = 220, charWidth = 7 } = {}) => {
+  const longest = values.reduce(
+    (maxLength, value) => Math.max(maxLength, String(value ?? '').length),
+    0,
+  );
+
+  return Math.min(max, Math.max(min, Math.round(longest * charWidth) + 24));
+};
+
+const toTitleCaseWords = (value) => String(value || 'unknown')
+  .toLowerCase()
+  .replace(/_/g, ' ')
+  .split(' ')
+  .filter(Boolean)
+  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+  .join(' ');
+
+const getPaymentStatusPalette = (status, theme) => {
+  const normalized = String(status || '').toLowerCase();
+
+  if (normalized.includes('overdue') || normalized.includes('failed')) {
+    return { bg: theme.colors.errorLight, fg: theme.colors.errorDark || theme.colors.error };
+  }
+
+  if (normalized.includes('partial') || normalized.includes('pending') || normalized.includes('unpaid')) {
+    return { bg: theme.colors.warningLight, fg: theme.colors.warningDark || theme.colors.warning };
+  }
+
+  if (normalized.includes('paid') || normalized.includes('success')) {
+    return { bg: theme.colors.successLight, fg: theme.colors.successDark || theme.colors.success };
+  }
+
+  return { bg: theme.colors.backgroundSecondary, fg: theme.colors.textSecondary };
+};
+
 const DashboardScreen = () => {
+  const { width: viewportWidth } = useWindowDimensions();
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
+  const contentWrapStyle = useMemo(
+    () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
+    [viewportWidth],
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState('');
@@ -281,6 +320,106 @@ const DashboardScreen = () => {
       description: invoice.description || 'Outstanding invoice',
     }));
 
+  const tableColumnWidths = useMemo(() => {
+    const roomColumn = estimateColumnWidth(
+      ['Room', ...activeRooms.map((room) => `#${room.roomNumber}`)],
+      { min: 68, max: 110 },
+    );
+
+    const propertyColumn = estimateColumnWidth(
+      ['Property', ...activeRooms.map((room) => room.propertyTitle)],
+      { min: 120, max: 260 },
+    );
+
+    const floorColumn = estimateColumnWidth(
+      ['Floor', ...activeRooms.map((room) => room.floor)],
+      { min: 66, max: 96 },
+    );
+
+    const dateColumn = estimateColumnWidth(
+      ['Move-in', ...activeRooms.map((room) => formatDate(room.moveIn))],
+      { min: 102, max: 136 },
+    );
+
+    const roomStatusColumn = estimateColumnWidth(
+      ['Status', ...activeRooms.map((room) => toTitleCaseWords(room.status))],
+      { min: 84, max: 150, charWidth: 6.6 },
+    );
+
+    const rentPropertyColumn = estimateColumnWidth(
+      ['Property', ...stays.map((stay) => stay?.property?.title || 'Property')],
+      { min: 120, max: 260 },
+    );
+
+    const rentRoomColumn = estimateColumnWidth(
+      ['Room', ...stays.map((stay) => `#${stay?.room?.roomNumber || stay?.room?.room_number || 'N/A'}`)],
+      { min: 68, max: 110 },
+    );
+
+    const baseRentValues = stays.map((stay) => {
+      const booking = stay?.booking || {};
+      return formatCurrency(getNumeric(booking.monthlyRent, booking.monthly_rent));
+    });
+
+    const addOnValues = stays.map((stay) => formatCurrency(getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total)));
+
+    const totalValues = stays.map((stay) => {
+      const booking = stay?.booking || {};
+      const base = getNumeric(booking.monthlyRent, booking.monthly_rent);
+      const addons = getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total);
+      return formatCurrency(base + addons);
+    });
+
+    const baseRentColumn = estimateColumnWidth(
+      ['Base Rent', ...baseRentValues],
+      { min: 82, max: 132 },
+    );
+
+    const addOnColumn = estimateColumnWidth(
+      ['Add-ons', ...addOnValues],
+      { min: 76, max: 124 },
+    );
+
+    const monthlyTotalColumn = estimateColumnWidth(
+      ['Monthly Total', ...totalValues],
+      { min: 96, max: 150 },
+    );
+
+    const monthlyDueValues = activeRooms.map((room) => formatCurrency(room.monthlyTotal));
+    const monthlyDueColumn = estimateColumnWidth(
+      ['Monthly Due', ...monthlyDueValues],
+      { min: 96, max: 150 },
+    );
+
+    const balanceStatusColumn = estimateColumnWidth(
+      ['Status', ...activeRooms.map((room) => toTitleCaseWords(room.status))],
+      { min: 84, max: 150, charWidth: 6.6 },
+    );
+
+    return {
+      rooms: {
+        room: roomColumn,
+        property: propertyColumn,
+        floor: floorColumn,
+        date: dateColumn,
+        status: roomStatusColumn,
+      },
+      rent: {
+        property: rentPropertyColumn,
+        room: rentRoomColumn,
+        baseRent: baseRentColumn,
+        addOns: addOnColumn,
+        total: monthlyTotalColumn,
+      },
+      balance: {
+        room: roomColumn,
+        property: propertyColumn,
+        money: monthlyDueColumn,
+        status: balanceStatusColumn,
+      },
+    };
+  }, [activeRooms, stays]);
+
   const daysTotal = Math.max(1, activeRooms.reduce((sum, room) => sum + room.daysStayed, 0));
 
   const upcomingMonths = safeArray(breakdownQuery.data?.upcoming_months);
@@ -309,7 +448,15 @@ const DashboardScreen = () => {
   };
 
   const renderStatCard = ({ key, icon, title, value, subtitle, bgColor, iconColor }) => (
-    <TouchableOpacity key={key} style={[styles.statCard, { backgroundColor: bgColor }]} onPress={() => togglePanel(key)}>
+    <TouchableOpacity
+      key={key}
+      style={[
+        styles.statCard,
+        expandedPanel === key && styles.statCardActive,
+        { backgroundColor: bgColor },
+      ]}
+      onPress={() => togglePanel(key)}
+    >
       <View style={[styles.statIcon, { backgroundColor: iconColor }]}>
         <Ionicons name={icon} size={18} color="#fff" />
       </View>
@@ -327,13 +474,38 @@ const DashboardScreen = () => {
     if (panel === 'rooms') {
       return (
         <View style={styles.panelBody}>
-          {activeRooms.length === 0 ? <Text style={styles.panelEmpty}>No active rooms.</Text> : activeRooms.map((room) => (
-            <View key={room.id} style={styles.panelRow}>
-              <Text style={styles.panelPrimary}>{room.roomNumber}</Text>
-              <Text style={styles.panelSecondary}>{room.propertyTitle} • Floor {room.floor}</Text>
-              <Text style={styles.panelTertiary}>{room.roomType} • Move-in {formatDate(room.moveIn)}</Text>
+          {activeRooms.length === 0 ? <Text style={styles.panelEmpty}>No active rooms.</Text> : (
+            <View style={styles.tableWrapper}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableContentContainer}>
+                <View style={styles.tableMinWidth}>
+                  <View style={styles.tableHeaderRow}>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rooms.room }]}>Room</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rooms.property }]}>Property</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rooms.floor }]}>Floor</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rooms.date }]}>Move-in</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rooms.status }, styles.tableHeaderCellLast]}>Status</Text>
+                  </View>
+
+                  {activeRooms.map((room) => {
+                    const palette = getPaymentStatusPalette(room.status, theme);
+                    return (
+                      <View key={room.id} style={styles.tableDataRow}>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rooms.room }]}>#{room.roomNumber}</Text>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rooms.property }]} numberOfLines={1}>{room.propertyTitle}</Text>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rooms.floor }]}>{room.floor}</Text>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rooms.date }]}>{formatDate(room.moveIn)}</Text>
+                        <View style={[styles.tableCellLast, { width: tableColumnWidths.rooms.status }]}>
+                          <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}> 
+                            <Text style={[styles.statusBadgeInlineText, { color: palette.fg }]}>{toTitleCaseWords(room.status)}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
             </View>
-          ))}
+          )}
         </View>
       );
     }
@@ -363,36 +535,80 @@ const DashboardScreen = () => {
     if (panel === 'rent') {
       return (
         <View style={styles.panelBody}>
-          {stays.length === 0 ? <Text style={styles.panelEmpty}>No rent records.</Text> : stays.map((stay, index) => {
-            const booking = stay?.booking || {};
-            const baseRent = getNumeric(booking.monthlyRent, booking.monthly_rent);
-            const addons = getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total);
-            const total = baseRent + addons;
+          {stays.length === 0 ? <Text style={styles.panelEmpty}>No rent records.</Text> : (
+            <View style={styles.tableWrapper}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableContentContainer}>
+                <View style={styles.tableMinWidth}>
+                  <View style={styles.tableHeaderRow}>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rent.property }]}>Property</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rent.room }]}>Room</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rent.baseRent }]}>Base Rent</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rent.addOns }]}>Add-ons</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.rent.total }, styles.tableHeaderCellLast]}>Monthly Total</Text>
+                  </View>
 
-            return (
-              <View key={`rent-${booking.id || index}`} style={styles.panelRow}>
-                <Text style={styles.panelPrimary}>{stay?.property?.title || 'Property'} • Room {stay?.room?.roomNumber || stay?.room?.room_number || 'N/A'}</Text>
-                <Text style={styles.panelSecondary}>Base {formatCurrency(baseRent)} + Add-ons {formatCurrency(addons)}</Text>
-                <Text style={styles.panelAccent}>Total {formatCurrency(total)}</Text>
-              </View>
-            );
-          })}
+                  {stays.map((stay, index) => {
+                    const booking = stay?.booking || {};
+                    const baseRent = getNumeric(booking.monthlyRent, booking.monthly_rent);
+                    const addons = getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total);
+                    const total = baseRent + addons;
+
+                    return (
+                      <View key={`rent-${booking.id || index}`} style={styles.tableDataRow}>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rent.property }]} numberOfLines={1}>{stay?.property?.title || 'Property'}</Text>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rent.room }]}>#{stay?.room?.roomNumber || stay?.room?.room_number || 'N/A'}</Text>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rent.baseRent }]}>{formatCurrency(baseRent)}</Text>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rent.addOns }]}>{formatCurrency(addons)}</Text>
+                        <Text style={[styles.tableCellText, { width: tableColumnWidths.rent.total }, styles.tableCellLast]}>{formatCurrency(total)}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
+          )}
         </View>
       );
     }
 
     return (
       <View style={styles.panelBody}>
-        {unpaidInvoices.length === 0 ? <Text style={styles.panelEmpty}>No outstanding balance.</Text> : unpaidInvoices.map((invoice) => (
-          <View key={`balance-${invoice.id}`} style={styles.panelRow}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.panelPrimary}>{invoice.description}</Text>
-              <Text style={styles.panelAccent}>{formatCurrency(invoice.amount)}</Text>
-            </View>
-            <Text style={styles.panelSecondary}>Due {invoice.dueDate || invoice.date || 'N/A'}</Text>
-            <Text style={styles.panelTertiary}>Status: {invoice.status}</Text>
+        {activeRooms.length === 0 ? <Text style={styles.panelEmpty}>No payment records for active rooms.</Text> : (
+          <View style={styles.tableWrapper}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableContentContainer}>
+              <View style={styles.tableMinWidth}>
+                <View style={styles.tableHeaderRow}>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.room }]}>Room</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.property }]}>Property</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.money }]}>Monthly Due</Text>
+                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.status }, styles.tableHeaderCellLast]}>Status</Text>
+                </View>
+
+                {activeRooms.map((room) => {
+                  const palette = getPaymentStatusPalette(room.status, theme);
+                  return (
+                    <View key={`payment-${room.id}`} style={styles.tableDataRow}>
+                      <Text style={[styles.tableCellText, { width: tableColumnWidths.balance.room }]}>#{room.roomNumber}</Text>
+                      <Text style={[styles.tableCellText, { width: tableColumnWidths.balance.property }]} numberOfLines={1}>{room.propertyTitle}</Text>
+                      <Text style={[styles.tableCellText, { width: tableColumnWidths.balance.money }]}>{formatCurrency(room.monthlyTotal)}</Text>
+                      <View style={[styles.tableCellLast, { width: tableColumnWidths.balance.status }]}>
+                        <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}> 
+                          <Text style={[styles.statusBadgeInlineText, { color: palette.fg }]}>{toTitleCaseWords(room.status)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </ScrollView>
           </View>
-        ))}
+        )}
+
+        {unpaidInvoices.length > 0 && (
+          <Text style={styles.tableCaption}>
+            Outstanding invoices: {unpaidInvoices.length} item(s) pending/overdue.
+          </Text>
+        )}
       </View>
     );
   };
@@ -400,7 +616,7 @@ const DashboardScreen = () => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.loadingContent}>
+        <ScrollView contentContainerStyle={[styles.loadingContent, contentWrapStyle]}>
           <DashboardStatSkeleton />
           <DashboardStatSkeleton />
           <DashboardStatSkeleton />
@@ -414,7 +630,7 @@ const DashboardScreen = () => {
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, contentWrapStyle]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -425,18 +641,18 @@ const DashboardScreen = () => {
           />
         }
       >
-        <View style={styles.greetingSection}>
-          <Text style={styles.greetingTitle}>Welcome back, {userName || 'Tenant'}.</Text>
-          <Text style={styles.greetingSubtitle}>Your stay dashboard at a glance.</Text>
-        </View>
-
+        
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Dashboard Overview</Text>
-            <Text style={styles.sectionHint}>Tap a card to open details</Text>
+            <Text style={styles.sectionHint}>Tap a card to view table details</Text>
           </View>
 
-          <View style={styles.statsGrid}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.statsGrid}
+          >
             {renderStatCard({
               key: 'rooms',
               icon: 'bed-outline',
@@ -467,13 +683,13 @@ const DashboardScreen = () => {
             {renderStatCard({
               key: 'balance',
               icon: 'wallet-outline',
-              title: hasOverdueInvoices ? 'Balance Due' : 'Payment Status',
+              title: hasOverdueInvoices ? 'Balance Due' : 'Status',
               value: hasOverdueInvoices ? formatCurrency(balanceDue) : (balanceDue > 0 ? formatCurrency(balanceDue) : 'Fully Paid'),
               subtitle: hasOverdueInvoices ? 'Overdue detected' : 'Current billing state',
               bgColor: hasOverdueInvoices ? theme.colors.errorLight : theme.colors.warningLight,
               iconColor: hasOverdueInvoices ? theme.colors.error : theme.colors.warning,
             })}
-          </View>
+          </ScrollView>
 
           {renderPanel('rooms')}
           {renderPanel('days')}
@@ -618,31 +834,6 @@ const DashboardScreen = () => {
           ))}
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Payment Summary</Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total Charges</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(getNumeric(paymentData.totalDue, paymentData.total_due))}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total Paid</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(getNumeric(paymentData.totalPaid, paymentData.total_paid))}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Remaining Balance</Text>
-              <Text style={[styles.summaryValue, { color: balanceDue > 0 ? theme.colors.error : theme.colors.success }]}>
-                {formatCurrency(balanceDue)}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('Payments')}>
-              <Text style={styles.primaryButtonText}>Go to Payments</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );

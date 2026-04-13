@@ -1,8 +1,9 @@
-import { StyleSheet, Dimensions } from "react-native";
+import { StyleSheet } from "react-native";
 
-const { width } = Dimensions.get('window');
+export const getStyles = (theme, viewportWidth = 390) => {
+  const imageWidth = Math.max(280, viewportWidth || 390);
 
-export const getStyles = (theme) => StyleSheet.create({
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -40,7 +41,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   roomImage: {
-    width: width,
+    width: imageWidth,
     height: 280,
     backgroundColor: theme.colors.backgroundTertiary,
   },
@@ -392,6 +393,51 @@ summaryNote: {
   color: theme.colors.textTertiary,
   marginTop: 8,
 },
+requiredAsterisk: {
+  color: '#ef4444',
+},
+proxyFieldLabel: {
+  fontSize: 12,
+  fontWeight: '600',
+  color: theme.colors.text,
+  marginBottom: 6,
+},
+proxyFieldHelp: {
+  fontSize: 11,
+  color: theme.colors.textTertiary,
+  marginTop: -4,
+  marginBottom: 10,
+},
+proxyDateButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  backgroundColor: theme.colors.background,
+  borderRadius: 8,
+  padding: 12,
+  gap: 8,
+  marginBottom: 10,
+},
+proxyDateButtonText: {
+  color: theme.colors.text,
+  fontSize: 14,
+  flex: 1,
+},
+proxyDateButtonTextPlaceholder: {
+  color: theme.colors.textTertiary,
+},
+proxyGenderPickerWrapper: {
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  backgroundColor: theme.colors.background,
+  borderRadius: 8,
+  marginBottom: 10,
+  overflow: 'hidden',
+},
+proxyGenderPicker: {
+  color: theme.colors.text,
+},
 
 // Update existing submitButtonDisabled style
   submitButtonDisabled: {
@@ -516,4 +562,5 @@ summaryNote: {
     borderWidth: 1, 
     borderColor: theme.colors.border
   },
-});
+  });
+};

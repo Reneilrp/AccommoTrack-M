@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
 use App\Mail\EmailOtpMail;
+use App\Models\LandlordVerification;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -55,18 +56,29 @@ class AuthService
     {
         $user = User::where('email', $credentials['email'])->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid email or password.'],
             ]);
         }
 
+        if (! Hash::check($credentials['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['Incorrect password.'],
+            ]);
+        }
+
         if ($user->is_blocked) {
-            throw new AccountBlockedException('Your account has been blocked by the administrator. Please contact support for assistance.');
+            throw new AccountBlockedException('Your account has been permanently blocked by the administrator. Please contact support for assistance.');
+        }
+
+        if ($user->suspended_until && Carbon::now()->isBefore($user->suspended_until)) {
+            $formattedDate = Carbon::parse($user->suspended_until)->format('F j, Y, g:i a');
+            throw new AccountBlockedException("Your account is temporarily suspended until {$formattedDate}. Please contact support for assistance.");
         }
 
         // Prevent OTP bypass: users must complete email verification before login.
-        if (! $user->is_verified && $user->role !== 'admin') {
+        if (! $user->is_verified && !in_array($user->role, ['admin', 'landlord'])) {
             $retryAfterSeconds = null;
             $otpResent = false;
 
@@ -76,9 +88,11 @@ class AuthService
                     ? $user->email_otp_expires_at
                     : Carbon::parse($user->email_otp_expires_at);
 
-                $secondsSinceOtpIssued = Carbon::now()->diffInSeconds($otpExpiresAt->copy()->subMinutes(15), false);
+                $otpIssuedAt = $otpExpiresAt->copy()->subMinutes(15);
+                $secondsSinceOtpIssued = $otpIssuedAt->diffInSeconds(Carbon::now());
+
                 if ($secondsSinceOtpIssued < self::OTP_RESEND_COOLDOWN_SECONDS) {
-                    $retryAfterSeconds = self::OTP_RESEND_COOLDOWN_SECONDS - max($secondsSinceOtpIssued, 0);
+                    $retryAfterSeconds = self::OTP_RESEND_COOLDOWN_SECONDS - $secondsSinceOtpIssued;
                 }
             }
 
@@ -106,7 +120,10 @@ class AuthService
             $verification = $user->landlordVerification;
 
             // Allow verified landlords to log in even if verification row is missing (legacy/test data).
-            if (! $user->is_verified && (! $verification || $verification->status === 'pending')) {
+            $hasActiveLandlordAccess = $verification
+                && in_array($verification->status, LandlordVerification::LANDLORD_ACCESS_STATUSES, true);
+
+            if (! $user->is_verified && ! $hasActiveLandlordAccess) {
                 throw new PendingVerificationException('Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.');
             }
         }

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureUserIsLandlord;
 use App\Models\Addon;
 use App\Models\Booking;
+use App\Models\Invoice;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\User;
@@ -75,6 +77,274 @@ class TenantAddonRequestTest extends TestCase
         $this->assertNotNull($pivot);
         $this->assertStringContainsString('Prefer compact model', $pivot->request_note);
         $this->assertStringContainsString('Suggested price: ₱550.00', $pivot->request_note);
+    }
+
+    public function test_landlord_approval_uses_custom_suggested_price_for_pivot_and_invoice(): void
+    {
+        [$tenant, $booking, , $landlord] = $this->buildScenario();
+
+        Sanctum::actingAs($tenant);
+
+        $requestResponse = $this->postJson('/api/tenant/addons/request', [
+            'is_custom' => true,
+            'name' => 'Portable Air Purifier',
+            'addon_type' => 'rental',
+            'price_type' => 'monthly',
+            'quantity' => 1,
+            'note' => 'Prefer compact model',
+            'suggested_price' => 550,
+        ]);
+
+        $requestResponse
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $addonId = (int) $requestResponse->json('addon.id');
+        $this->assertGreaterThan(0, $addonId);
+
+        Sanctum::actingAs($landlord);
+        $this->withoutMiddleware(EnsureUserIsLandlord::class);
+
+        $approveResponse = $this->patchJson("/api/landlord/bookings/{$booking->id}/addons/{$addonId}", [
+            'action' => 'approve',
+        ]);
+
+        $approveResponse
+            ->assertStatus(200)
+            ->assertJsonPath('status', 'active');
+
+        $pivot = DB::table('booking_addons')
+            ->where('booking_id', $booking->id)
+            ->where('addon_id', $addonId)
+            ->first();
+
+        $this->assertNotNull($pivot);
+        $this->assertSame('active', $pivot->status);
+        $this->assertEquals(550.00, (float) $pivot->price_at_booking);
+        $this->assertNotNull($pivot->invoice_id);
+
+        $invoice = DB::table('invoices')
+            ->where('id', $pivot->invoice_id)
+            ->first();
+
+        $this->assertNotNull($invoice);
+        $this->assertSame('addon', $invoice->invoice_type);
+        $this->assertSame(55000, (int) $invoice->amount_cents);
+    }
+
+    public function test_landlord_approval_fails_when_custom_request_has_no_resolvable_price(): void
+    {
+        [$tenant, $booking, , $landlord] = $this->buildScenario();
+
+        Sanctum::actingAs($tenant);
+
+        $requestResponse = $this->postJson('/api/tenant/addons/request', [
+            'is_custom' => true,
+            'name' => 'Portable Drawer',
+            'addon_type' => 'rental',
+            'price_type' => 'monthly',
+            'quantity' => 1,
+            'note' => 'No quoted price yet',
+        ]);
+
+        $requestResponse
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $addonId = (int) $requestResponse->json('addon.id');
+        $this->assertGreaterThan(0, $addonId);
+
+        Sanctum::actingAs($landlord);
+        $this->withoutMiddleware(EnsureUserIsLandlord::class);
+
+        $approveResponse = $this->patchJson("/api/landlord/bookings/{$booking->id}/addons/{$addonId}", [
+            'action' => 'approve',
+        ]);
+
+        $approveResponse
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['approved_price']);
+
+        $pivot = DB::table('booking_addons')
+            ->where('booking_id', $booking->id)
+            ->where('addon_id', $addonId)
+            ->first();
+
+        $this->assertNotNull($pivot);
+        $this->assertSame('pending', $pivot->status);
+        $this->assertNull($pivot->invoice_id);
+
+        $this->assertSame(0, Invoice::where('booking_id', $booking->id)->where('invoice_type', 'addon')->count());
+    }
+
+    public function test_landlord_approval_appends_addon_to_existing_unpaid_rent_invoice(): void
+    {
+        [$tenant, $booking, $addon, $landlord] = $this->buildScenario();
+
+        $booking->update(['payment_status' => 'unpaid']);
+
+        $rentInvoice = Invoice::create([
+            'reference' => 'INV-'.now()->format('Ymd').'-ADDUNP',
+            'landlord_id' => $booking->landlord_id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $booking->tenant_id,
+            'description' => 'Monthly rent invoice',
+            'invoice_type' => 'rent',
+            'amount_cents' => 100000,
+            'currency' => 'PHP',
+            'status' => 'overdue',
+            'issued_at' => now()->subDays(5),
+            'due_date' => now()->subDay()->toDateString(),
+        ]);
+
+        Sanctum::actingAs($tenant);
+        $requestResponse = $this->postJson('/api/tenant/addons/request', [
+            'addon_id' => $addon->id,
+            'quantity' => 1,
+            'note' => 'Add this to my current bill',
+        ]);
+
+        $requestResponse
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        Sanctum::actingAs($landlord);
+        $this->withoutMiddleware(EnsureUserIsLandlord::class);
+
+        $approveResponse = $this->patchJson("/api/landlord/bookings/{$booking->id}/addons/{$addon->id}", [
+            'action' => 'approve',
+        ]);
+
+        $approveResponse
+            ->assertStatus(200)
+            ->assertJsonPath('status', 'active');
+
+        $rentInvoice->refresh();
+        $this->assertSame(130000, (int) $rentInvoice->amount_cents);
+
+        $pivot = DB::table('booking_addons')
+            ->where('booking_id', $booking->id)
+            ->where('addon_id', $addon->id)
+            ->first();
+
+        $this->assertNotNull($pivot);
+        $this->assertSame($rentInvoice->id, (int) $pivot->invoice_id);
+        $this->assertSame(0, Invoice::where('booking_id', $booking->id)->where('invoice_type', 'addon')->count());
+    }
+
+    public function test_landlord_approval_creates_separate_addon_invoice_when_rent_invoice_is_paid(): void
+    {
+        [$tenant, $booking, $addon, $landlord] = $this->buildScenario();
+
+        $paidRentInvoice = Invoice::create([
+            'reference' => 'INV-'.now()->format('Ymd').'-ADDPAD',
+            'landlord_id' => $booking->landlord_id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $booking->tenant_id,
+            'description' => 'Monthly rent invoice',
+            'invoice_type' => 'rent',
+            'amount_cents' => 100000,
+            'currency' => 'PHP',
+            'status' => 'paid',
+            'issued_at' => now()->subDays(3),
+            'due_date' => now()->addDays(3)->toDateString(),
+            'paid_at' => now()->subDay(),
+        ]);
+
+        Sanctum::actingAs($tenant);
+        $requestResponse = $this->postJson('/api/tenant/addons/request', [
+            'addon_id' => $addon->id,
+            'quantity' => 1,
+            'note' => 'Need this now',
+        ]);
+
+        $requestResponse
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        Sanctum::actingAs($landlord);
+        $this->withoutMiddleware(EnsureUserIsLandlord::class);
+
+        $approveResponse = $this->patchJson("/api/landlord/bookings/{$booking->id}/addons/{$addon->id}", [
+            'action' => 'approve',
+        ]);
+
+        $approveResponse
+            ->assertStatus(200)
+            ->assertJsonPath('status', 'active');
+
+        $paidRentInvoice->refresh();
+        $this->assertSame(100000, (int) $paidRentInvoice->amount_cents);
+
+        $addonInvoice = Invoice::where('booking_id', $booking->id)
+            ->where('invoice_type', 'addon')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($addonInvoice);
+        $this->assertSame(30000, (int) $addonInvoice->amount_cents);
+
+        $pivot = DB::table('booking_addons')
+            ->where('booking_id', $booking->id)
+            ->where('addon_id', $addon->id)
+            ->first();
+
+        $this->assertNotNull($pivot);
+        $this->assertSame($addonInvoice->id, (int) $pivot->invoice_id);
+    }
+
+    public function test_tenant_payment_detail_includes_booking_addons_relation(): void
+    {
+        [$tenant, $booking, $addon] = $this->buildScenario();
+
+        $invoice = Invoice::create([
+            'reference' => 'INV-'.now()->format('Ymd').'-ADDPAY',
+            'landlord_id' => $booking->landlord_id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $booking->tenant_id,
+            'description' => 'Monthly rent with add-ons',
+            'invoice_type' => 'rent',
+            'amount_cents' => 130000,
+            'currency' => 'PHP',
+            'status' => 'partial',
+            'issued_at' => now()->subDay(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'metadata' => [
+                'addons' => [
+                    [
+                        'addon_id' => $addon->id,
+                        'addon_name' => $addon->name,
+                        'quantity' => 1,
+                        'price' => 30000,
+                    ],
+                ],
+            ],
+        ]);
+
+        $booking->addons()->attach($addon->id, [
+            'quantity' => 1,
+            'price_at_booking' => 300,
+            'status' => 'active',
+            'invoice_id' => $invoice->id,
+            'approved_at' => now(),
+        ]);
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->getJson("/api/tenant/payments/{$invoice->id}");
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('id', $invoice->id)
+            ->assertJsonPath('booking.id', $booking->id)
+            ->assertJsonCount(1, 'booking.addons')
+            ->assertJsonPath('booking.addons.0.id', $addon->id)
+            ->assertJsonPath('booking.addons.0.name', $addon->name)
+            ->assertJsonPath('booking.addons.0.pivot.status', 'active')
+            ->assertJsonPath('booking.addons.0.pivot.invoice_id', $invoice->id);
     }
 
     private function buildScenario(): array
@@ -157,6 +427,6 @@ class TenantAddonRequestTest extends TestCase
             'is_active' => true,
         ]);
 
-        return [$tenant, $booking, $addon];
+        return [$tenant, $booking, $addon, $landlord];
     }
 }

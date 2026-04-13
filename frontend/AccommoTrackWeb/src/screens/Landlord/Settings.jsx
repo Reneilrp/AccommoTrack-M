@@ -1,19 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useSearchParams, useLocation } from 'react-router-dom';
-import { ShieldCheck, Palette, User, Bell, Lock, Users, CreditCard, ArrowLeftRight } from 'lucide-react';
+import { ShieldCheck, Palette, User, Bell, Lock, Users, CreditCard, ArrowLeftRight, Rocket, Receipt } from 'lucide-react';
 import api from '../../utils/api';
 import MyProfile from '../../components/Settings/landlord/MyProfile';
 import Notifications from '../../components/Settings/landlord/Notifications';
 import Security from '../../components/Settings/landlord/Security';
 import CareTakerAccess from '../../components/Settings/landlord/CareTakerAccess';
 import PaymentMethods from '../../components/Settings/landlord/PaymentMethods';
+import SubscriptionPlan from '../../components/Settings/landlord/SubscriptionPlan';
+import BillingCenter from '../../components/Settings/landlord/BillingCenter';
 import VerificationStatus from './VerificationStatus';
 import AppearanceTab from '../../components/Settings/AppearanceTab';
 import SwitchRoleTab from '../../components/Settings/SwitchRoleTab';
 import { useUIState } from '../../contexts/UIStateContext';
+import SidebarContext from '../../contexts/SidebarContext';
 
-const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'payments', 'verification', 'appearance', 'switch-role'];
+const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'payments', 'subscription-plan', 'billing-center', 'verification', 'appearance', 'switch-role'];
 const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
 
 const createCaretakerPermissionDefaults = () => ({
@@ -23,12 +26,15 @@ const createCaretakerPermissionDefaults = () => ({
   rooms: false,
   properties: false,
   maintenance: false,
-  payments: false
+  payments: false,
+  analytics: false,
 });
 
 const DEFAULT_SECURITY_PREFERENCES = {
   twoFactorAuth: false,
-  loginAlerts: true
+  loginAlerts: true,
+  emailRecoveryEnabled: false,
+  emailRecoveryVerifiedAt: null,
 };
 
 const getSecurityPreferences = (preferences) => {
@@ -37,13 +43,17 @@ const getSecurityPreferences = (preferences) => {
 
   return {
     twoFactorAuth: Boolean(source.twoFactorAuth),
-    loginAlerts: source.loginAlerts === undefined ? true : Boolean(source.loginAlerts)
+    loginAlerts: source.loginAlerts === undefined ? true : Boolean(source.loginAlerts),
+    emailRecoveryEnabled: Boolean(source.emailRecoveryEnabled),
+    emailRecoveryVerifiedAt: source.emailRecoveryVerifiedAt || null,
   };
 };
 
 export default function Settings({ user, accessRole = 'landlord', onUserUpdate }) {
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_settings;
+  const sidebarContext = useContext(SidebarContext);
+  const collapseSidebar = sidebarContext?.collapse;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -55,17 +65,30 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const normalizedRole = accessRole || user?.role || 'landlord';
 
   const allTabs = [
-    { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
-    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
-    { id: 'security', label: 'Security', icon: <Lock className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
-    { id: 'caretaker', label: 'Caretaker Management', icon: <Users className="w-4 h-4" />, roles: ['landlord'] },
-    { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" />, roles: ['landlord'] },
-    { id: 'verification', label: 'Verification', icon: <ShieldCheck className="w-4 h-4" />, roles: ['landlord'] },
-    { id: 'appearance', label: 'Appearance', icon: <Palette className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
-    { id: 'switch-role', label: 'Switch Role', icon: <ArrowLeftRight className="w-4 h-4" />, roles: ['landlord'] },
+    { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" />, roles: ['landlord', 'caretaker'], section: 'account' },
+    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, roles: ['landlord', 'caretaker'], section: 'account' },
+    { id: 'security', label: 'Security', icon: <Lock className="w-4 h-4" />, roles: ['landlord', 'caretaker'], section: 'account' },
+    { id: 'appearance', label: 'Appearance', icon: <Palette className="w-4 h-4" />, roles: ['landlord', 'caretaker'], section: 'account' },
+    { id: 'caretaker', label: 'Caretaker Management', icon: <Users className="w-4 h-4" />, roles: ['landlord'], section: 'operations' },
+    { id: 'verification', label: 'Verification', icon: <ShieldCheck className="w-4 h-4" />, roles: ['landlord'], section: 'operations' },
+    { id: 'switch-role', label: 'Switch Role', icon: <ArrowLeftRight className="w-4 h-4" />, roles: ['landlord'], section: 'operations' },
+    { id: 'payments', label: 'Payment Methods', icon: <CreditCard className="w-4 h-4" />, roles: ['landlord'], section: 'billing' },
+    { id: 'subscription-plan', label: 'Subscription Plan', icon: <Rocket className="w-4 h-4" />, roles: ['landlord'], section: 'billing' },
+    { id: 'billing-center', label: 'Billing Center', icon: <Receipt className="w-4 h-4" />, roles: ['landlord'], section: 'billing' },
   ];
 
-  const visibleTabs = allTabs.filter(tab => tab.roles.includes(normalizedRole));
+  const visibleTabs = allTabs.filter((tab) => tab.roles.includes(normalizedRole));
+
+  const groupedTabs = [
+    { id: 'account', label: 'Account' },
+    { id: 'operations', label: 'Operations' },
+    { id: 'billing', label: 'Billing' },
+  ]
+    .map((group) => ({
+      ...group,
+      tabs: visibleTabs.filter((tab) => tab.section === group.id),
+    }))
+    .filter((group) => group.tabs.length > 0);
 
   // --- Profile State ---
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -105,6 +128,10 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const [isEditingSecurity, setIsEditingSecurity] = useState(false);
   const [security, setSecurity] = useState(() => getSecurityPreferences(user?.preferences));
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
+  const [emailRecoveryOtpCode, setEmailRecoveryOtpCode] = useState('');
+  const [isSendingEmailRecoveryOtp, setIsSendingEmailRecoveryOtp] = useState(false);
+  const [isVerifyingEmailRecoveryOtp, setIsVerifyingEmailRecoveryOtp] = useState(false);
+  const [isDisablingEmailRecoveryOtp, setIsDisablingEmailRecoveryOtp] = useState(false);
 
   // --- Caretaker State ---
   const [caretakers, setCaretakers] = useState(() => Array.isArray(cachedData?.caretakers) ? cachedData.caretakers : []);
@@ -116,27 +143,43 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
 
   useEffect(() => {
     if (location.state?.tab && VALID_TABS.includes(location.state.tab)) {
-      if (location.state.tab !== activeTab) {
-        setActiveTab(location.state.tab);
+      setActiveTab((currentTab) => {
+        if (currentTab === location.state.tab) return currentTab;
+        return location.state.tab;
+      });
+
+      const currentParamTab = ensureValidTab(searchParams.get('tab'));
+      if (currentParamTab !== location.state.tab) {
         const params = new URLSearchParams(searchParams);
         params.set('tab', location.state.tab);
         setSearchParams(params, { replace: true });
       }
       return;
     }
+
     const paramTab = searchParams.get('tab');
     const nextTab = ensureValidTab(paramTab);
-    if (nextTab !== activeTab) setActiveTab(nextTab);
-  }, [searchParams, location.state]);
+    setActiveTab((currentTab) => {
+      if (currentTab === nextTab) return currentTab;
+      return nextTab;
+    });
+  }, [searchParams, location.state, setSearchParams]);
 
   const handleTabChange = (tab) => {
     const nextTab = ensureValidTab(tab);
+
     setActiveTab(nextTab);
     const params = new URLSearchParams(searchParams);
     if (nextTab === 'profile') params.delete('tab');
     else params.set('tab', nextTab);
     setSearchParams(params);
   };
+
+  useEffect(() => {
+    if (activeTab === 'subscription-plan' && collapseSidebar) {
+      collapseSidebar().catch(() => {});
+    }
+  }, [activeTab, collapseSidebar]);
 
   // --- Profile Handlers ---
   const handlePhotoSelect = (e) => {
@@ -166,25 +209,27 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const handleSaveProfile = async () => {
     try {
       const formData = new FormData();
-      formData.append('first_name', profileData.firstName);
-      formData.append('last_name', profileData.lastName);
-      formData.append('phone', profileData.phone);
-      formData.append('date_of_birth', profileData.dateOfBirth);
-      formData.append('gender', profileData.gender || '');
-      formData.append('identified_as', profileData.identified_as || '');
+      formData.append('first_name', profileData.firstName || '');
+      formData.append('last_name', profileData.lastName || '');
       formData.append('_method', 'PUT');
+
+      // Only append optional fields if they have real values
+      if (profileData.phone) formData.append('phone', profileData.phone);
+      if (profileData.dateOfBirth) formData.append('date_of_birth', profileData.dateOfBirth);
+      if (profileData.gender) formData.append('gender', profileData.gender);
+      if (profileData.identified_as) formData.append('identified_as', profileData.identified_as);
 
       if (fileInputRef.current?.files[0]) {
         formData.append('profile_image', fileInputRef.current.files[0]);
       }
 
-      const res = await api.post('/me', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/me', formData);
       onUserUpdate(res.data.user);
       setIsEditingProfile(false);
       setPhotoPreview(null);
       toast.success('Profile updated!');
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Update failed');
+      toast.error(e.response?.data?.message || e.response?.data?.error || 'Update failed');
     }
   };
 
@@ -234,7 +279,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         ...currentPreferences,
         security: {
           twoFactorAuth: Boolean(security.twoFactorAuth),
-          loginAlerts: Boolean(security.loginAlerts)
+          loginAlerts: Boolean(security.loginAlerts),
+          emailRecoveryEnabled: Boolean(security.emailRecoveryEnabled),
+          emailRecoveryVerifiedAt: security.emailRecoveryVerifiedAt || null,
         }
       };
 
@@ -245,6 +292,67 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       toast.error(e.response?.data?.message || 'Failed to save security settings');
     } finally {
       setIsSavingSecurity(false);
+    }
+  };
+
+  const applySecurityActionUser = (nextUser) => {
+    if (!nextUser) return;
+    if (onUserUpdate) onUserUpdate(nextUser);
+    setSecurity(getSecurityPreferences(nextUser.preferences));
+  };
+
+  const handleSendEmailRecoveryOtp = async () => {
+    if (normalizedRole !== 'landlord') return;
+
+    setIsSendingEmailRecoveryOtp(true);
+    try {
+      const response = await api.post('/landlord/security/email-recovery/send-otp');
+      applySecurityActionUser(response.data?.user);
+      toast.success(response.data?.message || 'Verification code sent to your email address.');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to send verification code');
+    } finally {
+      setIsSendingEmailRecoveryOtp(false);
+    }
+  };
+
+  const handleVerifyEmailRecoveryOtp = async () => {
+    if (normalizedRole !== 'landlord') return;
+
+    const normalizedCode = (emailRecoveryOtpCode || '').trim();
+    if (!/^\d{6}$/.test(normalizedCode)) {
+      toast.error('Enter the 6-digit verification code');
+      return;
+    }
+
+    setIsVerifyingEmailRecoveryOtp(true);
+    try {
+      const response = await api.post('/landlord/security/email-recovery/verify-otp', {
+        email_otp_code: normalizedCode,
+      });
+      applySecurityActionUser(response.data?.user);
+      setEmailRecoveryOtpCode('');
+      toast.success(response.data?.message || 'Email recovery verified successfully.');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to verify code');
+    } finally {
+      setIsVerifyingEmailRecoveryOtp(false);
+    }
+  };
+
+  const handleDisableEmailRecoveryOtp = async () => {
+    if (normalizedRole !== 'landlord') return;
+
+    setIsDisablingEmailRecoveryOtp(true);
+    try {
+      const response = await api.post('/landlord/security/email-recovery/disable');
+      applySecurityActionUser(response.data?.user);
+      setEmailRecoveryOtpCode('');
+      toast.success(response.data?.message || 'Email recovery has been disabled.');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to disable email recovery');
+    } finally {
+      setIsDisablingEmailRecoveryOtp(false);
     }
   };
 
@@ -282,7 +390,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_view_rooms: !!caretakerPermissions.rooms,
         can_view_properties: !!caretakerPermissions.properties,
         can_manage_maintenance: !!caretakerPermissions.maintenance,
-        can_manage_payments: !!caretakerPermissions.payments
+        can_manage_payments: !!caretakerPermissions.payments,
+        can_view_analytics: !!caretakerPermissions.analytics,
       };
 
       await api.post('/landlord/caretakers', {
@@ -314,7 +423,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_view_rooms: !!caretakerPermissions.rooms,
         can_view_properties: !!caretakerPermissions.properties,
         can_manage_maintenance: !!caretakerPermissions.maintenance,
-        can_manage_payments: !!caretakerPermissions.payments
+        can_manage_payments: !!caretakerPermissions.payments,
+        can_view_analytics: !!caretakerPermissions.analytics,
       };
 
       const response = await api.patch(`/landlord/caretakers/${id}`, {
@@ -367,15 +477,26 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-            <nav className="space-y-2">
-              {visibleTabs.map(tab => (
-                <button 
-                  key={tab.id} 
-                  onClick={() => handleTabChange(tab.id)} 
-                  className={`w-full text-left px-4 py-4 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}
-                >
-                  {tab.icon} {tab.label}
-                </button>
+            <nav className="space-y-4">
+              {groupedTabs.map((group) => (
+                <div key={group.id}>
+                  <div className="px-3 mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
+                      {group.label}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {group.tabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => handleTabChange(tab.id)}
+                        className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
+                      >
+                        {tab.icon} {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </nav>
           </div>
@@ -405,6 +526,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
           {activeTab === 'security' && (
             <Security 
               user={user} 
+              accessRole={normalizedRole}
               passwordData={passwordData}
               setPasswordData={setPasswordData}
               isEditingPassword={isEditingPassword}
@@ -417,6 +539,14 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
               handleCancelSecurityEdit={handleCancelSecurityEdit}
               handleUpdateSecurity={handleUpdateSecurity}
               isSavingSecurity={isSavingSecurity}
+              emailRecoveryOtpCode={emailRecoveryOtpCode}
+              setEmailRecoveryOtpCode={setEmailRecoveryOtpCode}
+              handleSendEmailRecoveryOtp={handleSendEmailRecoveryOtp}
+              handleVerifyEmailRecoveryOtp={handleVerifyEmailRecoveryOtp}
+              handleDisableEmailRecoveryOtp={handleDisableEmailRecoveryOtp}
+              isSendingEmailRecoveryOtp={isSendingEmailRecoveryOtp}
+              isVerifyingEmailRecoveryOtp={isVerifyingEmailRecoveryOtp}
+              isDisablingEmailRecoveryOtp={isDisablingEmailRecoveryOtp}
             />
           )}
           {activeTab === 'caretaker' && (
@@ -441,6 +571,12 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
             />
           )}
           {activeTab === 'payments' && <PaymentMethods user={user} onUpdate={onUserUpdate} />}
+          {activeTab === 'subscription-plan' && (
+            <SubscriptionPlan onOpenBillingCenter={() => handleTabChange('billing-center')} />
+          )}
+          {activeTab === 'billing-center' && (
+            <BillingCenter onOpenSubscriptionPlan={() => handleTabChange('subscription-plan')} />
+          )}
           {activeTab === 'verification' && <VerificationStatus user={user} onUpdate={onUserUpdate} />}
           {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
           {activeTab === 'switch-role' && <SwitchRoleTab user={user} onUserUpdate={onUserUpdate} />}

@@ -11,6 +11,82 @@ class TenantDashboardController extends Controller
 {
     protected TenantDashboardService $dashboardService;
 
+    private function extractSuggestedPriceFromNote(?string $note): ?float
+    {
+        if (! is_string($note) || trim($note) === '') {
+            return null;
+        }
+
+        if (! preg_match('/suggested\s*price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i', $note, $matches)) {
+            return null;
+        }
+
+        $rawValue = str_replace(',', '', $matches[1] ?? '');
+        if ($rawValue === '' || ! is_numeric($rawValue)) {
+            return null;
+        }
+
+        $price = (float) $rawValue;
+
+        return $price > 0 ? $price : null;
+    }
+
+    private function resolveAddonEffectivePrice($addon): float
+    {
+        $pivotPrice = (float) ($addon->pivot->price_at_booking ?? 0);
+        if ($pivotPrice > 0) {
+            return $pivotPrice;
+        }
+
+        $addonPrice = (float) ($addon->price ?? 0);
+        if ($addonPrice > 0) {
+            return $addonPrice;
+        }
+
+        $suggestedPrice = $this->extractSuggestedPriceFromNote($addon->pivot->request_note ?? null);
+        if (! is_null($suggestedPrice) && $suggestedPrice > 0) {
+            return $suggestedPrice;
+        }
+
+        return 0.0;
+    }
+
+    private function buildReservationPolicyPayload($booking): array
+    {
+        $thresholdDays = max(0, (int) ($booking->property->reservation_fee_gap_days ?? 3));
+        $issuedDate = ($booking->created_at ?? now())->copy()->startOfDay();
+        $moveInDate = $booking->start_date
+            ? $booking->start_date->copy()->startOfDay()
+            : null;
+        $daysGap = $moveInDate
+            ? max(0, $issuedDate->diffInDays($moveInDate, false))
+            : 0;
+
+        $reservationFeeEnabled = (bool) ($booking->property->require_reservation_fee ?? false);
+        $reservationFeeAmount = (float) ($booking->property->reservation_fee ?? 0);
+        $reservationFeeConfigured = $reservationFeeEnabled && $reservationFeeAmount > 0;
+        $feeRequired = $reservationFeeConfigured && $daysGap > $thresholdDays;
+
+        if (! $reservationFeeConfigured) {
+            $message = 'No reservation fee is configured for this property.';
+        } elseif ($feeRequired) {
+            $message = "Reservation fee is required because move-in is {$daysGap} days after booking date.";
+        } else {
+            $message = "No reservation fee is required because move-in is within {$thresholdDays} days from booking date.";
+        }
+
+        return [
+            'fee_required' => $feeRequired,
+            'fee_amount' => $reservationFeeAmount,
+            'days_gap' => $daysGap,
+            'threshold_days' => $thresholdDays,
+            'comparator' => 'days_gap > threshold_days',
+            'booking_issued_date' => $issuedDate->toDateString(),
+            'move_in_date' => $moveInDate?->toDateString(),
+            'message' => $message,
+        ];
+    }
+
     public function __construct(TenantDashboardService $dashboardService)
     {
         $this->dashboardService = $dashboardService;
@@ -121,13 +197,27 @@ class TenantDashboardController extends Controller
                 $monthlyAddonTotal = $booking->addons->where('price_type', 'monthly')
                     ->whereIn('pivot.status', ['active', 'approved'])
                     ->sum(function ($a) {
-                        $price = (float) $a->pivot->price_at_booking;
-                        if ($price <= 0 && $a->price > 0) {
-                            $price = (float) $a->price;
-                        }
+                        $price = $this->resolveAddonEffectivePrice($a);
 
-                        return $price * $a->pivot->quantity;
+                        return $price * ((float) ($a->pivot->quantity ?? 1));
                     });
+                $resolvedBedCount = max(1, (int) ($booking->bed_count ?? 1));
+                $resolvedOccupantCount = (int) ($booking->occupants_count ?? 0);
+                if ($resolvedOccupantCount <= 0 && $booking->booking_mode === 'proxy') {
+                    $resolvedOccupantCount = $resolvedBedCount;
+                }
+                $roomCapacity = (int) ($booking->room->capacity ?? 0);
+                $occupants = $booking->occupants->map(function ($occupant) {
+                    return [
+                        'id' => $occupant->id,
+                        'full_name' => $occupant->full_name,
+                        'date_of_birth' => $occupant->date_of_birth,
+                        'gender' => $occupant->gender,
+                        'relationship_to_booker' => $occupant->relationship_to_booker,
+                        'phone' => $occupant->phone,
+                        'email' => $occupant->email,
+                    ];
+                })->values();
 
                 // For multiple stays, we might want to fetch available addons per property
                 // But for now let's use the standard service call which finds the "first" active booking context
@@ -140,8 +230,16 @@ class TenantDashboardController extends Controller
                 return [
                     'booking' => [
                         'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
+                        'status' => $booking->status,
                         'startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
                         'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                        'bookingMode' => $booking->booking_mode,
+                        'booking_mode' => $booking->booking_mode,
+                        'bedCount' => $resolvedBedCount,
+                        'bed_count' => $resolvedBedCount,
+                        'occupantCount' => $resolvedOccupantCount,
+                        'occupant_count' => $resolvedOccupantCount,
+                        'occupants' => $occupants,
                         'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $booking->monthly_rent,
                         'total_months' => $booking->total_months, 'monthly_rent' => (float) $booking->monthly_rent,
                         'billing_policy' => $booking->room->billing_policy ?? 'monthly',
@@ -166,6 +264,7 @@ class TenantDashboardController extends Controller
                         'id' => $booking->room->id,
                         'roomNumber' => $booking->room->room_number,
                         'room_number' => $booking->room->room_number,
+                        'capacity' => $roomCapacity,
                         'roomType' => $booking->room->room_type ?? null,
                         'room_type' => $booking->room->room_type ?? null,
                         'require_1month_advance' => $booking->room->requiresAdvance(),
@@ -185,17 +284,19 @@ class TenantDashboardController extends Controller
                     'landlord' => ['id' => $booking->landlord->id, 'name' => $booking->landlord->name, 'email' => $booking->landlord->email, 'phone' => $booking->landlord->phone_number ?? null],
                     'addons' => [
                         'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->map(function ($a) {
-                            $price = (float) $a->pivot->price_at_booking;
-                            if ($price <= 0 && $a->price > 0) {
-                                $a->pivot->price_at_booking = $a->price;
+                            $price = $this->resolveAddonEffectivePrice($a);
+                            if ($price > 0) {
+                                $a->pivot->price_at_booking = $price;
+                                $a->price = $price;
                             }
 
                             return $a;
                         })->values(),
                         'pending' => $booking->addons->where('pivot.status', 'pending')->map(function ($a) {
-                            $price = (float) $a->pivot->price_at_booking;
-                            if ($price <= 0 && $a->price > 0) {
-                                $a->pivot->price_at_booking = $a->price;
+                            $price = $this->resolveAddonEffectivePrice($a);
+                            if ($price > 0) {
+                                $a->pivot->price_at_booking = $price;
+                                $a->price = $price;
                             }
 
                             return $a;
@@ -312,14 +413,26 @@ class TenantDashboardController extends Controller
         try {
             $pastBookings = $this->dashboardService->getHistory(Auth::id());
             $formattedBookings = $pastBookings->getCollection()->map(function ($booking) {
+                $property = $booking->property;
+                $room = $booking->room;
+                $landlord = $booking->landlord;
+
+                $propertyId = $property?->id ?? $booking->property_id;
+                $propertyTitle = $property?->title ?? 'Property unavailable';
+                $propertyImage = $property?->image_url;
+                $roomId = $room?->id ?? $booking->room_id;
+                $roomNumber = $room?->room_number ?? 'N/A';
+                $landlordName = trim((string) ($landlord?->full_name ?? (($landlord?->first_name ?? '').' '.($landlord?->last_name ?? ''))));
+                $landlordName = $landlordName !== '' ? $landlordName : ($landlord?->name ?? 'Landlord');
+                $startDate = $booking->start_date ? $booking->start_date->format('Y-m-d') : null;
+                $endDate = $booking->end_date ? $booking->end_date->format('Y-m-d') : null;
+                $hasReview = ! is_null($booking->review);
+
                 $totalPaid = $booking->payments->where('status', 'completed')->sum('amount');
                 $addonTotal = $booking->addons->sum(function ($a) {
-                    $price = (float) $a->pivot->price_at_booking;
-                    if ($price <= 0 && $a->price > 0) {
-                        $price = (float) $a->price;
-                    }
+                    $price = $this->resolveAddonEffectivePrice($a);
 
-                    return $price * $a->pivot->quantity;
+                    return $price * ((float) ($a->pivot->quantity ?? 1));
                 });
 
                 // Build a timeline of activities
@@ -330,7 +443,7 @@ class TenantDashboardController extends Controller
                     'type' => 'event',
                     'action' => 'Booking Requested',
                     'timestamp' => $booking->created_at,
-                    'description' => 'You submitted a booking request for '.$booking->property->title,
+                    'description' => 'You submitted a booking request for '.$propertyTitle,
                     'status' => 'pending',
                 ]);
 
@@ -375,15 +488,22 @@ class TenantDashboardController extends Controller
 
                 return [
                     'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
-                    'property' => ['id' => $booking->property->id, 'title' => $booking->property->title, 'image' => $booking->property->image_url],
-                    'room' => ['id' => $booking->room->id, 'roomNumber' => $booking->room->room_number],
-                    'landlord' => ['name' => $booking->landlord->name],
+                    'booking_reference' => $booking->booking_reference,
+                    'property_id' => $propertyId,
+                    'property_title' => $propertyTitle,
+                    'property_image' => $propertyImage,
+                    'property' => ['id' => $propertyId, 'title' => $propertyTitle, 'image' => $propertyImage],
+                    'room' => ['id' => $roomId, 'roomNumber' => $roomNumber],
+                    'landlord' => ['name' => $landlordName],
                     'period' => [
-                        'startDate' => $booking->start_date->format('Y-m-d'),
-                        'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                        'startDate' => $startDate,
+                        'endDate' => $endDate,
                         'totalMonths' => $booking->total_months,
                     ],
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
                     'status' => $booking->status,
+                    'reservation_policy' => $this->buildReservationPolicyPayload($booking),
                     'billing_policy' => $booking->room?->billing_policy ?? 'monthly',
                     'unit_price' => (float) ($booking->room?->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
                     'confirmedAt' => $booking->confirmed_at,
@@ -391,10 +511,7 @@ class TenantDashboardController extends Controller
                     'activityLog' => $sortedActivity,
                     'financials' => ['monthlyRent' => (float) $booking->monthly_rent, 'totalAmount' => (float) $booking->total_amount, 'addonTotal' => (float) $addonTotal, 'totalPaid' => (float) $totalPaid, 'paymentsCount' => $booking->payments->count()],
                     'addons' => $booking->addons->map(function ($a) {
-                        $price = (float) $a->pivot->price_at_booking;
-                        if ($price <= 0 && $a->price > 0) {
-                            $price = (float) $a->price;
-                        }
+                        $price = $this->resolveAddonEffectivePrice($a);
 
                         return [
                             'name' => $a->name,
@@ -403,6 +520,8 @@ class TenantDashboardController extends Controller
                         ];
                     }),
                     'cancelledAt' => $booking->cancelled_at, 'cancellationReason' => $booking->cancellation_reason,
+                    'has_review' => $hasReview,
+                    'hasReview' => $hasReview,
                     'review' => $booking->review ? ['id' => $booking->review->id, 'rating' => $booking->review->rating] : null,
                 ];
             });
@@ -437,15 +556,19 @@ class TenantDashboardController extends Controller
 
             return response()->json([
                 'pending' => $booking->addons->where('pivot.status', 'pending')->map(function ($a) {
-                    if ((float) $a->pivot->price_at_booking <= 0 && $a->price > 0) {
-                        $a->pivot->price_at_booking = $a->price;
+                    $price = $this->resolveAddonEffectivePrice($a);
+                    if ($price > 0) {
+                        $a->pivot->price_at_booking = $price;
+                        $a->price = $price;
                     }
 
                     return $a;
                 })->values(),
                 'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->map(function ($a) {
-                    if ((float) $a->pivot->price_at_booking <= 0 && $a->price > 0) {
-                        $a->pivot->price_at_booking = $a->price;
+                    $price = $this->resolveAddonEffectivePrice($a);
+                    if ($price > 0) {
+                        $a->pivot->price_at_booking = $price;
+                        $a->price = $price;
                     }
 
                     return $a;

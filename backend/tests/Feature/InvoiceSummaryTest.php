@@ -138,6 +138,58 @@ class InvoiceSummaryTest extends TestCase
             ->assertJsonPath('data.totals.total_invoices', 3);
     }
 
+    public function test_landlord_invoice_endpoints_can_exclude_subscription_invoices(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-04 09:00:00'));
+
+        [$landlord, $tenant] = $this->createUsers();
+        [$property, $booking] = $this->createPropertyAndBooking($landlord, $tenant);
+
+        $rentInvoice = $this->createInvoice($booking, [
+            'invoice_type' => 'rent',
+            'status' => 'pending',
+            'amount_cents' => 25000,
+            'total_cents' => 25000,
+            'issued_at' => now()->startOfMonth()->addDay(),
+        ]);
+
+        Invoice::create([
+            'reference' => 'INV-SUB-'.uniqid(),
+            'landlord_id' => $landlord->id,
+            'description' => 'Basic subscription (monthly billing)',
+            'invoice_type' => 'subscription',
+            'amount_cents' => 49900,
+            'total_cents' => 49900,
+            'currency' => 'PHP',
+            'status' => 'pending',
+            'issued_at' => now()->startOfMonth()->addDays(2),
+            'due_date' => now()->startOfMonth()->addDays(5)->toDateString(),
+            'billing_period_key' => substr('SUB-'.uniqid(), 0, 20),
+            'metadata' => [
+                'domain' => 'subscriptions',
+                'plan_slug' => 'basic',
+                'billing_cycle' => 'monthly',
+            ],
+        ]);
+
+        Sanctum::actingAs($landlord);
+
+        $listResponse = $this->getJson('/api/invoices?exclude_invoice_type=subscription');
+
+        $listResponse->assertOk();
+        $listedIds = collect($listResponse->json('data'))->pluck('id')->all();
+        $this->assertContains($rentInvoice->id, $listedIds);
+        $this->assertCount(1, $listedIds);
+
+        $summaryResponse = $this->getJson('/api/invoices/summary?range=all&exclude_invoice_type=subscription');
+
+        $summaryResponse
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.totals.total_invoices', 1)
+            ->assertJsonPath('data.totals.total_balance_cents', 25000);
+    }
+
     private function createUsers(): array
     {
         $suffix = uniqid();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,6 +13,18 @@ class BookingResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $reservationPolicy = $this->buildReservationPolicy();
+        $resolvedBedCount = max(1, (int) ($this->bed_count ?? 1));
+        $resolvedOccupantCount = (int) ($this->occupants_count ?? 0);
+
+        if ($resolvedOccupantCount <= 0 && $this->relationLoaded('occupants')) {
+            $resolvedOccupantCount = (int) $this->occupants->count();
+        }
+
+        if ($resolvedOccupantCount <= 0 && $this->booking_mode === 'proxy') {
+            $resolvedOccupantCount = $resolvedBedCount;
+        }
+
         return [
             'id' => $this->id,
             'booking_reference' => $this->booking_reference,
@@ -31,6 +44,10 @@ class BookingResource extends JsonResource
             'tenant_id' => $this->tenant_id,
             'bookingMode' => $this->booking_mode,
             'booking_mode' => $this->booking_mode,
+            'bedCount' => $resolvedBedCount,
+            'bed_count' => $resolvedBedCount,
+            'occupantCount' => $resolvedOccupantCount,
+            'occupant_count' => $resolvedOccupantCount,
             'bookingGroupReference' => $this->booking_group_reference,
             'booking_group_reference' => $this->booking_group_reference,
             'landlord_id' => $this->landlord_id,
@@ -60,9 +77,10 @@ class BookingResource extends JsonResource
             'payment_plan' => $this->payment_plan,
             'contractMode' => $this->contract_mode,
             'contract_mode' => $this->contract_mode,
-            'receipt_image_path' => $this->receipt_image_path ? (str_starts_with($this->receipt_image_path, 'http') ? $this->receipt_image_path : asset('storage/'.ltrim($this->receipt_image_path, '/'))) : null,
+            'receipt_image_path' => $this->receipt_image_path ? (str_starts_with($this->receipt_image_path, 'http') ? $this->receipt_image_path : \Illuminate\Support\Facades\Storage::url($this->receipt_image_path)) : null,
             'reference_number' => $this->reference_number,
             'move_in_date' => $this->move_in_date,
+            'reservation_policy' => $reservationPolicy,
             'can_request_addon' => $this->payment_status !== 'refunded' && !in_array($this->status, ['cancelled', 'rejected']),
             'notes' => $this->notes,
             'cancellation_reason' => $this->cancellation_reason,
@@ -80,6 +98,16 @@ class BookingResource extends JsonResource
                 'rating' => $this->review->rating,
                 'comment' => $this->review->comment,
             ] : null),
+            'occupants' => $this->whenLoaded('occupants', fn () => $this->occupants->map(fn ($occupant) => [
+                'id' => $occupant->id,
+                'full_name' => $occupant->full_name,
+                'date_of_birth' => $occupant->date_of_birth,
+                'gender' => $occupant->gender,
+                'relationship_to_booker' => $occupant->relationship_to_booker,
+                'phone' => $occupant->phone,
+                'email' => $occupant->email,
+                'notes' => $occupant->notes,
+            ])->values()),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 
@@ -110,6 +138,7 @@ class BookingResource extends JsonResource
                 'room_number' => $this->room->room_number,
                 'name' => $this->room->room_number,
                 'room_type' => $this->room->room_type,
+                'capacity' => (int) ($this->room->capacity ?? 0),
                 'floor' => $this->room->floor,
                 'status' => $this->room->status,
                 'billing_policy' => $this->room->billing_policy ?? 'monthly',
@@ -129,6 +158,46 @@ class BookingResource extends JsonResource
                 'email' => $this->landlord->email,
                 'phone' => $this->landlord->phone,
             ]),
+        ];
+    }
+
+    private function buildReservationPolicy(): ?array
+    {
+        if (! $this->relationLoaded('property') || ! $this->property) {
+            return null;
+        }
+
+        $thresholdDays = max(0, (int) ($this->property->reservation_fee_gap_days ?? 3));
+        $issuedDate = ($this->created_at ?? now())->copy()->startOfDay();
+        $moveInDate = $this->start_date
+            ? Carbon::parse($this->start_date)->startOfDay()
+            : null;
+        $daysGap = $moveInDate
+            ? max(0, $issuedDate->diffInDays($moveInDate, false))
+            : 0;
+
+        $reservationFeeEnabled = (bool) ($this->property->require_reservation_fee ?? false);
+        $reservationFeeAmount = (float) ($this->property->reservation_fee ?? 0);
+        $reservationFeeConfigured = $reservationFeeEnabled && $reservationFeeAmount > 0;
+        $feeRequired = $reservationFeeConfigured && $daysGap > $thresholdDays;
+
+        if (! $reservationFeeConfigured) {
+            $message = 'No reservation fee is configured for this property.';
+        } elseif ($feeRequired) {
+            $message = "Reservation fee is required because move-in is {$daysGap} days after booking date.";
+        } else {
+            $message = "No reservation fee is required because move-in is within {$thresholdDays} days from booking date.";
+        }
+
+        return [
+            'fee_required' => $feeRequired,
+            'fee_amount' => $reservationFeeAmount,
+            'days_gap' => $daysGap,
+            'threshold_days' => $thresholdDays,
+            'comparator' => 'days_gap > threshold_days',
+            'booking_issued_date' => $issuedDate->toDateString(),
+            'move_in_date' => $moveInDate?->toDateString(),
+            'message' => $message,
         ];
     }
 }

@@ -9,6 +9,8 @@ use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Notifications\NewPaymentReceived;
+use App\Services\PaymentLedgerService;
+use App\Support\SystemToggle;
 use App\Services\AuditLogService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -27,7 +29,10 @@ class InvoiceController extends Controller
         'paymaya',
     ];
 
-    public function __construct(protected AuditLogService $auditLogService)
+    public function __construct(
+        protected AuditLogService $auditLogService,
+        private readonly PaymentLedgerService $paymentLedgerService,
+    )
     {
     }
 
@@ -47,80 +52,6 @@ class InvoiceController extends Controller
             $allowedPropertyIds = $context['assignment']->getAssignedPropertyIds();
         }
 
-        // Auto-generate missing invoices for confirmed bookings for this landlord
-        $uninvoicedBookingsQuery = \App\Models\Booking::where('landlord_id', $landlordId)
-            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-            ->whereDoesntHave('invoices');
-
-        if ($allowedPropertyIds) {
-            $uninvoicedBookingsQuery->whereIn('property_id', $allowedPropertyIds);
-        }
-
-        $uninvoicedBookings = $uninvoicedBookingsQuery->get();
-
-        foreach ($uninvoicedBookings as $booking) {
-            // ... (rest of auto-generation logic remains same) ...
-            try {
-                $reference = 'INV-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
-                $roomAmountCents = (int) round($booking->total_amount * 100);
-
-                // Bundle active monthly addons
-                $billingPeriodStart = \Carbon\Carbon::parse($booking->start_date)->startOfMonth();
-                $activeMonthlyAddons = $booking->addons()
-                    ->wherePivot('status', 'active')
-                    ->where(function ($query) use ($billingPeriodStart) {
-                        $query->whereNull('booking_addons.cancellation_effective_at')
-                            ->orWhere('booking_addons.cancellation_effective_at', '>', $billingPeriodStart);
-                    })
-                    ->where('price_type', 'monthly')
-                    ->get();
-
-                $addonsTotalCents = 0;
-                $addonMetadata = [];
-                foreach ($activeMonthlyAddons as $addon) {
-                    $priceCents = (int) round($addon->pivot->price_at_booking * $addon->pivot->quantity * 100);
-                    $addonsTotalCents += $priceCents;
-                    $addonMetadata[] = [
-                        'addon_id' => $addon->id,
-                        'addon_name' => $addon->name,
-                        'quantity' => $addon->pivot->quantity,
-                        'price' => $priceCents,
-                        'price_type' => 'monthly',
-                    ];
-                }
-
-                $totalAmountCents = $roomAmountCents + $addonsTotalCents;
-                $description = 'Monthly invoice for booking '.$booking->booking_reference;
-                if ($addonsTotalCents > 0) {
-                    $description .= "\n+ Includes active Add-ons";
-                }
-
-                $invoice = Invoice::create([
-                    'reference' => $reference,
-                    'landlord_id' => $booking->landlord_id,
-                    'property_id' => $booking->property_id,
-                    'booking_id' => $booking->id,
-                    'tenant_id' => $booking->tenant_id,
-                    'description' => $description,
-                    'amount_cents' => $totalAmountCents,
-                    'currency' => 'PHP',
-                    'status' => 'pending',
-                    'issued_at' => $booking->created_at,
-                    'due_date' => \Carbon\Carbon::parse($booking->start_date)->addDays(3),
-                    'metadata' => ['addons' => $addonMetadata],
-                ]);
-
-                foreach ($activeMonthlyAddons as $addon) {
-                    $booking->addons()->updateExistingPivot($addon->id, [
-                        'invoice_id' => $invoice->id,
-                        'invoiced_at' => now(),
-                    ]);
-                }
-            } catch (\Exception $e) {
-                \Log::error('Failed auto-generate bundled invoice: '.$e->getMessage());
-            }
-        }
-
         $query = Invoice::query()->where('landlord_id', $landlordId);
 
         if ($allowedPropertyIds) {
@@ -135,6 +66,22 @@ class InvoiceController extends Controller
         }
         if ($request->has('property_id')) {
             $query->where('property_id', $request->query('property_id'));
+        }
+        if ($request->has('invoice_type')) {
+            $query->where('invoice_type', $request->query('invoice_type'));
+        }
+        if ($request->has('exclude_invoice_type')) {
+            $excludedTypes = collect(explode(',', (string) $request->query('exclude_invoice_type')))
+                ->map(fn ($type) => trim($type))
+                ->filter()
+                ->values();
+
+            if ($excludedTypes->isNotEmpty()) {
+                $query->where(function ($excludeQuery) use ($excludedTypes) {
+                    $excludeQuery->whereNull('invoice_type')
+                        ->orWhereNotIn('invoice_type', $excludedTypes->all());
+                });
+            }
         }
 
         $invoices = $query->with(['transactions', 'booking.room', 'property', 'tenant'])
@@ -166,6 +113,8 @@ class InvoiceController extends Controller
             'property_id' => 'nullable|integer|exists:properties,id',
             'tenant_id' => 'nullable|integer|exists:users,id',
             'status' => 'nullable|string|max:40',
+            'invoice_type' => 'nullable|string|max:32',
+            'exclude_invoice_type' => 'nullable|string|max:255',
         ]);
 
         $range = $validated['range'] ?? 'month';
@@ -187,6 +136,24 @@ class InvoiceController extends Controller
 
         if (isset($validated['status'])) {
             $query->where('status', $validated['status']);
+        }
+
+        if (isset($validated['invoice_type'])) {
+            $query->where('invoice_type', $validated['invoice_type']);
+        }
+
+        if (! empty($validated['exclude_invoice_type'])) {
+            $excludedTypes = collect(explode(',', (string) $validated['exclude_invoice_type']))
+                ->map(fn ($type) => trim($type))
+                ->filter()
+                ->values();
+
+            if ($excludedTypes->isNotEmpty()) {
+                $query->where(function ($excludeQuery) use ($excludedTypes) {
+                    $excludeQuery->whereNull('invoice_type')
+                        ->orWhereNotIn('invoice_type', $excludedTypes->all());
+                });
+            }
         }
 
         $periodFrom = null;
@@ -380,7 +347,7 @@ class InvoiceController extends Controller
         $context = $this->resolveLandlordContext($request);
         $this->ensureCaretakerCan($context, 'can_manage_payments');
 
-        $invoice = Invoice::findOrFail($id);
+        $invoice = Invoice::with(['property', 'booking.property'])->findOrFail($id);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -412,10 +379,7 @@ class InvoiceController extends Controller
                 'idempotency_key' => $validated['idempotency_key'] ?? null,
             ]);
 
-            // Use Paymongo logic or similar to update invoice/booking
-            $invoice->paid_at = now();
-            $invoice->status = 'paid';
-            $invoice->save();
+            $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, Auth::id());
 
             $this->logInvoiceStatusTransition($invoice, $statusBefore, [
                 'payment_transaction_id' => $tx->id,
@@ -483,7 +447,7 @@ class InvoiceController extends Controller
                 'idempotency_key' => null,
             ]);
 
-            $this->recomputeInvoiceAndBookingStatus($invoice);
+            $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, Auth::id());
 
             $this->auditLogService->paymentEvent('payment.recorded_offline', [
                 'subject_type' => 'invoice',
@@ -524,6 +488,12 @@ class InvoiceController extends Controller
      */
     public function recordOfflineForTenant(Request $request, $id)
     {
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return response()->json([
+                'message' => 'Tenant payment submissions are temporarily unavailable while payment compliance updates are in progress.',
+            ], 503);
+        }
+
         $invoice = Invoice::findOrFail($id);
         $tenantId = Auth::id();
         if ($invoice->tenant_id !== $tenantId) {
@@ -543,31 +513,53 @@ class InvoiceController extends Controller
             'proof_image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
-        // --- Guard: amount must not exceed remaining balance ---
-        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
-        $alreadyPaidCents = $invoice->transactions()
-            ->whereIn('status', ['succeeded', 'paid', 'pending_offline', 'partially_refunded'])
-            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-            ->value('net_cents') ?? 0;
-        $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
-
-        if ($validated['amount_cents'] > $remainingCents) {
-            return response()->json([
-                'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingCents / 100, 2),
-            ], 422);
-        }
-
-        // --- Guard: check allow_partial_payments ---
-        $property = $invoice->property ?? $invoice->booking?->property;
-        $allowPartial = $property ? (bool) $property->allow_partial_payments : true;
-        if (! $allowPartial && $validated['amount_cents'] < $remainingCents) {
-            return response()->json([
-                'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingCents / 100, 2),
-            ], 422);
-        }
-
         DB::beginTransaction();
         try {
+            $invoice = Invoice::with(['property', 'booking.property'])
+                ->whereKey($invoice->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $hasPendingSubmission = $invoice->transactions()
+                ->where('status', 'pending_offline')
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasPendingSubmission && strtolower((string) $invoice->status) === 'pending_verification') {
+                DB::rollBack();
+
+                return response()->json([
+                    'message' => 'A manual payment submission is already pending verification for this invoice.',
+                ], 422);
+            }
+
+            // Recompute remaining balance while holding row locks to prevent concurrent over-submission.
+            $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+            $alreadyPaidCents = $invoice->transactions()
+                ->whereIn('status', ['succeeded', 'paid', 'pending_offline', 'partially_refunded'])
+                ->lockForUpdate()
+                ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+                ->value('net_cents') ?? 0;
+            $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
+
+            if ($validated['amount_cents'] > $remainingCents) {
+                DB::rollBack();
+
+                return response()->json([
+                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingCents / 100, 2),
+                ], 422);
+            }
+
+            $property = $invoice->property ?? $invoice->booking?->property;
+            $allowPartial = $property ? (bool) $property->allow_partial_payments : true;
+            if (! $allowPartial && $validated['amount_cents'] < $remainingCents) {
+                DB::rollBack();
+
+                return response()->json([
+                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingCents / 100, 2),
+                ], 422);
+            }
+
             $hadPreviousDeniedSubmission = $invoice->transactions()
                 ->whereIn('method', ['cash', 'gcash', 'bank_transfer', 'paymaya'])
                 ->where('status', 'voided')
@@ -577,7 +569,7 @@ class InvoiceController extends Controller
 
             $proofImagePath = null;
             if (isset($validated['proof_image'])) {
-                $proofImagePath = $validated['proof_image']->store('payment_proofs', 'public');
+                $proofImagePath = $validated['proof_image']->store('payment_proofs');
             }
 
             $tx = PaymentTransaction::create([
@@ -591,7 +583,7 @@ class InvoiceController extends Controller
                 'gateway_response' => [
                     'notes' => $validated['notes'] ?? null,
                     'proof_image_path' => $proofImagePath,
-                    'proof_image_url' => $proofImagePath ? asset('storage/'.ltrim($proofImagePath, '/')) : null,
+                    'proof_image_url' => $proofImagePath ? \Illuminate\Support\Facades\Storage::url($proofImagePath) : null,
                 ],
             ]);
 
@@ -634,7 +626,7 @@ class InvoiceController extends Controller
 
             DB::commit();
 
-            return response()->json(['success' => true, 'transaction' => $tx], 201);
+            return response()->json(['success' => true, 'transaction' => $tx->fresh()], 201);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -658,16 +650,24 @@ class InvoiceController extends Controller
 
         $validated = $request->validate([
             'action' => 'required|in:approve,reject',
-            'reason_code' => 'required_if:action,reject|nullable|in:invalid_proof,wrong_amount,unclear_image,mismatched_reference,duplicate_submission,other',
-            'reason' => 'required_if:action,reject|nullable|string|max:500',
+            'reason_code' => 'required_if:action,reject|in:invalid_proof,wrong_amount,unclear_image,mismatched_reference,duplicate_submission,other',
+            'reason' => ['required_if:action,reject', 'string', 'max:500', 'not_regex:/^\s*$/'],
         ]);
 
         $shouldBroadcastInvoiceUpdate = false;
 
         DB::beginTransaction();
         try {
+            $invoice = Invoice::with('booking', 'tenant')
+                ->whereKey($invoice->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $invoiceStatusBefore = $invoice->status;
-            $pendingTxs = $invoice->transactions()->where('status', 'pending_offline')->get();
+            $pendingTxs = $invoice->transactions()
+                ->where('status', 'pending_offline')
+                ->lockForUpdate()
+                ->get();
 
             if ($pendingTxs->isEmpty()) {
                 DB::rollBack();
@@ -680,10 +680,16 @@ class InvoiceController extends Controller
 
             if ($validated['action'] === 'approve') {
                 foreach ($pendingTxs as $ptx) {
+                    $gatewayResponse = is_array($ptx->gateway_response) ? $ptx->gateway_response : [];
+                    $gatewayResponse['verification_action'] = 'approve';
+                    $gatewayResponse['verified_by_user_id'] = Auth::id();
+                    $gatewayResponse['verified_at'] = now()->toIso8601String();
+
                     $ptx->status = 'succeeded';
+                    $ptx->gateway_response = $gatewayResponse;
                     $ptx->save();
                 }
-                $this->recomputeInvoiceAndBookingStatus($invoice);
+                $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, Auth::id());
 
                 $this->logInvoiceStatusTransition($invoice, $invoiceStatusBefore, [
                     'payment_transaction_id' => $pendingTxs->last()?->id,
@@ -704,6 +710,7 @@ class InvoiceController extends Controller
                     'status_after' => $invoice->status,
                     'summary' => 'Landlord approved manual payment proof.',
                     'metadata' => [
+                        'action_by_user_id' => Auth::id(),
                         'pending_transaction_ids' => $pendingTxs->pluck('id')->values()->all(),
                     ],
                 ]);
@@ -722,24 +729,31 @@ class InvoiceController extends Controller
 
                 $shouldBroadcastInvoiceUpdate = true;
             } else {
+                $rejectionReason = trim((string) ($validated['reason'] ?? ''));
+
                 // Reject: void pending offline transactions
                 foreach ($pendingTxs as $ptx) {
                     $gatewayResponse = is_array($ptx->gateway_response) ? $ptx->gateway_response : [];
                     $gatewayResponse['denial_reason_code'] = $validated['reason_code'];
-                    $gatewayResponse['denial_reason'] = $validated['reason'];
+                    $gatewayResponse['denial_reason'] = $rejectionReason;
+                    $gatewayResponse['rejection_reason'] = $rejectionReason;
+                    $gatewayResponse['verification_action'] = 'reject';
+                    $gatewayResponse['verified_by_user_id'] = Auth::id();
+                    $gatewayResponse['verified_at'] = now()->toIso8601String();
 
                     $ptx->status = 'voided';
                     $ptx->gateway_response = $gatewayResponse;
                     $ptx->save();
                 }
-                $this->recomputeInvoiceAndBookingStatus($invoice);
+                $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, Auth::id());
 
                 $this->logInvoiceStatusTransition($invoice, $invoiceStatusBefore, [
                     'payment_transaction_id' => $pendingTxs->last()?->id,
                     'summary' => 'Invoice status updated after payment denial.',
                     'metadata' => [
                         'reason_code' => $validated['reason_code'],
-                        'reason' => $validated['reason'],
+                        'reason' => $rejectionReason,
+                        'rejection_reason' => $rejectionReason,
                     ],
                 ]);
 
@@ -757,8 +771,10 @@ class InvoiceController extends Controller
                     'status_after' => $invoice->status,
                     'summary' => 'Landlord denied manual payment proof.',
                     'metadata' => [
+                        'action_by_user_id' => Auth::id(),
                         'reason_code' => $validated['reason_code'],
-                        'reason' => $validated['reason'],
+                        'reason' => $rejectionReason,
+                        'rejection_reason' => $rejectionReason,
                         'pending_transaction_ids' => $pendingTxs->pluck('id')->values()->all(),
                     ],
                 ]);
@@ -801,71 +817,6 @@ class InvoiceController extends Controller
         }
     }
 
-    private function recomputeInvoiceAndBookingStatus(Invoice $invoice): void
-    {
-        $netPaidCents = $this->calculateInvoiceNetPaidCents($invoice);
-        $resolvedStatus = $this->resolveInvoiceStatus($invoice, $netPaidCents);
-
-        $invoice->status = $resolvedStatus;
-        if ($resolvedStatus === 'paid') {
-            $invoice->paid_at = $invoice->paid_at ?? now();
-        } else {
-            $invoice->paid_at = null;
-        }
-        $invoice->save();
-
-        if ($invoice->booking) {
-            $invoice->booking->payment_status = $this->mapInvoiceStatusToBookingPaymentStatus($resolvedStatus);
-            $invoice->booking->save();
-        }
-    }
-
-    private function calculateInvoiceNetPaidCents(Invoice $invoice): int
-    {
-        $netPaidCents = $invoice->transactions()
-            ->where('amount_cents', '>', 0)
-            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
-            ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
-            ->value('net_cents');
-
-        return max(0, (int) ($netPaidCents ?? 0));
-    }
-
-    private function resolveInvoiceStatus(Invoice $invoice, int $netPaidCents): string
-    {
-        $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
-
-        if ($invoiceTotalCents > 0 && $netPaidCents >= $invoiceTotalCents) {
-            return 'paid';
-        }
-
-        if ($netPaidCents > 0) {
-            return 'partial';
-        }
-
-        if ($this->hasRefundActivity($invoice)) {
-            return 'refunded';
-        }
-
-        $dueDate = $invoice->due_date ? Carbon::parse($invoice->due_date)->startOfDay() : null;
-        if ($dueDate && $dueDate->lt(now()->startOfDay())) {
-            return 'overdue';
-        }
-
-        return 'pending';
-    }
-
-    private function hasRefundActivity(Invoice $invoice): bool
-    {
-        return $invoice->transactions()
-            ->where(function ($query) {
-                $query->where(function ($nested) {
-                    $nested->where('amount_cents', '<', 0)
-                        ->where('status', 'refunded');
-                })->orWhere('refunded_amount_cents', '>', 0);
-            })
-            ->exists();
-    }
 
     private function resolveSummaryStatus(Invoice $invoice): string
     {
@@ -896,16 +847,6 @@ class InvoiceController extends Controller
         return $status !== '' ? $status : 'pending';
     }
 
-    private function mapInvoiceStatusToBookingPaymentStatus(string $invoiceStatus): string
-    {
-        return match ($invoiceStatus) {
-            'paid' => 'paid',
-            'partial' => 'partial',
-            'refunded' => 'refunded',
-            default => 'unpaid',
-        };
-    }
-
     private function normalizeManualPaymentMethod(?string $method): ?string
     {
         if ($method === null) {
@@ -916,6 +857,7 @@ class InvoiceController extends Controller
         $normalized = str_replace(['-', ' '], '_', $normalized);
 
         return match ($normalized) {
+            'cash_on_site', 'cash_onsite', 'cashonsite' => 'cash',
             'maya' => 'paymaya',
             default => $normalized,
         };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
 import LandlordDashboard from '../screens/Dashboard/DashboardPage.jsx';
+import CaretakerDashboard from '../screens/Dashboard/CaretakerDashboard.jsx';
 import MyProperties from '../screens/Properties/MyProperties.jsx';
 import Messages from '../screens/Messages/MessagesPage.jsx';
 import Settings from '../screens/Settings/SettingsHub.jsx';
@@ -54,19 +55,6 @@ const CustomTabBarButton = ({ children, onPress, theme }) => (
   </TouchableOpacity>
 );
 
-const styles = StyleSheet.create({
-  shadow: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 8,
-  }
-});
-
 export default function LandlordBottomNavigation({ onLogout }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -80,7 +68,7 @@ export default function LandlordBottomNavigation({ onLogout }) {
         if (userString) {
           setUser(JSON.parse(userString));
         }
-      } catch (e) {}
+      } catch (_error) {}
     };
     loadUser();
   }, []);
@@ -91,7 +79,7 @@ export default function LandlordBottomNavigation({ onLogout }) {
       try {
         const count = await AsyncStorage.getItem('messages_unread_count');
         setUnreadCount(parseInt(count || '0', 10));
-      } catch (e) {}
+      } catch (_error) {}
     };
     
     checkUnreadCount();
@@ -100,17 +88,54 @@ export default function LandlordBottomNavigation({ onLogout }) {
   }, []);
 
   const isCaretaker = user?.role === 'caretaker';
-  const permissions = user?.caretaker_permissions || {};
-  const hasPermission = React.useCallback((key) => {
+  const permissions = React.useMemo(() => user?.caretaker_permissions || {}, [user?.caretaker_permissions]);
+
+  const normalizePermissionValue = React.useCallback((value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+    return Boolean(value);
+  }, []);
+
+  const buildPermissionCandidates = React.useCallback((key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  }, []);
+
+  const hasPermission = React.useCallback((key, aliases = []) => {
     if (!isCaretaker) return true;
-    return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
-  }, [isCaretaker, permissions]);
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(permissions?.[candidate]),
+    );
+  }, [buildPermissionCandidates, isCaretaker, normalizePermissionValue, permissions]);
+
+  const homeComponent = isCaretaker ? CaretakerDashboard : LandlordDashboard;
 
   // Define tabs with permission checks
   const tabs = [
     {
       name: 'Home',
-      component: LandlordDashboard,
+      component: homeComponent,
       label: 'Home',
       icon: (focused) => focused ? 'home' : 'home-outline',
       show: true, // Home always visible
@@ -120,7 +145,7 @@ export default function LandlordBottomNavigation({ onLogout }) {
       component: MyProperties,
       label: 'Properties',
       icon: (focused) => focused ? 'business' : 'business-outline',
-      show: !isCaretaker || hasPermission('properties'),
+      show: !isCaretaker || hasPermission('properties', ['property', 'property_management']),
     },
     {
       name: 'Bookings',
@@ -192,9 +217,9 @@ export default function LandlordBottomNavigation({ onLogout }) {
             backgroundColor: theme.colors.surface,
             borderTopWidth: 1,
             borderTopColor: theme.colors.border,
-            paddingBottom: 8 + insets.bottom,
-            paddingTop: 8,
-            height: 60 + insets.bottom,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+            paddingTop: 10,
+            height: (insets.bottom > 0 ? 68 + insets.bottom : 68),
             elevation: 8,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -2 },
@@ -202,10 +227,10 @@ export default function LandlordBottomNavigation({ onLogout }) {
             shadowRadius: 8,
           },
           tabBarLabelStyle: {
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: '600',
-            marginTop: 8,
-            marginBottom: 6,
+            marginTop: 4,
+            marginBottom: 2,
           }
         };
       }}

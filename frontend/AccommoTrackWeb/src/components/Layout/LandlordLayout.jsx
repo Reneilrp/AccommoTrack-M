@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../../assets/Logo.png';
 import { useSidebar } from '../../contexts/SidebarContext.jsx';
@@ -31,12 +31,102 @@ export default function LandlordLayout({
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const { uiState } = useUIState();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
 
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
   const caretakerPermissions = user?.caretaker_permissions || {};
+
+  const normalizePermissionValue = (value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+    return Boolean(value);
+  };
+
+  const buildPermissionCandidates = (key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  };
+
+  const hasCaretakerPermission = (key, aliases = []) => {
+    if (!isCaretaker) return true;
+
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(caretakerPermissions?.[candidate]),
+    );
+  };
+
+  const canManageMaintenance = hasCaretakerPermission('maintenance', ['rooms']);
+  const canManagePayments = hasCaretakerPermission('payments');
+  const canManageProperties = hasCaretakerPermission('properties', ['property', 'property_management']);
+  const canManageAnalytics = hasCaretakerPermission('analytics');
+  const canManageMessages = hasCaretakerPermission('messages');
+
+  const refreshMessageUnreadCount = useCallback(async () => {
+    if (isCaretaker && !canManageMessages) {
+      setMessageUnreadCount(0);
+      return;
+    }
+
+    try {
+      const response = await __api.get('/messages/conversations');
+      const rows = Array.isArray(response.data) ? response.data : [];
+      const unread = rows.reduce((sum, conv) => sum + (Number(conv?.unread_count) || 0), 0);
+      setMessageUnreadCount(unread);
+    } catch (_error) {
+      // Keep the previous count if refresh fails.
+    }
+  }, [canManageMessages, isCaretaker]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    refreshMessageUnreadCount();
+    const intervalId = window.setInterval(refreshMessageUnreadCount, 30000);
+
+    const handleWindowFocus = () => refreshMessageUnreadCount();
+    const handleUnreadUpdate = (event) => {
+      const eventCount = Number.parseInt(String(event?.detail?.count ?? ''), 10);
+      if (Number.isFinite(eventCount)) {
+        setMessageUnreadCount(Math.max(0, eventCount));
+        return;
+      }
+
+      refreshMessageUnreadCount();
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('accommo:messages-unread-updated', handleUnreadUpdate);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('accommo:messages-unread-updated', handleUnreadUpdate);
+    };
+  }, [refreshMessageUnreadCount]);
 
   const landlordMenu = [
     { 
@@ -85,11 +175,14 @@ export default function LandlordLayout({
 
   const caretakerAllowedPaths = new Set([
     '/dashboard',
-    caretakerPermissions.rooms ? '/rooms' : null,
-    caretakerPermissions.rooms ? '/maintenance' : null,
-    caretakerPermissions.bookings ? '/bookings' : null,
-    caretakerPermissions.tenants ? '/tenants' : null,
-    caretakerPermissions.messages ? '/messages' : null,
+    canManageProperties ? '/properties' : null,
+    hasCaretakerPermission('rooms') ? '/rooms' : null,
+    canManageMaintenance ? '/maintenance' : null,
+    hasCaretakerPermission('bookings') ? '/bookings' : null,
+    canManagePayments ? '/payments' : null,
+    hasCaretakerPermission('tenants') ? '/tenants' : null,
+    canManageMessages ? '/messages' : null,
+    canManageAnalytics ? '/analytics' : null,
     '/settings',
   ].filter(Boolean));
 
@@ -224,6 +317,15 @@ export default function LandlordLayout({
               {item.icon}
               {isSidebarOpen && (
                 <span className="font-medium truncate">{item.label}</span>
+              )}
+              {item.path === '/messages' && messageUnreadCount > 0 && (
+                <span
+                  className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${
+                    isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
+                  }`}
+                >
+                  {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
+                </span>
               )}
             </NavLink>
           ))}

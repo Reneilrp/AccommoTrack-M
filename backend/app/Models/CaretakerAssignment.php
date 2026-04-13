@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property bool $can_view_tenants
  * @property bool $can_view_rooms
  * @property bool $can_view_properties
+ * @property bool $can_view_analytics
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $caretaker
@@ -28,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereCanViewBookings($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereCanViewMessages($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereCanViewProperties($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereCanViewAnalytics($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereCanViewRooms($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereCanViewTenants($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|CaretakerAssignment whereCaretakerId($value)
@@ -48,6 +50,7 @@ class CaretakerAssignment extends Model
         'can_view_tenants',
         'can_view_rooms',
         'can_view_properties',
+        'can_view_analytics',
         'can_manage_maintenance',
         'can_manage_payments',
     ];
@@ -58,6 +61,7 @@ class CaretakerAssignment extends Model
         'can_view_tenants' => 'boolean',
         'can_view_rooms' => 'boolean',
         'can_view_properties' => 'boolean',
+        'can_view_analytics' => 'boolean',
         'can_manage_maintenance' => 'boolean',
         'can_manage_payments' => 'boolean',
     ];

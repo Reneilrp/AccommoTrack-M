@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import tenantService from '../../../../services/TenantService.js';
 import { getStyles } from '../../../../styles/Tenant/ReportProperty.js';
 
@@ -21,6 +22,7 @@ export default function ReportProperty() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const { showAlert } = useUIState();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { propertyId = null, propertyTitle = 'Property' } = route.params || {};
 
@@ -39,11 +41,11 @@ export default function ReportProperty() {
 
   const submit = async () => {
     if (!reason) {
-      Alert.alert('Selection Required', 'Please select a reason for your report.');
+      showAlert('Selection Required', 'Please select a reason for your report.');
       return;
     }
     if (description.length < 10) {
-      Alert.alert('More Detail Needed', 'Please provide a description of at least 10 characters.');
+      showAlert('More Detail Needed', 'Please provide a description of at least 10 characters.');
       return;
     }
 
@@ -56,17 +58,17 @@ export default function ReportProperty() {
       });
       
       if (res.success) {
-        Alert.alert(
+        showAlert(
           'Report Submitted', 
           'Thank you. AccommoTrack Admins will review this listing. False reporting may lead to account penalties.',
           [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } else {
-        Alert.alert('Error', res.error || 'Failed to submit report');
+        showAlert('Error', res.error || 'Failed to submit report');
       }
     } catch (err) {
       console.error('Submit report error', err);
-      Alert.alert('Error', 'Failed to submit report');
+      showAlert('Error', 'Failed to submit report');
     } finally {
       setSubmitting(false);
     }
@@ -74,11 +76,11 @@ export default function ReportProperty() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+      <View style={[styles.header, { borderBottomColor: theme.colors.border, paddingHorizontal: 16, height: 56, alignItems: 'center', flexDirection: 'row' }]}>
+        <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('TenantHome')} style={{ padding: 4, marginLeft: -4 }}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Report Listing</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text, marginLeft: 12, fontSize: 18, fontWeight: '700' }]}>Report Listing</Text>
       </View>
 
       <KeyboardAvoidingView 

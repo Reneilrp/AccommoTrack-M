@@ -51,6 +51,14 @@ export default function PaymentHistory() {
     refetchers: paymentHistoryRefetchers,
   });
 
+  const formatCurrency = (amount) => {
+    const value = Number(amount) || 0;
+    return `₱${new Intl.NumberFormat('en-PH', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value)}`;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -95,7 +103,7 @@ export default function PaymentHistory() {
                 <View style={styles.paymentDetails}>
                   <View style={styles.paymentRow}>
                     <Text style={styles.paymentLabel}>Amount:</Text>
-                    <Text style={styles.paymentAmount}>₱{payment.amount.toLocaleString()}</Text>
+                    <Text style={styles.paymentAmount}>{formatCurrency(payment.amount)}</Text>
                   </View>
                   <View style={styles.paymentRow}>
                     <Text style={styles.paymentLabel}>Method:</Text>

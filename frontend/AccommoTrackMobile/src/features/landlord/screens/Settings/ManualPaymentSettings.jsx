@@ -27,6 +27,7 @@ import {
 
 export default function ManualPaymentSettings({ navigation }) {
   const { theme } = useTheme();
+  const showAlert = Alert.alert;
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [gcashInfo, setGcashInfo] = useState('');
@@ -76,7 +77,7 @@ export default function ManualPaymentSettings({ navigation }) {
   useEffect(() => {
     if (!fetchError) return;
     console.error('Failed to load payment settings:', fetchError);
-    Alert.alert('Error', fetchError);
+    showAlert('Error', fetchError);
   }, [fetchError]);
 
   const handleSave = async () => {
@@ -117,13 +118,13 @@ export default function ManualPaymentSettings({ navigation }) {
 
         await refetchLandlordQueries([refetchManualPaymentSettings]);
         
-        Alert.alert('Success', 'Payment settings updated successfully');
+        showAlert('Success', 'Payment settings updated successfully');
         navigation.goBack();
       } else {
         throw new Error(res.error || 'Failed to update settings');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An error occurred');
+      showAlert('Error', error.message || 'An error occurred');
     } finally {
       setSaving(false);
     }

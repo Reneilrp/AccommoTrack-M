@@ -1,15 +1,13 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
-
-export const getStyles = (theme) => StyleSheet.create({
+export const getStyles = (theme, viewportWidth = 390, viewportHeight = 844) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.primary,
   },
   slide: {
-    width: width,
-    height: height,
+    width: viewportWidth,
+    height: viewportHeight,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 60,
@@ -17,7 +15,9 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingHorizontal: 16,
   },
   skipButton: {
-    alignSelf: 'flex-end',
+    position: 'absolute',
+    right: 16,
+    zIndex: 2,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },

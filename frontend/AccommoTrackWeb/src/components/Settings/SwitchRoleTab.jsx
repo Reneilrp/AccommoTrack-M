@@ -26,6 +26,8 @@ export default function SwitchRoleTab({ user: userProp }) {
     permit: null,
   });
   const [registrationErrors, setRegistrationErrors] = useState({});
+  const canSwitchToLandlord = ['partial_verified', 'pending_documents_review', 'approved'].includes(verificationStatus);
+  const isWaitingForPartial = verificationStatus === 'pending';
 
   useEffect(() => {
     const fetchVerificationStatus = async () => {
@@ -39,12 +41,8 @@ export default function SwitchRoleTab({ user: userProp }) {
         const res = await api.get('/landlord/my-verification');
         setVerificationStatus(res.data?.status || 'not_submitted');
       } catch (err) {
-        if (err.response?.status === 404) {
-          setVerificationStatus('not_submitted');
-        } else {
-          console.error('Failed to fetch verification status:', err);
-          setVerificationStatus('not_submitted');
-        }
+        console.error('Failed to fetch verification status:', err);
+        setVerificationStatus('not_submitted');
       } finally {
         setLoading(false);
       }
@@ -86,8 +84,12 @@ export default function SwitchRoleTab({ user: userProp }) {
       return 'Switch to Tenant Mode';
     }
 
-    if (verificationStatus === 'approved') {
+    if (canSwitchToLandlord) {
       return 'Switch to Landlord Mode';
+    }
+
+    if (isWaitingForPartial) {
+      return 'Awaiting Admin Partial Verification';
     }
 
     return 'Register as Landlord';
@@ -104,10 +106,20 @@ export default function SwitchRoleTab({ user: userProp }) {
           icon: <ShieldCheck className="w-5 h-5 text-green-500" />,
           text: 'Your landlord registration is approved. You can switch to landlord mode anytime.',
         };
+      case 'partial_verified':
+        return {
+          icon: <ShieldCheck className="w-5 h-5 text-blue-500" />,
+          text: 'Your account is partially verified. You can switch to landlord mode now and submit required documents before the deadline.',
+        };
+      case 'pending_documents_review':
+        return {
+          icon: <Clock className="w-5 h-5 text-indigo-500" />,
+          text: 'Your documents are now under admin review. You can still switch to landlord mode while waiting for final approval.',
+        };
       case 'pending':
         return {
           icon: <Clock className="w-5 h-5 text-yellow-500" />,
-          text: 'Your landlord registration is currently under review. This process typically takes 1-3 working days.',
+          text: 'Your registration is waiting for admin to start partial verification before document submission.',
         };
       case 'rejected':
         return {
@@ -136,6 +148,10 @@ export default function SwitchRoleTab({ user: userProp }) {
       return true;
     } catch (error) {
       console.error('Failed to switch role:', error);
+      if (error.response?.status === 401) {
+        toast.error('Your session has expired. Please log in again, then retry role switch.');
+        return false;
+      }
       toast.error(error.response?.data?.message || 'Failed to switch role. Please try again.');
       return false;
     } finally {
@@ -154,12 +170,14 @@ export default function SwitchRoleTab({ user: userProp }) {
       return;
     }
 
-    if (verificationStatus === 'approved') {
+    if (canSwitchToLandlord) {
       setConfirmModalConfig({
         title: 'Switch to Landlord Mode',
         message: hasShownApprovalMessage 
           ? 'Are you sure you want to switch to Landlord mode?'
-          : 'Your landlord registration is approved. Switch to Landlord mode now?',
+          : verificationStatus === 'approved'
+            ? 'Your landlord registration is approved. Switch to Landlord mode now?'
+            : 'Your landlord access is active. Switch to Landlord mode now?',
         targetRole: 'landlord',
       });
       setShowConfirmModal(true);
@@ -169,8 +187,8 @@ export default function SwitchRoleTab({ user: userProp }) {
       return;
     }
 
-    if (verificationStatus === 'pending') {
-      toast.error('Your landlord registration is still under review. Please wait for approval before switching.');
+    if (isWaitingForPartial) {
+      toast.error('Your registration is waiting for admin partial verification. You can switch once that step is completed.');
       return;
     }
 
@@ -272,11 +290,7 @@ export default function SwitchRoleTab({ user: userProp }) {
       formData.append('valid_id_front', registrationForm.valid_id_front);
       formData.append('permit', registrationForm.permit);
 
-      const res = await api.post('/tenant/register-landlord', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const res = await api.post('/tenant/register-landlord', formData);
 
       setVerificationStatus('pending');
       setShowRegistrationModal(false);
@@ -341,7 +355,7 @@ export default function SwitchRoleTab({ user: userProp }) {
           <div className="pt-2">
             <button
               onClick={handleSwitchRole}
-              disabled={loading || isSwitching}
+              disabled={loading || isSwitching || isWaitingForPartial}
               className="flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-green-500/20 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               <ArrowLeftRight className="w-5 h-5" />

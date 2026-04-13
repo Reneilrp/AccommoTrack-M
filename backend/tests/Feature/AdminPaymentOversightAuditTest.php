@@ -238,6 +238,42 @@ class AdminPaymentOversightAuditTest extends TestCase
             ]);
     }
 
+    public function test_second_override_approve_attempt_returns_422_after_transaction_is_already_restored(): void
+    {
+        $admin = $this->createUser('admin');
+        [, $tenant, , $booking] = $this->createBookingScenario();
+
+        $invoice = $this->createInvoice($booking, [
+            'status' => 'pending',
+            'amount_cents' => 100000,
+            'total_cents' => 100000,
+        ]);
+
+        $transaction = $this->createPaymentTransaction($invoice, $tenant->id, [
+            'status' => 'voided',
+            'method' => 'cash',
+            'amount_cents' => 100000,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/admin/payments/'.$invoice->id.'/override-approve', [
+            'note' => 'First override success.',
+        ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->postJson('/api/admin/payments/'.$invoice->id.'/override-approve', [
+            'note' => 'Second override should fail.',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'No denied manual payment found for this invoice.');
+
+        $transaction->refresh();
+        $this->assertSame('succeeded', $transaction->status);
+    }
+
     public function test_audit_log_index_supports_filters_and_desc_ordering(): void
     {
         $admin = $this->createUser('admin');

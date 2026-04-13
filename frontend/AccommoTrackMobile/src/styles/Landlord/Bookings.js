@@ -198,7 +198,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   requestApproveBtn: {
     flex: 1,
-    backgroundColor: '#059669',
+    backgroundColor: '#16a34a',
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: 'center',
@@ -278,14 +278,26 @@ export const getStyles = (theme) => StyleSheet.create({
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16
   },
   guestBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    flexShrink: 1
+    flex: 1,
+    minWidth: 0
+  },
+  guestInfo: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 12,
+    paddingRight: 8,
+  },
+  statusColumn: {
+    flexShrink: 0,
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    marginLeft: 8,
   },
   guestAvatar: {
     width: 44,
@@ -302,16 +314,19 @@ export const getStyles = (theme) => StyleSheet.create({
   guestName: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.text
+    color: theme.colors.text,
+    marginBottom: 2,
   },
   guestEmail: {
     fontSize: 13,
-    color: theme.colors.textSecondary
+    color: theme.colors.textSecondary,
+    flexShrink: 1,
   },
   statusBadge: {
     paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 999
+    borderRadius: 999,
+    alignSelf: 'flex-end',
   },
   statusText: {
     fontSize: 12,
@@ -590,6 +605,24 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: theme.colors.text
+  },
+  occupantCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  occupantName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  occupantMeta: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
   },
   referenceValue: {
     fontSize: 15,

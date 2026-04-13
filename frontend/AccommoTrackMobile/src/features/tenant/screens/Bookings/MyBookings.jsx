@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Dimensions, Modal, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Modal, TextInput, Platform, useWindowDimensions } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -16,17 +17,63 @@ import {
   useTenantFocusRefetch,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
+import ReservationPolicyNotice from './components/ReservationPolicyNotice.jsx';
 
 const TABS = [
   { id: 'current', label: 'My Stay', icon: 'home-outline' },
   { id: 'history', label: 'History', icon: 'time-outline' }
 ];
 
+const REPORT_REASONS = [
+  'Inaccurate Listing Photos/Details',
+  'Safety or Security Concerns',
+  'Landlord Misconduct/Harassment',
+  'Payment Issues (Charging outside app)',
+  'Scam or Fraudulent Activity',
+  'Other',
+];
+
+const MAINTENANCE_PRIORITIES = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'urgent', label: 'Urgent' },
+];
+
+const extractHistoryBookings = (payload, fallback = []) => {
+  const candidates = [
+    payload?.bookings,
+    payload?.data?.bookings,
+    payload?.data,
+    payload,
+  ];
+
+  const rawBookings = candidates.find((candidate) => Array.isArray(candidate));
+  const source = Array.isArray(rawBookings) ? rawBookings : fallback;
+
+  const seenIds = new Set();
+  const deduped = [];
+
+  source.forEach((item, index) => {
+    if (!item || typeof item !== 'object') return;
+
+    const key = item.id ?? item.booking_reference ?? `history-${index}`;
+    if (seenIds.has(key)) return;
+
+    seenIds.add(key);
+    deduped.push(item);
+  });
+
+  return deduped;
+};
+
 export default function MyBookings() {
   const navigation = useNavigation();
+  const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const { uiState, updateData, invalidateData } = useUIState();
+  const { uiState, updateData, invalidateData, showAlert: uiShowAlert } = useUIState();
+  const showAlert = uiShowAlert || Alert.alert;
   const BUCKET = 'bookings';
   
   const [activeTab, setActiveTab] = useState(
@@ -43,6 +90,7 @@ export default function MyBookings() {
   const [pendingBookings, setPendingBookings] = useState(cachedBookings?.pendingBookings ?? []);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
   const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
+  const [showPropertySwitchModal, setShowPropertySwitchModal] = useState(false);
   const [submittingExtension, setSubmittingExtension] = useState(false);
   const [submittingTransfer, setSubmittingTransfer] = useState(false);
   const [submittingMoveOut, setSubmittingMoveOut] = useState(false);
@@ -56,10 +104,52 @@ export default function MyBookings() {
   const [transferRoomOptions, setTransferRoomOptions] = useState([]);
   const [selectedTransferRoomId, setSelectedTransferRoomId] = useState(null);
   const [transferReason, setTransferReason] = useState('');
+  const [leaseDurationPreference, setLeaseDurationPreference] = useState('keep_current');
+  const [newEndDate, setNewEndDate] = useState(null);
+  const [showNewEndDatePicker, setShowNewEndDatePicker] = useState(false);
   const [transferOptionsMessage, setTransferOptionsMessage] = useState('');
   const [transferContext, setTransferContext] = useState(null);
   const [transferPreview, setTransferPreview] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewContext, setReviewContext] = useState(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [maintenanceContext, setMaintenanceContext] = useState(null);
+  const [maintenanceTitle, setMaintenanceTitle] = useState('');
+  const [maintenanceDescription, setMaintenanceDescription] = useState('');
+  const [maintenancePriority, setMaintenancePriority] = useState('medium');
+  const [maintenanceImages, setMaintenanceImages] = useState([]);
+  const [submittingMaintenance, setSubmittingMaintenance] = useState(false);
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportContext, setReportContext] = useState(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
+
+  const createDefaultAddonDraft = () => ({
+    name: '',
+    addon_type: 'rental',
+    price_type: 'monthly',
+    note: '',
+    suggested_price: '',
+  });
+  const [showAddonModal, setShowAddonModal] = useState(false);
+  const [addonContext, setAddonContext] = useState(null);
+  const [addonDraft, setAddonDraft] = useState(createDefaultAddonDraft);
+  const [addonRequestingId, setAddonRequestingId] = useState(null);
+  const [submittingCustomAddon, setSubmittingCustomAddon] = useState(false);
+
+  const [showMoveOutModal, setShowMoveOutModal] = useState(false);
+  const [moveOutContext, setMoveOutContext] = useState(null);
+  const [moveOutDate, setMoveOutDate] = useState(null);
+  const [moveOutReason, setMoveOutReason] = useState('');
+  const [showMoveOutDatePicker, setShowMoveOutDatePicker] = useState(false);
 
   // Auto-fetch financial preview whenever the selected transfer room changes
   React.useEffect(() => {
@@ -94,6 +184,9 @@ export default function MyBookings() {
     setTransferRoomOptions([]);
     setSelectedTransferRoomId(null);
     setTransferReason('');
+    setLeaseDurationPreference('keep_current');
+    setNewEndDate(null);
+    setShowNewEndDatePicker(false);
     setTransferOptionsMessage('');
     setTransferContext(null);
     setTransferPreview(null);
@@ -114,24 +207,27 @@ export default function MyBookings() {
     queryKey: tenantQueryKeys.myBookingsBundle(),
     queryFn: async () => {
       try {
-        const [stayRes, bookingsRes, transferRes] = await Promise.all([
+        const [stayRes, bookingsRes, historyRes, transferRes] = await Promise.all([
           TenantService.getCurrentStay(),
           BookingService.getMyBookings(),
+          TenantService.getHistory(),
           TenantService.getTransferRequests(),
         ]);
 
         const stayDataNext = stayRes.success ? stayRes.data : null;
         const allBookings = bookingsRes.success ? bookingsRes.data || [] : [];
+        const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked']);
         const pendingBookingsNext = allBookings.filter((bookingItem) =>
-          ['pending', 'pending_reservation', 'reserved'].includes(
-            bookingItem.status?.toLowerCase(),
+          pendingStatuses.has(String(bookingItem.status || '').toLowerCase()),
+        );
+
+        const historyPayload = historyRes.success ? (historyRes.data || {}) : {};
+        const fallbackHistory = allBookings.filter((bookingItem) =>
+          ['completed', 'partial-completed', 'cancelled', 'rejected', 'evicted'].includes(
+            String(bookingItem.status || '').toLowerCase(),
           ),
         );
-        const historyDataNext = allBookings.filter((bookingItem) =>
-          ['completed', 'confirmed', 'cancelled', 'rejected'].includes(
-            bookingItem.status?.toLowerCase(),
-          ),
-        );
+        const historyDataNext = extractHistoryBookings(historyPayload, fallbackHistory);
 
         let pendingTransferRequestsNext = [];
         let monthlyTransferCountNext = 0;
@@ -255,6 +351,562 @@ export default function MyBookings() {
     }).format(amount || 0);
   };
 
+  const formatPesoNoCents = (amount) => {
+    const value = Number(amount || 0);
+    return `₱${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  };
+
+  const toWholeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : fallback;
+  };
+
+  const resolveOccupancySummary = (bookingEntry, roomEntry) => {
+    const resolvedBedCount = Math.max(
+      1,
+      toWholeNumber(bookingEntry?.bed_count ?? bookingEntry?.bedCount, 1),
+    );
+    const resolvedOccupantCount = Math.max(
+      1,
+      toWholeNumber(bookingEntry?.occupant_count ?? bookingEntry?.occupantCount, 0)
+        || resolvedBedCount,
+    );
+    const resolvedRoomCapacity = toWholeNumber(
+      roomEntry?.capacity ?? roomEntry?.raw_capacity,
+      0,
+    );
+
+    if (resolvedRoomCapacity > 0) {
+      return {
+        label: 'Occupancy',
+        value: `${resolvedOccupantCount}/${resolvedRoomCapacity}`,
+      };
+    }
+
+    return {
+      label: 'Occupants',
+      value: String(resolvedOccupantCount),
+    };
+  };
+
+  const resolveOccupantProfiles = (bookingEntry) => {
+    const source = Array.isArray(bookingEntry?.occupants) ? bookingEntry.occupants : [];
+
+    return source.map((occupant, index) => {
+      const fullName = String(occupant?.full_name || occupant?.fullName || '').trim() || `Occupant ${index + 1}`;
+      const relationship = String(occupant?.relationship_to_booker || occupant?.relationshipToBooker || '').trim();
+      const gender = String(occupant?.gender || '').trim();
+      const phone = String(occupant?.phone || '').trim();
+      const email = String(occupant?.email || '').trim();
+
+      return {
+        id: occupant?.id || `${fullName}-${index}`,
+        fullName,
+        relationship,
+        gender,
+        contact: [phone, email].filter(Boolean).join(' • '),
+      };
+    });
+  };
+
+  const resolveAddonDisplayPrice = (addon) => {
+    const candidates = [
+      addon?.pivot?.price_at_booking,
+      addon?.price_at_booking,
+      addon?.price,
+    ];
+
+    for (const candidate of candidates) {
+      const numericValue = Number(candidate);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+
+    return 0;
+  };
+
+  const buildTodayDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  };
+
+  const buildDefaultMoveOutDate = (booking) => {
+    const today = buildTodayDate();
+    const currentEndRaw = booking?.endDate || booking?.end_date;
+
+    if (currentEndRaw) {
+      const currentEndDate = new Date(currentEndRaw);
+      if (!Number.isNaN(currentEndDate.getTime()) && currentEndDate >= today) {
+        currentEndDate.setHours(0, 0, 0, 0);
+        return currentEndDate;
+      }
+    }
+
+    const defaultDate = new Date(today);
+    defaultDate.setDate(defaultDate.getDate() + 30);
+    return defaultDate;
+  };
+
+  const padDatePart = (value) => String(value).padStart(2, '0');
+
+  const formatIsoDate = (dateValue) => {
+    if (!dateValue) return '';
+    const dateObj = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    if (Number.isNaN(dateObj.getTime())) return '';
+    const year = dateObj.getFullYear();
+    const month = padDatePart(dateObj.getMonth() + 1);
+    const day = padDatePart(dateObj.getDate());
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatSlashDate = (dateValue) => {
+    const isoDate = formatIsoDate(dateValue);
+    return isoDate ? isoDate.replace(/-/g, '/') : '';
+  };
+
+  const formatLongDate = (dateValue) => {
+    if (!dateValue) return 'Open-ended (not yet set)';
+    const dateObj = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    if (Number.isNaN(dateObj.getTime())) return 'Open-ended (not yet set)';
+    return dateObj.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getPropertySwitchOptions = () => {
+    return viewMode === 'active'
+      ? (Array.isArray(stayData?.stays) ? stayData.stays : [])
+      : (Array.isArray(pendingBookings) ? pendingBookings : []);
+  };
+
+  const getPropertySwitchIndex = () => {
+    return viewMode === 'active' ? selectedStayIndex : selectedPendingIndex;
+  };
+
+  const getPropertyOptionLabel = (item) => {
+    const propertyName = item?.property?.title || item?.property_title || 'Property';
+    const roomNumber =
+      item?.room?.room_number ||
+      item?.room?.roomNumber ||
+      item?.room_number ||
+      item?.roomNumber ||
+      'N/A';
+
+    return `${propertyName} (Room ${roomNumber})`;
+  };
+
+  const closePropertySwitchModal = () => {
+    setShowPropertySwitchModal(false);
+  };
+
+  const selectPropertyFromModal = (index) => {
+    if (viewMode === 'active') {
+      setSelectedStayIndex(index);
+    } else {
+      setSelectedPendingIndex(index);
+    }
+    setShowPropertySwitchModal(false);
+  };
+
+  const closeReviewModal = () => {
+    setShowReviewModal(false);
+    setReviewContext(null);
+    setReviewRating(5);
+    setReviewComment('');
+    setSubmittingReview(false);
+  };
+
+  const closeMaintenanceModal = () => {
+    setShowMaintenanceModal(false);
+    setMaintenanceContext(null);
+    setMaintenanceTitle('');
+    setMaintenanceDescription('');
+    setMaintenancePriority('medium');
+    setMaintenanceImages([]);
+    setSubmittingMaintenance(false);
+  };
+
+  const closeReportModal = () => {
+    setShowReportModal(false);
+    setReportContext(null);
+    setReportReason('');
+    setReportDescription('');
+    setSubmittingReport(false);
+  };
+
+  const closeAddonModal = () => {
+    setShowAddonModal(false);
+    setAddonContext(null);
+    setAddonDraft(createDefaultAddonDraft());
+    setAddonRequestingId(null);
+    setSubmittingCustomAddon(false);
+  };
+
+  const normalizeSuggestedPrice = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+
+    const numericValue = Number(raw);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      return null;
+    }
+
+    return numericValue;
+  };
+
+  const openAddonModal = ({ booking, property, addons }) => {
+    if (!booking?.id) {
+      showAlert('Unavailable', 'Add-on request details are incomplete for this stay.');
+      return;
+    }
+
+    const paymentStatus = String(booking.paymentStatus || booking.payment_status || '').toLowerCase();
+    if (paymentStatus === 'refunded') {
+      showAlert('Action Disabled', 'Add-on requests are disabled until your room payment is re-settled.');
+      return;
+    }
+
+    setAddonContext({
+      bookingId: booking.id,
+      propertyId: property?.id || null,
+      propertyTitle: property?.title || 'your current stay',
+      availableAddons: Array.isArray(addons?.available) ? addons.available : [],
+    });
+    setAddonDraft(createDefaultAddonDraft());
+    setAddonRequestingId(null);
+    setSubmittingCustomAddon(false);
+    setShowAddonModal(true);
+  };
+
+  const submitAddonRequest = async (payload, requestKey) => {
+    if (!payload?.booking_id) {
+      showAlert('Unavailable', 'Booking reference is missing for this add-on request.');
+      return;
+    }
+
+    setAddonRequestingId(requestKey);
+    if (requestKey === 'custom') {
+      setSubmittingCustomAddon(true);
+    }
+
+    const result = await TenantService.requestAddon(payload);
+
+    if (result.success) {
+      showAlert('Request Submitted', 'Your add-on request was sent to the landlord for review.');
+      closeAddonModal();
+      invalidateData(BUCKET);
+      await refetchMyBookingsBundle();
+    } else {
+      showAlert('Unable to Submit', result.error || 'Failed to request add-on.');
+      setAddonRequestingId(null);
+      setSubmittingCustomAddon(false);
+    }
+  };
+
+  const submitCustomAddonRequest = async () => {
+    if (!addonContext?.bookingId) {
+      showAlert('Unavailable', 'Booking reference is missing for this add-on request.');
+      return;
+    }
+
+    const addonName = addonDraft.name.trim();
+    if (!addonName) {
+      showAlert('Name Required', 'Please enter a name for your custom add-on request.');
+      return;
+    }
+
+    const rawSuggestedPrice = String(addonDraft.suggested_price ?? '').trim();
+    const normalizedSuggestedPrice = normalizeSuggestedPrice(rawSuggestedPrice);
+    if (rawSuggestedPrice && normalizedSuggestedPrice === null) {
+      showAlert('Invalid Suggested Price', 'Suggested price must be a non-negative number.');
+      return;
+    }
+
+    const payload = {
+      booking_id: addonContext.bookingId,
+      is_custom: true,
+      name: addonName,
+      addon_type: addonDraft.addon_type,
+      price_type: addonDraft.price_type,
+      quantity: 1,
+      note: addonDraft.note.trim() || null,
+      ...(normalizedSuggestedPrice !== null ? { suggested_price: normalizedSuggestedPrice } : {}),
+    };
+
+    await submitAddonRequest(payload, 'custom');
+  };
+
+  const closeMoveOutModal = () => {
+    setShowMoveOutModal(false);
+    setMoveOutContext(null);
+    setMoveOutDate(null);
+    setMoveOutReason('');
+    setShowMoveOutDatePicker(false);
+    setSubmittingMoveOut(false);
+  };
+
+  const openReviewModal = ({ booking, property }) => {
+    if (!booking?.id || !property?.id) {
+      showAlert('Unavailable', 'Review details are incomplete for this booking.');
+      return;
+    }
+
+    setReviewContext({ booking, property });
+    setReviewRating(5);
+    setReviewComment('');
+    setShowReviewModal(true);
+  };
+
+  const openMaintenanceModal = ({ booking, property, room }) => {
+    if (!booking?.id) {
+      showAlert('Unavailable', 'Maintenance request details are incomplete for this booking.');
+      return;
+    }
+
+    const roomNumber = room?.roomNumber || room?.room_number || 'N/A';
+    setMaintenanceContext({ booking, property, room });
+    setMaintenanceTitle(`Room ${roomNumber} maintenance request`);
+    setMaintenanceDescription('');
+    setMaintenancePriority('medium');
+    setMaintenanceImages([]);
+    setShowMaintenanceModal(true);
+  };
+
+  const pickMaintenanceImages = async () => {
+    if (maintenanceImages.length >= 5) {
+      showAlert('Limit Reached', 'You can upload up to 5 photos only.');
+      return;
+    }
+
+    try {
+      const ImagePicker = await import('expo-image-picker');
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        showAlert('Permission Required', 'Please allow photo library access to attach maintenance images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        allowsMultipleSelection: true,
+      });
+
+      if (result.canceled) return;
+
+      const selectedAssets = result.assets || [];
+      setMaintenanceImages((previous) => [...previous, ...selectedAssets].slice(0, 5));
+    } catch (error) {
+      console.error('Failed to pick maintenance images:', error);
+      showAlert('Error', 'Unable to open your photo library.');
+    }
+  };
+
+  const captureMaintenanceImage = async () => {
+    if (maintenanceImages.length >= 5) {
+      showAlert('Limit Reached', 'You can upload up to 5 photos only.');
+      return;
+    }
+
+    try {
+      const ImagePicker = await import('expo-image-picker');
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        showAlert('Permission Required', 'Please allow camera access to take maintenance photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+      });
+
+      if (result.canceled) return;
+
+      const capturedAssets = result.assets || [];
+      setMaintenanceImages((previous) => [...previous, ...capturedAssets].slice(0, 5));
+    } catch (error) {
+      console.error('Failed to capture maintenance image:', error);
+      showAlert('Error', 'Unable to open camera.');
+    }
+  };
+
+  const removeMaintenanceImage = (indexToRemove) => {
+    setMaintenanceImages((previous) => previous.filter((_, index) => index !== indexToRemove));
+  };
+
+  const openReportModal = ({ booking, property }) => {
+    if (!booking?.id || !property?.id) {
+      showAlert('Unavailable', 'Report details are incomplete for this booking.');
+      return;
+    }
+
+    setReportContext({ booking, property });
+    setReportReason('');
+    setReportDescription('');
+    setShowReportModal(true);
+  };
+
+  const submitReviewModal = async () => {
+    if (!reviewContext?.booking?.id || !reviewContext?.property?.id) {
+      showAlert('Unavailable', 'Review details are incomplete.');
+      return;
+    }
+
+    if (submittingReview) return;
+
+    setSubmittingReview(true);
+    const result = await TenantService.submitReview({
+      booking_id: reviewContext.booking.id,
+      property_id: reviewContext.property.id,
+      rating: reviewRating,
+      comment: reviewComment.trim(),
+    });
+
+    if (result.success) {
+      showAlert('Thanks!', 'Your review has been submitted.');
+      closeReviewModal();
+      await refetchMyBookingsBundle();
+    } else {
+      showAlert('Error', result.error || 'Failed to submit review.');
+      setSubmittingReview(false);
+    }
+  };
+
+  const submitMaintenanceModal = async () => {
+    if (!maintenanceContext?.booking?.id) {
+      showAlert('Unavailable', 'Maintenance details are incomplete.');
+      return;
+    }
+
+    if (!maintenanceTitle.trim()) {
+      showAlert('Title Required', 'Please enter a maintenance title.');
+      return;
+    }
+
+    if (!maintenanceDescription.trim()) {
+      showAlert('Description Required', 'Please describe the issue.');
+      return;
+    }
+
+    if (submittingMaintenance) return;
+
+    setSubmittingMaintenance(true);
+    let payload;
+    let isMultipart = false;
+
+    if (maintenanceImages.length > 0) {
+      const formData = new FormData();
+      formData.append('title', maintenanceTitle.trim());
+      formData.append('description', maintenanceDescription.trim());
+      formData.append('priority', maintenancePriority);
+      formData.append('booking_id', String(maintenanceContext.booking.id));
+
+      maintenanceImages.forEach((imageAsset, index) => {
+        formData.append('images[]', {
+          uri: imageAsset.uri,
+          name: imageAsset.fileName || `maintenance_${index + 1}.jpg`,
+          type: imageAsset.mimeType || 'image/jpeg',
+        });
+      });
+
+      payload = formData;
+      isMultipart = true;
+    } else {
+      payload = {
+        title: maintenanceTitle.trim(),
+        description: maintenanceDescription.trim(),
+        priority: maintenancePriority,
+        booking_id: maintenanceContext.booking.id,
+      };
+    }
+
+    const result = await TenantService.submitMaintenanceRequest(payload, isMultipart);
+
+    if (result.success) {
+      showAlert('Request Sent', 'Your maintenance request was submitted to your landlord.');
+      closeMaintenanceModal();
+    } else {
+      showAlert('Error', result.error || 'Failed to submit maintenance request.');
+      setSubmittingMaintenance(false);
+    }
+  };
+
+  const submitReportModal = async () => {
+    if (!reportContext?.property?.id) {
+      showAlert('Unavailable', 'Report details are incomplete.');
+      return;
+    }
+
+    if (!reportReason) {
+      showAlert('Selection Required', 'Please select a reason for your report.');
+      return;
+    }
+
+    if (reportDescription.trim().length < 10) {
+      showAlert('More Detail Needed', 'Please provide a description of at least 10 characters.');
+      return;
+    }
+
+    if (submittingReport) return;
+
+    setSubmittingReport(true);
+    const result = await TenantService.submitReport({
+      property_id: reportContext.property.id,
+      reason: reportReason,
+      description: reportDescription.trim(),
+    });
+
+    if (result.success) {
+      showAlert('Report Submitted', 'Thank you. Admins will review this report shortly.');
+      closeReportModal();
+    } else {
+      showAlert('Error', result.error || 'Failed to submit report.');
+      setSubmittingReport(false);
+    }
+  };
+
+  const submitMoveOutModal = async () => {
+    if (!moveOutContext?.booking?.id) {
+      showAlert('Unavailable', 'Move-out details are incomplete.');
+      return;
+    }
+
+    if (!moveOutDate || Number.isNaN(moveOutDate.getTime())) {
+      showAlert('Date Required', 'Please select your planned move-out date.');
+      return;
+    }
+
+    const today = buildTodayDate();
+    const plannedDate = new Date(moveOutDate);
+    plannedDate.setHours(0, 0, 0, 0);
+    if (plannedDate < today) {
+      showAlert('Invalid Date', 'Move-out date must be today or later.');
+      return;
+    }
+
+    if (submittingMoveOut) return;
+
+    setSubmittingMoveOut(true);
+    const result = await BookingService.requestMoveOut(moveOutContext.booking.id, {
+      move_out_date: formatIsoDate(plannedDate),
+      reason: moveOutReason.trim(),
+    });
+
+    if (result.success) {
+      showAlert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
+      closeMoveOutModal();
+      await refetchMyBookingsBundle();
+    } else {
+      showAlert('Request Failed', result.error || 'Failed to request move-out notice.');
+      setSubmittingMoveOut(false);
+    }
+  };
+
   const handleCancelBooking = async (bookingId) => {
     if (!bookingId || cancellingBookingId) return;
 
@@ -264,10 +916,10 @@ export default function MyBookings() {
     });
 
     if (result.success) {
-      Alert.alert('Cancelled', 'Your booking request has been cancelled.');
+      showAlert('Cancelled', 'Your booking request has been cancelled.');
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
+      showAlert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
     }
 
     setCancellingBookingId(null);
@@ -279,13 +931,13 @@ export default function MyBookings() {
     const submitExtension = async (days) => {
       const currentEndRaw = booking.endDate || booking.end_date;
       if (!currentEndRaw) {
-        Alert.alert('Extension Not Needed', 'This stay is open-ended monthly. You can submit a move-out notice anytime instead of extending.');
+        showAlert('Extension Not Needed', 'This stay is open-ended monthly. You can submit a move-out notice anytime instead of extending.');
         return;
       }
 
       const currentEnd = new Date(currentEndRaw);
       if (Number.isNaN(currentEnd.getTime())) {
-        Alert.alert('Request Failed', 'Could not determine your current move-out date.');
+        showAlert('Request Failed', 'Could not determine your current move-out date.');
         return;
       }
 
@@ -299,15 +951,15 @@ export default function MyBookings() {
       });
 
       if (result.success) {
-        Alert.alert('Extension Requested', 'Your extension request was sent to your landlord.');
+        showAlert('Extension Requested', 'Your extension request was sent to your landlord.');
         await refetchMyBookingsBundle();
       } else {
-        Alert.alert('Request Failed', result.error || 'Failed to request extension.');
+        showAlert('Request Failed', result.error || 'Failed to request extension.');
       }
       setSubmittingExtension(false);
     };
 
-    Alert.alert(
+    showAlert(
       'Request Extension',
       'Select extension duration',
       [
@@ -323,7 +975,7 @@ export default function MyBookings() {
 
     const propertyId = property?.id || booking?.property_id;
     if (!propertyId) {
-      Alert.alert('Request Failed', 'Could not identify the property for this transfer request.');
+      showAlert('Request Failed', 'Could not identify the property for this transfer request.');
       return;
     }
 
@@ -331,13 +983,13 @@ export default function MyBookings() {
       (item) => Number(item?.booking_id) === Number(booking.id),
     );
     if (existingPending) {
-      Alert.alert('Transfer Pending', 'You already have a pending transfer request for this booking.');
+      showAlert('Transfer Pending', 'You already have a pending transfer request for this booking.');
       return;
     }
 
     if (monthlyTransferCount >= 2) {
       const daysUntilReset = getDaysUntilTransferReset();
-      Alert.alert(
+      showAlert(
         'Transfer Limit Reached',
         `Room transfers are limited to 2 per month. Try again in ${daysUntilReset} day${daysUntilReset === 1 ? '' : 's'}.`,
       );
@@ -348,14 +1000,14 @@ export default function MyBookings() {
 
     const optionsResult = await TenantService.getTransferOptions(booking.id, propertyId);
     if (!optionsResult.success) {
-      Alert.alert('Request Failed', optionsResult.error || 'Failed to load transfer options.');
+      showAlert('Request Failed', optionsResult.error || 'Failed to load transfer options.');
       setSubmittingTransfer(false);
       return;
     }
 
     const rooms = Array.isArray(optionsResult.data) ? optionsResult.data : [];
     if (rooms.length === 0) {
-      Alert.alert(
+      showAlert(
         'No Eligible Rooms',
         optionsResult.message || 'No eligible transfer rooms are currently available for this property.',
       );
@@ -378,35 +1030,45 @@ export default function MyBookings() {
 
   const submitTransferRequest = async () => {
     if (!transferContext?.bookingId || !transferContext?.propertyId) {
-      Alert.alert('Request Failed', 'Transfer context is incomplete. Please try again.');
+      showAlert('Request Failed', 'Transfer context is incomplete. Please try again.');
       return;
     }
 
     if (!selectedTransferRoomId) {
-      Alert.alert('Select a Room', 'Please choose a room to transfer into.');
+      showAlert('Select a Room', 'Please choose a room to transfer into.');
       return;
     }
 
     const normalizedReason = transferReason.trim();
     if (!normalizedReason) {
-      Alert.alert('Reason Required', 'Please provide a reason for transfer.');
+      showAlert('Reason Required', 'Please provide a reason for transfer.');
+      return;
+    }
+
+    if (leaseDurationPreference === 'new_lease' && !newEndDate) {
+      showAlert('Date Required', 'Please select a new lease end date.');
       return;
     }
 
     setSubmittingTransfer(true);
-    const result = await TenantService.requestTransfer({
+    const transferPayload = {
       booking_id: transferContext.bookingId,
       property_id: transferContext.propertyId,
       requested_room_id: selectedTransferRoomId,
       reason: normalizedReason,
-    });
+    };
+    if (leaseDurationPreference === 'new_lease' && newEndDate) {
+      transferPayload.new_end_date = formatIsoDate(newEndDate);
+    }
+
+    const result = await TenantService.requestTransfer(transferPayload);
 
     if (result.success) {
-      Alert.alert('Transfer Requested', 'Your transfer request was sent to your landlord.');
+      showAlert('Transfer Requested', 'Your transfer request was sent to your landlord.');
       closeTransferModal();
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Request Failed', result.error || 'Failed to request transfer.');
+      showAlert('Request Failed', result.error || 'Failed to request transfer.');
     }
     setSubmittingTransfer(false);
   };
@@ -418,49 +1080,23 @@ export default function MyBookings() {
     const result = await TenantService.cancelTransferRequest(transferRequestId);
 
     if (result.success) {
-      Alert.alert('Cancelled', result.message || 'Transfer request cancelled successfully.');
+      showAlert('Cancelled', result.message || 'Transfer request cancelled successfully.');
       await refetchMyBookingsBundle();
     } else {
-      Alert.alert('Unable to Cancel', result.error || 'Failed to cancel transfer request.');
+      showAlert('Unable to Cancel', result.error || 'Failed to cancel transfer request.');
     }
 
     setCancellingTransferRequestId(null);
   };
 
-  const handleRequestMoveOut = async (booking) => {
+  const handleRequestMoveOut = (booking, property, room) => {
     if (!booking?.id || submittingMoveOut) return;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const submitMoveOut = async (daysAhead) => {
-      const moveOutDate = new Date(today);
-      moveOutDate.setDate(moveOutDate.getDate() + daysAhead);
-
-      setSubmittingMoveOut(true);
-      const result = await BookingService.requestMoveOut(booking.id, {
-        move_out_date: moveOutDate.toISOString().split('T')[0],
-        reason: 'Requested via mobile app',
-      });
-
-      if (result.success) {
-        Alert.alert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
-        await refetchMyBookingsBundle();
-      } else {
-        Alert.alert('Request Failed', result.error || 'Failed to request move-out notice.');
-      }
-      setSubmittingMoveOut(false);
-    };
-
-    Alert.alert(
-      'Request Move-out',
-      'Select your planned move-out timeline',
-      [
-        { text: 'In 7 Days', onPress: () => submitMoveOut(7) },
-        { text: 'In 30 Days', onPress: () => submitMoveOut(30) },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    setMoveOutContext({ booking, property, room });
+    setMoveOutDate(buildDefaultMoveOutDate(booking));
+    setMoveOutReason('');
+    setShowMoveOutDatePicker(false);
+    setShowMoveOutModal(true);
   };
 
   const handleOpenRoomDetails = async (bookingEntry) => {
@@ -470,7 +1106,7 @@ export default function MyBookings() {
     const roomId = bookingEntry?.room?.id || bookingEntry?.room_id;
 
     if (!propertyId || !roomId) {
-      Alert.alert('Unavailable', 'Room details are not available for this pending booking yet.');
+      showAlert('Unavailable', 'Room details are not available for this pending booking yet.');
       return;
     }
 
@@ -478,7 +1114,7 @@ export default function MyBookings() {
     try {
       const propertyResult = await PropertyService.getPublicProperty(propertyId);
       if (!propertyResult.success || !propertyResult.data) {
-        Alert.alert('Unable to Load', propertyResult.error || 'Failed to load property details.');
+        showAlert('Unable to Load', propertyResult.error || 'Failed to load property details.');
         return;
       }
 
@@ -486,7 +1122,7 @@ export default function MyBookings() {
       const fullRoom = (fullProperty.rooms || []).find((room) => String(room.id) === String(roomId));
 
       if (!fullRoom) {
-        Alert.alert('Unavailable', 'This room is no longer listed for details.');
+        showAlert('Unavailable', 'This room is no longer listed for details.');
         return;
       }
 
@@ -497,7 +1133,7 @@ export default function MyBookings() {
       });
     } catch (error) {
       console.error('Error opening room details:', error);
-      Alert.alert('Error', 'Failed to open room details. Please try again.');
+      showAlert('Error', 'Failed to open room details. Please try again.');
     } finally {
       setOpeningRoomDetails(false);
     }
@@ -505,20 +1141,26 @@ export default function MyBookings() {
 
   const getStatusColor = (status) => {
     const s = String(status || '').toLowerCase();
-    if (s.includes('overdue')) return '#EF4444';
+    const isDark = theme.isDark;
+    if (s.includes('overdue')) return isDark ? '#f87171' : '#EF4444';
     if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.primary;
-    if (s === 'reserved') return '#0D9488'; // teal — room reserved, awaiting check-in
-    if (s === 'pending_reservation') return '#EA580C'; // orange — receipt under review
-    if (s.includes('pending') || s.includes('partial')) return '#F59E0B';
-    if (s.includes('cancel') || s.includes('reject')) return '#EF4444';
-    return '#6B7280';
+    if (s === 'reserved') return isDark ? '#2dd4bf' : '#0D9488';
+    if (s === 'pending_reservation') return isDark ? '#fb923c' : '#EA580C';
+    if (s.includes('pending') || s.includes('partial')) return isDark ? '#fbbf24' : '#F59E0B';
+    if (s.includes('cancel') || s.includes('reject')) return isDark ? '#f87171' : '#EF4444';
+    return theme.colors.textSecondary;
   };
 
   const getStatusLabel = (status) => {
     const s = String(status || '').toLowerCase();
     if (s === 'pending_reservation') return 'Awaiting Verification';
     if (s === 'reserved') return 'Reserved';
-    return s.charAt(0).toUpperCase() + s.slice(1);
+
+    return s
+      .split(/[_-]+/)
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
   };
 
   // ==================== Sub-components for Tabs ====================
@@ -585,17 +1227,29 @@ export default function MyBookings() {
         id: currentData?.id,
         startDate: currentData?.start_date,
         endDate: currentData?.end_date,
+        bookingMode: currentData?.bookingMode || currentData?.booking_mode,
+        booking_mode: currentData?.booking_mode || currentData?.bookingMode,
+        bedCount: currentData?.bedCount || currentData?.bed_count,
+        bed_count: currentData?.bed_count || currentData?.bedCount,
+        occupantCount: currentData?.occupantCount || currentData?.occupant_count,
+        occupant_count: currentData?.occupant_count || currentData?.occupantCount,
         monthlyRent: currentData?.monthly_rent,
         unit_price: currentData?.unit_price,
         contract_mode: currentData?.contract_mode,
         contractMode: currentData?.contract_mode,
         billing_policy: currentData?.billing_policy,
+        reservation_policy: currentData?.reservation_policy,
+        occupants: Array.isArray(currentData?.occupants) ? currentData.occupants : [],
         status: currentData?.status,
         paymentStatus: currentData?.status,
         daysStayed: 0,
         isPending: true
       },
-      room: { roomNumber: currentData?.room?.room_number || 'N/A' },
+      room: {
+        roomNumber: currentData?.room?.room_number || currentData?.room_number || 'N/A',
+        room_number: currentData?.room?.room_number || currentData?.room_number || 'N/A',
+        capacity: currentData?.room?.capacity,
+      },
       property: currentData?.property || {},
       landlord: currentData?.landlord || {},
       addons: { active: [], pending: [] }
@@ -604,6 +1258,11 @@ export default function MyBookings() {
     if (!display) return null;
 
     const { booking, room, property, landlord, addons } = display;
+    const occupancySummary = resolveOccupancySummary(booking, room);
+    const occupantProfiles = resolveOccupantProfiles(booking);
+    const bookingMode = String(booking?.booking_mode || booking?.bookingMode || 'normal').toLowerCase();
+    const shouldShowProxyOccupants = bookingMode === 'proxy' || occupantProfiles.length > 0;
+    const reservationPolicy = currentData?.reservation_policy || booking?.reservation_policy;
     const bookingContractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
     const hasScheduledEndDate = Boolean(booking.endDate || booking.end_date);
     const canRequestExtension = !booking.isPending && !(bookingContractMode === 'monthly' && !hasScheduledEndDate) && hasScheduledEndDate;
@@ -613,23 +1272,96 @@ export default function MyBookings() {
     const transferLimitReached = monthlyTransferCount >= 2;
     const daysUntilTransferReset = getDaysUntilTransferReset();
     const transferButtonDisabled = submittingTransfer || Boolean(pendingTransferForBooking) || transferLimitReached;
+    const startDateRaw = booking.startDate || booking.start_date;
+    const endDateRaw = booking.endDate || booking.end_date;
+    const startDate = startDateRaw ? new Date(startDateRaw) : null;
+    const hasValidStartDate = startDate instanceof Date && !Number.isNaN(startDate.getTime());
+    const hasCheckoutDate = Boolean(endDateRaw);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (hasValidStartDate) {
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    const isFutureStart = hasValidStartDate ? startDate > today : false;
+    const daysUntilStart = isFutureStart
+      ? Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+    const daysStayed = Math.max(0, Math.floor(Number(booking.daysStayed || booking.days_stayed || 0)));
+    const daysLeft = Math.max(0, Math.ceil(Number(booking.daysRemaining || booking.days_remaining || 0)));
+    const stayDurationLabel = isFutureStart ? 'Starts In' : (hasCheckoutDate ? 'Days Left' : 'Days Stayed');
+    const stayDurationValue = isFutureStart
+      ? `${daysUntilStart} ${daysUntilStart === 1 ? 'Day' : 'Days'}`
+      : `${hasCheckoutDate ? daysLeft : daysStayed} ${(hasCheckoutDate ? daysLeft : daysStayed) === 1 ? 'Day' : 'Days'}`;
+    const pendingMoveInValue = hasValidStartDate ? formatDate(startDateRaw) : 'Move-in date awaiting approval';
+    const durationSummaryLabel = booking.isPending ? 'Move-in Date' : stayDurationLabel;
+    const durationSummaryValue = booking.isPending ? pendingMoveInValue : stayDurationValue;
+
+    const paymentStatusRaw = String(
+      booking.isOverdue || booking.is_overdue
+        ? 'overdue'
+        : (booking.paymentStatus || booking.payment_status || 'unpaid'),
+    ).toLowerCase();
+    const paymentStatusValue = paymentStatusRaw
+      .split('_')
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+    const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
+    const roomRentAmount = Number(
+      booking.billing_policy === 'daily'
+        ? (booking.unit_price || booking.daily_rate || booking.monthlyRent || booking.monthly_rent || 0)
+        : (booking.monthlyRent || booking.monthly_rent || booking.unit_price || 0),
+    );
+    const totalCycleCharges = Math.max(0, roomRentAmount + addonMonthlyTotal);
+    const currentCycleLabel = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const invoiceList = Array.isArray(currentData?.financials?.invoices)
+      ? currentData.financials.invoices
+      : Array.isArray(booking?.financials?.invoices)
+        ? booking.financials.invoices
+        : [];
+
+    const totalPaidAmount = invoiceList.reduce((sum, invoice) => {
+      const invoiceTransactions = Array.isArray(invoice?.transactions) ? invoice.transactions : [];
+      const paidForInvoice = invoiceTransactions
+        .filter((tx) => String(tx?.status || '').toLowerCase() === 'succeeded')
+        .reduce((txSum, tx) => txSum + Number(tx?.amount || 0), 0);
+
+      return sum + paidForInvoice;
+    }, 0);
+
+    const invoiceOutstandingAmount = invoiceList
+      .filter((invoice) => ['pending', 'partial', 'overdue', 'unpaid'].includes(String(invoice?.status || '').toLowerCase()))
+      .reduce((sum, invoice) => sum + Number(invoice?.amount || 0), 0);
+
+    const remainingBalanceAmount = invoiceOutstandingAmount > 0
+      ? invoiceOutstandingAmount
+      : Math.max(0, totalCycleCharges - totalPaidAmount);
+
+    const hasMoveOutNotice = Boolean(booking.notice_given_at || booking.noticeGivenAt);
+    const reviewAlreadySubmitted = Boolean(booking.hasReview || booking.has_review);
 
     const translateX = slideAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, (Dimensions.get('window').width - 40) / 2],
+      outputRange: [0, Math.max(viewportWidth - 40, 0) / 2],
     });
 
     return (
       <View style={styles.content}>
         {/* Sliding Toggle */}
         {hasStays && hasPending && (
-          <View style={styles.sliderContainer}>
+          <View style={[styles.sliderContainer, { backgroundColor: theme.colors.backgroundSecondary }]}>
             <Animated.View 
               style={[
                 styles.sliderIndicator, 
                 { 
                   width: '50%',
-                  backgroundColor: viewMode === 'active' ? theme.colors.primary : '#F59E0B',
+                  backgroundColor: viewMode === 'active' ? theme.colors.primary : (theme.isDark ? '#fbbf24' : '#F59E0B'),
                   transform: [{ translateX }] 
                 }
               ]} 
@@ -655,33 +1387,25 @@ export default function MyBookings() {
 
         {/* Property Selector */}
         {((viewMode === 'active' && stayData.stays.length > 1) || (viewMode === 'pending' && pendingBookings.length > 1)) && (
-          <View style={styles.selectorContainer}>
+          <View style={[styles.selectorContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
             <View style={styles.selectorInfo}>
-              <View style={styles.selectorIcon}>
+              <View style={[styles.selectorIcon, { backgroundColor: theme.colors.primaryLight }]}>
                 <Ionicons name="business" size={20} color={theme.colors.primary} />
               </View>
               <View>
-                <Text style={styles.selectorLabel}>Switch Property</Text>
-                <Text style={styles.selectorSublabel}>
+                <Text style={[styles.selectorLabel, { color: theme.colors.text }]}>Switch Property</Text>
+                <Text style={[styles.selectorSublabel, { color: theme.colors.textSecondary }]}>
                   {viewMode === 'active' ? `${stayData.stays.length} active stays` : `${pendingBookings.length} pending requests`}
                 </Text>
               </View>
             </View>
             <TouchableOpacity 
-              style={styles.selectorDropdown}
+              style={[styles.selectorDropdown, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}
               onPress={() => {
-                const list = viewMode === 'active' ? stayData.stays : pendingBookings;
-                Alert.alert(
-                  "Select Property",
-                  "Choose a property to view details",
-                  list.map((item, idx) => ({
-                    text: `${item.property?.title || item.property_title} (Room ${item.room?.room_number || item.room?.roomNumber})`,
-                    onPress: () => viewMode === 'active' ? setSelectedStayIndex(idx) : setSelectedPendingIndex(idx)
-                  })).concat([{ text: "Cancel", style: "cancel" }])
-                );
+                setShowPropertySwitchModal(true);
               }}
             >
-              <Text style={styles.selectorValue} numberOfLines={1}>
+              <Text style={[styles.selectorValue, { color: theme.colors.text }]} numberOfLines={1}>
                 {property.title || property.property_title || 'Select'}
               </Text>
               <Ionicons name="chevron-down" size={16} color={theme.colors.textTertiary} />
@@ -691,11 +1415,11 @@ export default function MyBookings() {
 
         {/* Refund Warning */}
         {booking.paymentStatus === 'refunded' && (
-          <View style={styles.warningBanner}>
-            <Ionicons name="alert-circle" size={24} color="#7E22CE" />
+          <View style={[styles.warningBanner, { backgroundColor: theme.isDark ? 'rgba(126,34,206,0.1)' : '#F3E8FF', borderColor: theme.isDark ? '#7E22CE' : '#E9D5FF', borderWidth: 1 }]}>
+            <Ionicons name="alert-circle" size={24} color={theme.isDark ? '#a855f7' : '#7E22CE'} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.warningTitle}>Payment Action Required</Text>
-              <Text style={styles.warningText}>
+              <Text style={[styles.warningTitle, { color: theme.isDark ? '#a855f7' : '#7E22CE' }]}>Payment Action Required</Text>
+              <Text style={[styles.warningText, { color: theme.colors.textSecondary }]}>
                 Your last payment was refunded. Please complete a new payment to maintain your active status.
               </Text>
             </View>
@@ -703,14 +1427,14 @@ export default function MyBookings() {
         )}
 
         {/* Main Property Card */}
-        <View style={styles.bookingCard}>
+        <View style={[styles.bookingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
           <Image 
             source={getImageUrl(property.image)} 
             style={styles.bookingImage} 
           />
           <View style={styles.bookingInfo}>
             <View style={styles.bookingHeader}>
-              <Text style={styles.bookingName}>{property.title}</Text>
+              <Text style={[styles.bookingName, { color: theme.colors.text }]}>{property.title}</Text>
               <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
                 <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status) }]}>
                   {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
@@ -720,50 +1444,143 @@ export default function MyBookings() {
             
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={16} color={theme.colors.textSecondary} />
-              <Text style={styles.locationText}>{property.address || property.full_address}</Text>
+              <Text style={[styles.locationText, { color: theme.colors.textSecondary }]}>{property.address || property.full_address}</Text>
             </View>
 
             <View style={styles.financialSummaryRow}>
-               <View style={styles.summaryCard}>
-                  <Text style={styles.summaryLabel}>Room</Text>
-                  <Text style={styles.summaryValue}>{room.roomNumber || room.room_number}</Text>
-               </View>
-               <View style={styles.summaryCard}>
-                  <Text style={styles.summaryLabel}>
-                    {booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
-                  </Text>
-                  <Text style={styles.summaryValue}>
-                    {formatCurrency(booking.unit_price || booking.monthlyRent)}
-                  </Text>
-               </View>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Room</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{room.roomNumber || room.room_number}</Text>
+              </View>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{occupancySummary.label}</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{occupancySummary.value}</Text>
+              </View>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
+                  {booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
+                </Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
+                  {formatPesoNoCents(booking.unit_price || booking.monthlyRent)}
+                </Text>
+              </View>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{durationSummaryLabel}</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{durationSummaryValue}</Text>
+              </View>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Payment Status</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{paymentStatusValue}</Text>
+              </View>
             </View>
 
-            {!booking.isPending && (
-              <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 8 }]}> 
-                {canRequestExtension && (
-                  <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : '#2563EB' }]}
-                    disabled={submittingExtension}
-                    onPress={() => handleRequestExtension(booking)}
-                  >
-                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Extend Stay</Text>
-                  </TouchableOpacity>
+            <View style={[styles.summaryDivider, { backgroundColor: theme.colors.border }]} />
+
+            {shouldShowProxyOccupants && (
+              <View style={styles.proxyOccupantsSection}>
+                <View style={styles.proxyOccupantsHeader}>
+                  <Ionicons name="people-outline" size={16} color={theme.colors.primary} />
+                  <Text style={[styles.proxyOccupantsTitle, { color: theme.colors.text }]}>Proxy Occupants</Text>
+                </View>
+
+                {occupantProfiles.length > 0 ? (
+                  occupantProfiles.map((occupant) => (
+                    <View key={occupant.id} style={[styles.proxyOccupantCard, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                      <Text style={[styles.proxyOccupantName, { color: theme.colors.text }]}>{occupant.fullName}</Text>
+                      {(occupant.relationship || occupant.gender) ? (
+                        <Text style={[styles.proxyOccupantMeta, { color: theme.colors.textSecondary }]}>
+                          {[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}
+                        </Text>
+                      ) : null}
+                      {occupant.contact ? (
+                        <Text style={[styles.proxyOccupantMeta, { color: theme.colors.textSecondary }]}>{occupant.contact}</Text>
+                      ) : null}
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[styles.proxyOccupantsEmpty, { color: theme.colors.textTertiary }]}>Occupant details are still syncing for this proxy booking.</Text>
                 )}
-                <TouchableOpacity
-                  style={[styles.reviewBtn, { backgroundColor: transferButtonDisabled ? theme.colors.textTertiary : '#7C3AED' }]}
-                  disabled={transferButtonDisabled}
-                  onPress={() => handleRequestTransfer(booking, property)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                    {pendingTransferForBooking
-                      ? 'Transfer Pending'
-                      : transferLimitReached
-                        ? 'Limit Reached'
-                        : submittingTransfer
-                          ? 'Loading...'
-                          : 'Transfer Room'}
-                  </Text>
-                </TouchableOpacity>
+              </View>
+            )}
+
+            {!booking.isPending && (
+              <View style={styles.actionGridContainer}>
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: transferButtonDisabled ? theme.colors.textTertiary : (theme.isDark ? '#6d28d9' : '#7C3AED') }]}
+                    disabled={transferButtonDisabled}
+                    onPress={() => handleRequestTransfer(booking, property)}
+                  >
+                    <Text style={styles.actionBtnText}>
+                      {pendingTransferForBooking
+                        ? 'Transfer Pending'
+                        : transferLimitReached
+                          ? 'Limit Reached'
+                          : submittingTransfer
+                            ? 'Loading...'
+                            : 'Transfer'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: reviewAlreadySubmitted ? theme.colors.backgroundTertiary : theme.colors.primary }]}
+                    disabled={reviewAlreadySubmitted}
+                    onPress={() => openReviewModal({ booking, property })}
+                  >
+                    <Text style={[styles.actionBtnText, { color: reviewAlreadySubmitted ? theme.colors.textTertiary : '#fff' }]}>
+                      {reviewAlreadySubmitted ? 'Reviewed' : 'Review'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: theme.isDark ? '#c2410c' : '#F97316' }]}
+                    onPress={() => openMaintenanceModal({ booking, property, room })}
+                  >
+                    <Text style={styles.actionBtnText}>Maintenance</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.actionRow}>
+                  {hasMoveOutNotice ? (
+                    <View
+                      style={[
+                        styles.actionBtn,
+                        { backgroundColor: theme.isDark ? 'rgba(13,148,136,0.1)' : '#F0FDFA', borderWidth: 1, borderColor: theme.isDark ? '#0D9488' : '#99F6E4' },
+                      ]}
+                    >
+                      <Text style={[styles.actionBtnText, { color: theme.isDark ? '#2dd4bf' : '#0D9488' }]}>Notice Submitted</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.actionBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : (theme.isDark ? '#3730a3' : '#4F46E5') }]}
+                      disabled={submittingMoveOut}
+                      onPress={() => handleRequestMoveOut(booking, property, room)}
+                    >
+                      <Text style={styles.actionBtnText}>
+                        {submittingMoveOut ? 'Submitting...' : 'Move-out'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {canRequestExtension ? (
+                    <TouchableOpacity
+                      style={[styles.actionBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : (theme.isDark ? '#1d4ed8' : '#2563EB') }]}
+                      disabled={submittingExtension}
+                      onPress={() => handleRequestExtension(booking)}
+                    >
+                      <Text style={styles.actionBtnText}>Extend</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.actionBtnPlaceholder} />
+                  )}
+
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626' }]}
+                    onPress={() => openReportModal({ booking, property })}
+                  >
+                    <Text style={styles.actionBtnText}>Report</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
@@ -775,7 +1592,7 @@ export default function MyBookings() {
                 </Text>
                 {pendingTransferForBooking && (
                   <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: '#DC2626' }]}
+                    style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626' }]}
                     disabled={cancellingTransferRequestId === pendingTransferForBooking.id}
                     onPress={() => handleCancelTransferRequest(pendingTransferForBooking.id)}
                   >
@@ -787,156 +1604,150 @@ export default function MyBookings() {
               </View>
             )}
 
-            {!booking.isPending && (
-              <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 8 }]}> 
-                <TouchableOpacity
-                  style={[styles.reviewBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : '#4F46E5' }]}
-                  disabled={submittingMoveOut}
-                  onPress={() => handleRequestMoveOut(booking)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                    {submittingMoveOut ? 'Submitting...' : 'Request Move-out'}
-                  </Text>
-                </TouchableOpacity>
+            {/* Move-out notice detail banner */}
+            {!booking.isPending && (booking.notice_given_at || booking.noticeGivenAt) && (
+              <View style={{ backgroundColor: theme.isDark ? 'rgba(13,148,136,0.1)' : '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: theme.isDark ? '#0D9488' : '#99F6E4' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 }}>
+                  <Ionicons name="exit-outline" size={18} color={theme.isDark ? '#2dd4bf' : '#0D9488'} />
+                  <Text style={{ color: theme.isDark ? '#2dd4bf' : '#0D9488', fontWeight: '700', fontSize: 13 }}>Move-out Notice Pending</Text>
+                </View>
+                <Text style={{ color: theme.isDark ? '#99f6e4' : '#134E4A', fontSize: 12, lineHeight: 18 }}>
+                  Your move-out notice was submitted.{booking.endDate ? ` Planned departure: ${formatDate(booking.endDate)}.` : ''} The landlord will confirm your checkout and finalize billing.
+                </Text>
               </View>
             )}
 
             {/* Reservation Status Banners (GCash flow) */}
             {booking.isPending && booking.status === 'pending_reservation' && (
-              <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FED7AA' }}>
+              <View style={{ backgroundColor: theme.isDark ? 'rgba(234,88,12,0.1)' : '#FFF7ED', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: theme.isDark ? '#EA580C' : '#FED7AA' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-                  <Ionicons name="hourglass-outline" size={18} color="#EA580C" />
-                  <Text style={{ color: '#EA580C', fontWeight: '700', fontSize: 13 }}>Receipt Verification Pending</Text>
+                  <Ionicons name="hourglass-outline" size={18} color={theme.isDark ? '#fb923c' : '#EA580C'} />
+                  <Text style={{ color: theme.isDark ? '#fb923c' : '#EA580C', fontWeight: '700', fontSize: 13 }}>Receipt Verification Pending</Text>
                 </View>
-                <Text style={{ color: '#7C2D12', fontSize: 12, lineHeight: 18 }}>
+                <Text style={{ color: theme.isDark ? '#fdba74' : '#7C2D12', fontSize: 12, lineHeight: 18 }}>
                   Your GCash receipt was submitted. The landlord will verify your payment and confirm your reservation shortly.
                 </Text>
+                {(currentData?.move_in_date || currentData?.start_date) && (
+                  <Text style={{ color: theme.isDark ? '#fb923c' : '#9A3412', fontSize: 12, fontWeight: '600', marginTop: 6 }}>
+                    Move-in: {new Date(currentData.move_in_date || currentData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                )}
                 {currentData?.reference_number && (
-                  <View style={{ marginTop: 10, backgroundColor: '#FFEDD5', borderRadius: 8, padding: 8 }}>
-                    <Text style={{ color: '#9A3412', fontSize: 11, fontWeight: '600' }}>Reference #: {currentData.reference_number}</Text>
+                  <View style={{ marginTop: 10, backgroundColor: theme.isDark ? 'rgba(255,237,213,0.1)' : '#FFEDD5', borderRadius: 8, padding: 8 }}>
+                    <Text style={{ color: theme.isDark ? '#fdba74' : '#9A3412', fontSize: 11, fontWeight: '600' }}>Reference #: {currentData.reference_number}</Text>
                   </View>
                 )}
               </View>
             )}
 
             {booking.isPending && booking.status === 'reserved' && (
-              <View style={{ backgroundColor: '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#99F6E4' }}>
+              <View style={{ backgroundColor: theme.isDark ? 'rgba(13,148,136,0.1)' : '#F0FDFA', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: theme.isDark ? '#0D9488' : '#99F6E4' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#0D9488" />
-                  <Text style={{ color: '#0D9488', fontWeight: '700', fontSize: 13 }}>Room Reserved!</Text>
+                  <Ionicons name="checkmark-circle-outline" size={18} color={theme.isDark ? '#2dd4bf' : '#0D9488'} />
+                  <Text style={{ color: theme.isDark ? '#2dd4bf' : '#0D9488', fontWeight: '700', fontSize: 13 }}>Room Reserved!</Text>
                 </View>
-                <Text style={{ color: '#134E4A', fontSize: 12, lineHeight: 18 }}>
+                <Text style={{ color: theme.isDark ? '#99f6e4' : '#134E4A', fontSize: 12, lineHeight: 18 }}>
                   Your reservation is confirmed. The landlord will check you in on your move-in date.
                 </Text>
                 {(currentData?.move_in_date || currentData?.start_date) && (
-                  <Text style={{ color: '#0F766E', fontSize: 12, fontWeight: '600', marginTop: 6 }}>
+                  <Text style={{ color: theme.isDark ? '#2dd4bf' : '#0F766E', fontSize: 12, fontWeight: '600', marginTop: 6 }}>
                     Move-in: {new Date(currentData.move_in_date || currentData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </Text>
                 )}
               </View>
             )}
 
-            <View style={[styles.reviewBtnContainer, { gap: 16 }]}>
-               {!booking.isPending ? (
-                 <>
-                   <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: (!booking.hasReview && !booking.has_review) ? theme.colors.primary : theme.colors.backgroundTertiary }]}
-                    disabled={booking.hasReview || booking.has_review}
-                    onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: property.id })}
-                   >
-                     <Text style={{ color: (!booking.hasReview && !booking.has_review) ? '#fff' : theme.colors.textTertiary, fontWeight: 'bold' }}>Review</Text>
-                   </TouchableOpacity>
-                   <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
-                    onPress={() => navigation.navigate('ReportProperty', { propertyId: property.id, propertyTitle: property.title })}
-                   >
-                     <Text style={{ color: '#991B1B', fontWeight: 'bold' }}>Report</Text>
-                   </TouchableOpacity>
-                 </>
-               ) : (booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
-                 <>
-                   <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: '#2563EB' }]}
-                    onPress={() => handleOpenRoomDetails(currentData)}
-                    disabled={openingRoomDetails}
-                   >
-                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                       {openingRoomDetails ? 'Opening...' : 'Room Details'}
-                     </Text>
-                   </TouchableOpacity>
-                   <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: '#DC2626' }]}
-                    onPress={() => {
-                      Alert.alert(
-                        'Report an Issue',
-                        'What issue are you experiencing?',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Fake / Incorrect Receipt',
-                            style: 'destructive',
-                            onPress: async () => {
-                              try {
-                                await TenantService.reportDispute(booking.id, 'Tenant reported a fake or incorrect receipt.', 'fake_receipt');
-                                Alert.alert('Report Submitted', 'Our admin team will review your report.');
-                              } catch { Alert.alert('Error', 'Failed to submit report.'); }
+            {booking.isPending && (
+              <ReservationPolicyNotice policy={reservationPolicy} theme={theme} />
+            )}
+
+            {booking.isPending && (
+              <View style={[styles.reviewBtnContainer, { gap: 16 }]}> 
+                {(booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#1d4ed8' : '#2563EB' }]}
+                      onPress={() => handleOpenRoomDetails(currentData)}
+                      disabled={openingRoomDetails}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                        {openingRoomDetails ? 'Opening...' : 'Room Details'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626' }]}
+                      onPress={() => {
+                        showAlert(
+                          'Report an Issue',
+                          'What issue are you experiencing?',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Fake / Incorrect Receipt',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  await TenantService.reportDispute(booking.id, 'Tenant reported a fake or incorrect receipt.', 'fake_receipt');
+                                  showAlert('Report Submitted', 'Our admin team will review your report.');
+                                } catch { showAlert('Error', 'Failed to submit report.'); }
+                              }
+                            },
+                            {
+                              text: 'Other Problem',
+                              onPress: async () => {
+                                try {
+                                  await TenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.', 'other');
+                                  showAlert('Report Submitted', 'Our admin team will review your report.');
+                                } catch { showAlert('Error', 'Failed to submit report.'); }
+                              }
                             }
-                          },
-                          {
-                            text: 'Other Problem',
-                            onPress: async () => {
-                              try {
-                                await TenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.', 'other');
-                                Alert.alert('Report Submitted', 'Our admin team will review your report.');
-                              } catch { Alert.alert('Error', 'Failed to submit report.'); }
-                            }
-                          }
-                        ]
-                      );
-                    }}
-                   >
-                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>Report Issue</Text>
-                   </TouchableOpacity>
-                 </>
-               ) : (
-                 <>
-                   <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: '#2563EB' }]}
-                    onPress={() => handleOpenRoomDetails(currentData)}
-                    disabled={openingRoomDetails}
-                   >
-                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                       {openingRoomDetails ? 'Opening...' : 'Room Details'}
-                     </Text>
-                   </TouchableOpacity>
-                   <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: theme.colors.error }]}
-                    onPress={() => {
-                      Alert.alert(
-                        "Cancel Request",
-                        "Are you sure you want to cancel this booking request?",
-                        [
-                          { text: "No", style: "cancel" },
-                          { text: "Yes, Cancel", style: "destructive", onPress: () => handleCancelBooking(booking.id) }
-                        ]
-                      );
-                    }}
-                    disabled={cancellingBookingId === booking.id}
-                   >
-                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                       {cancellingBookingId === booking.id ? 'Cancelling...' : 'Cancel Request'}
-                     </Text>
-                   </TouchableOpacity>
-                 </>
-               )}
-            </View>
+                          ]
+                        );
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Report Issue</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#1d4ed8' : '#2563EB' }]}
+                      onPress={() => handleOpenRoomDetails(currentData)}
+                      disabled={openingRoomDetails}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                        {openingRoomDetails ? 'Opening...' : 'Room Details'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.reviewBtn, { backgroundColor: theme.colors.error }]}
+                      onPress={() => {
+                        showAlert(
+                          "Cancel Request",
+                          "Are you sure you want to cancel this booking request?",
+                          [
+                            { text: "No", style: "cancel" },
+                            { text: "Yes, Cancel", style: "destructive", onPress: () => handleCancelBooking(booking.id) }
+                          ]
+                        );
+                      }}
+                      disabled={cancellingBookingId === booking.id}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                        {cancellingBookingId === booking.id ? 'Cancelling...' : 'Cancel Request'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
           </View>
         </View>
 
         {/* Addons Section */}
         <View style={styles.addonSection}>
            <View style={styles.addonHeader}>
-              <Text style={styles.sectionTitle}>Add-ons & Extras</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-ons & Extras</Text>
               {!booking.isPending && (
                 <TouchableOpacity 
                   style={[
@@ -947,7 +1758,7 @@ export default function MyBookings() {
                     }
                   ]}
                   disabled={booking.paymentStatus === 'refunded'}
-                  onPress={() => navigation.navigate('Addons', { bookingId: booking.id })}
+                  onPress={() => openAddonModal({ booking, property, addons })}
                 >
                    <Text style={styles.stayHeaderBtnText}>+ Request</Text>
                 </TouchableOpacity>
@@ -958,31 +1769,31 @@ export default function MyBookings() {
              (addons.active?.length > 0 || addons.pending?.length > 0) ? (
                <>
                  {addons.active?.map((addon, idx) => (
-                   <View key={`active-${idx}`} style={styles.addonItem}>
+                   <View key={`active-${idx}`} style={[styles.addonItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
                       <View style={styles.addonInfo}>
-                         <View style={styles.addonIconContainer}>
+                         <View style={[styles.addonIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
                             <Ionicons name="sparkles" size={20} color={theme.colors.primary} />
                          </View>
                          <View>
-                            <Text style={styles.addonName}>{addon.name}</Text>
-                            <Text style={styles.addonSubtext}>{addon.priceTypeLabel}</Text>
+                            <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
+                            <Text style={[styles.addonSubtext, { color: theme.colors.textSecondary }]}>{addon.priceTypeLabel}</Text>
                          </View>
                       </View>
-                      <Text style={styles.addonPrice}>{formatCurrency(addon.price)}</Text>
+                      <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
                    </View>
                  ))}
                  {addons.pending?.map((addon, idx) => (
-                   <View key={`pending-${idx}`} style={[styles.addonItem, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: '#FEF3C7' }]}>
+                   <View key={`pending-${idx}`} style={[styles.addonItem, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: theme.isDark ? '#fbbf24' : '#FEF3C7', borderWidth: 1 }]}>
                       <View style={styles.addonInfo}>
-                         <View style={[styles.addonIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                            <Ionicons name="time" size={20} color="#D97706" />
+                         <View style={[styles.addonIconContainer, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7' }]}>
+                            <Ionicons name="time" size={20} color={theme.isDark ? '#fbbf24' : '#D97706'} />
                          </View>
                          <View>
-                            <Text style={styles.addonName}>{addon.name}</Text>
-                            <Text style={[styles.addonSubtext, { color: '#D97706' }]}>Pending Approval</Text>
+                            <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
+                            <Text style={[styles.addonSubtext, { color: theme.isDark ? '#fbbf24' : '#D97706' }]}>Pending Approval</Text>
                          </View>
                       </View>
-                      <Text style={styles.addonPrice}>{formatCurrency(addon.price)}</Text>
+                      <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
                    </View>
                  ))}
                </>
@@ -994,8 +1805,8 @@ export default function MyBookings() {
              )
            ) : (
              <View style={{ paddingVertical: 24, alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
-               <Ionicons name="time-outline" size={32} color="#D97706" style={{ opacity: 0.7 }} />
-               <Text style={{ color: '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
+               <Ionicons name="time-outline" size={32} color={theme.isDark ? '#fbbf24' : '#D97706'} style={{ opacity: 0.7 }} />
+               <Text style={{ color: theme.isDark ? '#fbbf24' : '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
                <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
                  Add-ons will be available once your booking is confirmed.
                </Text>
@@ -1003,11 +1814,62 @@ export default function MyBookings() {
            )}
         </View>
 
+        {!booking.isPending && (
+          <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="wallet-outline" size={20} color={theme.colors.primary} />
+              <View>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Payment Summary</Text>
+                <Text style={[styles.paymentSummaryCycleText, { color: theme.colors.textTertiary }]}>{currentCycleLabel}</Text>
+              </View>
+            </View>
+
+            <View style={styles.paymentSummaryContent}>
+              <View style={styles.paymentSummaryRow}>
+                <Text style={[styles.paymentSummaryLabel, { color: theme.colors.textSecondary }]}>Total Charges (Rent & Add-ons)</Text>
+                <Text style={[styles.paymentSummaryValue, { color: theme.colors.text }]}>{formatPesoNoCents(totalCycleCharges)}</Text>
+              </View>
+              <View style={styles.paymentSummaryRow}>
+                <Text style={[styles.paymentSummaryLabel, { color: theme.colors.textSecondary }]}>Total Paid Amount</Text>
+                <Text style={[styles.paymentSummaryValue, { color: theme.colors.success }]}>-{formatPesoNoCents(totalPaidAmount)}</Text>
+              </View>
+
+              <View style={[styles.paymentSummaryDivider, { borderTopColor: theme.colors.border }]}>
+                <View style={styles.paymentSummaryRow}>
+                  <Text style={[styles.paymentSummaryTotalLabel, { color: theme.colors.text }]}>Remaining Balance</Text>
+                  <Text
+                    style={[
+                      styles.paymentSummaryTotalValue,
+                      { color: remainingBalanceAmount > 0 ? theme.colors.error : theme.colors.success },
+                    ]}
+                  >
+                    {formatPesoNoCents(remainingBalanceAmount)}
+                  </Text>
+                </View>
+
+                {remainingBalanceAmount > 0 ? (
+                  <TouchableOpacity
+                    style={[styles.paymentSummaryButton, { backgroundColor: theme.colors.primary }]}
+                    onPress={() => navigation.navigate('Payments')}
+                  >
+                    <Text style={styles.paymentSummaryButtonText}>Make a Payment</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.paymentSummarySettledBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+                    <Text style={styles.paymentSummarySettledText}>You are all caught up!</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Landlord Contact */}
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
            <View style={styles.sectionHeader}>
               <Ionicons name="person-outline" size={20} color={theme.colors.primary} />
-              <Text style={styles.sectionTitle}>Property Manager</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Property Manager</Text>
            </View>
            <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
               <View style={[styles.avatarSmall, { backgroundColor: theme.colors.primaryLight }]}>
@@ -1016,8 +1878,8 @@ export default function MyBookings() {
                  </Text>
               </View>
               <View style={{ flex: 1 }}>
-                 <Text style={styles.managerName}>{landlord?.name || `${landlord?.first_name} ${landlord?.last_name}`}</Text>
-                 <Text style={styles.managerEmail}>{landlord?.email}</Text>
+                 <Text style={[styles.managerName, { color: theme.colors.text }]}>{landlord?.name || `${landlord?.first_name} ${landlord?.last_name}`}</Text>
+                 <Text style={[styles.managerEmail, { color: theme.colors.textSecondary }]}>{landlord?.email}</Text>
               </View>
               <TouchableOpacity
                 style={{ padding: 8, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 8 }}
@@ -1091,7 +1953,7 @@ export default function MyBookings() {
                     </Text>
                     <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
                       <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status), fontSize: 10 }]}>
-                        {booking.isOverdue || booking.is_overdue ? 'Overdue' : booking.status}
+                        {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
                       </Text>
                     </View>
                  </View>
@@ -1137,6 +1999,12 @@ export default function MyBookings() {
                   </Text>
                 </View>
               )}
+
+              <ReservationPolicyNotice
+                policy={booking?.reservation_policy}
+                theme={theme}
+                marginBottom={16}
+              />
 
               {/* Review Button for History */}
               {['completed', 'confirmed'].includes(booking.status?.toLowerCase()) && !booking.has_review && !booking.hasReview && (
@@ -1200,9 +2068,369 @@ export default function MyBookings() {
       )}
 
       <Modal
+        visible={showPropertySwitchModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closePropertySwitchModal}
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+      >
+        <View style={styles.propertySwitchModalOverlay}>
+          <TouchableOpacity
+            style={styles.propertySwitchModalBackdrop}
+            activeOpacity={1}
+            onPress={closePropertySwitchModal}
+          />
+
+          <View style={styles.propertySwitchModalCard}>
+            <Text style={styles.propertySwitchModalTitle}>Switch Property</Text>
+            <Text style={styles.propertySwitchModalMessage}>Choose a property to view details.</Text>
+
+            <ScrollView
+              style={styles.propertySwitchOptionsScroll}
+              contentContainerStyle={styles.propertySwitchOptionsContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {getPropertySwitchOptions().map((item, index) => {
+                const isSelected = index === getPropertySwitchIndex();
+                return (
+                  <TouchableOpacity
+                    key={`property-switch-${item?.id || index}`}
+                    style={[
+                      styles.propertySwitchOptionButton,
+                      isSelected && styles.propertySwitchOptionButtonActive,
+                    ]}
+                    onPress={() => selectPropertyFromModal(index)}
+                  >
+                    <View style={styles.propertySwitchOptionTextWrap}>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.propertySwitchOptionText,
+                          isSelected && styles.propertySwitchOptionTextActive,
+                        ]}
+                      >
+                        {getPropertyOptionLabel(item)}
+                      </Text>
+                      <Text style={styles.propertySwitchOptionSubText}>
+                        {isSelected ? 'Currently selected' : 'Tap to switch'}
+                      </Text>
+                    </View>
+                    {isSelected ? (
+                      <Ionicons name="checkmark-circle" size={18} color={theme.colors.primary} />
+                    ) : (
+                      <Ionicons name="chevron-forward" size={16} color={theme.colors.textTertiary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.propertySwitchModalActions}>
+              <TouchableOpacity
+                style={[styles.propertySwitchModalButton, styles.propertySwitchModalCancelButton]}
+                onPress={closePropertySwitchModal}
+              >
+                <Text style={styles.propertySwitchModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showAddonModal}
+        animationType="fade"
+        transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={closeAddonModal}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+        }}>
+          <View style={{
+            maxHeight: '95%',
+            borderRadius: 14,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            overflow: 'hidden',
+          }}>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                  Request Add-on
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                  {addonContext?.propertyTitle ? `For ${addonContext.propertyTitle}` : 'For your current stay'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closeAddonModal} style={{ padding: 4 }}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 10 }}>
+                Standard Add-ons
+              </Text>
+
+              {!Array.isArray(addonContext?.availableAddons) || addonContext.availableAddons.length === 0 ? (
+                <View style={{
+                  paddingVertical: 18,
+                  paddingHorizontal: 12,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  marginBottom: 14,
+                }}>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                    No standard add-ons are available right now.
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ gap: 10, marginBottom: 14 }}>
+                  {addonContext.availableAddons.map((addon) => {
+                    const addonPrice = Number(addon?.price || 0);
+                    const addonPriceLabel = addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time');
+                    const canRequest = addon?.has_stock !== false;
+                    const isSubmittingThisAddon = addonRequestingId === addon.id;
+
+                    return (
+                      <View
+                        key={addon.id}
+                        style={{
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          backgroundColor: theme.colors.surface,
+                          borderRadius: 10,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          gap: 8,
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
+                              {addon?.name || 'Add-on'}
+                            </Text>
+                            <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>
+                              {addonPriceLabel}
+                            </Text>
+                            {addon?.description ? (
+                              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
+                                {addon.description}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.primary }}>
+                            {formatCurrency(addonPrice)}{addon?.price_type === 'monthly' ? '/mo' : ''}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          disabled={!canRequest || isSubmittingThisAddon}
+                          onPress={() => submitAddonRequest({ booking_id: addonContext.bookingId, addon_id: addon.id, quantity: 1 }, addon.id)}
+                          style={{
+                            minHeight: 40,
+                            borderRadius: 8,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: !canRequest || isSubmittingThisAddon ? theme.colors.textTertiary : theme.colors.primary,
+                          }}
+                        >
+                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                            {isSubmittingThisAddon ? 'Submitting...' : (canRequest ? 'Request Add-on' : 'Out of Stock')}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Request a Custom Add-on
+              </Text>
+
+              <TextInput
+                value={addonDraft.name}
+                onChangeText={(value) => setAddonDraft((prev) => ({ ...prev, name: value }))}
+                placeholder="Item name (e.g., Extra chair, Desk lamp)"
+                placeholderTextColor={theme.colors.textTertiary}
+                style={{
+                  minHeight: 44,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.surface,
+                  marginBottom: 10,
+                }}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                {[
+                  { label: 'Rental', value: 'rental' },
+                  { label: 'Usage Fee', value: 'fee' },
+                ].map((item) => {
+                  const selected = addonDraft.addon_type === item.value;
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      onPress={() => setAddonDraft((prev) => ({ ...prev, addon_type: item.value }))}
+                      style={{
+                        flex: 1,
+                        minHeight: 38,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: selected ? theme.colors.primary : theme.colors.border,
+                        backgroundColor: selected ? theme.colors.primaryLight : theme.colors.surface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: selected ? theme.colors.primary : theme.colors.textSecondary }}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                {[
+                  { label: 'Monthly', value: 'monthly' },
+                  { label: 'One-time', value: 'one_time' },
+                ].map((item) => {
+                  const selected = addonDraft.price_type === item.value;
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      onPress={() => setAddonDraft((prev) => ({ ...prev, price_type: item.value }))}
+                      style={{
+                        flex: 1,
+                        minHeight: 38,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: selected ? theme.colors.primary : theme.colors.border,
+                        backgroundColor: selected ? theme.colors.primaryLight : theme.colors.surface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: selected ? theme.colors.primary : theme.colors.textSecondary }}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TextInput
+                value={addonDraft.suggested_price}
+                onChangeText={(value) => setAddonDraft((prev) => ({ ...prev, suggested_price: value }))}
+                placeholder="Suggested price (optional)"
+                placeholderTextColor={theme.colors.textTertiary}
+                keyboardType="decimal-pad"
+                style={{
+                  minHeight: 44,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.surface,
+                  marginBottom: 10,
+                }}
+              />
+
+              <TextInput
+                value={addonDraft.note}
+                onChangeText={(value) => setAddonDraft((prev) => ({ ...prev, note: value }))}
+                placeholder="Note for landlord (optional)"
+                placeholderTextColor={theme.colors.textTertiary}
+                multiline
+                style={{
+                  minHeight: 96,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  color: theme.colors.text,
+                  textAlignVertical: 'top',
+                  backgroundColor: theme.colors.surface,
+                }}
+              />
+            </ScrollView>
+
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              flexDirection: 'row',
+              gap: 10,
+            }}>
+              <TouchableOpacity
+                onPress={closeAddonModal}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={submitCustomAddonRequest}
+                disabled={submittingCustomAddon}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  backgroundColor: submittingCustomAddon ? theme.colors.textTertiary : '#2563EB',
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
+                  {submittingCustomAddon ? 'Submitting...' : 'Submit Custom'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={showTransferModal}
         animationType="fade"
         transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
         onRequestClose={closeTransferModal}
       >
         <View style={{
@@ -1212,7 +2440,7 @@ export default function MyBookings() {
           paddingHorizontal: 16,
         }}>
           <View style={{
-            maxHeight: '85%',
+            maxHeight: '95%',
             borderRadius: 14,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
@@ -1236,7 +2464,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ padding: 16 }}>
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
               <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
                   {transferContext?.propertyTitle
@@ -1292,6 +2520,96 @@ export default function MyBookings() {
                 })}
               </View>
 
+              <View style={{ marginTop: 16 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                  Lease Duration
+                </Text>
+                <View style={{ flexDirection: 'row', backgroundColor: theme.colors.backgroundSecondary, p: 2, borderRadius: 10, padding: 4 }}>
+                  <TouchableOpacity
+                    onPress={() => setLeaseDurationPreference('keep_current')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      alignItems: 'center',
+                      borderRadius: 8,
+                      backgroundColor: leaseDurationPreference === 'keep_current' ? theme.colors.surface : 'transparent',
+                      borderWidth: leaseDurationPreference === 'keep_current' ? 1 : 0,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: leaseDurationPreference === 'keep_current' ? theme.colors.primary : theme.colors.textSecondary }}>
+                      Keep Current
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setLeaseDurationPreference('new_lease')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      alignItems: 'center',
+                      borderRadius: 8,
+                      backgroundColor: leaseDurationPreference === 'new_lease' ? theme.colors.surface : 'transparent',
+                      borderWidth: leaseDurationPreference === 'new_lease' ? 1 : 0,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: leaseDurationPreference === 'new_lease' ? theme.colors.primary : theme.colors.textSecondary }}>
+                      New Lease
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {leaseDurationPreference === 'new_lease' && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                      New Lease End Date *
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setShowNewEndDatePicker(true)}
+                      style={{
+                        minHeight: 44,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 10,
+                        paddingHorizontal: 12,
+                        flexDirection: 'row',
+                        gap: 8,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: theme.colors.surface,
+                      }}
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color={newEndDate ? theme.colors.textSecondary : theme.colors.textTertiary}
+                      />
+                      <Text style={{ color: newEndDate ? theme.colors.text : theme.colors.textTertiary, fontSize: 14 }}>
+                        {newEndDate ? formatSlashDate(newEndDate) : 'Select New End Date'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {showNewEndDatePicker && (
+                      <DateTimePicker
+                        value={newEndDate || new Date(new Date().getTime() + 86400000)}
+                        mode="date"
+                        display="default"
+                        minimumDate={new Date(new Date().getTime() + 86400000)}
+                        onChange={(event, selectedDate) => {
+                          if (Platform.OS !== 'ios') {
+                            setShowNewEndDatePicker(false);
+                          }
+                          if (selectedDate) {
+                            selectedDate.setHours(0, 0, 0, 0);
+                            setNewEndDate(selectedDate);
+                          }
+                        }}
+                      />
+                    )}
+                  </View>
+                )}
+              </View>
+
               {/* Financial Impact Preview */}
               <View style={{ marginTop: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -1299,7 +2617,7 @@ export default function MyBookings() {
                     💰 Financial Impact Preview
                   </Text>
                   <TouchableOpacity 
-                    onPress={() => Alert.alert(
+                    onPress={() => showAlert(
                       'Proration Rule', 
                       'Rent is prorated based on a standard 30-day month: (Monthly Rent ÷ 30) × remaining days. Any transfer processing fee is deducted from your unused credit.'
                     )}
@@ -1428,7 +2746,7 @@ export default function MyBookings() {
                                 padding: 10, borderRadius: 8,
                                 backgroundColor: theme.isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5',
                               }}>
-                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#16a34a' }}>
                                   ✅ Estimated Credit: {formatCurrency(Math.abs(transferPreview.suggested_adjustment))}
                                 </Text>
                                 <Text style={{ fontSize: 11, color: '#047857', marginTop: 2 }}>
@@ -1530,6 +2848,728 @@ export default function MyBookings() {
               >
                 <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
                   {submittingTransfer ? 'Sending...' : 'Send Request'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showReviewModal}
+        animationType="fade"
+        transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={closeReviewModal}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+        }}>
+          <View style={{
+            maxHeight: '95%',
+            borderRadius: 14,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            overflow: 'hidden',
+          }}>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                Leave a Review
+              </Text>
+              <TouchableOpacity onPress={closeReviewModal} style={{ padding: 4 }}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
+              <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                  {reviewContext?.property?.title
+                    ? `Reviewing ${reviewContext.property.title}`
+                    : 'Share your stay experience.'}
+                </Text>
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Rating
+              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setReviewRating(star)}
+                    style={{ paddingVertical: 6, paddingHorizontal: 2 }}
+                  >
+                    <Ionicons
+                      name={star <= reviewRating ? 'star' : 'star-outline'}
+                      size={28}
+                      color={star <= reviewRating ? '#F59E0B' : theme.colors.textTertiary}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Comment
+              </Text>
+              <TextInput
+                value={reviewComment}
+                onChangeText={setReviewComment}
+                placeholder="Write your review..."
+                placeholderTextColor={theme.colors.textTertiary}
+                multiline
+                style={{
+                  minHeight: 100,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  color: theme.colors.text,
+                  textAlignVertical: 'top',
+                  backgroundColor: theme.colors.surface,
+                }}
+              />
+            </ScrollView>
+
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              flexDirection: 'row',
+              gap: 10,
+            }}>
+              <TouchableOpacity
+                onPress={closeReviewModal}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={submitReviewModal}
+                disabled={submittingReview}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  backgroundColor: submittingReview ? theme.colors.textTertiary : theme.colors.primary,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
+                  {submittingReview ? 'Submitting...' : 'Submit'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showMaintenanceModal}
+        animationType="fade"
+        transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={closeMaintenanceModal}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+        }}>
+          <View style={{
+            maxHeight: '95%',
+            borderRadius: 14,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            overflow: 'hidden',
+          }}>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                Request Maintenance
+              </Text>
+              <TouchableOpacity onPress={closeMaintenanceModal} style={{ padding: 4 }}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
+              <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                  {maintenanceContext?.property?.title
+                    ? `For ${maintenanceContext.property.title}`
+                    : 'Create a maintenance request for this stay.'}
+                </Text>
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Subject
+              </Text>
+              <TextInput
+                value={maintenanceTitle}
+                onChangeText={setMaintenanceTitle}
+                placeholder="Brief summary of the issue"
+                placeholderTextColor={theme.colors.textTertiary}
+                style={{
+                  minHeight: 44,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.surface,
+                  marginBottom: 14,
+                }}
+              />
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Priority
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                {MAINTENANCE_PRIORITIES.map((priority) => {
+                  const selected = maintenancePriority === priority.value;
+                  return (
+                    <TouchableOpacity
+                      key={priority.value}
+                      onPress={() => setMaintenancePriority(priority.value)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 18,
+                        borderWidth: 1,
+                        borderColor: selected ? theme.colors.primary : theme.colors.border,
+                        backgroundColor: selected ? theme.colors.primaryLight : theme.colors.surface,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: selected ? theme.colors.primary : theme.colors.textSecondary }}>
+                        {priority.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Description
+              </Text>
+              <TextInput
+                value={maintenanceDescription}
+                onChangeText={setMaintenanceDescription}
+                placeholder="Provide more details about the maintenance issue..."
+                placeholderTextColor={theme.colors.textTertiary}
+                multiline
+                style={{
+                  minHeight: 110,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  color: theme.colors.text,
+                  textAlignVertical: 'top',
+                  backgroundColor: theme.colors.surface,
+                }}
+              />
+
+              <View style={{
+                marginTop: 14,
+                marginBottom: 8,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary }}>
+                  Attach Photos
+                </Text>
+                <Text style={{ fontSize: 11, color: theme.colors.textTertiary }}>
+                  {maintenanceImages.length}/5
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                <TouchableOpacity
+                  onPress={pickMaintenanceImages}
+                  disabled={maintenanceImages.length >= 5}
+                  style={{
+                    flex: 1,
+                    minHeight: 40,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor: maintenanceImages.length >= 5 ? theme.colors.backgroundSecondary : theme.colors.surface,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    gap: 6,
+                  }}
+                >
+                  <Ionicons name="images-outline" size={16} color={theme.colors.primary} />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.primary }}>Gallery</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={captureMaintenanceImage}
+                  disabled={maintenanceImages.length >= 5}
+                  style={{
+                    flex: 1,
+                    minHeight: 40,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor: maintenanceImages.length >= 5 ? theme.colors.backgroundSecondary : theme.colors.surface,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    gap: 6,
+                  }}
+                >
+                  <Ionicons name="camera-outline" size={16} color={theme.colors.primary} />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.primary }}>Camera</Text>
+                </TouchableOpacity>
+              </View>
+
+              {maintenanceImages.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 10, paddingBottom: 4 }}
+                >
+                  {maintenanceImages.map((imageAsset, index) => (
+                    <View key={`${imageAsset.uri}-${index}`} style={{ position: 'relative' }}>
+                      <Image
+                        source={{ uri: imageAsset.uri }}
+                        style={{
+                          width: 78,
+                          height: 78,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          backgroundColor: theme.colors.backgroundSecondary,
+                        }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => removeMaintenanceImage(index)}
+                        style={{
+                          position: 'absolute',
+                          top: -6,
+                          right: -6,
+                          backgroundColor: theme.colors.surface,
+                          borderRadius: 10,
+                        }}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+            </ScrollView>
+
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              flexDirection: 'row',
+              gap: 10,
+            }}>
+              <TouchableOpacity
+                onPress={closeMaintenanceModal}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={submitMaintenanceModal}
+                disabled={submittingMaintenance}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  backgroundColor: submittingMaintenance ? theme.colors.textTertiary : '#F97316',
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
+                  {submittingMaintenance ? 'Submitting...' : 'Submit'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showReportModal}
+        animationType="fade"
+        transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={closeReportModal}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+        }}>
+          <View style={{
+            maxHeight: '95%',
+            borderRadius: 14,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            overflow: 'hidden',
+          }}>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                Report Property
+              </Text>
+              <TouchableOpacity onPress={closeReportModal} style={{ padding: 4 }}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
+              <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                  {reportContext?.property?.title
+                    ? `Reporting ${reportContext.property.title}`
+                    : 'Submit a report to platform admins.'}
+                </Text>
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Reason for Report
+              </Text>
+              <View style={{ gap: 8, marginBottom: 14 }}>
+                {REPORT_REASONS.map((reason) => {
+                  const selected = reportReason === reason;
+                  return (
+                    <TouchableOpacity
+                      key={reason}
+                      onPress={() => setReportReason(reason)}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: selected ? theme.colors.error : theme.colors.border,
+                        backgroundColor: selected ? `${theme.colors.error}15` : theme.colors.surface,
+                        borderRadius: 10,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <Ionicons
+                        name={selected ? 'radio-button-on' : 'radio-button-off'}
+                        size={18}
+                        color={selected ? theme.colors.error : theme.colors.textTertiary}
+                      />
+                      <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: selected ? '700' : '500', flex: 1 }}>
+                        {reason}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Description
+              </Text>
+              <TextInput
+                value={reportDescription}
+                onChangeText={setReportDescription}
+                placeholder="Please provide specific details (at least 10 characters)..."
+                placeholderTextColor={theme.colors.textTertiary}
+                multiline
+                style={{
+                  minHeight: 110,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  color: theme.colors.text,
+                  textAlignVertical: 'top',
+                  backgroundColor: theme.colors.surface,
+                }}
+              />
+
+              <View style={{
+                marginTop: 12,
+                backgroundColor: `${theme.colors.warning}20`,
+                borderRadius: 10,
+                padding: 10,
+                flexDirection: 'row',
+                gap: 8,
+              }}>
+                <Ionicons name="alert-circle" size={18} color={theme.colors.warning} />
+                <Text style={{ fontSize: 11, color: theme.colors.textSecondary, flex: 1, lineHeight: 16 }}>
+                  Reports are sent to admins for review. Abuse of reporting can lead to account restriction.
+                </Text>
+              </View>
+            </ScrollView>
+
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              flexDirection: 'row',
+              gap: 10,
+            }}>
+              <TouchableOpacity
+                onPress={closeReportModal}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={submitReportModal}
+                disabled={submittingReport}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  backgroundColor: submittingReport ? theme.colors.textTertiary : '#DC2626',
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
+                  {submittingReport ? 'Submitting...' : 'Submit'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showMoveOutModal}
+        animationType="fade"
+        transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={closeMoveOutModal}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+        }}>
+          <View style={{
+            maxHeight: '95%',
+            borderRadius: 14,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            overflow: 'hidden',
+          }}>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                Request Move-out
+              </Text>
+              <TouchableOpacity onPress={closeMoveOutModal} style={{ padding: 4 }}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: undefined }} contentContainerStyle={{ padding: 16 }}>
+              <View style={{
+                marginBottom: 14,
+                padding: 12,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: theme.colors.primaryLight,
+                backgroundColor: theme.colors.backgroundSecondary,
+              }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.primary, marginBottom: 6, textTransform: 'uppercase' }}>
+                  Current Move-out Date
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
+                  {formatLongDate(moveOutContext?.booking?.endDate || moveOutContext?.booking?.end_date)}
+                </Text>
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Planned Move-out Date *
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowMoveOutDatePicker(true)}
+                style={{
+                  minHeight: 44,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  flexDirection: 'row',
+                  gap: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: theme.colors.surface,
+                }}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color={moveOutDate ? theme.colors.textSecondary : theme.colors.textTertiary}
+                />
+                <Text style={{ color: moveOutDate ? theme.colors.text : theme.colors.textTertiary, fontSize: 14 }}>
+                  {moveOutDate ? formatSlashDate(moveOutDate) : 'Select Date'}
+                </Text>
+              </TouchableOpacity>
+
+              {showMoveOutDatePicker && (
+                <DateTimePicker
+                  value={moveOutDate || buildTodayDate()}
+                  mode="date"
+                  display="default"
+                  minimumDate={buildTodayDate()}
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS !== 'ios') {
+                      setShowMoveOutDatePicker(false);
+                    }
+                    if (selectedDate) {
+                      selectedDate.setHours(0, 0, 0, 0);
+                      setMoveOutDate(selectedDate);
+                    }
+                  }}
+                />
+              )}
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginTop: 14, marginBottom: 8 }}>
+                Reason / Notes
+              </Text>
+              <TextInput
+                value={moveOutReason}
+                onChangeText={setMoveOutReason}
+                placeholder="Optional context for your landlord"
+                placeholderTextColor={theme.colors.textTertiary}
+                multiline
+                style={{
+                  minHeight: 100,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  color: theme.colors.text,
+                  textAlignVertical: 'top',
+                  backgroundColor: theme.colors.surface,
+                }}
+              />
+            </ScrollView>
+
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              flexDirection: 'row',
+              gap: 10,
+            }}>
+              <TouchableOpacity
+                onPress={closeMoveOutModal}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={submitMoveOutModal}
+                disabled={submittingMoveOut}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  backgroundColor: submittingMoveOut ? theme.colors.textTertiary : '#4F46E5',
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
+                  {submittingMoveOut ? 'Submitting...' : 'Submit'}
                 </Text>
               </TouchableOpacity>
             </View>
