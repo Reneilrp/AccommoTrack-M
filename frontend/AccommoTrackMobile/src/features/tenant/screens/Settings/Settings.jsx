@@ -251,6 +251,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         }
         break;
       case "EAS Update ID":
+      case "What's New":
         navigation.navigate('UpdateDetails');
         break;
       default:
@@ -540,13 +541,13 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             highlight: true,
             value: `v${latestVersion}`,
           }] : []),
-          ...(otaUpdateId ? [{
+          {
             id: 18,
-            label: "EAS Update ID",
-            icon: "cloud-done-outline",
-            value: otaUpdateId.substring(0, 8),
+            label: "What's New",
+            icon: "sparkles-outline",
+            value: otaUpdateId ? otaUpdateId.substring(0, 8) : "View details",
             arrow: true,
-          }] : []),
+          },
           { 
             id: 17, 
             label: "App Version", 

@@ -685,15 +685,15 @@ export default function SettingsScreen({ navigation, onLogout }) {
               }
             },
           }] : []),
-          ...(otaUpdateId ? [{
+          {
             id: "ota-update-id",
-            label: "EAS Update ID",
-            description: otaCreatedAt ? `Created: ${otaCreatedAt}` : null,
-            icon: "cloud-done-outline",
+            label: "What's New",
+            description: "Check what's new in the latest update",
+            icon: "sparkles-outline",
             type: "navigate",
-            value: otaUpdateId.substring(0, 8),
+            value: otaUpdateId ? otaUpdateId.substring(0, 8) : "View details",
             target: "UpdateDetails",
-          }] : []),
+          },
           {
             id: "version",
             label: "Version",
