@@ -206,11 +206,15 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   // Determine header right button icon and action
   const isProfileRoute = effectiveRouteName === 'TenantHome' || effectiveRouteName === 'Messages';
   const isPaymentsRoute = effectiveRouteName === 'Payments';
+  const isDashboardRoute = effectiveRouteName === 'Dashboard';
+  const showRightHeaderIcon = isProfileRoute || isPaymentsRoute || isDashboardRoute;
   const rightHeaderIcon = isProfileRoute
     ? 'person-outline'
     : isPaymentsRoute
       ? 'time-outline'
-      : 'notifications-outline';
+      : isDashboardRoute
+        ? 'notifications-outline'
+        : null;
   
   const handleRightPress = () => {
     if (isProfileRoute) {
@@ -225,8 +229,8 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
       } else {
         navigate('PaymentHistory');
       }
-    } else {
-      // Default to notifications for Dashboard and MyBookings
+    } else if (isDashboardRoute) {
+      // Dashboard shortcut to notifications
       if (isGuest) {
         onAuthRequired?.();
       } else {
@@ -264,6 +268,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
             <Header
               title={title}
               onMenuPress={() => navigate('MenuModal')}
+              showRightIcon={showRightHeaderIcon}
               rightIcon={rightHeaderIcon}
               onRightPress={handleRightPress}
             />

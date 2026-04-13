@@ -252,10 +252,12 @@ export default function TenantLayout({ user, onLogout, children }) {
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
             {getPageTitle()}
           </h1>
-          
-          <div className="z-10">
-            <NotificationDropdown />
-          </div>
+
+          {location.pathname === '/dashboard' && (
+            <div className="z-10">
+              <NotificationDropdown />
+            </div>
+          )}
         </header>
 
         {/* Page Content */}

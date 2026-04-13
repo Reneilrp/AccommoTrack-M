@@ -194,7 +194,10 @@ export default function VerificationStatus({ navigation }) {
         },
       },
       { text: "Cancel", style: "cancel" },
-    ]);
+    ], {
+      showCloseButton: true,
+      cancelable: true,
+    });
   };
 
   const handleSubmit = async () => {

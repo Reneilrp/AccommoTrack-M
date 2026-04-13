@@ -321,6 +321,10 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
         },
         { text: 'Cancel', style: 'cancel' },
       ],
+      {
+        showCloseButton: true,
+        cancelable: true,
+      },
     );
   };
 

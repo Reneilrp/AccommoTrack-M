@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Dimensions
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { useUIState } from '../contexts/UIStateContext.jsx';
 
@@ -65,6 +66,17 @@ const ThemedAlert = () => {
 
   const defaultButtons = [{ text: 'OK', onPress: () => {} }];
   const buttons = alert.buttons && alert.buttons.length > 0 ? alert.buttons : defaultButtons;
+  const cancelButton = buttons.find((btn) => btn?.style === 'cancel');
+  const shouldShowCloseButton = alert?.options?.showCloseButton === true;
+
+  const handleCloseButtonPress = () => {
+    if (cancelButton && typeof cancelButton.onPress === 'function') {
+      handleButtonPress(cancelButton.onPress);
+      return;
+    }
+
+    handleDismiss();
+  };
 
   return (
     <Modal
@@ -91,6 +103,17 @@ const ThemedAlert = () => {
             styles.alertCard, 
             { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
           ]}>
+            {shouldShowCloseButton ? (
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleCloseButtonPress}
+                accessibilityRole="button"
+                accessibilityLabel="Close alert"
+              >
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            ) : null}
+
             {alert.title ? (
               <Text style={[styles.title, { color: theme.colors.text }]}> 
                 {alert.title}
@@ -172,6 +195,17 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     lineHeight: 20
   },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   buttonRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
@@ -187,6 +221,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   columnButton: {
+    flex: 0,
     width: '100%',
   },
   buttonText: {
