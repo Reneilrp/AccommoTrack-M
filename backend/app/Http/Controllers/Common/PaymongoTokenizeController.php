@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
+use App\Support\SystemToggle;
 use Illuminate\Http\Request;
 
 class PaymongoTokenizeController extends Controller
@@ -17,6 +18,35 @@ class PaymongoTokenizeController extends Controller
      */
     public function show(Request $request, $invoiceId)
     {
+        $tenantFallback = SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false));
+        $invoicePaymongoDisabled = SystemToggle::getBool('invoice_paymongo_disabled', $tenantFallback);
+
+        if ($invoicePaymongoDisabled) {
+            $disabledHtml = '<!doctype html>'.
+                '<html>'.
+                '<head>'.
+                '<meta charset="utf-8" />'.
+                '<meta name="viewport" content="width=device-width,initial-scale=1" />'.
+                '<title>Online Invoice Payments Unavailable</title>'.
+                '<style>'.
+                'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 24px; color: #111827; }'.
+                '.card { max-width: 520px; margin: 0 auto; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 18px; }'.
+                'h2 { margin: 0 0 10px; font-size: 20px; }'.
+                'p { margin: 8px 0; line-height: 1.5; }'.
+                '</style>'.
+                '</head>'.
+                '<body>'.
+                '<div class="card">'.
+                '<h2>Online invoice payments are temporarily unavailable</h2>'.
+                '<p>Card and PayMongo invoice checkout are currently disabled while payment compliance updates are in progress.</p>'.
+                '<p>Please return to the app and use available offline payment options for now.</p>'.
+                '</div>'.
+                '</body>'.
+                '</html>';
+
+            return response($disabledHtml, 503)->header('Content-Type', 'text/html');
+        }
+
         $publicKey = config('services.paymongo.public_key');
         $returnUrl = $request->query('return_url', 'about:blank');
 

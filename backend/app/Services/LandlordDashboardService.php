@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\Invoice;
-use App\Models\Payment;
+use App\Models\PaymentTransaction;
 use App\Models\Property;
 use App\Models\Room;
 use Illuminate\Support\Facades\DB;
@@ -301,18 +301,23 @@ class LandlordDashboardService
 
         $properties = $propertiesQuery->get();
 
-        // Pre-fetch actual paid revenue per property in one query to avoid N+1
-        $revenueByProperty = Payment::where('payments.status', 'paid')
-            ->whereHas('booking', function ($q) use ($landlordId, $assignedPropertyIds) {
-                $q->where('landlord_id', $landlordId);
-                if ($assignedPropertyIds) {
-                    $q->whereIn('property_id', $assignedPropertyIds);
-                }
+        // Aggregate actual collected revenue from the ledger source of truth.
+        $revenueByProperty = PaymentTransaction::query()
+            ->join('invoices', 'payment_transactions.invoice_id', '=', 'invoices.id')
+            ->where('invoices.landlord_id', $landlordId)
+            ->whereNotNull('invoices.property_id')
+            ->where('payment_transactions.amount_cents', '>', 0)
+            ->whereIn('payment_transactions.status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+            ->when($assignedPropertyIds, function ($query) use ($assignedPropertyIds) {
+                $query->whereIn('invoices.property_id', $assignedPropertyIds);
             })
-            ->join('bookings', 'payments.booking_id', '=', 'bookings.id')
-            ->select('bookings.property_id', DB::raw('SUM(payments.amount) as total_paid'))
-            ->groupBy('bookings.property_id')
-            ->pluck('total_paid', 'property_id');
+            ->select(
+                'invoices.property_id',
+                DB::raw('COALESCE(SUM(payment_transactions.amount_cents - payment_transactions.refunded_amount_cents), 0) as total_paid_cents')
+            )
+            ->groupBy('invoices.property_id')
+            ->pluck('total_paid_cents', 'invoices.property_id')
+            ->map(fn ($totalPaidCents) => (float) round(((int) $totalPaidCents) / 100, 2));
 
         return [
             'properties' => $properties,

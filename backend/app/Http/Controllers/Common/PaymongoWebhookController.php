@@ -4,16 +4,90 @@ namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
-use App\Models\Payment;
 use App\Models\PaymentTransaction;
+use App\Services\PaymentLedgerService;
 use App\Services\Subscription\SubscriptionCheckoutService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PaymongoWebhookController extends Controller
 {
-    public function __construct(private readonly SubscriptionCheckoutService $subscriptionCheckoutService)
+    public function __construct(
+        private readonly SubscriptionCheckoutService $subscriptionCheckoutService,
+        private readonly PaymentLedgerService $paymentLedgerService,
+    )
     {
+    }
+
+    private function isSettledTransactionStatus(?string $status): bool
+    {
+        $normalized = strtolower(trim((string) $status));
+
+        return in_array($normalized, ['succeeded', 'paid', 'partially_refunded', 'refunded'], true);
+    }
+
+    private function settlementKeyForExternalReference(?string $externalReference): ?string
+    {
+        if (! is_string($externalReference) || trim($externalReference) === '') {
+            return null;
+        }
+
+        return 'paymongo:external:'.trim($externalReference);
+    }
+
+    private function hasProcessedProviderEvent(?string $providerEventId): bool
+    {
+        if (! is_string($providerEventId) || trim($providerEventId) === '') {
+            return false;
+        }
+
+        return PaymentTransaction::query()
+            ->where('provider_event_id', trim($providerEventId))
+            ->exists();
+    }
+
+    private function hasProcessedExternalReference(?string $externalReference): bool
+    {
+        if (! is_string($externalReference) || trim($externalReference) === '') {
+            return false;
+        }
+
+        $externalReference = trim($externalReference);
+        $settlementKey = $this->settlementKeyForExternalReference($externalReference);
+
+        return PaymentTransaction::query()
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+            ->where(function ($query) use ($externalReference, $settlementKey) {
+                $query->where('gateway_reference', $externalReference);
+
+                if ($settlementKey) {
+                    $query->orWhere('idempotency_key', $settlementKey);
+                }
+            })
+            ->exists();
+    }
+
+    private function resolveExternalReference(?string $resourceId, array $resourceAttr = [], array $metadata = []): ?string
+    {
+        $candidates = [
+            $resourceId,
+            data_get($resourceAttr, 'external_id'),
+            data_get($resourceAttr, 'external_reference_number'),
+            data_get($resourceAttr, 'metadata.external_id'),
+            data_get($resourceAttr, 'metadata.external_reference_number'),
+            data_get($metadata, 'external_id'),
+            data_get($metadata, 'external_reference_number'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim($candidate);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -82,11 +156,29 @@ class PaymongoWebhookController extends Controller
 
         $resourceId = $resourceData['id'] ?? null;
         $resourceAttr = $resourceData['attributes'] ?? null;
+        $providerEventId = is_string($data['id'] ?? null) ? trim((string) $data['id']) : null;
+
+        if ($this->hasProcessedProviderEvent($providerEventId)) {
+            Log::info('PayMongo webhook duplicate provider event ignored.', [
+                'event_id' => $providerEventId,
+                'event_type' => $eventType,
+            ]);
+
+            return response()->json(['received' => true, 'duplicate' => true]);
+        }
 
         try {
             if ($eventType === 'source.chargeable') {
-                $tx = PaymentTransaction::where('gateway_reference', $resourceId)->first();
-                if ($tx && $tx->status !== 'succeeded') {
+                DB::transaction(function () use ($resourceId, $providerEventId) {
+                    $tx = PaymentTransaction::query()
+                        ->where('gateway_reference', $resourceId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $tx || $this->isSettledTransactionStatus($tx->status)) {
+                        return;
+                    }
+
                     Log::info("Webhook: Source {$resourceId} is chargeable. Consuming...");
 
                     $verifyEnv = config('services.paymongo.verify_ssl', true);
@@ -120,20 +212,34 @@ class PaymongoWebhookController extends Controller
                     $paymentBody = json_decode((string) $res->getBody(), true);
                     $paymentId = $paymentBody['data']['id'] ?? null;
 
-                    if ($paymentId) {
-                        $tx->status = 'succeeded';
-                        $tx->gateway_reference = $paymentId;
-                        $tx->gateway_response = $paymentBody;
-                        $tx->provider_event_id = $data['id'] ?? null;
-                        $tx->save();
-
-                        $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
+                    if (! $paymentId) {
+                        return;
                     }
-                }
+
+                    $tx->status = 'succeeded';
+                    $tx->gateway_reference = $paymentId;
+                    $tx->gateway_response = $paymentBody;
+                    $tx->provider_event_id = $providerEventId;
+                    $tx->idempotency_key = $this->settlementKeyForExternalReference($paymentId) ?? $tx->idempotency_key;
+                    $tx->save();
+
+                    $this->paymentLedgerService->recomputeInvoiceAndBookingStatusById($tx->invoice_id);
+                });
             } elseif ($eventType === 'payment.paid') {
+                $resourceAttributes = is_array($resourceAttr) ? $resourceAttr : [];
+                $externalReference = $this->resolveExternalReference($resourceId, $resourceAttributes);
+                if ($this->hasProcessedExternalReference($externalReference)) {
+                    Log::info('PayMongo payment.paid ignored; external reference already settled.', [
+                        'event_id' => $providerEventId,
+                        'external_reference' => $externalReference,
+                    ]);
+
+                    return response()->json(['received' => true, 'duplicate' => true]);
+                }
+
                 // If we created the payment ourselves, we might have already updated status.
                 // But this handles payments created outside our flow or as a backup.
-                $sourceId = $resourceAttr['source']['id'] ?? null;
+                $sourceId = $resourceAttributes['source']['id'] ?? null;
                 $tx = null;
                 if ($sourceId) {
                     $tx = PaymentTransaction::where('gateway_reference', $sourceId)->first();
@@ -142,27 +248,42 @@ class PaymongoWebhookController extends Controller
                     $tx = PaymentTransaction::where('gateway_reference', $resourceId)->first();
                 }
 
-                if ($tx && $tx->status !== 'succeeded') {
-                    $tx->status = 'succeeded';
-                    $tx->gateway_reference = $resourceId;
-                    $tx->gateway_response = $resourceAttr;
-                    $tx->provider_event_id = $data['id'] ?? null;
-                    $tx->save();
+                if ($tx) {
+                    DB::transaction(function () use ($tx, $resourceId, $resourceAttributes, $providerEventId, $externalReference) {
+                        $lockedTx = PaymentTransaction::query()
+                            ->whereKey($tx->id)
+                            ->lockForUpdate()
+                            ->first();
 
-                    $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
+                        if (! $lockedTx || $this->isSettledTransactionStatus($lockedTx->status)) {
+                            return;
+                        }
+
+                        $lockedTx->status = 'succeeded';
+                        $lockedTx->gateway_reference = $resourceId;
+                        $lockedTx->gateway_response = $resourceAttributes;
+                        $lockedTx->provider_event_id = $providerEventId;
+                        $lockedTx->idempotency_key = $this->settlementKeyForExternalReference($externalReference) ?? $lockedTx->idempotency_key;
+                        $lockedTx->save();
+
+                        $this->paymentLedgerService->recomputeInvoiceAndBookingStatusById($lockedTx->invoice_id);
+                    });
                 }
             } elseif ($eventType === 'link.payment.paid') {
                 $metadata = is_array($resourceAttr['metadata'] ?? null) ? $resourceAttr['metadata'] : [];
+                $resourceAttributes = is_array($resourceAttr) ? $resourceAttr : [];
+                $externalReference = $this->resolveExternalReference($resourceId, $resourceAttributes, $metadata);
 
                 // QRPh link checkouts pass invoice/transaction metadata so we can settle locally.
-                $this->applyLinkPaymentToTransaction(
+                $settlementOutcome = $this->applyLinkPaymentToTransaction(
                     metadata: $metadata,
                     paymentReference: $resourceId,
-                    resourceAttributes: is_array($resourceAttr) ? $resourceAttr : [],
-                    providerEventId: $data['id'] ?? null,
+                    resourceAttributes: $resourceAttributes,
+                    providerEventId: $providerEventId,
+                    externalReference: $externalReference,
                 );
 
-                if (isset($metadata['room_id']) && isset($metadata['tenant_id'])) {
+                if ($settlementOutcome !== 'already_settled' && isset($metadata['room_id']) && isset($metadata['tenant_id'])) {
                     $room = \App\Models\Room::find($metadata['room_id']);
                     if ($room) {
                         // NOTE: Do NOT update room status here — 'paid' is not a valid room status.
@@ -204,6 +325,14 @@ class PaymongoWebhookController extends Controller
             }
 
             return response()->json(['received' => true]);
+        } catch (UniqueConstraintViolationException $e) {
+            Log::warning('PayMongo webhook duplicate settlement ignored by unique constraint.', [
+                'event_id' => $providerEventId,
+                'event_type' => $eventType,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['received' => true, 'duplicate' => true]);
         } catch (\Exception $e) {
             Log::error('PayMongo webhook handler error: '.$e->getMessage());
 
@@ -214,103 +343,71 @@ class PaymongoWebhookController extends Controller
     /**
      * Map link.payment.paid to a local payment transaction and settle the linked invoice.
      */
-    private function applyLinkPaymentToTransaction(array $metadata, ?string $paymentReference, array $resourceAttributes, ?string $providerEventId): void
+    private function applyLinkPaymentToTransaction(array $metadata, ?string $paymentReference, array $resourceAttributes, ?string $providerEventId, ?string $externalReference): string
     {
-        $tx = null;
+        $settledInvoiceId = null;
 
-        $txId = isset($metadata['payment_transaction_id']) ? (int) $metadata['payment_transaction_id'] : 0;
-        if ($txId > 0) {
-            $tx = PaymentTransaction::find($txId);
-        }
+        $outcome = DB::transaction(function () use ($metadata, $paymentReference, $resourceAttributes, $providerEventId, $externalReference, &$settledInvoiceId): string {
+            if ($this->hasProcessedExternalReference($externalReference)) {
+                return 'already_settled';
+            }
 
-        if (! $tx) {
-            $invoiceId = isset($metadata['invoice_id']) ? (int) $metadata['invoice_id'] : 0;
-            if ($invoiceId > 0) {
+            $tx = null;
+
+            $txId = isset($metadata['payment_transaction_id']) ? (int) $metadata['payment_transaction_id'] : 0;
+            if ($txId > 0) {
                 $tx = PaymentTransaction::query()
-                    ->where('invoice_id', $invoiceId)
-                    ->whereIn('status', ['pending', 'processing', 'pending_offline'])
-                    ->orderByDesc('id')
+                    ->whereKey($txId)
+                    ->lockForUpdate()
                     ->first();
             }
-        }
 
-        if (! $tx) {
-            return;
-        }
-
-        if ($tx->status === 'succeeded' && $tx->invoice_id) {
-            return;
-        }
-
-        if (! $tx->invoice_id) {
-            $materializedInvoice = $this->subscriptionCheckoutService
-                ->materializePaidInvoiceFromCheckoutTransaction($tx, $metadata);
-            if ($materializedInvoice) {
-                $tx->invoice_id = $materializedInvoice->id;
-            }
-        }
-
-        $tx->status = 'succeeded';
-        if ($paymentReference) {
-            $tx->gateway_reference = $paymentReference;
-        }
-        $tx->gateway_response = $resourceAttributes;
-        $tx->provider_event_id = $providerEventId;
-        $tx->save();
-
-        $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
-    }
-
-    /**
-     * Helper to update invoice and booking status.
-     */
-    private function updateInvoiceAndBooking($invoiceId, $paidAmountCents)
-    {
-        if (! $invoiceId) {
-            return;
-        }
-        $invoice = Invoice::with('transactions')->find($invoiceId);
-        if (! $invoice) {
-            return;
-        }
-
-        $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
-
-        // Calculate total successful payments for this invoice, subtracting refunds
-        $totalPaidSoFar = $invoice->transactions()
-            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
-            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-            ->value('net_cents') ?? 0;
-
-        if ($totalPaidSoFar >= $invoiceTotal) {
-            $invoice->status = 'paid';
-            $invoice->paid_at = now();
-        } else {
-            $invoice->status = 'partial';
-        }
-        $invoice->save();
-
-        if ($invoice->booking_id) {
-            try {
-                $booking = \App\Models\Booking::find($invoice->booking_id);
-                if ($booking) {
-                    $booking->payment_status = ($invoice->status === 'paid') ? 'paid' : 'partial';
-                    $booking->save();
+            if (! $tx) {
+                $invoiceId = isset($metadata['invoice_id']) ? (int) $metadata['invoice_id'] : 0;
+                if ($invoiceId > 0) {
+                    $tx = PaymentTransaction::query()
+                        ->where('invoice_id', $invoiceId)
+                        ->whereIn('status', ['pending', 'processing', 'pending_offline'])
+                        ->orderByDesc('id')
+                        ->lockForUpdate()
+                        ->first();
                 }
-            } catch (\Exception $be) {
-                Log::error('Failed to update booking payment_status: '.$be->getMessage());
             }
+
+            if (! $tx) {
+                return 'not_mapped';
+            }
+
+            if ($this->isSettledTransactionStatus($tx->status) && $tx->invoice_id) {
+                return 'already_settled';
+            }
+
+            if (! $tx->invoice_id) {
+                $materializedInvoice = $this->subscriptionCheckoutService
+                    ->materializePaidInvoiceFromCheckoutTransaction($tx, $metadata);
+                if ($materializedInvoice) {
+                    $tx->invoice_id = $materializedInvoice->id;
+                }
+            }
+
+            $tx->status = 'succeeded';
+            if ($paymentReference) {
+                $tx->gateway_reference = $paymentReference;
+            }
+            $tx->gateway_response = $resourceAttributes;
+            $tx->provider_event_id = $providerEventId;
+            $tx->idempotency_key = $this->settlementKeyForExternalReference($externalReference) ?? $tx->idempotency_key;
+            $tx->save();
+
+            $settledInvoiceId = $tx->invoice_id;
+
+            return 'settled';
+        });
+
+        if ($outcome === 'settled' && $settledInvoiceId) {
+            $this->paymentLedgerService->recomputeInvoiceAndBookingStatusById($settledInvoiceId);
         }
 
-        if ($invoice->status === 'paid') {
-            try {
-                $this->subscriptionCheckoutService->activateCheckoutSubscriptionFromPaidInvoice($invoice);
-            } catch (\Throwable $subscriptionError) {
-                Log::warning('Failed to auto-activate subscription from paid invoice via webhook', [
-                    'invoice_id' => $invoice->id,
-                    'error' => $subscriptionError->getMessage(),
-                ]);
-            }
-        }
+        return $outcome;
     }
 }

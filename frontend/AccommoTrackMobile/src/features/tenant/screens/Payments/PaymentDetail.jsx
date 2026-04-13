@@ -129,6 +129,9 @@ export default function PaymentDetail() {
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
     SystemToggleService.getDefaults().tenantPaymentsDisabled,
   );
+  const [invoicePaymongoDisabled, setInvoicePaymongoDisabled] = useState(
+    SystemToggleService.getDefaults().invoicePaymongoDisabled,
+  );
   const paymentDetailQuery = useQuery({
     queryKey: tenantQueryKeys.paymentDetail(invoiceId),
     queryFn: async () => {
@@ -155,6 +158,8 @@ export default function PaymentDetail() {
   const showCash = acceptedPayments.includes('cash') && landlordSettings.allowed.includes('cash');
   const showManualGcash = landlordSettings.allowed.includes('gcash');
   const manualPaymentDetails = landlordSettings.details || {};
+  const isPendingManualVerification = String(invoice?.status || '').toLowerCase() === 'pending_verification';
+  const onlineInvoicePaymentsDisabled = tenantPaymentsTempDisabled || invoicePaymongoDisabled || isPendingManualVerification;
 
   const refetchPaymentDetail = paymentDetailQuery.refetch;
   const paymentDetailRefetchers = React.useMemo(
@@ -172,6 +177,7 @@ export default function PaymentDetail() {
     SystemToggleService.getToggles().then((result) => {
       if (!mounted || !result?.data) return;
       setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+      setInvoicePaymongoDisabled(Boolean(result.data.invoicePaymongoDisabled));
     });
 
     return () => {
@@ -261,6 +267,16 @@ export default function PaymentDetail() {
   };
 
   const handleGCashPay = async () => {
+    if (isPendingManualVerification) {
+      showAlert('Verification Pending', 'This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.');
+      return;
+    }
+
+    if (invoicePaymongoDisabled) {
+      showAlert('Online Payments Temporarily Disabled', 'Online invoice payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
+
     if (tenantPaymentsTempDisabled) {
       showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
@@ -298,6 +314,16 @@ export default function PaymentDetail() {
   };
 
   const handleCardPay = () => {
+    if (isPendingManualVerification) {
+      showAlert('Verification Pending', 'This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.');
+      return;
+    }
+
+    if (invoicePaymongoDisabled) {
+      showAlert('Online Payments Temporarily Disabled', 'Online invoice payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
+
     if (tenantPaymentsTempDisabled) {
       showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
@@ -494,6 +520,20 @@ export default function PaymentDetail() {
                     </Text>
                   </View>
                 )}
+                {!tenantPaymentsTempDisabled && invoicePaymongoDisabled && (
+                  <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
+                    <Text style={{ color: '#92400e', fontWeight: '600' }}>
+                      Online invoice payments are temporarily unavailable while payment compliance updates are in progress.
+                    </Text>
+                  </View>
+                )}
+                {!tenantPaymentsTempDisabled && !invoicePaymongoDisabled && isPendingManualVerification && (
+                  <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
+                    <Text style={{ color: '#92400e', fontWeight: '600' }}>
+                      This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.
+                    </Text>
+                  </View>
+                )}
               <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>Amount to Pay (₱)</Text>
               <TextInput
                 style={{
@@ -525,21 +565,21 @@ export default function PaymentDetail() {
                   Available Methods
                 </Text>
                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  {showOnline ? 'Online' : null}
-                  {showOnline && (showCash || showManualGcash) ? ' • ' : ''}
+                  {showOnline && !onlineInvoicePaymentsDisabled ? 'Online' : null}
+                  {showOnline && !onlineInvoicePaymentsDisabled && (showCash || showManualGcash) ? ' • ' : ''}
                   {showCash ? 'Cash' : null}
                   {showCash && showManualGcash ? ' • ' : ''}
                   {showManualGcash ? 'Manual GCash Transfer' : null}
-                  {!showOnline && !showCash && !showManualGcash ? 'No payment method is currently enabled for this property.' : ''}
+                  {(onlineInvoicePaymentsDisabled || !showOnline) && !showCash && !showManualGcash ? 'No payment method is currently enabled for this property.' : ''}
                 </Text>
               </View>
 
-              {showOnline && (
+              {showOnline && !onlineInvoicePaymentsDisabled && (
                 <View style={styles.actionsRow}>
-                  <TouchableOpacity onPress={handleGCashPay} disabled={tenantPaymentsTempDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}> 
+                  <TouchableOpacity onPress={handleGCashPay} disabled={onlineInvoicePaymentsDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: onlineInvoicePaymentsDisabled ? 0.6 : 1 }]}> 
                     <Text style={styles.payBtnText}>Pay with GCash</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleCardPay} disabled={tenantPaymentsTempDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}> 
+                  <TouchableOpacity onPress={handleCardPay} disabled={onlineInvoicePaymentsDisabled} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: onlineInvoicePaymentsDisabled ? 0.6 : 1 }]}> 
                     <Text style={styles.payBtnText}>Pay with Card</Text>
                   </TouchableOpacity>
                 </View>

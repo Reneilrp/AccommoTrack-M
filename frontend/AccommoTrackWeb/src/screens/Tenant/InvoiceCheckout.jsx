@@ -85,6 +85,7 @@ export default function InvoiceCheckout() {
   const [pendingOffline, setPendingOffline] = useState(0);
   const [offlineDetails, setOfflineDetails] = useState({ method: '', reference: '', notes: '', show: false });
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
+  const [invoicePaymongoDisabled, setInvoicePaymongoDisabled] = useState(DEFAULT_TOGGLES.invoicePaymongoDisabled);
 
   const loadInvoice = useCallback(async () => {
     try {
@@ -135,6 +136,7 @@ export default function InvoiceCheckout() {
     systemToggleService.getToggles().then((result) => {
       if (!mounted || !result?.data) return;
       setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+      setInvoicePaymongoDisabled(Boolean(result.data.invoicePaymongoDisabled));
     });
     return () => {
       mounted = false;
@@ -142,6 +144,14 @@ export default function InvoiceCheckout() {
   }, []);
 
   const handlePayMongoSource = async (method) => {
+    if (String(invoice?.status || '').toLowerCase() === 'pending_verification') {
+      return toast.error('This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.');
+    }
+
+    if (invoicePaymongoDisabled) {
+      return toast.error('Online invoice payments are temporarily unavailable while payment compliance updates are in progress.');
+    }
+
     if (tenantPaymentsTempDisabled) {
       return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
     }
@@ -249,8 +259,9 @@ export default function InvoiceCheckout() {
   const globalSettings = landlord?.payment_methods_settings || { allowed: ['cash'], details: {} };
   
   const allowPartialPayments = property?.allow_partial_payments !== 0 && property?.allow_partial_payments !== false;
+  const isPendingManualVerification = String(invoice?.status || '').toLowerCase() === 'pending_verification';
   
-  const showOnline = !tenantPaymentsTempDisabled && acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
+  const showOnline = !tenantPaymentsTempDisabled && !invoicePaymongoDisabled && !isPendingManualVerification && acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
   const showCash = !tenantPaymentsTempDisabled && acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
   const showManualGcash = !tenantPaymentsTempDisabled && globalSettings.allowed?.includes('gcash');
 
@@ -274,6 +285,16 @@ export default function InvoiceCheckout() {
             {tenantPaymentsTempDisabled && (
               <div className="mx-8 mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
                 Tenant payments are temporarily unavailable while payment compliance updates are in progress.
+              </div>
+            )}
+            {!tenantPaymentsTempDisabled && invoicePaymongoDisabled && (
+              <div className="mx-8 mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                Online invoice payments are temporarily unavailable while payment compliance updates are in progress.
+              </div>
+            )}
+            {!tenantPaymentsTempDisabled && !invoicePaymongoDisabled && isPendingManualVerification && (
+              <div className="mx-8 mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.
               </div>
             )}
             <div className="p-8 md:p-10 border-b border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">

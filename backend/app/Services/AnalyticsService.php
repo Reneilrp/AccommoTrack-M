@@ -528,14 +528,12 @@ class AnalyticsService
             $query->where('property_id', $propertyId);
         }
 
-        $nowStr = now()->toDateTimeString();
-
         $stats = $query
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid')
             ->selectRaw('SUM(CASE WHEN status = "partial" THEN 1 ELSE 0 END) as partial')
-            ->selectRaw("SUM(CASE WHEN status = 'overdue' OR (status = 'pending' AND due_date < ?) THEN 1 ELSE 0 END) as overdue", [$nowStr])
-            ->selectRaw("SUM(CASE WHEN status = 'pending' AND due_date >= ? THEN 1 ELSE 0 END) as pending", [$nowStr])
+            ->selectRaw("SUM(CASE WHEN status = 'overdue' OR (status = 'pending' AND due_date < CURDATE()) THEN 1 ELSE 0 END) as overdue")
+            ->selectRaw("SUM(CASE WHEN status = 'pending' AND due_date >= CURDATE() THEN 1 ELSE 0 END) as pending")
             ->selectRaw('SUM(amount_cents) as total_cents')
             ->first();
 

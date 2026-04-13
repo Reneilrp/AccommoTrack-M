@@ -43,6 +43,9 @@ const resolvedReverbAppKey =
 const resolvedTenantPaymentsDisabled =
   normalizeEnvValue(process.env.EXPO_PUBLIC_TENANT_PAYMENTS_DISABLED) ??
   'true';
+const resolvedInvoicePaymongoDisabled =
+  normalizeEnvValue(process.env.EXPO_PUBLIC_INVOICE_PAYMONGO_DISABLED) ??
+  resolvedTenantPaymentsDisabled;
 const resolvedReservationFeeDisabled =
   normalizeEnvValue(process.env.EXPO_PUBLIC_RESERVATION_FEE_DISABLED) ??
   'true';
@@ -57,6 +60,7 @@ console.log('[Config] API_BASE_URL:', API_BASE_URL);
 // 2. Web Frontend
 export const WEB_BASE_URL = resolvedWebUrl;
 export const TENANT_PAYMENTS_TEMP_DISABLED = String(resolvedTenantPaymentsDisabled).toLowerCase() !== 'false';
+export const INVOICE_PAYMONGO_TEMP_DISABLED = String(resolvedInvoicePaymongoDisabled).toLowerCase() !== 'false';
 export const RESERVATION_FEE_TEMP_DISABLED = String(resolvedReservationFeeDisabled).toLowerCase() !== 'false';
 
 // 3. Echo / Reverb Config

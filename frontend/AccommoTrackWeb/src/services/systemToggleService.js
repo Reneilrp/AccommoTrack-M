@@ -9,6 +9,7 @@ const toBool = (value, fallback = false) => {
 
 const DEFAULT_TOGGLES = {
   tenantPaymentsDisabled: (import.meta.env.VITE_TENANT_PAYMENTS_DISABLED ?? 'true') !== 'false',
+  invoicePaymongoDisabled: (import.meta.env.VITE_INVOICE_PAYMONGO_DISABLED ?? (import.meta.env.VITE_TENANT_PAYMENTS_DISABLED ?? 'true')) !== 'false',
   reservationFeeDisabled: (import.meta.env.VITE_RESERVATION_FEE_DISABLED ?? 'true') !== 'false',
 };
 
@@ -18,6 +19,7 @@ const CACHE_MS = 30_000;
 
 const normalize = (payload = {}) => ({
   tenantPaymentsDisabled: toBool(payload.tenant_payments_disabled, DEFAULT_TOGGLES.tenantPaymentsDisabled),
+  invoicePaymongoDisabled: toBool(payload.invoice_paymongo_disabled, DEFAULT_TOGGLES.invoicePaymongoDisabled),
   reservationFeeDisabled: toBool(payload.reservation_fee_disabled, DEFAULT_TOGGLES.reservationFeeDisabled),
 });
 

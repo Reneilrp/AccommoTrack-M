@@ -18,7 +18,10 @@ use Illuminate\Support\Str;
 
 class BookingService
 {
-    public function __construct(protected AuditLogService $auditLogService)
+    public function __construct(
+        protected AuditLogService $auditLogService,
+        private readonly PaymentLedgerService $paymentLedgerService,
+    )
     {
     }
 
@@ -512,24 +515,50 @@ class BookingService
         }
     }
 
-    public function approveReservation(Booking $booking): Booking
+    public function approveReservation(Booking $booking, ?int $actorUserId = null): Booking
     {
         DB::beginTransaction();
         try {
             $booking->status = 'reserved';
-            $booking->payment_status = 'paid';
             $booking->save();
 
-            // Find reservation invoice and mark as paid
+            $resolvedActorId = $actorUserId ?? auth()->id();
+
+            // Find reservation invoice and settle it through a ledger transaction entry.
             $invoice = \App\Models\Invoice::where('booking_id', $booking->id)
                 ->where('invoice_type', 'reservation_fee')
-                ->where('status', 'pending')
+                ->whereIn('status', ['pending', 'partial', 'pending_verification', 'overdue', 'unpaid'])
                 ->first();
-                
+
             if ($invoice) {
-                $invoice->status = 'paid';
-                $invoice->paid_at = now();
-                $invoice->save();
+                $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
+                $alreadyPaidCents = (int) ($invoice->transactions()
+                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                    ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
+                    ->value('net_cents') ?? 0);
+
+                $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
+                if ($remainingCents > 0) {
+                    PaymentTransaction::create([
+                        'invoice_id' => $invoice->id,
+                        'tenant_id' => $invoice->tenant_id,
+                        'amount_cents' => $remainingCents,
+                        'currency' => $invoice->currency ?? 'PHP',
+                        'status' => 'succeeded',
+                        'method' => 'reservation_fee_entry',
+                        'gateway_reference' => null,
+                        'gateway_response' => [
+                            'source' => 'landlord_reservation_approval',
+                            'actor_id' => $resolvedActorId,
+                            'booking_id' => $booking->id,
+                        ],
+                    ]);
+                }
+
+                $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, $resolvedActorId);
+            } else {
+                $booking->payment_status = 'paid';
+                $booking->save();
             }
 
             DB::commit();
@@ -890,6 +919,8 @@ class BookingService
             ]);
         }
 
+        [$cancelledInvoiceIds, $voidedPendingTransactionIds] = $this->cancelOpenInvoicesForCancelledBooking($booking);
+
         // Remove tenant from room only if we had a tenant_id
         if ($booking->tenant_id) {
             $booking->room->removeTenant($booking->tenant_id);
@@ -910,9 +941,72 @@ class BookingService
         Log::info('Booking cancelled', [
             'booking_id' => $booking->id,
             'tenant_id' => $booking->tenant_id,
+            'cancelled_invoice_ids' => $cancelledInvoiceIds,
+            'voided_pending_transaction_ids' => $voidedPendingTransactionIds,
         ]);
 
         $booking->room->property->updateAvailableRooms();
+    }
+
+    /**
+     * Cancel open invoices and void pending manual proofs linked to a booking
+     * that was cancelled before settlement.
+     *
+     * @return array{0: array<int>, 1: array<int>}
+     */
+    private function cancelOpenInvoicesForCancelledBooking(Booking $booking): array
+    {
+        $openInvoiceStatuses = ['pending', 'overdue', 'pending_verification', 'unpaid'];
+
+        $openInvoices = \App\Models\Invoice::query()
+            ->where('booking_id', $booking->id)
+            ->whereIn('status', $openInvoiceStatuses)
+            ->lockForUpdate()
+            ->get();
+
+        $cancelledInvoiceIds = [];
+
+        foreach ($openInvoices as $invoice) {
+            $description = trim((string) ($invoice->description ?? ''));
+            $suffix = '(Cancelled due to booking cancellation)';
+            if ($description === '') {
+                $description = $suffix;
+            } elseif (! str_contains($description, $suffix)) {
+                $description .= ' '.$suffix;
+            }
+
+            $invoice->status = 'cancelled';
+            $invoice->description = $description;
+            $invoice->save();
+
+            $cancelledInvoiceIds[] = (int) $invoice->id;
+        }
+
+        if (empty($cancelledInvoiceIds)) {
+            return [[], []];
+        }
+
+        $pendingTransactions = PaymentTransaction::query()
+            ->whereIn('invoice_id', $cancelledInvoiceIds)
+            ->where('status', 'pending_offline')
+            ->lockForUpdate()
+            ->get();
+
+        $voidedPendingTransactionIds = [];
+        foreach ($pendingTransactions as $transaction) {
+            $gatewayResponse = is_array($transaction->gateway_response) ? $transaction->gateway_response : [];
+            $gatewayResponse['verification_action'] = 'booking_cancelled';
+            $gatewayResponse['rejection_reason'] = 'Booking was cancelled before manual verification.';
+            $gatewayResponse['cancelled_at'] = now()->toIso8601String();
+
+            $transaction->status = 'voided';
+            $transaction->gateway_response = $gatewayResponse;
+            $transaction->save();
+
+            $voidedPendingTransactionIds[] = (int) $transaction->id;
+        }
+
+        return [$cancelledInvoiceIds, $voidedPendingTransactionIds];
     }
 
     /**
@@ -929,27 +1023,27 @@ class BookingService
             $booking->payment_status = $paymentStatus;
             $booking->save();
 
-            // Synchronize only rent invoices to avoid mutating add-on and other special invoices.
-            $this->rentInvoicesForPaymentSync($booking)->update(['status' => $paymentStatus]);
-            if ($paymentStatus === 'paid') {
-                $now = now();
-                $paymentMethod = $this->normalizeRecordedPaymentMethod($paymentContext['payment_method'] ?? null);
+            // Keep invoice statuses ledger-driven. Booking-level manual updates should not
+            // bulk-overwrite invoice statuses for non-paid operations.
+            if ($paymentStatus !== 'paid') {
+                return;
+            }
 
-                $this->rentInvoicesForPaymentSync($booking)->update(['paid_at' => $now]);
+            $paymentMethod = $this->normalizeRecordedPaymentMethod($paymentContext['payment_method'] ?? null);
+            $actorId = isset($paymentContext['actor_id']) ? (int) $paymentContext['actor_id'] : null;
 
-                $rentInvoices = $this->rentInvoicesForPaymentSync($booking)->get();
+            $rentInvoices = $this->rentInvoicesForPaymentSync($booking)->get();
 
-                foreach ($rentInvoices as $invoice) {
-                    $alreadyPaidCents = (int) ($invoice->transactions()
-                        ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
-                        ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
-                        ->value('net_cents') ?? 0);
+            foreach ($rentInvoices as $invoice) {
+                $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
+                $alreadyPaidCents = (int) ($invoice->transactions()
+                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+                    ->selectRaw('COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as net_cents')
+                    ->value('net_cents') ?? 0);
 
-                    $remainingCents = max(0, (int) ($invoice->amount_cents ?? 0) - $alreadyPaidCents);
-                    if ($remainingCents <= 0) {
-                        continue;
-                    }
+                $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
 
+                if ($remainingCents > 0) {
                     PaymentTransaction::create([
                         'invoice_id' => $invoice->id,
                         'tenant_id' => $booking->tenant_id,
@@ -961,15 +1055,19 @@ class BookingService
                         'gateway_response' => [
                             'source' => 'landlord_payment_status_update',
                             'notes' => $paymentContext['notes'] ?? null,
-                            'actor_id' => $paymentContext['actor_id'] ?? null,
+                            'actor_id' => $actorId,
                         ],
                     ]);
                 }
 
-                if ($booking->tenant) {
-                    $booking->tenant->notify(new RentPaidSuccess($paymentMethod));
-                }
+                $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, $actorId);
             }
+
+            if ($booking->tenant) {
+                $booking->tenant->notify(new RentPaidSuccess($paymentMethod));
+            }
+
+            $booking->refresh();
         });
 
         return [

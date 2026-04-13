@@ -28,8 +28,11 @@ class AdminController extends Controller
      */
     public function getPaymentControlSettings(Request $request)
     {
+        $tenantPaymentsDisabled = SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false));
+
         $data = [
-            'tenant_payments_disabled' => SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false)),
+            'tenant_payments_disabled' => $tenantPaymentsDisabled,
+            'invoice_paymongo_disabled' => SystemToggle::getBool('invoice_paymongo_disabled', $tenantPaymentsDisabled),
             'reservation_fee_disabled' => SystemToggle::getBool('reservation_fee_disabled', (bool) config('app.reservation_fee_disabled', false)),
             'mobile_latest_version' => SystemToggle::getString('mobile_latest_version', '1.0.0'),
             'mobile_download_url' => SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),
@@ -51,6 +54,7 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'tenant_payments_disabled' => 'required|boolean',
+            'invoice_paymongo_disabled' => 'nullable|boolean',
             'reservation_fee_disabled' => 'required|boolean',
             'mobile_latest_version' => 'nullable|string|max:50',
             'mobile_download_url' => 'nullable|url|max:255',
@@ -60,6 +64,9 @@ class AdminController extends Controller
 
         $actorId = Auth::id();
         SystemToggle::setBool('tenant_payments_disabled', (bool) $validated['tenant_payments_disabled'], $actorId);
+        if (array_key_exists('invoice_paymongo_disabled', $validated)) {
+            SystemToggle::setBool('invoice_paymongo_disabled', (bool) $validated['invoice_paymongo_disabled'], $actorId);
+        }
         SystemToggle::setBool('reservation_fee_disabled', (bool) $validated['reservation_fee_disabled'], $actorId);
         
         if (isset($validated['mobile_latest_version'])) {
@@ -94,6 +101,9 @@ class AdminController extends Controller
             'success' => true,
             'data' => [
                 'tenant_payments_disabled' => (bool) $validated['tenant_payments_disabled'],
+                'invoice_paymongo_disabled' => array_key_exists('invoice_paymongo_disabled', $validated)
+                    ? (bool) $validated['invoice_paymongo_disabled']
+                    : SystemToggle::getBool('invoice_paymongo_disabled', (bool) $validated['tenant_payments_disabled']),
                 'reservation_fee_disabled' => (bool) $validated['reservation_fee_disabled'],
                 'mobile_latest_version' => $validated['mobile_latest_version'] ?? SystemToggle::getString('mobile_latest_version', '1.0.0'),
                 'mobile_download_url' => $validated['mobile_download_url'] ?? SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),

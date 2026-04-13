@@ -1,5 +1,5 @@
 import api from './api.js';
-import { TENANT_PAYMENTS_TEMP_DISABLED, RESERVATION_FEE_TEMP_DISABLED } from '../config/index.js';
+import { TENANT_PAYMENTS_TEMP_DISABLED, INVOICE_PAYMONGO_TEMP_DISABLED, RESERVATION_FEE_TEMP_DISABLED } from '../config/index.js';
 
 const toBool = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
@@ -10,6 +10,7 @@ const toBool = (value, fallback = false) => {
 
 const DEFAULT_TOGGLES = {
   tenantPaymentsDisabled: TENANT_PAYMENTS_TEMP_DISABLED,
+  invoicePaymongoDisabled: INVOICE_PAYMONGO_TEMP_DISABLED,
   reservationFeeDisabled: RESERVATION_FEE_TEMP_DISABLED,
 };
 
@@ -19,6 +20,7 @@ const CACHE_MS = 30_000;
 
 const normalize = (payload = {}) => ({
   tenantPaymentsDisabled: toBool(payload.tenant_payments_disabled, DEFAULT_TOGGLES.tenantPaymentsDisabled),
+  invoicePaymongoDisabled: toBool(payload.invoice_paymongo_disabled, DEFAULT_TOGGLES.invoicePaymongoDisabled),
   reservationFeeDisabled: toBool(payload.reservation_fee_disabled, DEFAULT_TOGGLES.reservationFeeDisabled),
 });
 

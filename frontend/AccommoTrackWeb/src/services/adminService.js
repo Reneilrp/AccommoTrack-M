@@ -393,6 +393,10 @@ const adminService = {
         success: envelope.success,
         data: {
           tenantPaymentsDisabled: toBoolean(payload.tenant_payments_disabled, false),
+          invoicePaymongoDisabled: toBoolean(
+            payload.invoice_paymongo_disabled,
+            toBoolean(payload.tenant_payments_disabled, false),
+          ),
           reservationFeeDisabled: toBoolean(payload.reservation_fee_disabled, false),
           mobileLatestVersion: toStringOrNull(payload.mobile_latest_version) || '1.0.0',
           mobileDownloadUrl: toStringOrNull(payload.mobile_download_url) || 'https://accommotrack.me/downloads/AccommoTrack.apk',
@@ -412,8 +416,14 @@ const adminService = {
    */
   async updatePaymentControlSettings(payload = {}) {
     try {
+      const tenantPaymentsDisabled = Boolean(payload.tenantPaymentsDisabled);
+      const invoicePaymongoDisabled = payload.invoicePaymongoDisabled === undefined
+        ? tenantPaymentsDisabled
+        : Boolean(payload.invoicePaymongoDisabled);
+
       const body = {
-        tenant_payments_disabled: Boolean(payload.tenantPaymentsDisabled),
+        tenant_payments_disabled: tenantPaymentsDisabled,
+        invoice_paymongo_disabled: invoicePaymongoDisabled,
         reservation_fee_disabled: Boolean(payload.reservationFeeDisabled),
         mobile_latest_version: String(payload.mobileLatestVersion || '1.0.0'),
         mobile_download_url: String(payload.mobileDownloadUrl || 'https://accommotrack.me/downloads/AccommoTrack.apk'),
@@ -428,6 +438,7 @@ const adminService = {
         success: envelope.success,
         data: {
           tenantPaymentsDisabled: toBoolean(data.tenant_payments_disabled, body.tenant_payments_disabled),
+          invoicePaymongoDisabled: toBoolean(data.invoice_paymongo_disabled, body.invoice_paymongo_disabled),
           reservationFeeDisabled: toBoolean(data.reservation_fee_disabled, body.reservation_fee_disabled),
           mobileLatestVersion: toStringOrNull(data.mobile_latest_version) || body.mobile_latest_version,
           mobileDownloadUrl: toStringOrNull(data.mobile_download_url) || body.mobile_download_url,

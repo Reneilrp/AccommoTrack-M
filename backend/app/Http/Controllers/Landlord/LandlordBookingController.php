@@ -568,7 +568,7 @@ class LandlordBookingController extends Controller
                 return response()->json(['message' => 'Only pending reservations can be approved.'], 422);
             }
 
-            $booking = $this->bookingService->approveReservation($booking);
+            $booking = $this->bookingService->approveReservation($booking, $context['user']->id);
 
             return response()->json([
                 'message' => 'Reservation approved successfully.',

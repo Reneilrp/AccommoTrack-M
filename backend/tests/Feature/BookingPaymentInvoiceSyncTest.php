@@ -216,6 +216,40 @@ class BookingPaymentInvoiceSyncTest extends TestCase
         );
     }
 
+    public function test_non_paid_booking_update_does_not_force_invoice_status_overwrite(): void
+    {
+        [$landlord, , $booking] = $this->createScenario();
+
+        $rentInvoice = Invoice::create([
+            'reference' => 'INV-'.now()->format('Ymd').'-RENTOVRD',
+            'landlord_id' => $landlord->id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $booking->tenant_id,
+            'description' => 'Monthly rent invoice',
+            'invoice_type' => 'rent',
+            'amount_cents' => 100000,
+            'currency' => 'PHP',
+            'status' => 'overdue',
+            'issued_at' => now()->subDays(10),
+            'due_date' => now()->subDays(5)->toDateString(),
+            'paid_at' => null,
+        ]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->patchJson("/api/bookings/{$booking->id}/payment", [
+            'payment_status' => 'unpaid',
+        ])->assertStatus(200);
+
+        $booking->refresh();
+        $rentInvoice->refresh();
+
+        $this->assertSame('unpaid', $booking->payment_status);
+        $this->assertSame('overdue', $rentInvoice->status);
+        $this->assertNull($rentInvoice->paid_at);
+    }
+
     /**
      * @return array{User, User, Booking}
      */

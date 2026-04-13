@@ -53,12 +53,32 @@ class GenerateMonthlyInvoices extends Command
         Log::info('Starting state-driven monthly invoice generation task...');
         $this->info('Starting state-driven monthly invoice generation task...');
 
+        $backfilledCount = 0;
         $generatedCount = 0;
         $skippedCount = 0;
         $failedCount = 0;
         $today = Carbon::today();
 
         try {
+            $uninvoicedBookingIds = Booking::query()
+                ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                ->whereDoesntHave('invoices')
+                ->pluck('id');
+
+            foreach ($uninvoicedBookingIds as $bookingId) {
+                try {
+                    if ($this->backfillMissingInvoiceForBooking((int) $bookingId)) {
+                        $backfilledCount++;
+                    }
+                } catch (\Throwable $e) {
+                    $failedCount++;
+                    Log::error('Legacy invoice backfill failed for booking', [
+                        'booking_id' => $bookingId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             $bookings = Booking::query()
                 ->whereIn('status', ['confirmed', 'active'])
                 ->where('payment_plan', 'monthly')
@@ -86,7 +106,7 @@ class GenerateMonthlyInvoices extends Command
                 }
             }
 
-            $summary = "Completed monthly generation. Generated {$generatedCount}, skipped {$skippedCount}, failed {$failedCount}.";
+            $summary = "Completed monthly generation. Backfilled {$backfilledCount}, generated {$generatedCount}, skipped {$skippedCount}, failed {$failedCount}.";
             $this->info($summary);
             Log::info($summary);
 
@@ -191,6 +211,89 @@ class GenerateMonthlyInvoices extends Command
             $booking->save();
 
             return $invoiceExists ? 'skipped' : 'generated';
+        });
+    }
+
+    /**
+     * Backfill a missing initial invoice for legacy bookings that have no invoice records.
+     */
+    protected function backfillMissingInvoiceForBooking(int $bookingId): bool
+    {
+        return DB::transaction(function () use ($bookingId): bool {
+            $booking = Booking::query()
+                ->whereKey($bookingId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $booking || ! in_array($booking->status, ['confirmed', 'completed', 'partial-completed'], true)) {
+                return false;
+            }
+
+            if ($booking->invoices()->exists()) {
+                return false;
+            }
+
+            $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
+            $roomAmountCents = (int) round((float) $booking->total_amount * 100);
+
+            $billingPeriodStart = Carbon::parse($booking->start_date)->startOfMonth();
+            $activeMonthlyAddons = $booking->addons()
+                ->wherePivot('status', 'active')
+                ->where(function ($query) use ($billingPeriodStart) {
+                    $query->whereNull('booking_addons.cancellation_effective_at')
+                        ->orWhere('booking_addons.cancellation_effective_at', '>', $billingPeriodStart);
+                })
+                ->where('price_type', 'monthly')
+                ->get();
+
+            $addonsTotalCents = 0;
+            $addonMetadata = [];
+            foreach ($activeMonthlyAddons as $addon) {
+                $priceCents = (int) round($addon->pivot->price_at_booking * $addon->pivot->quantity * 100);
+                $addonsTotalCents += $priceCents;
+                $addonMetadata[] = [
+                    'addon_id' => $addon->id,
+                    'addon_name' => $addon->name,
+                    'quantity' => $addon->pivot->quantity,
+                    'price' => $priceCents,
+                    'price_type' => 'monthly',
+                ];
+            }
+
+            $totalAmountCents = $roomAmountCents + $addonsTotalCents;
+            $description = 'Monthly invoice for booking '.$booking->booking_reference;
+            if ($addonsTotalCents > 0) {
+                $description .= "\n+ Includes active Add-ons";
+            }
+
+            $invoice = Invoice::create([
+                'reference' => $reference,
+                'landlord_id' => $booking->landlord_id,
+                'property_id' => $booking->property_id,
+                'booking_id' => $booking->id,
+                'tenant_id' => $booking->tenant_id,
+                'description' => $description,
+                'amount_cents' => $totalAmountCents,
+                'currency' => 'PHP',
+                'status' => 'pending',
+                'issued_at' => $booking->created_at,
+                'due_date' => Carbon::parse($booking->start_date)->addDays(3),
+                'metadata' => ['addons' => $addonMetadata],
+            ]);
+
+            foreach ($activeMonthlyAddons as $addon) {
+                $booking->addons()->updateExistingPivot($addon->id, [
+                    'invoice_id' => $invoice->id,
+                    'invoiced_at' => now(),
+                ]);
+            }
+
+            Log::info('Backfilled missing invoice for booking', [
+                'booking_id' => $booking->id,
+                'invoice_id' => $invoice->id,
+            ]);
+
+            return true;
         });
     }
 

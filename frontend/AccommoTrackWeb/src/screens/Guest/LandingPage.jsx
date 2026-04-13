@@ -225,6 +225,7 @@ const LandingPage = ({ user }) => {
               setTheme={setTheme}
               effectiveTheme={effectiveTheme}
               scrollTo={scrollTo}
+              activeSection={activeSection}
             />
 
             {/* Theme toggle — desktop */}
@@ -262,7 +263,7 @@ const LandingPage = ({ user }) => {
 };
 
 /* ── Burger Menu ── */
-function BurgerMenu({ user, setTheme, effectiveTheme, scrollTo }) {
+function BurgerMenu({ user, setTheme, effectiveTheme, scrollTo, activeSection = 'home' }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef();
 
