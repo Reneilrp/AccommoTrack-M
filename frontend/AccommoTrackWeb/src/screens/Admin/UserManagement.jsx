@@ -2,8 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import api, { getImageUrl } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
-import { Edit2, Check, X, Trash2, Download } from 'lucide-react';
+import { Trash2, Download } from 'lucide-react';
 import { exportToCSV } from '../../utils/csvExport';
+
+const defaultAdminPermissions = {
+  can_update_user_email: false,
+  can_reset_user_password: true,
+  can_update_inquiry_basic: true,
+  can_reply_inquiry: true,
+  can_escalate_inquiry: true,
+  can_close_inquiry: true,
+  can_archive_inquiry: true,
+  can_delete_inquiry: true,
+};
 
 const getLandlordStatusMeta = (status) => {
   const normalized = typeof status === 'string' ? status.toLowerCase() : null;
@@ -49,14 +60,20 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [adminPermissions, setAdminPermissions] = useState(defaultAdminPermissions);
+  const [adminTier, setAdminTier] = useState('super_admin');
   const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, requirePassword: false });
   const [passwordValue, setPasswordValue] = useState('');
+  const [passwordResetFlow, setPasswordResetFlow] = useState({
+    isOpen: false,
+    targetUser: null,
+    reason: '',
+    submitting: false,
+  });
   const passwordValueRef = useRef(passwordValue);
   // Keep the latest typed password available for confirm callbacks stored in state.
   passwordValueRef.current = passwordValue;
-  
-  const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [editEmailValue, setEditEmailValue] = useState('');
+
   const createInitialBlockFlowState = () => ({
     isOpen: false,
     userId: null,
@@ -75,6 +92,15 @@ const UserManagement = () => {
       // Backend endpoint: GET /admin/users
       const res = await api.get('/admin/users');
       setUsers(res.data.data || res.data || []);
+      if (res?.data?.permissions) {
+        setAdminPermissions({
+          ...defaultAdminPermissions,
+          ...res.data.permissions,
+        });
+      }
+      if (res?.data?.admin_tier) {
+        setAdminTier(res.data.admin_tier);
+      }
     } catch (err) {
       console.error('Failed to fetch users', err);
       toast.error(err.response?.data?.message || err.message || 'Failed to fetch users');
@@ -174,24 +200,49 @@ const UserManagement = () => {
     }
   };
 
-  const saveEmail = async () => {
-    if (!editEmailValue || editEmailValue === selectedUser.email) {
-      setIsEditingEmail(false);
+  const closePasswordResetFlow = () => {
+    if (passwordResetFlow.submitting) return;
+    setPasswordResetFlow({
+      isOpen: false,
+      targetUser: null,
+      reason: '',
+      submitting: false,
+    });
+  };
+
+  const openPasswordResetFlow = (user) => {
+    if (!user) return;
+    if (!adminPermissions.can_reset_user_password) {
+      toast.error('Only super admins can send password reset links.');
       return;
     }
-    setActionLoading(`${selectedUser.id}:email`);
+
+    setPasswordResetFlow({
+      isOpen: true,
+      targetUser: user,
+      reason: '',
+      submitting: false,
+    });
+  };
+
+  const submitPasswordResetFlow = async () => {
+    if (!passwordResetFlow.targetUser) return;
+
+    const reason = passwordResetFlow.reason.trim();
+    if (!reason) {
+      toast.error('Please provide a reason before sending the reset link.');
+      return;
+    }
+
+    setPasswordResetFlow((prev) => ({ ...prev, submitting: true }));
+
     try {
-      const res = await api.patch(`/admin/users/${selectedUser.id}/email`, { email: editEmailValue });
-      toast.success(res.data.message || 'Email updated successfully');
-      
-      const newEmail = res.data.user?.email || editEmailValue;
-      setSelectedUser(prev => ({ ...prev, email: newEmail }));
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, email: newEmail } : u));
-      setIsEditingEmail(false);
+      const response = await api.post(`/admin/users/${passwordResetFlow.targetUser.id}/password-reset`, { reason });
+      toast.success(response?.data?.message || 'Password reset link sent successfully.');
+      closePasswordResetFlow();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update email');
-    } finally {
-      setActionLoading(null);
+      toast.error(err.response?.data?.message || 'Failed to send password reset link.');
+      setPasswordResetFlow((prev) => ({ ...prev, submitting: false }));
     }
   };
 
@@ -229,8 +280,6 @@ const UserManagement = () => {
   };
 
   const handleView = (user) => {
-    setIsEditingEmail(false);
-    setEditEmailValue(user.email || '');
     setSelectedUser(user);
     setShowModal(true);
   };
@@ -258,7 +307,12 @@ const UserManagement = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white">User Management</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Manage tenant and landlord accounts, emails, and platform access.</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Manage tenant and landlord accounts and platform access. User emails are read-only for admins.</p>
+          {!adminPermissions.can_reset_user_password && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              Sensitive account actions are restricted for your admin tier ({adminTier}).
+            </p>
+          )}
         </div>
         <button
           onClick={handleExportCSV}
@@ -404,6 +458,64 @@ const UserManagement = () => {
           </div>
         </div>
       )}
+
+      {passwordResetFlow.isOpen && passwordResetFlow.targetUser && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full border border-gray-200 dark:border-gray-700 shadow-2xl">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Send Password Reset Link</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  A secure one-time reset link will be emailed to the user and this action will be logged.
+                </p>
+              </div>
+              <button
+                onClick={closePasswordResetFlow}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl font-bold"
+                disabled={passwordResetFlow.submitting}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300 px-4 py-3 text-sm">
+                Sending reset link to <span className="font-bold">{passwordResetFlow.targetUser.email}</span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Reason (Required)</label>
+                <textarea
+                  value={passwordResetFlow.reason}
+                  onChange={(event) => setPasswordResetFlow((prev) => ({ ...prev, reason: event.target.value }))}
+                  rows={4}
+                  placeholder="State why this forced reset is being initiated."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  disabled={passwordResetFlow.submitting}
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={closePasswordResetFlow}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-semibold"
+                disabled={passwordResetFlow.submitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitPasswordResetFlow}
+                disabled={passwordResetFlow.submitting}
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors text-sm font-semibold disabled:opacity-60"
+              >
+                {passwordResetFlow.submitting ? 'Sending...' : 'Send Reset Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filter Buttons */}
       <div className="mb-4 flex gap-2 flex-wrap">
         {[
@@ -551,47 +663,9 @@ const UserManagement = () => {
                 <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Basic Information</h4>
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
-                      {!isEditingEmail && (
-                        <button
-                          onClick={() => setIsEditingEmail(true)}
-                          className="p-1 rounded bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-emerald-100 hover:text-emerald-700 transition"
-                          title="Edit Email"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                    {isEditingEmail ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <input 
-                          type="email"
-                          value={editEmailValue}
-                          onChange={(e) => setEditEmailValue(e.target.value)}
-                          className="w-full px-2 py-1 text-sm border border-emerald-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
-                        <button 
-                          onClick={saveEmail}
-                          disabled={actionLoading}
-                          className="p-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setIsEditingEmail(false);
-                            setEditEmailValue(selectedUser.email || '');
-                          }}
-                          disabled={actionLoading}
-                          className="p-1.5 rounded bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-400 disabled:opacity-50"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedUser.email || 'N/A'}</p>
-                    )}
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
+                    <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedUser.email || 'N/A'}</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Read-only. Email changes must be initiated by the account owner.</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Gender</p>
@@ -721,6 +795,18 @@ const UserManagement = () => {
                 className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
               >
                 Close
+              </button>
+              <button
+                onClick={() => openPasswordResetFlow(selectedUser)}
+                disabled={actionLoading || !adminPermissions.can_reset_user_password}
+                title={!adminPermissions.can_reset_user_password ? 'Only super admins can send password reset links.' : 'Send secure reset link'}
+                className={`px-6 py-2 rounded-lg transition-colors font-medium ${
+                  adminPermissions.can_reset_user_password
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                Send Reset Link
               </button>
               <button
                 onClick={() => {

@@ -3,6 +3,15 @@ import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, X, Send, RefreshCw, A
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
+const defaultInquiryPermissions = {
+  can_update_inquiry_basic: true,
+  can_reply_inquiry: true,
+  can_escalate_inquiry: true,
+  can_close_inquiry: true,
+  can_archive_inquiry: true,
+  can_delete_inquiry: true,
+};
+
 const InquiryManagement = () => {
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,6 +20,8 @@ const InquiryManagement = () => {
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [permissions, setPermissions] = useState(defaultInquiryPermissions);
+  const [adminTier, setAdminTier] = useState('super_admin');
   
   // Reply states
   const [replyMessage, setReplyMessage] = useState('');
@@ -22,6 +33,15 @@ const InquiryManagement = () => {
       const res = await api.get(`/admin/inquiries?page=${page}`);
       setInquiries(res.data.data || []);
       setTotalPages(res.data.last_page || 1);
+      if (res?.data?.permissions) {
+        setPermissions({
+          ...defaultInquiryPermissions,
+          ...res.data.permissions,
+        });
+      }
+      if (res?.data?.admin_tier) {
+        setAdminTier(res.data.admin_tier);
+      }
     } catch (err) {
       console.error('Failed to fetch inquiries', err);
       toast.error('Failed to load inquiries');
@@ -34,7 +54,26 @@ const InquiryManagement = () => {
     fetchInquiries();
   }, [fetchInquiries]);
 
+  const getPermissionMessage = (status) => {
+    if (status === 'escalated' && !permissions.can_escalate_inquiry) return 'Escalation is restricted to super admins.';
+    if (status === 'closed' && !permissions.can_close_inquiry) return 'Closing inquiries is restricted to super admins.';
+    if (status === 'archived' && !permissions.can_archive_inquiry) return 'Archiving inquiries is restricted to super admins.';
+    return '';
+  };
+
+  const canApplyStatus = (status) => {
+    if (status === 'escalated') return permissions.can_escalate_inquiry;
+    if (status === 'closed') return permissions.can_close_inquiry;
+    if (status === 'archived') return permissions.can_archive_inquiry;
+    return permissions.can_update_inquiry_basic;
+  };
+
   const handleUpdateStatus = async (id, status) => {
+    if (!canApplyStatus(status)) {
+      toast.error(getPermissionMessage(status) || 'This action is restricted for your admin tier.');
+      return;
+    }
+
     try {
       await api.patch(`/admin/inquiries/${id}`, { status });
       toast.success(`Inquiry marked as ${status}`);
@@ -50,6 +89,11 @@ const InquiryManagement = () => {
   const handleSendReply = async () => {
     if (!replyMessage.trim()) {
       toast.error('Please enter a message to send');
+      return;
+    }
+
+    if (!permissions.can_reply_inquiry) {
+      toast.error('Replying to inquiries is restricted for your admin tier.');
       return;
     }
 
@@ -77,6 +121,11 @@ const InquiryManagement = () => {
   };
 
   const handleDelete = async (id) => {
+    if (!permissions.can_delete_inquiry) {
+      toast.error('Deleting inquiries is restricted to super admins.');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to delete this inquiry?')) return;
     try {
       await api.delete(`/admin/inquiries/${id}`);
@@ -108,6 +157,7 @@ const InquiryManagement = () => {
       case 'contacted': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
       case 'responded': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
       case 'converted': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400';
+      case 'escalated': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
       case 'closed': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       case 'archived': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
@@ -118,10 +168,15 @@ const InquiryManagement = () => {
     <div className="w-full max-w-full px-6 py-6">
       <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Inquiry Management</h2>
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Manage guest inquiries and support messages.</p>
+      {(!permissions.can_escalate_inquiry || !permissions.can_close_inquiry || !permissions.can_archive_inquiry || !permissions.can_delete_inquiry) && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300 px-4 py-3 text-sm">
+          Sensitive actions (escalate, close, archive, delete) are restricted for your admin tier ({adminTier}).
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
-        {['all', 'new', 'contacted', 'responded', 'converted', 'closed', 'archived'].map(f => (
+        {['all', 'new', 'contacted', 'responded', 'converted', 'escalated', 'closed', 'archived'].map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -185,6 +240,7 @@ const InquiryManagement = () => {
                         {inquiry.status === 'new' && (
                           <button 
                             onClick={() => handleUpdateStatus(inquiry.id, 'contacted')}
+                            disabled={!canApplyStatus('contacted')}
                             className="p-2.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg tooltip transition-colors"
                             title="Mark as Contacted"
                           >
@@ -194,8 +250,29 @@ const InquiryManagement = () => {
                         {['new', 'contacted'].includes(inquiry.status) && (
                           <button 
                             onClick={() => handleUpdateStatus(inquiry.id, 'responded')}
+                            disabled={!canApplyStatus('responded')}
                             className="p-2.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg tooltip transition-colors"
                             title="Mark as Responded"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        {!['escalated', 'closed', 'archived'].includes(inquiry.status) && (
+                          <button 
+                            onClick={() => handleUpdateStatus(inquiry.id, 'escalated')}
+                            disabled={!permissions.can_escalate_inquiry}
+                            className={`p-2.5 rounded-lg tooltip transition-colors ${permissions.can_escalate_inquiry ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30' : 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 cursor-not-allowed'}`}
+                            title={permissions.can_escalate_inquiry ? 'Escalate to senior admin review' : getPermissionMessage('escalated')}
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        )}
+                        {!['closed', 'archived'].includes(inquiry.status) && (
+                          <button 
+                            onClick={() => handleUpdateStatus(inquiry.id, 'closed')}
+                            disabled={!permissions.can_close_inquiry}
+                            className={`p-2.5 rounded-lg tooltip transition-colors ${permissions.can_close_inquiry ? 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30' : 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 cursor-not-allowed'}`}
+                            title={permissions.can_close_inquiry ? 'Close inquiry' : getPermissionMessage('closed')}
                           >
                             <CheckCircle className="w-4 h-4" />
                           </button>
@@ -203,16 +280,18 @@ const InquiryManagement = () => {
                         {inquiry.status !== 'archived' && (
                           <button 
                             onClick={() => handleUpdateStatus(inquiry.id, 'archived')}
-                            className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg tooltip transition-colors"
-                            title="Archive"
+                            disabled={!permissions.can_archive_inquiry}
+                            className={`p-2.5 rounded-lg tooltip transition-colors ${permissions.can_archive_inquiry ? 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' : 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 cursor-not-allowed'}`}
+                            title={permissions.can_archive_inquiry ? 'Archive' : getPermissionMessage('archived')}
                           >
                             <Archive className="w-4 h-4" />
                           </button>
                         )}
                         <button 
                           onClick={() => handleDelete(inquiry.id)}
-                          className="p-2.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg tooltip transition-colors"
-                          title="Delete"
+                          disabled={!permissions.can_delete_inquiry}
+                          className={`p-2.5 rounded-lg tooltip transition-colors ${permissions.can_delete_inquiry ? 'text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30' : 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 cursor-not-allowed'}`}
+                          title={permissions.can_delete_inquiry ? 'Delete' : 'Deleting inquiries is restricted to super admins.'}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -341,7 +420,7 @@ const InquiryManagement = () => {
               </button>
               <button 
                 onClick={handleSendReply}
-                disabled={sendingReply || !replyMessage.trim()}
+                disabled={sendingReply || !replyMessage.trim() || !permissions.can_reply_inquiry}
                 className={`px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg shadow-md shadow-emerald-600/20 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {sendingReply ? (

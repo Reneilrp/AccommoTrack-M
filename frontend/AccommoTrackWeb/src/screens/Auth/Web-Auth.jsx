@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   AlertCircle,
@@ -732,6 +732,7 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
 
 function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { effectiveTheme } = usePreferences();
   const [isLogin, setIsLogin] = useState(!isRegister);
 
@@ -749,6 +750,11 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const [showResubmitModal, setShowResubmitModal] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forcedResetContext, setForcedResetContext] = useState({
+    email: '',
+    code: '',
+    active: false,
+  });
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showAuthMenu, setShowAuthMenu] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({
@@ -783,6 +789,33 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
     window.addEventListener("resize", checkMobileDevice);
     return () => window.removeEventListener("resize", checkMobileDevice);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const forcedResetFlag = String(params.get('forced_reset') || '').toLowerCase();
+    const resetEmail = String(params.get('reset_email') || '').trim();
+    const resetCode = String(params.get('reset_code') || '').trim();
+
+    if (!['1', 'true'].includes(forcedResetFlag)) {
+      return;
+    }
+
+    if (!resetEmail || !/^\d{6}$/.test(resetCode)) {
+      return;
+    }
+
+    setForcedResetContext({
+      email: resetEmail,
+      code: resetCode,
+      active: true,
+    });
+    setShowForgotPassword(true);
+
+    navigate({
+      pathname: location.pathname,
+      search: '',
+    }, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   // Live email check state (should NOT be inside formData)
   const [emailAvailable, setEmailAvailable] = useState(null); // null = untouched, true = available, false = taken
@@ -1491,7 +1524,13 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
           />
           <ForgotPasswordModal
             isOpen={showForgotPassword}
-            onClose={() => setShowForgotPassword(false)}
+            onClose={() => {
+              setShowForgotPassword(false);
+              setForcedResetContext({ email: '', code: '', active: false });
+            }}
+            initialEmail={forcedResetContext.email}
+            initialCode={forcedResetContext.code}
+            forcedReset={forcedResetContext.active}
           />
           <ClaimExistingAccountModal
             isOpen={showClaimModal}

@@ -223,5 +223,19 @@ export const tenantService = {
             console.error('Error fetching tenant activities:', error);
             return { success: false, activities: [] };
         }
+    },
+
+    /**
+     * Get month-by-month payment schedule breakdown for dashboard timeline
+     * @param {number} months - Number of months to fetch (default: 6)
+     */
+    async getPaymentBreakdown(months = 6) {
+        try {
+            const response = await api.get(`/tenant/payments/breakdown?months=${months}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching payment breakdown:', error);
+            return { success: false, data: { upcoming_months: [] } };
+        }
     }
 };

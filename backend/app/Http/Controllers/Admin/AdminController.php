@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AdminForcedPasswordResetLink;
 use App\Models\LandlordVerification;
 use App\Models\LandlordVerificationHistory;
 use App\Models\Property;
@@ -11,11 +12,14 @@ use App\Notifications\LandlordApprovedNotification;
 use App\Notifications\LandlordRejectedNotification;
 use App\Services\AuditLogService;
 use App\Services\PropertyService;
+use App\Support\AdminPermission;
 use App\Support\SystemToggle;
 use App\Jobs\PurgeCloudflareFilesJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class AdminController extends Controller
 {
@@ -236,7 +240,13 @@ class AdminController extends Controller
                 return $userData;
             });
 
-        return response()->json(['data' => $users]);
+        $admin = $request->user();
+
+        return response()->json([
+            'data' => $users,
+            'permissions' => AdminPermission::permissions($admin),
+            'admin_tier' => AdminPermission::resolveTier($admin),
+        ]);
     }
 
     /**
@@ -669,38 +679,94 @@ class AdminController extends Controller
     }
 
     /**
-     * Update a user's email address
+     * Send a forced password reset link to a user.
      */
-    public function updateUserEmail(Request $request, $id)
+    public function sendUserPasswordResetLink(Request $request, $id)
     {
+        $admin = $request->user();
+        if (! AdminPermission::can($admin, 'can_reset_user_password')) {
+            return response()->json([
+                'message' => 'You do not have permission to reset user passwords.',
+            ], 403);
+        }
+
         $validated = $request->validate([
-            'email' => 'required|email|unique:users,email,' . $id,
+            'reason' => 'required|string|max:1000',
         ]);
 
-        try {
-            $user = User::findOrFail($id);
-            $oldEmail = $user->email;
-            $user->email = $validated['email'];
-            $user->save();
+        $reason = trim((string) $validated['reason']);
 
-            $this->auditLogService->log('user', 'user.email_updated', [
-                'severity' => 'info',
+        $user = User::findOrFail($id);
+        if (($user->role ?? null) === 'admin') {
+            return response()->json([
+                'message' => 'Admin accounts cannot be reset from this action.',
+            ], 422);
+        }
+
+        try {
+            $code = (string) random_int(100000, 999999);
+            DB::table('password_reset_codes')->where('email', $user->email)->delete();
+            DB::table('password_reset_codes')->insert([
+                'email' => $user->email,
+                'code' => $code,
+                'created_at' => now(),
+            ]);
+
+            $frontendBaseUrl = rtrim((string) config('app.frontend_url', 'https://accommotrack.me'), '/');
+            $resetUrl = sprintf(
+                '%s/login?forced_reset=1&reset_email=%s&reset_code=%s',
+                $frontendBaseUrl,
+                urlencode((string) $user->email),
+                urlencode($code),
+            );
+
+            Mail::to($user->email)->send(new AdminForcedPasswordResetLink($user, $resetUrl));
+
+            $this->auditLogService->log('user', 'user.password_reset_link_sent', [
+                'severity' => 'warning',
                 'subject_type' => 'user',
                 'subject_id' => $user->id,
-                'summary' => sprintf('Admin updated email for %s (from: %s to: %s).', $user->role, $oldEmail, $user->email),
+                'summary' => sprintf('Admin sent a forced password reset link to %s (%s).', $user->email, $user->role ?? 'user'),
                 'metadata' => [
-                    'old_email' => $oldEmail,
-                    'new_email' => $user->email,
+                    'reason' => $reason,
+                    'delivery' => 'email_forced_link',
+                    'expires_in_minutes' => 10,
                 ],
+                'tenant_id' => $user->role === 'tenant' ? $user->id : null,
+                'landlord_id' => in_array($user->role, ['landlord', 'caretaker'], true) ? $user->id : null,
             ]);
 
             return response()->json([
-                'message' => 'Email updated successfully.',
-                'user' => $user
+                'message' => 'Password reset link sent successfully.',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                ],
             ]);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to update email.', 'error' => $e->getMessage()], 422);
+            return response()->json(['message' => 'Failed to send password reset link.', 'error' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Update a user's email address.
+     *
+     * Disabled by policy: user email is account-owned and must be changed by the account holder.
+     */
+    public function updateUserEmail(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $this->auditLogService->log('user', 'user.email_update_blocked', [
+            'severity' => 'warning',
+            'subject_type' => 'user',
+            'subject_id' => $user->id,
+            'summary' => sprintf('Admin attempted to update email for user %s, but the action is disabled by policy.', $user->email),
+        ]);
+
+        return response()->json([
+            'message' => 'Admin email editing is disabled. Ask the user to update email from their account settings.',
+        ], 403);
     }
 
     /**

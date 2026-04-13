@@ -382,7 +382,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/clear-cache', [AdminController::class, 'clearGlobalCache']);
         Route::get('/users', [AdminController::class, 'getUsers']);
         Route::get('/users/archived', [AdminController::class, 'getArchivedUsers']);
-        Route::patch('/users/{id}/email', [AdminController::class, 'updateUserEmail']);
+        Route::post('/users/{id}/password-reset', [AdminController::class, 'sendUserPasswordResetLink']);
         Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
         Route::post('/users/{id}/restore', [AdminController::class, 'restoreUser']);
         Route::delete('/users/{id}/force', [AdminController::class, 'purgeUser']);

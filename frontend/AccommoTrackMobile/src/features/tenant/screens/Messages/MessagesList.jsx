@@ -258,10 +258,10 @@ export default function MessagesList({
                                             })()}
 
                                             <View style={styles.conversationHeader}>
-                                                <Text style={[styles.conversationName, { color: theme.colors.text }]}>{conv.property?.title || `${conv.other_user?.first_name || ''} ${conv.other_user?.last_name || ''}`.trim()}</Text>
+                                                <Text style={[styles.conversationName, { color: theme.colors.text }]}>{`${conv.other_user?.first_name || ''} ${conv.other_user?.last_name || ''}`.trim() || 'Unknown'}</Text>
                                                 <Text style={styles.conversationTime}>{formatTime(conv.last_message_at)}</Text>
                                             </View>
-                                            <Text style={styles.propertyName}>{conv.other_user?.role ? conv.other_user.role.charAt(0).toUpperCase() + conv.other_user.role.slice(1) : 'Landlord'}</Text>
+                                            <Text style={styles.propertyName}>{conv.property?.title || 'No property'}</Text>
                                             <Text style={styles.lastMessage} numberOfLines={1}>{conv.last_message?.message || 'No messages yet'}</Text>
                                         </View>
 

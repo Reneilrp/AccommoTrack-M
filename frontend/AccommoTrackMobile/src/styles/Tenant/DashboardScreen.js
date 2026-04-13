@@ -430,6 +430,54 @@ export const getStyles = (theme) =>
       fontWeight: '700',
       fontSize: 14,
     },
+    paymentSummaryCard: {
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.backgroundSecondary,
+      padding: 14,
+      gap: 12,
+    },
+    summaryDivider: {
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
+    summaryLabelBold: {
+      color: theme.colors.text,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    summaryValueLarge: {
+      fontSize: 18,
+      fontWeight: '800',
+      fontFamily: 'monospace',
+    },
+    paymentButton: {
+      marginTop: 4,
+      borderRadius: 10,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+    },
+    paymentButtonText: {
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    paidBadge: {
+      marginTop: 4,
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      gap: 6,
+    },
+    paidBadgeText: {
+      fontWeight: '700',
+      fontSize: 14,
+    },
   });
 
 export default getStyles;

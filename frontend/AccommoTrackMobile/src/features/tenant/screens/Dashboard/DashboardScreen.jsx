@@ -834,6 +834,43 @@ const DashboardScreen = () => {
           ))}
         </View>
 
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Current Payment Cycle</Text>
+            <Text style={styles.sectionHint}>{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
+          </View>
+
+          <View style={styles.paymentSummaryCard}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Charges (Rent & Add-ons)</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(monthlyRentTotal)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Paid Amount</Text>
+              <Text style={[styles.summaryValue, { color: theme.colors.success }]}>−{formatCurrency(totalPaid)}</Text>
+            </View>
+            <View style={[styles.summaryRow, styles.summaryDivider]}>
+              <Text style={styles.summaryLabelBold}>Remaining Balance</Text>
+              <Text style={[styles.summaryValueLarge, { color: balanceDue > 0 ? theme.colors.error : theme.colors.success }]}>
+                {formatCurrency(balanceDue)}
+              </Text>
+            </View>
+            {balanceDue > 0 ? (
+              <TouchableOpacity 
+                style={[styles.paymentButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => navigation.navigate('Payments')}
+              >
+                <Text style={[styles.paymentButtonText, { color: theme.colors.text }]}>Make a Payment</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.paidBadge, { backgroundColor: theme.colors.successLight }]}>
+                <Ionicons name="checkmark-circle" size={18} color={theme.colors.success} />
+                <Text style={[styles.paidBadgeText, { color: theme.colors.successDark }]}>You are all caught up!</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
       </ScrollView>
     </View>
   );

@@ -1,14 +1,53 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Mail, Key, Lock, ArrowRight, CheckCircle, Loader2, ChevronLeft } from 'lucide-react';
 import { authService } from '../../services/authService';
 import toast from 'react-hot-toast';
 
-export default function ForgotPasswordModal({ isOpen, onClose }) {
+const EMPTY_CODE = ['', '', '', '', '', ''];
+
+export default function ForgotPasswordModal({
+  isOpen,
+  onClose,
+  initialEmail = '',
+  initialCode = '',
+  forcedReset = false,
+}) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [code, setCode] = useState(EMPTY_CODE);
   const [passwords, setPasswords] = useState({ password: '', confirm: '' });
+  const prefillAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setStep(1);
+      setLoading(false);
+      setEmail('');
+      setCode(EMPTY_CODE);
+      setPasswords({ password: '', confirm: '' });
+      prefillAppliedRef.current = false;
+      return;
+    }
+
+    if (prefillAppliedRef.current) {
+      return;
+    }
+
+    const normalizedEmail = String(initialEmail || '').trim();
+    const normalizedCode = String(initialCode || '').trim();
+
+    if (normalizedEmail) {
+      setEmail(normalizedEmail);
+    }
+
+    if (/^\d{6}$/.test(normalizedCode)) {
+      setCode(normalizedCode.split(''));
+      setStep(3);
+    }
+
+    prefillAppliedRef.current = true;
+  }, [isOpen, initialEmail, initialCode]);
 
   if (!isOpen) return null;
 
@@ -57,13 +96,6 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
       await authService.resetPassword(email, code.join(''), passwords.password, passwords.confirm);
       toast.success('Password reset successfully! Please login.');
       onClose();
-      // Reset state after close
-      setTimeout(() => {
-        setStep(1);
-        setEmail('');
-        setCode(['', '', '', '', '', '']);
-        setPasswords({ password: '', confirm: '' });
-      }, 300);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to reset password');
     } finally {
@@ -203,6 +235,11 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Create a new password for your account.
                 </p>
+                {forcedReset && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    This reset flow was initiated by an administrator for account security.
+                  </p>
+                )}
               </div>
 
               <div>

@@ -25,6 +25,7 @@ const TenantDashboard = () => {
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [activities, setActivities] = useState(cachedData?.activities || []);
+  const [upcomingSchedule, setUpcomingSchedule] = useState(cachedData?.upcomingSchedule || []);
   const [openSummaryPanel, setOpenSummaryPanel] = useState(null);
   const [dismissedNotifications, setDismissedNotifications] = useState({
     overdueBalance: false,
@@ -40,17 +41,27 @@ const TenantDashboard = () => {
       if (initialLoadRef.current) setLoading(true);
       initialLoadRef.current = false;
 
-      const [currentStay, dashboardStats, activityRes] = await Promise.all([
+      const [currentStay, dashboardStats, activityRes, paymentBreakdown] = await Promise.all([
         tenantService.getCurrentStay(),
         tenantService.getDashboardStats(),
-        tenantService.getActivities()
+        tenantService.getActivities(),
+        tenantService.getPaymentBreakdown(3)
       ]);
 
       setStayData(currentStay);
       setStats(dashboardStats);
       setActivities(Array.isArray(activityRes.activities) ? activityRes.activities.slice(0, 5) : []);
+      
+      // Use API payment breakdown data
+      const breakdownData = paymentBreakdown?.data?.upcoming_months || paymentBreakdown?.upcoming_months || [];
+      setUpcomingSchedule(Array.isArray(breakdownData) ? breakdownData.slice(0, 3) : []);
 
-      updateData('dashboard', { stayData: currentStay, stats: dashboardStats, activities: activityRes.activities });
+      updateData('dashboard', { 
+        stayData: currentStay, 
+        stats: dashboardStats, 
+        activities: activityRes.activities,
+        upcomingSchedule: breakdownData
+      });
     } catch (error) {
       console.error('Failed to load dashboard data', error);
     } finally {
@@ -211,41 +222,6 @@ const TenantDashboard = () => {
       }
       return a.sortDueDate - b.sortDueDate;
     });
-
-  const generateUpcomingSchedule = () => {
-    const primaryStay = stays.length > 0 ? stays[0].booking : null;
-    if (!primaryStay) return [];
-    
-    const plan = primaryStay.payment_plan || primaryStay.paymentPlan;
-    if (plan !== 'monthly' && plan !== 'term') return [];
-    
-    const startDate = new Date(primaryStay.start_date || primaryStay.startDate);
-    const monthsTotal = parseInt(primaryStay.total_months || primaryStay.totalMonths || 1);
-    const rentAmount = parseFloat(primaryStay.monthly_rent || primaryStay.monthlyRent || 0);
-    
-    const schedules = [];
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    for (let i = 0; i < monthsTotal; i++) {
-        const dueDate = new Date(startDate);
-        dueDate.setMonth(dueDate.getMonth() + i);
-        
-        if (dueDate >= currentMonthStart && schedules.length < 3) {
-            schedules.push({
-                date: dueDate,
-                amount: rentAmount,
-                isNext: false
-            });
-        }
-    }
-    
-    if (schedules.length > 0) schedules[0].isNext = true;
-    return schedules;
-  };
-
-  const upcomingSchedule = generateUpcomingSchedule();
 
   // ── Loading State ──
   if (loading) {
@@ -947,25 +923,28 @@ const TenantDashboard = () => {
           <div className="px-6 py-6 flex-1 flex flex-col justify-center">
             {upcomingSchedule.length > 0 ? (
                <div className="space-y-0 relative">
-                  {upcomingSchedule.map((schedule, idx) => (
+                  {upcomingSchedule.map((schedule, idx) => {
+                    const scheduleDate = new Date(schedule.due_date || schedule.dueDate);
+                    const isNext = idx === 0;
+                    return (
                     <div key={idx} className="flex gap-4">
                        <div className="flex flex-col items-center">
-                          <div className={`w-3.5 h-3.5 rounded-full mt-2.5 flex-shrink-0 relative z-10 ${schedule.isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
+                          <div className={`w-3.5 h-3.5 rounded-full mt-2.5 flex-shrink-0 relative z-10 ${isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
                           {idx !== upcomingSchedule.length - 1 && <div className="w-[2px] min-h-[40px] h-full bg-gray-200 dark:bg-[#2a3045] my-2 flex-1"></div>}
                        </div>
                        <div className="pb-6">
-                          <p className={`text-[15px] font-bold leading-tight ${schedule.isNext ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
-                            {schedule.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          <p className={`text-[15px] font-bold leading-tight ${isNext ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
+                            {scheduleDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                           </p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className="text-[14px] font-semibold text-gray-500 dark:text-slate-500">
-                              {formatCurrency(schedule.amount)}
+                              {formatCurrency(schedule.month_total || schedule.amount)}
                             </span>
-                            {schedule.isNext && <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">Next Due</span>}
+                            {isNext && <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">Next Due</span>}
                           </div>
                        </div>
                     </div>
-                  ))}
+                  )})}
                </div>
             ) : (
                <div className="py-8 flex flex-col items-center justify-center text-center h-full">
