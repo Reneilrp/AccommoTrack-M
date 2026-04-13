@@ -172,7 +172,30 @@ export default function PaymentsScreen() {
     };
   }, [userId, triggerPaymentDataRefresh]);
 
-  const openCheckout = async (payment) => {
+  const resolveEntryKey = React.useCallback((item) => {
+    if (!item || typeof item !== 'object') return null;
+    return item?.id || item?.invoice_id || item?.invoiceId || item?.booking_id || item?.bookingId || null;
+  }, []);
+
+  const resolveAdvanceInvoiceId = React.useCallback((payload) => {
+    const created = Array.isArray(payload?.created) ? payload.created : [];
+    const existing = Array.isArray(payload?.existing) ? payload.existing : [];
+
+    const invoices = [...created, ...existing]
+      .filter((invoice) => invoice && invoice.id)
+      .sort((a, b) => {
+        const aDate = new Date(a?.due_date || a?.billing_period_start || a?.created_at || 0).getTime();
+        const bDate = new Date(b?.due_date || b?.billing_period_start || b?.created_at || 0).getTime();
+        return aDate - bDate;
+      });
+
+    return invoices.length > 0 ? invoices[0].id : null;
+  }, []);
+
+  const openCheckout = async (payment, options = {}) => {
+    const startFrom = options?.startFrom === 'next' ? 'next' : 'current';
+    const monthsCount = Math.max(1, Math.min(Number(options?.monthsCount) || 1, 2));
+
     if (tenantPaymentsTempDisabled) {
       showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
@@ -181,6 +204,57 @@ export default function PaymentsScreen() {
     const item = typeof payment === 'object'
       ? payment
       : (payments.find((entry) => entry.id === payment) || { id: payment });
+
+    const resolvingKey = resolveEntryKey(item);
+
+    if (startFrom === 'next') {
+      const bookingId = item?.bookingId || item?.booking_id || null;
+      if (!bookingId) {
+        showAlert('Payment Error', 'This payment does not have a booking link for advance invoice generation.');
+        return;
+      }
+
+      try {
+        setResolvingPaymentId(resolvingKey || bookingId);
+
+        const response = await PaymentService.createAdvanceBookingInvoices(bookingId, monthsCount);
+        if (!response.success || !response.data) {
+          showAlert('Payment Error', response.error || 'Failed to prepare advance invoice checkout.');
+          return;
+        }
+
+        const invoiceId = resolveAdvanceInvoiceId(response.data);
+        if (!invoiceId) {
+          showAlert('Payment Error', 'No payable advance invoice was generated for this booking.');
+          return;
+        }
+
+        if (monthsCount > 1) {
+          const generatedCount = [
+            ...(Array.isArray(response.data?.created) ? response.data.created : []),
+            ...(Array.isArray(response.data?.existing) ? response.data.existing : []),
+          ].filter((invoice) => invoice && invoice.id).length;
+
+          if (generatedCount > 1) {
+            Toast.show({
+              type: 'success',
+              text1: 'Advance Invoices Ready',
+              text2: 'Opening the nearest due invoice first.',
+              position: 'bottom',
+            });
+          }
+        }
+
+        navigation.navigate('PaymentDetail', { invoiceId });
+      } catch (error) {
+        console.error('Advance invoice resolution error:', error);
+        showAlert('Payment Error', 'Failed to prepare advance invoice checkout.');
+      } finally {
+        setResolvingPaymentId(null);
+      }
+
+      return;
+    }
 
     let invoiceId = item?.invoiceId || item?.invoice_id || item?.id || null;
 
@@ -192,7 +266,7 @@ export default function PaymentsScreen() {
       }
 
       try {
-        setResolvingPaymentId(item?.id || bookingId);
+        setResolvingPaymentId(resolvingKey || bookingId);
 
         const response = await PaymentService.createBookingInvoice(bookingId);
         if (!response.success || !response.data) {
@@ -216,6 +290,19 @@ export default function PaymentsScreen() {
     }
 
     navigation.navigate('PaymentDetail', { invoiceId });
+  };
+
+  const openCheckoutOptions = (payment) => {
+    showAlert(
+      'Choose Payment',
+      'Select what you want to pay now.',
+      [
+        { text: 'Current Due', onPress: () => openCheckout(payment) },
+        { text: 'Next Month', onPress: () => openCheckout(payment, { startFrom: 'next', monthsCount: 1 }) },
+        { text: 'Next 2 Months', onPress: () => openCheckout(payment, { startFrom: 'next', monthsCount: 2 }) },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
   };
 
   const isPayable = (payment) => {
@@ -253,7 +340,7 @@ export default function PaymentsScreen() {
 
   const filteredPayments = React.useMemo(() => {
     const threshold = getThresholdDate(timeRange);
-    
+
     // Initial sort and date filter
     let list = [...payments].filter((p) => {
       if (!threshold) return true;
@@ -330,240 +417,252 @@ export default function PaymentsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
       >
 
-      <View style={contentWrapStyle}>
+        <View style={contentWrapStyle}>
 
-      {/* Stats Cards */}
-      <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
-          <Ionicons name="checkmark-circle" size={26} color={theme.colors.primary} />
-          <Text numberOfLines={1} style={[styles.statValue, { color: '#166534' }]}>
-            {formatCurrency(stats?.totalPaidThisMonth || 0)}
-          </Text>
-          <Text style={[styles.statLabel, { color: '#15803D' }]}>Paid This Month</Text>
-        </View>
-
-        <View style={[styles.statCard, { backgroundColor: '#FEF3C7' }]}>
-          <Ionicons name="time" size={26} color="#F59E0B" />
-          <Text numberOfLines={1} style={[styles.statValue, { color: '#92400E' }]}>
-            {formatCurrency(stats?.pendingAmount || 0)}
-          </Text>
-          <Text style={[styles.statLabel, { color: '#B45309' }]}>Pending</Text>
-        </View>
-
-        <View style={[styles.statCard, { backgroundColor: '#DBEAFE' }]}>
-          <Ionicons name="calendar" size={26} color="#3B82F6" />
-          <Text numberOfLines={1} style={[styles.statValue, { color: '#1E3A8A' }]}>
-            {formatDate(nextDueDateValue)}
-          </Text>
-          <Text style={[styles.statLabel, { color: '#1E40AF' }]}>Next Due</Text>
-        </View>
-      </View>
-
-      {/* Search Bar */}
-      <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: theme.colors.surface,
-          borderRadius: 12,
-          paddingHorizontal: 12,
-          height: 48,
-          borderWidth: 1,
-          borderColor: theme.colors.border
-        }}>
-          <Ionicons name="search-outline" size={20} color={theme.colors.textTertiary} />
-          <TextInput
-            placeholder="Search property, room, ref..."
-            placeholderTextColor={theme.colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={{
-              flex: 1,
-              marginLeft: 8,
-              color: theme.colors.text,
-              fontSize: 14,
-            }}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={theme.colors.textTertiary} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
-
-      {/* Filter Tabs Container */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        {/* Status Filter Tabs */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.filterContainer, { marginBottom: 0, paddingRight: 8 }]}
-          style={{ flex: 1 }}
-        >
-          {filterOptions.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.filterTab,
-                {
-                  backgroundColor:
-                    statusFilter === option.value ? theme.colors.primary : theme.colors.backgroundSecondary,
-                  borderColor: statusFilter === option.value ? theme.colors.primary : theme.colors.border,
-                },
-              ]}
-              onPress={() => setStatusFilter(option.value)}
-            >
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.filterText,
-                  { color: statusFilter === option.value ? '#fff' : theme.colors.text },
-                ]}
-              >
-                {option.label}
+          {/* Stats Cards */}
+          <View style={styles.statsGrid}>
+            <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="checkmark-circle" size={26} color={theme.colors.primary} />
+              <Text numberOfLines={1} style={[styles.statValue, { color: '#166534' }]}>
+                {formatCurrency(stats?.totalPaidThisMonth || 0)}
               </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              <Text style={[styles.statLabel, { color: '#15803D' }]}>Paid This Month</Text>
+            </View>
 
-        {/* Time Range Tabs */}
-        <View style={{ 
-          flexDirection: 'row', 
-          backgroundColor: theme.colors.backgroundSecondary, 
-          borderRadius: 10, 
-          padding: 2,
-          marginRight: 16
-        }}>
-          {timeRangeOptions.map((r) => (
-            <TouchableOpacity
-              key={r.value}
-              onPress={() => setTimeRange(r.value)}
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 6,
-                borderRadius: 8,
-                backgroundColor: timeRange === r.value ? theme.colors.surface : 'transparent',
-                borderWidth: timeRange === r.value ? 1 : 0,
-                borderColor: theme.colors.border,
-              }}
-            >
-              <Text style={{ 
-                fontSize: 10, 
-                fontWeight: 'bold', 
-                color: timeRange === r.value ? theme.colors.primary : theme.colors.textSecondary 
-              }}>
-                {r.label}
+            <View style={[styles.statCard, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="time" size={26} color="#F59E0B" />
+              <Text numberOfLines={1} style={[styles.statValue, { color: '#92400E' }]}>
+                {formatCurrency(stats?.pendingAmount || 0)}
               </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+              <Text style={[styles.statLabel, { color: '#B45309' }]}>Pending</Text>
+            </View>
 
-      {/* Payment List */}
-      <View style={[styles.listCard, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Transactions</Text>
-
-        {tenantPaymentsTempDisabled && (
-          <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 10 }}>
-            <Text style={{ color: '#92400e', fontWeight: '600' }}>
-              Tenant payments are temporarily unavailable while payment compliance updates are in progress.
-            </Text>
+            <View style={[styles.statCard, { backgroundColor: '#DBEAFE' }]}>
+              <Ionicons name="calendar" size={26} color="#3B82F6" />
+              <Text numberOfLines={1} style={[styles.statValue, { color: '#1E3A8A' }]}>
+                {formatDate(nextDueDateValue)}
+              </Text>
+              <Text style={[styles.statLabel, { color: '#1E40AF' }]}>Next Due</Text>
+            </View>
           </View>
-        )}
 
-        {loading && payments.length === 0 ? (
-          <>
-            <ListItemSkeleton />
-            <ListItemSkeleton />
-            <ListItemSkeleton />
-          </>
-        ) : filteredPayments.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="wallet-outline" size={48} color={theme.colors.textTertiary} />
-            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-              No payments found
-            </Text>
+          {/* Search Bar */}
+          <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: theme.colors.surface,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              height: 48,
+              borderWidth: 1,
+              borderColor: theme.colors.border
+            }}>
+              <Ionicons name="search-outline" size={20} color={theme.colors.textTertiary} />
+              <TextInput
+                placeholder="Search property, room, ref..."
+                placeholderTextColor={theme.colors.textTertiary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{
+                  flex: 1,
+                  marginLeft: 8,
+                  color: theme.colors.text,
+                  fontSize: 14,
+                }}
+              />
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={18} color={theme.colors.textTertiary} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
-        ) : (
-          filteredPayments.map((payment, index) => (
-            <View
-              key={payment.id || index}
-              style={[
-                styles.paymentItem,
-                index < filteredPayments.length - 1 && {
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.border,
-                },
-              ]}
+
+          {/* Filter Tabs Container */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            {/* Status Filter Tabs */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.filterContainer, { marginBottom: 0, paddingRight: 8 }]}
+              style={{ flex: 1 }}
             >
-              <View style={styles.paymentLeft}>
-                <View
+              {filterOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
                   style={[
-                    styles.paymentIcon,
-                    { backgroundColor: `${getStatusColor(payment.status)}20` },
+                    styles.filterTab,
+                    {
+                      backgroundColor:
+                        statusFilter === option.value ? theme.colors.primary : theme.colors.backgroundSecondary,
+                      borderColor: statusFilter === option.value ? theme.colors.primary : theme.colors.border,
+                    },
                   ]}
+                  onPress={() => setStatusFilter(option.value)}
                 >
-                  <Ionicons
-                    name={
-                      payment.status?.toLowerCase() === 'paid' || payment.status?.toLowerCase() === 'completed'
-                        ? 'checkmark-circle'
-                        : payment.status?.toLowerCase() === 'pending'
-                        ? 'time'
-                        : payment.status?.toLowerCase() === 'refunded'
-                        ? 'refresh-circle'
-                        : 'close-circle'
-                    }
-                    size={24}
-                    color={getStatusColor(payment.status)}
-                  />
-                </View>
-                <View style={styles.paymentInfo}>
-                  <Text style={[styles.paymentTitle, { color: theme.colors.text }]}>
-                    {payment.description || `Payment #${payment.id}`}
-                  </Text>
-                  <Text style={[styles.paymentDate, { color: theme.colors.textSecondary }]}>
-                    {formatDate(payment.date)}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.paymentRight}>
-                <Text style={[styles.paymentAmount, { color: theme.colors.text }]}>
-                  {formatCurrency(payment.amount)}
-                </Text>
-                <View
-                  style={[styles.statusBadge, { backgroundColor: `${getStatusColor(payment.status)}20` }]}
-                >
-                  <Text style={[styles.statusText, { color: getStatusColor(payment.status) }]}>
-                    {payment.status}
-                  </Text>
-                </View>
-
-                {!tenantPaymentsTempDisabled && isPayable(payment) && (
-                  <TouchableOpacity
-                    disabled={resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId)}
-                    onPress={() => openCheckout(payment)}
+                  <Text
+                    numberOfLines={1}
                     style={[
-                      styles.payBtn,
-                      {
-                        backgroundColor: theme.colors.primary,
-                        opacity: resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId) ? 0.65 : 1,
-                      },
+                      styles.filterText,
+                      { color: statusFilter === option.value ? '#fff' : theme.colors.text },
                     ]}
                   >
-                    {resolvingPaymentId === (payment.id || payment.booking_id || payment.bookingId) ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.payBtnText}>Pay</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              </View>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Time Range Tabs */}
+            <View style={{
+              flexDirection: 'row',
+              backgroundColor: theme.colors.backgroundSecondary,
+              borderRadius: 10,
+              padding: 2,
+              marginRight: 16
+            }}>
+              {timeRangeOptions.map((r) => (
+                <TouchableOpacity
+                  key={r.value}
+                  onPress={() => setTimeRange(r.value)}
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 6,
+                    borderRadius: 8,
+                    backgroundColor: timeRange === r.value ? theme.colors.surface : 'transparent',
+                    borderWidth: timeRange === r.value ? 1 : 0,
+                    borderColor: theme.colors.border,
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 10,
+                    fontWeight: 'bold',
+                    color: timeRange === r.value ? theme.colors.primary : theme.colors.textSecondary
+                  }}>
+                    {r.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          ))
-        )}
-      </View>
-      </View>
+          </View>
+
+          {/* Payment List */}
+          <View style={[styles.listCard, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Transactions</Text>
+
+            {!tenantPaymentsTempDisabled && (
+              <Text style={{ marginBottom: 12, color: theme.colors.textSecondary, fontSize: 12 }}>
+                Tip: Tap Pay to choose Current Due, Next Month, or Next 2 Months.
+              </Text>
+            )}
+
+            {tenantPaymentsTempDisabled && (
+              <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 10 }}>
+                <Text style={{ color: '#92400e', fontWeight: '600' }}>
+                  Tenant payments are temporarily unavailable while payment compliance updates are in progress.
+                </Text>
+              </View>
+            )}
+
+            {loading && payments.length === 0 ? (
+              <>
+                <ListItemSkeleton />
+                <ListItemSkeleton />
+                <ListItemSkeleton />
+              </>
+            ) : filteredPayments.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="wallet-outline" size={48} color={theme.colors.textTertiary} />
+                <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+                  No payments found
+                </Text>
+              </View>
+            ) : (
+              filteredPayments.map((payment, index) => (
+                <View
+                  key={payment.id || index}
+                  style={[
+                    styles.paymentItem,
+                    index < filteredPayments.length - 1 && {
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <View style={styles.paymentLeft}>
+                    <View
+                      style={[
+                        styles.paymentIcon,
+                        { backgroundColor: `${getStatusColor(payment.status)}20` },
+                      ]}
+                    >
+                      <Ionicons
+                        name={
+                          payment.status?.toLowerCase() === 'paid' || payment.status?.toLowerCase() === 'completed'
+                            ? 'checkmark-circle'
+                            : payment.status?.toLowerCase() === 'pending'
+                              ? 'time'
+                              : payment.status?.toLowerCase() === 'refunded'
+                                ? 'refresh-circle'
+                                : 'close-circle'
+                        }
+                        size={24}
+                        color={getStatusColor(payment.status)}
+                      />
+                    </View>
+                    <View style={styles.paymentInfo}>
+                      <Text style={[styles.paymentTitle, { color: theme.colors.text }]}>
+                        {payment.description || `Payment #${payment.id}`}
+                      </Text>
+                      <Text style={[styles.paymentDate, { color: theme.colors.textSecondary }]}>
+                        {formatDate(payment.date)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.paymentRight}>
+                    <Text style={[styles.paymentAmount, { color: theme.colors.text }]}>
+                      {formatCurrency(payment.amount)}
+                    </Text>
+                    <View
+                      style={[styles.statusBadge, { backgroundColor: `${getStatusColor(payment.status)}20` }]}
+                    >
+                      <Text style={[styles.statusText, { color: getStatusColor(payment.status) }]}>
+                        {payment.status}
+                      </Text>
+                    </View>
+
+                    {!tenantPaymentsTempDisabled && isPayable(payment) && (
+                      <TouchableOpacity
+                        disabled={resolvingPaymentId === resolveEntryKey(payment)}
+                        onPress={() => {
+                          if (payment?.bookingId || payment?.booking_id) {
+                            openCheckoutOptions(payment);
+                            return;
+                          }
+                          openCheckout(payment);
+                        }}
+                        style={[
+                          styles.payBtn,
+                          {
+                            backgroundColor: theme.colors.primary,
+                            opacity: resolvingPaymentId === resolveEntryKey(payment) ? 0.65 : 1,
+                          },
+                        ]}
+                      >
+                        {resolvingPaymentId === resolveEntryKey(payment) ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.payBtnText}>Pay</Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

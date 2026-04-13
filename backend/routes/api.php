@@ -130,6 +130,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::post('/notifications/push-token', [NotificationController::class, 'upsertPushToken']);
+    Route::delete('/notifications/push-token', [NotificationController::class, 'removePushToken']);
 
     // ===== TENANT ROUTES (Public property browsing) =====
     Route::get('/properties', [PropertyController::class, 'getAllProperties']);

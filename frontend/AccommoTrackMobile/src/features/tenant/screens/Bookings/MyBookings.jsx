@@ -68,6 +68,9 @@ const extractHistoryBookings = (payload, fallback = []) => {
 };
 
 export default function MyBookings() {
+  const ALMOST_PAY_TIME_DAYS = 5;
+  const OPEN_INVOICE_STATUSES = new Set(['pending', 'partial', 'overdue', 'unpaid']);
+
   const navigation = useNavigation();
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
@@ -75,7 +78,7 @@ export default function MyBookings() {
   const { uiState, updateData, invalidateData, showAlert: uiShowAlert } = useUIState();
   const showAlert = uiShowAlert || Alert.alert;
   const BUCKET = 'bookings';
-  
+
   const [activeTab, setActiveTab] = useState(
     uiState.bookings?.activeTab ?? 'current'
   );
@@ -83,7 +86,7 @@ export default function MyBookings() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const cachedBookings = uiState.data?.[BUCKET];
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // Data states — seed from cache if available
   const [stayData, setStayData] = useState(cachedBookings?.stayData ?? null);
   const [historyData, setHistoryData] = useState(cachedBookings?.historyData ?? []);
@@ -195,12 +198,12 @@ export default function MyBookings() {
 
   const cachedBundle = cachedBookings
     ? {
-        stayData: cachedBookings.stayData ?? null,
-        pendingBookings: cachedBookings.pendingBookings ?? [],
-        historyData: cachedBookings.historyData ?? [],
-        pendingTransferRequests: [],
-        monthlyTransferCount: 0,
-      }
+      stayData: cachedBookings.stayData ?? null,
+      pendingBookings: cachedBookings.pendingBookings ?? [],
+      historyData: cachedBookings.historyData ?? [],
+      pendingTransferRequests: [],
+      monthlyTransferCount: 0,
+    }
     : undefined;
 
   const myBookingsBundleQuery = useQuery({
@@ -369,7 +372,7 @@ export default function MyBookings() {
     const resolvedOccupantCount = Math.max(
       1,
       toWholeNumber(bookingEntry?.occupant_count ?? bookingEntry?.occupantCount, 0)
-        || resolvedBedCount,
+      || resolvedBedCount,
     );
     const resolvedRoomCapacity = toWholeNumber(
       roomEntry?.capacity ?? roomEntry?.raw_capacity,
@@ -407,6 +410,111 @@ export default function MyBookings() {
         contact: [phone, email].filter(Boolean).join(' • '),
       };
     });
+  };
+
+  const parseDateToLocalDay = (value) => {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  };
+
+  const resolveMonthlyPaymentCountdown = (bookingEntry, invoices = []) => {
+    const billingPolicy = String(bookingEntry?.billing_policy || bookingEntry?.billingPolicy || 'monthly').toLowerCase();
+    if (billingPolicy !== 'monthly') return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const cycleDueDateResolver = () => {
+      const rawBillingDay = Number(bookingEntry?.billing_day ?? bookingEntry?.due_day ?? bookingEntry?.dueDay);
+      if (!Number.isFinite(rawBillingDay)) return null;
+
+      const billingDay = Math.max(1, Math.min(31, Math.round(rawBillingDay)));
+      const currentMonthMaxDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      let candidate = new Date(today.getFullYear(), today.getMonth(), Math.min(billingDay, currentMonthMaxDay));
+
+      if (candidate < today) {
+        const nextMonthMaxDay = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
+        candidate = new Date(today.getFullYear(), today.getMonth() + 1, Math.min(billingDay, nextMonthMaxDay));
+      }
+
+      return candidate;
+    };
+
+    const dueDateCandidates = [];
+    let hasOutstandingInvoice = false;
+
+    if (Array.isArray(invoices)) {
+      invoices.forEach((invoice) => {
+        const invoiceStatus = String(invoice?.status || '').toLowerCase();
+        if (!OPEN_INVOICE_STATUSES.has(invoiceStatus)) return;
+
+        hasOutstandingInvoice = true;
+        const dueDate = parseDateToLocalDay(
+          invoice?.due_date || invoice?.dueDateIso || invoice?.dueDate,
+        );
+        if (dueDate) {
+          dueDateCandidates.push(dueDate);
+        }
+      });
+    }
+
+    const nextBillingDate = parseDateToLocalDay(bookingEntry?.next_billing_date || bookingEntry?.nextBillingDate);
+    if (nextBillingDate) {
+      dueDateCandidates.push(nextBillingDate);
+    }
+
+    if (dueDateCandidates.length === 0) {
+      const cycleDueDate = cycleDueDateResolver();
+      if (cycleDueDate) {
+        dueDateCandidates.push(cycleDueDate);
+      }
+    }
+
+    if (dueDateCandidates.length === 0) return null;
+
+    dueDateCandidates.sort((left, right) => left.getTime() - right.getTime());
+    let nextDueDate = dueDateCandidates[0];
+
+    if (nextDueDate < today && !hasOutstandingInvoice) {
+      const cycleDueDate = cycleDueDateResolver();
+      if (cycleDueDate && cycleDueDate >= today) {
+        nextDueDate = cycleDueDate;
+      }
+    }
+
+    const daysUntilDue = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue < 0) {
+      const overdueDays = Math.abs(daysUntilDue);
+      return {
+        label: 'Payment Overdue',
+        value: `${overdueDays} ${overdueDays === 1 ? 'Day' : 'Days'} Overdue`,
+      };
+    }
+
+    if (daysUntilDue === 0) {
+      return {
+        label: 'Pay Today',
+        value: 'Due Today',
+      };
+    }
+
+    return {
+      label: daysUntilDue <= ALMOST_PAY_TIME_DAYS ? 'Almost Pay Time' : 'Next Payment',
+      value: `${daysUntilDue} ${daysUntilDue === 1 ? 'Day' : 'Days'} Left`,
+    };
   };
 
   const resolveAddonDisplayPrice = (addon) => {
@@ -476,6 +584,56 @@ export default function MyBookings() {
       year: 'numeric',
     });
   };
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+      return;
+    }
+
+    const activeStays = Array.isArray(stayData?.stays) ? stayData.stays : [];
+    if (activeStays.length === 0) return;
+
+    const maybeSendExtensionReminder = async () => {
+      const { sendOneDayExtensionReminder } = await import('../../../../services/PushNotificationService.js');
+
+      for (const stayEntry of activeStays) {
+        const bookingEntry = stayEntry?.booking;
+        if (!bookingEntry?.id) continue;
+
+        const endDateRaw = bookingEntry.endDate || bookingEntry.end_date;
+        const hasScheduledEndDate = Boolean(endDateRaw);
+        const bookingContractMode = String(
+          bookingEntry.contract_mode || bookingEntry.contractMode || '',
+        ).toLowerCase();
+
+        const canRequestExtension = !(bookingContractMode === 'monthly' && !hasScheduledEndDate) && hasScheduledEndDate;
+        if (!canRequestExtension) continue;
+
+        let daysRemaining = Number(bookingEntry.daysRemaining ?? bookingEntry.days_remaining);
+        if (!Number.isFinite(daysRemaining) && endDateRaw) {
+          const endDate = new Date(endDateRaw);
+          if (!Number.isNaN(endDate.getTime())) {
+            endDate.setHours(0, 0, 0, 0);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          }
+        }
+
+        if (!Number.isFinite(daysRemaining) || Math.max(0, Math.ceil(daysRemaining)) !== 1) {
+          continue;
+        }
+
+        await sendOneDayExtensionReminder({
+          bookingId: bookingEntry.id,
+          propertyTitle: stayEntry?.property?.title || stayEntry?.property_title || 'your property',
+          endDate: formatIsoDate(endDateRaw) || String(endDateRaw),
+        });
+      }
+    };
+
+    maybeSendExtensionReminder();
+  }, [stayData?.stays]);
 
   const getPropertySwitchOptions = () => {
     return viewMode === 'active'
@@ -1176,10 +1334,10 @@ export default function MyBookings() {
             activeTab === tab.id && styles.activeTab
           ]}
         >
-          <Ionicons 
-            name={tab.icon} 
-            size={18} 
-            color={activeTab === tab.id ? theme.colors.textInverse : theme.colors.textSecondary} 
+          <Ionicons
+            name={tab.icon}
+            size={18}
+            color={activeTab === tab.id ? theme.colors.textInverse : theme.colors.textSecondary}
           />
           <Text style={[
             styles.tabText,
@@ -1196,7 +1354,7 @@ export default function MyBookings() {
     const hasStays = stayData?.stays && stayData.stays.length > 0;
     const hasPending = pendingBookings && pendingBookings.length > 0;
 
-    const currentData = viewMode === 'active' 
+    const currentData = viewMode === 'active'
       ? (stayData?.stays?.[selectedStayIndex] || stayData?.stays?.[0])
       : (pendingBookings?.[selectedPendingIndex] || pendingBookings?.[0]);
 
@@ -1209,7 +1367,7 @@ export default function MyBookings() {
             <Text style={styles.emptyText}>
               You don't have any active or pending bookings. Ready to find your next home?
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.primaryButton}
               onPress={() => navigation.navigate('TenantHome')}
             >
@@ -1277,6 +1435,7 @@ export default function MyBookings() {
     const startDate = startDateRaw ? new Date(startDateRaw) : null;
     const hasValidStartDate = startDate instanceof Date && !Number.isNaN(startDate.getTime());
     const hasCheckoutDate = Boolean(endDateRaw);
+    const isMonthlyBilling = String(booking.billing_policy || booking.billingPolicy || 'monthly').toLowerCase() === 'monthly';
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -1295,8 +1454,6 @@ export default function MyBookings() {
       ? `${daysUntilStart} ${daysUntilStart === 1 ? 'Day' : 'Days'}`
       : `${hasCheckoutDate ? daysLeft : daysStayed} ${(hasCheckoutDate ? daysLeft : daysStayed) === 1 ? 'Day' : 'Days'}`;
     const pendingMoveInValue = hasValidStartDate ? formatDate(startDateRaw) : 'Move-in date awaiting approval';
-    const durationSummaryLabel = booking.isPending ? 'Move-in Date' : stayDurationLabel;
-    const durationSummaryValue = booking.isPending ? pendingMoveInValue : stayDurationValue;
 
     const paymentStatusRaw = String(
       booking.isOverdue || booking.is_overdue
@@ -1325,6 +1482,17 @@ export default function MyBookings() {
       : Array.isArray(booking?.financials?.invoices)
         ? booking.financials.invoices
         : [];
+
+    const shouldUsePaymentCountdown = !booking.isPending && isMonthlyBilling && !hasCheckoutDate;
+    const paymentCountdown = shouldUsePaymentCountdown
+      ? resolveMonthlyPaymentCountdown(booking, invoiceList)
+      : null;
+    const durationSummaryLabel = booking.isPending
+      ? 'Move-in Date'
+      : (paymentCountdown?.label || stayDurationLabel);
+    const durationSummaryValue = booking.isPending
+      ? pendingMoveInValue
+      : (paymentCountdown?.value || stayDurationValue);
 
     const totalPaidAmount = invoiceList.reduce((sum, invoice) => {
       const invoiceTransactions = Array.isArray(invoice?.transactions) ? invoice.transactions : [];
@@ -1356,26 +1524,26 @@ export default function MyBookings() {
         {/* Sliding Toggle */}
         {hasStays && hasPending && (
           <View style={[styles.sliderContainer, { backgroundColor: theme.colors.backgroundSecondary }]}>
-            <Animated.View 
+            <Animated.View
               style={[
-                styles.sliderIndicator, 
-                { 
+                styles.sliderIndicator,
+                {
                   width: '50%',
                   backgroundColor: viewMode === 'active' ? theme.colors.primary : (theme.isDark ? '#fbbf24' : '#F59E0B'),
-                  transform: [{ translateX }] 
+                  transform: [{ translateX }]
                 }
-              ]} 
+              ]}
             />
-            <TouchableOpacity 
-              style={styles.sliderTab} 
+            <TouchableOpacity
+              style={styles.sliderTab}
               onPress={() => setViewMode('active')}
             >
               <Text style={[styles.sliderTabText, { color: viewMode === 'active' ? '#fff' : theme.colors.textSecondary }]}>
                 Active Stays ({stayData.stays.length})
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.sliderTab} 
+            <TouchableOpacity
+              style={styles.sliderTab}
               onPress={() => setViewMode('pending')}
             >
               <Text style={[styles.sliderTabText, { color: viewMode === 'pending' ? '#fff' : theme.colors.textSecondary }]}>
@@ -1399,7 +1567,7 @@ export default function MyBookings() {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.selectorDropdown, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}
               onPress={() => {
                 setShowPropertySwitchModal(true);
@@ -1428,9 +1596,9 @@ export default function MyBookings() {
 
         {/* Main Property Card */}
         <View style={[styles.bookingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-          <Image 
-            source={getImageUrl(property.image)} 
-            style={styles.bookingImage} 
+          <Image
+            source={getImageUrl(property.image)}
+            style={styles.bookingImage}
           />
           <View style={styles.bookingInfo}>
             <View style={styles.bookingHeader}>
@@ -1441,7 +1609,7 @@ export default function MyBookings() {
                 </Text>
               </View>
             </View>
-            
+
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={16} color={theme.colors.textSecondary} />
               <Text style={[styles.locationText, { color: theme.colors.textSecondary }]}>{property.address || property.full_address}</Text>
@@ -1662,7 +1830,7 @@ export default function MyBookings() {
             )}
 
             {booking.isPending && (
-              <View style={[styles.reviewBtnContainer, { gap: 16 }]}> 
+              <View style={[styles.reviewBtnContainer, { gap: 16 }]}>
                 {(booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
                   <>
                     <TouchableOpacity
@@ -1746,72 +1914,72 @@ export default function MyBookings() {
 
         {/* Addons Section */}
         <View style={styles.addonSection}>
-           <View style={styles.addonHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-ons & Extras</Text>
-              {!booking.isPending && (
-                <TouchableOpacity 
-                  style={[
-                    styles.stayHeaderBtn, 
-                    { 
-                      marginTop: 0, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8, 
-                      backgroundColor: booking.paymentStatus === 'refunded' ? theme.colors.textTertiary : theme.colors.primary 
-                    }
-                  ]}
-                  disabled={booking.paymentStatus === 'refunded'}
-                  onPress={() => openAddonModal({ booking, property, addons })}
-                >
-                   <Text style={styles.stayHeaderBtnText}>+ Request</Text>
-                </TouchableOpacity>
-              )}
-           </View>
+          <View style={styles.addonHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-ons & Extras</Text>
+            {!booking.isPending && (
+              <TouchableOpacity
+                style={[
+                  styles.stayHeaderBtn,
+                  {
+                    marginTop: 0, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8,
+                    backgroundColor: booking.paymentStatus === 'refunded' ? theme.colors.textTertiary : theme.colors.primary
+                  }
+                ]}
+                disabled={booking.paymentStatus === 'refunded'}
+                onPress={() => openAddonModal({ booking, property, addons })}
+              >
+                <Text style={styles.stayHeaderBtnText}>+ Request</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-           {!booking.isPending ? (
-             (addons.active?.length > 0 || addons.pending?.length > 0) ? (
-               <>
-                 {addons.active?.map((addon, idx) => (
-                   <View key={`active-${idx}`} style={[styles.addonItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-                      <View style={styles.addonInfo}>
-                         <View style={[styles.addonIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
-                            <Ionicons name="sparkles" size={20} color={theme.colors.primary} />
-                         </View>
-                         <View>
-                            <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
-                            <Text style={[styles.addonSubtext, { color: theme.colors.textSecondary }]}>{addon.priceTypeLabel}</Text>
-                         </View>
+          {!booking.isPending ? (
+            (addons.active?.length > 0 || addons.pending?.length > 0) ? (
+              <>
+                {addons.active?.map((addon, idx) => (
+                  <View key={`active-${idx}`} style={[styles.addonItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                    <View style={styles.addonInfo}>
+                      <View style={[styles.addonIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+                        <Ionicons name="sparkles" size={20} color={theme.colors.primary} />
                       </View>
-                      <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
-                   </View>
-                 ))}
-                 {addons.pending?.map((addon, idx) => (
-                   <View key={`pending-${idx}`} style={[styles.addonItem, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: theme.isDark ? '#fbbf24' : '#FEF3C7', borderWidth: 1 }]}>
-                      <View style={styles.addonInfo}>
-                         <View style={[styles.addonIconContainer, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7' }]}>
-                            <Ionicons name="time" size={20} color={theme.isDark ? '#fbbf24' : '#D97706'} />
-                         </View>
-                         <View>
-                            <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
-                            <Text style={[styles.addonSubtext, { color: theme.isDark ? '#fbbf24' : '#D97706' }]}>Pending Approval</Text>
-                         </View>
+                      <View>
+                        <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
+                        <Text style={[styles.addonSubtext, { color: theme.colors.textSecondary }]}>{addon.priceTypeLabel}</Text>
                       </View>
-                      <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
-                   </View>
-                 ))}
-               </>
-             ) : (
-               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                 <Ionicons name="sparkles-outline" size={32} color={theme.colors.textTertiary} style={{ opacity: 0.5 }} />
-                 <Text style={{ color: theme.colors.textTertiary, fontSize: 13, marginTop: 8 }}>No add-ons requested yet.</Text>
-               </View>
-             )
-           ) : (
-             <View style={{ paddingVertical: 24, alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
-               <Ionicons name="time-outline" size={32} color={theme.isDark ? '#fbbf24' : '#D97706'} style={{ opacity: 0.7 }} />
-               <Text style={{ color: theme.isDark ? '#fbbf24' : '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
-               <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
-                 Add-ons will be available once your booking is confirmed.
-               </Text>
-             </View>
-           )}
+                    </View>
+                    <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
+                  </View>
+                ))}
+                {addons.pending?.map((addon, idx) => (
+                  <View key={`pending-${idx}`} style={[styles.addonItem, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: theme.isDark ? '#fbbf24' : '#FEF3C7', borderWidth: 1 }]}>
+                    <View style={styles.addonInfo}>
+                      <View style={[styles.addonIconContainer, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7' }]}>
+                        <Ionicons name="time" size={20} color={theme.isDark ? '#fbbf24' : '#D97706'} />
+                      </View>
+                      <View>
+                        <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
+                        <Text style={[styles.addonSubtext, { color: theme.isDark ? '#fbbf24' : '#D97706' }]}>Pending Approval</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
+                  </View>
+                ))}
+              </>
+            ) : (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <Ionicons name="sparkles-outline" size={32} color={theme.colors.textTertiary} style={{ opacity: 0.5 }} />
+                <Text style={{ color: theme.colors.textTertiary, fontSize: 13, marginTop: 8 }}>No add-ons requested yet.</Text>
+              </View>
+            )
+          ) : (
+            <View style={{ paddingVertical: 24, alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
+              <Ionicons name="time-outline" size={32} color={theme.isDark ? '#fbbf24' : '#D97706'} style={{ opacity: 0.7 }} />
+              <Text style={{ color: theme.isDark ? '#fbbf24' : '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
+                Add-ons will be available once your booking is confirmed.
+              </Text>
+            </View>
+          )}
         </View>
 
         {!booking.isPending && (
@@ -1867,31 +2035,31 @@ export default function MyBookings() {
 
         {/* Landlord Contact */}
         <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-           <View style={styles.sectionHeader}>
-              <Ionicons name="person-outline" size={20} color={theme.colors.primary} />
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Property Manager</Text>
-           </View>
-           <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-              <View style={[styles.avatarSmall, { backgroundColor: theme.colors.primaryLight }]}>
-                 <Text style={[styles.avatarSmallText, { color: theme.colors.primary }]}>
-                   {landlord?.name?.charAt(0) || landlord?.first_name?.charAt(0) || '?'}
-                 </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                 <Text style={[styles.managerName, { color: theme.colors.text }]}>{landlord?.name || `${landlord?.first_name} ${landlord?.last_name}`}</Text>
-                 <Text style={[styles.managerEmail, { color: theme.colors.textSecondary }]}>{landlord?.email}</Text>
-              </View>
-              <TouchableOpacity
-                style={{ padding: 8, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 8 }}
-                onPress={() => navigation.navigate('Messages', { 
-                  startConversation: true,
-                  recipient: landlord?.id ? { id: landlord.id } : null,
-                  property: property?.id ? { id: property.id } : null,
-                })}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.colors.primary} />
-              </TouchableOpacity>
-           </View>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="person-outline" size={20} color={theme.colors.primary} />
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Property Manager</Text>
+          </View>
+          <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <View style={[styles.avatarSmall, { backgroundColor: theme.colors.primaryLight }]}>
+              <Text style={[styles.avatarSmallText, { color: theme.colors.primary }]}>
+                {landlord?.name?.charAt(0) || landlord?.first_name?.charAt(0) || '?'}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.managerName, { color: theme.colors.text }]}>{landlord?.name || `${landlord?.first_name} ${landlord?.last_name}`}</Text>
+              <Text style={[styles.managerEmail, { color: theme.colors.textSecondary }]}>{landlord?.email}</Text>
+            </View>
+            <TouchableOpacity
+              style={{ padding: 8, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 8 }}
+              onPress={() => navigation.navigate('Messages', {
+                startConversation: true,
+                recipient: landlord?.id ? { id: landlord.id } : null,
+                property: property?.id ? { id: property.id } : null,
+              })}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -1903,7 +2071,7 @@ export default function MyBookings() {
     if (historyData.length === 0) {
       return (
         <View style={styles.content}>
-           <View style={styles.emptyHistoryCard}>
+          <View style={styles.emptyHistoryCard}>
             <Ionicons name="time-outline" size={64} color={theme.colors.textTertiary} style={styles.emptyHistoryIcon} />
             <Text style={[styles.emptyTitle, styles.emptyHistoryTitle, { color: theme.colors.text }]}>No Past Stays</Text>
             <Text style={[styles.emptyText, styles.emptyHistoryText, { color: theme.colors.textSecondary }]}>
@@ -1936,33 +2104,33 @@ export default function MyBookings() {
     return (
       <View style={styles.content}>
         {historyData.map((booking) => (
-          <TouchableOpacity 
-            key={booking.id} 
+          <TouchableOpacity
+            key={booking.id}
             style={[styles.bookingCard, styles.historyItemCard]}
             onPress={() => navigation.navigate('BookingDetails', { bookingId: booking.id, propertyId: booking.property?.id || booking.property_id })}
           >
             <View style={{ padding: 16 }}>
               <View style={{ flexDirection: 'row', gap: 16, marginBottom: 16 }}>
-                 <Image source={getImageUrl(booking.property?.image || booking.property_image)} style={styles.historyItemImage} />
-                 <View style={styles.historyItemContent}>
-                    <Text style={[styles.bookingName, styles.historyItemName, { color: theme.colors.text }]}>
-                      {booking.property?.title || booking.property_title || 'Past Stay'}
+                <Image source={getImageUrl(booking.property?.image || booking.property_image)} style={styles.historyItemImage} />
+                <View style={styles.historyItemContent}>
+                  <Text style={[styles.bookingName, styles.historyItemName, { color: theme.colors.text }]}>
+                    {booking.property?.title || booking.property_title || 'Past Stay'}
+                  </Text>
+                  <Text style={[styles.historyItemDate, { color: theme.colors.textSecondary }]}>
+                    {formatDate(booking.period?.startDate || booking.start_date)} - {formatDate(booking.period?.endDate || booking.end_date)}
+                  </Text>
+                  <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status), fontSize: 10 }]}>
+                      {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
                     </Text>
-                    <Text style={[styles.historyItemDate, { color: theme.colors.textSecondary }]}>
-                      {formatDate(booking.period?.startDate || booking.start_date)} - {formatDate(booking.period?.endDate || booking.end_date)}
-                    </Text>
-                    <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
-                      <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status), fontSize: 10 }]}>
-                        {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
-                      </Text>
-                    </View>
-                 </View>
-                 <View style={styles.historyItemRight}>
-                    <Text style={{ fontSize: 11, color: theme.colors.textTertiary, textTransform: 'uppercase', fontWeight: 'bold' }}>Total Paid</Text>
-                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: theme.colors.primary, marginTop: 2 }}>
-                      {formatCurrency(booking.financials?.totalPaid || booking.amount)}
-                    </Text>
-                 </View>
+                  </View>
+                </View>
+                <View style={styles.historyItemRight}>
+                  <Text style={{ fontSize: 11, color: theme.colors.textTertiary, textTransform: 'uppercase', fontWeight: 'bold' }}>Total Paid</Text>
+                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: theme.colors.primary, marginTop: 2 }}>
+                    {formatCurrency(booking.financials?.totalPaid || booking.amount)}
+                  </Text>
+                </View>
               </View>
 
               {String(booking.status || '').toLowerCase() === 'cancelled' && (booking.cancellation_reason || booking.cancellationReason) && (
@@ -2008,7 +2176,7 @@ export default function MyBookings() {
 
               {/* Review Button for History */}
               {['completed', 'confirmed'].includes(booking.status?.toLowerCase()) && !booking.has_review && !booking.hasReview && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.reviewBtn, { backgroundColor: theme.colors.primary, marginTop: 0, marginBottom: 16, width: '100%' }]}
                   onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: booking.property?.id || booking.property_id })}
                 >
@@ -2049,15 +2217,15 @@ export default function MyBookings() {
   return (
     <View style={styles.container}>
       {renderTabs()}
-      
+
       {loading && !refreshing ? (
         <ScrollView style={styles.content}>
-           <BookingCardSkeleton />
-           <BookingCardSkeleton />
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
         </ScrollView>
       ) : (
         <View style={{ flex: 1 }}>
-          <ScrollView 
+          <ScrollView
             style={{ flex: 1 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
           >
@@ -2616,9 +2784,9 @@ export default function MyBookings() {
                   <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary }}>
                     💰 Financial Impact Preview
                   </Text>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => showAlert(
-                      'Proration Rule', 
+                      'Proration Rule',
                       'Rent is prorated based on a standard 30-day month: (Monthly Rent ÷ 30) × remaining days. Any transfer processing fee is deducted from your unused credit.'
                     )}
                     style={{ marginLeft: 6, paddingHorizontal: 4 }}

@@ -218,8 +218,30 @@ export const getStyles = (theme) => StyleSheet.create({
   eyeIcon: {
     padding: 8,
   },
+  authQuickActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: -4,
+    marginBottom: 2,
+  },
+  rememberDeviceAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    flexShrink: 1,
+  },
+  rememberDeviceCheckbox: {
+    marginRight: 10,
+    marginTop: 0,
+  },
+  rememberDeviceText: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
   forgotPassword: {
-    alignSelf: 'flex-end',
+    paddingVertical: 4,
   },
   forgotPasswordText: {
     fontSize: 14,

@@ -403,6 +403,14 @@ class User extends Authenticatable
         return $this->notifications()->where('is_read', false);
     }
 
+    /**
+     * Registered device push tokens for Expo notifications.
+     */
+    public function pushTokens()
+    {
+        return $this->hasMany(DevicePushToken::class, 'user_id');
+    }
+
     public function getCaretakerPermissionsAttribute(): array
     {
         if (! $this->isCaretaker()) {

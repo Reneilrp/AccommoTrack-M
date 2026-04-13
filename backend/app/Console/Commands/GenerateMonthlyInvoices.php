@@ -84,7 +84,14 @@ class GenerateMonthlyInvoices extends Command
                 ->where('payment_plan', 'monthly')
                 ->where(function ($query) use ($today) {
                     $query->whereNull('next_billing_date')
-                        ->orWhereDate('next_billing_date', '<=', $today->toDateString());
+                        ->orWhere(function ($openEnded) use ($today) {
+                            $openEnded->whereNull('end_date')
+                                ->whereDate('next_billing_date', '<=', $today->copy()->addDays(5)->toDateString());
+                        })
+                        ->orWhere(function ($fixedTerm) use ($today) {
+                            $fixedTerm->whereNotNull('end_date')
+                                ->whereDate('next_billing_date', '<=', $today->toDateString());
+                        });
                 })
                 ->get();
 
@@ -139,7 +146,12 @@ class GenerateMonthlyInvoices extends Command
 
             $billingDate = Carbon::parse($booking->next_billing_date)->startOfDay();
             if ($billingDate->isFuture()) {
-                return 'skipped';
+                $openEndedAdvanceWindow = Carbon::today()->addDays(5)->startOfDay();
+                $isOpenEnded = is_null($booking->end_date);
+
+                if (! $isOpenEnded || $billingDate->gt($openEndedAdvanceWindow)) {
+                    return 'skipped';
+                }
             }
 
             if ($booking->end_date && $billingDate->gt(Carbon::parse($booking->end_date))) {

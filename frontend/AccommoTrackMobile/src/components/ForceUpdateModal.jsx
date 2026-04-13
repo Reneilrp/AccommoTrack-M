@@ -1,19 +1,59 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, Linking, StyleSheet, TouchableWithoutFeedback } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = false, onLater }) => {
   const { theme } = useTheme();
-  
-  const handleDownload = () => {
-    if (downloadUrl) {
-      Linking.openURL(downloadUrl).catch(err => console.error("Couldn't exacted link", err));
+  const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const handleDownload = async () => {
+    if (!downloadUrl) return;
+
+    setDownloading(true);
+    setProgress(0);
+
+    try {
+      // 1. Setup the download tracker
+      const callback = downloadProgress => {
+        const currentProgress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+        setProgress(currentProgress);
+      };
+
+      const downloadResumable = FileSystem.createDownloadResumable(
+        downloadUrl,
+        FileSystem.documentDirectory + 'AccommoTrack_update.apk',
+        {},
+        callback
+      );
+
+      // 2. Execute the download
+      const { uri } = await downloadResumable.downloadAsync();
+
+      // 3. Convert local file URI to content URI (Required for Android 7+)
+      const contentUri = await FileSystem.getContentUriAsync(uri);
+
+      // 4. Trigger the Android Package Installer natively
+      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+        data: contentUri,
+        flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        type: 'application/vnd.android.package-archive',
+      });
+
+    } catch (error) {
+      console.error("APK Sideloading failed:", error);
+      // Fallback: If intent fails or OS blocks it unexpectedly, open browser
+      Linking.openURL(downloadUrl).catch(err => console.error("Couldn't open link", err));
+    } finally {
+      setDownloading(false);
     }
   };
 
   const handleClose = () => {
-    if (!required && typeof onLater === 'function') {
+    if (!required && typeof onLater === 'function' && !downloading) {
       onLater();
     }
   };
@@ -27,11 +67,11 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
     >
       <TouchableWithoutFeedback onPress={handleClose}>
         <View style={styles.overlay}>
-          <TouchableWithoutFeedback onPress={() => {}}>
+          <TouchableWithoutFeedback onPress={() => { }}>
             <View style={[styles.container, { backgroundColor: theme.colors.card || '#ffffff' }]}>
-              {!required && (
-                <TouchableOpacity 
-                  style={styles.closeButton} 
+              {!required && !downloading && (
+                <TouchableOpacity
+                  style={styles.closeButton}
                   onPress={handleClose}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -42,36 +82,48 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
               <View style={styles.iconContainer}>
                 <Ionicons name="cloud-download" size={48} color={theme.colors.primary} />
               </View>
-              
+
               <Text style={[styles.title, { color: theme.colors.text }]}>
                 {required ? 'Update Required' : 'Update Available'}
               </Text>
-              
+
               <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
                 {required
                   ? `A new version of AccommoTrack (${latestVersion}) is available. Please update the app to continue using it.`
                   : `A new version of AccommoTrack (${latestVersion}) is available. You can update now or later from Settings.`}
               </Text>
 
-              <View style={[styles.actions, !required ? styles.actionsRow : null]}>
-                {!required ? (
+              {/* Progress UI injected here */}
+              {downloading ? (
+                <View style={styles.progressContainer}>
+                  <Text style={[styles.progressText, { color: theme.colors.text }]}>
+                    Downloading... {Math.round(progress * 100)}%
+                  </Text>
+                  <View style={[styles.progressBarBackground, { backgroundColor: theme.colors.border }]}>
+                    <View style={[styles.progressBarFill, { backgroundColor: theme.colors.primary, width: `${progress * 100}%` }]} />
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.actions, !required ? styles.actionsRow : null]}>
+                  {!required ? (
+                    <TouchableOpacity
+                      style={[styles.button, styles.secondaryButton, { borderColor: theme.colors.border }]}
+                      onPress={onLater}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>Later</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
                   <TouchableOpacity
-                    style={[styles.button, styles.secondaryButton, { borderColor: theme.colors.border }]}
-                    onPress={onLater}
+                    style={[styles.button, { backgroundColor: theme.colors.primary, flex: required ? 0 : 1 }]}
+                    onPress={handleDownload}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>Later</Text>
+                    <Text style={styles.buttonText}>Download Update</Text>
                   </TouchableOpacity>
-                ) : null}
-
-                <TouchableOpacity
-                  style={[styles.button, { backgroundColor: theme.colors.primary, flex: required ? 0 : 1 }]}
-                  onPress={handleDownload}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.buttonText}>Download Update</Text>
-                </TouchableOpacity>
-              </View>
+                </View>
+              )}
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -153,6 +205,26 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  progressContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  progressBarBackground: {
+    width: '100%',
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 5,
   },
 });
 

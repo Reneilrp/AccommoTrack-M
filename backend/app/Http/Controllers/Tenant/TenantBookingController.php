@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class TenantBookingController extends Controller
 {
@@ -226,6 +227,14 @@ class TenantBookingController extends Controller
      */
     public function createInvoice(Request $request, $id)
     {
+        $validated = $request->validate([
+            'start_from' => 'nullable|in:current,next',
+            'months_count' => 'nullable|integer|min:1|max:2',
+        ]);
+
+        $startFrom = strtolower((string) ($validated['start_from'] ?? 'current'));
+        $monthsCount = max(1, min((int) ($validated['months_count'] ?? 1), 2));
+
         DB::beginTransaction();
         try {
             $booking = Booking::with(['room', 'property'])
@@ -234,11 +243,78 @@ class TenantBookingController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // Only allow invoice creation for confirmed bookings
-            if ($booking->status !== 'confirmed') {
+            // Allow invoice creation for active monthly stays as well.
+            if (! in_array($booking->status, ['confirmed', 'active'], true)) {
                 DB::rollBack();
 
-                return response()->json(['message' => 'Invoice can only be created for confirmed bookings'], 422);
+                return response()->json(['message' => 'Invoice can only be created for confirmed or active bookings'], 422);
+            }
+
+            if (strtolower((string) ($booking->payment_plan ?? 'monthly')) !== 'monthly') {
+                DB::rollBack();
+
+                return response()->json(['message' => 'On-demand invoice generation is only available for monthly payment plans'], 422);
+            }
+
+            if ($startFrom === 'next') {
+                $this->initializeMonthlyBillingState($booking);
+
+                if (! $booking->next_billing_date) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No upcoming billing date is available for this booking.',
+                    ], 422);
+                }
+
+                $basePeriodStart = Carbon::parse($booking->next_billing_date)->startOfDay();
+                $bookingEndDate = $booking->end_date ? Carbon::parse($booking->end_date)->startOfDay() : null;
+
+                $createdInvoices = [];
+                $existingInvoices = [];
+                $skippedPeriods = [];
+
+                for ($monthIndex = 0; $monthIndex < $monthsCount; $monthIndex++) {
+                    $periodStart = $basePeriodStart->copy()->addMonthsNoOverflow($monthIndex)->startOfDay();
+
+                    if ($bookingEndDate && $periodStart->gt($bookingEndDate)) {
+                        $skippedPeriods[] = [
+                            'billing_period_start' => $periodStart->toDateString(),
+                            'reason' => 'outside_booking_end_date',
+                        ];
+                        continue;
+                    }
+
+                    $existing = $this->findMonthlyRentInvoiceForPeriod($booking, $periodStart);
+                    if ($existing) {
+                        $existingInvoices[] = $existing;
+                        continue;
+                    }
+
+                    $invoice = $this->createMonthlyRentInvoiceForPeriod($booking, $periodStart);
+                    if ($invoice) {
+                        $createdInvoices[] = $invoice;
+                    } else {
+                        $skippedPeriods[] = [
+                            'billing_period_start' => $periodStart->toDateString(),
+                            'reason' => 'zero_amount',
+                        ];
+                    }
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'start_from' => 'next',
+                        'months_count' => $monthsCount,
+                        'created' => $createdInvoices,
+                        'existing' => $existingInvoices,
+                        'skipped' => $skippedPeriods,
+                    ],
+                ], ! empty($createdInvoices) ? 201 : 200);
             }
 
             // Create an invoice for the current billing cycle.
@@ -341,6 +417,114 @@ class TenantBookingController extends Controller
 
             return response()->json(['success' => false, 'message' => 'Failed to create invoice', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    private function initializeMonthlyBillingState(Booking $booking): void
+    {
+        $dirty = false;
+        $startDate = Carbon::parse($booking->start_date)->startOfDay();
+
+        if (! $booking->billing_day) {
+            $booking->billing_day = (int) $startDate->day;
+            $dirty = true;
+        }
+
+        if (! $booking->next_billing_date) {
+            $nextBillingDate = $startDate->copy()->addMonthNoOverflow();
+
+            if (($booking->room->billing_policy ?? 'monthly') !== 'daily' && optional($booking->room)->requiresAdvance()) {
+                $nextBillingDate = $nextBillingDate->addMonthNoOverflow();
+            }
+
+            $latestDueDate = $booking->invoices()
+                ->whereNotNull('due_date')
+                ->orderByDesc('due_date')
+                ->value('due_date');
+
+            if ($latestDueDate) {
+                $candidate = Carbon::parse($latestDueDate)->addMonthNoOverflow();
+                if ($candidate->gt($nextBillingDate)) {
+                    $nextBillingDate = $candidate;
+                }
+            }
+
+            $booking->next_billing_date = $nextBillingDate->toDateString();
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $booking->save();
+        }
+    }
+
+    private function findMonthlyRentInvoiceForPeriod(Booking $booking, Carbon $periodStart): ?Invoice
+    {
+        $periodKey = $periodStart->format('Y-m-d');
+
+        return Invoice::query()
+            ->where('booking_id', $booking->id)
+            ->where('invoice_type', 'rent')
+            ->where(function ($query) use ($periodKey, $periodStart) {
+                $query->where('billing_period_key', $periodKey)
+                    ->orWhere(function ($legacy) use ($periodStart) {
+                        $legacy->whereNull('billing_period_key')
+                            ->whereYear('issued_at', $periodStart->year)
+                            ->whereMonth('issued_at', $periodStart->month);
+                    });
+            })
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function resolveRecurringAddonAmountForPeriod(Booking $booking, Carbon $periodStart): float
+    {
+        return (float) $booking->addons()
+            ->where('booking_addons.status', 'active')
+            ->where('price_type', 'monthly')
+            ->where(function ($query) use ($periodStart) {
+                $query->whereNull('booking_addons.cancellation_effective_at')
+                    ->orWhere('booking_addons.cancellation_effective_at', '>', $periodStart);
+            })
+            ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+    }
+
+    private function createMonthlyRentInvoiceForPeriod(Booking $booking, Carbon $periodStart): ?Invoice
+    {
+        $periodEnd = $periodStart->copy()->addMonthNoOverflow()->subDay();
+        $periodKey = $periodStart->format('Y-m-d');
+
+        $recurringAddonAmount = $this->resolveRecurringAddonAmountForPeriod($booking, $periodStart);
+        $monthlyRent = (float) ($booking->monthly_rent ?? $booking->room->monthly_rate ?? 0);
+        $baseInvoiceAmount = $monthlyRent + $recurringAddonAmount;
+
+        if ($baseInvoiceAmount <= 0) {
+            return null;
+        }
+
+        $reference = 'INV-'.$periodStart->format('Ym').'-'.Str::upper(Str::random(6));
+
+        return Invoice::create([
+            'reference' => $reference,
+            'landlord_id' => $booking->landlord_id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $booking->tenant_id,
+            'description' => 'Monthly rent and services for '.$periodStart->format('F Y'),
+            'invoice_type' => 'rent',
+            'billing_period_start' => $periodStart,
+            'billing_period_end' => $periodEnd,
+            'billing_period_key' => $periodKey,
+            'amount_cents' => (int) round($baseInvoiceAmount * 100),
+            'currency' => 'PHP',
+            'status' => 'pending',
+            'issued_at' => now(),
+            'due_date' => $periodStart,
+            'metadata' => [
+                'generated_by' => 'tenant_on_demand',
+                'billing_period' => $periodStart->format('Y-m'),
+                'billing_period_key' => $periodKey,
+            ],
+        ]);
     }
 
     /**

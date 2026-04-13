@@ -17,6 +17,12 @@ class TenantBookingInvoiceCreationGuardTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     public function test_create_invoice_returns_existing_rent_invoice_for_same_billing_period(): void
     {
         [$tenant, $booking, $landlord] = $this->createScenario();
@@ -82,6 +88,76 @@ class TenantBookingInvoiceCreationGuardTest extends TestCase
         $this->assertSame('rent', $invoice->invoice_type);
         $this->assertSame($periodKey, $invoice->billing_period_key);
         $this->assertSame($booking->id, $invoice->booking_id);
+    }
+
+    public function test_create_invoice_can_generate_advance_next_two_months_with_deduping(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-14'));
+
+        [$tenant, $booking, $landlord] = $this->createScenario();
+
+        $booking->update([
+            'status' => 'active',
+            'end_date' => null,
+            'billing_day' => 14,
+            'next_billing_date' => '2026-05-14',
+        ]);
+
+        $existingUpcoming = Invoice::create([
+            'reference' => 'INV-TENANT-ADVANCE-'.uniqid(),
+            'landlord_id' => $landlord->id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $tenant->id,
+            'description' => 'Existing upcoming monthly invoice',
+            'invoice_type' => 'rent',
+            'billing_period_start' => '2026-05-14',
+            'billing_period_end' => '2026-06-13',
+            'billing_period_key' => '2026-05-14',
+            'amount_cents' => 1000000,
+            'total_cents' => 1000000,
+            'currency' => 'PHP',
+            'status' => 'pending',
+            'issued_at' => now()->subDay(),
+            'due_date' => '2026-05-14',
+        ]);
+
+        Sanctum::actingAs($tenant);
+
+        $response = $this->postJson('/api/tenant/bookings/'.$booking->id.'/invoice', [
+            'start_from' => 'next',
+            'months_count' => 2,
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.start_from', 'next')
+            ->assertJsonPath('data.months_count', 2);
+
+        $created = $response->json('data.created', []);
+        $existing = $response->json('data.existing', []);
+
+        $this->assertCount(1, $created);
+        $this->assertCount(1, $existing);
+        $this->assertSame($existingUpcoming->id, $existing[0]['id']);
+
+        $this->assertSame(
+            1,
+            Invoice::query()
+                ->where('booking_id', $booking->id)
+                ->where('invoice_type', 'rent')
+                ->where('billing_period_key', '2026-05-14')
+                ->count()
+        );
+
+        $this->assertSame(
+            1,
+            Invoice::query()
+                ->where('booking_id', $booking->id)
+                ->where('invoice_type', 'rent')
+                ->where('billing_period_key', '2026-06-14')
+                ->count()
+        );
     }
 
     /**

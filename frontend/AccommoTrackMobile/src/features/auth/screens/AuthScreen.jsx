@@ -1329,23 +1329,25 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               </View>
               {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
 
-              <TouchableOpacity
-                onPress={() => setRememberDevice((prev) => !prev)}
-                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
-                disabled={loading}
-              >
-                <View style={[styles.checkbox, { marginRight: 10, marginTop: 0 }, rememberDevice && styles.checkboxChecked]}>
-                  {rememberDevice ? (
-                    <Ionicons name="checkmark" size={14} color={theme.colors.textInverse} />
-                  ) : null}
-                </View>
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 13, fontWeight: '500' }}>
-                  Remember this device
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.authQuickActionsRow}>
+                <TouchableOpacity
+                  onPress={() => setRememberDevice((prev) => !prev)}
+                  style={styles.rememberDeviceAction}
+                  disabled={loading}
+                >
+                  <View style={[styles.checkbox, styles.rememberDeviceCheckbox, rememberDevice && styles.checkboxChecked]}>
+                    {rememberDevice ? (
+                      <Ionicons name="checkmark" size={14} color={theme.colors.textInverse} />
+                    ) : null}
+                  </View>
+                  <Text style={styles.rememberDeviceText}>Remember this device</Text>
+                </TouchableOpacity>
 
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
-                <TouchableOpacity onPress={() => setShowForgotPasswordModal(true)}>
+                <TouchableOpacity
+                  onPress={() => setShowForgotPasswordModal(true)}
+                  style={styles.forgotPassword}
+                  disabled={loading}
+                >
                   <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>

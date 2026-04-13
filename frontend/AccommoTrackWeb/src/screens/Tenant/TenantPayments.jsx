@@ -19,7 +19,7 @@ export default function TenantPayments({ user }) {
     statusFilter: "all",
     timeRange: "m"
   };
-  
+
   // Use cached data for instant mount
   const cachedData = uiState.data?.wallet;
 
@@ -29,6 +29,7 @@ export default function TenantPayments({ user }) {
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
+  const [processingPaymentKey, setProcessingPaymentKey] = useState(null);
   const initialLoadRef = useRef(!cachedData);
   const hadCachedDataOnMountRef = useRef(Boolean(cachedData));
   const didInitialFetchRef = useRef(false);
@@ -102,7 +103,7 @@ export default function TenantPayments({ user }) {
   // Real-time updates
   useEffect(() => {
     if (!user?.id) return;
-    
+
     const echo = createEcho();
     if (!echo) return;
 
@@ -118,6 +119,104 @@ export default function TenantPayments({ user }) {
       echo.disconnect();
     };
   }, [user?.id, loadData]);
+
+  const resolvePaymentEntryKey = useCallback((payment) => {
+    if (!payment || typeof payment !== 'object') return null;
+    return payment?.id || payment?.invoice_id || payment?.invoiceId || payment?.booking_id || payment?.bookingId || null;
+  }, []);
+
+  const resolveNearestInvoiceId = useCallback((payload) => {
+    const created = Array.isArray(payload?.created) ? payload.created : [];
+    const existing = Array.isArray(payload?.existing) ? payload.existing : [];
+
+    const invoices = [...created, ...existing]
+      .filter((invoice) => invoice && invoice.id)
+      .sort((a, b) => {
+        const aDate = new Date(a?.due_date || a?.billing_period_start || a?.created_at || 0).getTime();
+        const bDate = new Date(b?.due_date || b?.billing_period_start || b?.created_at || 0).getTime();
+        return aDate - bDate;
+      });
+
+    return invoices.length > 0 ? invoices[0].id : null;
+  }, []);
+
+  const openCheckout = useCallback(async (payment, options = {}) => {
+    const startFrom = options?.startFrom === 'next' ? 'next' : 'current';
+    const monthsCount = Math.max(1, Math.min(Number(options?.monthsCount) || 1, 2));
+
+    if (tenantPaymentsTempDisabled) {
+      toast.error('Tenant payments are temporarily unavailable.');
+      return;
+    }
+
+    const bookingId = payment?.bookingId || payment?.booking_id || null;
+    let invoiceId = payment?.invoiceId || payment?.invoice_id || payment?.id || null;
+    const entryKey = resolvePaymentEntryKey(payment) || bookingId || invoiceId;
+
+    try {
+      setProcessingPaymentKey(entryKey);
+
+      if (startFrom === 'next') {
+        if (!bookingId) {
+          toast.error('This payment has no booking link for advance generation.');
+          return;
+        }
+
+        const response = await paymentService.createAdvanceBookingInvoices(bookingId, monthsCount);
+        if (!response.success || !response.data) {
+          toast.error(response.error || 'Failed to prepare advance invoice checkout.');
+          return;
+        }
+
+        invoiceId = resolveNearestInvoiceId(response.data);
+        if (!invoiceId) {
+          toast.error('No payable advance invoice was generated for this booking.');
+          return;
+        }
+
+        if (monthsCount > 1) {
+          const generatedCount = [
+            ...(Array.isArray(response.data?.created) ? response.data.created : []),
+            ...(Array.isArray(response.data?.existing) ? response.data.existing : []),
+          ].filter((invoice) => invoice && invoice.id).length;
+
+          if (generatedCount > 1) {
+            toast.success('Advance invoices are ready. Opening nearest due invoice first.');
+          }
+        }
+
+        navigate(`/checkout/${invoiceId}`);
+        return;
+      }
+
+      if (!invoiceId) {
+        if (!bookingId) {
+          toast.error('No booking or invoice linked to this payment.');
+          return;
+        }
+
+        const response = await paymentService.createBookingInvoice(bookingId);
+        if (!response.success || !response.data) {
+          toast.error(response.error || 'Failed to prepare invoice checkout.');
+          return;
+        }
+
+        invoiceId = response.data?.id || response.data?.data?.id || null;
+      }
+
+      if (!invoiceId) {
+        toast.error('Unable to resolve invoice checkout for this payment.');
+        return;
+      }
+
+      navigate(`/checkout/${invoiceId}`);
+    } catch (err) {
+      console.error('Checkout resolution error:', err);
+      toast.error(startFrom === 'next' ? 'Failed to prepare advance invoice checkout.' : 'Failed to prepare invoice checkout.');
+    } finally {
+      setProcessingPaymentKey(null);
+    }
+  }, [navigate, resolveNearestInvoiceId, resolvePaymentEntryKey, tenantPaymentsTempDisabled]);
 
   const filterOptions = [
     { value: 'all', label: 'All Payments' },
@@ -237,6 +336,12 @@ export default function TenantPayments({ user }) {
           </div>
         )}
 
+        {!tenantPaymentsTempDisabled && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+            Tip: For booking-linked items, you can pay Current Due, Next Month, or Next 2 Months.
+          </div>
+        )}
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             <div className="relative w-full lg:w-80 shrink-0">
@@ -264,11 +369,10 @@ export default function TenantPayments({ user }) {
                 <button
                   key={option.value}
                   onClick={() => updateScreenState('wallet', { statusFilter: option.value })}
-                  className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${
-                    statusFilter === option.value
+                  className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${statusFilter === option.value
                       ? 'bg-green-600 text-white shadow-md shadow-green-500/20'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
+                    }`}
                 >
                   {option.label}
                 </button>
@@ -281,11 +385,10 @@ export default function TenantPayments({ user }) {
                   <button
                     key={r.value}
                     onClick={() => updateScreenState('wallet', { timeRange: r.value })}
-                    className={`px-3 py-2 text-xs font-bold rounded-md transition-colors ${
-                      timeRange === r.value
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-colors ${timeRange === r.value
                         ? 'bg-green-600 text-white'
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
+                      }`}
                   >
                     {r.label}
                   </button>
@@ -345,12 +448,33 @@ export default function TenantPayments({ user }) {
                       <td className="px-6 py-4 text-sm font-mono text-gray-700 dark:text-gray-300">{payment.referenceNo || '—'}</td>
                       <td className="px-6 py-4 text-sm">
                         {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) ? (
-                          <button
-                            onClick={() => navigate(`/checkout/${payment.id}`)}
-                            className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap"
-                          >
-                            Pay Now
-                          </button>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => openCheckout(payment)}
+                              disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
+                              className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap disabled:opacity-60"
+                            >
+                              {processingPaymentKey === resolvePaymentEntryKey(payment) ? 'Processing...' : 'Pay Due'}
+                            </button>
+                            {(payment?.bookingId || payment?.booking_id) && (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => openCheckout(payment, { startFrom: 'next', monthsCount: 1 })}
+                                  disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
+                                  className="px-3 py-1.5 bg-blue-600 text-white text-[11px] font-bold rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap disabled:opacity-60"
+                                >
+                                  Next
+                                </button>
+                                <button
+                                  onClick={() => openCheckout(payment, { startFrom: 'next', monthsCount: 2 })}
+                                  disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
+                                  className="px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-md hover:bg-indigo-700 transition-colors whitespace-nowrap disabled:opacity-60"
+                                >
+                                  2 Mo
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-xs text-gray-500">—</span>
                         )}
@@ -418,12 +542,33 @@ export default function TenantPayments({ user }) {
                     <p className="text-xs text-gray-500 dark:text-gray-500 font-mono">Ref: {payment.referenceNo}</p>
                   )}
                   {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
-                    <button
-                      onClick={() => navigate(`/checkout/${payment.id}`)}
-                      className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors"
-                    >
-                      Pay Now
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => openCheckout(payment)}
+                        disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
+                        className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-60"
+                      >
+                        {processingPaymentKey === resolvePaymentEntryKey(payment) ? 'Processing...' : 'Pay Due'}
+                      </button>
+                      {(payment?.bookingId || payment?.booking_id) && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => openCheckout(payment, { startFrom: 'next', monthsCount: 1 })}
+                            disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
+                            className="py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+                          >
+                            Next Month
+                          </button>
+                          <button
+                            onClick={() => openCheckout(payment, { startFrom: 'next', monthsCount: 2 })}
+                            disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
+                            className="py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                          >
+                            Next 2 Months
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               ));

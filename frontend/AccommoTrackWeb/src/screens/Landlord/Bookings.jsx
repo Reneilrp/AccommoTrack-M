@@ -802,9 +802,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         <td className="px-6 py-4">
                           <p className="font-bold text-gray-900 dark:text-white">{b.propertyTitle}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Room {b.roomNumber}</p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-1">
-                            Mode: {getBookingModeLabel(b)} · Beds: {resolveBedCount(b)} · {getOccupancySummary(b)}
-                          </p>
+                          {String(b.booking_mode || b.bookingMode || 'normal').toLowerCase() === 'proxy' && (
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-1">
+                              Mode: {getBookingModeLabel(b)} · Beds: {resolveBedCount(b)} · {getOccupancySummary(b)}
+                            </p>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
                           <p>{formatDate(b.checkIn)}</p>

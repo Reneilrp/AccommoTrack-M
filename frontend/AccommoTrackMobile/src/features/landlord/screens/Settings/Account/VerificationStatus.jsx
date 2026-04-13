@@ -36,6 +36,12 @@ const DOCUMENT_SUBMISSION_STATUSES = new Set([
   "rejected",
   "partial_verified",
 ]);
+const IMAGE_EXTENSION_TO_MIME = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
 
 export default function VerificationStatus({ navigation }) {
   const { theme } = useTheme();
@@ -122,10 +128,21 @@ export default function VerificationStatus({ navigation }) {
     console.error("Error fetching verification data:", fetchError);
   }, [fetchError]);
 
+  const resolveImageMimeType = (asset) => {
+    const explicitType = String(asset?.mimeType || asset?.type || "").toLowerCase();
+    if (explicitType.startsWith("image/")) {
+      return explicitType;
+    }
+
+    const uriOrName = String(asset?.fileName || asset?.uri || "");
+    const extension = uriOrName.split(".").pop()?.toLowerCase() || "";
+    return IMAGE_EXTENSION_TO_MIME[extension] || "image/jpeg";
+  };
+
   const updatePickedDocument = (field, asset) => {
-    const filename = asset.uri.split("/").pop();
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : "image/jpeg";
+    const fallbackName = `${field}-${Date.now()}.jpg`;
+    const filename = asset.fileName || asset.uri.split("/").pop() || fallbackName;
+    const type = resolveImageMimeType(asset);
 
     setFormData((prev) => ({
       ...prev,
@@ -206,6 +223,19 @@ export default function VerificationStatus({ navigation }) {
         "Validation",
         "Please select an ID type and upload your valid ID plus business/accommodation permit.",
       );
+      return;
+    }
+
+    if (!String(formData.validIdFront?.type || "").toLowerCase().startsWith("image/")) {
+      showAlert("Validation", "Valid ID front must be uploaded as an image.");
+      return;
+    }
+
+    if (
+      formData.validIdBack
+      && !String(formData.validIdBack?.type || "").toLowerCase().startsWith("image/")
+    ) {
+      showAlert("Validation", "Valid ID back must be uploaded as an image.");
       return;
     }
 

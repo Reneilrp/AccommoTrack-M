@@ -14,6 +14,7 @@ import TenantLayout from '../features/tenant/navigation/TenantLayout.jsx';
 import { getStyles } from '../styles/AppNavigator.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { useAuthStore } from '../stores/auth/authStore.js';
+import { registerDevicePushToken, unregisterCurrentDevicePushToken } from '../services/PushNotificationService.js';
 import { setForcedLogoutCallback, setRoleSwitchCallback } from './RootNavigation.js';
 
 const Stack = createNativeStackNavigator();
@@ -65,6 +66,7 @@ export default function AppNavigator() {
 
   const handleLogout = async () => {
     try {
+      await unregisterCurrentDevicePushToken();
       clearAuthSession();
       // Remove auth-related data and guest flag, keep hasLaunched
       await AsyncStorage.removeItem('token');
@@ -81,6 +83,7 @@ export default function AppNavigator() {
 
   const enterGuestMode = async () => {
     try {
+      await unregisterCurrentDevicePushToken();
       clearAuthSession();
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('refresh_token');
@@ -165,6 +168,15 @@ export default function AppNavigator() {
   useEffect(() => {
     checkAppState();
   }, []);
+
+  useEffect(() => {
+    const canRegisterPush = ['tenant', 'landlord', 'caretaker'].includes(String(userRole || '').toLowerCase());
+    if (!canRegisterPush) {
+      return;
+    }
+
+    registerDevicePushToken();
+  }, [userRole]);
 
   if (isLoading) {
     return (

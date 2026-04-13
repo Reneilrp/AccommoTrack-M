@@ -56,6 +56,50 @@ class GenerateMonthlyInvoicesIdempotencyTest extends TestCase
         );
     }
 
+    public function test_open_ended_monthly_booking_generates_within_five_day_window(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-10'));
+
+        [$booking] = $this->buildScenario();
+        $booking->update([
+            'end_date' => null,
+            'next_billing_date' => '2026-04-15',
+        ]);
+
+        $this->artisan('invoices:generate-monthly')->assertExitCode(0);
+
+        $this->assertSame(
+            1,
+            Invoice::query()
+                ->where('booking_id', $booking->id)
+                ->where('invoice_type', 'rent')
+                ->where('billing_period_key', '2026-04-15')
+                ->count()
+        );
+    }
+
+    public function test_fixed_term_monthly_booking_does_not_generate_before_due_date(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-10'));
+
+        [$booking] = $this->buildScenario();
+        $booking->update([
+            'end_date' => '2026-09-15',
+            'next_billing_date' => '2026-04-15',
+        ]);
+
+        $this->artisan('invoices:generate-monthly')->assertExitCode(0);
+
+        $this->assertSame(
+            0,
+            Invoice::query()
+                ->where('booking_id', $booking->id)
+                ->where('invoice_type', 'rent')
+                ->where('billing_period_key', '2026-04-15')
+                ->count()
+        );
+    }
+
     /**
      * @return array{Booking}
      */

@@ -16,6 +16,7 @@
       "bundleIdentifier": "com.techweave.AccommoTrack"
     },
     "android": {
+      "permissions": ["REQUEST_INSTALL_PACKAGES"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/Logo-Square.png",
         "backgroundColor": "#ffffff"
@@ -38,7 +39,8 @@
       }
     },
     "plugins": [
-      "expo-video"
+      "expo-video",
+      "expo-notifications"
     ],
     "runtimeVersion": {
       "policy": "appVersion"

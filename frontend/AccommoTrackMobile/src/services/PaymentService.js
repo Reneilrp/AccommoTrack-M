@@ -72,9 +72,14 @@ class PaymentService {
    * Ensure an invoice exists for a booking and return it.
    * Matches: POST /api/tenant/bookings/{id}/invoice
    */
-  async createBookingInvoice(bookingId) {
+  async createBookingInvoice(bookingId, options = {}) {
     try {
-      const response = await api.post(`/tenant/bookings/${bookingId}/invoice`);
+      const payload =
+        options && typeof options === "object" && Object.keys(options).length > 0
+          ? options
+          : undefined;
+
+      const response = await api.post(`/tenant/bookings/${bookingId}/invoice`, payload);
 
       return {
         success: true,
@@ -87,6 +92,18 @@ class PaymentService {
         error: error.response?.data?.message || "Failed to create invoice for booking",
       };
     }
+  }
+
+  /**
+   * Generate advance monthly invoices for early payment (up to 2 months).
+   */
+  async createAdvanceBookingInvoices(bookingId, monthsCount = 2) {
+    const normalizedMonths = Math.max(1, Math.min(Number(monthsCount) || 1, 2));
+
+    return this.createBookingInvoice(bookingId, {
+      start_from: "next",
+      months_count: normalizedMonths,
+    });
   }
 
   /**

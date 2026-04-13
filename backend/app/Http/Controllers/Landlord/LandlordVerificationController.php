@@ -28,7 +28,8 @@ class LandlordVerificationController extends Controller
             'password' => 'required|string|min:8',
             'valid_id_type' => 'required|string|max:255',
             'valid_id_other' => 'nullable|string|max:255',
-            'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'valid_id' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'valid_id_back' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'agree' => 'accepted',
             'dob' => 'required|date',
@@ -67,6 +68,9 @@ class LandlordVerificationController extends Controller
             // 2. Store files
             $validIdPath = $request->file('valid_id')->store('landlord_ids');
             $permitPath = $request->file('permit')->store('landlord_permits');
+            $validIdBackPath = $request->hasFile('valid_id_back')
+                ? $request->file('valid_id_back')->store('landlord_ids')
+                : null;
 
             // 3. Create Verification Record
             $verification = LandlordVerification::create([
@@ -77,6 +81,7 @@ class LandlordVerificationController extends Controller
                 'valid_id_type' => $request->valid_id_type,
                 'valid_id_other' => $request->valid_id_other,
                 'valid_id_path' => $validIdPath,
+                'valid_id_back_path' => $validIdBackPath,
                 'permit_path' => $permitPath,
                 'status' => 'pending',
             ]);
@@ -98,6 +103,9 @@ class LandlordVerificationController extends Controller
             if (isset($permitPath)) {
                 Storage::delete($permitPath);
             }
+            if (isset($validIdBackPath) && $validIdBackPath) {
+                Storage::delete($validIdBackPath);
+            }
 
             return response()->json(['message' => 'Registration failed: '.$e->getMessage()], 500);
         }
@@ -117,6 +125,7 @@ class LandlordVerificationController extends Controller
             ->map(function (LandlordVerification $verification) {
                 $payload = $verification->toArray();
                 $payload['valid_id_path'] = $this->toPublicStorageUrl($verification->valid_id_path);
+                $payload['valid_id_back_path'] = $this->toPublicStorageUrl($verification->valid_id_back_path);
                 $payload['permit_path'] = $this->toPublicStorageUrl($verification->permit_path);
                 $payload['history'] = $verification->history->map(function (LandlordVerificationHistory $entry) {
                     return [
@@ -125,6 +134,7 @@ class LandlordVerificationController extends Controller
                         'rejection_reason' => $entry->rejection_reason,
                         'valid_id_type' => $entry->valid_id_type,
                         'valid_id_path' => $this->toPublicStorageUrl($entry->valid_id_path),
+                        'valid_id_back_path' => $this->toPublicStorageUrl($entry->valid_id_back_path),
                         'permit_path' => $this->toPublicStorageUrl($entry->permit_path),
                         'submitted_at' => $entry->submitted_at,
                         'reviewed_at' => $entry->reviewed_at,
@@ -183,6 +193,7 @@ class LandlordVerificationController extends Controller
                         'is_verified' => $isFullyVerified,
                     ],
                     'valid_id_path' => null,
+                    'valid_id_back_path' => null,
                     'permit_path' => null,
                     'document_due_at' => null,
                     'history' => [],
@@ -202,6 +213,7 @@ class LandlordVerificationController extends Controller
             'rejection_reason' => $verification->rejection_reason,
             'valid_id_type' => $verification->valid_id_type,
             'valid_id_path' => $this->toPublicStorageUrl($verification->valid_id_path),
+            'valid_id_back_path' => $this->toPublicStorageUrl($verification->valid_id_back_path),
             'permit_path' => $this->toPublicStorageUrl($verification->permit_path),
             'document_due_at' => $verification->document_due_at,
             'reviewed_at' => $verification->reviewed_at,
@@ -216,6 +228,9 @@ class LandlordVerificationController extends Controller
                     'status' => $h->status,
                     'rejection_reason' => $h->rejection_reason,
                     'valid_id_type' => $h->valid_id_type,
+                    'valid_id_path' => $this->toPublicStorageUrl($h->valid_id_path),
+                    'valid_id_back_path' => $this->toPublicStorageUrl($h->valid_id_back_path),
+                    'permit_path' => $this->toPublicStorageUrl($h->permit_path),
                     'submitted_at' => $h->submitted_at,
                     'reviewed_at' => $h->reviewed_at,
                 ];
@@ -271,6 +286,7 @@ class LandlordVerificationController extends Controller
                     'rejection_reason' => $h->rejection_reason,
                     'valid_id_type' => $h->valid_id_type,
                     'valid_id_path' => $this->toPublicStorageUrl($h->valid_id_path),
+                    'valid_id_back_path' => $this->toPublicStorageUrl($h->valid_id_back_path),
                     'permit_path' => $this->toPublicStorageUrl($h->permit_path),
                     'submitted_at' => $h->submitted_at,
                     'reviewed_at' => $h->reviewed_at,
@@ -298,7 +314,8 @@ class LandlordVerificationController extends Controller
         $validator = Validator::make($request->all(), [
             'valid_id_type' => 'required|string|max:255',
             'valid_id_other' => 'required_if:valid_id_type,Other,other|nullable|string|max:255',
-            'valid_id_front' => 'required|file|mimes:jpg,jpeg,png|max:5120',
+            'valid_id_front' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'valid_id_back' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
@@ -354,6 +371,9 @@ class LandlordVerificationController extends Controller
             DB::beginTransaction();
 
             $validIdPath = $request->file('valid_id_front')->store('landlord_ids');
+            $validIdBackPath = $request->hasFile('valid_id_back')
+                ? $request->file('valid_id_back')->store('landlord_ids')
+                : null;
             $permitPath = $request->file('permit')->store('landlord_permits');
 
             $validIdType = $request->valid_id_type;
@@ -371,6 +391,7 @@ class LandlordVerificationController extends Controller
                     'valid_id_type' => $validIdType,
                     'valid_id_other' => $validIdOther,
                     'valid_id_path' => $validIdPath,
+                    'valid_id_back_path' => $validIdBackPath,
                     'permit_path' => $permitPath,
                     'status' => LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
                     'rejection_reason' => null,
@@ -387,6 +408,7 @@ class LandlordVerificationController extends Controller
                     'valid_id_type' => $validIdType,
                     'valid_id_other' => $validIdOther,
                     'valid_id_path' => $validIdPath,
+                    'valid_id_back_path' => $validIdBackPath,
                     'permit_path' => $permitPath,
                     'status' => LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
                     'document_due_at' => null,
@@ -413,6 +435,9 @@ class LandlordVerificationController extends Controller
             }
             if (isset($permitPath)) {
                 Storage::delete($permitPath);
+            }
+            if (isset($validIdBackPath) && $validIdBackPath) {
+                Storage::delete($validIdBackPath);
             }
 
             return response()->json([
@@ -457,7 +482,8 @@ class LandlordVerificationController extends Controller
         $validator = Validator::make($request->all(), [
             'valid_id_type' => 'required|string|max:255',
             'valid_id_other' => 'nullable|string|max:255',
-            'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'valid_id' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'valid_id_back' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
@@ -473,6 +499,9 @@ class LandlordVerificationController extends Controller
 
             // Store new files
             $validIdPath = $request->file('valid_id')->store('landlord_ids');
+            $validIdBackPath = $request->hasFile('valid_id_back')
+                ? $request->file('valid_id_back')->store('landlord_ids')
+                : null;
             $permitPath = $request->file('permit')->store('landlord_permits');
 
             if ($verification) {
@@ -482,6 +511,7 @@ class LandlordVerificationController extends Controller
                 $verification->valid_id_type = $request->valid_id_type;
                 $verification->valid_id_other = $request->valid_id_other;
                 $verification->valid_id_path = $validIdPath;
+                $verification->valid_id_back_path = $validIdBackPath;
                 $verification->permit_path = $permitPath;
                 $verification->status = LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW;
                 $verification->rejection_reason = null;
@@ -499,6 +529,7 @@ class LandlordVerificationController extends Controller
                     'valid_id_type' => $request->valid_id_type,
                     'valid_id_other' => $request->valid_id_other,
                     'valid_id_path' => $validIdPath,
+                    'valid_id_back_path' => $validIdBackPath,
                     'permit_path' => $permitPath,
                     'status' => LandlordVerification::STATUS_PENDING_DOCUMENTS_REVIEW,
                     'document_due_at' => null,
@@ -536,6 +567,9 @@ class LandlordVerificationController extends Controller
             }
             if (isset($permitPath)) {
                 Storage::delete($permitPath);
+            }
+            if (isset($validIdBackPath) && $validIdBackPath) {
+                Storage::delete($validIdBackPath);
             }
 
             return response()->json(['message' => 'Resubmission failed: '.$e->getMessage()], 500);
@@ -576,6 +610,7 @@ class LandlordVerificationController extends Controller
         if (
             $latestHistory
             && $latestHistory->valid_id_path === ($verification->valid_id_path ?? '')
+            && ($latestHistory->valid_id_back_path ?? null) === ($verification->valid_id_back_path ?? null)
             && $latestHistory->permit_path === ($verification->permit_path ?? '')
             && $latestHistory->status === $verification->status
             && $latestHistory->rejection_reason === $verification->rejection_reason
@@ -588,6 +623,7 @@ class LandlordVerificationController extends Controller
             'valid_id_type' => $verification->valid_id_type,
             'valid_id_other' => $verification->valid_id_other,
             'valid_id_path' => $verification->valid_id_path ?? '',
+            'valid_id_back_path' => $verification->valid_id_back_path,
             'permit_path' => $verification->permit_path ?? '',
             'status' => $verification->status,
             'rejection_reason' => $verification->rejection_reason,

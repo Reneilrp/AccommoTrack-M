@@ -52,6 +52,8 @@ class AdminController extends Controller
      */
     public function updatePaymentControlSettings(Request $request)
     {
+        $previousForcedNow = SystemToggle::getString('system_forced_now', '');
+
         $validated = $request->validate([
             'tenant_payments_disabled' => 'required|boolean',
             'invoice_paymongo_disabled' => 'nullable|boolean',
@@ -84,6 +86,17 @@ class AdminController extends Controller
             SystemToggle::setString('system_forced_now', (string) $request->system_forced_now, $actorId);
         } else {
             SystemToggle::setString('system_forced_now', '', $actorId);
+        }
+
+        $updatedForcedNow = SystemToggle::getString('system_forced_now', '');
+        if ($updatedForcedNow !== $previousForcedNow) {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('invoices:update-overdue');
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to run overdue recalculation after system_forced_now update', [
+                    'message' => $e->getMessage(),
+                ]);
+            }
         }
 
         // Purge global cache so toggles update on the edge immediately

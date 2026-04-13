@@ -1674,8 +1674,8 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   </div>
                 </div>
 
-                {/* Forgot Password */}
-                <div className="flex items-center justify-start">
+                {/* Quick Actions */}
+                <div className="flex items-center justify-between">
                   <label className="inline-flex items-center gap-2 text-sm text-green-900/90 dark:text-gray-300 select-none cursor-pointer">
                     <input
                       type="checkbox"
@@ -1686,9 +1686,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     />
                     <span>Remember this device</span>
                   </label>
-                </div>
 
-                <div className="flex items-center justify-end">
                   <button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}

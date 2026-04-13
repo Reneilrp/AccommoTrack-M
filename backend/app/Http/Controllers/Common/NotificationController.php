@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
+use App\Models\DevicePushToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -91,5 +92,68 @@ class NotificationController extends Controller
         ]);
 
         return response()->json(['message' => 'All marked as read']);
+    }
+
+    /**
+     * Register or refresh the current device push token.
+     */
+    public function upsertPushToken(Request $request)
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string', 'max:255', 'regex:/^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9\-_]+\]$/'],
+            'platform' => ['nullable', 'string', 'in:ios,android,web'],
+        ]);
+
+        $user = Auth::user();
+
+        $pushToken = DevicePushToken::query()->updateOrCreate(
+            ['token' => $validated['token']],
+            [
+                'user_id' => $user->id,
+                'platform' => $validated['platform'] ?? null,
+                'is_active' => true,
+                'last_seen_at' => now(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $pushToken->id,
+                'token' => $pushToken->token,
+                'platform' => $pushToken->platform,
+                'is_active' => (bool) $pushToken->is_active,
+            ],
+            'message' => 'Push token registered successfully.',
+        ]);
+    }
+
+    /**
+     * Deactivate a push token for the authenticated user.
+     */
+    public function removePushToken(Request $request)
+    {
+        $validated = $request->validate([
+            'token' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $query = DevicePushToken::query()->where('user_id', Auth::id());
+
+        if (! empty($validated['token'])) {
+            $query->where('token', $validated['token']);
+        }
+
+        $deactivatedCount = $query->update([
+            'is_active' => false,
+            'last_seen_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'deactivated' => $deactivatedCount,
+            ],
+            'message' => 'Push token removed successfully.',
+        ]);
     }
 }

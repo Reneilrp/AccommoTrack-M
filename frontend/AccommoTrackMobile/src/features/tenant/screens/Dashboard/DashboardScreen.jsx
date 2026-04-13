@@ -129,7 +129,7 @@ const DashboardScreen = () => {
       try {
         const isGuest = await AsyncStorage.getItem('isGuest');
         const userString = await AsyncStorage.getItem('user');
-        
+
         if (isGuest === 'true' || !userString) {
           navigation.replace('TenantHome');
           return;
@@ -139,7 +139,7 @@ const DashboardScreen = () => {
         navigation.replace('TenantHome');
       }
     };
-    
+
     checkAuth();
   }, [navigation]);
 
@@ -426,21 +426,21 @@ const DashboardScreen = () => {
   const scheduleTimeline = upcomingMonths.length > 0
     ? upcomingMonths
     : safeArray(upcoming?.unpaidBookings).slice(0, 4).map((item) => ({
-        month: new Date(item?.dueDate || item?.due_date || Date.now()).toLocaleDateString('en-US', {
-          month: 'long',
-          year: 'numeric',
-        }),
-        due_date: item?.dueDate || item?.due_date,
-        month_total: getNumeric(item?.amount),
-        bookings: [
-          {
-            booking_id: item?.id,
-            room_number: item?.roomNumber || item?.room_number || 'N/A',
-            total: getNumeric(item?.amount),
-            status: item?.paymentStatus || item?.payment_status || 'pending',
-          },
-        ],
-      }));
+      month: new Date(item?.dueDate || item?.due_date || Date.now()).toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      }),
+      due_date: item?.dueDate || item?.due_date,
+      month_total: getNumeric(item?.amount),
+      bookings: [
+        {
+          booking_id: item?.id,
+          room_number: item?.roomNumber || item?.room_number || 'N/A',
+          total: getNumeric(item?.amount),
+          status: item?.paymentStatus || item?.payment_status || 'pending',
+        },
+      ],
+    }));
 
   const togglePanel = (panel) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -495,7 +495,7 @@ const DashboardScreen = () => {
                         <Text style={[styles.tableCellText, { width: tableColumnWidths.rooms.floor }]}>{room.floor}</Text>
                         <Text style={[styles.tableCellText, { width: tableColumnWidths.rooms.date }]}>{formatDate(room.moveIn)}</Text>
                         <View style={[styles.tableCellLast, { width: tableColumnWidths.rooms.status }]}>
-                          <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}> 
+                          <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}>
                             <Text style={[styles.statusBadgeInlineText, { color: palette.fg }]}>{toTitleCaseWords(room.status)}</Text>
                           </View>
                         </View>
@@ -578,10 +578,10 @@ const DashboardScreen = () => {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableContentContainer}>
               <View style={styles.tableMinWidth}>
                 <View style={styles.tableHeaderRow}>
-                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.room }]}>Room</Text>
-                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.property }]}>Property</Text>
-                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.money }]}>Monthly Due</Text>
-                    <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.status }, styles.tableHeaderCellLast]}>Status</Text>
+                  <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.room }]}>Room</Text>
+                  <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.property }]}>Property</Text>
+                  <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.money }]}>Monthly Due</Text>
+                  <Text style={[styles.tableHeaderCell, { width: tableColumnWidths.balance.status }, styles.tableHeaderCellLast]}>Status</Text>
                 </View>
 
                 {activeRooms.map((room) => {
@@ -592,7 +592,7 @@ const DashboardScreen = () => {
                       <Text style={[styles.tableCellText, { width: tableColumnWidths.balance.property }]} numberOfLines={1}>{room.propertyTitle}</Text>
                       <Text style={[styles.tableCellText, { width: tableColumnWidths.balance.money }]}>{formatCurrency(room.monthlyTotal)}</Text>
                       <View style={[styles.tableCellLast, { width: tableColumnWidths.balance.status }]}>
-                        <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}> 
+                        <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}>
                           <Text style={[styles.statusBadgeInlineText, { color: palette.fg }]}>{toTitleCaseWords(room.status)}</Text>
                         </View>
                       </View>
@@ -641,7 +641,7 @@ const DashboardScreen = () => {
           />
         }
       >
-        
+
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Dashboard Overview</Text>
@@ -703,7 +703,7 @@ const DashboardScreen = () => {
           </View>
 
           {hasOverdueInvoices ? (
-            <View style={[styles.alertCard, { backgroundColor: theme.colors.errorLight, borderColor: theme.colors.error }]}> 
+            <View style={[styles.alertCard, { backgroundColor: theme.colors.errorLight, borderColor: theme.colors.error }]}>
               <Ionicons name="alert-circle" size={18} color={theme.colors.error} />
               <View style={styles.alertBody}>
                 <Text style={[styles.alertTitle, { color: theme.colors.errorDark }]}>Action required: overdue balance</Text>
@@ -744,7 +744,7 @@ const DashboardScreen = () => {
           ))}
 
           {stayData?.upcomingBooking ? (
-            <View style={[styles.alertCard, { backgroundColor: theme.colors.infoLight, borderColor: theme.colors.info }]}> 
+            <View style={[styles.alertCard, { backgroundColor: theme.colors.infoLight, borderColor: theme.colors.info }]}>
               <Ionicons name="calendar" size={18} color={theme.colors.info} />
               <View style={styles.alertBody}>
                 <Text style={styles.alertTitle}>Upcoming booking</Text>
@@ -784,7 +784,7 @@ const DashboardScreen = () => {
                 <Text style={styles.roomPrice}>{formatCurrency(room.monthlyTotal)}</Text>
               </View>
               <Text style={styles.roomMeta}>Room {room.roomNumber} • {room.roomType} • Floor {room.floor}</Text>
-              <Text style={styles.roomMeta}>Move-in {formatDate(room.moveIn)} • {room.daysRemaining} days left</Text>
+              <Text style={styles.roomMeta}>Move-in {formatDate(room.moveIn)} • {room.daysStayed} days stayed</Text>
             </View>
           ))}
         </View>

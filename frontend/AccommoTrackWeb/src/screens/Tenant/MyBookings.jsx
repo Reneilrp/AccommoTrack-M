@@ -7,9 +7,9 @@ import { SkeletonMyBookings, SkeletonFinancials, SkeletonHistory } from '../../c
 import ReviewModal from '../../components/Modals/ReviewModal';
 import { useUIState } from "../../contexts/UIStateContext";
 import toast from 'react-hot-toast';
-import { 
-  Home, 
-  Calendar, 
+import {
+  Home,
+  Calendar,
   DollarSign,
   Clock,
   AlertCircle,
@@ -33,16 +33,18 @@ import {
   Users,
   Shuffle,
   HelpCircle,
-  MessageSquare
+  MessageSquare,
+  MoreHorizontal
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
+import MaintenanceRequestModal from '../../components/Modals/MaintenanceRequestModal';
 import ReservationPolicyNotice from './components/ReservationPolicyNotice';
 
 const MyBookings = () => {
   const navigate = useNavigate();
   const { uiState, updateScreenState, updateData, invalidateData } = useUIState();
   const activeTab = uiState.bookings?.activeTab || 'current';
-  
+
   // Use cached data for instant mount
   const cachedData = uiState.data?.bookings;
 
@@ -53,7 +55,7 @@ const MyBookings = () => {
   const [upcomingBooking, setUpcomingBooking] = useState(cachedData?.upcomingBooking || null);
   const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
-  
+
   const fetchedLiveRef = React.useRef(!!cachedData);
   const fetchedHistoryRef = React.useRef(!!(cachedData && cachedData.history));
 
@@ -105,7 +107,7 @@ const MyBookings = () => {
       await api.post('/tenant/transfers', payload);
       toast.success('Room transfer request sent to landlord');
       invalidateTenantStayCache();
-      
+
       // Update local state to immediately reflect the new request
       if (payload.booking_id) {
         setPendingTransferBookingIds(prev => [...prev, payload.booking_id]);
@@ -154,7 +156,7 @@ const MyBookings = () => {
       setCancellingTransferRequestId(null);
     }
   };
-  
+
   // Review Modal State
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
@@ -162,6 +164,10 @@ const MyBookings = () => {
   // Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedPropertyForReport, setSelectedPropertyForReport] = useState(null);
+
+  // Maintenance Modal State
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [maintenanceBookingId, setMaintenanceBookingId] = useState('');
 
   const loadMoreHistory = async () => {
     if (!history?.pagination || history.pagination.currentPage >= history.pagination.lastPage || historyLoadingMore) {
@@ -189,7 +195,7 @@ const MyBookings = () => {
     // Only set loading true if we don't have data for the current tab already
     const hasDataForTab = activeTab === 'history' ? fetchedHistoryRef.current : fetchedLiveRef.current;
     if (!hasDataForTab) setLoading(true);
-    
+
     setError(null);
     try {
       if (activeTab === 'current' || activeTab === 'financials') {
@@ -202,11 +208,11 @@ const MyBookings = () => {
           response?.data?.upcomingBooking ||
           response?.data?.upcoming_booking ||
           null;
-        
+
         setActiveStays(stays);
         setPendingCheckIns(pendingCheckInsData);
         setUpcomingBooking(upcoming);
-        
+
         // Also fetch tenant bookings to detect pending bookings
         let pending = [];
         try {
@@ -220,10 +226,10 @@ const MyBookings = () => {
           const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked']);
           const pendingCheckInIds = new Set(pendingCheckInsData.map(pc => pc.id));
           pending = Array.isArray(bookingsList)
-            ? bookingsList.filter((b) => 
-                pendingStatuses.has(String(b?.status || '').toLowerCase()) && 
-                !pendingCheckInIds.has(b.id)
-              )
+            ? bookingsList.filter((b) =>
+              pendingStatuses.has(String(b?.status || '').toLowerCase()) &&
+              !pendingCheckInIds.has(b.id)
+            )
             : [];
           setPendingBookings(pending);
         } catch (e) {
@@ -235,7 +241,7 @@ const MyBookings = () => {
           const transfersResp = await api.get('/tenant/transfers');
           const transfersList = transfersResp?.data?.data || transfersResp?.data?.transfers || transfersResp?.data || [];
           const list = Array.isArray(transfersList) ? transfersList : [];
-          
+
           // Identify bookings with active transfer requests
           const pendingIds = list
             .filter(t => ['pending', 'approved'].includes(String(t.status || '').toLowerCase()))
@@ -265,19 +271,19 @@ const MyBookings = () => {
         fetchedLiveRef.current = true;
 
         // Update cache
-        updateData('bookings', prev => ({ 
-          ...(prev || {}), 
-          activeStays: stays, 
+        updateData('bookings', prev => ({
+          ...(prev || {}),
+          activeStays: stays,
           pendingBookings: pending,
           pendingCheckIns: pendingCheckInsData,
-          upcomingBooking: upcoming 
+          upcomingBooking: upcoming
         }));
 
       } else if (activeTab === 'history') {
         const data = await tenantService.getHistory();
         setHistory(data);
         fetchedHistoryRef.current = true;
-        
+
         // Update cache
         updateData('bookings', prev => ({ ...(prev || {}), history: data }));
       }
@@ -451,11 +457,10 @@ const MyBookings = () => {
           <button
             key={tab.id}
             onClick={() => updateScreenState('bookings', { activeTab: tab.id })}
-            className={`flex items-center gap-2 px-6 py-4 rounded-xl font-semibold transition-all whitespace-nowrap border shadow-sm ${
-              activeTab === tab.id
-                ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-500/20'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
+            className={`flex items-center gap-2 px-6 py-4 rounded-xl font-semibold transition-all whitespace-nowrap border shadow-sm ${activeTab === tab.id
+              ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-500/20'
+              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
           >
             <tab.icon className="w-5 h-5" />
             {tab.label}
@@ -480,7 +485,7 @@ const MyBookings = () => {
       ) : (
         <>
           {activeTab === 'current' && (
-            <CurrentStayTab 
+            <CurrentStayTab
               stays={activeStays}
               selectedIndex={selectedStayIndex}
               onSelectStay={setSelectedStayIndex}
@@ -501,20 +506,24 @@ const MyBookings = () => {
               monthlyTransferCount={monthlyTransferCount}
               onReview={handleReview}
               onReport={handleReport}
+              onRequestMaintenance={(id) => {
+                setMaintenanceBookingId(id);
+                setShowMaintenanceModal(true);
+              }}
               navigate={navigate}
             />
           )}
           {activeTab === 'financials' && (
-            <FinancialsTab 
-              stays={activeStays} 
+            <FinancialsTab
+              stays={activeStays}
               selectedIndex={selectedStayIndex}
               onSelectStay={setSelectedStayIndex}
-              navigate={navigate} 
+              navigate={navigate}
             />
           )}
           {activeTab === 'history' && (
-            <HistoryTab 
-              data={history} 
+            <HistoryTab
+              data={history}
               onLoadMore={loadMoreHistory}
               loadingMore={historyLoadingMore}
               onReview={handleReview}
@@ -605,12 +614,28 @@ const MyBookings = () => {
           }}
         />
       )}
+
+      {/* Maintenance Modal */}
+      <MaintenanceRequestModal
+        isOpen={showMaintenanceModal}
+        onClose={() => {
+          setShowMaintenanceModal(false);
+          setMaintenanceBookingId('');
+        }}
+        onSuccess={() => {
+          fetchData();
+        }}
+        stays={activeStays}
+        preselectedBookingId={maintenanceBookingId}
+      />
     </div>
   );
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, onRequestMaintenance, navigate }) => {
+  const ALMOST_PAY_TIME_DAYS = 5;
+  const OPEN_INVOICE_STATUSES = new Set(['pending', 'partial', 'overdue', 'unpaid']);
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
@@ -628,7 +653,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
   const showActiveView = hasStays && (viewMode === 'active' || !hasPending);
   const showPendingView = hasPending && (viewMode === 'pending' || !hasStays);
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
@@ -640,6 +665,117 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     } catch {
       return dateString;
     }
+  };
+
+  const parseDateToLocalDay = (value) => {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  };
+
+  const resolveMonthlyPaymentCountdown = (bookingEntry, invoices = []) => {
+    const billingPolicy = String(bookingEntry?.billing_policy || bookingEntry?.billingPolicy || 'monthly').toLowerCase();
+    if (billingPolicy !== 'monthly') return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const cycleDueDateResolver = () => {
+      const rawBillingDay = Number(bookingEntry?.billing_day ?? bookingEntry?.due_day ?? bookingEntry?.dueDay);
+      if (!Number.isFinite(rawBillingDay)) return null;
+
+      const billingDay = Math.max(1, Math.min(31, Math.round(rawBillingDay)));
+      const currentMonthMaxDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      let candidate = new Date(today.getFullYear(), today.getMonth(), Math.min(billingDay, currentMonthMaxDay));
+
+      if (candidate < today) {
+        const nextMonthMaxDay = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
+        candidate = new Date(today.getFullYear(), today.getMonth() + 1, Math.min(billingDay, nextMonthMaxDay));
+      }
+
+      return candidate;
+    };
+
+    const dueDateCandidates = [];
+    let hasOutstandingInvoice = false;
+
+    if (Array.isArray(invoices)) {
+      invoices.forEach((invoice) => {
+        const invoiceStatus = String(invoice?.status || '').toLowerCase();
+        if (!OPEN_INVOICE_STATUSES.has(invoiceStatus)) return;
+
+        hasOutstandingInvoice = true;
+        const dueDate = parseDateToLocalDay(
+          invoice?.due_date || invoice?.dueDateIso || invoice?.dueDate,
+        );
+        if (dueDate) {
+          dueDateCandidates.push(dueDate);
+        }
+      });
+    }
+
+    const nextBillingDate = parseDateToLocalDay(bookingEntry?.next_billing_date || bookingEntry?.nextBillingDate);
+    if (nextBillingDate) {
+      dueDateCandidates.push(nextBillingDate);
+    }
+
+    if (dueDateCandidates.length === 0) {
+      const cycleDueDate = cycleDueDateResolver();
+      if (cycleDueDate) {
+        dueDateCandidates.push(cycleDueDate);
+      }
+    }
+
+    if (dueDateCandidates.length === 0) return null;
+
+    dueDateCandidates.sort((left, right) => left.getTime() - right.getTime());
+    let nextDueDate = dueDateCandidates[0];
+
+    if (nextDueDate < today && !hasOutstandingInvoice) {
+      const cycleDueDate = cycleDueDateResolver();
+      if (cycleDueDate && cycleDueDate >= today) {
+        nextDueDate = cycleDueDate;
+      }
+    }
+
+    const daysUntilDue = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue < 0) {
+      const overdueDays = Math.abs(daysUntilDue);
+      return {
+        label: 'Payment Overdue',
+        value: `${overdueDays} ${overdueDays === 1 ? 'Day' : 'Days'} Overdue`,
+        tone: 'status',
+        statusKey: 'overdue',
+      };
+    }
+
+    if (daysUntilDue === 0) {
+      return {
+        label: 'Pay Today',
+        value: 'Due Today',
+        tone: 'status',
+        statusKey: 'pending',
+      };
+    }
+
+    return {
+      label: daysUntilDue <= ALMOST_PAY_TIME_DAYS ? 'Almost Pay Time' : 'Next Payment',
+      value: `${daysUntilDue} ${daysUntilDue === 1 ? 'Day' : 'Days'} Left`,
+      tone: daysUntilDue <= ALMOST_PAY_TIME_DAYS ? 'status' : 'neutral',
+      statusKey: 'pending',
+    };
   };
 
   const toWholeNumber = (value, fallback = 0) => {
@@ -673,7 +809,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
           <Calendar className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Confirmed Upcoming Stay</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">Your stay at <span className="font-bold text-gray-700 dark:text-gray-200">{upcomingBooking.property}</span> is confirmed.</p>
-          
+
           <div className="inline-block bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-8 py-6 rounded-2xl border border-green-100 dark:border-green-800/50 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
@@ -686,9 +822,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
               </div>
             </div>
           </div>
-          
+
           <div className="mt-8">
-            <button 
+            <button
               onClick={() => onCancelBooking(upcomingBooking.id)}
               disabled={isCancelling === upcomingBooking.id}
               className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-2 mx-auto transition-colors disabled:opacity-50"
@@ -708,7 +844,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
         </div>
         <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">No Active Stay</h3>
         <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto">You don't have an active or pending booking at the moment. Ready to find your next home?</p>
-        <button 
+        <button
           onClick={() => navigate('/explore')}
           className="bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 active:scale-95"
         >
@@ -726,30 +862,27 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
         {hasStays && hasPending ? (
           <div className="relative flex bg-gray-100 dark:bg-gray-900/50 p-2 rounded-xl w-full max-w-sm border border-gray-300 dark:border-gray-700 shadow-inner">
             {/* Sliding Indicator */}
-            <div 
-              className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg shadow-md transition-all duration-300 ease-out ${
-                viewMode === 'active' ? 'bg-green-600 shadow-green-500/20' : 'bg-amber-600 shadow-amber-500/20'
-              }`}
+            <div
+              className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg shadow-md transition-all duration-300 ease-out ${viewMode === 'active' ? 'bg-green-600 shadow-green-500/20' : 'bg-amber-600 shadow-amber-500/20'
+                }`}
               style={{ transform: viewMode === 'active' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
             />
-            
-            <button 
+
+            <button
               onClick={() => setViewMode('active')}
-              className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${
-                viewMode === 'active' 
-                  ? 'text-white' 
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
+              className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${viewMode === 'active'
+                ? 'text-white'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                }`}
             >
               Active Stays ({stays.length})
             </button>
-            <button 
+            <button
               onClick={() => setViewMode('pending')}
-              className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${
-                viewMode === 'pending' 
-                  ? 'text-white' 
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
+              className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${viewMode === 'pending'
+                ? 'text-white'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                }`}
             >
               Pending ({pendingBookings.length})
             </button>
@@ -758,10 +891,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
         {/* Adaptive Stay Selector */}
         {showActiveView && (
-          <StaySelector 
-            stays={stays} 
-            selectedIndex={selectedIndex} 
-            onSelect={onSelectStay} 
+          <StaySelector
+            stays={stays}
+            selectedIndex={selectedIndex}
+            onSelect={onSelectStay}
           />
         )}
       </div>
@@ -770,53 +903,53 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       {showPendingView && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {pendingCheckIns.map(pc => (
-              <div key={pc.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
-                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4 animate-pulse" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Check-in Overdue</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">Action required: finalize your move-in with the landlord.</p>
-                
-                <div className="bg-red-50 dark:bg-red-900/10 text-red-800 dark:text-red-400 p-6 rounded-2xl border border-red-100 dark:border-red-900/20 shadow-sm mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                      <Home className="w-5 h-5 text-red-600" />
-                    </div>
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-base leading-tight">{pc.property}</p>
-                      <p className="text-xs opacity-80 font-medium mt-0.5">Room {pc.room || '—'}</p>
-                      <p className="text-xs opacity-80 font-medium mt-0.5">
-                        Scheduled start: {formatDate(pc.startDate)}
-                      </p>
-                      <p className="text-xs font-bold uppercase mt-1">
-                        {Number(pc.daysOverdue) > 0
-                          ? `${Math.max(0, Math.round(Number(pc.daysOverdue)))} day${Math.round(Number(pc.daysOverdue)) === 1 ? '' : 's'} overdue`
-                          : 'Overdue'}
-                      </p>
-                    </div>
+            <div key={pc.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4 animate-pulse" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Check-in Overdue</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">Action required: finalize your move-in with the landlord.</p>
+
+              <div className="bg-red-50 dark:bg-red-900/10 text-red-800 dark:text-red-400 p-6 rounded-2xl border border-red-100 dark:border-red-900/20 shadow-sm mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
+                    <Home className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-base leading-tight">{pc.property}</p>
+                    <p className="text-xs opacity-80 font-medium mt-0.5">Room {pc.room || '—'}</p>
+                    <p className="text-xs opacity-80 font-medium mt-0.5">
+                      Scheduled start: {formatDate(pc.startDate)}
+                    </p>
+                    <p className="text-xs font-bold uppercase mt-1">
+                      {Number(pc.daysOverdue) > 0
+                        ? `${Math.max(0, Math.round(Number(pc.daysOverdue)))} day${Math.round(Number(pc.daysOverdue)) === 1 ? '' : 's'} overdue`
+                        : 'Overdue'}
+                    </p>
                   </div>
                 </div>
-
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <button
-                    onClick={() => {
-                      const propertyId = pc?.property_id || pc?.propertyId || pc?.property?.id;
-                      if (propertyId) navigate(`/property/${propertyId}`);
-                    }}
-                    disabled={!pc?.property_id && !pc?.propertyId && !pc?.property?.id}
-                    className="bg-white dark:bg-gray-700 text-red-700 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2 disabled:opacity-50"
-                  >
-                    <Home className="w-3 h-3" />
-                    Room Details
-                  </button>
-                  <button
-                    onClick={() => onCancelBooking(pc.id)}
-                    disabled={isCancelling === pc.id}
-                    className="bg-white dark:bg-gray-700 text-red-600 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2"
-                  >
-                    {isCancelling === pc.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
-                    Cancel Booking
-                  </button>
-                </div>
               </div>
+
+              <div className="flex flex-wrap gap-2 justify-center">
+                <button
+                  onClick={() => {
+                    const propertyId = pc?.property_id || pc?.propertyId || pc?.property?.id;
+                    if (propertyId) navigate(`/property/${propertyId}`);
+                  }}
+                  disabled={!pc?.property_id && !pc?.propertyId && !pc?.property?.id}
+                  className="bg-white dark:bg-gray-700 text-red-700 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Home className="w-3 h-3" />
+                  Room Details
+                </button>
+                <button
+                  onClick={() => onCancelBooking(pc.id)}
+                  disabled={isCancelling === pc.id}
+                  className="bg-white dark:bg-gray-700 text-red-600 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2"
+                >
+                  {isCancelling === pc.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                  Cancel Booking
+                </button>
+              </div>
+            </div>
           ))}
           {pendingBookings.map(pb => {
             const startDate = pb?.start_date ? new Date(pb.start_date) : null;
@@ -835,78 +968,78 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
               : `${pendingOccupantCount} Occupant${pendingOccupantCount === 1 ? '' : 's'}`;
             const pendingOccupants = resolveOccupantProfiles(pb);
             const isProxyPending = String(pb?.booking_mode || pb?.bookingMode || '').toLowerCase() === 'proxy';
-            
+
             return (
               <div key={pb.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
                 <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Booking Pending</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">The landlord is reviewing your request.</p>
-                
-                                                    <div className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-6">
-                                                      <div className="flex items-center gap-4">
-                                                        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                                                          <Home className="w-5 h-5 text-amber-600" />
-                                                        </div>
-                                                        <div className="text-left flex-1">
-                                                          <p className="font-bold text-base leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
-                                                          <p className="text-xs opacity-80 font-medium mt-0.5">Room {pb?.room_number || pb?.room?.room_number || '—'}</p>
-                                                          <p className="text-xs opacity-80 font-medium mt-0.5">{pendingOccupancyLabel}</p>
-                                                          {(isProxyPending || pendingOccupants.length > 0) && (
-                                                            <div className="mt-2 space-y-1">
-                                                              <p className="text-[10px] uppercase font-bold opacity-70">Proxy Occupants</p>
-                                                              {pendingOccupants.length > 0 ? pendingOccupants.map((occupant) => (
-                                                                <p key={occupant.id} className="text-[11px] opacity-85 leading-tight">
-                                                                  {occupant.fullName}
-                                                                  {(occupant.relationship || occupant.gender)
-                                                                    ? ` • ${[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}`
-                                                                    : ''}
-                                                                </p>
-                                                              )) : (
-                                                                <p className="text-[11px] opacity-70">Occupant details are still syncing.</p>
-                                                              )}
-                                                            </div>
-                                                          )}
-                                                          <p className="text-xs opacity-80 font-medium mt-0.5">
-                                                            {daysUntil !== null ? `Move-in Date: ${formatDate(pb.start_date)}` : 'Move-in Date Awaiting Approval'}
-                                                          </p>
-                                                          <ReservationPolicyNotice policy={pb?.reservation_policy} compact />
-                                                        </div>
-                                                      </div>
-                                                      
-                                                      <div className="mt-4 pt-4 border-t border-amber-200/50 dark:border-amber-800/30 flex justify-between items-center">
-                                                        <div className="text-left">
-                                                          <p className="text-[10px] font-bold uppercase opacity-60">
-                                                            {pb?.billing_policy === 'daily' ? 'Daily' : 'Monthly'}
-                                                          </p>
-                                                          <p className="text-xl font-bold">₱{(pb?.unit_price || pb?.monthly_rent || 0).toLocaleString()}</p>
-                                                        </div>
-                                                        <button 
-                                                          onClick={() => onCancelBooking(pb.id)}
-                                                          disabled={isCancelling === pb.id}
-                                                          className="bg-white dark:bg-gray-800 text-red-600 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2.5"
-                                                        >
-                                                          {isCancelling === pb.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
-                                                          Cancel Request
-                                                        </button>
-                                                      </div>
-                                                    </div>
 
-                                                    <div className="flex justify-center">
-                                                      <button
-                                                        onClick={() => {
-                                                          const propertyId = pb?.property_id || pb?.property?.id;
-                                                          if (propertyId) navigate(`/property/${propertyId}`);
-                                                        }}
-                                                        disabled={!pb?.property_id && !pb?.property?.id}
-                                                        className="bg-white dark:bg-gray-700 text-amber-700 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-amber-100 dark:border-amber-900/30 hover:bg-amber-50 transition-all flex items-center gap-2 disabled:opacity-50"
-                                                      >
-                                                        <Home className="w-3 h-3" />
-                                                        Room Details
-                                                      </button>
-                                                    </div>
-                                                  </div>
-                                                );
-                                              })}        </div>
+                <div className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
+                      <Home className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-bold text-base leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
+                      <p className="text-xs opacity-80 font-medium mt-0.5">Room {pb?.room_number || pb?.room?.room_number || '—'}</p>
+                      {isProxyPending && <p className="text-xs opacity-80 font-medium mt-0.5">{pendingOccupancyLabel}</p>}
+                      {(isProxyPending || pendingOccupants.length > 0) && (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[10px] uppercase font-bold opacity-70">Proxy Occupants</p>
+                          {pendingOccupants.length > 0 ? pendingOccupants.map((occupant) => (
+                            <p key={occupant.id} className="text-[11px] opacity-85 leading-tight">
+                              {occupant.fullName}
+                              {(occupant.relationship || occupant.gender)
+                                ? ` • ${[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}`
+                                : ''}
+                            </p>
+                          )) : (
+                            <p className="text-[11px] opacity-70">Occupant details are still syncing.</p>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-xs opacity-80 font-medium mt-0.5">
+                        {daysUntil !== null ? `Move-in Date: ${formatDate(pb.start_date)}` : 'Move-in Date Awaiting Approval'}
+                      </p>
+                      <ReservationPolicyNotice policy={pb?.reservation_policy} compact />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-amber-200/50 dark:border-amber-800/30 flex justify-between items-center">
+                    <div className="text-left">
+                      <p className="text-[10px] font-bold uppercase opacity-60">
+                        {pb?.billing_policy === 'daily' ? 'Daily' : 'Monthly'}
+                      </p>
+                      <p className="text-xl font-bold">₱{(pb?.unit_price || pb?.monthly_rent || 0).toLocaleString()}</p>
+                    </div>
+                    <button
+                      onClick={() => onCancelBooking(pb.id)}
+                      disabled={isCancelling === pb.id}
+                      className="bg-white dark:bg-gray-800 text-red-600 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2.5"
+                    >
+                      {isCancelling === pb.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                      Cancel Request
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      const propertyId = pb?.property_id || pb?.property?.id;
+                      if (propertyId) navigate(`/property/${propertyId}`);
+                    }}
+                    disabled={!pb?.property_id && !pb?.property?.id}
+                    className="bg-white dark:bg-gray-700 text-amber-700 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-amber-100 dark:border-amber-900/30 hover:bg-amber-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Home className="w-3 h-3" />
+                    Room Details
+                  </button>
+                </div>
+              </div>
+            );
+          })}        </div>
       )}
 
       {/* ACTIVE STAY VIEW */}
@@ -917,6 +1050,17 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
             const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
             const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
             const effectivePaymentStatus = booking.is_overdue || booking.isOverdue ? 'overdue' : booking.paymentStatus;
+            const hasCheckoutDate = Boolean(booking?.endDate || booking?.end_date);
+            const isMonthlyBilling = String(booking?.billing_policy || booking?.billingPolicy || 'monthly').toLowerCase() === 'monthly';
+            const invoiceList = Array.isArray(data?.financials?.invoices)
+              ? data.financials.invoices
+              : Array.isArray(booking?.financials?.invoices)
+                ? booking.financials.invoices
+                : [];
+            const shouldUsePaymentCountdown = isMonthlyBilling && !hasCheckoutDate;
+            const paymentCountdown = shouldUsePaymentCountdown
+              ? resolveMonthlyPaymentCountdown(booking, invoiceList)
+              : null;
             const resolvedBedCount = Math.max(1, toWholeNumber(booking?.bed_count ?? booking?.bedCount, 1));
             const resolvedOccupantCount = Math.max(
               1,
@@ -932,36 +1076,38 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Main Column */}
-                            <div className="lg:col-span-2 space-y-6">
-                              {booking.paymentStatus === 'refunded' && (
-                                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-4 animate-pulse">
-                                  <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="text-sm font-bold text-purple-900 dark:text-purple-200">Payment Action Required</p>
-                                    <p className="text-xs text-purple-700 dark:text-purple-400 mt-2">
-                                      Your last payment was refunded. Please complete a new payment or contact your Property Manager to maintain your active status.
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
+                {/* Main Column */}
+                <div className="lg:col-span-2 space-y-6">
+                  {booking.paymentStatus === 'refunded' && (
+                    <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-4 animate-pulse">
+                      <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-purple-900 dark:text-purple-200">Payment Action Required</p>
+                        <p className="text-xs text-purple-700 dark:text-purple-400 mt-2">
+                          Your last payment was refunded. Please complete a new payment or contact your Property Manager to maintain your active status.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-                              {/* Move-out Notice Banner */}
-                              {(booking.notice_given_at || booking.noticeGivenAt) && (
-                                <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 p-4 rounded-xl flex items-start gap-4">
-                                  <DoorOpen className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="text-sm font-bold text-teal-900 dark:text-teal-200">Move-out Notice Submitted</p>
-                                    <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">
-                                      Your move-out notice was received. Planned departure:{' '}
-                                      <span className="font-bold">{booking.endDate ? formatDate(booking.endDate) : 'TBD'}</span>.
-                                      The landlord will confirm your checkout and finalize any billing adjustments.
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                
-                              {/* Room Details Card */}                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
+                  {/* Move-out Notice Banner */}
+                  {(booking.notice_given_at || booking.noticeGivenAt) && (
+                    <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 p-4 rounded-xl flex items-start gap-4">
+                      <DoorOpen className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-teal-900 dark:text-teal-200">Move-out Notice Submitted</p>
+                        <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">
+                          Your move-out notice was received. Planned departure:{' '}
+                          <span className="font-bold">{booking.endDate ? formatDate(booking.endDate) : 'TBD'}</span>.
+                          The landlord will confirm your checkout and finalize any billing adjustments.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Room Details Card */}
+                  {/* Room Details Card */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
                     <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
                       {getImageUrl(property.image) ? (
                         <img
@@ -972,7 +1118,18 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       ) : (
                         <ImagePlaceholder className="w-full h-full" />
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex justify-between items-end">
+                      <div className="absolute top-4 right-4 z-10">
+                        {/* Ellipsis Menu */}
+                        <EllipsisMenu
+                          booking={booking}
+                          property={property}
+                          onReview={onReview}
+                          onReport={onReport}
+                          onRequestMaintenance={onRequestMaintenance}
+                          navigate={navigate}
+                        />
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex items-end">
                         <div>
                           <h2 className="text-2xl font-bold text-white">{property.title}</h2>
                           <p className="text-white/90 text-sm flex items-center mt-2 font-medium">
@@ -980,82 +1137,36 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             {property.address}
                           </p>
                         </div>
-                        <div className="flex flex-col gap-2">
-                          {(() => {
-                            const rawStatus = String(booking.status || booking.status_raw || '').toLowerCase();
-                            const effectiveStatus = rawStatus || 'confirmed';
-                            const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
-                            const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
-
-                            if (!canRequestMoveOut) {
-                              return null;
-                            }
-
-                            if (hasNotice) {
-                              return (
-                                <div
-                                  title="Move-out notice already submitted. The landlord will finalize your checkout."
-                                  className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2"
-                                >
-                                  <DoorOpen className="w-4 h-4" />
-                                  Notice Submitted
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <button
-                                onClick={() => onRequestMoveOut?.()}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-indigo-500/20"
-                              >
-                                <DoorOpen className="w-4 h-4" />
-                                Move-out
-                              </button>
-                            );
-                          })()}
-                          <button 
-                            onClick={() => navigate('/maintenance', { state: { propertyId: property.id } })}
-                            className="bg-orange-400 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-orange-500/20"
-                          >
-                            <Wrench className="w-4 h-4" />
-                            Maintenance
-                          </button>
-                          {(!booking.hasReview && !booking.has_review) && (
-                            <button 
-                              onClick={() => onReview({ ...booking, property })}
-                              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-green-500/20"
-                            >
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              Review
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => onReport(property)}
-                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-red-500/20"
-                          >
-                            <ShieldAlert className="w-4 h-4" />
-                            Report
-                          </button>
-                        </div>
                       </div>
                     </div>
                     <div className="p-6">
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className={`grid grid-cols-2 ${isProxyBooking ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
                         <StatCard label="Room" value={room.roomNumber} icon={DoorOpen} />
-                        <StatCard label={occupancyLabel} value={occupancyValue} icon={Users} />
-                        <StatCard 
-                          label={booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'} 
-                          value={`₱${(booking.unit_price || booking.monthlyRent || 0).toLocaleString()}`} 
-                          icon={Banknote} 
+                        {isProxyBooking && <StatCard label={occupancyLabel} value={occupancyValue} icon={Users} />}
+                        <StatCard
+                          label={booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
+                          value={`₱${(booking.unit_price || booking.monthlyRent || 0).toLocaleString()}`}
+                          icon={Banknote}
                         />
                         {(() => {
+                          if (paymentCountdown) {
+                            return (
+                              <StatCard
+                                label={paymentCountdown.label}
+                                value={paymentCountdown.value}
+                                tone={paymentCountdown.tone}
+                                statusKey={paymentCountdown.statusKey}
+                                icon={CalendarDays}
+                              />
+                            );
+                          }
+
                           const start = new Date(booking.startDate);
                           start.setHours(0, 0, 0, 0);
                           const now = new Date();
                           now.setHours(0, 0, 0, 0);
                           const isFuture = start > now;
                           const daysUntil = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
-                          const hasCheckoutDate = Boolean(booking.endDate);
                           const daysStayedValue = Math.max(0, Math.floor(Number(booking?.daysStayed || 0)));
                           const daysLeftValue = booking?.daysRemaining == null
                             ? '-'
@@ -1065,7 +1176,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             <StatCard
                               label={isFuture ? "Starts In" : (hasCheckoutDate ? "Days Left" : "Days Stayed")}
                               value={
-                                isFuture 
+                                isFuture
                                   ? `${daysUntil} ${daysUntil === 1 ? 'Day' : 'Days'}`
                                   : (hasCheckoutDate ? daysLeftValue : daysStayedValue)
                               }
@@ -1073,12 +1184,12 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             />
                           );
                         })()}
-                        <StatCard 
-                          label="Status" 
+                        <StatCard
+                          label="Status"
                           value={booking.is_overdue || booking.isOverdue ? 'Overdue' : booking.paymentStatus}
                           tone="status"
                           statusKey={effectivePaymentStatus}
-                          icon={CreditCard} 
+                          icon={CreditCard}
                         />
                       </div>
 
@@ -1106,25 +1217,23 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                            <span className="font-bold dark:text-gray-300">Lease:</span> 
+                            <span className="font-bold dark:text-gray-300">Lease:</span>
                             {formatDate(booking.startDate)} to {booking.endDate ? formatDate(booking.endDate) : 'Open-ended'}
-                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-2 rounded text-[10px] font-bold uppercase ml-2">{booking.totalMonths} {Number(booking.totalMonths) === 1 ? 'month' : 'months'}</span>
+                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-2 rounded text-[10px] font-bold uppercase ml-2">
+                              {booking.totalMonths} {Number(booking.totalMonths) === 1 ? 'month' : 'months'}
+                            </span>
                           </p>
-                          
-                          {/* Show Extend button if expiring soon (e.g. within 30 days) or already expired but still active */}
-                          {(() => {
-                            const contractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
-                            const isOpenEndedMonthly = contractMode === 'monthly' && !booking.endDate;
-                            if (isOpenEndedMonthly || !booking.endDate) {
-                              return null;
-                            }
 
-                            const end = new Date(booking.endDate);
-                            const today = new Date();
-                            const diff = end - today;
-                            const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                            
-                            if (daysLeft <= 30) {
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Extend Stay button — only if expiring within 30 days */}
+                            {(() => {
+                              const contractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
+                              const isOpenEndedMonthly = contractMode === 'monthly' && !booking.endDate;
+                              if (isOpenEndedMonthly || !booking.endDate) return null;
+                              const end = new Date(booking.endDate);
+                              const today = new Date();
+                              const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+                              if (daysLeft > 30) return null;
                               return (
                                 <button
                                   onClick={onRequestExtension}
@@ -1134,77 +1243,100 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                   Extend Stay
                                 </button>
                               );
-                            }
-                            return null;
-                          })()}
-                          {(() => {
-                            const isPendingForThisBooking = pendingTransferBookingIds.includes(booking.id);
-                            const pendingRequestForThisBooking = pendingTransferRequests.find(
-                              (request) => Number(request.booking_id) === Number(booking.id),
-                            );
-                            const limitReached = monthlyTransferCount >= 2;
-                            const now = new Date();
-                            const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-                            const daysUntilTransferReset = Math.max(
-                              1,
-                              Math.ceil((nextMonthStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-                            );
-                            const isDisabled = isPendingForThisBooking || limitReached;
-                            
-                            let buttonText = 'Transfer';
-                            let buttonTitle = 'Request a room transfer';
-                            
-                            if (isPendingForThisBooking) {
-                              buttonText = 'Transfer Pending';
-                              buttonTitle = 'You already have a pending transfer request for this booking';
-                            } else if (limitReached) {
-                              buttonText = 'Limit Reached';
-                              buttonTitle = `Monthly transfer limit reached. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
-                            }
+                            })()}
 
-                            return (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => {
-                                    if (isPendingForThisBooking) return;
-                                    if (limitReached) {
-                                      toast.error(
-                                        `Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`
-                                      );
-                                      return;
-                                    }
-                                    onRequestTransfer?.();
-                                  }}
-                                  disabled={isPendingForThisBooking}
-                                  title={buttonTitle}
-                                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                    isDisabled
+                            {/* Transfer button */}
+                            {(() => {
+                              const isPendingForThisBooking = pendingTransferBookingIds.includes(booking.id);
+                              const pendingRequestForThisBooking = pendingTransferRequests.find(
+                                (request) => Number(request.booking_id) === Number(booking.id),
+                              );
+                              const limitReached = monthlyTransferCount >= 2;
+                              const now = new Date();
+                              const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                              const daysUntilTransferReset = Math.max(
+                                1,
+                                Math.ceil((nextMonthStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                              );
+                              const isDisabled = isPendingForThisBooking || limitReached;
+                              let buttonText = 'Transfer';
+                              let buttonTitle = 'Request a room transfer';
+                              if (isPendingForThisBooking) {
+                                buttonText = 'Transfer Pending';
+                                buttonTitle = 'You already have a pending transfer request for this booking';
+                              } else if (limitReached) {
+                                buttonText = 'Limit Reached';
+                                buttonTitle = `Monthly transfer limit reached. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
+                              }
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      if (isPendingForThisBooking) return;
+                                      if (limitReached) {
+                                        toast.error(`Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
+                                        return;
+                                      }
+                                      onRequestTransfer?.();
+                                    }}
+                                    disabled={isPendingForThisBooking}
+                                    title={buttonTitle}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isDisabled
                                       ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
                                       : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
-                                  }`}
-                                >
-                                  <Shuffle className="w-4 h-4" />
-                                  {buttonText}
-                                </button>
-
-                                {pendingRequestForThisBooking && (
-                                  <button
-                                    onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
-                                    disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
-                                    title="Cancel pending transfer request"
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-60"
+                                      }`}
                                   >
-                                    {cancellingTransferRequestId === pendingRequestForThisBooking.id ? (
-                                      <RefreshCw className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <XCircle className="w-4 h-4" />
-                                    )}
-                                    Cancel Transfer
+                                    <Shuffle className="w-4 h-4" />
+                                    {buttonText}
                                   </button>
-                                )}
-                              </div>
-                            );
-                          })()}
+                                  {pendingRequestForThisBooking && (
+                                    <button
+                                      onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
+                                      disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
+                                      title="Cancel pending transfer request"
+                                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-60"
+                                    >
+                                      {cancellingTransferRequestId === pendingRequestForThisBooking.id ? (
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <XCircle className="w-4 h-4" />
+                                      )}
+                                      Cancel Transfer
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Move-out button */}
+                            {(() => {
+                              const rawStatus = String(booking.status || booking.status_raw || '').toLowerCase();
+                              const effectiveStatus = rawStatus || 'confirmed';
+                              const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
+                              const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
+                              if (!canRequestMoveOut) return null;
+                              if (hasNotice) {
+                                return (
+                                  <div
+                                    title="Move-out notice already submitted."
+                                    className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"
+                                  >
+                                    <DoorOpen className="w-4 h-4" />
+                                    Notice Submitted
+                                  </div>
+                                );
+                              }
+                              return (
+                                <button
+                                  onClick={() => onRequestMoveOut?.()}
+                                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 transition-all active:scale-95"
+                                >
+                                  <DoorOpen className="w-4 h-4" />
+                                  Move-out
+                                </button>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1218,11 +1350,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         onClick={onRequestAddon}
                         disabled={booking.can_request_addon === false}
                         title={booking.can_request_addon === false ? "Disabled until payment is re-settled" : ""}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all active:scale-95 ${
-                          booking.can_request_addon === false
-                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
-                            : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-500/20'
-                        }`}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all active:scale-95 ${booking.can_request_addon === false
+                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
+                          : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-500/20'
+                          }`}
                       >
                         <Plus className="w-4 h-4" />
                         Request
@@ -1252,9 +1383,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-4">Awaiting Approval</h4>
                         <div className="space-y-4">
                           {addons.pending.map((addon) => (
-                            <AddonItem 
-                              key={addon.pivot?.id || addon.id} 
-                              addon={addon} 
+                            <AddonItem
+                              key={addon.pivot?.id || addon.id}
+                              addon={addon}
                               status="pending"
                               onCancel={() => onCancelAddon(addon.id)}
                             />
@@ -1288,12 +1419,12 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Property Manager</h3>
                     <div className="flex items-center gap-4 mb-6">
                       <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
-                          {landlord?.name?.charAt(0).toUpperCase() || '?'}
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900 dark:text-white leading-tight">{landlord?.name || 'Owner'}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verified Host</p>
-                        </div>
+                        {landlord?.name?.charAt(0).toUpperCase() || '?'}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white leading-tight">{landlord?.name || 'Owner'}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verified Host</p>
+                      </div>
                     </div>
                     <div className="space-y-4">
                       {landlord?.email && (
@@ -1312,13 +1443,13 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           {landlord.phone}
                         </a>
                       )}
-                      <button 
-                        onClick={() => navigate('/messages', { 
-                          state: { 
-                            startConversation: true, 
-                            recipient: { id: landlord?.id, name: landlord?.name }, 
-                            property: { id: property?.id, title: property?.title } 
-                          } 
+                      <button
+                        onClick={() => navigate('/messages', {
+                          state: {
+                            startConversation: true,
+                            recipient: { id: landlord?.id, name: landlord?.name },
+                            property: { id: property?.id, title: property?.title }
+                          }
                         })}
                         className="flex items-center gap-4 w-full text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors text-left"
                       >
@@ -1415,7 +1546,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
   };
-  
+
   // Flatten all transactions from all invoices into a single sorted list
   const invoices = Array.isArray(financials?.invoices) ? financials.invoices : [];
   const allTransactions = invoices
@@ -1455,10 +1586,10 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
   return (
     <div className="space-y-6">
       {/* Adaptive Stay Selector */}
-      <StaySelector 
-        stays={stays} 
-        selectedIndex={selectedIndex} 
-        onSelect={onSelectStay} 
+      <StaySelector
+        stays={stays}
+        selectedIndex={selectedIndex}
+        onSelect={onSelectStay}
       />
 
       {/* Action Header */}
@@ -1467,7 +1598,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
           <h3 className="text-xl font-semibold">Billing & Payments</h3>
           <p className="text-green-100 text-sm mt-2">Manage your invoices, view full history and make payments.</p>
         </div>
-        <button 
+        <button
           onClick={() => navigate('/payments')}
           className="bg-white text-green-700 px-6 py-4 rounded-xl font-bold flex items-center gap-2 hover:bg-green-50 transition-all shadow-md active:scale-95 whitespace-nowrap"
         >
@@ -1507,7 +1638,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
             <RefreshCw className="w-5 h-5 text-green-500" />
             Recent Activity
           </h3>
-          <button 
+          <button
             onClick={() => navigate('/payments')}
             className="text-sm font-bold text-green-600 dark:text-green-400 hover:underline"
           >
@@ -1530,13 +1661,12 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
                     <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{tx.date}</td>
                     <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{(tx.amount || 0).toLocaleString()}</td>
                     <td className="py-4 px-6">
-                      <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${
-                        ['succeeded', 'paid', 'completed', 'approved', 'verified'].includes(tx.normalizedStatus)
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : ['expired', 'failed', 'cancelled', 'voided'].includes(tx.normalizedStatus)
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      }`}>
+                      <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${['succeeded', 'paid', 'completed', 'approved', 'verified'].includes(tx.normalizedStatus)
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : ['expired', 'failed', 'cancelled', 'voided'].includes(tx.normalizedStatus)
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        }`}>
                         {tx.status}
                       </span>
                     </td>
@@ -1611,7 +1741,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                   <StatusBadge status={booking.has_overdue_invoices || (booking.invoices && booking.invoices.some(inv => inv.status === 'overdue')) ? 'overdue' : (booking.is_overdue || booking.isOverdue ? 'overdue' : booking.status)} />
                   <div className="flex items-center gap-4">
                     {['completed', 'confirmed'].includes(booking.status) && !booking.review && (
-                      <button 
+                      <button
                         onClick={() => onReview(booking)}
                         className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline underline-offset-2"
                       >
@@ -1620,7 +1750,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                       </button>
                     )}
                     {booking.status === 'pending' && (
-                      <button 
+                      <button
                         onClick={() => onCancelBooking(booking.id)}
                         disabled={isCancelling === booking.id}
                         className="flex items-center gap-2 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2 disabled:opacity-50"
@@ -1636,7 +1766,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                       </span>
                     )}
                     {booking.status !== 'pending' && (
-                      <button 
+                      <button
                         onClick={() => onReport(booking.property)}
                         className="flex items-center gap-2 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2"
                       >
@@ -1675,13 +1805,12 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                   booking.activityLog.map((activity, idx) => (
                     <div key={idx} className="relative">
                       {/* Timeline dot */}
-                      <div className={`absolute -left-[22px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${
-                        activity.status === 'pending' ? 'bg-amber-400' :
+                      <div className={`absolute -left-[22px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${activity.status === 'pending' ? 'bg-amber-400' :
                         activity.status === 'confirmed' ? 'bg-green-500' :
-                        activity.status === 'paid' ? 'bg-blue-500' :
-                        activity.status === 'cancelled' ? 'bg-red-500' : 'bg-gray-400'
-                      }`} />
-                      
+                          activity.status === 'paid' ? 'bg-blue-500' :
+                            activity.status === 'cancelled' ? 'bg-red-500' : 'bg-gray-400'
+                        }`} />
+
                       <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-2">
                         <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{activity.action}</p>
                         <p className="text-[10px] font-medium text-gray-500 dark:text-gray-500 uppercase">
@@ -1807,6 +1936,61 @@ const PAYMENT_STATUS_THEME = {
     value: 'text-gray-900 dark:text-white',
   },
 };
+// ==================== Ellipsis Menu Component ====================
+const EllipsisMenu = ({ booking, property, onReview, onReport, onRequestMaintenance }) => {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(prev => !prev)}
+        className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-all backdrop-blur-sm"
+        title="More actions"
+      >
+        <MoreHorizontal className="w-5 h-5" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-12 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-150">
+          <button
+            onClick={() => { onRequestMaintenance(booking.id); setOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <Wrench className="w-4 h-4 text-orange-500" />
+            Maintenance
+          </button>
+
+          {(!booking.hasReview && !booking.has_review) && (
+            <button
+              onClick={() => { onReview({ ...booking, property }); setOpen(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Star className="w-4 h-4 text-yellow-500 fill-yellow-400" />
+              Review
+            </button>
+          )}
+
+          <button
+            onClick={() => { onReport(property); setOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors border-t border-gray-100 dark:border-gray-700"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            Report
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const StatCard = ({ label, value, icon: Icon, tone = 'neutral', statusKey = '' }) => {
   const statusTheme = PAYMENT_STATUS_THEME[(statusKey || '').toLowerCase()] || PAYMENT_STATUS_THEME.default;
@@ -1858,11 +2042,10 @@ const AddonItem = ({ addon, status, onCancel }) => {
   const displayPrice = resolveAddonDisplayPrice(addon);
 
   return (
-    <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-      status === 'active'
-        ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30'
-        : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
-    }`}>
+    <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${status === 'active'
+      ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30'
+      : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
+      }`}>
       <div className="flex items-center gap-4">
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${status === 'active' ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400'}`}>
           <Sparkles className="w-5 h-5" />
@@ -1974,11 +2157,10 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <h4 className="font-bold text-gray-900 dark:text-white text-lg">{addon.name}</h4>
-                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                              addon.price_type === 'monthly' 
-                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
-                                : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                            }`}>
+                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${addon.price_type === 'monthly'
+                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                              : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                              }`}>
                               {addon.price_type_label}
                             </span>
                           </div>
@@ -1995,11 +2177,10 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                         <button
                           onClick={() => onRequest({ booking_id: bookingId, addon_id: addon.id, quantity: 1 })}
                           disabled={!addon.has_stock || requestingId === addon.id}
-                          className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
-                            addon.has_stock && requestingId !== addon.id
-                              ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
-                          }`}
+                          className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${addon.has_stock && requestingId !== addon.id
+                            ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
+                            }`}
                         >
                           {requestingId === addon.id ? (
                             <RefreshCw className="w-4 h-4 animate-spin" />
@@ -2013,7 +2194,7 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                 </div>
               )}
 
-              <button 
+              <button
                 onClick={() => setShowCustomForm(true)}
                 className="w-full py-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 dark:text-gray-400 hover:border-green-500 hover:text-green-600 dark:hover:text-green-400 transition-all font-bold flex items-center justify-center gap-2 group"
               >
@@ -2025,12 +2206,12 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
             <form onSubmit={handleCustomSubmit} className="space-y-6">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Item Name *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   placeholder="e.g. Extra table, Desk lamp..."
                   value={customData.name}
-                  onChange={e => setCustomData({...customData, name: e.target.value})}
+                  onChange={e => setCustomData({ ...customData, name: e.target.value })}
                   className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
                 />
               </div>
@@ -2038,9 +2219,9 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Type *</label>
-                  <select 
+                  <select
                     value={customData.addon_type}
-                    onChange={e => setCustomData({...customData, addon_type: e.target.value})}
+                    onChange={e => setCustomData({ ...customData, addon_type: e.target.value })}
                     className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
                   >
                     <option value="rental">Rental (Item)</option>
@@ -2049,9 +2230,9 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Billing *</label>
-                  <select 
+                  <select
                     value={customData.price_type}
-                    onChange={e => setCustomData({...customData, price_type: e.target.value})}
+                    onChange={e => setCustomData({ ...customData, price_type: e.target.value })}
                     className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
                   >
                     <option value="monthly">Monthly</option>
@@ -2072,23 +2253,23 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                   className="w-full px-4 py-4 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none mb-4"
                 />
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Notes / Details</label>
-                <textarea 
+                <textarea
                   placeholder="Tell the owner more about your request..."
                   value={customData.note}
-                  onChange={e => setCustomData({...customData, note: e.target.value})}
+                  onChange={e => setCustomData({ ...customData, note: e.target.value })}
                   className="w-full px-4 py-4 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-24 resize-none"
                 />
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowCustomForm(false)}
                   className="flex-1 py-4 border border-gray-300 dark:border-gray-700 rounded-xl font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Back
                 </button>
-                <button 
+                <button
                   type="submit"
                   disabled={requestingId === 'custom'}
                   className="flex-1 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-500/20 transition-all active:scale-95 disabled:opacity-50"
@@ -2102,7 +2283,7 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
 
         <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 text-center">
           <p className="text-[10px] text-gray-500 dark:text-gray-500 font-bold uppercase tracking-wider leading-relaxed">
-            Requests are subject to owner approval. <br/>Approved items will be added to your next billing cycle.
+            Requests are subject to owner approval. <br />Approved items will be added to your next billing cycle.
           </p>
         </div>
       </div>
@@ -2118,7 +2299,7 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
 
   const currentEndDate = booking.endDate ? new Date(booking.endDate) : null;
   const hasCurrentEndDate = currentEndDate instanceof Date && !Number.isNaN(currentEndDate.getTime());
-  
+
   // Calculate default dates
   const nextMonthDate = hasCurrentEndDate ? new Date(currentEndDate) : null;
   if (nextMonthDate) {
@@ -2134,13 +2315,13 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
       const end = new Date(customDate);
       const diffTime = Math.abs(end - start);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       const dailyRate = room.daily_rate || (parseFloat(booking.unit_price || booking.monthlyRent || 0) / 30);
       setEstimatedPrice(diffDays * dailyRate);
     } else {
       setEstimatedPrice(0);
     }
-  }, [type, customDate, booking, room]);
+  }, [type, customDate, booking, room, hasCurrentEndDate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -2151,7 +2332,7 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
     }
 
     const finalEndDate = type === 'monthly' ? nextMonthStr : customDate;
-    
+
     if (!finalEndDate) {
       toast.error('Please select an end date');
       return;
@@ -2233,7 +2414,7 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
               <span className="text-sm font-semibold text-gray-500 uppercase">Estimated Fee</span>
               <span className="text-xl font-black text-green-600 dark:text-green-400">₱{estimatedPrice.toLocaleString()}</span>
             </div>
-            
+
             <button
               type="submit"
               disabled={loading}
@@ -2365,7 +2546,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
       setTransferPreview(null);
       return;
     }
-    
+
     let cancelled = false;
     const fetchPreview = async () => {
       setLoadingPreview(true);
@@ -2386,7 +2567,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
         if (!cancelled) setLoadingPreview(false);
       }
     };
-    
+
     fetchPreview();
     return () => { cancelled = true; };
   }, [formData.requested_room_id, booking?.id]);
@@ -2436,7 +2617,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
       toast.error('Please select a new lease end date');
       return;
     }
-    
+
     onSubmit({
       ...formData,
       new_end_date: leaseDurationPreference === 'new_lease' ? newEndDate : null
@@ -2500,10 +2681,9 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                   <p className="text-xs text-gray-500 dark:text-gray-400">Calculating impact...</p>
                 </div>
               ) : transferPreview ? (
-                <div className={`rounded-xl border overflow-hidden transition-all ${
-                  transferPreview.suggested_adjustment > 0 ? 'border-amber-200 dark:border-amber-800' : 
+                <div className={`rounded-xl border overflow-hidden transition-all ${transferPreview.suggested_adjustment > 0 ? 'border-amber-200 dark:border-amber-800' :
                   transferPreview.suggested_adjustment < 0 ? 'border-green-200 dark:border-green-800' : 'border-gray-200 dark:border-gray-700'
-                }`}>
+                  }`}>
                   <div className="grid grid-cols-2 bg-gray-50 dark:bg-gray-700/50 divide-x divide-gray-200 dark:divide-gray-600">
                     <div className="p-3 text-center">
                       <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">Current Rate</p>
@@ -2514,7 +2694,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                       <p className="text-sm font-bold text-amber-600 dark:text-amber-400">₱{transferPreview.new_room_rate.toLocaleString()}/mo</p>
                     </div>
                   </div>
-                  
+
                   <div className="p-4 space-y-2 bg-white dark:bg-gray-800">
                     {!transferPreview.has_payment_this_period ? (
                       <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -2535,13 +2715,12 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                           <span className="text-gray-500">New room cost (rem. days)</span>
                           <span className="font-bold">₱{transferPreview.new_room_cost.toLocaleString()}</span>
                         </div>
-                        
+
                         <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
                           <span className="text-xs font-bold uppercase text-gray-400">Net Adjustment</span>
                           <div className="text-right">
-                            <p className={`text-base font-black ${
-                              transferPreview.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'
-                            }`}>
+                            <p className={`text-base font-black ${transferPreview.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'
+                              }`}>
                               {transferPreview.suggested_adjustment > 0 ? '+' : ''}
                               ₱{Math.abs(transferPreview.suggested_adjustment).toLocaleString()}
                             </p>
@@ -2579,7 +2758,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                   Start New Lease
                 </button>
               </div>
-              
+
               {leaseDurationPreference === 'new_lease' && (
                 <div className="mt-4 animate-in fade-in slide-in-from-top-2">
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select New End Date *</label>
@@ -2608,7 +2787,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
             </div>
           </form>
         </div>
-        
+
         <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 shrink-0">
           <button
             type="submit"

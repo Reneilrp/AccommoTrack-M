@@ -45,6 +45,10 @@ class TenantPaymentController extends Controller
 
                     return [
                         'id' => $invoice->id,
+                        'invoiceId' => $invoice->id,
+                        'invoice_id' => $invoice->id,
+                        'bookingId' => $invoice->booking_id,
+                        'booking_id' => $invoice->booking_id,
                         'propertyName' => $propertyName,
                         'roomNumber' => $roomNumber,
                         'amount' => (float) $totalCents / 100,
