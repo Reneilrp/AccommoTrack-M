@@ -2,26 +2,33 @@ name: Generate Repository QR Code
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master ] # Double-check if this should be 'main'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    
+    # This environment variable forces all actions to use Node 24 
+    # even if they haven't been updated by the author yet.
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6 # Updated from v4
+        with:
+          fetch-depth: 0
 
       - name: Generate QR Code
-        uses: snow-actions/qrcode@v1.2.0
+        uses: snow-actions/qrcode@v1.2.0 # Keep this, but forced to Node 24 via env
         with:
           text: "https://github.com/${{ github.repository }}"
           path: "qrcode.png"
 
       - name: Auto-Commit QR Code
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7 # Updated from v5
         with:
           commit_message: "docs: update repository qr code"
           file_pattern: 'qrcode.png'

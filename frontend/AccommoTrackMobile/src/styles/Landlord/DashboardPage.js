@@ -298,7 +298,7 @@ export const getStyles = (theme, viewportWidth = 390, viewportHeight = 844) => {
   quickActionsSection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    marginTop: 4,
+    marginTop: 16,
     borderTopWidth: 2,
     borderBottomWidth: 2,
     borderColor: theme.colors.border,

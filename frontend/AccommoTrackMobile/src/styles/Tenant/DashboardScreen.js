@@ -79,6 +79,7 @@ export const getStyles = (theme) =>
       justifyContent: 'center',
       alignItems: 'center',
       gap: 4,
+      marginTop: 8,
     },
     statCardActive: {
       borderColor: theme.colors.primary,

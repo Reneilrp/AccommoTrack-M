@@ -1,5 +1,42 @@
 import api from './api.js';
-import { API_BASE_URL as API_URL } from '../config/index.js';
+import { extractErrorMessage } from '../utils/error.js';
+
+const unwrapResponseData = (payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'data')) {
+    return payload.data;
+  }
+
+  return payload;
+};
+
+const normalizeLandlordProperties = (properties) => {
+  if (!Array.isArray(properties)) {
+    return [];
+  }
+
+  return properties
+    .map((property) => {
+      if (!property || typeof property !== 'object') {
+        return null;
+      }
+
+      const id = property.id ?? property.property_id;
+      if (id === null || id === undefined) {
+        return null;
+      }
+
+      return {
+        ...property,
+        id,
+        name: property.name || property.title || 'Unnamed Property',
+      };
+    })
+    .filter(Boolean);
+};
 
 class CaretakerService {
 
@@ -9,10 +46,29 @@ class CaretakerService {
   async getCaretakers() {
     try {
       const response = await api.get(`/landlord/caretakers`);
-      return { success: true, data: response.data };
+      const payload = unwrapResponseData(response.data) || {};
+      const caretakers = Array.isArray(payload?.caretakers) ? payload.caretakers : [];
+
+      let landlordProperties;
+      if (Array.isArray(payload?.landlord_properties)) {
+        landlordProperties = normalizeLandlordProperties(payload.landlord_properties);
+      } else {
+        const propertiesResponse = await api.get(`/landlord/properties`);
+        const propertiesPayload = unwrapResponseData(propertiesResponse.data);
+        landlordProperties = normalizeLandlordProperties(propertiesPayload);
+      }
+
+      return {
+        success: true,
+        data: {
+          ...payload,
+          caretakers,
+          landlord_properties: landlordProperties,
+        },
+      };
     } catch (error) {
       console.error('Error fetching caretakers:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch caretakers' };
+      return { success: false, error: extractErrorMessage(error) || 'Failed to fetch caretakers' };
     }
   }
 
@@ -22,10 +78,10 @@ class CaretakerService {
   async createCaretaker(data) {
     try {
       const response = await api.post(`/landlord/caretakers`, data);
-      return { success: true, data: response.data };
+      return { success: true, data: unwrapResponseData(response.data) };
     } catch (error) {
       console.error('Error creating caretaker:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to create caretaker' };
+      return { success: false, error: extractErrorMessage(error) || 'Failed to create caretaker' };
     }
   }
 
@@ -35,10 +91,10 @@ class CaretakerService {
   async updateCaretaker(assignmentId, data) {
     try {
       const response = await api.patch(`/landlord/caretakers/${assignmentId}`, data);
-      return { success: true, data: response.data };
+      return { success: true, data: unwrapResponseData(response.data) };
     } catch (error) {
       console.error('Error updating caretaker:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to update caretaker' };
+      return { success: false, error: extractErrorMessage(error) || 'Failed to update caretaker' };
     }
   }
 
@@ -48,10 +104,10 @@ class CaretakerService {
   async deleteCaretaker(assignmentId) {
     try {
       const response = await api.delete(`/landlord/caretakers/${assignmentId}`);
-      return { success: true, data: response.data };
+      return { success: true, data: unwrapResponseData(response.data) };
     } catch (error) {
       console.error('Error deleting caretaker:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to delete caretaker' };
+      return { success: false, error: extractErrorMessage(error) || 'Failed to delete caretaker' };
     }
   }
 
@@ -61,10 +117,10 @@ class CaretakerService {
   async resetPassword(assignmentId) {
     try {
       const response = await api.post(`/landlord/caretakers/${assignmentId}/reset-password`, {});
-      return { success: true, data: response.data };
+      return { success: true, data: unwrapResponseData(response.data) };
     } catch (error) {
       console.error('Error resetting password:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to reset password' };
+      return { success: false, error: extractErrorMessage(error) || 'Failed to reset password' };
     }
   }
 }

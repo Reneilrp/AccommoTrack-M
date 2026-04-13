@@ -273,6 +273,34 @@ describe('Landlord smoke flows', () => {
     ).toBeTruthy();
   }, 15000);
 
+  it('AddProperty shows gender restriction picker for non-apartment types', async () => {
+    ProfileService.getVerificationStatus.mockResolvedValue({
+      success: true,
+      data: { status: 'approved', user: { is_verified: true } },
+    });
+    AsyncStorage.getItem.mockResolvedValue(
+      JSON.stringify({ paymongo_verification_status: 'verified' }),
+    );
+
+    renderWithQueryClient(<AddProperty navigation={mockPropNavigation} />);
+
+    await screen.findByText('Save Draft');
+
+    const propertyTypePicker = screen.getByTestId('add-property-type-picker');
+    fireEvent(propertyTypePicker, 'valueChange', 'dormitory');
+
+    const genderPicker = await screen.findByTestId('add-property-gender-picker');
+    expect(genderPicker).toBeTruthy();
+
+    fireEvent(genderPicker, 'valueChange', 'female');
+    expect(screen.getByTestId('add-property-gender-picker')).toBeTruthy();
+
+    fireEvent(propertyTypePicker, 'valueChange', 'apartment');
+    await waitFor(() => {
+      expect(screen.queryByTestId('add-property-gender-picker')).toBeNull();
+    });
+  });
+
   it('AddProperty blocks final submission for unverified accounts', async () => {
     ProfileService.getVerificationStatus.mockResolvedValue({
       success: true,
@@ -596,6 +624,10 @@ describe('Landlord smoke flows', () => {
       );
     });
 
+    await waitFor(() => {
+      expect(screen.queryByText('Add New Caretaker')).toBeNull();
+    });
+
     expect(showSuccess).toHaveBeenCalled();
   });
 
@@ -682,6 +714,50 @@ describe('Landlord smoke flows', () => {
             can_view_analytics: true,
           },
         },
+      );
+    });
+
+    expect(showSuccess).toHaveBeenCalled();
+  });
+
+  it('Caretaker create flow allows submission when no properties are available', async () => {
+    CaretakerService.getCaretakers.mockResolvedValue({
+      success: true,
+      data: {
+        caretakers: [],
+        landlord_properties: [],
+      },
+    });
+    CaretakerService.createCaretaker.mockResolvedValue({
+      success: true,
+      data: { temporary_password: 'Temp1234' },
+    });
+
+    renderWithQueryClient(<Caretakers />);
+
+    await screen.findByText('No caretakers yet');
+    fireEvent.press(screen.getByText('Add First Caretaker'));
+
+    await screen.findByText('Add New Caretaker');
+
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. John'), 'John');
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. Doe'), 'Doe');
+    fireEvent.changeText(
+      screen.getByPlaceholderText('caretaker@example.com'),
+      'john@example.com',
+    );
+
+    const passwordFields = screen.getAllByPlaceholderText('••••••••');
+    fireEvent.changeText(passwordFields[0], 'StrongPass1!');
+    fireEvent.changeText(passwordFields[1], 'StrongPass1!');
+
+    fireEvent.press(screen.getByText('Confirm & Add Caretaker'));
+
+    await waitFor(() => {
+      expect(CaretakerService.createCaretaker).toHaveBeenCalledWith(
+        expect.objectContaining({
+          property_ids: [],
+        }),
       );
     });
 

@@ -139,6 +139,11 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     backgroundColor: theme.colors.background
   },
+  picker: {
+    height: 48,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.background,
+  },
   helperText: {
     fontSize: 12,
     color: theme.colors.textTertiary,

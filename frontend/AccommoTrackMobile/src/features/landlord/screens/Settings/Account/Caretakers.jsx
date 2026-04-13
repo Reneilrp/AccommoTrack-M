@@ -273,7 +273,7 @@ export default function Caretakers() {
       return;
     }
 
-    if (formData.propertyIds.length === 0) {
+    if (landlordProperties.length > 0 && formData.propertyIds.length === 0) {
       showError('Error', 'Please assign at least one property to the caretaker');
       return;
     }
@@ -313,9 +313,17 @@ export default function Caretakers() {
 
         const res = await CaretakerService.createCaretaker(payload);
         if (res.success) {
+          const temporaryPassword = res.data?.temporary_password || formData.password;
+
           setModalVisible(false);
           resetForm();
-          showSuccess('Success', `Caretaker created! Temp password: ${res.data.temporary_password || formData.password}`);
+
+          if (temporaryPassword) {
+            showSuccess('Success', `Caretaker created! Temp password: ${temporaryPassword}`);
+          } else {
+            showSuccess('Success', 'Caretaker created successfully');
+          }
+
           await refreshCaretakerBundleSafe();
         } else {
           showError('Error', res.error);
@@ -679,7 +687,9 @@ export default function Caretakers() {
                   <Text style={[styles.checkLabel, { color: theme.colors.text }]}>{prop.name}</Text>
                 </TouchableOpacity>
               )) : (
-                <Text style={{ color: theme.colors.error, fontSize: 12, marginLeft: 8 }}>Still did not assign a property</Text>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginLeft: 8 }}>
+                  No properties available yet. You can create this caretaker now and assign properties later.
+                </Text>
               )}
 
               <View style={{ height: 40 }} />

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   ScrollView,
   StatusBar,
   Text,
@@ -183,6 +184,7 @@ export default function AddProperty({ navigation }) {
   const isPayMongoVerified =
     addPropertyVerificationQuery.data?.isPayMongoVerified ?? false;
   const canSubmitForApproval = isCaretaker || isVerified === true;
+  const pickerMode = Platform.OS === 'android' ? 'dialog' : undefined;
   const refetchAddPropertyVerification = addPropertyVerificationQuery.refetch;
   const addPropertyVerificationRefetchers = useMemo(
     () => [refetchAddPropertyVerification],
@@ -806,15 +808,25 @@ export default function AddProperty({ navigation }) {
               </Text>
               <View style={styles.pickerWrapper}>
                 <Picker
+                  testID="add-property-type-picker"
+                  mode={pickerMode}
+                  prompt="Select property type"
+                  style={styles.picker}
+                  dropdownIconColor={theme.colors.textSecondary}
                   selectedValue={form.propertyType}
                   onValueChange={(value) => updateForm("propertyType", value)}
                 >
-                  <Picker.Item label="Select type" value="" />
+                  <Picker.Item
+                    label="Select type"
+                    value=""
+                    color={theme.colors.textTertiary}
+                  />
                   {PROPERTY_TYPES.map((type) => (
                     <Picker.Item
                       key={type.value}
                       label={type.label}
                       value={type.value}
+                      color={theme.colors.text}
                     />
                   ))}
                 </Picker>
@@ -836,6 +848,11 @@ export default function AddProperty({ navigation }) {
                   </Text>
                   <View style={styles.pickerWrapper}>
                     <Picker
+                      testID="add-property-gender-picker"
+                      mode={pickerMode}
+                      prompt="Select gender restriction"
+                      style={styles.picker}
+                      dropdownIconColor={theme.colors.textSecondary}
                       selectedValue={form.genderRestriction}
                       onValueChange={(value) => updateForm("genderRestriction", value)}
                     >
@@ -844,6 +861,7 @@ export default function AddProperty({ navigation }) {
                           key={opt.value}
                           label={opt.label}
                           value={opt.value}
+                          color={theme.colors.text}
                         />
                       ))}
                     </Picker>
