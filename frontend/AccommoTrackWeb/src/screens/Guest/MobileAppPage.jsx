@@ -244,7 +244,7 @@ const MobileAppPage = () => {
               <button onClick={() => { window.location.href = downloadUrl; }}
                 className="btn-download w-full sm:w-auto flex items-center justify-center gap-3 text-white px-8 py-4 rounded-2xl font-semibold text-base">
                 <Download className="w-4 h-4 relative z-10" />
-                <span className="relative z-10">Download APK · 94 MB</span>
+                <span className="relative z-10">Download APK · 90 MB</span>
               </button>
               <div className="text-sm text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-green-500" /> Scanned &amp; safe

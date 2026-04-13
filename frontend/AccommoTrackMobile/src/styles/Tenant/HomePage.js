@@ -356,11 +356,12 @@ export const getStyles = (theme, viewportWidth = 390) => {
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
+    elevation: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+    zIndex: 40,
   },
 
   // UTILS
@@ -456,6 +457,7 @@ export const getStyles = (theme, viewportWidth = 390) => {
   navContainer: {
     backgroundColor: theme.colors.surface,
     position: 'relative',
+    zIndex: 10,
   },
   tabButtonContainer: {
     backgroundColor: theme.colors.surface,
@@ -469,7 +471,8 @@ export const getStyles = (theme, viewportWidth = 390) => {
     position: 'absolute', 
     left: 0, 
     right: 0, 
-    zIndex: 30, 
+    zIndex: 50, 
+    elevation: 15,
     alignItems: 'center',
     justifyContent: 'flex-end',
     height: 100,

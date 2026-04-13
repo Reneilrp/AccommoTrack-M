@@ -1043,6 +1043,9 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           setShowBlockedModal(true);
           return;
         }
+        if (data.errors) {
+          setFieldErrors(data.errors);
+        }
         setError(data.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {

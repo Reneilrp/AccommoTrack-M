@@ -16,6 +16,8 @@ const ArchivedProperties = () => {
     isOpen: false, title: '', message: '', onConfirm: () => {}, requirePassword: false 
   });
   const [passwordValue, setPasswordValue] = useState('');
+  const passwordValueRef = React.useRef(passwordValue);
+  passwordValueRef.current = passwordValue;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -48,7 +50,7 @@ const ArchivedProperties = () => {
         await api.post(`/admin/${type}/${id}/restore`);
         toast.success(`${type === 'users' ? 'User' : 'Property'} successfully restored`);
       } else if (action === 'purge') {
-        await api.delete(`/admin/${type}/${id}/force`, { data: { password: passwordValue } });
+        await api.delete(`/admin/${type}/${id}/force`, { data: { password: passwordValueRef.current } });
         toast.success(`${type === 'users' ? 'User' : 'Property'} permanently deleted`);
       }
 

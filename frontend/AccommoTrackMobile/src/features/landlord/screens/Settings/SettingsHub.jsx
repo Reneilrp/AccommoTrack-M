@@ -684,13 +684,6 @@ export default function SettingsScreen({ navigation, onLogout }) {
             type: "info",
             value: currentVersion,
           },
-          {
-            id: "updates",
-            label: "Release Channel",
-            icon: "cloud-download-outline",
-            type: "info",
-            value: "Testing",
-          },
         ],
       },
     ];
