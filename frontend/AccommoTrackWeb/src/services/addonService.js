@@ -96,18 +96,8 @@ export const addonService = {
   /**
    * Approve or reject an addon request (Landlord)
    */
-  async handleAddonRequest(bookingId, addonId, action, note = null, approvedPrice = null) {
+  async handleAddonRequest(bookingId, addonId, payload) {
     try {
-      const payload = {
-        action, // 'approve' or 'reject'
-        note,
-      };
-
-      const numericApprovedPrice = Number(approvedPrice);
-      if (action === 'approve' && Number.isFinite(numericApprovedPrice) && numericApprovedPrice > 0) {
-        payload.approved_price = numericApprovedPrice;
-      }
-
       const response = await api.patch(
         `/landlord/bookings/${bookingId}/addons/${addonId}`,
         payload,
@@ -115,6 +105,23 @@ export const addonService = {
       return response.data;
     } catch (error) {
       console.error("Error handling addon request:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update price for an active addon (Landlord)
+   * Changes will apply to next billing cycle
+   */
+  async updateActiveAddonPrice(bookingId, addonId, newPrice) {
+    try {
+      const response = await api.patch(
+        `/landlord/bookings/${bookingId}/addons/${addonId}/price`,
+        { new_price: newPrice },
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error updating active addon price:", error);
       throw error;
     }
   },

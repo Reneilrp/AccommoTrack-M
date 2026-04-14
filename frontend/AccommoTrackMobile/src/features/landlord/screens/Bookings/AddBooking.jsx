@@ -18,6 +18,7 @@ import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import BookingService from '../../../../services/BookingService.js';
 import { showError, showSuccess } from '../../../../utils/toast.js';
+import { normalizeActionError } from '../../../../utils/error.js';
 import { getStyles } from '../../../../styles/Landlord/AddBooking.js';
 import {
   landlordQueryKeys,
@@ -36,6 +37,9 @@ const resolveFirstValidationError = (details) => {
   if (!firstFieldErrors) return null;
   return firstFieldErrors[0] || null;
 };
+
+const isValidEmailAddress = (value) => /^\S+@\S+\.\S+$/.test(String(value || '').trim());
+const isValidPhoneNumber = (value) => /^\+?\d{10,15}$/.test(String(value || '').replace(/\s+/g, ''));
 
 export default function AddBooking({ navigation }) {
   const { theme } = useTheme();
@@ -294,6 +298,21 @@ export default function AddBooking({ navigation }) {
       return;
     }
 
+    if (!selectedGuest) {
+      const guestEmail = formData.email.trim();
+      const guestPhone = formData.phone.trim();
+
+      if (guestEmail && !isValidEmailAddress(guestEmail)) {
+        showError('Validation', 'Please enter a valid guest email address.');
+        return;
+      }
+
+      if (guestPhone && !isValidPhoneNumber(guestPhone)) {
+        showError('Validation', 'Please enter a valid guest phone number (10-15 digits).');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -308,7 +327,15 @@ export default function AddBooking({ navigation }) {
       if (selectedGuest) {
         payload.tenant_id = selectedGuest.id;
       } else {
+        const guestEmail = formData.email.trim();
+        const guestPhone = formData.phone.trim();
         payload.guest_name = formData.guestName.trim();
+        const guestContactNotes = [];
+        if (guestEmail) guestContactNotes.push(`Guest email: ${guestEmail}`);
+        if (guestPhone) guestContactNotes.push(`Guest phone: ${guestPhone}`);
+        if (guestContactNotes.length > 0) {
+          payload.notes = guestContactNotes.join(' | ');
+        }
       }
 
       const res = await BookingService.createBooking(payload);
@@ -317,10 +344,13 @@ export default function AddBooking({ navigation }) {
         navigation.goBack();
       } else {
         const detailsMessage = resolveFirstValidationError(res.details);
-        showError('Error', detailsMessage || res.error || 'Failed to create booking');
+        showError(
+          'Error',
+          normalizeActionError(detailsMessage || res.error, 'Unable to create booking right now.'),
+        );
       }
     } catch (error) {
-      showError('Error', error?.message || 'Failed to create booking');
+      showError('Error', normalizeActionError(error, 'Unable to create booking right now.'));
     } finally {
       setSubmitting(false);
     }
@@ -425,6 +455,7 @@ export default function AddBooking({ navigation }) {
               placeholder="guest@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!selectedGuest}
             />
           </View>
 
@@ -436,7 +467,13 @@ export default function AddBooking({ navigation }) {
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
               placeholder="09XXXXXXXXX"
               keyboardType="phone-pad"
+              editable={!selectedGuest}
             />
+            <Text style={styles.fieldHelpText}>
+              {selectedGuest
+                ? 'Existing tenant selected: contact details come from tenant profile.'
+                : 'Optional contact details are saved in booking notes.'}
+            </Text>
           </View>
         </View>
 

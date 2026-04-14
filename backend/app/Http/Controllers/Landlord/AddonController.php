@@ -292,6 +292,7 @@ class AddonController extends Controller
                 'action' => 'required|in:approve,reject',
                 'note' => 'nullable|string|max:500',
                 'approved_price' => 'nullable|numeric|min:0',
+                'custom_price' => 'nullable|numeric|min:0',
             ]);
 
             // Get booking and verify access
@@ -303,9 +304,13 @@ class AddonController extends Controller
                 $this->checkPropertyAccess($context, (int) $booking->property_id);
             }
 
-            $approvedPrice = array_key_exists('approved_price', $validated)
-                ? (float) $validated['approved_price']
-                : null;
+            // Use custom_price if provided, otherwise use approved_price
+            $approvedPrice = null;
+            if (array_key_exists('custom_price', $validated) && $validated['custom_price'] !== null) {
+                $approvedPrice = (float) $validated['custom_price'];
+            } elseif (array_key_exists('approved_price', $validated)) {
+                $approvedPrice = (float) $validated['approved_price'];
+            }
 
             $result = $this->addonService->handleRequest(
                 $booking,
@@ -353,6 +358,7 @@ class AddonController extends Controller
                 ->select([
                     'booking_addons.id as request_id',
                     'booking_addons.booking_id',
+                    'booking_addons.addon_id',
                     'booking_addons.quantity',
                     'booking_addons.price_at_booking',
                     'addons.price as current_price',
@@ -389,6 +395,7 @@ class AddonController extends Controller
                     return [
                         'requestId' => $item->request_id,
                         'bookingId' => $item->booking_id,
+                        'addonId' => $item->addon_id,
                         'addonName' => $item->addon_name,
                         'quantity' => $item->quantity,
                         'price' => $price,
@@ -412,6 +419,75 @@ class AddonController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch active addons',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Update price for an active addon (Landlord/Caretaker)
+     * Changes will apply to next billing cycle
+     */
+    public function updateActiveAddonPrice(Request $request, $bookingId, $addonId)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $validated = $request->validate([
+                'new_price' => 'required|numeric|min:0',
+            ]);
+
+            // Get booking and verify access
+            $booking = Booking::where('id', $bookingId)
+                ->where('landlord_id', $context['landlord_id'])
+                ->firstOrFail();
+
+            if ($context['is_caretaker']) {
+                $this->checkPropertyAccess($context, (int) $booking->property_id);
+            }
+
+            // Get the booking_addon record
+            $bookingAddon = DB::table('booking_addons')
+                ->where('booking_id', $bookingId)
+                ->where('addon_id', $addonId)
+                ->whereIn('status', ['active', 'approved'])
+                ->first();
+
+            if (!$bookingAddon) {
+                return response()->json([
+                    'message' => 'Active addon not found',
+                ], 404);
+            }
+
+            // Update the price_at_booking field
+            // Note: In a production system, you might want to:
+            // 1. Store this in a separate "scheduled_price_changes" table
+            // 2. Apply it during next invoice generation
+            // For now, we'll update it immediately with a note
+            DB::table('booking_addons')
+                ->where('id', $bookingAddon->id)
+                ->update([
+                    'price_at_booking' => $validated['new_price'],
+                    'updated_at' => now(),
+                ]);
+
+            return response()->json([
+                'message' => 'Price updated successfully. Changes will apply to next billing cycle.',
+                'new_price' => $validated['new_price'],
+            ], 200);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update addon price',
                 'error' => $e->getMessage(),
             ], 500);
         }

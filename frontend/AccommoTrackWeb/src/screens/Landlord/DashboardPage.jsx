@@ -267,6 +267,14 @@ export default function DashboardPage({ user }) {
         __navigate(`/maintenance?${params.toString()}`);
         break;
       }
+      case 'addon': {
+        const params = new URLSearchParams();
+        if (entityId) {
+          params.set('requestId', String(entityId));
+        }
+        __navigate(`/addons?${params.toString()}`);
+        break;
+      }
       default:
         break;
     }

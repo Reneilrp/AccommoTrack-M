@@ -28,6 +28,7 @@ import {
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
 import PaymentService from '../../../../services/PaymentService.js';
+import { normalizeActionError } from '../../../../utils/error.js';
 import { getStyles } from '../../../../styles/Landlord/Payments.js';
 
 const STATUS_FILTERS = ['all', 'pending', 'pending_verification', 'paid', 'unpaid', 'partial', 'overdue', 'cancelled', 'refunded'];
@@ -47,9 +48,8 @@ const METHOD_OPTIONS = [
 const CASH_REJECTION_REASONS = [
   { id: 'invalid_proof', label: 'Invalid payment proof' },
   { id: 'duplicate_submission', label: 'Duplicate submission' },
-  { id: 'mismatch_amount', label: 'Amount does not match invoice' },
-  { id: 'mismatch_reference', label: 'Reference does not match records' },
-  { id: 'outside_window', label: 'Submission outside allowed window' },
+  { id: 'wrong_amount', label: 'Amount does not match invoice' },
+  { id: 'mismatched_reference', label: 'Reference does not match records' },
   { id: 'unclear_image', label: 'Proof image is unclear' },
   { id: 'other', label: 'Other' },
 ];
@@ -234,6 +234,11 @@ export default function Payments({ navigation, route }) {
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
   const [pendingFocusInvoiceId, setPendingFocusInvoiceId] = useState(null);
 
+  const getPaymentError = useCallback(
+    (errorOrMessage, fallbackMessage) => normalizeActionError(errorOrMessage, fallbackMessage),
+    [],
+  );
+
   const invoicesQuery = useQuery({
     queryKey: landlordQueryKeys.invoices(),
     queryFn: async () => {
@@ -372,10 +377,10 @@ export default function Payments({ navigation, route }) {
         await refetchLandlordQueries(invoiceRefetchers);
         showAlert('Success', 'Payment status updated');
       } else {
-        showAlert('Error', res.error || 'Failed to update status');
+        showAlert('Error', getPaymentError(res.error, 'Unable to update payment status.'));
       }
-    } catch {
-      showAlert('Error', 'An unexpected error occurred');
+    } catch (error) {
+      showAlert('Error', getPaymentError(error, 'Unable to update payment status.'));
     } finally {
       setUpdating(false);
     }
@@ -412,7 +417,7 @@ export default function Payments({ navigation, route }) {
     try {
       const response = await PaymentService.verifyCash(selectedInvoice.id, verificationPayload);
       if (!response.success) {
-        showAlert('Error', response.error || 'Failed to verify cash payment');
+        showAlert('Error', getPaymentError(response.error, 'Unable to verify cash payment.'));
         return;
       }
 
@@ -428,7 +433,7 @@ export default function Payments({ navigation, route }) {
           : 'Cash payment rejected. The tenant can resubmit correct proof.',
       );
     } catch (error) {
-      showAlert('Error', error?.message || 'Failed to verify cash payment.');
+      showAlert('Error', getPaymentError(error, 'Unable to verify cash payment.'));
     } finally {
       setVerifyingAction(null);
     }
@@ -481,10 +486,10 @@ export default function Payments({ navigation, route }) {
         await refetchLandlordQueries(invoiceRefetchers);
         showAlert('Success', 'Payment recorded successfully.');
       } else {
-        showAlert('Error', res.error || 'Failed to record payment');
+        showAlert('Error', getPaymentError(res.error, 'Unable to record payment.'));
       }
-    } catch {
-      showAlert('Error', 'An unexpected error occurred');
+    } catch (error) {
+      showAlert('Error', getPaymentError(error, 'Unable to record payment.'));
     } finally {
       setRecording(false);
     }
@@ -528,10 +533,10 @@ export default function Payments({ navigation, route }) {
                 await refetchLandlordQueries(invoiceRefetchers);
                 setShowModal(false);
               } else {
-                showAlert('Error', res.error || 'Failed to refund transaction');
+                showAlert('Error', getPaymentError(res.error, 'Unable to process refund.'));
               }
-            } catch {
-              showAlert('Error', 'An unexpected error occurred during refund');
+            } catch (error) {
+              showAlert('Error', getPaymentError(error, 'Unable to process refund.'));
             } finally {
               setRefundingTxId(null);
             }

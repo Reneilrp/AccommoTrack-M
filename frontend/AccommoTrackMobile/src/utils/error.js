@@ -40,3 +40,46 @@ export const extractErrorMessage = (error) => {
     // Generic error message
     return error.message || "An unexpected error occurred.";
 };
+
+const normalizeWhitespace = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+
+/**
+ * Normalize API/transport errors into actionable user-facing copy.
+ * Keeps domain-specific backend messages intact and only rewrites low-signal failures.
+ *
+ * @param {any} errorOrMessage
+ * @param {string} fallbackMessage
+ * @returns {string}
+ */
+export const normalizeActionError = (
+    errorOrMessage,
+    fallbackMessage = "Unable to complete your request right now. Please try again.",
+) => {
+    const rawMessage = normalizeWhitespace(
+        typeof errorOrMessage === 'string'
+            ? errorOrMessage
+            : extractErrorMessage(errorOrMessage),
+    );
+
+    if (!rawMessage) {
+        return fallbackMessage;
+    }
+
+    if (/(network error|failed to fetch|unable to reach the server|timeout|timed out|connection refused|socket hang up|internet)/i.test(rawMessage)) {
+        return "Network error. Check your internet connection and try again.";
+    }
+
+    if (/(unauthenticated|unauthorized|forbidden|permission|not allowed|access denied|\b401\b|\b403\b)/i.test(rawMessage)) {
+        return "You do not have permission to perform this action.";
+    }
+
+    if (/(session expired|csrf token|invalid token|please login|please log in)/i.test(rawMessage)) {
+        return "Your session may have expired. Please sign in again.";
+    }
+
+    if (/(server error|internal server|\b500\b|service unavailable|\b503\b)/i.test(rawMessage)) {
+        return "Server error. Please try again in a moment.";
+    }
+
+    return rawMessage;
+};

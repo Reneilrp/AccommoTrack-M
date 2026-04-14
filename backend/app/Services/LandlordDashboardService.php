@@ -174,6 +174,7 @@ class LandlordDashboardService
                 ->select([
                     'booking_addons.*',
                     'addons.name as addon_name',
+                    'addons.price as addon_price',
                     'users.first_name',
                     'users.last_name',
                     'bookings.room_id',
@@ -187,16 +188,34 @@ class LandlordDashboardService
                 $addonQuery->whereIn('addons.property_id', $assignedPropertyIds);
             }
 
-            $addons = $addonQuery->orderBy('booking_addons.created_at', 'desc')->limit(10)->get();
+            $addons = $addonQuery->orderBy('booking_addons.updated_at', 'desc')->limit(10)->get();
             foreach ($addons as $addon) {
+                // Extract suggested price from request_note if present
+                $requestNote = $addon->request_note ?? '';
+                $suggestedPrice = null;
+                if (preg_match('/suggested\s+price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i', $requestNote, $matches)) {
+                    $suggestedPrice = (float) str_replace(',', '', $matches[1]);
+                }
+                
+                // Use suggested price if available, otherwise use addon price or price_at_booking
+                $displayPrice = $suggestedPrice ?? ($addon->price_at_booking ?? $addon->addon_price ?? null);
+                
+                $description = "{$addon->first_name} requested {$addon->addon_name}";
+                if ($displayPrice !== null) {
+                    $description .= " (₱" . number_format($displayPrice, 2) . ")";
+                }
+                
+                // Use updated_at as timestamp so status changes move activity to top
+                $timestamp = $addon->updated_at ?? $addon->created_at;
+                
                 $activities->push([
                     'id' => $addon->id,
                     'type' => 'addon',
                     'action' => 'Add-on Request '.ucfirst($addon->status),
-                    'description' => "{$addon->first_name} requested {$addon->addon_name}",
+                    'description' => $description,
                     'status' => $addon->status,
-                    'timestamp' => $addon->created_at,
-                    'created_at' => $addon->created_at,
+                    'timestamp' => $timestamp,
+                    'created_at' => $timestamp,
                     'icon' => 'sparkles',
                     'color' => $addon->status === 'pending' ? 'yellow' : 'green',
                 ]);

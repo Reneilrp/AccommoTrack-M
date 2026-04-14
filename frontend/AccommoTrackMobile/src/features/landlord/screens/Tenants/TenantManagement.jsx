@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useQuery } from '@tanstack/react-query';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Tenants.js';
@@ -29,6 +30,7 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
+import { normalizeActionError } from '../../../../utils/error.js';
 
 const FILTERS = [
   { label: 'All Tenants', value: 'all' },
@@ -116,6 +118,61 @@ const resolveTenantMonthlyRent = (tenant, room) => {
   return { amount: null, estimated: false };
 };
 
+const getTodayDateOnly = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const formatDateForApi = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseIsoDateInput = (value) => {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  const matches = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!matches) return null;
+
+  const year = Number(matches[1]);
+  const month = Number(matches[2]);
+  const day = Number(matches[3]);
+  const parsed = new Date(year, month - 1, day);
+  parsed.setHours(0, 0, 0, 0);
+
+  if (
+    parsed.getFullYear() !== year
+    || parsed.getMonth() + 1 !== month
+    || parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const formatDateForDisplay = (value) => {
+  const parsed = parseIsoDateInput(value);
+  if (!parsed) return '';
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
 export default function TenantsScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -177,6 +234,8 @@ export default function TenantsScreen({ navigation, route }) {
     end_date: '',
     notes: ''
   });
+  const [showAssignMoveInPicker, setShowAssignMoveInPicker] = useState(false);
+  const [showAssignEndDatePicker, setShowAssignEndDatePicker] = useState(false);
 
   const [createTenantVisible, setCreateTenantVisible] = useState(false);
   const [availableRoomsForCreate, setAvailableRoomsForCreate] = useState([]);
@@ -195,6 +254,8 @@ export default function TenantsScreen({ navigation, route }) {
     end_date: '',
     notes: '',
   });
+  const [showCreateMoveInPicker, setShowCreateMoveInPicker] = useState(false);
+  const [showCreateEndDatePicker, setShowCreateEndDatePicker] = useState(false);
 
   const [unassignVisible, setUnassignVisible] = useState(false);
   const [unassigningTenant, setUnassigningTenant] = useState(null);
@@ -314,6 +375,119 @@ export default function TenantsScreen({ navigation, route }) {
     }));
   };
 
+  const getTenantActionError = (errorOrMessage, fallbackMessage) =>
+    normalizeActionError(errorOrMessage, fallbackMessage);
+
+  const validateOptionalDate = (rawValue, fieldLabel) => {
+    const normalized = String(rawValue || '').trim();
+    if (!normalized) {
+      return { value: undefined, date: null };
+    }
+
+    const parsed = parseIsoDateInput(normalized);
+    if (!parsed) {
+      return { error: `${fieldLabel} must be a valid date.` };
+    }
+
+    return { value: normalized, date: parsed };
+  };
+
+  const validateAssignmentDates = (moveInRaw, endRaw) => {
+    const moveIn = validateOptionalDate(moveInRaw, 'Move-in date');
+    if (moveIn.error) {
+      showAlert('Invalid move-in date', moveIn.error);
+      return null;
+    }
+
+    const endDate = validateOptionalDate(endRaw, 'Contract end date');
+    if (endDate.error) {
+      showAlert('Invalid end date', endDate.error);
+      return null;
+    }
+
+    const today = getTodayDateOnly();
+    if (moveIn.date && moveIn.date < today) {
+      showAlert('Invalid move-in date', 'Move-in date cannot be in the past.');
+      return null;
+    }
+
+    const effectiveMoveIn = moveIn.date || today;
+    if (endDate.date && endDate.date <= effectiveMoveIn) {
+      showAlert('Invalid date range', 'Contract end date must be after move-in date.');
+      return null;
+    }
+
+    return { moveIn, endDate };
+  };
+
+  const handleCreateMoveInDateChange = (_event, selectedDate) => {
+    setShowCreateMoveInPicker(Platform.OS === 'ios');
+    if (!selectedDate) return;
+
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    const moveInValue = formatDateForApi(selectedDateOnly);
+
+    setCreateTenantData((current) => {
+      const currentEndDate = parseIsoDateInput(current.end_date);
+      const nextEndDate = currentEndDate && currentEndDate <= selectedDateOnly
+        ? ''
+        : current.end_date;
+
+      return {
+        ...current,
+        move_in_date: moveInValue,
+        end_date: nextEndDate,
+      };
+    });
+  };
+
+  const handleCreateEndDateChange = (_event, selectedDate) => {
+    setShowCreateEndDatePicker(Platform.OS === 'ios');
+    if (!selectedDate) return;
+
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    setCreateTenantData((current) => ({
+      ...current,
+      end_date: formatDateForApi(selectedDateOnly),
+    }));
+  };
+
+  const handleAssignMoveInDateChange = (_event, selectedDate) => {
+    setShowAssignMoveInPicker(Platform.OS === 'ios');
+    if (!selectedDate) return;
+
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    const moveInValue = formatDateForApi(selectedDateOnly);
+
+    setAssignData((current) => {
+      const currentEndDate = parseIsoDateInput(current.end_date);
+      const nextEndDate = currentEndDate && currentEndDate <= selectedDateOnly
+        ? ''
+        : current.end_date;
+
+      return {
+        ...current,
+        move_in_date: moveInValue,
+        end_date: nextEndDate,
+      };
+    });
+  };
+
+  const handleAssignEndDateChange = (_event, selectedDate) => {
+    setShowAssignEndDatePicker(Platform.OS === 'ios');
+    if (!selectedDate) return;
+
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    setAssignData((current) => ({
+      ...current,
+      end_date: formatDateForApi(selectedDateOnly),
+    }));
+  };
+
   const handleTransferInitiate = async (tenant) => {
     const propertyId = tenant.room?.property_id || selectedPropertyId;
     if (!propertyId) {
@@ -339,7 +513,7 @@ export default function TenantsScreen({ navigation, route }) {
       ));
       setAvailableRooms(rooms);
     } catch (transferError) {
-      showAlert('Error', transferError.message || 'Failed to load available rooms.');
+      showAlert('Error', getTenantActionError(transferError, 'Unable to load available rooms.'));
     } finally {
       setLoadingRoomsForTransfer(false);
     }
@@ -374,8 +548,9 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       showAlert('Success', 'Room transfer completed successfully.');
     } catch (transferError) {
-      setActionError(transferError.message || 'Failed to transfer room.');
-      showAlert('Error', transferError.message || 'Failed to transfer room.');
+      const message = getTenantActionError(transferError, 'Unable to transfer tenant right now.');
+      setActionError(message);
+      showAlert('Error', message);
     } finally {
       setIsTransferring(false);
     }
@@ -393,6 +568,8 @@ export default function TenantsScreen({ navigation, route }) {
 
     setAssigningTenant(tenant);
     setAssignData({ room_id: '', move_in_date: '', end_date: '', notes: '' });
+    setShowAssignMoveInPicker(false);
+    setShowAssignEndDatePicker(false);
     setAvailableRoomsForAssign([]);
     setAssignVisible(true);
     setLoadingRoomsForAssign(true);
@@ -406,7 +583,7 @@ export default function TenantsScreen({ navigation, route }) {
       const rooms = (response.data || []).filter((room) => isRoomBookable(room));
       setAvailableRoomsForAssign(rooms);
     } catch (assignError) {
-      showAlert('Error', assignError.message || 'Failed to load available rooms.');
+      showAlert('Error', getTenantActionError(assignError, 'Unable to load available rooms.'));
     } finally {
       setLoadingRoomsForAssign(false);
     }
@@ -419,12 +596,15 @@ export default function TenantsScreen({ navigation, route }) {
       return;
     }
 
+    const validatedDates = validateAssignmentDates(assignData.move_in_date, assignData.end_date);
+    if (!validatedDates) return;
+
     setIsAssigning(true);
     try {
       const payload = {
         room_id: Number(assignData.room_id),
-        move_in_date: assignData.move_in_date.trim() || undefined,
-        end_date: assignData.end_date.trim() || undefined,
+        move_in_date: validatedDates.moveIn.value,
+        end_date: validatedDates.endDate.value,
         notes: assignData.notes.trim() || undefined
       };
 
@@ -434,13 +614,16 @@ export default function TenantsScreen({ navigation, route }) {
       }
 
       setAssignVisible(false);
+      setShowAssignMoveInPicker(false);
+      setShowAssignEndDatePicker(false);
       setAssigningTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
       showAlert('Success', 'Room assignment completed successfully.');
     } catch (assignError) {
-      setActionError(assignError.message || 'Failed to assign room.');
-      showAlert('Error', assignError.message || 'Failed to assign room.');
+      const message = getTenantActionError(assignError, 'Unable to assign this tenant right now.');
+      setActionError(message);
+      showAlert('Error', message);
     } finally {
       setIsAssigning(false);
     }
@@ -467,6 +650,8 @@ export default function TenantsScreen({ navigation, route }) {
       end_date: '',
       notes: '',
     });
+    setShowCreateMoveInPicker(false);
+    setShowCreateEndDatePicker(false);
     setAvailableRoomsForCreate([]);
     setCreateTenantVisible(true);
     setLoadingRoomsForCreate(true);
@@ -480,7 +665,7 @@ export default function TenantsScreen({ navigation, route }) {
       const rooms = (response.data || []).filter((room) => isRoomBookable(room));
       setAvailableRoomsForCreate(rooms);
     } catch (createInitError) {
-      showAlert('Error', createInitError.message || 'Failed to load available rooms.');
+      showAlert('Error', getTenantActionError(createInitError, 'Unable to load available rooms.'));
     } finally {
       setLoadingRoomsForCreate(false);
     }
@@ -519,6 +704,9 @@ export default function TenantsScreen({ navigation, route }) {
       return;
     }
 
+    const validatedDates = validateAssignmentDates(createTenantData.move_in_date, createTenantData.end_date);
+    if (!validatedDates) return;
+
     setIsCreatingTenant(true);
 
     try {
@@ -530,8 +718,8 @@ export default function TenantsScreen({ navigation, route }) {
         phone: phone || undefined,
         password,
         room_id: Number(createTenantData.room_id),
-        move_in_date: createTenantData.move_in_date.trim() || undefined,
-        end_date: createTenantData.end_date.trim() || undefined,
+        move_in_date: validatedDates.moveIn.value,
+        end_date: validatedDates.endDate.value,
         notes: createTenantData.notes.trim() || undefined,
       };
 
@@ -541,12 +729,15 @@ export default function TenantsScreen({ navigation, route }) {
       }
 
       setCreateTenantVisible(false);
+      setShowCreateMoveInPicker(false);
+      setShowCreateEndDatePicker(false);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
       showAlert('Success', 'Tenant added and assigned successfully.');
     } catch (createError) {
-      setActionError(createError.message || 'Failed to add tenant.');
-      showAlert('Error', createError.message || 'Failed to add tenant.');
+      const message = getTenantActionError(createError, 'Unable to add tenant right now.');
+      setActionError(message);
+      showAlert('Error', message);
     } finally {
       setIsCreatingTenant(false);
     }
@@ -577,8 +768,9 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       showAlert('Success', 'Tenant unassigned successfully.');
     } catch (unassignError) {
-      setActionError(unassignError.message || 'Failed to unassign tenant.');
-      showAlert('Error', unassignError.message || 'Failed to unassign tenant.');
+      const message = getTenantActionError(unassignError, 'Unable to unassign this tenant right now.');
+      setActionError(message);
+      showAlert('Error', message);
     } finally {
       setIsUnassigning(false);
     }
@@ -619,7 +811,7 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       showAlert('Success', 'Eviction scheduled successfully.');
     } catch (evictionError) {
-      const message = evictionError.message || 'Failed to schedule eviction.';
+      const message = getTenantActionError(evictionError, 'Unable to schedule eviction right now.');
       setActionError(message);
       showAlert('Unable to schedule eviction', message);
     } finally {
@@ -637,7 +829,7 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       showAlert('Success', 'Eviction finalized successfully.');
     } catch (error) {
-      const message = error.message || 'Failed to finalize eviction.';
+      const message = getTenantActionError(error, 'Unable to finalize eviction right now.');
       setActionError(message);
       showAlert('Unable to finalize eviction', message);
     }
@@ -653,7 +845,7 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       showAlert('Success', 'Eviction schedule cancelled.');
     } catch (error) {
-      const message = error.message || 'Failed to cancel eviction schedule.';
+      const message = getTenantActionError(error, 'Unable to cancel eviction right now.');
       setActionError(message);
       showAlert('Unable to cancel eviction', message);
     }
@@ -669,7 +861,7 @@ export default function TenantsScreen({ navigation, route }) {
       await refetchLandlordQueries(tenantListRefetchers);
       showAlert('Success', 'Eviction undone and tenancy restored.');
     } catch (error) {
-      const message = error.message || 'Failed to undo eviction.';
+      const message = getTenantActionError(error, 'Unable to undo eviction right now.');
       setActionError(message);
       showAlert('Unable to undo eviction', message);
     }
@@ -702,7 +894,7 @@ export default function TenantsScreen({ navigation, route }) {
       });
       setClaimCodeModalVisible(true);
     } catch (error) {
-      const message = error.message || 'Failed to generate claim code.';
+      const message = getTenantActionError(error, 'Unable to generate claim code right now.');
       setActionError(message);
       showAlert('Unable to generate claim code', message);
     }
@@ -1299,7 +1491,16 @@ export default function TenantsScreen({ navigation, route }) {
         </SafeAreaView>
       </Modal>
 
-      <Modal visible={createTenantVisible} transparent animationType="fade" onRequestClose={() => setCreateTenantVisible(false)}>
+      <Modal
+        visible={createTenantVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setCreateTenantVisible(false);
+          setShowCreateMoveInPicker(false);
+          setShowCreateEndDatePicker(false);
+        }}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.overlayContainer}
@@ -1393,21 +1594,78 @@ export default function TenantsScreen({ navigation, route }) {
                 </ScrollView>
               </View>
 
-              <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
-              <TextInput
-                value={createTenantData.move_in_date}
-                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, move_in_date: value }))}
-                placeholder="2026-03-28"
-                style={styles.actionInput}
-              />
+              <Text style={styles.actionFieldLabel}>Move-in Date (Optional)</Text>
+              <TouchableOpacity
+                style={styles.dateInputButton}
+                onPress={() => setShowCreateMoveInPicker(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateInputValue,
+                    !createTenantData.move_in_date && styles.dateInputPlaceholder,
+                  ]}
+                >
+                  {createTenantData.move_in_date
+                    ? formatDateForDisplay(createTenantData.move_in_date)
+                    : 'Use today by default'}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+              {createTenantData.move_in_date ? (
+                <TouchableOpacity
+                  onPress={() => setCreateTenantData((current) => ({ ...current, move_in_date: '' }))}
+                  style={styles.clearDateButton}
+                >
+                  <Text style={styles.clearDateButtonText}>Clear move-in date</Text>
+                </TouchableOpacity>
+              ) : null}
+              {showCreateMoveInPicker && (
+                <DateTimePicker
+                  value={parseIsoDateInput(createTenantData.move_in_date) || getTodayDateOnly()}
+                  mode="date"
+                  display="default"
+                  onChange={handleCreateMoveInDateChange}
+                  minimumDate={getTodayDateOnly()}
+                />
+              )}
 
-              <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
-              <TextInput
-                value={createTenantData.end_date}
-                onChangeText={(value) => setCreateTenantData((current) => ({ ...current, end_date: value }))}
-                placeholder="2026-09-28"
-                style={styles.actionInput}
-              />
+              <Text style={styles.actionFieldLabel}>Contract End Date (Optional)</Text>
+              <TouchableOpacity
+                style={styles.dateInputButton}
+                onPress={() => setShowCreateEndDatePicker(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateInputValue,
+                    !createTenantData.end_date && styles.dateInputPlaceholder,
+                  ]}
+                >
+                  {createTenantData.end_date
+                    ? formatDateForDisplay(createTenantData.end_date)
+                    : 'Auto-generates 6 months if empty'}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+              {createTenantData.end_date ? (
+                <TouchableOpacity
+                  onPress={() => setCreateTenantData((current) => ({ ...current, end_date: '' }))}
+                  style={styles.clearDateButton}
+                >
+                  <Text style={styles.clearDateButtonText}>Clear end date</Text>
+                </TouchableOpacity>
+              ) : null}
+              {showCreateEndDatePicker && (
+                <DateTimePicker
+                  value={
+                    parseIsoDateInput(createTenantData.end_date)
+                    || addDays(parseIsoDateInput(createTenantData.move_in_date) || getTodayDateOnly(), 1)
+                  }
+                  mode="date"
+                  display="default"
+                  onChange={handleCreateEndDateChange}
+                  minimumDate={addDays(parseIsoDateInput(createTenantData.move_in_date) || getTodayDateOnly(), 1)}
+                />
+              )}
 
               <Text style={styles.actionFieldLabel}>Notes</Text>
               <TextInput
@@ -1419,7 +1677,14 @@ export default function TenantsScreen({ navigation, route }) {
               />
 
               <View style={styles.modalActionsRow}>
-                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setCreateTenantVisible(false)}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => {
+                    setCreateTenantVisible(false);
+                    setShowCreateMoveInPicker(false);
+                    setShowCreateEndDatePicker(false);
+                  }}
+                >
                   <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1519,7 +1784,16 @@ export default function TenantsScreen({ navigation, route }) {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={assignVisible} transparent animationType="fade" onRequestClose={() => setAssignVisible(false)}>
+      <Modal
+        visible={assignVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setAssignVisible(false);
+          setShowAssignMoveInPicker(false);
+          setShowAssignEndDatePicker(false);
+        }}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.overlayContainer}
@@ -1556,21 +1830,78 @@ export default function TenantsScreen({ navigation, route }) {
                 </ScrollView>
               </View>
 
-              <Text style={styles.actionFieldLabel}>Move-in Date (YYYY-MM-DD)</Text>
-              <TextInput
-                value={assignData.move_in_date}
-                onChangeText={(value) => setAssignData((current) => ({ ...current, move_in_date: value }))}
-                placeholder="2026-03-28"
-                style={styles.actionInput}
-              />
+              <Text style={styles.actionFieldLabel}>Move-in Date (Optional)</Text>
+              <TouchableOpacity
+                style={styles.dateInputButton}
+                onPress={() => setShowAssignMoveInPicker(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateInputValue,
+                    !assignData.move_in_date && styles.dateInputPlaceholder,
+                  ]}
+                >
+                  {assignData.move_in_date
+                    ? formatDateForDisplay(assignData.move_in_date)
+                    : 'Use today by default'}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+              {assignData.move_in_date ? (
+                <TouchableOpacity
+                  onPress={() => setAssignData((current) => ({ ...current, move_in_date: '' }))}
+                  style={styles.clearDateButton}
+                >
+                  <Text style={styles.clearDateButtonText}>Clear move-in date</Text>
+                </TouchableOpacity>
+              ) : null}
+              {showAssignMoveInPicker && (
+                <DateTimePicker
+                  value={parseIsoDateInput(assignData.move_in_date) || getTodayDateOnly()}
+                  mode="date"
+                  display="default"
+                  onChange={handleAssignMoveInDateChange}
+                  minimumDate={getTodayDateOnly()}
+                />
+              )}
 
-              <Text style={styles.actionFieldLabel}>Contract End Date (YYYY-MM-DD)</Text>
-              <TextInput
-                value={assignData.end_date}
-                onChangeText={(value) => setAssignData((current) => ({ ...current, end_date: value }))}
-                placeholder="2026-09-28"
-                style={styles.actionInput}
-              />
+              <Text style={styles.actionFieldLabel}>Contract End Date (Optional)</Text>
+              <TouchableOpacity
+                style={styles.dateInputButton}
+                onPress={() => setShowAssignEndDatePicker(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateInputValue,
+                    !assignData.end_date && styles.dateInputPlaceholder,
+                  ]}
+                >
+                  {assignData.end_date
+                    ? formatDateForDisplay(assignData.end_date)
+                    : 'Auto-generates 6 months if empty'}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+              {assignData.end_date ? (
+                <TouchableOpacity
+                  onPress={() => setAssignData((current) => ({ ...current, end_date: '' }))}
+                  style={styles.clearDateButton}
+                >
+                  <Text style={styles.clearDateButtonText}>Clear end date</Text>
+                </TouchableOpacity>
+              ) : null}
+              {showAssignEndDatePicker && (
+                <DateTimePicker
+                  value={
+                    parseIsoDateInput(assignData.end_date)
+                    || addDays(parseIsoDateInput(assignData.move_in_date) || getTodayDateOnly(), 1)
+                  }
+                  mode="date"
+                  display="default"
+                  onChange={handleAssignEndDateChange}
+                  minimumDate={addDays(parseIsoDateInput(assignData.move_in_date) || getTodayDateOnly(), 1)}
+                />
+              )}
 
               <Text style={styles.actionFieldLabel}>Notes</Text>
               <TextInput
@@ -1582,7 +1913,14 @@ export default function TenantsScreen({ navigation, route }) {
               />
 
               <View style={styles.modalActionsRow}>
-                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAssignVisible(false)}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => {
+                    setAssignVisible(false);
+                    setShowAssignMoveInPicker(false);
+                    setShowAssignEndDatePicker(false);
+                  }}
+                >
                   <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity

@@ -9,7 +9,11 @@ import {
   RefreshControl,
   TextInput,
   Alert,
-  Modal
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -166,8 +170,17 @@ export default function TransferRequests({ navigation, route }) {
     setActiveApprovalRequest(targetRequest);
     setApprovalModalVisible(true);
     updateTransferForm(transferId, { loadingProration: true });
+    
     try {
-      const res = await PropertyService.getTransferProration(transferId);
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 15000)
+      );
+      
+      const prorationPromise = PropertyService.getTransferProration(transferId);
+      
+      const res = await Promise.race([prorationPromise, timeoutPromise]);
+      
       if (res.success) {
         const details = res.data;
         updateTransferForm(transferId, {
@@ -178,10 +191,14 @@ export default function TransferRequests({ navigation, route }) {
         });
       } else {
         updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
-        showAlert('Error', 'Failed to calculate rent proration details');
+        showAlert('Warning', 'Failed to calculate rent proration details. You can still proceed with manual values.');
       }
-    } catch (_err) {
+    } catch (err) {
+      console.error('Failed to load proration:', err);
       updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
+      if (err.message === 'Request timeout') {
+        showAlert('Warning', 'Proration calculation timed out. You can proceed with manual values.');
+      }
     }
   };
 
@@ -201,6 +218,8 @@ export default function TransferRequests({ navigation, route }) {
     }
 
     setHandlingAction(action);
+    setActionError('');
+    
     const payload = {
       action,
       landlord_notes: landlordNotes || undefined,
@@ -215,17 +234,28 @@ export default function TransferRequests({ navigation, route }) {
       if (res.success) {
         showAlert('Success', `Transfer request ${action}d successfully`);
         setActionError('');
-        await refetchLandlordQueries(transferRefetchers);
+        
+        // Close modal first before refetching to prevent UI issues
         if (action === 'approve') {
           closeApprovalModal();
         }
+        
+        // Refetch in background
+        setTimeout(() => {
+          refetchLandlordQueries(transferRefetchers).catch(err => {
+            console.error('Failed to refetch after transfer action:', err);
+          });
+        }, 100);
       } else {
-        setActionError(res.error || `Failed to ${action} transfer request`);
-        showAlert('Error', res.error || `Failed to ${action} transfer request`);
+        const errorMsg = res.error || `Failed to ${action} transfer request`;
+        setActionError(errorMsg);
+        showAlert('Error', errorMsg);
       }
     } catch (err) {
       console.error(`Failed to ${action} request`, err);
-      setActionError(`Failed to ${action} transfer request. Please try again.`);
+      const errorMsg = err?.response?.data?.message || err?.message || `Failed to ${action} transfer request. Please try again.`;
+      setActionError(errorMsg);
+      showAlert('Error', errorMsg);
     } finally {
       setHandlingAction('');
     }
@@ -471,14 +501,24 @@ export default function TransferRequests({ navigation, route }) {
         presentationStyle="overFullScreen"
         onRequestClose={closeApprovalModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Transfer Approval</Text>
-              <TouchableOpacity style={styles.modalCloseButton} onPress={closeApprovalModal}>
-                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.modalContainer}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Transfer Approval</Text>
+                    <TouchableOpacity 
+                      style={styles.modalCloseButton} 
+                      onPress={closeApprovalModal}
+                      disabled={Boolean(handlingAction)}
+                    >
+                      <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               {activeApprovalRequest && (
@@ -607,8 +647,11 @@ export default function TransferRequests({ navigation, route }) {
               )}
             </ScrollView>
           </View>
-        </View>
-      </Modal>
+        </TouchableWithoutFeedback>
+      </View>
+    </TouchableWithoutFeedback>
+  </KeyboardAvoidingView>
+</Modal>
     </SafeAreaView>
   );
 }

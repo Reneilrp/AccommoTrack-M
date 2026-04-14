@@ -11,6 +11,52 @@ import toast from 'react-hot-toast';
 import landlordService from '../../services/landlordService';
 import bookingService from '../../services/bookingService';
 import roomService from '../../services/roomService';
+import { normalizeActionError } from '../../utils/error';
+
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const addDaysToDateString = (dateString, days) => {
+  const seed = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(seed.getTime())) return dateString;
+  seed.setDate(seed.getDate() + days);
+  const year = seed.getFullYear();
+  const month = String(seed.getMonth() + 1).padStart(2, '0');
+  const day = String(seed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getEndDateMin = (moveInDate) => {
+  const normalizedMoveIn = String(moveInDate || '').trim();
+  const baseDate = normalizedMoveIn || getTodayDateString();
+  return addDaysToDateString(baseDate, 1);
+};
+
+const validateAssignmentDateRange = (moveInDate, endDate) => {
+  const moveIn = String(moveInDate || '').trim();
+  const end = String(endDate || '').trim();
+  const today = getTodayDateString();
+
+  if (moveIn && moveIn < today) {
+    return { valid: false, message: 'Move-in date cannot be in the past.' };
+  }
+
+  const effectiveMoveIn = moveIn || today;
+  if (end && end <= effectiveMoveIn) {
+    return { valid: false, message: 'Contract end date must be after move-in date.' };
+  }
+
+  return {
+    valid: true,
+    move_in_date: moveIn || undefined,
+    end_date: end || undefined,
+  };
+};
 
 export default function TenantManagement() {
   const { uiState, updateData } = useUIState();
@@ -30,7 +76,7 @@ export default function TenantManagement() {
 
   const [__properties, setProperties] = useState(cachedProps || []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(getInitialPropertyId());
-  
+
   const tenantCacheKey = selectedPropertyId ? `tenants_property_${selectedPropertyId}` : null;
   const cachedTenants = tenantCacheKey ? (uiState.data?.[tenantCacheKey] || cacheManager.get(tenantCacheKey)) : null;
 
@@ -80,6 +126,11 @@ export default function TenantManagement() {
   const [claimCodePayload, setClaimCodePayload] = useState(null);
   const [isGeneratingClaimCode, setIsGeneratingClaimCode] = useState(false);
 
+  const getTenantActionError = useCallback(
+    (errorOrMessage, fallbackMessage) => normalizeActionError(errorOrMessage, fallbackMessage),
+    [],
+  );
+
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
     localStorage.setItem('tenantViewMode', mode);
@@ -103,7 +154,7 @@ export default function TenantManagement() {
   };
 
   const isFromProperty = Boolean(new URLSearchParams(location.search).get('property'));
-  
+
   const handleBackClick = () => {
     if (isFromProperty && selectedPropertyId) {
       navigate(`/properties/${selectedPropertyId}`);
@@ -140,11 +191,11 @@ export default function TenantManagement() {
     if (!selectedPropertyId) return;
     const currentCacheKey = `tenants_property_${selectedPropertyId}`;
     const currentCached = uiState.data?.[currentCacheKey] || cacheManager.get(currentCacheKey);
-    
+
     try {
       if (!currentCached) setLoading(true);
       setError('');
-      
+
       const response = await landlordService.getTenants({ property_id: selectedPropertyId, t: Date.now() });
       const data = response.success
         ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
@@ -152,7 +203,7 @@ export default function TenantManagement() {
 
       const list = Array.isArray(data) ? data : [];
       setTenants(list);
-      
+
       updateData(currentCacheKey, list);
       cacheManager.set(currentCacheKey, list);
       return list;
@@ -160,13 +211,13 @@ export default function TenantManagement() {
       console.error('Failed to load tenants:', err);
       if (!currentCached) {
         setTenants([]);
-        setError('Failed to load tenants: ' + err.message);
+        setError(getTenantActionError(err, 'Unable to load tenants right now.'));
       }
       return [];
     } finally {
       setLoading(false);
     }
-  }, [selectedPropertyId, updateData]);
+  }, [selectedPropertyId, updateData, getTenantActionError]);
 
   useEffect(() => {
     if (!selectedPropertyId) return;
@@ -176,13 +227,13 @@ export default function TenantManagement() {
   const handleTransferInitiate = async (tenant) => {
     const defaultFee = tenant?.room?.property?.transfer_fee ?? 0;
     setTransferringTenant(tenant);
-    setTransferData({ 
-      new_room_id: '', 
-      reason: '', 
-      transfer_reason: 'Tenant Request', 
+    setTransferData({
+      new_room_id: '',
+      reason: '',
+      transfer_reason: 'Tenant Request',
       transfer_fee: defaultFee,
-      damage_charge: '', 
-      damage_description: '' 
+      damage_charge: '',
+      damage_description: ''
     });
     setShowTransferModal(true);
     setLoadingRoomsForTransfer(true);
@@ -196,8 +247,8 @@ export default function TenantManagement() {
         : [];
       // Filter for available rooms, excluding current one
       setAvailableRooms(list.filter(r => isRoomBookable(r) && r.id !== tenant.room?.id));
-    } catch {
-      setError("Failed to load available rooms for transfer");
+    } catch (err) {
+      setError(getTenantActionError(err, 'Unable to load available rooms for transfer.'));
     } finally {
       setLoadingRoomsForTransfer(false);
     }
@@ -220,7 +271,7 @@ export default function TenantManagement() {
       toast.success(`Eviction finalized for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to finalize eviction.');
+      toast.error(getTenantActionError(err, 'Unable to finalize eviction right now.'));
     }
   };
 
@@ -236,7 +287,7 @@ export default function TenantManagement() {
       toast.success(`Eviction schedule cancelled for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to cancel eviction schedule.');
+      toast.error(getTenantActionError(err, 'Unable to cancel eviction schedule right now.'));
     }
   };
 
@@ -253,7 +304,7 @@ export default function TenantManagement() {
       toast.success(`Eviction undone for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to undo eviction.');
+      toast.error(getTenantActionError(err, 'Unable to undo eviction right now.'));
     }
   };
 
@@ -270,7 +321,7 @@ export default function TenantManagement() {
         loadTenants();
       }
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to approve reservation.');
+      toast.error(getTenantActionError(err, 'Unable to approve reservation right now.'));
     }
   };
 
@@ -287,7 +338,7 @@ export default function TenantManagement() {
         loadTenants();
       }
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to check in tenant.');
+      toast.error(getTenantActionError(err, 'Unable to check in tenant right now.'));
     }
   };
 
@@ -346,8 +397,8 @@ export default function TenantManagement() {
         ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
         : [];
       setAvailableRoomsForCreate(list.filter(r => isRoomBookable(r)));
-    } catch {
-      toast.error('Failed to load available rooms for new tenant assignment');
+    } catch (err) {
+      toast.error(getTenantActionError(err, 'Unable to load available rooms for tenant assignment.'));
     } finally {
       setLoadingRoomsForCreate(false);
     }
@@ -388,6 +439,15 @@ export default function TenantManagement() {
       return;
     }
 
+    const validatedDates = validateAssignmentDateRange(
+      createTenantData.move_in_date,
+      createTenantData.end_date,
+    );
+    if (!validatedDates.valid) {
+      toast.error(validatedDates.message);
+      return;
+    }
+
     setIsCreatingTenant(true);
 
     try {
@@ -400,8 +460,8 @@ export default function TenantManagement() {
         password,
         gender: createTenantData.gender || undefined,
         room_id: Number(createTenantData.room_id),
-        move_in_date: createTenantData.move_in_date || undefined,
-        end_date: createTenantData.end_date || undefined,
+        move_in_date: validatedDates.move_in_date,
+        end_date: validatedDates.end_date,
         notes: createTenantData.notes.trim() || undefined,
       };
 
@@ -414,7 +474,7 @@ export default function TenantManagement() {
       setShowCreateTenantModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(err.message || 'Failed to add tenant.');
+      toast.error(getTenantActionError(err, 'Unable to add tenant right now.'));
     } finally {
       setIsCreatingTenant(false);
     }
@@ -428,11 +488,17 @@ export default function TenantManagement() {
       return;
     }
 
+    const validatedDates = validateAssignmentDateRange(assignData.move_in_date, assignData.end_date);
+    if (!validatedDates.valid) {
+      toast.error(validatedDates.message);
+      return;
+    }
+
     setIsAssigning(true);
     try {
       const payload = { room_id: Number(assignData.room_id) };
-      if (assignData.move_in_date) payload.move_in_date = assignData.move_in_date;
-      if (assignData.end_date) payload.end_date = assignData.end_date;
+      if (validatedDates.move_in_date) payload.move_in_date = validatedDates.move_in_date;
+      if (validatedDates.end_date) payload.end_date = validatedDates.end_date;
       if (assignData.notes?.trim()) payload.notes = assignData.notes.trim();
 
       const response = await landlordService.assignRoom(assigningTenant.id, payload);
@@ -443,7 +509,7 @@ export default function TenantManagement() {
       setShowAssignModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || 'Failed to assign room');
+      toast.error(getTenantActionError(err, 'Unable to assign room right now.'));
     } finally {
       setIsAssigning(false);
     }
@@ -467,7 +533,7 @@ export default function TenantManagement() {
       setShowUnassignModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || 'Failed to unassign tenant');
+      toast.error(getTenantActionError(err, 'Unable to unassign tenant right now.'));
     } finally {
       setIsUnassigning(false);
     }
@@ -490,7 +556,7 @@ export default function TenantManagement() {
       setShowTransferModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.error || err.response?.data?.message || "Failed to transfer room");
+      toast.error(getTenantActionError(err, 'Unable to transfer tenant right now.'));
     } finally {
       setIsTransferring(false);
     }
@@ -517,7 +583,7 @@ export default function TenantManagement() {
       });
       toast.success('Claim code generated successfully.');
     } catch (err) {
-      toast.error(err.message || 'Failed to generate claim code.');
+      toast.error(getTenantActionError(err, 'Unable to generate claim code right now.'));
     } finally {
       setIsGeneratingClaimCode(false);
     }
@@ -539,7 +605,7 @@ export default function TenantManagement() {
     const email = (tenant.email || '').toLowerCase();
     const roomNumber = tenant.room?.room_number || '';
     const q = (searchQuery || '').toLowerCase();
-    
+
     const matchesSearch = !q || fullName.includes(q) || email.includes(q) || roomNumber.includes(q);
     if (!matchesSearch) return false;
 
@@ -548,7 +614,7 @@ export default function TenantManagement() {
     if (filter === 'paid') return tenant.latestBooking?.payment_status === 'paid';
     if (filter === 'unpaid') return tenant.latestBooking?.payment_status === 'unpaid';
     if (filter === 'overdue') return tenant.latestBooking?.payment_status === 'overdue';
-    
+
     return true;
   });
 
@@ -583,11 +649,11 @@ export default function TenantManagement() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            <StatCard label="Total" value={stats.total} icon={Users} />
-            <StatCard label="Active" value={stats.active} icon={UserCheck} color="green" />
-            <StatCard label="Paid" value={stats.paid} icon={CreditCard} color="blue" />
-            <StatCard label="Pending" value={stats.pending} icon={Clock} color="yellow" />
-            <StatCard label="Overdue" value={stats.overdue} icon={AlertOctagon} color="red" />
+          <StatCard label="Total" value={stats.total} icon={Users} />
+          <StatCard label="Active" value={stats.active} icon={UserCheck} color="green" />
+          <StatCard label="Paid" value={stats.paid} icon={CreditCard} color="blue" />
+          <StatCard label="Pending" value={stats.pending} icon={Clock} color="yellow" />
+          <StatCard label="Overdue" value={stats.overdue} icon={AlertOctagon} color="red" />
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
@@ -945,6 +1011,7 @@ const CreateTenantModal = ({ data, setData, availableRooms, loading, isSubmittin
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Move-in Date</label>
             <input
               type="date"
+              min={getTodayDateString()}
               className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
               value={data.move_in_date}
               onChange={e => setData({ ...data, move_in_date: e.target.value })}
@@ -954,6 +1021,7 @@ const CreateTenantModal = ({ data, setData, availableRooms, loading, isSubmittin
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contract End Date</label>
             <input
               type="date"
+              min={getEndDateMin(data.move_in_date)}
               className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
               value={data.end_date}
               onChange={e => setData({ ...data, end_date: e.target.value })}
@@ -1004,11 +1072,23 @@ const AssignModal = ({ tenant, availableRooms, loading, isSubmitting, data, setD
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Move-in Date</label>
-            <input type="date" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white" value={data.move_in_date} onChange={e => setData({ ...data, move_in_date: e.target.value })} />
+            <input
+              type="date"
+              min={getTodayDateString()}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.move_in_date}
+              onChange={e => setData({ ...data, move_in_date: e.target.value })}
+            />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contract End Date</label>
-            <input type="date" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white" value={data.end_date} onChange={e => setData({ ...data, end_date: e.target.value })} />
+            <input
+              type="date"
+              min={getEndDateMin(data.move_in_date)}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.end_date}
+              onChange={e => setData({ ...data, end_date: e.target.value })}
+            />
           </div>
         </div>
         <div>
@@ -1047,8 +1127,8 @@ const TransferModal = ({ tenant, availableRooms, loading, isSubmitting, data, se
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Transfer Reason *</label>
-          <select 
-            required 
+          <select
+            required
             className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
             value={data.transfer_reason}
             onChange={(e) => {
@@ -1073,19 +1153,19 @@ const TransferModal = ({ tenant, availableRooms, loading, isSubmitting, data, se
           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Internal Note / Detailed Reason *</label>
           <textarea required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none" value={data.reason} onChange={e => setData({ ...data, reason: e.target.value })} placeholder="e.g., Tenant requested a larger room, or specific maintenance details..." />
         </div>
-        
+
         <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
           <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Financial Adjustments</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Transfer Fee (₱)</label>
-              <input 
-                type="number" 
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white" 
-                value={data.transfer_fee} 
-                onChange={e => setData({ ...data, transfer_fee: e.target.value })} 
-                placeholder="0.00" 
-                min="0" 
+              <input
+                type="number"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                value={data.transfer_fee}
+                onChange={e => setData({ ...data, transfer_fee: e.target.value })}
+                placeholder="0.00"
+                min="0"
                 disabled={data.transfer_reason === 'Maintenance Issue'}
               />
             </div>
@@ -1095,12 +1175,12 @@ const TransferModal = ({ tenant, availableRooms, loading, isSubmitting, data, se
             </div>
           </div>
           {parseFloat(data.damage_charge) > 0 && (<div className="animate-in slide-in-from-top-1 mt-3">
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Damage Description *</label>
-              <input type="text" required={parseFloat(data.damage_charge) > 0} className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white" value={data.damage_description} onChange={e => setData({ ...data, damage_description: e.target.value })} placeholder="e.g., Broken window blind, wall scratches..." />
-            </div>)}
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-4 italic text-center">
-              * All proration is based on a standard 30-day month calculation.
-            </p>
+            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Damage Description *</label>
+            <input type="text" required={parseFloat(data.damage_charge) > 0} className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white" value={data.damage_description} onChange={e => setData({ ...data, damage_description: e.target.value })} placeholder="e.g., Broken window blind, wall scratches..." />
+          </div>)}
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-4 italic text-center">
+            * All proration is based on a standard 30-day month calculation.
+          </p>
         </div>
         <div className="flex gap-4 pt-4">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
@@ -1143,7 +1223,7 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   });
   const [isEvicting, setIsEvicting] = useState(false);
-  
+
   const handleConfirm = async () => {
     if (!reason.trim()) return toast.error("Reason for eviction is required.");
     if (!effectiveAt) return toast.error("Please set an effective date and time.");
@@ -1188,13 +1268,13 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
         <div className="flex gap-4 mt-4">
           <button onClick={onClose} disabled={isEvicting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
           <button onClick={handleConfirm} disabled={isEvicting || !reason.trim() || !effectiveAt} className="flex-1 px-4 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-            {isEvicting ? <Loader2 className="w-4 h-4 animate-spin"/> : "Schedule Eviction"}
+            {isEvicting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Schedule Eviction"}
           </button>
         </div>
       </div>
     </div>
   );
-}; 
+};
 
 // ─── List View ────────────────────────────────────────────────────────────────
 
@@ -1253,7 +1333,7 @@ const TenantListView = ({
 
   const statusBadge = (status) => {
     const map = {
-      active:   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
+      active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
       inactive: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
     };
     return map[status] || 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800';

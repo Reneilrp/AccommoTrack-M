@@ -526,6 +526,12 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         navigation.navigate('MaintenanceRequests', params);
         break;
       }
+      case 'addon': {
+        const params = {};
+        if (entityId) params.focusRequestId = entityId;
+        navigation.navigate('AddonManagement', params);
+        break;
+      }
       default:
         break;
     }

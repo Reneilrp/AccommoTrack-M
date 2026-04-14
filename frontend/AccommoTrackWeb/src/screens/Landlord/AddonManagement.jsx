@@ -149,11 +149,30 @@ const AddonManagement = ({ propertyId }) => {
     }
   };
 
-  const handleRequest = async (bookingId, addonId, action) => {
+  const handleUpdateActivePrice = async (bookingId, addonId, newPrice) => {
+    try {
+      await addonService.updateActiveAddonPrice(bookingId, addonId, newPrice);
+      fetchData();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleRequest = async (bookingId, addonId, action, customPrice = null) => {
     const note =
       action === "reject" ? prompt("Reason for rejection (optional):") : null;
     try {
-      await addonService.handleAddonRequest(bookingId, addonId, action, note);
+      const payload = {
+        action,
+        note: note || undefined,
+      };
+      
+      // Include custom price if provided (for approve action)
+      if (action === 'approve' && customPrice !== null) {
+        payload.custom_price = customPrice;
+      }
+      
+      await addonService.handleAddonRequest(bookingId, addonId, payload);
       toast.success(`Request ${action}ed successfully!`);
       fetchData();
     } catch (error) {
@@ -327,7 +346,7 @@ const AddonManagement = ({ propertyId }) => {
         {activeTab === "requests" && (
           <RequestsTab requests={pendingRequests} onHandle={handleRequest} />
         )}
-        {activeTab === "active" && <ActiveTab data={activeAddons} />}
+        {activeTab === "active" && <ActiveTab data={activeAddons} onUpdatePrice={handleUpdateActivePrice} />}
       </div>
 
       {/* Modal */}
@@ -462,6 +481,28 @@ const ManageTab = ({ addons, onEdit, onDelete, onToggleActive, togglingAddonId }
 
 // ==================== Requests Tab ====================
 const RequestsTab = ({ requests, onHandle }) => {
+  const [editingPrices, setEditingPrices] = useState({});
+
+  const handlePriceChange = (requestId, newPrice) => {
+    setEditingPrices(prev => ({
+      ...prev,
+      [requestId]: newPrice
+    }));
+  };
+
+  const handleApproveWithPrice = (request) => {
+    const customPrice = editingPrices[request.requestId];
+    const finalPrice = customPrice !== undefined ? parseFloat(customPrice) : request.price;
+    
+    if (isNaN(finalPrice) || finalPrice < 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    // Pass the custom price to the handler
+    onHandle(request.bookingId, request.addonId, 'approve', finalPrice);
+  };
+
   if (requests.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500 dark:text-gray-400">
@@ -473,100 +514,162 @@ const RequestsTab = ({ requests, onHandle }) => {
 
   return (
     <div className="space-y-4">
-      {requests.map((request) => (
-        <div
-          key={request.requestId}
-          className="border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 shadow-sm"
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-900 dark:text-white text-lg">
-                  {request.addonName}
-                </span>
-                <span
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                    request.priceType === "monthly"
-                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                      : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-                  }`}
-                >
-                  {request.priceType === "monthly" ? "Monthly" : "One-time"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-700 dark:text-amber-400 font-bold text-xs">
-                  {request.tenant.name?.charAt(0)}
+      {requests.map((request) => {
+        const displayPrice = editingPrices[request.requestId] !== undefined 
+          ? editingPrices[request.requestId] 
+          : request.price;
+
+        return (
+          <div
+            key={request.requestId}
+            className="border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 shadow-sm"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-900 dark:text-white text-lg">
+                    {request.addonName}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                      request.priceType === "monthly"
+                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                        : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                    }`}
+                  >
+                    {request.priceType === "monthly" ? "Monthly" : "One-time"}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                    {request.tenant.name}{" "}
-                    <span className="mx-2 font-normal text-gray-500 dark:text-gray-500">
-                      •
-                    </span>{" "}
-                    <span className="text-amber-700 dark:text-amber-400">
-                      Room {request.roomNumber}
-                    </span>
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {request.tenant.email}
-                  </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-700 dark:text-amber-400 font-bold text-xs">
+                    {request.tenant.name?.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                      {request.tenant.name}{" "}
+                      <span className="mx-2 font-normal text-gray-500 dark:text-gray-500">
+                        •
+                      </span>{" "}
+                      <span className="text-amber-700 dark:text-amber-400">
+                        Room {request.roomNumber}
+                      </span>
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {request.tenant.email}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              {request.requestNote && (
-                <div className="mt-4 p-4 bg-white/50 dark:bg-black/20 rounded-lg border border-amber-100 dark:border-amber-900/20">
-                  <p className="text-xs text-gray-600 dark:text-gray-300 italic leading-relaxed">
-                    "{request.requestNote}"
-                  </p>
-                </div>
-              )}
-              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 mt-4 uppercase">
-                Requested: {new Date(request.requestedAt).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                ₱{request.price.toLocaleString()}
-                {request.priceType === "monthly" && (
-                  <span className="text-xs font-bold">/mo</span>
+                {request.requestNote && (
+                  <div className="mt-4 p-4 bg-white/50 dark:bg-black/20 rounded-lg border border-amber-100 dark:border-amber-900/20">
+                    <p className="text-xs text-gray-600 dark:text-gray-300 italic leading-relaxed">
+                      "{request.requestNote}"
+                    </p>
+                  </div>
                 )}
-              </p>
-              {request.stock !== null && (
-                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 mt-2">
-                  STOCK: {request.stock}
+                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 mt-4 uppercase">
+                  Requested: {new Date(request.requestedAt).toLocaleDateString()}
                 </p>
-              )}
-              <div className="flex gap-2 mt-4 justify-end">
-                <button
-                  onClick={() =>
-                    onHandle(request.bookingId, request.addonId, "approve")
-                  }
-                  className="flex items-center gap-2.5 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all active:scale-95 shadow-sm"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  Approve
-                </button>
-                <button
-                  onClick={() =>
-                    onHandle(request.bookingId, request.addonId, "reject")
-                  }
-                  className="flex items-center gap-2.5 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all active:scale-95"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  Reject
-                </button>
+              </div>
+              <div className="text-right ml-4">
+                <div className="mb-3">
+                  <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                    Set Price (₱)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={displayPrice}
+                      onChange={(e) => handlePriceChange(request.requestId, e.target.value)}
+                      className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-right font-bold text-green-600 dark:text-green-400 focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-green-400 outline-none"
+                      placeholder="0.00"
+                    />
+                    {request.priceType === "monthly" && (
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-500">/mo</span>
+                    )}
+                  </div>
+                  {editingPrices[request.requestId] !== undefined && editingPrices[request.requestId] !== request.price.toString() && (
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1 font-medium">
+                      Original: ₱{request.price.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+                {request.stock !== null && (
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 mb-3">
+                    STOCK: {request.stock}
+                  </p>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => handleApproveWithPrice(request)}
+                    className="flex items-center gap-2.5 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all active:scale-95 shadow-sm"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() =>
+                      onHandle(request.bookingId, request.addonId, "reject")
+                    }
+                    className="flex items-center gap-2.5 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all active:scale-95"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Reject
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
 
 // ==================== Active Tab ====================
-const ActiveTab = ({ data }) => {
+const ActiveTab = ({ data, onUpdatePrice }) => {
   const { activeAddons, summary } = data;
+  const [editingPrices, setEditingPrices] = useState({});
+  const [savingPriceId, setSavingPriceId] = useState(null);
+
+  const handlePriceChange = (requestId, newPrice) => {
+    setEditingPrices(prev => ({
+      ...prev,
+      [requestId]: newPrice
+    }));
+  };
+
+  const handleSavePrice = async (item) => {
+    const newPrice = editingPrices[item.requestId];
+    if (!newPrice || isNaN(parseFloat(newPrice)) || parseFloat(newPrice) < 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    setSavingPriceId(item.requestId);
+    try {
+      await onUpdatePrice(item.bookingId, item.addonId, parseFloat(newPrice));
+      toast.success('Price updated! Changes will apply to next billing cycle.');
+      setEditingPrices(prev => {
+        const updated = { ...prev };
+        delete updated[item.requestId];
+        return updated;
+      });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update price');
+    } finally {
+      setSavingPriceId(null);
+    }
+  };
+
+  const cancelEdit = (requestId) => {
+    setEditingPrices(prev => {
+      const updated = { ...prev };
+      delete updated[requestId];
+      return updated;
+    });
+  };
 
   return (
     <div>
@@ -595,49 +698,107 @@ const ActiveTab = ({ data }) => {
       {/* List */}
       {activeAddons && activeAddons.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activeAddons.map((item) => (
-            <div
-              key={item.requestId}
-              className="border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 rounded-xl p-6 shadow-sm transition-all hover:shadow-md"
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <span className="font-bold text-gray-900 dark:text-white text-lg block mb-2">
-                    {item.addonName}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-green-200 dark:bg-green-900/50 flex items-center justify-center text-[10px] font-bold text-green-700 dark:text-green-400">
-                      {item.tenantName?.charAt(0)}
+          {activeAddons.map((item) => {
+            const isEditing = editingPrices[item.requestId] !== undefined;
+            const displayPrice = isEditing ? editingPrices[item.requestId] : item.price;
+
+            return (
+              <div
+                key={item.requestId}
+                className="border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 rounded-xl p-6 shadow-sm transition-all hover:shadow-md"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <span className="font-bold text-gray-900 dark:text-white text-lg block mb-2">
+                      {item.addonName}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-green-200 dark:bg-green-900/50 flex items-center justify-center text-[10px] font-bold text-green-700 dark:text-green-400">
+                        {item.tenantName?.charAt(0)}
+                      </div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                        {item.tenantName}{" "}
+                        <span className="mx-2 opacity-30">•</span>{" "}
+                        <span className="text-green-700 dark:text-green-400 font-bold">
+                          Room {item.roomNumber}
+                        </span>
+                      </p>
                     </div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                      {item.tenantName}{" "}
-                      <span className="mx-2 opacity-30">•</span>{" "}
-                      <span className="text-green-700 dark:text-green-400 font-bold">
-                        Room {item.roomNumber}
-                      </span>
-                    </p>
+                  </div>
+                  <div className="text-right ml-4">
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={displayPrice}
+                            onChange={(e) => handlePriceChange(item.requestId, e.target.value)}
+                            className="w-28 px-2 py-1 border border-green-300 dark:border-green-700 rounded-lg text-right font-bold text-green-600 dark:text-green-400 focus:ring-2 focus:ring-green-500 dark:bg-gray-700 outline-none text-sm"
+                            placeholder="0.00"
+                          />
+                          {item.priceType === "monthly" && (
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-500">/mo</span>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleSavePrice(item)}
+                            disabled={savingPriceId === item.requestId}
+                            className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white text-[10px] font-bold rounded hover:bg-green-700 transition-all disabled:opacity-50"
+                          >
+                            {savingPriceId === item.requestId ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                            Save
+                          </button>
+                          <button
+                            onClick={() => cancelEdit(item.requestId)}
+                            disabled={savingPriceId === item.requestId}
+                            className="flex items-center gap-1 px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-bold rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-all disabled:opacity-50"
+                          >
+                            <X className="w-3 h-3" />
+                            Cancel
+                          </button>
+                        </div>
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-medium">
+                          Changes apply next month
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                          ₱{item.price.toLocaleString()}
+                          {item.priceType === "monthly" && (
+                            <span className="text-xs font-bold opacity-60">/mo</span>
+                          )}
+                        </p>
+                        <button
+                          onClick={() => handlePriceChange(item.requestId, item.price.toString())}
+                          className="mt-2 flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-all"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          Edit Price
+                        </button>
+                      </>
+                    )}
+                    <span
+                      className={`inline-block mt-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                        item.status === "active"
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                      }`}
+                    >
+                      {item.status}
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                    ₱{item.price.toLocaleString()}
-                    {item.priceType === "monthly" && (
-                      <span className="text-xs font-bold opacity-60">/mo</span>
-                    )}
-                  </p>
-                  <span
-                    className={`inline-block mt-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                      item.status === "active"
-                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                        : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 text-gray-500 dark:text-gray-400">

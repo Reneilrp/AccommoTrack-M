@@ -301,6 +301,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/properties/{propertyId}/addons/pending', [AddonController::class, 'getPendingRequests']);
         Route::get('/properties/{propertyId}/addons/active', [AddonController::class, 'getActiveAddons']);
         Route::patch('/bookings/{bookingId}/addons/{addonId}', [AddonController::class, 'handleRequest']);
+        Route::patch('/bookings/{bookingId}/addons/{addonId}/price', [AddonController::class, 'updateActiveAddonPrice']);
 
         // Landlord: Add a rule to a property
         Route::post('/properties/{id}/rules', [PropertyController::class, 'addRule']);

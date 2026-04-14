@@ -77,7 +77,7 @@ const MyBookings = () => {
   const [cancellingTransferRequestId, setCancellingTransferRequestId] = useState(null);
   const [monthlyTransferCount, setMonthlyTransferCount] = useState(0);
   // cancelConfirm stores the bookingId pending user confirmation (null = none)
-  const [__cancelConfirm, setCancelConfirm] = useState(null);
+  const [cancelConfirmModal, setCancelConfirmModal] = useState(null);
 
   const invalidateTenantStayCache = useCallback(() => {
     invalidateData(['dashboard', 'bookings']);
@@ -355,35 +355,13 @@ const MyBookings = () => {
   }, [activeTab, invalidateTenantStayCache, fetchData]);
 
   const handleCancelBooking = (bookingId) => {
-    // Show inline confirmation toast instead of browser native confirm()
-    setCancelConfirm(bookingId);
-    toast(
-      (t) => (
-        <span className="flex flex-col gap-2">
-          <span className="font-semibold text-gray-800">Cancel this booking?</span>
-          <span className="text-sm text-gray-500">This action cannot be undone.</span>
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => { toast.dismiss(t.id); setCancelConfirm(null); }}
-              className="flex-1 px-4 py-2.5 text-sm font-bold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Keep
-            </button>
-            <button
-              onClick={() => { toast.dismiss(t.id); confirmCancelBooking(bookingId); }}
-              className="flex-1 px-4 py-2.5 text-sm font-bold bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-            >
-              Cancel Booking
-            </button>
-          </div>
-        </span>
-      ),
-      { duration: 8000, icon: '⚠️' }
-    );
+    // Show centered modal instead of toast
+    setCancelConfirmModal(bookingId);
   };
 
   const confirmCancelBooking = async (bookingId) => {
     setCancellingBooking(bookingId);
+    setCancelConfirmModal(null);
     try {
       await tenantService.cancelBooking(bookingId, 'Tenant cancelled the booking');
       toast.success('Booking cancelled successfully');
@@ -394,7 +372,6 @@ const MyBookings = () => {
       toast.error(err.response?.data?.message || 'Failed to cancel booking');
     } finally {
       setCancellingBooking(null);
-      setCancelConfirm(null);
     }
   };
 
@@ -628,6 +605,58 @@ const MyBookings = () => {
         stays={activeStays}
         preselectedBookingId={maintenanceBookingId}
       />
+
+      {/* Cancel Booking Confirmation Modal */}
+      {cancelConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Cancel Booking?</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">This action cannot be undone</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                Are you sure you want to cancel this booking? Once cancelled, you'll need to create a new booking request if you change your mind.
+              </p>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 flex gap-3">
+              <button
+                onClick={() => setCancelConfirmModal(null)}
+                disabled={cancellingBooking === cancelConfirmModal}
+                className="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all active:scale-95 disabled:opacity-50"
+              >
+                Keep Booking
+              </button>
+              <button
+                onClick={() => confirmCancelBooking(cancelConfirmModal)}
+                disabled={cancellingBooking === cancelConfirmModal}
+                className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-md shadow-red-500/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {cancellingBooking === cancelConfirmModal ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4" />
+                    Yes, Cancel Booking
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

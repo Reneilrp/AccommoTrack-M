@@ -145,7 +145,7 @@ function TypeBadge({ type }) {
   );
 }
 
-function PropertyDashboard({ propertyId, navigate }) {
+function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
   const [dashData, setDashData] = useState({
     pendingBookings: [],
     overdueInvoices: [],
@@ -201,16 +201,32 @@ function PropertyDashboard({ propertyId, navigate }) {
         ? (addonRequestsRes.value?.data?.pendingRequests || [])
         : [];
 
+      const pendingBookings = get(bookingsRes);
+      const overdueInvoices = (invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.data : []) || [];
+      const maintenanceRequests = (maintenanceRes.status === 'fulfilled' ? maintenanceRes.value?.data?.data : []) || [];
+      const transferRequests = get(transfersRes);
+
       setDashData({
-        pendingBookings: get(bookingsRes),
-        overdueInvoices: (invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.data : []) || [],
+        pendingBookings,
+        overdueInvoices,
         pendingAddonRequests,
-        maintenanceRequests: (maintenanceRes.status === 'fulfilled' ? maintenanceRes.value?.data?.data : []) || [],
-        transferRequests: get(transfersRes),
+        maintenanceRequests,
+        transferRequests,
         recentReviews: get(reviewsRes),
         occupiedRooms,
         totalRooms,
       });
+
+      // Notify parent of count changes
+      if (onCountsChange) {
+        onCountsChange({
+          addons: pendingAddonRequests.length,
+          maintenance: maintenanceRequests.length,
+          transfers: transferRequests.length,
+          bookings: pendingBookings.length,
+          payments: overdueInvoices.length,
+        });
+      }
     } catch (err) {
       console.error('Dashboard load error', err);
     } finally {
@@ -586,6 +602,29 @@ function PropertyDashboard({ propertyId, navigate }) {
 
   return (
     <div className="space-y-6">
+      {/* Notification Banner */}
+      {(pendingBookings.length > 0 || overdueInvoices.length > 0 || pendingAddonRequests.length > 0 || maintenanceRequests.length > 0 || transferRequests.length > 0) && (
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 rounded-lg p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-900 dark:text-red-100 mb-1">Action Required</h3>
+              <p className="text-xs text-red-800 dark:text-red-200">
+                You have {[
+                  pendingBookings.length > 0 && `${pendingBookings.length} pending booking${pendingBookings.length !== 1 ? 's' : ''}`,
+                  overdueInvoices.length > 0 && `${overdueInvoices.length} overdue payment${overdueInvoices.length !== 1 ? 's' : ''}`,
+                  pendingAddonRequests.length > 0 && `${pendingAddonRequests.length} addon request${pendingAddonRequests.length !== 1 ? 's' : ''}`,
+                  maintenanceRequests.length > 0 && `${maintenanceRequests.length} maintenance request${maintenanceRequests.length !== 1 ? 's' : ''}`,
+                  transferRequests.length > 0 && `${transferRequests.length} transfer request${transferRequests.length !== 1 ? 's' : ''}`,
+                ].filter(Boolean).join(', ')} that need your attention.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           label="Overdue Invoices"
@@ -861,6 +900,13 @@ export default function PropertySummary() {
   const [property, setProperty] = useState(() => getCachedData()?.property || null);
   const [loading, setLoading] = useState(!property);
   const [error, setError] = useState(null);
+  const [notificationCounts, setNotificationCounts] = useState({
+    addons: 0,
+    maintenance: 0,
+    transfers: 0,
+    bookings: 0,
+    payments: 0,
+  });
 
   const [images, setImages] = useState([]);
   const [idx, setIdx] = useState(0);
@@ -876,6 +922,7 @@ export default function PropertySummary() {
   useEffect(() => {
     if (!id) return;
     loadProperty();
+    loadNotificationCounts();
   }, [id]);
 
   useEffect(() => {
@@ -917,6 +964,37 @@ export default function PropertySummary() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadNotificationCounts = async () => {
+    try {
+      const [addonsRes, maintenanceRes, transfersRes, bookingsRes, paymentsRes] = await Promise.allSettled([
+        api.get(`/landlord/properties/${id}/addons/pending`),
+        api.get(`/landlord/maintenance-requests?property_id=${id}&status=pending`),
+        api.get(`/landlord/transfers?property_id=${id}&status=pending`),
+        api.get(`/bookings?property_id=${id}&status=pending`),
+        api.get(`/invoices?property_id=${id}&status=overdue`),
+      ]);
+
+      const getCount = (res) => {
+        if (res.status !== 'fulfilled') return 0;
+        const payload = res.value?.data;
+        if (payload?.pendingRequests) return payload.pendingRequests.length;
+        if (Array.isArray(payload?.data)) return payload.data.length;
+        if (Array.isArray(payload)) return payload.length;
+        return 0;
+      };
+
+      setNotificationCounts({
+        addons: getCount(addonsRes),
+        maintenance: getCount(maintenanceRes),
+        transfers: getCount(transfersRes),
+        bookings: getCount(bookingsRes),
+        payments: getCount(paymentsRes),
+      });
+    } catch (err) {
+      console.error('Failed to load notification counts', err);
     }
   };
 
@@ -1012,10 +1090,15 @@ export default function PropertySummary() {
               </button>
               <button
                 onClick={() => navigate(`/addons?property_id=${id}`, { state: { propertyId: id } })}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors relative"
                 title="Add-ons service"
               >
                 <PackagePlus className="w-5 h-5" />
+                {notificationCounts.addons > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg">
+                    {notificationCounts.addons > 99 ? '99+' : notificationCounts.addons}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => navigate(`/rooms?property=${id}`)}
@@ -1033,10 +1116,15 @@ export default function PropertySummary() {
               </button>
               <button
                 onClick={() => navigate(`/maintenance?property_id=${id}`)}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors relative"
                 title="Maintenance Requests"
               >
                 <Wrench className="w-5 h-5" />
+                {notificationCounts.maintenance > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg">
+                    {notificationCounts.maintenance > 99 ? '99+' : notificationCounts.maintenance}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => navigate(`/reviews?property_id=${id}`)}
@@ -1201,7 +1289,11 @@ export default function PropertySummary() {
           <div className="mb-6 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Overview</h2>
           </div>
-          <PropertyDashboard propertyId={id} navigate={navigate} />
+          <PropertyDashboard 
+            propertyId={id} 
+            navigate={navigate} 
+            onCountsChange={(counts) => setNotificationCounts(counts)}
+          />
         </div>
 
         {/* Room Details Modal (kept for deep-link use) */}

@@ -677,6 +677,38 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingVertical: 8,
     color: theme.colors.text
   },
+  dateInputButton: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  dateInputValue: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dateInputPlaceholder: {
+    color: theme.colors.textTertiary,
+    fontWeight: '500',
+  },
+  clearDateButton: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  clearDateButtonText: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   actionTextArea: {
     borderWidth: 1,
     borderColor: theme.colors.border,

@@ -443,19 +443,32 @@ export default function BookingDetails() {
                     {/* Add-ons Section */}
                     {booking.addons && booking.addons.length > 0 && (
                         <>
-                            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Requested Add-ons</Text>
+                            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-ons & Services</Text>
                             {booking.addons.map((addon, idx) => {
                                 const aStatus = getStatusStyles(addon.pivot?.status || addon.status);
+                                const addonStatus = (addon.pivot?.status || addon.status || 'pending').toLowerCase();
+                                const canCancel = !addon.pivot?.cancellation_effective_at && (addonStatus === 'pending' || addonStatus === 'active' || addonStatus === 'approved');
+                                const hasCancellationScheduled = Boolean(addon.pivot?.cancellation_effective_at);
+                                
                                 return (
                                     <View key={addon.id || idx} style={[styles.itemCard, { backgroundColor: theme.colors.surface }]}>
                                         <View style={styles.itemHeader}>
                                             <Text style={[styles.itemName, { color: theme.colors.text }]}>{addon.name}</Text>
                                             <View style={[styles.statusPillSmall, { backgroundColor: aStatus.bg }]}>
-                                                <Text style={[styles.statusPillTextSmall, { color: aStatus.color }]}>{(addon.pivot?.status || 'pending').toUpperCase()}</Text>
+                                                <Text style={[styles.statusPillTextSmall, { color: aStatus.color }]}>{addonStatus.toUpperCase()}</Text>
                                             </View>
                                         </View>
                                         <Text style={[styles.itemSub, { color: theme.colors.textSecondary }]}>Quantity: {addon.pivot?.quantity || 1}</Text>
-                                        {(addon.pivot?.status === 'pending' || !addon.pivot?.status) && (
+                                        
+                                        {hasCancellationScheduled && (
+                                            <View style={{ marginTop: 8, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: '#FEE2E2', borderRadius: 6 }}>
+                                                <Text style={{ fontSize: 10, fontWeight: '700', color: '#B91C1C', textTransform: 'uppercase' }}>
+                                                    Ends {new Date(addon.pivot.cancellation_effective_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        
+                                        {canCancel && (
                                             <TouchableOpacity 
                                                 onPress={() => handleCancelAddon(addon)}
                                                 disabled={cancelingAddonId === (addon.pivot?.id || addon.id)}
@@ -463,7 +476,12 @@ export default function BookingDetails() {
                                             >
                                                 {cancelingAddonId === (addon.pivot?.id || addon.id) ? 
                                                     <ActivityIndicator size="small" color="#EF4444" /> : 
-                                                    <Text style={styles.cancelText}>Cancel Request</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                        <Ionicons name="close-circle" size={16} color="#EF4444" />
+                                                        <Text style={styles.cancelText}>
+                                                            {addonStatus === 'pending' ? 'Cancel Request' : 'Remove Next Month'}
+                                                        </Text>
+                                                    </View>
                                                 }
                                             </TouchableOpacity>
                                         )}

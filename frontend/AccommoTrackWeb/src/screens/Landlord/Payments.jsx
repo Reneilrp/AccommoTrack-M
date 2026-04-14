@@ -12,6 +12,7 @@ import {
 import invoiceService from "../../services/invoiceService";
 import bookingService from "../../services/bookingService";
 import roomService from "../../services/roomService";
+import { normalizeActionError } from "../../utils/error";
 
 const REFUND_FIXED_PENALTY_CENTS = Number(
   import.meta.env.VITE_REFUND_FIXED_PENALTY_CENTS || 0,
@@ -23,6 +24,16 @@ const REFUND_ELIGIBLE_STATUSES = [
   "partially_refunded",
   "refunded",
 ];
+
+const CASH_REJECTION_REASONS = [
+  { id: "invalid_proof", label: "Invalid payment proof" },
+  { id: "wrong_amount", label: "Amount does not match invoice" },
+  { id: "unclear_image", label: "Proof image is unclear" },
+  { id: "mismatched_reference", label: "Reference does not match records" },
+  { id: "duplicate_submission", label: "Duplicate submission" },
+  { id: "other", label: "Other" },
+];
+const CASH_REJECTION_REASON_IDS = CASH_REJECTION_REASONS.map((item) => item.id);
 
 const getBillingPolicy = (booking) =>
   String(booking?.billing_policy || booking?.room?.billing_policy || "monthly").toLowerCase();
@@ -167,6 +178,9 @@ export default function Payments() {
   const [refundAmount, setRefundAmount] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [verifyingAction, setVerifyingAction] = useState(null);
+  const [showRejectCashForm, setShowRejectCashForm] = useState(false);
+  const [rejectReasonCode, setRejectReasonCode] = useState("unclear_image");
+  const [rejectReason, setRejectReason] = useState("");
   const [isRefunding, setIsRefunding] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [invoiceDrilldownApplied, setInvoiceDrilldownApplied] = useState(false);
@@ -176,6 +190,11 @@ export default function Payments() {
     reference: "",
     notes: "",
   });
+
+  const getPaymentError = useCallback(
+    (errorOrMessage, fallbackMessage) => normalizeActionError(errorOrMessage, fallbackMessage),
+    [],
+  );
 
   useEffect(() => {
     loadInvoices();
@@ -244,13 +263,20 @@ export default function Payments() {
     }
   }, [selectedInvoice]);
 
+  useEffect(() => {
+    if (showInvoiceModal) return;
+    setShowRejectCashForm(false);
+    setRejectReasonCode("unclear_image");
+    setRejectReason("");
+  }, [showInvoiceModal]);
+
   const getInvoiceStatus = useCallback((inv) => {
     const invStatus = (inv.status || "").toLowerCase();
 
     if (invStatus === "paid" || invStatus === "refunded" || invStatus === "cancelled" || invStatus === "pending_verification") {
       return invStatus;
     }
-    
+
     // Check for overdue status
     if (inv.due_date && new Date(inv.due_date) < new Date()) {
       return "overdue";
@@ -300,7 +326,7 @@ export default function Payments() {
       const total = inv.amount_cents
         ? inv.amount_cents / 100
         : Number(inv.amount || 0);
-      
+
       const paid =
         inv.transactions
           ?.filter((tx) => ["succeeded", "paid", "partially_refunded"].includes(tx.status))
@@ -333,17 +359,17 @@ export default function Payments() {
 
     const totalPaid = Number(
       totals.total_paid ??
-        ((Number.isFinite(Number(totals.total_paid_cents))
-          ? Number(totals.total_paid_cents)
-          : 0) /
-          100),
+      ((Number.isFinite(Number(totals.total_paid_cents))
+        ? Number(totals.total_paid_cents)
+        : 0) /
+        100),
     );
     const totalBalance = Number(
       totals.total_balance ??
-        ((Number.isFinite(Number(totals.total_balance_cents))
-          ? Number(totals.total_balance_cents)
-          : 0) /
-          100),
+      ((Number.isFinite(Number(totals.total_balance_cents))
+        ? Number(totals.total_balance_cents)
+        : 0) /
+        100),
     );
 
     return {
@@ -455,9 +481,7 @@ export default function Payments() {
         setInvoices([]);
         setError(null);
       } else {
-        setError(
-          e.response?.data?.message || e.message || "Failed to load invoices",
-        );
+        setError(getPaymentError(e, "Unable to load invoices right now."));
         setInvoices([]);
       }
     } finally {
@@ -492,73 +516,78 @@ export default function Payments() {
       await loadInvoices();
     } catch (e) {
       console.error("Failed to record payment", e);
-      toast.error(e.message || e.response?.data?.message || "Failed to record payment");
+      toast.error(getPaymentError(e, "Unable to record payment."));
     } finally {
       setIsRecording(false);
     }
   };
 
-  const handleVerifyCash = async (action) => {
+  const handleVerifyCash = async (payloadInput) => {
     const invoiceId = selectedInvoice?.id || selectedInvoice?.invoice_id;
     if (!invoiceId) {
       toast.error('Unable to verify payment: invoice is missing an ID.');
       return;
     }
 
-    let payload = { action };
-    if (action === 'reject') {
-      const allowedReasonCodes = [
-        'invalid_proof',
-        'wrong_amount',
-        'unclear_image',
-        'mismatched_reference',
-        'duplicate_submission',
-        'other',
-      ];
-
-      const reasonCodeInput = window.prompt(
-        'Enter denial reason code:\ninvalid_proof, wrong_amount, unclear_image, mismatched_reference, duplicate_submission, other',
-        'unclear_image',
-      );
-      if (reasonCodeInput === null) {
-        return;
-      }
-
-      const normalizedReasonCode = reasonCodeInput.trim().toLowerCase().replace(/\s+/g, '_');
-      if (!allowedReasonCodes.includes(normalizedReasonCode)) {
-        toast.error('Invalid denial reason code.');
-        return;
-      }
-
-      const reason = window.prompt('Provide denial reason details for the tenant:', '');
-      if (reason === null || !reason.trim()) {
-        toast.error('Denial reason is required.');
-        return;
-      }
-
-      payload = {
-        action: 'reject',
-        reason_code: normalizedReasonCode,
-        reason: reason.trim(),
-      };
+    const action = payloadInput?.action;
+    if (!action || !["approve", "reject"].includes(action)) {
+      toast.error("Please choose a valid verification action.");
+      return;
     }
+
+    const reasonCode = String(payloadInput?.reason_code || "").trim();
+    const reason = String(payloadInput?.reason || "").trim();
+    if (action === "reject") {
+      if (!CASH_REJECTION_REASON_IDS.includes(reasonCode)) {
+        toast.error("Please select a valid rejection reason.");
+        return;
+      }
+      if (!reason) {
+        toast.error("Please provide rejection details for the tenant.");
+        return;
+      }
+    }
+
+    const payload =
+      action === "approve"
+        ? { action }
+        : { action: "reject", reason_code: reasonCode, reason };
 
     setVerifyingAction(action);
     try {
       const response = await invoiceService.verifyCash(invoiceId, payload);
       if (!response.success) {
-        throw new Error(response.error || 'Failed to verify payment');
+        throw new Error(response.error || "Unable to verify payment.");
       }
+
+      setShowRejectCashForm(false);
+      setRejectReasonCode("unclear_image");
+      setRejectReason("");
+
       toast.success(action === 'approve' ? 'Cash payment approved — invoice marked as Paid.' : 'Cash payment rejected — tenant will be notified.');
       setShowInvoiceModal(false);
       refreshLandlordMutationViews();
       await loadInvoices();
     } catch (e) {
       console.error('Failed to verify cash payment', e);
-      toast.error(e.message || e.response?.data?.message || 'Failed to verify payment');
+      toast.error(getPaymentError(e, "Unable to verify payment."));
     } finally {
       setVerifyingAction(null);
     }
+  };
+
+  const openRejectCashForm = () => {
+    setShowRejectCashForm(true);
+    setRejectReasonCode("unclear_image");
+    setRejectReason("");
+  };
+
+  const submitRejectCash = () => {
+    handleVerifyCash({
+      action: "reject",
+      reason_code: rejectReasonCode,
+      reason: rejectReason,
+    });
   };
 
   const handleRefundTransaction = async (tx, amountCents) => {
@@ -582,7 +611,7 @@ export default function Payments() {
       await loadInvoices();
     } catch (e) {
       console.error("Failed to process refund", e);
-      toast.error(e.message || e.response?.data?.message || "Failed to process refund");
+      toast.error(getPaymentError(e, "Unable to process refund."));
     } finally {
       setIsRefunding(null);
       setRefundAmount("");
@@ -671,7 +700,7 @@ export default function Payments() {
       toast.success("Payment status updated");
     } catch (e) {
       console.error("Failed to update booking payment", e);
-      toast.error(e.message || "Failed to update payment status");
+      toast.error(getPaymentError(e, "Unable to update payment status."));
     }
   };
 
@@ -683,7 +712,7 @@ export default function Payments() {
       }
     } catch (e) {
       console.error("Failed to update booking status", e);
-      toast.error(e.message || "Failed to update booking status");
+      toast.error(getPaymentError(e, "Unable to update booking status."));
     }
   };
 
@@ -1048,11 +1077,10 @@ export default function Payments() {
             <button
               key={option.value}
               onClick={() => setStatsRange(option.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                statsRange === option.value
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${statsRange === option.value
                   ? "bg-green-600 text-white shadow-sm shadow-green-500/20"
                   : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-              }`}
+                }`}
             >
               {option.label}
             </button>
@@ -1111,7 +1139,7 @@ export default function Payments() {
               </div>
             </div>
           </div>
-          
+
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
@@ -1167,11 +1195,10 @@ export default function Payments() {
                 <button
                   key={s}
                   onClick={() => setPaymentFilter(s)}
-                  className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${
-                    paymentFilter === s
+                  className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${paymentFilter === s
                       ? s === 'pending_verification' ? "bg-orange-500 text-white shadow-md shadow-orange-500/20" : "bg-green-600 text-white shadow-md shadow-green-500/20"
                       : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
+                    }`}
                 >
                   {s === 'pending_verification' ? 'Cash Verify' : s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
@@ -1406,7 +1433,7 @@ export default function Payments() {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => handleVerifyCash('approve')}
+                        onClick={() => handleVerifyCash({ action: 'approve' })}
                         disabled={!!verifyingAction}
                         className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors shadow-md"
                       >
@@ -1415,7 +1442,7 @@ export default function Payments() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleVerifyCash('reject')}
+                        onClick={openRejectCashForm}
                         disabled={!!verifyingAction}
                         className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors shadow-md"
                       >
@@ -1423,191 +1450,243 @@ export default function Payments() {
                         {verifyingAction === 'reject' ? 'Rejecting...' : 'Reject Payment'}
                       </button>
                     </div>
+
+                    {showRejectCashForm && (
+                      <div className="rounded-xl border border-orange-200 dark:border-orange-800 bg-white dark:bg-gray-900/40 p-4 space-y-3">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                            Rejection Reason Category *
+                          </label>
+                          <select
+                            value={rejectReasonCode}
+                            onChange={(e) => setRejectReasonCode(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                            disabled={verifyingAction === 'reject'}
+                          >
+                            {CASH_REJECTION_REASONS.map((item) => (
+                              <option key={item.id} value={item.id}>{item.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                            Rejection Details *
+                          </label>
+                          <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white h-24"
+                            placeholder="Explain what is wrong so the tenant can correct and resubmit."
+                            disabled={verifyingAction === 'reject'}
+                          />
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowRejectCashForm(false)}
+                            disabled={verifyingAction === 'reject'}
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={submitRejectCash}
+                            disabled={verifyingAction === 'reject'}
+                            className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold disabled:opacity-60"
+                          >
+                            {verifyingAction === 'reject' ? 'Rejecting...' : 'Confirm Rejection'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {!["paid", "refunded", "cancelled", "pending_verification"].includes(
                   getInvoiceStatus(selectedInvoice),
                 ) && (
-                  <>
-                    {/* Action Buttons */}
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                      <button
-                        onClick={handleRecordOffline}
-                        disabled={isRecording}
-                        className="flex flex-col items-center justify-center p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl border-2 border-green-200 dark:border-green-800 transition-all disabled:opacity-50"
-                      >
-                        <Receipt className="w-6 h-6 text-green-600 dark:text-green-400 mb-2" />
-                        <span className="text-xs font-bold text-green-700 dark:text-green-300">Record Payment</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (selectedInvoice.booking_id) {
-                            updateBookingPayment(selectedInvoice.booking_id, "partial");
-                            setShowInvoiceModal(false);
-                          }
-                        }}
-                        className="flex flex-col items-center justify-center p-4 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-xl border-2 border-yellow-200 dark:border-yellow-800 transition-all"
-                      >
-                        <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400 mb-2" />
-                        <span className="text-xs font-bold text-yellow-700 dark:text-yellow-300">Mark Partial</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (selectedInvoice.booking_id) {
-                            updateBookingPayment(selectedInvoice.booking_id, "paid");
-                            setShowInvoiceModal(false);
-                          }
-                        }}
-                        className="flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl border-2 border-blue-200 dark:border-blue-800 transition-all"
-                      >
-                        <CheckCircle className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2" />
-                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300">Mark Paid</span>
-                      </button>
-                    </div>
+                    <>
+                      {/* Action Buttons */}
+                      <div className="grid grid-cols-3 gap-3 mb-6">
+                        <button
+                          onClick={handleRecordOffline}
+                          disabled={isRecording}
+                          className="flex flex-col items-center justify-center p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl border-2 border-green-200 dark:border-green-800 transition-all disabled:opacity-50"
+                        >
+                          <Receipt className="w-6 h-6 text-green-600 dark:text-green-400 mb-2" />
+                          <span className="text-xs font-bold text-green-700 dark:text-green-300">Record Payment</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (selectedInvoice.booking_id) {
+                              updateBookingPayment(selectedInvoice.booking_id, "partial");
+                              setShowInvoiceModal(false);
+                            }
+                          }}
+                          className="flex flex-col items-center justify-center p-4 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-xl border-2 border-yellow-200 dark:border-yellow-800 transition-all"
+                        >
+                          <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400 mb-2" />
+                          <span className="text-xs font-bold text-yellow-700 dark:text-yellow-300">Mark Partial</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (selectedInvoice.booking_id) {
+                              updateBookingPayment(selectedInvoice.booking_id, "paid");
+                              setShowInvoiceModal(false);
+                            }
+                          }}
+                          className="flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl border-2 border-blue-200 dark:border-blue-800 transition-all"
+                        >
+                          <CheckCircle className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2" />
+                          <span className="text-xs font-bold text-blue-700 dark:text-blue-300">Mark Paid</span>
+                        </button>
+                      </div>
 
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">
-                        Record Payment Details
-                      </h4>
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">
+                          Record Payment Details
+                        </h4>
 
-                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                              Amount (₱)
+                            </label>
+                            <input
+                              type="number"
+                              value={recordData.amount}
+                              onChange={(e) =>
+                                setRecordData({
+                                  ...recordData,
+                                  amount: e.target.value,
+                                })
+                              }
+                              className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                              Method
+                            </label>
+                            <select
+                              value={recordData.method}
+                              onChange={(e) =>
+                                setRecordData({
+                                  ...recordData,
+                                  method: e.target.value,
+                                })
+                              }
+                              className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            >
+                              <option value="cash">Cash</option>
+                              <option value="bank_transfer">Bank Transfer</option>
+                              <option value="gcash">GCash</option>
+                              <option value="check">Check</option>
+                              <option value="other">Other</option>
+                            </select>
+                          </div>
+                        </div>
+
                         <div>
                           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                            Amount (₱)
+                            Reference (Optional)
                           </label>
                           <input
-                            type="number"
-                            value={recordData.amount}
+                            type="text"
+                            value={recordData.reference}
                             onChange={(e) =>
                               setRecordData({
                                 ...recordData,
-                                amount: e.target.value,
+                                reference: e.target.value,
                               })
                             }
                             className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            placeholder="0.00"
+                            placeholder="Transaction reference..."
                           />
                         </div>
+
                         <div>
                           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                            Method
+                            Notes (Optional)
                           </label>
-                          <select
-                            value={recordData.method}
+                          <textarea
+                            value={recordData.notes}
                             onChange={(e) =>
                               setRecordData({
                                 ...recordData,
-                                method: e.target.value,
+                                notes: e.target.value,
                               })
                             }
-                            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                          >
-                            <option value="cash">Cash</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="gcash">GCash</option>
-                            <option value="check">Check</option>
-                            <option value="other">Other</option>
-                          </select>
+                            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white h-20"
+                            placeholder="Add any internal notes..."
+                          />
+                        </div>
+
+                        <button
+                          onClick={handleRecordOffline}
+                          disabled={isRecording}
+                          className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {isRecording ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Recording...
+                            </>
+                          ) : (
+                            "Record Payment"
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-xs text-gray-500 mb-2 font-bold uppercase">
+                          Quick Status Update
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            {
+                              id: "unpaid",
+                              label: "Unpaid",
+                              color:
+                                "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
+                            },
+                            {
+                              id: "partial",
+                              label: "Partial",
+                              color:
+                                "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100",
+                            },
+                            {
+                              id: "paid",
+                              label: "Paid",
+                              color:
+                                "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
+                            },
+                          ].map((status) => (
+                            <button
+                              key={status.id}
+                              onClick={async () => {
+                                if (selectedInvoice.booking_id) {
+                                  await updateBookingPayment(
+                                    selectedInvoice.booking_id,
+                                    status.id,
+                                  );
+                                  setShowInvoiceModal(false);
+                                }
+                              }}
+                              className={`flex items-center justify-center py-2 px-2 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
+                            >
+                              {status.label}
+                            </button>
+                          ))}
                         </div>
                       </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                          Reference (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={recordData.reference}
-                          onChange={(e) =>
-                            setRecordData({
-                              ...recordData,
-                              reference: e.target.value,
-                            })
-                          }
-                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                          placeholder="Transaction reference..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                          Notes (Optional)
-                        </label>
-                        <textarea
-                          value={recordData.notes}
-                          onChange={(e) =>
-                            setRecordData({
-                              ...recordData,
-                              notes: e.target.value,
-                            })
-                          }
-                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white h-20"
-                          placeholder="Add any internal notes..."
-                        />
-                      </div>
-
-                      <button
-                        onClick={handleRecordOffline}
-                        disabled={isRecording}
-                        className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        {isRecording ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Recording...
-                          </>
-                        ) : (
-                          "Record Payment"
-                        )}
-                      </button>
-                    </div>
-
-                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <p className="text-xs text-gray-500 mb-2 font-bold uppercase">
-                        Quick Status Update
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          {
-                            id: "unpaid",
-                            label: "Unpaid",
-                            color:
-                              "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
-                          },
-                          {
-                            id: "partial",
-                            label: "Partial",
-                            color:
-                              "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100",
-                          },
-                          {
-                            id: "paid",
-                            label: "Paid",
-                            color:
-                              "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
-                          },
-                        ].map((status) => (
-                          <button
-                            key={status.id}
-                            onClick={async () => {
-                              if (selectedInvoice.booking_id) {
-                                await updateBookingPayment(
-                                  selectedInvoice.booking_id,
-                                  status.id,
-                                );
-                                setShowInvoiceModal(false);
-                              }
-                            }}
-                            className={`flex items-center justify-center py-2 px-2 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
-                          >
-                            {status.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  )}
 
                 {/* Existing Transactions with Refund buttons */}
                 {Array.isArray(selectedInvoice.transactions) &&
@@ -1627,7 +1706,7 @@ export default function Payments() {
                             const alreadyRefunded =
                               tx.status === "refunded" ||
                               (tx.refunded_amount_cents ?? 0) >=
-                                tx.amount_cents;
+                              tx.amount_cents;
                             const isPartiallyRefunded = !alreadyRefunded && (tx.refunded_amount_cents ?? 0) > 0;
 
                             return (
@@ -1648,8 +1727,8 @@ export default function Payments() {
                                   <p className="text-[10px] text-gray-500 mt-0.5">
                                     {tx.created_at
                                       ? new Date(
-                                          tx.created_at,
-                                        ).toLocaleDateString()
+                                        tx.created_at,
+                                      ).toLocaleDateString()
                                       : "—"}
                                     {tx.gateway_reference
                                       ? ` · ${tx.gateway_reference}`
@@ -1759,74 +1838,74 @@ export default function Payments() {
 
                 return (
                   <>
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-full text-red-600 dark:text-red-400">
-                  <RotateCcw className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                    Confirm Refund
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Enter an amount to refund for this transaction.
-                  </p>
-                </div>
-              </div>
+                    <div className="flex flex-col items-center text-center space-y-4">
+                      <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-full text-red-600 dark:text-red-400">
+                        <RotateCcw className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                          Confirm Refund
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                          Enter an amount to refund for this transaction.
+                        </p>
+                      </div>
+                    </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                    Refund Amount (₱)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={refundAmount}
-                    onChange={(e) => setRefundAmount(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    placeholder="0.00"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Estimated refundable now: <span className="font-bold text-gray-900 dark:text-white">₱{(maxRefundableCents / 100).toLocaleString()}</span>
-                </p>
-                {isInvalidAmount && (
-                  <p className="text-xs text-red-600 dark:text-red-400">
-                    Enter an amount greater than 0 and not higher than the remaining transaction amount.
-                  </p>
-                )}
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Final validation is enforced by backend refund policy.
-                </p>
-              </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                          Refund Amount (₱)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={refundAmount}
+                          onChange={(e) => setRefundAmount(e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Estimated refundable now: <span className="font-bold text-gray-900 dark:text-white">₱{(maxRefundableCents / 100).toLocaleString()}</span>
+                      </p>
+                      {isInvalidAmount && (
+                        <p className="text-xs text-red-600 dark:text-red-400">
+                          Enter an amount greater than 0 and not higher than the remaining transaction amount.
+                        </p>
+                      )}
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Final validation is enforced by backend refund policy.
+                      </p>
+                    </div>
 
-              <div className="flex gap-4">
-                <button
-                  onClick={() => {
-                    setRefundConfirmTx(null);
-                    setRefundAmount("");
-                  }}
-                  className="flex-1 px-4 py-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold transition-all text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    const txToRefund = refundConfirmTx;
-                    setRefundConfirmTx(null);
-                    await handleRefundTransaction(txToRefund, requestedCents);
-                  }}
-                  disabled={isRefunding === refundConfirmTx.id || isInvalidAmount}
-                  className="flex-1 px-4 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
-                >
-                  {isRefunding === refundConfirmTx.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Yes, Refund"
-                  )}
-                </button>
-              </div>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => {
+                          setRefundConfirmTx(null);
+                          setRefundAmount("");
+                        }}
+                        className="flex-1 px-4 py-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold transition-all text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const txToRefund = refundConfirmTx;
+                          setRefundConfirmTx(null);
+                          await handleRefundTransaction(txToRefund, requestedCents);
+                        }}
+                        disabled={isRefunding === refundConfirmTx.id || isInvalidAmount}
+                        className="flex-1 px-4 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
+                      >
+                        {isRefunding === refundConfirmTx.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "Yes, Refund"
+                        )}
+                      </button>
+                    </div>
                   </>
                 );
               })()}
@@ -1848,12 +1927,12 @@ export default function Payments() {
 // ─── Export CSV Modal ─────────────────────────────────────────────────────────
 
 const PRESETS = [
-  { label: 'This Month',    getDates: () => { const n = new Date(); return { from: new Date(n.getFullYear(), n.getMonth(), 1).toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
-  { label: 'Last Month',    getDates: () => { const n = new Date(); const f = new Date(n.getFullYear(), n.getMonth()-1, 1); const t = new Date(n.getFullYear(), n.getMonth(), 0); return { from: f.toISOString().split('T')[0], to: t.toISOString().split('T')[0] }; } },
-  { label: 'Last 3 Months', getDates: () => { const n = new Date(); const f = new Date(n); f.setMonth(f.getMonth()-3); return { from: f.toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
-  { label: 'This Year',     getDates: () => { const n = new Date(); return { from: new Date(n.getFullYear(), 0, 1).toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
-  { label: 'All Time',      getDates: () => ({ from: '', to: '' }) },
-  { label: 'Custom',        getDates: () => null },
+  { label: 'This Month', getDates: () => { const n = new Date(); return { from: new Date(n.getFullYear(), n.getMonth(), 1).toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
+  { label: 'Last Month', getDates: () => { const n = new Date(); const f = new Date(n.getFullYear(), n.getMonth() - 1, 1); const t = new Date(n.getFullYear(), n.getMonth(), 0); return { from: f.toISOString().split('T')[0], to: t.toISOString().split('T')[0] }; } },
+  { label: 'Last 3 Months', getDates: () => { const n = new Date(); const f = new Date(n); f.setMonth(f.getMonth() - 3); return { from: f.toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
+  { label: 'This Year', getDates: () => { const n = new Date(); return { from: new Date(n.getFullYear(), 0, 1).toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
+  { label: 'All Time', getDates: () => ({ from: '', to: '' }) },
+  { label: 'Custom', getDates: () => null },
 ];
 
 function ExportModal({ invoices, bookingsMap, onClose }) {
@@ -1867,7 +1946,7 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
   const [roomsError, setRoomsError] = useState('');
   const [preset, setPreset] = useState('This Month');
   const [dateFrom, setDateFrom] = useState(PRESETS[0].getDates().from);
-  const [dateTo, setDateTo]   = useState(PRESETS[0].getDates().to);
+  const [dateTo, setDateTo] = useState(PRESETS[0].getDates().to);
   const [exporting, setExporting] = useState(false);
 
   const isCustom = preset === 'Custom';
@@ -1929,7 +2008,7 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
         }
         const issued = new Date(inv.issued_at || inv.created_at);
         if (dateFrom && issued < new Date(dateFrom)) return false;
-        if (dateTo   && issued > new Date(dateTo + 'T23:59:59')) return false;
+        if (dateTo && issued > new Date(dateTo + 'T23:59:59')) return false;
         return true;
       });
 
@@ -1948,8 +2027,8 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
         const issued = inv.issued_at || inv.created_at || '';
         const amount = inv.amount_cents ? inv.amount_cents / 100 : Number(inv.amount || 0);
         const paid = (inv.transactions || [])
-          .filter(tx => ['succeeded','paid','partially_refunded'].includes(tx.status))
-          .reduce((s, tx) => s + (tx.amount_cents ? tx.amount_cents/100 : Number(tx.amount||0)) - (tx.refunded_amount_cents ? tx.refunded_amount_cents/100 : 0), 0);
+          .filter(tx => ['succeeded', 'paid', 'partially_refunded'].includes(tx.status))
+          .reduce((s, tx) => s + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)) - (tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0), 0);
         const balance = Math.max(0, amount - paid);
         const status = (inv.status || 'pending').charAt(0).toUpperCase() + (inv.status || 'pending').slice(1);
         return [`"${inv.reference || `INV-${inv.id}`}"`, `"${tenantName}"`, `"${property}"`, `"${room}"`, issued ? new Date(issued).toLocaleDateString() : '—', amount.toFixed(2), paid.toFixed(2), balance.toFixed(2), status].join(',');
@@ -1961,7 +2040,7 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
       link.href = URL.createObjectURL(blob);
       const propLabel = selectedProperty ? (cachedProps.find(p => String(p.id) === String(selectedProperty))?.title || 'property') : 'all';
       const dateLabel = preset === 'All Time' ? 'all-time' : `${dateFrom}_to_${dateTo}`;
-      link.download = `payments_${propLabel.replace(/\s+/g,'-')}_${dateLabel}.csv`;
+      link.download = `payments_${propLabel.replace(/\s+/g, '-')}_${dateLabel}.csv`;
       link.click();
       URL.revokeObjectURL(link.href);
       toast.success(`${result.length} record${result.length !== 1 ? 's' : ''} exported!`);
