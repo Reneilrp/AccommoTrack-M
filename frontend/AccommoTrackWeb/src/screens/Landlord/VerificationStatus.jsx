@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  AlertTriangle, 
-  Upload, 
-  FileText, 
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  Upload,
+  FileText,
   Loader2,
   RefreshCw,
   ChevronDown,
@@ -24,18 +24,18 @@ const STORAGE_BASE_URL = import.meta.env.VITE_STORAGE_URL || 'http://localhost:8
 // Normalize image URL to use frontend's configured base URL
 const normalizeImageUrl = (url) => {
   if (!url) return null;
-  
+
   // If it's already using the correct base URL, return as is
   if (url.startsWith(STORAGE_BASE_URL)) {
     return url;
   }
-  
+
   // Extract the path after /storage/ and reconstruct with our base URL
   const storageMatch = url.match(/\/storage\/(.+)$/);
   if (storageMatch) {
     return `${STORAGE_BASE_URL}/${storageMatch[1]}`;
   }
-  
+
   // Fallback: return original URL
   return url;
 };
@@ -43,10 +43,10 @@ const normalizeImageUrl = (url) => {
 // Document Preview Component - handles both images and PDFs
 const DocumentPreview = ({ path, alt }) => {
   const [imageError, setImageError] = useState(false);
-  
+
   // Normalize the URL to use frontend's configured storage URL
   const normalizedPath = normalizeImageUrl(path);
-  
+
   if (!normalizedPath) {
     return (
       <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-500">
@@ -56,7 +56,7 @@ const DocumentPreview = ({ path, alt }) => {
   }
 
   const isPdf = normalizedPath.toLowerCase().endsWith('.pdf');
-  
+
   if (isPdf) {
     return (
       <a
@@ -79,9 +79,9 @@ const DocumentPreview = ({ path, alt }) => {
       <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex flex-col items-center justify-center text-gray-500 dark:text-gray-500">
         <ImageIcon className="w-10 h-10 mb-2" />
         <span className="text-sm">Failed to load image</span>
-        <a 
-          href={normalizedPath} 
-          target="_blank" 
+        <a
+          href={normalizedPath}
+          target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-2 flex items-center gap-2"
         >
@@ -130,6 +130,7 @@ export default function VerificationStatus() {
     validIdType: '',
     validIdOther: '',
     validId: null,
+    validIdBack: null,
     permit: null,
   });
 
@@ -140,7 +141,7 @@ export default function VerificationStatus() {
 
   const handleSwitchToTenant = async () => {
     if (!window.confirm('Are you sure you want to switch back to Tenant mode?')) return;
-    
+
     try {
       setIsSwitching(true);
       const response = await authService.switchRole('tenant');
@@ -189,7 +190,7 @@ export default function VerificationStatus() {
 
   const handleResubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!resubmitForm.validIdType) {
       toast.error('Please select a valid ID type');
       return;
@@ -211,6 +212,9 @@ export default function VerificationStatus() {
         formData.append('valid_id_other', resubmitForm.validIdOther);
       }
       formData.append('valid_id', resubmitForm.validId);
+      if (resubmitForm.validIdBack) {
+        formData.append('valid_id_back', resubmitForm.validIdBack);
+      }
       formData.append('permit', resubmitForm.permit);
 
       // Dynamically select the correct endpoint based on the user's role
@@ -224,7 +228,7 @@ export default function VerificationStatus() {
 
       toast.success('Documents submitted successfully! Please wait for admin review.');
       setShowResubmitForm(false);
-      setResubmitForm({ validIdType: '', validIdOther: '', validId: null, permit: null });
+      setResubmitForm({ validIdType: '', validIdOther: '', validId: null, validIdBack: null, permit: null });
       fetchVerificationStatus();
     } catch (err) {
       console.error('Resubmission failed:', err);
@@ -362,7 +366,7 @@ export default function VerificationStatus() {
                 </p>
               </div>
             )}
-            
+
             {verification?.reviewed_at && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 font-medium uppercase tracking-wider">
                 Last reviewed: {new Date(verification.reviewed_at).toLocaleDateString('en-US', {
@@ -421,6 +425,13 @@ export default function VerificationStatus() {
                   <span>Valid ID ({verification.valid_id_type})</span>
                 </div>
                 <DocumentPreview path={verification.valid_id_path} alt="Valid ID" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
+                  <ImageIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <span>Valid ID Back ({verification.valid_id_type})</span>
+                </div>
+                <DocumentPreview path={verification.valid_id_back_path} alt="Valid ID Back" />
               </div>
               <div>
                 <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
@@ -509,6 +520,23 @@ export default function VerificationStatus() {
               )}
             </div>
 
+            {/* Valid ID Back Upload */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                Valid ID Back Image <span className="text-gray-500">(optional)</span>
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setResubmitForm(prev => ({ ...prev, validIdBack: e.target.files[0] }))}
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
+                disabled={submitting}
+              />
+              {resubmitForm.validIdBack && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Selected: {resubmitForm.validIdBack.name}</p>
+              )}
+            </div>
+
             {/* Permit Upload */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
@@ -549,7 +577,7 @@ export default function VerificationStatus() {
           </form>
         </div>
       )}
-      
+
       {/* Resubmit Form (now shown for rejected status) */}
       {showResubmitForm && verification?.status === 'rejected' && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
@@ -610,6 +638,23 @@ export default function VerificationStatus() {
               )}
             </div>
 
+            {/* Valid ID Back Upload */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                Valid ID Back Image <span className="text-gray-500">(optional)</span>
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setResubmitForm(prev => ({ ...prev, validIdBack: e.target.files[0] }))}
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
+                disabled={submitting}
+              />
+              {resubmitForm.validIdBack && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Selected: {resubmitForm.validIdBack.name}</p>
+              )}
+            </div>
+
             {/* Permit Upload */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
@@ -633,7 +678,7 @@ export default function VerificationStatus() {
                 type="button"
                 onClick={() => {
                   setShowResubmitForm(false);
-                  setResubmitForm({ validIdType: '', validIdOther: '', validId: null, permit: null });
+                  setResubmitForm({ validIdType: '', validIdOther: '', validId: null, validIdBack: null, permit: null });
                 }}
                 disabled={submitting}
                 className="flex-1 px-4 py-4 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors disabled:opacity-70"
@@ -682,24 +727,23 @@ export default function VerificationStatus() {
               <ChevronDown className="w-5 h-5 text-gray-500 dark:text-gray-500" />
             )}
           </button>
-          
+
           {showHistory && (
             <div className="border-t border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
               {verification.history.map((entry, index) => (
                 <div key={entry.id || index} className="px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <span className={`px-2 py-2 rounded-full text-xs font-semibold ${
-                          entry.status === 'approved'
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                            : entry.status === 'rejected'
+                      <span className={`px-2 py-2 rounded-full text-xs font-semibold ${entry.status === 'approved'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : entry.status === 'rejected'
                             ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                             : entry.status === 'partial_verified'
-                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                            : entry.status === 'pending_documents_review'
-                            ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
-                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                      }`}>
+                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                              : entry.status === 'pending_documents_review'
+                                ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                                : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                        }`}>
                         {entry.status}
                       </span>
                       <span className="text-sm text-gray-600 dark:text-gray-300">{entry.valid_id_type}</span>

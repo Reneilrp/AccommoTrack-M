@@ -510,6 +510,18 @@ export const getStyles = (theme) => StyleSheet.create({
   idTypeBadgeText: {
     fontWeight: '500',
   },
+  idTypePickerWrapper: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.background,
+    marginBottom: 8,
+  },
+  idTypePicker: {
+    height: 50,
+    color: theme.colors.text,
+  },
   uploadButton: {
     height: 120,
     borderWidth: 2,

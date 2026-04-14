@@ -67,7 +67,7 @@ export default function LandlordApproval() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
-  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
   const fetchVerifications = useCallback(async () => {
     try {
@@ -109,7 +109,7 @@ export default function LandlordApproval() {
     const targetVerification = verifications.find((item) => item.user_id === userId);
     if (!isSelectableVerification(targetVerification)) return;
 
-    setSelectedUserIds(prev => 
+    setSelectedUserIds(prev =>
       prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
     );
   };
@@ -155,7 +155,7 @@ export default function LandlordApproval() {
     }
 
     setConfirmModalState({ isOpen: false });
-    
+
     if (action === 'reject' && (!rejectionReason.trim() || rejectionReason.trim().length < 10)) {
       toast.error('Please provide a detailed rejection reason (at least 10 characters) for bulk reject');
       return;
@@ -169,7 +169,7 @@ export default function LandlordApproval() {
 
       const res = await api.post(`/admin/users/bulk-${action}`, payload);
       toast.success(res.data?.message || `Bulk ${action} successful`);
-      
+
       setVerifications(prev => prev.map(v => {
         if (pendingSelectedUserIds.includes(v.user_id)) {
           return {
@@ -251,10 +251,10 @@ export default function LandlordApproval() {
     try {
       setActionLoading(true);
       await api.post(`/admin/users/${userId}/approve`);
-      
-      setVerifications(prev => prev.map(v => 
-        v.id === verificationId 
-          ? { ...v, status: 'approved', user: { ...v.user, is_verified: true } } 
+
+      setVerifications(prev => prev.map(v =>
+        v.id === verificationId
+          ? { ...v, status: 'approved', user: { ...v.user, is_verified: true } }
           : v
       ));
       toast.success('Landlord approved successfully! Confirmation email sent.');
@@ -289,7 +289,7 @@ export default function LandlordApproval() {
       confirmButtonClass: 'bg-red-600 hover:bg-red-700'
     });
   };
-  
+
   const handleReject = async () => {
     setConfirmModalState({ isOpen: false });
     try {
@@ -297,10 +297,10 @@ export default function LandlordApproval() {
       await api.post(`/admin/landlord-verifications/${selectedVerification.id}/reject`, {
         reason: rejectionReason.trim()
       });
-      
-      setVerifications(prev => prev.map(v => 
-        v.id === selectedVerification.id 
-          ? { ...v, status: 'rejected', rejection_reason: rejectionReason.trim(), user: { ...v.user, is_verified: false } } 
+
+      setVerifications(prev => prev.map(v =>
+        v.id === selectedVerification.id
+          ? { ...v, status: 'rejected', rejection_reason: rejectionReason.trim(), user: { ...v.user, is_verified: false } }
           : v
       ));
       toast.success('Application rejected. The landlord has been notified via email.');
@@ -327,10 +327,10 @@ export default function LandlordApproval() {
 
     if (isImage) {
       return (
-        <img 
-          src={url} 
-          alt={label} 
-          className="w-full h-auto rounded object-contain max-h-[420px]" 
+        <img
+          src={url}
+          alt={label}
+          className="w-full h-auto rounded object-contain max-h-[420px]"
         />
       );
     }
@@ -343,9 +343,9 @@ export default function LandlordApproval() {
             {ext} Document
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Click below to view or download</p>
-          <a 
-            href={url} 
-            target="_blank" 
+          <a
+            href={url}
+            target="_blank"
             rel="noopener noreferrer"
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm"
           >
@@ -354,7 +354,7 @@ export default function LandlordApproval() {
         </div>
       );
     }
-    
+
     // Fallback for when no file is provided.
     return (
       <div className="min-h-[280px] flex items-center justify-center text-gray-500 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
@@ -387,7 +387,7 @@ export default function LandlordApproval() {
 
   return (
     <div className="w-full">
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={confirmModalState.isOpen}
         onClose={() => setConfirmModalState({ isOpen: false })}
         onConfirm={confirmModalState.onConfirm}
@@ -404,11 +404,10 @@ export default function LandlordApproval() {
         {selectableVerifications.length > 0 && (
           <button
             onClick={toggleEditMode}
-            className={`shrink-0 h-10 w-10 inline-flex items-center justify-center border rounded-lg transition-colors ${
-              isEditMode
+            className={`shrink-0 h-10 w-10 inline-flex items-center justify-center border rounded-lg transition-colors ${isEditMode
                 ? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20'
                 : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
+              }`}
             title={isEditMode ? 'Exit edit mode' : 'Edit'}
             aria-label={isEditMode ? 'Exit edit mode' : 'Edit'}
           >
@@ -464,80 +463,81 @@ export default function LandlordApproval() {
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
-                <tr>
-                  {canShowSelectionColumn && (
-                    <th className="px-6 py-4 font-semibold w-12">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                        checked={selectableVerifications.length > 0 && selectedUserIds.length === selectableVerifications.length}
-                        disabled={selectableVerifications.length === 0}
-                        onChange={toggleAll}
-                      />
-                    </th>
-                  )}
-                  <th className="px-6 py-4 font-semibold">Applicant</th>
-                  <th className="px-6 py-4 font-semibold">ID Type</th>
-                  <th className="px-6 py-4 font-semibold">Status</th>
-                  <th className="px-6 py-4 font-semibold">Submitted</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {safeVerifications.map((v) => {
-                  const selectable = isSelectableVerification(v);
-
-                  return (
-                  <tr key={v.id} className={`${isEditMode && selectedUserIds.includes(v.user_id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'} transition-colors`}>
+                <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
+                  <tr>
                     {canShowSelectionColumn && (
-                      <td className="px-6 py-4">
-                        <input 
-                          type="checkbox" 
-                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
-                          checked={selectedUserIds.includes(v.user_id)}
-                          disabled={!selectable}
-                          onChange={() => toggleSelection(v.user_id)}
+                      <th className="px-6 py-4 font-semibold w-12">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          checked={selectableVerifications.length > 0 && selectedUserIds.length === selectableVerifications.length}
+                          disabled={selectableVerifications.length === 0}
+                          onChange={toggleAll}
                         />
-                      </td>
+                      </th>
                     )}
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-900 dark:text-white">{v.first_name} {v.last_name}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{v.user?.email}</span>
-                      </div>
-                    </td>
-                  <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                    {v.valid_id_type || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4">
-                    {(() => {
-                      const statusMeta = getVerificationStatusMeta(v.status);
+                    <th className="px-6 py-4 font-semibold">Applicant</th>
+                    <th className="px-6 py-4 font-semibold">ID Type</th>
+                    <th className="px-6 py-4 font-semibold">Status</th>
+                    <th className="px-6 py-4 font-semibold">Submitted</th>
+                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {safeVerifications.map((v) => {
+                    const selectable = isSelectableVerification(v);
 
-                      return (
-                        <span className={`px-2 py-2 rounded-full text-xs font-semibold ${statusMeta.classes}`}>
-                          {statusMeta.label}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {v.created_at ? new Date(v.created_at).toLocaleDateString() : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => openDocumentModal(v)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
-                    >
-                      <Eye className="w-4 h-4" /> Review
-                    </button>
-                  </td>
-                </tr>
-              )})}
-            </tbody>
-          </table>
+                    return (
+                      <tr key={v.id} className={`${isEditMode && selectedUserIds.includes(v.user_id) ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'} transition-colors`}>
+                        {canShowSelectionColumn && (
+                          <td className="px-6 py-4">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                              checked={selectedUserIds.includes(v.user_id)}
+                              disabled={!selectable}
+                              onChange={() => toggleSelection(v.user_id)}
+                            />
+                          </td>
+                        )}
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-900 dark:text-white">{v.first_name} {v.last_name}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{v.user?.email}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                          {v.valid_id_type || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4">
+                          {(() => {
+                            const statusMeta = getVerificationStatusMeta(v.status);
+
+                            return (
+                              <span className={`px-2 py-2 rounded-full text-xs font-semibold ${statusMeta.classes}`}>
+                                {statusMeta.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                          {v.created_at ? new Date(v.created_at).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => openDocumentModal(v)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
+                          >
+                            <Eye className="w-4 h-4" /> Review
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
         </div>
       )}
 
@@ -549,10 +549,10 @@ export default function LandlordApproval() {
               <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Verification Documents</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                   applicant: {selectedVerification.first_name} {selectedVerification.last_name}
+                  applicant: {selectedVerification.first_name} {selectedVerification.last_name}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => setShowModal(false)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
               >
@@ -560,9 +560,9 @@ export default function LandlordApproval() {
               </button>
             </div>
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
               {selectedVerification.document_due_at && (
-                <div className="md:col-span-2 p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
+                <div className="md:col-span-3 p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
                   <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
                     Document deadline: {new Date(selectedVerification.document_due_at).toLocaleDateString()}
                   </p>
@@ -576,6 +576,16 @@ export default function LandlordApproval() {
                 </div>
                 <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
                   <FilePreview path={selectedVerification.valid_id_path} label="Valid ID" />
+                </div>
+              </div>
+
+              <div className="space-y-4 text-center sm:text-left">
+                <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
+                  <ImageIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h4>Valid ID Back ({selectedVerification.valid_id_type})</h4>
+                </div>
+                <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
+                  <FilePreview path={selectedVerification.valid_id_back_path} label="Valid ID Back" />
                 </div>
               </div>
 
@@ -616,10 +626,14 @@ export default function LandlordApproval() {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
                             <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Valid ID</p>
                             <FilePreview path={entry.valid_id_path} label="Previous Valid ID" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Valid ID Back</p>
+                            <FilePreview path={entry.valid_id_back_path} label="Previous Valid ID Back" />
                           </div>
                           <div>
                             <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Permit</p>
@@ -634,13 +648,13 @@ export default function LandlordApproval() {
             )}
 
             <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4 sticky bottom-0">
-              <button 
+              <button
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
               >
                 Close
               </button>
-              
+
               {(selectedVerificationStatus === 'pending' || selectedVerificationStatus === 'pending_documents_review') && (
                 <>
                   <button
@@ -728,7 +742,7 @@ export default function LandlordApproval() {
             </div>
 
             <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4">
-              <button 
+              <button
                 onClick={() => {
                   setShowRejectModal(false);
                   setRejectionReason('');

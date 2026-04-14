@@ -8,19 +8,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   Image,
   StatusBar,
   Modal,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
-import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { useUIState } from '../../../contexts/UIStateContext.jsx';
 
@@ -63,7 +61,7 @@ const TermsModal = ({ visible, onClose, theme }) => {
               )}
             </View>
           ))}
-          
+
           <View style={{ marginTop: 8, padding: 15, backgroundColor: theme.colors.card, borderRadius: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
               If you have any questions about these terms, please contact us through the Help & Support page.
@@ -71,7 +69,7 @@ const TermsModal = ({ visible, onClose, theme }) => {
           </View>
         </ScrollView>
         <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={{ backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
             onPress={onClose}
           >
@@ -138,8 +136,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   const [idTypes, setIdTypes] = useState([]);
   const [idTypesLoading, setIdTypesLoading] = useState(false);
   const idTypeOptions = useMemo(() => {
-    const withoutOther = idTypes.filter(type => type.toLowerCase() !== 'other');
-    return [...withoutOther, 'other'];
+    return idTypes.filter(type => type.toLowerCase() !== 'other');
   }, [idTypes]);
 
   // ——— Fetch ID types when reaching step 3 ———
@@ -153,7 +150,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
           setIdTypesLoading(false);
         })
         .catch(() => {
-          setIdTypes(['Passport', "Driver's License", 'National ID', 'SSS UMID', 'PhilHealth ID']);
+          setIdTypes(['Philippine Passport', "Driver's License", 'PhilSys ID (National ID)', 'UMID']);
           setIdTypesLoading(false);
         });
     }
@@ -579,23 +576,18 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                   {idTypesLoading ? (
                     <ActivityIndicator color={theme.colors.primary} style={{ marginBottom: 16 }} />
                   ) : (
-                    <View style={styles.idTypeContainer}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.idTypeScroll}>
-                        {idTypeOptions.map(type => {
-                          const isOther = type === 'other';
-                          return (
-                            <TouchableOpacity
-                              key={type}
-                              onPress={() => handleChange('validIdType', type)}
-                              style={[styles.idTypeBadge, { backgroundColor: form.validIdType === type ? theme.colors.primary : theme.colors.backgroundSecondary }]}
-                            >
-                              <Text style={[styles.idTypeBadgeText, { color: form.validIdType === type ? theme.colors.textInverse : theme.colors.text }]}>
-                                {isOther ? 'Other (specify below)' : type}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
+                    <View style={styles.idTypePickerWrapper}>
+                      <Picker
+                        selectedValue={form.validIdType}
+                        onValueChange={(value) => handleChange('validIdType', value)}
+                        style={styles.idTypePicker}
+                      >
+                        <Picker.Item label="Select ID Type" value="" />
+                        {idTypeOptions.map((type) => (
+                          <Picker.Item key={type} label={type} value={type} />
+                        ))}
+                        <Picker.Item label="Other (specify below)" value="other" />
+                      </Picker>
                     </View>
                   )}
                   {fieldErrors.validIdType ? <Text style={styles.inlineErrorText}>{fieldErrors.validIdType}</Text> : null}
