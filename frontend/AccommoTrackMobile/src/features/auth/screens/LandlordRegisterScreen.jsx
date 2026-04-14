@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
@@ -112,6 +113,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
     validIdType: '',
     validIdOther: '',
     validId: null,
+    validIdBack: null,
     permit: null,
     agree: false,
   });
@@ -250,7 +252,8 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
     } else if (step === 3) {
       if (!form.validIdType) errors.validIdType = 'Please select a valid ID type';
       else if (form.validIdType === 'other' && !form.validIdOther?.trim()) errors.validIdOther = 'Please specify the type of ID';
-      if (!form.validId) errors.validId = 'Please upload a copy of your valid ID';
+      if (!form.validId) errors.validId = 'Please upload the front image of your valid ID';
+      if (!form.validIdBack) errors.validIdBack = 'Please upload the back image of your valid ID';
       if (!form.permit) errors.permit = 'Please upload your accommodation or business permit';
       if (!form.agree) errors.agree = 'You must agree to the terms and conditions';
     }
@@ -303,26 +306,83 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
     applySelectedAsset(field, result);
   };
 
+  const pickDocumentFromFileManager = async (field) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        // Normalize asset to match ImagePicker format if possible
+        setForm(prev => ({
+          ...prev,
+          [field]: {
+            uri: asset.uri,
+            name: asset.name,
+            mimeType: asset.mimeType,
+            size: asset.size,
+          }
+        }));
+        setFieldErrors(prev => ({ ...prev, [field]: '' }));
+      }
+    } catch (err) {
+      console.error('DocumentPicker Error:', err);
+      showAlert('Error', 'Could not open file manager. Please try again.');
+    }
+  };
+
   const pickImage = (field) => {
+    const isPermit = field === 'permit';
+    const options = [
+      {
+        text: 'Take Photo',
+        onPress: () => { void takePhotoWithCamera(field); },
+      },
+      {
+        text: isPermit ? 'Choose Image from Library' : 'Choose from Library',
+        onPress: () => { void pickImageFromLibrary(field); },
+      },
+    ];
+
+    if (isPermit) {
+      options.push({
+        text: 'Choose File (PDF/Image)',
+        onPress: () => { void pickDocumentFromFileManager(field); },
+      });
+    }
+
+    options.push({ text: 'Cancel', style: 'cancel' });
+
     showAlert(
       'Upload Document',
-      'Choose a source for your document image.',
-      [
-        {
-          text: 'Take Photo',
-          onPress: () => { void takePhotoWithCamera(field); },
-        },
-        {
-          text: 'Choose from Library',
-          onPress: () => { void pickImageFromLibrary(field); },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ],
+      isPermit ? 'Choose a source for your permit.' : 'Choose a source for your document image.',
+      options,
       {
         showCloseButton: true,
         cancelable: true,
       },
     );
+  };
+
+  const renderFilePreview = (asset) => {
+    if (!asset) return null;
+    const isPdf = asset.mimeType === 'application/pdf' || asset.name?.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      return (
+        <View style={{ alignItems: 'center' }}>
+          <Ionicons name="document-text" size={32} color={theme.colors.primary} />
+          <Text style={{ color: theme.colors.text, fontSize: 12, marginTop: 4 }} numberOfLines={1}>
+            {asset.name || 'document.pdf'}
+          </Text>
+        </View>
+      );
+    }
+
+    return <Image source={{ uri: asset.uri }} style={styles.uploadPreview} />;
   };
 
   // ——— Submit ———
@@ -358,11 +418,21 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
 
       // Attach files
       const appendFile = (key, asset) => {
+        if (!asset) return;
         const uri = asset.uri;
-        const ext = uri.split('.').pop() || 'jpg';
-        formData.append(key, { uri, name: `${key}.${ext}`, type: `image/${ext}` });
+        const name = asset.name || (uri.split('/').pop());
+        const type = asset.mimeType || asset.type || 'image/jpeg';
+        
+        formData.append(key, {
+          uri,
+          name: name,
+          type: type,
+        });
       };
       appendFile('valid_id', form.validId);
+      if (form.validIdBack) {
+        appendFile('valid_id_back', form.validIdBack);
+      }
       appendFile('permit', form.permit);
 
       const response = await fetch(`${API_URL}/landlord-verification`, {
@@ -405,9 +475,25 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
 
   // ——— Render helpers ———
   const renderInput = (icon, placeholder, field, options = {}) => {
-    const { secure, keyboardType, autoCapitalize, toggleVisibility, isVisible } = options;
+    const {
+      secure,
+      keyboardType,
+      autoCapitalize,
+      toggleVisibility,
+      isVisible,
+      label,
+      required,
+      optional,
+    } = options;
     return (
       <View>
+        {label ? (
+          <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>
+            {label}
+            {required ? <Text style={{ color: theme.colors.error }}> *</Text> : null}
+            {optional ? <Text style={{ color: theme.colors.textTertiary, fontWeight: 'normal' }}> (optional)</Text> : null}
+          </Text>
+        ) : null}
         <View style={[styles.inputContainer, fieldErrors[field] && { borderColor: theme.colors.error }]}>
           <Ionicons name={icon} size={20} color={theme.colors.textTertiary} style={styles.inputIcon} />
           <TextInput
@@ -488,19 +574,35 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
             {/* ——— Step 1: Personal Info ——— */}
             {step === 1 && (
               <View style={styles.form}>
-                {renderInput('person-outline', 'First Name *', 'firstName', { autoCapitalize: 'words' })}
-                {renderInput('person-outline', 'Middle Name (optional)', 'middleName', { autoCapitalize: 'words' })}
-                {renderInput('person-outline', 'Last Name *', 'lastName', { autoCapitalize: 'words' })}
+                {renderInput('person-outline', 'Enter your first name', 'firstName', {
+                  autoCapitalize: 'words',
+                  label: 'First Name',
+                  required: true,
+                })}
+                {renderInput('person-outline', 'Enter your middle name', 'middleName', {
+                  autoCapitalize: 'words',
+                  label: 'Middle Name',
+                  optional: true,
+                })}
+                {renderInput('person-outline', 'Enter your last name', 'lastName', {
+                  autoCapitalize: 'words',
+                  label: 'Last Name',
+                  required: true,
+                })}
 
                 {/* Date of Birth */}
                 <View>
+                  <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>
+                    Date of Birth
+                    <Text style={{ color: theme.colors.error }}> *</Text>
+                  </Text>
                   <TouchableOpacity
                     style={[styles.inputContainer, fieldErrors.dob && { borderColor: theme.colors.error }]}
                     onPress={() => setShowDatePicker(true)}
                   >
                     <Ionicons name="calendar-outline" size={20} color={theme.colors.textTertiary} style={styles.inputIcon} />
                     <Text style={[styles.input, { paddingVertical: 14, color: form.dob ? theme.colors.text : theme.colors.textTertiary }]}>
-                      {form.dob ? new Date(form.dob).toLocaleDateString() : 'Date of Birth *'}
+                      {form.dob ? new Date(form.dob).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Select date of birth'}
                     </Text>
                   </TouchableOpacity>
                   {fieldErrors.dob ? <Text style={styles.inlineErrorText}>{fieldErrors.dob}</Text> : null}
@@ -526,17 +628,30 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
             {/* ——— Step 2: Credentials ——— */}
             {step === 2 && (
               <View style={styles.form}>
-                {renderInput('mail-outline', 'Email Address *', 'email', { keyboardType: 'email-address', autoCapitalize: 'none' })}
-                {renderInput('call-outline', 'Phone (09XXXXXXXXX)', 'phone', { keyboardType: 'phone-pad' })}
-                {renderInput('lock-closed-outline', 'Password *', 'password', {
+                {renderInput('mail-outline', 'Enter your email address', 'email', {
+                  keyboardType: 'email-address',
+                  autoCapitalize: 'none',
+                  label: 'Email Address',
+                  required: true,
+                })}
+                {renderInput('call-outline', '09XXXXXXXXX', 'phone', {
+                  keyboardType: 'phone-pad',
+                  label: 'Phone Number',
+                  optional: true,
+                })}
+                {renderInput('lock-closed-outline', 'Create a password', 'password', {
                   secure: true,
                   toggleVisibility: () => setShowPassword(!showPassword),
                   isVisible: showPassword,
+                  label: 'Password',
+                  required: true,
                 })}
-                {renderInput('lock-closed-outline', 'Confirm Password *', 'confirmPassword', {
+                {renderInput('lock-closed-outline', 'Confirm your password', 'confirmPassword', {
                   secure: true,
                   toggleVisibility: () => setShowConfirmPassword(!showConfirmPassword),
                   isVisible: showConfirmPassword,
+                  label: 'Confirm Password',
+                  required: true,
                 })}
 
                 {/* Password requirements */}
@@ -572,7 +687,10 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
               <View style={styles.form}>
                 {/* ID Type */}
                 <View>
-                  <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>Valid ID Type *</Text>
+                  <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>
+                    Valid ID Type
+                    <Text style={{ color: theme.colors.error }}> *</Text>
+                  </Text>
                   {idTypesLoading ? (
                     <ActivityIndicator color={theme.colors.primary} style={{ marginBottom: 16 }} />
                   ) : (
@@ -593,9 +711,16 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                   {fieldErrors.validIdType ? <Text style={styles.inlineErrorText}>{fieldErrors.validIdType}</Text> : null}
                 </View>
 
-                {form.validIdType === 'other' && renderInput('document-text-outline', 'Specify ID type *', 'validIdOther')}
+                {form.validIdType === 'other' && renderInput('document-text-outline', 'Specify ID type', 'validIdOther', {
+                  label: 'Specify ID Type',
+                  required: true,
+                })}
 
-                {/* Upload Valid ID */}
+                {/* Upload Valid ID Front */}
+                <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>
+                  Upload Valid ID Front
+                  <Text style={{ color: theme.colors.error }}> *</Text>
+                </Text>
                 <TouchableOpacity
                   onPress={() => pickImage('validId')}
                   style={[styles.uploadButton, { borderColor: form.validId ? theme.colors.primary : (fieldErrors.validId ? theme.colors.error : theme.colors.border), backgroundColor: form.validId ? theme.colors.primaryLight : theme.colors.backgroundSecondary }]}
@@ -605,23 +730,47 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                   ) : (
                     <>
                       <Ionicons name="cloud-upload-outline" size={32} color={theme.colors.textTertiary} />
-                      <Text style={[styles.uploadButtonText, { color: theme.colors.textTertiary }]}>Upload Valid ID *</Text>
+                      <Text style={[styles.uploadButtonText, { color: theme.colors.textTertiary }]}>Upload Valid ID Front</Text>
                     </>
                   )}
                 </TouchableOpacity>
                 {fieldErrors.validId ? <Text style={styles.inlineErrorText}>{fieldErrors.validId}</Text> : null}
 
+                {/* Upload Valid ID Back */}
+                <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>
+                  Upload Valid ID Back
+                  <Text style={{ color: theme.colors.error }}> *</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={() => pickImage('validIdBack')}
+                  style={[styles.uploadButton, { borderColor: form.validIdBack ? theme.colors.primary : (fieldErrors.validIdBack ? theme.colors.error : theme.colors.border), backgroundColor: form.validIdBack ? theme.colors.primaryLight : theme.colors.backgroundSecondary }]}
+                >
+                  {form.validIdBack ? (
+                    <Image source={{ uri: form.validIdBack.uri }} style={styles.uploadPreview} />
+                  ) : (
+                    <>
+                      <Ionicons name="cloud-upload-outline" size={32} color={theme.colors.textTertiary} />
+                      <Text style={[styles.uploadButtonText, { color: theme.colors.textTertiary }]}>Upload Valid ID Back</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                {fieldErrors.validIdBack ? <Text style={styles.inlineErrorText}>{fieldErrors.validIdBack}</Text> : null}
+
                 {/* Upload Permit */}
+                <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>
+                  Upload Business/Accommodation Permit
+                  <Text style={{ color: theme.colors.error }}> *</Text>
+                </Text>
                 <TouchableOpacity
                   onPress={() => pickImage('permit')}
                   style={[styles.uploadButton, { borderColor: form.permit ? theme.colors.primary : (fieldErrors.permit ? theme.colors.error : theme.colors.border), backgroundColor: form.permit ? theme.colors.primaryLight : theme.colors.backgroundSecondary }]}
                 >
                   {form.permit ? (
-                    <Image source={{ uri: form.permit.uri }} style={styles.uploadPreview} />
+                    renderFilePreview(form.permit)
                   ) : (
                     <>
                       <Ionicons name="document-text-outline" size={32} color={theme.colors.textTertiary} />
-                      <Text style={[styles.uploadButtonText, { color: theme.colors.textTertiary }]}>Upload Business/Accommodation Permit *</Text>
+                      <Text style={[styles.uploadButtonText, { color: theme.colors.textTertiary }]}>Upload Business/Accommodation Permit</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -639,6 +788,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                   <Text style={styles.termsText}>
                     I agree to the{' '}
                     <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>Terms and Conditions</Text>
+                    <Text style={{ color: theme.colors.error }}> *</Text>
                     {' '}and confirm that all information provided is accurate.
                   </Text>
                 </TouchableOpacity>

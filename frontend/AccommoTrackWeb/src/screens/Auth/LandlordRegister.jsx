@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Check, 
-  RefreshCw, 
-  ChevronLeft, 
+import {
+  Check,
+  RefreshCw,
+  ChevronLeft,
   AlertCircle,
   FileText,
   Upload,
@@ -235,7 +235,7 @@ const LandlordRegister = () => {
   // Step validation
   const validateStep = () => {
     const errors = {};
-    
+
     if (step === 1) {
       const nameRegex = /^[\p{L} '-]+$/u;
 
@@ -267,7 +267,7 @@ const LandlordRegister = () => {
           let age = today.getFullYear() - bd.getFullYear();
           const m = today.getMonth() - bd.getMonth();
           if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
-          
+
           if (age < 21) {
             errors.dob = 'You must be at least 21 years old to register as a landlord';
           } else if (age > 100) {
@@ -316,7 +316,7 @@ const LandlordRegister = () => {
       } else if (form.validIdType === 'other' && !form.validIdOther?.trim()) {
         errors.validIdOther = 'Please specify the type of ID';
       }
-      
+
       if (!form.validId) {
         errors.validId = 'Please upload the front of your valid ID';
       }
@@ -334,7 +334,7 @@ const LandlordRegister = () => {
       setError(firstError);
       return false;
     }
-    
+
     setError('');
     return true;
   };
@@ -569,7 +569,7 @@ const LandlordRegister = () => {
               <>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Date of Birth <span className="text-red-500">*</span></label>
-                  <div 
+                  <div
                     className="relative cursor-pointer"
                     onClick={() => {
                       const el = fieldRefs.current.dob;
@@ -612,7 +612,7 @@ const LandlordRegister = () => {
                       <span>Email Address <span className="text-red-500">*</span></span>
                       {emailAvailable === true && !fieldErrors.email && (
                         <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-2 font-medium animate-fadeIn">
-                          <Check size={14}/> available
+                          <Check size={14} /> available
                         </span>
                       )}
                     </span>
@@ -773,7 +773,7 @@ const LandlordRegister = () => {
                         </svg>
                       </button>
                       {fieldErrors.validIdType && <p className="text-xs text-red-500 mt-2">{fieldErrors.validIdType}</p>}
-                      
+
                       {isIdDropdownOpen && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsIdDropdownOpen(false)}></div>
@@ -804,19 +804,19 @@ const LandlordRegister = () => {
                 {form.validIdType === 'other' && (
                   <div>
                     <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Specify ID Type <span className="text-red-500">*</span></label>
-                                      <input
-                                        type="text"
-                                        name="validIdOther"
-                                        value={form.validIdOther}
-                                        onChange={handleChange}
-                                        onKeyDown={handleKeyDown}
-                                        ref={el => fieldRefs.current.validIdOther = el}
-                                        className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validIdOther ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
-                                        placeholder="Enter your ID type"
-                                        required
-                                        disabled={submitting}
-                                      />
-                                      {fieldErrors.validIdOther && <p className="text-xs text-red-500 mt-2">{fieldErrors.validIdOther}</p>}
+                    <input
+                      type="text"
+                      name="validIdOther"
+                      value={form.validIdOther}
+                      onChange={handleChange}
+                      onKeyDown={handleKeyDown}
+                      ref={el => fieldRefs.current.validIdOther = el}
+                      className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validIdOther ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
+                      placeholder="Enter your ID type"
+                      required
+                      disabled={submitting}
+                    />
+                    {fieldErrors.validIdOther && <p className="text-xs text-red-500 mt-2">{fieldErrors.validIdOther}</p>}
                   </div>
                 )}
                 <div>
@@ -931,7 +931,7 @@ const LandlordRegister = () => {
                     />
                   </div>
                   <div className="ml-4 text-sm">
-                    <label className="text-green-800 dark:text-green-300">I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="underline text-green-700 dark:text-green-400 font-bold">terms and conditions</button>.</label>
+                    <label className="text-green-800 dark:text-green-300">I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="underline text-green-700 dark:text-green-400 font-bold">terms and conditions</button> <span className="text-red-500">*</span>.</label>
                     {fieldErrors.agree && <p className="text-xs text-red-500 mt-2">{fieldErrors.agree}</p>}
                   </div>
                 </div>

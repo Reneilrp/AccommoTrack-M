@@ -692,7 +692,7 @@ export default function Payments({ navigation, route }) {
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>
-              {item.issued_at ? new Date(item.issued_at).toLocaleDateString() : '—'}
+              {item.issued_at ? new Date(item.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
             </Text>
           </View>
         </View>
@@ -917,7 +917,7 @@ export default function Payments({ navigation, route }) {
                   const remainingAmount = getRemainingAmount(selectedInvoice);
                   const propertyTitle = selectedInvoice?.property?.title || selectedInvoice?.property_title || selectedInvoice?.booking?.property?.title || '—';
                   const roomNumber = selectedInvoice?.booking?.room?.room_number || '—';
-                  const dueDate = selectedInvoice?.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : '—';
+                  const dueDate = selectedInvoice?.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
                   return (
                     <View style={[styles.summaryCard, {
@@ -1211,7 +1211,7 @@ export default function Payments({ navigation, route }) {
                           <View style={styles.transactionInfo}>
                             <Text style={[styles.transactionAmount, { color: theme.colors.text }]}>₱{Number(txAmount).toLocaleString()}</Text>
                             <Text style={[styles.transactionMeta, { color: theme.colors.textSecondary }]}>
-                              {tx.method?.replace('_', ' ')} • {new Date(tx.created_at || tx.date).toLocaleDateString()}
+                              {tx.method?.replace('_', ' ')} • {new Date(tx.created_at || tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </Text>
                             {tx.reference && <Text style={[styles.transactionRef, { color: theme.colors.textTertiary }]}>Ref: {tx.reference}</Text>}
                             {refundedAmount > 0 && (

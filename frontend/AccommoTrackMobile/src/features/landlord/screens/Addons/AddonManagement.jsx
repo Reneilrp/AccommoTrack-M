@@ -378,8 +378,8 @@ export default function AddonManagement({ route, navigation }) {
       'Are you sure you want to delete this add-on? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             const res = await AddonService.deleteAddon(targetPropertyId, addon.id);
@@ -405,8 +405,8 @@ export default function AddonManagement({ route, navigation }) {
         'Approve this add-on request?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Approve', 
+          {
+            text: 'Approve',
             onPress: () => processRequestAction(bookingId, addonId, 'approve', null, approvedPrice)
           }
         ]
@@ -487,13 +487,13 @@ export default function AddonManagement({ route, navigation }) {
                 )}
               </View>
               <View style={styles.addonActions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.actionIconButton, styles.editIconButton]}
                   onPress={() => openEditModal(addon)}
                 >
                   <Ionicons name="pencil" size={16} color="#2563EB" />
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.actionIconButton, styles.deleteIconButton]}
                   onPress={() => handleDelete(addon)}
                 >
@@ -516,12 +516,12 @@ export default function AddonManagement({ route, navigation }) {
             </View>
 
             {addon.description ? <Text style={styles.addonDescription}>{addon.description}</Text> : null}
-            
+
             <Text style={styles.addonPrice}>
               ₱{parseFloat(addon.price).toLocaleString()}
               {addon.price_type === 'monthly' && <Text style={styles.priceUnit}>/month</Text>}
             </Text>
-            
+
             {addon.stock !== null && (
               <Text style={styles.addonStock}>Stock: {addon.stock}</Text>
             )}
@@ -574,18 +574,18 @@ export default function AddonManagement({ route, navigation }) {
             ) : null}
 
             <Text style={styles.requestDate}>
-              Requested: {new Date(request.requestedAt).toLocaleDateString()}
+              Requested: {new Date(request.requestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </Text>
 
             <View style={styles.requestActions}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.approveButton}
                 onPress={() => handleRequest(request.bookingId, request.addonId, 'approve', request.price)}
               >
                 <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                 <Text style={styles.approveButtonText}>Approve</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.rejectButton}
                 onPress={() => handleRequest(request.bookingId, request.addonId, 'reject')}
               >
@@ -663,7 +663,7 @@ export default function AddonManagement({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -730,15 +730,15 @@ export default function AddonManagement({ route, navigation }) {
           { id: 'requests', label: 'Requests', icon: 'notifications', count: pendingRequests.length },
           { id: 'active', label: 'Active', icon: 'checkmark-circle', count: activeAddonsData.summary?.totalActive || 0 }
         ].map((tab) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={tab.id}
             style={[styles.tab, activeTab === tab.id && styles.activeTab]}
             onPress={() => setActiveTab(tab.id)}
           >
-            <Ionicons 
-              name={tab.icon + (activeTab === tab.id ? '' : '-outline')} 
-              size={18} 
-              color={activeTab === tab.id ? theme.colors.primary : theme.colors.textSecondary} 
+            <Ionicons
+              name={tab.icon + (activeTab === tab.id ? '' : '-outline')}
+              size={18}
+              color={activeTab === tab.id ? theme.colors.primary : theme.colors.textSecondary}
             />
             <Text style={[styles.tabText, { color: activeTab === tab.id ? theme.colors.primary : theme.colors.textSecondary }, activeTab === tab.id && styles.activeTabText]}>
               {tab.label}
@@ -754,7 +754,7 @@ export default function AddonManagement({ route, navigation }) {
         ))}
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[styles.scrollContent, contentWrapStyle, { paddingBottom: scrollBottomPadding }]}
         refreshControl={
           <RefreshControl
@@ -884,7 +884,7 @@ export default function AddonManagement({ route, navigation }) {
                 </View>
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.checkboxContainer}
                 onPress={() => setFormData({ ...formData, is_active: !formData.is_active })}
               >
@@ -895,14 +895,14 @@ export default function AddonManagement({ route, navigation }) {
               </TouchableOpacity>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={() => setShowModal(false)}
                   disabled={submitting}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.submitButton}
                   onPress={handleSubmit}
                   disabled={submitting}

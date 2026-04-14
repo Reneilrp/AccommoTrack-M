@@ -589,13 +589,13 @@ export default function VerificationStatus({ navigation }) {
             </Text>
             {normalizedVerificationStatus === "partial_verified" && verification?.document_due_at ? (
               <Text style={styles.lastReviewed}>
-                Document reminder due: {new Date(verification.document_due_at).toLocaleDateString()}
+                Document reminder due: {new Date(verification.document_due_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </Text>
             ) : null}
             {verification?.reviewed_at && (
               <Text style={styles.lastReviewed}>
                 Reviewed on:{" "}
-                {new Date(verification.reviewed_at).toLocaleDateString()}
+                {new Date(verification.reviewed_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </Text>
             )}
           </View>
@@ -754,7 +754,7 @@ export default function VerificationStatus({ navigation }) {
                       </View>
                       <Text style={styles.historyDate}>
                         {entry.submitted_at
-                          ? new Date(entry.submitted_at).toLocaleDateString()
+                          ? new Date(entry.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                           : "N/A"}
                       </Text>
                     </View>

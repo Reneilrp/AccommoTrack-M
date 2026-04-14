@@ -157,18 +157,14 @@ export default function UpdateDetails({ navigation }) {
           <View style={styles.card}>
             <Text style={styles.releaseNotesTitle}>What's New</Text>
             <Text style={styles.releaseNotesText}>
-              • **Minimum Stay Enforcement:** You can now set minimum stay requirements for your rooms. Monthly contracts automatically enforce a 30-day minimum.{"\n"}
-              • **Updated Room Forms:** The UI for adding and editing rooms has been improved to better reflect the new billing policy rules.{"\n"}
-              • **System Stability:** Includes various bug fixes and performance improvements.{"\n"}
+              •Fix Bugs and Improvements.{"\n"}
               {"\n"}
-              Daghan Changes, WOWS.
             </Text>
           </View>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>
               © 2026 AccommoTrack. All rights reserved.{"\n"}
-              Build with Expo EAS
             </Text>
           </View>
         </View>

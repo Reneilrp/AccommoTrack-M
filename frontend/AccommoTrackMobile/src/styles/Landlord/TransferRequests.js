@@ -16,10 +16,10 @@ export const getStyles = (theme) => StyleSheet.create({
   backButton: {
     width: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'transparent',
   },
   headerTitle: {
     color: theme.colors.textInverse,

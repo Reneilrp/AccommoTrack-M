@@ -55,7 +55,7 @@ const formatRelativeTime = (timestamp) => {
   if (diffMinutes < 60) return `${diffMinutes || 1}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const getStyles = (theme) =>
@@ -360,7 +360,7 @@ export default function TenantNotifications({ navigation }) {
         backgroundColor={theme.colors.primary}
       />
 
-      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}> 
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -372,7 +372,7 @@ export default function TenantNotifications({ navigation }) {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}> 
+        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>
           Notifications
         </Text>
 
@@ -559,7 +559,7 @@ export default function TenantNotifications({ navigation }) {
               size={64}
               color={theme.colors.textTertiary}
             />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}> 
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
               No notifications
             </Text>
             <Text

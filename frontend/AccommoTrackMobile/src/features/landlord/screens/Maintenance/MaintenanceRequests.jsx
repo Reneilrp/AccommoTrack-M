@@ -35,7 +35,7 @@ export default function MaintenanceRequests({ route }) {
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const showAlert = Alert.alert;
   const queryClient = useQueryClient();
-  
+
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const routePropertyId = route?.params?.propertyId || route?.params?.property?.id;
@@ -178,7 +178,7 @@ export default function MaintenanceRequests({ route }) {
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[styles.card, { backgroundColor: theme.colors.surface }]}
       onPress={() => {
         setSelectedRequest(item);
@@ -211,7 +211,7 @@ export default function MaintenanceRequests({ route }) {
           </Text>
         </View>
         <Text style={[styles.dateText, { color: theme.colors.textTertiary }]}>
-          {new Date(item.created_at).toLocaleDateString()}
+          {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </Text>
       </View>
     </TouchableOpacity>

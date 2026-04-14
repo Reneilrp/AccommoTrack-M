@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -375,21 +376,86 @@ export default function DormProfileSettings({ route, navigation }) {
   };
 
   const pickCredential = async () => {
-    // Note: DocumentPicker is better for general files, but using ImagePicker for simplicity 
-    // since most credentials are photos of permits.
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
+    const options = [
+      {
+        text: 'Take Photo',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            showAlert('Permission Required', 'Please allow camera access to capture documents.');
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            const asset = result.assets[0];
+            const name = asset.uri.split('/').pop();
+            setForm(prev => ({
+              ...prev,
+              credentials: [...prev.credentials, { uri: asset.uri, name, isExisting: false, type: asset.mimeType || 'image/jpeg' }]
+            }));
+          }
+        }
+      },
+      {
+        text: 'Choose from Library',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            showAlert('Permission Required', 'Please allow photo library access.');
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            const asset = result.assets[0];
+            const name = asset.uri.split('/').pop();
+            setForm(prev => ({
+              ...prev,
+              credentials: [...prev.credentials, { uri: asset.uri, name, isExisting: false, type: asset.mimeType || 'image/jpeg' }]
+            }));
+          }
+        }
+      },
+      {
+        text: 'Choose File (PDF/Image)',
+        onPress: async () => {
+          try {
+            const result = await DocumentPicker.getDocumentAsync({
+              type: ['application/pdf', 'image/*'],
+              multiple: false,
+              copyToCacheDirectory: true,
+            });
 
-    if (!result.canceled) {
-      const asset = result.assets[0];
-      const name = asset.uri.split('/').pop();
-      setForm(prev => ({
-        ...prev,
-        credentials: [...prev.credentials, { uri: asset.uri, name, isExisting: false }]
-      }));
-    }
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              const asset = result.assets[0];
+              setForm(prev => ({
+                ...prev,
+                credentials: [...prev.credentials, {
+                  uri: asset.uri,
+                  name: asset.name,
+                  isExisting: false,
+                  type: asset.mimeType || 'application/pdf'
+                }]
+              }));
+            }
+          } catch (err) {
+            console.error('DocumentPicker Error:', err);
+            showAlert('Error', 'Could not open file manager.');
+          }
+        }
+      },
+      { text: 'Cancel', style: 'cancel' }
+    ];
+
+    showAlert('Upload Credentials', 'Choose a source for your documents.', options, {
+      showCloseButton: true,
+      cancelable: true,
+    });
   };
 
   const removeCredential = (index) => {
@@ -513,8 +579,8 @@ export default function DormProfileSettings({ route, navigation }) {
       form.credentials.filter(c => !c.isExisting).forEach((c, idx) => {
         payload.append('credentials[]', {
           uri: c.uri,
-          name: c.name || `credential_${idx}.jpg`,
-          type: 'image/jpeg'
+          name: c.name || `credential_${idx}`,
+          type: c.type || (c.name?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg')
         });
       });
       

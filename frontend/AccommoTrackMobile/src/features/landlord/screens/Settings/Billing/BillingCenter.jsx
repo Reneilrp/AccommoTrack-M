@@ -41,7 +41,7 @@ const formatDate = (value) => {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 const formatDateTime = (value) => {
@@ -263,15 +263,15 @@ export default function BillingCenterScreen({ navigation }) {
     return {
       totalInvoiced: Number(
         totals.total_billed ??
-          ((Number.isFinite(Number(totals.total_billed_cents)) ? Number(totals.total_billed_cents) : 0) / 100),
+        ((Number.isFinite(Number(totals.total_billed_cents)) ? Number(totals.total_billed_cents) : 0) / 100),
       ),
       totalPaid: Number(
         totals.total_paid ??
-          ((Number.isFinite(Number(totals.total_paid_cents)) ? Number(totals.total_paid_cents) : 0) / 100),
+        ((Number.isFinite(Number(totals.total_paid_cents)) ? Number(totals.total_paid_cents) : 0) / 100),
       ),
       totalOutstanding: Number(
         totals.total_balance ??
-          ((Number.isFinite(Number(totals.total_balance_cents)) ? Number(totals.total_balance_cents) : 0) / 100),
+        ((Number.isFinite(Number(totals.total_balance_cents)) ? Number(totals.total_balance_cents) : 0) / 100),
       ),
       pendingVerification: Number(totals.pending_verification_count || 0),
       overdue: Number(totals.overdue_count || 0),

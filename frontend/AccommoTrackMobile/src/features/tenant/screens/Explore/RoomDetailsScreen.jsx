@@ -24,6 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { getStyles } from '../../../../styles/Tenant/RoomDetailsScreen.js';
 import BookingService from '../../../../services/BookingService.js';
 import PropertyService from '../../../../services/PropertyService.js';
@@ -743,15 +744,71 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   };
 
     const pickReceiptImage = async () => {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
+      const options = [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission Required', 'Please allow camera access to capture your receipt.');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              setReceiptImage(result.assets[0]);
+            }
+          }
+        },
+        {
+          text: 'Choose Image from Library',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission Required', 'Please allow photo library access to pick your receipt.');
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              setReceiptImage(result.assets[0]);
+            }
+          }
+        },
+        {
+          text: 'Choose File (PDF/Image)',
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/pdf', 'image/*'],
+                multiple: false,
+                copyToCacheDirectory: true,
+              });
 
-      if (!result.canceled) {
-        setReceiptImage(result.assets[0]);
-      }
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                const asset = result.assets[0];
+                setReceiptImage({
+                  uri: asset.uri,
+                  name: asset.name,
+                  mimeType: asset.mimeType,
+                  size: asset.size,
+                });
+              }
+            } catch (err) {
+              console.error('DocumentPicker Error:', err);
+              Alert.alert('Error', 'Could not open file manager.');
+            }
+          }
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ];
+
+      Alert.alert('Upload Receipt', 'Choose a source for your payment receipt.', options);
     };
 
   const handleSubmitBooking = async () => {
@@ -853,10 +910,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
       if (isReservationRequired && receiptImage) {
         const localUri = receiptImage.uri;
-        let filename = localUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        let type = match ? `image/${match[1]}` : `image`;
-        if (type === 'image/jpg') type = 'image/jpeg';
+        const filename = receiptImage.name || localUri.split('/').pop();
+        const type = receiptImage.mimeType || receiptImage.type || 'image/jpeg';
         
         data.append('receipt_image', {
           uri: localUri,

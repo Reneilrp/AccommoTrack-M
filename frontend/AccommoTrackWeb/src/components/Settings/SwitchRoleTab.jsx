@@ -23,6 +23,7 @@ export default function SwitchRoleTab({ user: userProp }) {
     valid_id_type: '',
     valid_id_other: '',
     valid_id_front: null,
+    valid_id_back: null,
     permit: null,
   });
   const [registrationErrors, setRegistrationErrors] = useState({});
@@ -197,6 +198,7 @@ export default function SwitchRoleTab({ user: userProp }) {
       valid_id_type: '',
       valid_id_other: '',
       valid_id_front: null,
+      valid_id_back: null,
       permit: null,
     });
     setShowRegistrationModal(true);
@@ -288,6 +290,9 @@ export default function SwitchRoleTab({ user: userProp }) {
         formData.append('valid_id_other', registrationForm.valid_id_other.trim());
       }
       formData.append('valid_id_front', registrationForm.valid_id_front);
+      if (registrationForm.valid_id_back) {
+        formData.append('valid_id_back', registrationForm.valid_id_back);
+      }
       formData.append('permit', registrationForm.permit);
 
       const res = await api.post('/tenant/register-landlord', formData);
@@ -464,6 +469,23 @@ export default function SwitchRoleTab({ user: userProp }) {
                     />
                   </label>
                   {registrationErrors.valid_id_front && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_front}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Valid ID Back Image (Optional)</label>
+                  <label className="w-full px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                    <Upload className="w-4 h-4" />
+                    <span className="text-sm text-gray-600 dark:text-gray-300">
+                      {registrationForm.valid_id_back ? registrationForm.valid_id_back.name : 'Choose image (JPG/PNG, max 5MB)'}
+                    </span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".jpg,.jpeg,.png,image/*"
+                      onChange={(e) => handleRegistrationFile('valid_id_back', e.target.files?.[0] || null)}
+                    />
+                  </label>
+                  {registrationErrors.valid_id_back && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_back}</p>}
                 </div>
 
                 <div>

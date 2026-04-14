@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -169,15 +170,79 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
   }, [visible]);
 
   const pickImage = async (field) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
+    const isPermit = field === 'permit';
+    const options = [
+      {
+        text: 'Take Photo',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            showAlert('Permission Required', 'Please allow camera access to capture documents.');
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            setForm(prev => ({ ...prev, [field]: result.assets[0] }));
+          }
+        }
+      },
+      {
+        text: 'Choose from Library',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            showAlert('Permission Required', 'Please allow photo library access.');
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            setForm(prev => ({ ...prev, [field]: result.assets[0] }));
+          }
+        }
+      },
+    ];
 
-    if (!result.canceled) {
-      setForm(prev => ({ ...prev, [field]: result.assets[0] }));
+    if (isPermit) {
+      options.push({
+        text: 'Choose File (PDF/Image)',
+        onPress: async () => {
+          try {
+            const result = await DocumentPicker.getDocumentAsync({
+              type: ['application/pdf', 'image/*'],
+              multiple: false,
+              copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              const asset = result.assets[0];
+              setForm(prev => ({
+                ...prev,
+                [field]: {
+                  uri: asset.uri,
+                  name: asset.name,
+                  mimeType: asset.mimeType,
+                  size: asset.size,
+                }
+              }));
+            }
+          } catch (err) {
+            console.error('DocumentPicker Error:', err);
+            showAlert('Error', 'Could not open file manager.');
+          }
+        }
+      });
     }
+
+    options.push({ text: 'Cancel', style: 'cancel' });
+
+    showAlert('Upload Document', 'Choose a source for your document.', options);
   };
 
   const handleSubmit = async () => {
@@ -192,21 +257,17 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
       formData.append('valid_id_type', form.validIdType);
       if (form.validIdType === 'Other') formData.append('valid_id_other', form.validIdOther);
       
-      const idUri = form.validId.uri;
-      const idExt = idUri.split('.').pop();
-      formData.append('valid_id', {
-        uri: idUri,
-        name: `valid_id.${idExt}`,
-        type: `image/${idExt}`
-      });
-
-      const permitUri = form.permit.uri;
-      const permitExt = permitUri.split('.').pop();
-      formData.append('permit', {
-        uri: permitUri,
-        name: `permit.${permitExt}`,
-        type: `image/${permitExt}`
-      });
+      const appendToFormData = (key, asset) => {
+        if (!asset) return;
+        formData.append(key, {
+          uri: asset.uri,
+          name: asset.name || (asset.uri.split('/').pop()),
+          type: asset.mimeType || asset.type || 'image/jpeg'
+        });
+      };
+      
+      appendToFormData('valid_id', form.validId);
+      appendToFormData('permit', form.permit);
 
       const token = await AsyncStorage.getItem('token');
       const response = await fetch(`${API_URL}/tenant/resubmit-verification`, {

@@ -59,6 +59,7 @@ const ResubmitModal = ({ visible, onClose, __theme }) => {
     validIdType: "",
     validIdOther: "",
     validId: null,
+    validIdBack: null,
     permit: null,
   });
 
@@ -112,6 +113,9 @@ const ResubmitModal = ({ visible, onClose, __theme }) => {
       if (form.validIdType === "Other")
         formData.append("valid_id_other", form.validIdOther);
       formData.append("valid_id", form.validId);
+      if (form.validIdBack) {
+        formData.append("valid_id_back", form.validIdBack);
+      }
       formData.append("permit", form.permit);
 
       await api.post("/tenant/resubmit-verification", formData, {
@@ -207,7 +211,7 @@ const ResubmitModal = ({ visible, onClose, __theme }) => {
           {/* Valid ID Upload */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Upload Valid ID <span className="text-red-500">*</span>
+              Upload Valid ID (Front) <span className="text-red-500">*</span>
             </label>
             <div className="relative group">
               <input
@@ -235,6 +239,46 @@ const ResubmitModal = ({ visible, onClose, __theme }) => {
                     <Upload className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
                     <span className="text-xs font-medium">
                       Click to upload valid ID
+                    </span>
+                    <span className="text-[10px] mt-2 opacity-60">
+                      JPG, PNG, PDF up to 10MB
+                    </span>
+                  </div>
+                )}
+              </label>
+            </div>
+          </div>
+
+          {/* Valid ID Back Upload (Optional) */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Upload Valid ID (Back) <span className="text-gray-400">(Optional)</span>
+            </label>
+            <div className="relative group">
+              <input
+                type="file"
+                name="validIdBack"
+                accept="image/*,.pdf"
+                onChange={handleFileChange}
+                className="hidden"
+                id="resubmit-valid-id-back"
+              />
+              <label
+                htmlFor="resubmit-valid-id-back"
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${form.validIdBack ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-gray-300 dark:border-gray-600 hover:border-green-400 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50"}`}
+              >
+                {form.validIdBack ? (
+                  <div className="flex flex-col items-center text-green-600 dark:text-green-400">
+                    <Check className="w-8 h-8 mb-2" />
+                    <span className="text-xs font-medium text-center px-4 truncate w-full">
+                      {form.validIdBack.name}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-gray-500 dark:text-gray-400">
+                    <Upload className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-medium">
+                      Click to upload valid ID back
                     </span>
                     <span className="text-[10px] mt-2 opacity-60">
                       JPG, PNG, PDF up to 10MB

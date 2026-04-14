@@ -37,12 +37,20 @@ class NewBookingNotification extends Notification
         }
         $tenantName = $tenantName ?: 'A tenant';
 
+        // Use the human-facing room number, not internal room_id.
+        $roomNumber = $this->booking->room?->room_number;
+        if (! $roomNumber && $this->booking->room_id) {
+            $roomNumber = \App\Models\Room::where('id', $this->booking->room_id)->value('room_number');
+        }
+        $roomLabel = $roomNumber ? "room {$roomNumber}" : 'a room';
+
         return [
             'type' => 'booking',
             'title' => 'New Booking Request',
-            'message' => "{$tenantName} has submitted a booking request for room #{$this->booking->room_id}.",
+            'message' => "{$tenantName} has submitted a booking request for {$roomLabel}.",
             'booking_id' => $this->booking->id,
             'reference' => $this->booking->booking_reference,
+            'room_number' => $roomNumber,
         ];
     }
 

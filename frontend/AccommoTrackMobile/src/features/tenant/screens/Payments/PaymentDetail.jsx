@@ -251,11 +251,11 @@ export default function PaymentDetail() {
 
   const validatePaymentAmount = React.useCallback((amount) => {
     const parsed = Number(amount);
-    
+
     if (!amount || amount.trim() === '') {
       return 'Please enter a payment amount.';
     }
-    
+
     if (!Number.isFinite(parsed) || parsed <= 0) {
       return 'Please enter a valid payment amount.';
     }
@@ -460,7 +460,7 @@ export default function PaymentDetail() {
             </View>
             <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
               <Text style={{ color: theme.colors.textSecondary }}>Issued At</Text>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{invoice.issued_at ? new Date(invoice.issued_at).toLocaleDateString() : '—'}</Text>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{invoice.issued_at ? new Date(invoice.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</Text>
             </View>
           </View>
 
@@ -469,23 +469,23 @@ export default function PaymentDetail() {
           <View style={[homeStyles.surfaceCardMedium, { backgroundColor: theme.colors.surface }]}>
             <View style={homeStyles.rowBetween}>
               <Text style={{ color: theme.colors.textSecondary }}>Subtotal</Text>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.subtotal_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.subtotal_cents ?? invoice.amount_cents ?? 0) / 100).toLocaleString()}</Text>
             </View>
             <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
               <Text style={{ color: theme.colors.textSecondary }}>Tax</Text>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.tax_cents ?? 0)/100).toLocaleString()}</Text>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.tax_cents ?? 0) / 100).toLocaleString()}</Text>
             </View>
             {addonTotalCents > 0 && (
               <>
                 {addonLines.map((line) => (
-                  <View key={line.key} style={[homeStyles.rowBetween, { marginTop: 8 }]}> 
+                  <View key={line.key} style={[homeStyles.rowBetween, { marginTop: 8 }]}>
                     <Text style={{ color: theme.colors.textSecondary }}>
                       {line.name}{line.quantity > 1 ? ` x ${line.quantity}` : ''}
                     </Text>
                     <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{(line.amountCents / 100).toLocaleString()}</Text>
                   </View>
                 ))}
-                <View style={[homeStyles.rowBetween, { marginTop: 8 }]}> 
+                <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
                   <Text style={{ color: theme.colors.textSecondary }}>Add-ons Total</Text>
                   <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{(addonTotalCents / 100).toLocaleString()}</Text>
                 </View>
@@ -494,7 +494,7 @@ export default function PaymentDetail() {
             <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
             <View style={homeStyles.rowBetween}>
               <Text style={[styles.totalText, { color: theme.colors.text }]}>Total</Text>
-              <Text style={[styles.totalText, { color: theme.colors.text }]}>₱{((invoice.total_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
+              <Text style={[styles.totalText, { color: theme.colors.text }]}>₱{((invoice.total_cents ?? invoice.amount_cents ?? 0) / 100).toLocaleString()}</Text>
             </View>
             <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
               <Text style={[styles.totalText, { color: theme.colors.text, fontSize: 16 }]}>Remaining Balance</Text>
@@ -512,20 +512,20 @@ export default function PaymentDetail() {
             </View>
           ) : (
             <View style={{ marginTop: 24 }}>
-                {tenantPaymentsTempDisabled && (
-                  <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
-                    <Text style={{ color: '#92400e', fontWeight: '600' }}>
-                      {paymentDisabledReason}
-                    </Text>
-                  </View>
-                )}
-                {!tenantPaymentsTempDisabled && (invoicePaymongoDisabled || isPendingManualVerification) && (
-                  <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
-                    <Text style={{ color: '#92400e', fontWeight: '600' }}>
-                      {paymentDisabledReason}
-                    </Text>
-                  </View>
-                )}
+              {tenantPaymentsTempDisabled && (
+                <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
+                  <Text style={{ color: '#92400e', fontWeight: '600' }}>
+                    {paymentDisabledReason}
+                  </Text>
+                </View>
+              )}
+              {!tenantPaymentsTempDisabled && (invoicePaymongoDisabled || isPendingManualVerification) && (
+                <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
+                  <Text style={{ color: '#92400e', fontWeight: '600' }}>
+                    {paymentDisabledReason}
+                  </Text>
+                </View>
+              )}
               <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>Amount to Pay (₱)</Text>
               <TextInput
                 style={{
@@ -573,10 +573,10 @@ export default function PaymentDetail() {
 
               {showOnline && !isPaymentDisabled && (
                 <View style={styles.actionsRow}>
-                  <TouchableOpacity onPress={handleGCashPay} disabled={isPaymentDisabled || !!paymentAmountError} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: (isPaymentDisabled || paymentAmountError) ? 0.5 : 1 }]}> 
+                  <TouchableOpacity onPress={handleGCashPay} disabled={isPaymentDisabled || !!paymentAmountError} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: (isPaymentDisabled || paymentAmountError) ? 0.5 : 1 }]}>
                     <Text style={styles.payBtnText}>Pay with GCash</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleCardPay} disabled={isPaymentDisabled || !!paymentAmountError} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: (isPaymentDisabled || paymentAmountError) ? 0.5 : 1 }]}> 
+                  <TouchableOpacity onPress={handleCardPay} disabled={isPaymentDisabled || !!paymentAmountError} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: (isPaymentDisabled || paymentAmountError) ? 0.5 : 1 }]}>
                     <Text style={styles.payBtnText}>Pay with Card</Text>
                   </TouchableOpacity>
                 </View>

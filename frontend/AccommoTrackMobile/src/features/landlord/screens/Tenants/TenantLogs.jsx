@@ -120,9 +120,9 @@ export default function TenantLogs({ route, navigation }) {
         <View style={styles.paymentInfo}>
           <Text style={styles.paymentRef}>{item.reference || `INV-${item.id}`}</Text>
           <Text style={styles.paymentDate}>
-            {item.paid_at ? `Paid: ${new Date(item.paid_at).toLocaleDateString()}` : 
-             item.due_date ? `Due: ${new Date(item.due_date).toLocaleDateString()}` : 
-             new Date(item.created_at).toLocaleDateString()}
+            {item.paid_at ? `Paid: ${new Date(item.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` :
+              item.due_date ? `Due: ${new Date(item.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` :
+                new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </Text>
         </View>
         <View style={styles.paymentRight}>
@@ -159,12 +159,12 @@ export default function TenantLogs({ route, navigation }) {
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Period</Text>
             <Text style={styles.cardValue}>
-              {new Date(item.start_date).toLocaleDateString()} - {new Date(item.end_date).toLocaleDateString()}
+              {new Date(item.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {new Date(item.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </Text>
           </View>
         </View>
         <View style={styles.cardFooter}>
-          <Text style={styles.cardDate}>Booked on {new Date(item.created_at).toLocaleDateString()}</Text>
+          <Text style={styles.cardDate}>Booked on {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
           <Text style={styles.cardValue}>₱{parseFloat(item.total_amount || 0).toLocaleString()}</Text>
         </View>
       </View>
@@ -205,10 +205,10 @@ export default function TenantLogs({ route, navigation }) {
           </View>
         </View>
         <View style={styles.cardFooter}>
-          <Text style={styles.cardDate}>Reported on {new Date(item.created_at).toLocaleDateString()}</Text>
+          <Text style={styles.cardDate}>Reported on {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
           {item.resolved_at && (
             <Text style={[styles.cardDate, { color: '#16a34a' }]}>
-              Resolved {new Date(item.resolved_at).toLocaleDateString()}
+              Resolved {new Date(item.resolved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </Text>
           )}
         </View>
@@ -244,7 +244,7 @@ export default function TenantLogs({ route, navigation }) {
           </View>
         </View>
         <View style={styles.cardFooter}>
-          <Text style={styles.cardDate}>Requested on {new Date(item.created_at).toLocaleDateString()}</Text>
+          <Text style={styles.cardDate}>Requested on {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
           {item.quantity > 1 && (
             <Text style={styles.cardValue}>Qty: {item.quantity}</Text>
           )}
@@ -287,7 +287,7 @@ export default function TenantLogs({ route, navigation }) {
           )}
         </View>
         <View style={styles.cardFooter}>
-          <Text style={styles.cardDate}>Requested on {new Date(item.created_at).toLocaleDateString()}</Text>
+          <Text style={styles.cardDate}>Requested on {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
         </View>
       </View>
     );
@@ -304,7 +304,7 @@ export default function TenantLogs({ route, navigation }) {
                 { id: 'paid', label: 'Paid' },
                 { id: 'due', label: 'Due' }
               ].map((tab) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={tab.id}
                   style={[styles.filterTab, paymentFilter === tab.id && styles.activeFilterTab]}
                   onPress={() => setPaymentFilter(tab.id)}
@@ -412,7 +412,7 @@ export default function TenantLogs({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -421,7 +421,7 @@ export default function TenantLogs({ route, navigation }) {
         <Text style={styles.headerTitle}>Tenant History</Text>
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#16a34a']} />
@@ -441,7 +441,7 @@ export default function TenantLogs({ route, navigation }) {
           </View>
           <Text style={styles.tenantName}>{fullName}</Text>
           <Text style={styles.tenantEmail}>{tenant?.email || '—'}</Text>
-          
+
           <View style={[styles.statusBadge, { backgroundColor: tenant?.tenantProfile?.status === 'active' ? '#DCFCE7' : '#F3F4F6' }]}>
             <Text style={[styles.statusText, { color: tenant?.tenantProfile?.status === 'active' ? '#166534' : '#6B7280' }]}>
               {tenant?.tenantProfile?.status || 'active'}
@@ -468,7 +468,7 @@ export default function TenantLogs({ route, navigation }) {
         <View style={styles.filterContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {['Payments', 'Bookings', 'Maintenance', 'Add-ons', 'Transfers'].map((tab) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={tab}
                 style={[styles.filterTab, { minWidth: 100 }, activeTab === tab && styles.activeFilterTab]}
                 onPress={() => setActiveTab(tab)}

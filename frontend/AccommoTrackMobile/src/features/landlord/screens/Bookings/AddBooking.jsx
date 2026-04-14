@@ -580,7 +580,7 @@ export default function AddBooking({ navigation }) {
                 style={styles.dateButton}
                 onPress={() => setShowCheckIn(true)}
               >
-                <Text style={styles.dateButtonText}>{formData.checkIn.toLocaleDateString()}</Text>
+                <Text style={styles.dateButtonText}>{formData.checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
                 <Ionicons name="calendar-outline" size={20} color="#16a34a" />
               </TouchableOpacity>
               {showCheckIn && (
@@ -606,7 +606,7 @@ export default function AddBooking({ navigation }) {
               >
                 <Text style={styles.dateButtonText}>
                   {formData.checkOut
-                    ? formData.checkOut.toLocaleDateString()
+                    ? formData.checkOut.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                     : (requiresCheckOut ? 'Select check-out date' : 'No check-out (open-ended)')}
                 </Text>
                 <Ionicons name="calendar-outline" size={20} color="#16a34a" />

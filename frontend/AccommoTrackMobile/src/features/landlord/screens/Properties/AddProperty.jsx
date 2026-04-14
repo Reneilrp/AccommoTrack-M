@@ -19,6 +19,7 @@ import {
 } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
@@ -395,27 +396,86 @@ export default function AddProperty({ navigation }) {
   };
 
   const handlePickCredentials = async () => {
-    // For simplicity using ImagePicker, but could use DocumentPicker for PDF
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      showAlert("Permission Required", "Please allow photo library access to upload documents.");
-      return;
-    }
+    const options = [
+      {
+        text: "Take Photo",
+        onPress: async () => {
+          const permission = await ImagePicker.requestCameraPermissionsAsync();
+          if (!permission.granted) {
+            showAlert("Permission Required", "Please allow camera access to capture documents.");
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            const asset = result.assets[0];
+            setCredentials((prev) => [
+              ...prev,
+              {
+                uri: asset.uri,
+                name: asset.fileName || `credential-${Date.now()}.jpg`,
+                type: asset.mimeType || "image/jpeg",
+              },
+            ]);
+          }
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: async () => {
+          const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!permission.granted) {
+            showAlert("Permission Required", "Please allow photo library access.");
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            allowsMultipleSelection: true,
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            const mapped = result.assets.map((asset, idx) => ({
+              uri: asset.uri,
+              name: asset.fileName || `credential-${Date.now()}-${idx}.jpg`,
+              type: asset.mimeType || "image/jpeg",
+            }));
+            setCredentials((prev) => [...prev, ...mapped]);
+          }
+        },
+      },
+      {
+        text: "Choose File (PDF/Image)",
+        onPress: async () => {
+          try {
+            const result = await DocumentPicker.getDocumentAsync({
+              type: ["application/pdf", "image/*"],
+              multiple: true,
+              copyToCacheDirectory: true,
+            });
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsMultipleSelection: true,
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              const mapped = result.assets.map((asset, idx) => ({
+                uri: asset.uri,
+                name: asset.name || `credential-${Date.now()}-${idx}`,
+                type: asset.mimeType || "application/pdf",
+              }));
+              setCredentials((prev) => [...prev, ...mapped]);
+            }
+          } catch (err) {
+            console.error("DocumentPicker Error:", err);
+            showAlert("Error", "Could not open file manager.");
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ];
+
+    showAlert("Upload Credentials", "Choose a source for your documents.", options, {
+      showCloseButton: true,
+      cancelable: true,
     });
-
-    if (!result.canceled) {
-      const mapped = result.assets.map((asset, idx) => ({
-        uri: asset.uri,
-        name: asset.fileName || `credential-${Date.now()}-${idx}.jpg`,
-        type: asset.mimeType || "image/jpeg",
-      }));
-      setCredentials((prev) => [...prev, ...mapped]);
-    }
   };
 
   const onMapMessage = async (event) => {

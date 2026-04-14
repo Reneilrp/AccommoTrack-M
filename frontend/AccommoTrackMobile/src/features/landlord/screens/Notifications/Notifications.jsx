@@ -33,7 +33,7 @@ const formatRelativeTime = (timestamp) => {
   if (diffMinutes < 60) return `${diffMinutes || 1}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 const mapNotification = (notification) => ({
@@ -195,7 +195,7 @@ export default function NotificationsScreen({ navigation }) {
             ]}
           >
             <Ionicons name="alert-circle-outline" size={18} color={theme.isDark ? '#FCA5A5' : '#B91C1C'} />
-            <Text style={[styles.errorText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}> 
+            <Text style={[styles.errorText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}>
               {actionError || fetchError}
             </Text>
             <TouchableOpacity onPress={handleRefresh}>
@@ -221,9 +221,9 @@ export default function NotificationsScreen({ navigation }) {
             else if (notification.type.toLowerCase().includes('message')) simpleType = 'message';
             else if (notification.type.toLowerCase().includes('maintenance')) simpleType = 'maintenance';
             else if (notification.type.toLowerCase().includes('move_out_notice')) simpleType = 'move_out_notice';
-            
+
             const typeConfig = notificationTypeMap[simpleType] || notificationTypeMap[notification.type] || notificationTypeMap.default;
-            
+
             return (
               <TouchableOpacity
                 key={notification.id}
