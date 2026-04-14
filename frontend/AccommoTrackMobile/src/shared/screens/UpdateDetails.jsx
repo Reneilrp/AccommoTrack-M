@@ -161,7 +161,7 @@ export default function UpdateDetails({ navigation }) {
               • **Updated Room Forms:** The UI for adding and editing rooms has been improved to better reflect the new billing policy rules.{"\n"}
               • **System Stability:** Includes various bug fixes and performance improvements.{"\n"}
               {"\n"}
-              This update was delivered automatically via Expo EAS Updates (Over-The-Air).
+              Daghan Changes, WOWS.
             </Text>
           </View>
 

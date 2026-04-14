@@ -683,14 +683,21 @@ export default function Payments({ navigation, route }) {
             ))}
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={{ 
+              paddingHorizontal: 16, 
+              paddingVertical: 8,
+            }}
+          >
             {[
-              { label: statsRange === 'month' ? 'Collected (Month)' : 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
-              { label: statsRange === 'month' ? 'Outstanding (Month)' : 'Outstanding', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
-              { label: statsRange === 'month' ? 'Paid (Month)' : 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
-              { label: statsRange === 'month' ? 'Pending (Month)' : 'Pending', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
-              { label: statsRange === 'month' ? 'Cash Verify (Month)' : 'Cash Verify', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
-              { label: statsRange === 'month' ? 'Overdue (Month)' : 'Overdue', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
+              { label: statsRange === 'month' ? 'Collected' : 'Collected', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
+              { label: statsRange === 'month' ? 'Outstanding' : 'Outstanding', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
+              { label: statsRange === 'month' ? 'Paid' : 'Paid', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
+              { label: statsRange === 'month' ? 'Pending' : 'Pending', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
+              { label: statsRange === 'month' ? 'Cash Verify' : 'Cash Verify', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
+              { label: statsRange === 'month' ? 'Overdue' : 'Overdue', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
             ].map((card, i) => (
               <View 
                 key={i} 
@@ -703,11 +710,15 @@ export default function Payments({ navigation, route }) {
                   borderWidth: 1, 
                   borderColor: theme.isDark ? theme.colors.border : 'transparent',
                   justifyContent: 'space-between',
+                  marginRight: 8,
                 }}
               >
                 <Ionicons name={card.icon} size={isTablet ? 24 : 20} color={theme.isDark ? theme.colors.textSecondary : card.color} />
                 <Text style={{ fontSize: isTablet ? 20 : 18, fontWeight: '800', color: theme.isDark ? theme.colors.text : card.color, marginTop: 6 }}>{card.value}</Text>
-                <Text style={{ fontSize: isTablet ? 12 : 11, fontWeight: '600', color: theme.isDark ? theme.colors.textSecondary : card.color, opacity: 0.8, marginTop: 2 }}>{card.label}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Text style={{ fontSize: isTablet ? 12 : 11, fontWeight: '600', color: theme.isDark ? theme.colors.textSecondary : card.color, opacity: 0.8 }}>{card.label} </Text>
+                  <Text style={{ fontSize: isTablet ? 11 : 10, fontWeight: '500', color: theme.isDark ? theme.colors.textSecondary : card.color, opacity: 0.7 }}>{card.sublabel}</Text>
+                </View>
               </View>
             ))}
           </ScrollView>

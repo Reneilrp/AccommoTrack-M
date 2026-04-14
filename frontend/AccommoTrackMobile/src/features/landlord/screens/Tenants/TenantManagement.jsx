@@ -739,11 +739,11 @@ export default function TenantsScreen({ navigation, route }) {
           styles.tenantCard,
           isTablet
             ? {
-                width: tenantCardWidth,
-                maxWidth: tenantCardMaxWidth,
-                marginHorizontal: 0,
-                alignSelf: 'center',
-              }
+              width: tenantCardWidth,
+              maxWidth: tenantCardMaxWidth,
+              marginHorizontal: 0,
+              alignSelf: 'center',
+            }
             : null,
         ]}
       >
@@ -925,10 +925,10 @@ export default function TenantsScreen({ navigation, route }) {
               styles.primaryActionsRow,
               isTablet
                 ? {
-                    flexWrap: 'wrap',
-                    justifyContent: 'flex-start',
-                    gap: 10,
-                  }
+                  flexWrap: 'wrap',
+                  justifyContent: 'flex-start',
+                  gap: 10,
+                }
                 : null,
             ]}
           >
@@ -938,10 +938,10 @@ export default function TenantsScreen({ navigation, route }) {
                 styles.primaryActionBtn,
                 isTablet
                   ? {
-                      flex: 0,
-                      minWidth: 152,
-                      paddingHorizontal: 14,
-                    }
+                    flex: 0,
+                    minWidth: 152,
+                    paddingHorizontal: 14,
+                  }
                   : null,
               ]}
               onPress={() => {
@@ -958,10 +958,10 @@ export default function TenantsScreen({ navigation, route }) {
                 styles.primaryActionBtn,
                 isTablet
                   ? {
-                      flex: 0,
-                      minWidth: 152,
-                      paddingHorizontal: 14,
-                    }
+                    flex: 0,
+                    minWidth: 152,
+                    paddingHorizontal: 14,
+                  }
                   : null,
               ]}
               onPress={() => {
@@ -978,10 +978,10 @@ export default function TenantsScreen({ navigation, route }) {
                 styles.primaryActionBtn,
                 isTablet
                   ? {
-                      flex: 0,
-                      minWidth: 152,
-                      paddingHorizontal: 14,
-                    }
+                    flex: 0,
+                    minWidth: 152,
+                    paddingHorizontal: 14,
+                  }
                   : null,
                 (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null,
               ]}
@@ -1007,9 +1007,9 @@ export default function TenantsScreen({ navigation, route }) {
   if (loading && !refreshing && tenants.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        <StatusBar barStyle="light-content" backgroundColor="#16a34a " />
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color="#059669" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.emptyTitle}>Loading tenant data...</Text>
         </View>
       </SafeAreaView>
@@ -1018,7 +1018,7 @@ export default function TenantsScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a " />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -1040,9 +1040,9 @@ export default function TenantsScreen({ navigation, route }) {
             style={
               isTablet
                 ? {
-                    width: Math.min(isLargeTablet ? 1080 : 960, screenWidth - 16),
-                    alignSelf: 'center',
-                  }
+                  width: Math.min(isLargeTablet ? 1080 : 960, screenWidth - 16),
+                  alignSelf: 'center',
+                }
                 : null
             }
           >
@@ -1094,8 +1094,8 @@ export default function TenantsScreen({ navigation, route }) {
                   {properties.map((p) => {
                     const isActive = normalizeId(p.id) === selectedPropertyId;
                     return (
-                      <TouchableOpacity 
-                        key={p.id} 
+                      <TouchableOpacity
+                        key={p.id}
                         style={[styles.propertyChip, isActive && styles.propertyChipActive]}
                         onPress={() => setSelectedPropertyId(normalizeId(p.id))}
                       >
@@ -1109,10 +1109,10 @@ export default function TenantsScreen({ navigation, route }) {
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScroll} contentContainerStyle={styles.statsRow}>
               <View style={[styles.statCard, { width: statCardWidth }]}><Text style={styles.statLabel}>Total</Text><Text style={styles.statValue}>{stats.total}</Text></View>
-              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, {color: '#16a34a'}]}>Active</Text><Text style={[styles.statValue, {color: '#16a34a'}]}>{stats.active}</Text></View>
-              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, {color: '#2563EB'}]}>Paid</Text><Text style={[styles.statValue, {color: '#2563EB'}]}>{stats.paid}</Text></View>
-              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, {color: '#D97706'}]}>Pending</Text><Text style={[styles.statValue, {color: '#D97706'}]}>{stats.pending}</Text></View>
-              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, {color: '#DC2626'}]}>Overdue</Text><Text style={[styles.statValue, {color: '#DC2626'}]}>{stats.overdue}</Text></View>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, { color: '#16a34a' }]}>Active</Text><Text style={[styles.statValue, { color: '#16a34a' }]}>{stats.active}</Text></View>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, { color: '#2563EB' }]}>Paid</Text><Text style={[styles.statValue, { color: '#2563EB' }]}>{stats.paid}</Text></View>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, { color: '#D97706' }]}>Pending</Text><Text style={[styles.statValue, { color: '#D97706' }]}>{stats.pending}</Text></View>
+              <View style={[styles.statCard, { width: statCardWidth }]}><Text style={[styles.statLabel, { color: '#DC2626' }]}>Overdue</Text><Text style={[styles.statValue, { color: '#DC2626' }]}>{stats.overdue}</Text></View>
             </ScrollView>
 
             <View style={styles.searchBar}>
@@ -1134,8 +1134,8 @@ export default function TenantsScreen({ navigation, route }) {
           styles.listContent,
           isTablet ? { alignItems: 'center' } : null,
         ]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#059669" />}
-        ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#059669" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#16a34a" />}
+        ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#16a34a" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
       />
 
       <Modal
@@ -1255,7 +1255,7 @@ export default function TenantsScreen({ navigation, route }) {
                   <Text style={styles.detailValue}>{detailTenant.phone || '—'}</Text>
                   <Text style={styles.detailLabel}>Date of Birth</Text>
                   <Text style={styles.detailValue}>
-                    {detailTenant.date_of_birth 
+                    {detailTenant.date_of_birth
                       ? new Date(detailTenant.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                       : '—'}
                   </Text>
@@ -1270,7 +1270,7 @@ export default function TenantsScreen({ navigation, route }) {
                   <View style={styles.assignmentCard}>
                     <Text style={styles.assignmentTitle}>Room {detailTenant.room.room_number}</Text>
                     <Text style={styles.assignmentMeta}>{detailTenant.room.type_label}</Text>
-                    <Text style={[styles.assignmentMeta, {color: '#16a34a', fontWeight: '700'}]}>
+                    <Text style={[styles.assignmentMeta, { color: '#16a34a', fontWeight: '700' }]}>
                       {detailMonthlyRent.amount !== null ? formatCurrency(detailMonthlyRent.amount) : '—'} / month
                     </Text>
                   </View>
@@ -1373,7 +1373,7 @@ export default function TenantsScreen({ navigation, route }) {
               <Text style={styles.actionFieldLabel}>Room Assignment *</Text>
               <View style={[styles.roomsPicker, { maxHeight: 200 }]}>
                 <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
-                  {loadingRoomsForCreate && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
+                  {loadingRoomsForCreate && <ActivityIndicator color="#16a34a" style={styles.modalLoader} />}
                   {!loadingRoomsForCreate && availableRoomsForCreate.length === 0 && (
                     <Text style={styles.helperText}>No available rooms found.</Text>
                   )}
@@ -1536,7 +1536,7 @@ export default function TenantsScreen({ navigation, route }) {
               <Text style={styles.actionFieldLabel}>Room *</Text>
               <View style={[styles.roomsPicker, { maxHeight: 200 }]}>
                 <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
-                  {loadingRoomsForAssign && <ActivityIndicator color="#059669" style={styles.modalLoader} />}
+                  {loadingRoomsForAssign && <ActivityIndicator color="#16a34a" style={styles.modalLoader} />}
                   {!loadingRoomsForAssign && availableRoomsForAssign.length === 0 && (
                     <Text style={styles.helperText}>No available rooms found.</Text>
                   )}
