@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import api from '../../services/api.js';
+import { resolveAppDownloadUrl } from '../../services/AppUpdateService.js';
 
 const toBool = (value) => value === true || value === 1 || value === '1' || value === 'true';
 
@@ -38,7 +39,7 @@ export function useAppVersion() {
   });
 
   const latestVersion = query.data?.mobile_latest_version || currentVersion;
-  const downloadUrl = query.data?.mobile_download_url || '';
+  const downloadUrl = resolveAppDownloadUrl(query.data?.mobile_download_url);
   const isForceUpdate = toBool(query.data?.mobile_force_update);
   const updateAvailable = compareVersions(latestVersion, currentVersion) > 0;
 

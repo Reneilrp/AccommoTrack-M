@@ -12,6 +12,7 @@ import ProfileService from '../../../../services/ProfileService.js';
 import { navigate as rootNavigate, triggerForcedLogout, triggerRoleSwitch } from '../../../../navigation/RootNavigation.js';
 import { useAuthStore } from '../../../../stores/auth/authStore.js';
 import { useAppVersion } from '../../../../shared/hooks/useAppVersion.js';
+import { downloadAndInstallUpdate } from '../../../../services/AppUpdateService.js';
 import { showError, showSuccess } from '../../../../utils/toast.js';
 import {
   tenantQueryKeys,
@@ -68,17 +69,17 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const setActiveRole = useAuthStore((state) => state.setActiveRole);
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const themedHomeStyles = React.useMemo(() => homeStyles(theme), [theme]);
-  
+
   const [notificationSettings, setNotificationSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
   const [refreshing, setRefreshing] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(isGuest ?? true);
   const [loading, setLoading] = useState(true);
 
-  const { 
-    currentVersion, 
-    latestVersion, 
-    updateAvailable, 
-    downloadUrl, 
+  const {
+    currentVersion,
+    latestVersion,
+    updateAvailable,
+    downloadUrl,
     refetch: refetchVersion,
     otaUpdateId,
     otaCreatedAt
@@ -106,7 +107,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
         const guest = isGuest === true || !userJson;
         setIsGuestMode(guest);
-        
+
         if (!guest) {
           const user = JSON.parse(userJson);
           setUserRole(user.role || 'tenant');
@@ -175,7 +176,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
   const updateSetting = async (key, value) => {
     if (isGuestMode) return;
-    
+
     const previousSettings = notificationSettings;
     const newSettings = { ...notificationSettings, [key]: value };
     setNotificationSettings(newSettings);
@@ -183,12 +184,12 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       ...(previousBundle || {}),
       notificationSettings: newSettings,
     }));
-    
+
     try {
       await ProfileService.updateSettings({
         notification_preferences: newSettings
       });
-      
+
       // Update local storage too for consistency
       const userJson = await AsyncStorage.getItem('user');
       if (userJson) {
@@ -206,8 +207,8 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     }
   };
 
-  const handleSettingPress = (label) => {
-    switch(label) {
+  const handleSettingPress = async (label) => {
+    switch (label) {
       case "Profile":
         rootNavigate('Profile');
         break;
@@ -244,10 +245,17 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         break;
       case "Update Available":
       case "Update App":
-        if (downloadUrl) {
-          import('react-native').then(({ Linking }) => {
-            Linking.openURL(downloadUrl);
-          });
+        if (!downloadUrl) {
+          showError('Update unavailable', 'No update link is configured right now.');
+          break;
+        }
+        try {
+          await downloadAndInstallUpdate({ downloadUrl });
+        } catch (error) {
+          showError(
+            'Update failed',
+            error?.message || 'Unable to download/install update inside the app.',
+          );
         }
         break;
       case "EAS Update ID":
@@ -453,11 +461,11 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           items: [
             { id: 1, label: "Login / Sign Up", icon: "log-in-outline", arrow: true, highlight: true },
             { id: 2, label: "Register as Landlord", icon: "business-outline", arrow: true },
-            { 
-              id: 3, 
-              label: "Dark Mode", 
-              icon: isDarkMode ? "moon" : "moon-outline", 
-              toggle: true, 
+            {
+              id: 3,
+              label: "Dark Mode",
+              icon: isDarkMode ? "moon" : "moon-outline",
+              toggle: true,
               value: isDarkMode,
               onChange: toggleTheme
             },
@@ -482,42 +490,42 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           { id: 1, label: "Profile", icon: "person-outline", arrow: true },
           { id: 16, label: "Preferences & Lifestyle", icon: "options-outline", arrow: true },
           { id: 2, label: "Account Security", icon: "lock-closed-outline", arrow: true },
-          { 
-            id: 3, 
-            label: "Dark Mode", 
-            icon: isDarkMode ? "moon" : "moon-outline", 
-            toggle: true, 
+          {
+            id: 3,
+            label: "Dark Mode",
+            icon: isDarkMode ? "moon" : "moon-outline",
+            toggle: true,
             value: isDarkMode,
             onChange: toggleTheme
           },
-          { 
-            id: 4, 
+          {
+            id: 4,
             label: userRole === 'landlord'
               ? 'Switch to Tenant'
               : LANDLORD_SWITCH_READY_STATUSES.has(normalizeLandlordVerificationStatus(landlordVerificationStatus))
                 ? 'Switch to Landlord'
-                : 'Register as Landlord', 
-            icon: "swap-horizontal-outline", 
-            arrow: true 
+                : 'Register as Landlord',
+            icon: "swap-horizontal-outline",
+            arrow: true
           },
         ]
       },
       {
         title: "Notifications",
         items: [
-          { 
-            id: 8, 
-            label: "Push", 
-            icon: "notifications-outline", 
-            toggle: true, 
+          {
+            id: 8,
+            label: "Push",
+            icon: "notifications-outline",
+            toggle: true,
             value: notificationSettings.pushNotifications,
             onChange: (val) => updateSetting('pushNotifications', val)
           },
-          { 
-            id: 9, 
-            label: "Email", 
-            icon: "mail-outline", 
-            toggle: true, 
+          {
+            id: 9,
+            label: "Email",
+            icon: "mail-outline",
+            toggle: true,
             value: notificationSettings.emailNotifications,
             onChange: (val) => updateSetting('emailNotifications', val)
           },
@@ -548,10 +556,10 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             value: otaUpdateId ? otaUpdateId.substring(0, 8) : "View details",
             arrow: true,
           },
-          { 
-            id: 17, 
-            label: "App Version", 
-            icon: "albums-outline", 
+          {
+            id: 17,
+            label: "App Version",
+            icon: "albums-outline",
             value: currentVersion,
           },
         ]
@@ -566,7 +574,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" />
       {/* Content Area */}
-      <View style={{flex: 1}}>
+      <View style={{ flex: 1 }}>
         {isScreenLoading ? (
           <ScrollView style={themedHomeStyles.contentContainerPadding} showsVerticalScrollIndicator={false}>
             <ListItemSkeleton />
@@ -574,8 +582,8 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             <ListItemSkeleton />
           </ScrollView>
         ) : (
-          <ScrollView 
-            style={styles.content} 
+          <ScrollView
+            style={styles.content}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={themedHomeStyles.contentContainerPadding}
             refreshControl={
@@ -588,67 +596,67 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             }
           >
 
-        {settingSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>{section.title}</Text>
-            <View style={[styles.settingsCard, { backgroundColor: theme.colors.surface }]}>
-              {section.items.map((item, itemIndex) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.settingItem,
-                    itemIndex !== section.items.length - 1 && [styles.settingItemBorder, { borderBottomColor: theme.colors.border }],
-                    item.highlight && styles.settingItemHighlight,
-                    item.highlight && { backgroundColor: theme.colors.primary + '10' }
-                  ]}
-                  disabled={item.toggle || item.label === "App Version"}
-                  onPress={() => handleSettingPress(item.label)}
-                  activeOpacity={item.toggle ? 1 : 0.7}
-                >
-                  <View style={styles.settingLeft}>
-                    <View style={[styles.settingIcon, item.highlight && styles.settingIconHighlight, item.highlight && { backgroundColor: theme.colors.primary }]}>
-                      <Ionicons name={item.icon} size={22} color={item.highlight ? "#FFFFFF" : theme.colors.primary} />
-                    </View>
-                    <Text style={[styles.settingLabel, item.highlight && styles.settingLabelHighlight, item.highlight && { color: theme.colors.primary }, { color: theme.colors.text }]}>{item.label}</Text>
-                  </View>
-                  
-                  <View style={styles.settingRight}>
-                    {item.toggle ? (
-                        <Switch
-                        value={item.value}
-                        onValueChange={item.onChange}
-                        trackColor={{ false: '#D1D5DB', true: theme.colors.brand200 }}
-                        thumbColor={item.value ? theme.colors.primary : '#F3F4F6'}
-                      />
-                    ) : (
-                      <>
-                        {item.value && (
-                          <Text style={[styles.settingValue, { color: theme.colors.textSecondary }]}>{item.value}</Text>
-                        )}
-                        {item.arrow && (
-                          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                        )}
-                      </>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        ))}
+            {settingSections.map((section, sectionIndex) => (
+              <View key={sectionIndex} style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>{section.title}</Text>
+                <View style={[styles.settingsCard, { backgroundColor: theme.colors.surface }]}>
+                  {section.items.map((item, itemIndex) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.settingItem,
+                        itemIndex !== section.items.length - 1 && [styles.settingItemBorder, { borderBottomColor: theme.colors.border }],
+                        item.highlight && styles.settingItemHighlight,
+                        item.highlight && { backgroundColor: theme.colors.primary + '10' }
+                      ]}
+                      disabled={item.toggle || item.label === "App Version"}
+                      onPress={() => handleSettingPress(item.label)}
+                      activeOpacity={item.toggle ? 1 : 0.7}
+                    >
+                      <View style={styles.settingLeft}>
+                        <View style={[styles.settingIcon, item.highlight && styles.settingIconHighlight, item.highlight && { backgroundColor: theme.colors.primary }]}>
+                          <Ionicons name={item.icon} size={22} color={item.highlight ? "#FFFFFF" : theme.colors.primary} />
+                        </View>
+                        <Text style={[styles.settingLabel, item.highlight && styles.settingLabelHighlight, item.highlight && { color: theme.colors.primary }, { color: theme.colors.text }]}>{item.label}</Text>
+                      </View>
 
-        {/* Logout Button - Only show for logged in users */}
-        {!isGuestMode && (
-          <View style={styles.section}>
-            <TouchableOpacity 
-              style={[styles.dangerButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.error + '20' }]}
-              onPress={handleLogout}
-            >
-              <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
-              <Text style={[styles.dangerButtonText, { color: theme.colors.error }]}>Logout</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+                      <View style={styles.settingRight}>
+                        {item.toggle ? (
+                          <Switch
+                            value={item.value}
+                            onValueChange={item.onChange}
+                            trackColor={{ false: '#D1D5DB', true: theme.colors.brand200 }}
+                            thumbColor={item.value ? theme.colors.primary : '#F3F4F6'}
+                          />
+                        ) : (
+                          <>
+                            {item.value && (
+                              <Text style={[styles.settingValue, { color: theme.colors.textSecondary }]}>{item.value}</Text>
+                            )}
+                            {item.arrow && (
+                              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            )}
+                          </>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))}
+
+            {/* Logout Button - Only show for logged in users */}
+            {!isGuestMode && (
+              <View style={styles.section}>
+                <TouchableOpacity
+                  style={[styles.dangerButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.error + '20' }]}
+                  onPress={handleLogout}
+                >
+                  <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
+                  <Text style={[styles.dangerButtonText, { color: theme.colors.error }]}>Logout</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={themedHomeStyles.spacer} />
           </ScrollView>

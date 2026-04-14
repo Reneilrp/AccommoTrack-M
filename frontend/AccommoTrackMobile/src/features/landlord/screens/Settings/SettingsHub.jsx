@@ -28,6 +28,7 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from "../../hooks/useLandlordQueryHelpers.js";
+import { downloadAndInstallUpdate } from "../../../../services/AppUpdateService.js";
 
 import ProfileService from "../../../../services/ProfileService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
@@ -161,7 +162,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const [comingSoonVisible, setComingSoonVisible] = useState(false);
   const [comingSoonInfo, setComingSoonInfo] = useState({ title: "Coming Soon", message: "This option will be available soon." });
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
-  const [confirmModalConfig, setConfirmModalConfig] = useState({ title: "", message: "", confirmText: "Confirm", onConfirm: () => {}, singleAction: false });
+  const [confirmModalConfig, setConfirmModalConfig] = useState({ title: "", message: "", confirmText: "Confirm", onConfirm: () => { }, singleAction: false });
   const [notificationPrefs, setNotificationPrefs] = useState({
     payments: true,
     messages: true,
@@ -171,11 +172,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
   });
   const [fetchError, setFetchError] = useState("");
 
-  const { 
-    currentVersion, 
-    latestVersion, 
-    updateAvailable, 
-    downloadUrl, 
+  const {
+    currentVersion,
+    latestVersion,
+    updateAvailable,
+    downloadUrl,
     refetch: refetchVersion,
     otaUpdateId,
     otaCreatedAt
@@ -507,30 +508,30 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ],
       },
       {
-          title: "Billing",
-          items: [
-            {
-              id: "subscription-plan",
-              label: "Subscription Plan",
-              description: "Manage plan limits, status, and upgrades",
-              icon: "rocket-outline",
-              type: "navigate",
-              target: "SubscriptionPlan",
-              role: "landlord",
-            },
-            {
-              id: "billing-center",
-              label: "Billing Center",
-              description: "Review billing, payments, invoices, and history",
-              icon: "receipt-outline",
-              type: "navigate",
-              target: "BillingCenter",
-              role: "landlord",
-            },
-          ],
-        },
-        {
-          title: "Payment Methods",
+        title: "Billing",
+        items: [
+          {
+            id: "subscription-plan",
+            label: "Subscription Plan",
+            description: "Manage plan limits, status, and upgrades",
+            icon: "rocket-outline",
+            type: "navigate",
+            target: "SubscriptionPlan",
+            role: "landlord",
+          },
+          {
+            id: "billing-center",
+            label: "Billing Center",
+            description: "Review billing, payments, invoices, and history",
+            icon: "receipt-outline",
+            type: "navigate",
+            target: "BillingCenter",
+            role: "landlord",
+          },
+        ],
+      },
+      {
+        title: "Payment Methods",
         items: [
           {
             id: "paymongo-status",
@@ -677,11 +678,19 @@ export default function SettingsScreen({ navigation, onLogout }) {
             icon: "cloud-download-outline",
             type: "action",
             description: `Tap to download v${latestVersion}`,
-            action: () => {
-              if (downloadUrl) {
-                import('react-native').then(({ Linking }) => {
-                  Linking.openURL(downloadUrl);
-                });
+            action: async () => {
+              if (!downloadUrl) {
+                showError('Update unavailable', 'No update link is configured right now.');
+                return;
+              }
+
+              try {
+                await downloadAndInstallUpdate({ downloadUrl });
+              } catch (error) {
+                showError(
+                  'Update failed',
+                  error?.message || 'Unable to download/install update inside the app.',
+                );
               }
             },
           }] : []),
@@ -720,6 +729,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
     isDarkMode,
     user,
     handleSwitchRole,
+    updateAvailable,
+    latestVersion,
+    downloadUrl,
+    otaUpdateId,
+    currentVersion,
   ]);
 
   const initials = () => {
@@ -891,7 +905,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
           style={styles.logoutModalBackdrop}
           onPress={() => setLogoutModalVisible(false)}
         >
-          <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+          <Pressable style={styles.logoutModalCard} onPress={() => { }}>
             <View style={styles.logoutModalIconWrap}>
               <Ionicons name="log-out-outline" size={22} color="#B91C1C" />
             </View>
@@ -932,7 +946,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
           style={styles.logoutModalBackdrop}
           onPress={() => setConfirmModalVisible(false)}
         >
-          <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+          <Pressable style={styles.logoutModalCard} onPress={() => { }}>
             <View style={[styles.logoutModalIconWrap, { backgroundColor: theme.isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7' }]}>
               <Ionicons name="information-circle-outline" size={22} color={theme.colors.primary} />
             </View>
