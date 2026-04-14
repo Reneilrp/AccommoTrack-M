@@ -53,6 +53,31 @@ export const getStyles = (theme) => StyleSheet.create({
         marginTop: 8,
         color: theme.colors.text,
     },
+    landlordResponseBox: {
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 8,
+        borderLeftWidth: 4,
+        backgroundColor: theme.colors.info + '15',
+        borderLeftColor: theme.colors.info,
+    },
+    landlordResponseHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    landlordResponseLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        marginLeft: 6,
+        color: theme.colors.info,
+    },
+    landlordResponseText: {
+        fontSize: 13,
+        lineHeight: 18,
+        color: theme.colors.text,
+    },
     actionRow: {
         flexDirection: 'row',
         marginTop: 8,
@@ -111,6 +136,34 @@ export const getStyles = (theme) => StyleSheet.create({
     submitBtnText: {
         fontWeight: '600',
         color: theme.colors.textInverse,
+    },
+    emptyState: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 64,
+        paddingHorizontal: 32,
+    },
+    emptyIconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        backgroundColor: theme.colors.surface,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 8,
+        textAlign: 'center',
+        color: theme.colors.text,
+    },
+    emptySubtitle: {
+        fontSize: 14,
+        textAlign: 'center',
+        color: theme.colors.textSecondary,
     },
 });
 

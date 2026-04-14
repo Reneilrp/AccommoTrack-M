@@ -91,6 +91,16 @@ export default function MyReviews({ hideHeader = false, historyOnly = false }) {
       </View>
       {item.comment ? <Text style={[styles.commentText, { color: theme.colors.text }]}>{item.comment}</Text> : null}
 
+      {item.landlord_response ? (
+        <View style={[styles.landlordResponseBox, { backgroundColor: theme.colors.info + '15', borderLeftColor: theme.colors.info }]}>
+          <View style={styles.landlordResponseHeader}>
+            <Ionicons name="chatbubble-ellipses" size={14} color={theme.colors.info} />
+            <Text style={[styles.landlordResponseLabel, { color: theme.colors.info }]}>Landlord Response</Text>
+          </View>
+          <Text style={[styles.landlordResponseText, { color: theme.colors.text }]}>{item.landlord_response}</Text>
+        </View>
+      ) : null}
+
       {!historyOnly && (
         <View style={styles.actionRow}>
           <TouchableOpacity 
@@ -131,7 +141,22 @@ export default function MyReviews({ hideHeader = false, historyOnly = false }) {
   const content = (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {!hideHeader && <Text style={[styles.title, { color: theme.colors.text }]}>My Reviews</Text>}
-      <FlatList data={reviews} keyExtractor={(i) => String(i.id)} renderItem={renderItem} />
+      <FlatList 
+        data={reviews} 
+        keyExtractor={(i) => String(i.id)} 
+        renderItem={renderItem}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            <View style={[styles.emptyIconContainer, { backgroundColor: theme.colors.surface }]}>
+              <Ionicons name="chatbubble-outline" size={48} color={theme.colors.textTertiary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No reviews yet</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+              Leave a review for a property you've stayed at!
+            </Text>
+          </View>
+        )}
+      />
     </View>
   );
 

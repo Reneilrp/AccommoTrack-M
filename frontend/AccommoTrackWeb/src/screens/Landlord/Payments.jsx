@@ -894,9 +894,9 @@ export default function Payments() {
                 setSelectedInvoice(inv);
                 setShowInvoiceModal(true);
               }}
-              className="text-green-600 hover:text-green-800 font-bold uppercase text-xs tracking-wider"
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-xs transition-colors"
             >
-              {status === "paid" ? "Details" : "Manage"}
+              View
             </button>
           ) : (
             <span className="text-xs text-gray-500">—</span>
@@ -1269,7 +1269,7 @@ export default function Payments() {
               <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10">
                 <div>
                   <h3 className="text-xl font-bold dark:text-white text-gray-900 uppercase tracking-tight">
-                    Manage Invoice
+                    Payment Details
                   </h3>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-2">
                     REF:{" "}
@@ -1423,9 +1423,45 @@ export default function Payments() {
                   getInvoiceStatus(selectedInvoice),
                 ) && (
                   <>
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                      <button
+                        onClick={handleRecordOffline}
+                        disabled={isRecording}
+                        className="flex flex-col items-center justify-center p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl border-2 border-green-200 dark:border-green-800 transition-all disabled:opacity-50"
+                      >
+                        <Receipt className="w-6 h-6 text-green-600 dark:text-green-400 mb-2" />
+                        <span className="text-xs font-bold text-green-700 dark:text-green-300">Record Payment</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (selectedInvoice.booking_id) {
+                            updateBookingPayment(selectedInvoice.booking_id, "partial");
+                            setShowInvoiceModal(false);
+                          }
+                        }}
+                        className="flex flex-col items-center justify-center p-4 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-xl border-2 border-yellow-200 dark:border-yellow-800 transition-all"
+                      >
+                        <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400 mb-2" />
+                        <span className="text-xs font-bold text-yellow-700 dark:text-yellow-300">Mark Partial</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (selectedInvoice.booking_id) {
+                            updateBookingPayment(selectedInvoice.booking_id, "paid");
+                            setShowInvoiceModal(false);
+                          }
+                        }}
+                        className="flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl border-2 border-blue-200 dark:border-blue-800 transition-all"
+                      >
+                        <CheckCircle className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2" />
+                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300">Mark Paid</span>
+                      </button>
+                    </div>
+
                     <div className="space-y-4">
                       <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">
-                        Record Payment
+                        Record Payment Details
                       </h4>
 
                       <div className="grid grid-cols-2 gap-4">

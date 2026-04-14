@@ -5,7 +5,7 @@ import api from '../../utils/api';
 import { SkeletonWallet } from '../../components/Shared/Skeleton';
 import { useUIState } from "../../contexts/UIStateContext";
 import toast from 'react-hot-toast';
-import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt } from 'lucide-react';
+import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt, X } from 'lucide-react';
 import createEcho from '../../utils/echo';
 import systemToggleService from '../../services/systemToggleService';
 
@@ -30,6 +30,8 @@ export default function TenantPayments({ user }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
   const [processingPaymentKey, setProcessingPaymentKey] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
   const initialLoadRef = useRef(!cachedData);
   const hadCachedDataOnMountRef = useRef(Boolean(cachedData));
   const didInitialFetchRef = useRef(false);
@@ -447,37 +449,15 @@ export default function TenantPayments({ user }) {
                       </td>
                       <td className="px-6 py-4 text-sm font-mono text-gray-700 dark:text-gray-300">{payment.referenceNo || '—'}</td>
                       <td className="px-6 py-4 text-sm">
-                        {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) ? (
-                          <div className="flex flex-col gap-1">
-                            <button
-                              onClick={() => openCheckout(payment)}
-                              disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
-                              className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap disabled:opacity-60"
-                            >
-                              {processingPaymentKey === resolvePaymentEntryKey(payment) ? 'Processing...' : 'Pay Due'}
-                            </button>
-                            {(payment?.bookingId || payment?.booking_id) && (
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => openCheckout(payment, { startFrom: 'next', monthsCount: 1 })}
-                                  disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
-                                  className="px-3 py-1.5 bg-blue-600 text-white text-[11px] font-bold rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap disabled:opacity-60"
-                                >
-                                  Next
-                                </button>
-                                <button
-                                  onClick={() => openCheckout(payment, { startFrom: 'next', monthsCount: 2 })}
-                                  disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
-                                  className="px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-md hover:bg-indigo-700 transition-colors whitespace-nowrap disabled:opacity-60"
-                                >
-                                  2 Mo
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-500">—</span>
-                        )}
+                        <button
+                          onClick={() => {
+                            setSelectedPayment(payment);
+                            setShowPaymentModal(true);
+                          }}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          View
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -541,40 +521,147 @@ export default function TenantPayments({ user }) {
                   {payment.referenceNo && (
                     <p className="text-xs text-gray-500 dark:text-gray-500 font-mono">Ref: {payment.referenceNo}</p>
                   )}
-                  {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => openCheckout(payment)}
-                        disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
-                        className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-60"
-                      >
-                        {processingPaymentKey === resolvePaymentEntryKey(payment) ? 'Processing...' : 'Pay Due'}
-                      </button>
-                      {(payment?.bookingId || payment?.booking_id) && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => openCheckout(payment, { startFrom: 'next', monthsCount: 1 })}
-                            disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
-                            className="py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
-                          >
-                            Next Month
-                          </button>
-                          <button
-                            onClick={() => openCheckout(payment, { startFrom: 'next', monthsCount: 2 })}
-                            disabled={processingPaymentKey === resolvePaymentEntryKey(payment)}
-                            className="py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60"
-                          >
-                            Next 2 Months
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <button
+                    onClick={() => {
+                      setSelectedPayment(payment);
+                      setShowPaymentModal(true);
+                    }}
+                    className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors mt-2"
+                  >
+                    View Details
+                  </button>
                 </div>
               ));
             })()}
           </div>
         </div>
+
+        {/* Payment Details Modal */}
+        {showPaymentModal && selectedPayment && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200">
+              <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10">
+                <div>
+                  <h3 className="text-xl font-bold dark:text-white text-gray-900 uppercase tracking-tight">
+                    Payment Details
+                  </h3>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-2">
+                    {selectedPayment.propertyName}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setSelectedPayment(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Payment Info */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Amount</span>
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(selectedPayment.amount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</span>
+                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentService.getStatusColor(selectedPayment.status)}`}>
+                      {selectedPayment.status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Date</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{selectedPayment.date}</span>
+                  </div>
+                  {selectedPayment.dueDate && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due Date</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{selectedPayment.dueDate}</span>
+                    </div>
+                  )}
+                  {selectedPayment.referenceNo && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Reference</span>
+                      <span className="text-sm font-mono text-gray-700 dark:text-gray-300">{selectedPayment.referenceNo}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Room</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{selectedPayment.roomNumber || (selectedPayment.room && selectedPayment.room.roomNumber) || 'N/A'}</span>
+                  </div>
+                </div>
+
+                {/* Info Notice */}
+                {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(selectedPayment.status?.toLowerCase()) && (selectedPayment?.bookingId || selectedPayment?.booking_id) && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      <strong>Note:</strong> "Next Month" and "Next 2 Months" will automatically pay the next unpaid period(s), skipping any already-paid advance months.
+                    </p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(selectedPayment.status?.toLowerCase()) && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => {
+                        setShowPaymentModal(false);
+                        openCheckout(selectedPayment);
+                      }}
+                      disabled={processingPaymentKey === resolvePaymentEntryKey(selectedPayment)}
+                      className="flex flex-col items-center justify-center p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl border-2 border-green-200 dark:border-green-800 transition-all disabled:opacity-50"
+                    >
+                      <Receipt className="w-6 h-6 text-green-600 dark:text-green-400 mb-2" />
+                      <span className="text-xs font-bold text-green-700 dark:text-green-300 text-center">Pay Current Due</span>
+                    </button>
+                    {(selectedPayment?.bookingId || selectedPayment?.booking_id) && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowPaymentModal(false);
+                            openCheckout(selectedPayment, { startFrom: 'next', monthsCount: 1 });
+                          }}
+                          disabled={processingPaymentKey === resolvePaymentEntryKey(selectedPayment)}
+                          className="flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl border-2 border-blue-200 dark:border-blue-800 transition-all disabled:opacity-50"
+                        >
+                          <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2" />
+                          <span className="text-xs font-bold text-blue-700 dark:text-blue-300 text-center">Pay Next Unpaid</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowPaymentModal(false);
+                            openCheckout(selectedPayment, { startFrom: 'next', monthsCount: 2 });
+                          }}
+                          disabled={processingPaymentKey === resolvePaymentEntryKey(selectedPayment)}
+                          className="flex flex-col items-center justify-center p-4 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-xl border-2 border-indigo-200 dark:border-indigo-800 transition-all disabled:opacity-50"
+                        >
+                          <Calendar className="w-6 h-6 text-indigo-600 dark:text-indigo-400 mb-2" />
+                          <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 text-center">Pay Next 2 Unpaid</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 bg-gray-50 dark:bg-gray-700/30 text-right">
+                <button
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setSelectedPayment(null);
+                  }}
+                  className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

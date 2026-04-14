@@ -295,11 +295,11 @@ export default function PaymentsScreen() {
   const openCheckoutOptions = (payment) => {
     showAlert(
       'Choose Payment',
-      'Select what you want to pay now.',
+      'Note: "Next" options automatically skip any already-paid advance months and pay the next unpaid period(s).',
       [
-        { text: 'Current Due', onPress: () => openCheckout(payment) },
-        { text: 'Next Month', onPress: () => openCheckout(payment, { startFrom: 'next', monthsCount: 1 }) },
-        { text: 'Next 2 Months', onPress: () => openCheckout(payment, { startFrom: 'next', monthsCount: 2 }) },
+        { text: 'Pay Current Due', onPress: () => openCheckout(payment) },
+        { text: 'Pay Next Unpaid', onPress: () => openCheckout(payment, { startFrom: 'next', monthsCount: 1 }) },
+        { text: 'Pay Next 2 Unpaid', onPress: () => openCheckout(payment, { startFrom: 'next', monthsCount: 2 }) },
         { text: 'Cancel', style: 'cancel' },
       ],
     );
@@ -552,9 +552,11 @@ export default function PaymentsScreen() {
             <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Transactions</Text>
 
             {!tenantPaymentsTempDisabled && (
-              <Text style={{ marginBottom: 12, color: theme.colors.textSecondary, fontSize: 12 }}>
-                Tip: Tap Pay to choose Current Due, Next Month, or Next 2 Months.
-              </Text>
+              <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#dbeafe', borderWidth: 1, borderColor: '#93c5fd', borderRadius: 10 }}>
+                <Text style={{ color: '#1e40af', fontWeight: '600', fontSize: 12 }}>
+                  💡 Tip: "Pay Next Unpaid" and "Pay Next 2 Unpaid" automatically skip any already-paid advance months.
+                </Text>
+              </View>
             )}
 
             {tenantPaymentsTempDisabled && (
