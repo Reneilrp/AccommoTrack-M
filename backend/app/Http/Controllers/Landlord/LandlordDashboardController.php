@@ -143,7 +143,7 @@ class LandlordDashboardController extends Controller
                         'description' => $isPending
                             ? 'Recorded ₱'.number_format($amountCents / 100, 2).' via '.$methodLabel.' for Room '.$roomNumber
                             : ($isRefund
-                                ? 'Gave/Sent ₱'.number_format($amountCents / 100, 2).' via '.$methodLabel.' for Room '.$roomNumber
+                                ? 'Refunded ₱'.number_format($amountCents / 100, 2).' via Cash('.$methodLabel.') for Room Number('.$roomNumber.').'
                                 : 'Received ₱'.number_format($amountCents / 100, 2).' via '.$methodLabel.' for Room '.$roomNumber),
                         'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
                         'status' => $status,

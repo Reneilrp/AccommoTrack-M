@@ -68,6 +68,7 @@ const getStatusBadgeMap = (isDark) => {
     failed: activity.red,
     declined: activity.red,
     overdue: activity.red,
+    refunded: activity.red,
     inactive: activity.gray,
     maintenance: activity.gray,
     draft: activity.gray
@@ -85,12 +86,15 @@ const activityIconMap = {
 const normalizeActivityStatus = (status) => String(status || '').toLowerCase();
 
 const resolveActivityColorKey = (activity) => {
+  const explicitColor = String(activity?.color || '').toLowerCase();
+  if (['green', 'blue', 'yellow', 'red', 'gray'].includes(explicitColor)) return explicitColor;
+
   const status = normalizeActivityStatus(activity?.status);
   const type = String(activity?.type || '').toLowerCase();
 
   if (type === 'property' && (status === 'updated' || status === 'changed')) return 'blue';
   if (type === 'room' && status === 'occupied') return 'blue';
-  if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'red';
+  if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'red';
   if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
   if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
   if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
@@ -404,19 +408,19 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   };
   const quickActionCardStyle = isTablet
     ? {
-        width: quickActionTileSize,
-        minHeight: 102,
-        borderRadius: 14,
-        paddingHorizontal: 4,
-        paddingVertical: 8,
-      }
+      width: quickActionTileSize,
+      minHeight: 102,
+      borderRadius: 14,
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+    }
     : {
-        width: quickActionTileSize,
-        minHeight: 84,
-        borderRadius: 12,
-        paddingHorizontal: 4,
-        paddingVertical: 8,
-      };
+      width: quickActionTileSize,
+      minHeight: 84,
+      borderRadius: 12,
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+    };
   const quickActionIconStyle = {
     width: isTablet ? 42 : 40,
     height: isTablet ? 46 : 44,
@@ -478,7 +482,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     const description = activity.description || '';
 
     // Extract tenant name from description if available
-    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/); 
+    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/);
     const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
 
     switch (type) {
@@ -496,14 +500,17 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         break;
       }
       case 'payment': {
+        const invoiceId = activity.invoice_id || activity.data?.invoice_id || entityId;
         const params = {
           searchQuery: tenantName,
-          focusInvoiceId: entityId || null,
+          focusInvoiceId: invoiceId || null,
           drilldownToken: Date.now(),
         };
         const status = String(activity.status || '').toLowerCase();
         if (status === 'overdue') params.filter = 'overdue';
-        else if (status === 'paid' || status === 'confirmed') params.filter = 'paid';
+        else if (status === 'refunded' || status === 'partially_refunded') params.filter = 'refunded';
+        else if (status === 'paid' || status === 'confirmed' || status === 'succeeded') params.filter = 'paid';
+        else if (status === 'pending_verification' || status === 'pending_offline') params.filter = 'pending_verification';
         else params.filter = 'pending';
         navigation.navigate('Payments', params);
         break;
@@ -552,7 +559,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           if (userString) {
             setUser(JSON.parse(userString));
           }
-        } catch (_error) {}
+        } catch (_error) { }
       }
     };
     loadUser();
@@ -632,7 +639,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     overdueInvoices: [],
     dueSoonInvoices: [],
   };
-  
+
   const renderVerificationBanner = () => {
     if (isCaretaker) return null;
     if (!verificationStatus) return null;
@@ -658,26 +665,26 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     }
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-          styles.verificationBanner, 
+          styles.verificationBanner,
           { backgroundColor: bannerBg, borderColor: borderColor, borderWidth: 1 }
         ]}
         onPress={() => navigation.navigate('VerificationStatus')}
       >
-        <Ionicons 
-          name={isRejected ? "alert-circle" : isPending ? "time" : "shield-checkmark"} 
-          size={24} 
-          color={contentColor} 
+        <Ionicons
+          name={isRejected ? "alert-circle" : isPending ? "time" : "shield-checkmark"}
+          size={24}
+          color={contentColor}
         />
         <View style={{ flex: 1, marginLeft: 16 }}>
           <Text style={[styles.bannerTitle, { color: contentColor }]}>
             Verification: {verificationState.replace('_', ' ').toUpperCase()}
           </Text>
           <Text style={[styles.bannerText, { color: theme.colors.textSecondary }]}>
-            {isRejected ? (verificationStatus.rejection_reason || "Your landlord verification documents were rejected. This is separate from your property drafts. Tap to view reason.") : 
-             isPending ? "Your documents are being reviewed." : 
-             "Submit your documents to verify your account."}
+            {isRejected ? (verificationStatus.rejection_reason || "Your landlord verification documents were rejected. This is separate from your property drafts. Tap to view reason.") :
+              isPending ? "Your documents are being reviewed." :
+                "Submit your documents to verify your account."}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
@@ -724,8 +731,8 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.menuButton} 
+        <TouchableOpacity
+          style={styles.menuButton}
           onPress={() => setMenuVisible(true)}
         >
           <Ionicons name="menu" size={24} color="#FFFFFF" />
@@ -792,13 +799,13 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                 </View>
                 {(stats?.bookings?.pending ?? 0) > 0 ? (
                   <View style={[styles.statBadge, { backgroundColor: '#FEF3C7' }]}>
-                    <Text style={[styles.statBadgeText, { color: '#D97706' }]}> 
+                    <Text style={[styles.statBadgeText, { color: '#D97706' }]}>
                       {stats?.bookings?.pending ?? 0} Pend
                     </Text>
                   </View>
                 ) : (
                   <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
-                    <Text style={[styles.statBadgeText, { color: '#166534' }]}> 
+                    <Text style={[styles.statBadgeText, { color: '#166534' }]}>
                       {stats?.bookings?.confirmed ?? 0} Conf
                     </Text>
                   </View>
@@ -816,7 +823,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                   <Ionicons name="home" size={18} color="#166534" />
                 </View>
                 <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#166534' }]}> 
+                  <Text style={[styles.statBadgeText, { color: '#166534' }]}>
                     {stats?.rooms?.occupancyRate ?? 0}% Occ
                   </Text>
                 </View>
@@ -833,7 +840,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                   <Ionicons name="business" size={18} color="#1D4ED8" />
                 </View>
                 <View style={[styles.statBadge, { backgroundColor: '#DBEAFE' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#1D4ED8' }]}> 
+                  <Text style={[styles.statBadgeText, { color: '#1D4ED8' }]}>
                     {stats?.properties?.active ?? 0} Active
                   </Text>
                 </View>
@@ -884,7 +891,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                       <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
                     </View>
                   )}
-                  <View style={[styles.actionIcon, quickActionIconStyle, { backgroundColor: action.color + '20' }]}> 
+                  <View style={[styles.actionIcon, quickActionIconStyle, { backgroundColor: action.color + '20' }]}>
                     <Ionicons name={action.icon} size={20} color={action.color} />
                   </View>
                   <Text style={[styles.actionTitle, quickActionTitleStyle]}>{action.title}</Text>
@@ -908,85 +915,85 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
               style={styles.quickActionsModalBackdrop}
               onPress={() => setMoreActionsVisible(false)}
             >
-              <TouchableWithoutFeedback onPress={() => {}}>
+              <TouchableWithoutFeedback onPress={() => { }}>
                 <View style={styles.quickActionsModalCard}>
-                <View style={styles.quickActionsModalHeader}>
-                  <Text style={styles.quickActionsModalTitle}>More Actions</Text>
-                  <TouchableOpacity
-                    style={styles.quickActionsModalClose}
-                    onPress={() => setMoreActionsVisible(false)}
+                  <View style={styles.quickActionsModalHeader}>
+                    <Text style={styles.quickActionsModalTitle}>More Actions</Text>
+                    <TouchableOpacity
+                      style={styles.quickActionsModalClose}
+                      onPress={() => setMoreActionsVisible(false)}
+                    >
+                      <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.quickActionsModalBody}
                   >
-                    <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
+                    {groupedQuickActionsForModal.map((group) => (
+                      <View key={group.category} style={styles.quickActionsCategorySection}>
+                        <View style={styles.quickActionsCategoryCard}>
+                          <View style={styles.quickActionsCategoryHeader}>
+                            <View
+                              style={[
+                                styles.quickActionsCategoryDot,
+                                { backgroundColor: group.items[0]?.color || theme.colors.primary },
+                              ]}
+                            />
+                            <Text style={styles.quickActionsCategoryTitle}>{group.category}</Text>
+                          </View>
 
-                <ScrollView
-                  nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.quickActionsModalBody}
-                >
-                  {groupedQuickActionsForModal.map((group) => (
-                    <View key={group.category} style={styles.quickActionsCategorySection}>
-                      <View style={styles.quickActionsCategoryCard}>
-                        <View style={styles.quickActionsCategoryHeader}>
-                          <View
-                            style={[
-                              styles.quickActionsCategoryDot,
-                              { backgroundColor: group.items[0]?.color || theme.colors.primary },
-                            ]}
-                          />
-                          <Text style={styles.quickActionsCategoryTitle}>{group.category}</Text>
+                          <ScrollView
+                            horizontal
+                            nestedScrollEnabled
+                            directionalLockEnabled
+                            keyboardShouldPersistTaps="handled"
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.quickActionsCategoryRow}
+                          >
+                            {group.items.map((action, index) => {
+                              const hasAccess = hasQuickActionAccess(action);
+                              const isLastItem = index === group.items.length - 1;
+
+                              return (
+                                <Button
+                                  key={`more-${group.category}-${action.id}`}
+                                  style={[
+                                    styles.actionCard,
+                                    styles.quickActionsCategoryAction,
+                                    isLastItem && styles.quickActionsCategoryActionLast,
+                                    quickActionCardStyle,
+                                    !hasAccess && styles.actionCardRestricted,
+                                  ]}
+                                  delayPressIn={100}
+                                  onPress={() => handleQuickActionPress(action, true)}
+                                  type="transparent"
+                                >
+                                  {!hasAccess && (
+                                    <View style={styles.actionRestrictedBadge}>
+                                      <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
+                                    </View>
+                                  )}
+                                  {action.badgeCount > 0 && (
+                                    <View style={styles.actionBadge}>
+                                      <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
+                                    </View>
+                                  )}
+                                  <View style={[styles.actionIcon, quickActionIconStyle, { backgroundColor: action.color + '20' }]}>
+                                    <Ionicons name={action.icon} size={20} color={action.color} />
+                                  </View>
+                                  <Text style={[styles.actionTitle, quickActionTitleStyle]}>{action.title}</Text>
+                                </Button>
+                              );
+                            })}
+                          </ScrollView>
                         </View>
-
-                        <ScrollView
-                          horizontal
-                          nestedScrollEnabled
-                          directionalLockEnabled
-                          keyboardShouldPersistTaps="handled"
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.quickActionsCategoryRow}
-                        >
-                          {group.items.map((action, index) => {
-                            const hasAccess = hasQuickActionAccess(action);
-                            const isLastItem = index === group.items.length - 1;
-
-                            return (
-                              <Button
-                                key={`more-${group.category}-${action.id}`}
-                                style={[
-                                  styles.actionCard,
-                                  styles.quickActionsCategoryAction,
-                                  isLastItem && styles.quickActionsCategoryActionLast,
-                                  quickActionCardStyle,
-                                  !hasAccess && styles.actionCardRestricted,
-                                ]}
-                                delayPressIn={100}
-                                onPress={() => handleQuickActionPress(action, true)}
-                                type="transparent"
-                              >
-                                {!hasAccess && (
-                                  <View style={styles.actionRestrictedBadge}>
-                                    <Ionicons name="lock-closed" size={9} color="#FFFFFF" />
-                                  </View>
-                                )}
-                                {action.badgeCount > 0 && (
-                                  <View style={styles.actionBadge}>
-                                    <Text style={styles.actionBadgeText}>{action.badgeCount > 99 ? '99+' : action.badgeCount}</Text>
-                                  </View>
-                                )}
-                                <View style={[styles.actionIcon, quickActionIconStyle, { backgroundColor: action.color + '20' }]}> 
-                                  <Ionicons name={action.icon} size={20} color={action.color} />
-                                </View>
-                                <Text style={[styles.actionTitle, quickActionTitleStyle]}>{action.title}</Text>
-                              </Button>
-                            );
-                          })}
-                        </ScrollView>
                       </View>
-                    </View>
-                  ))}
-                </ScrollView>
+                    ))}
+                  </ScrollView>
                 </View>
               </TouchableWithoutFeedback>
             </Pressable>
@@ -1006,7 +1013,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
             style={styles.permissionModalBackdrop}
             onPress={() => setPermissionModal({ visible: false, actionTitle: '' })}
           >
-            <Pressable style={styles.permissionModalCard} onPress={() => {}}>
+            <Pressable style={styles.permissionModalCard} onPress={() => { }}>
               <View style={styles.permissionModalIconWrap}>
                 <Ionicons name="lock-closed" size={22} color="#B45309" />
               </View>
@@ -1037,7 +1044,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
             style={styles.logoutModalBackdrop}
             onPress={() => setLogoutModalVisible(false)}
           >
-            <Pressable style={styles.logoutModalCard} onPress={() => {}}>
+            <Pressable style={styles.logoutModalCard} onPress={() => { }}>
               <View style={styles.logoutModalIconWrap}>
                 <Ionicons name="log-out-outline" size={22} color="#B91C1C" />
               </View>
@@ -1069,7 +1076,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <Button 
+            <Button
               type="transparent"
               onPress={() => navigation.navigate('AllActivities', {
                 activities,
@@ -1107,7 +1114,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                       <Text style={[styles.activitySubtitle, { color: theme.colors.textSecondary }]}>{activity.description}</Text>
                       <Text style={[styles.activityTimestamp, { color: theme.colors.textTertiary }]}>{formatRelativeTime(activity.timestamp)}</Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}> 
+                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
                       <Text style={[styles.statusBadgeText, { color: statusStyle.fg }]}>
                         {activity.status}
                       </Text>
@@ -1144,7 +1151,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                       <Text style={[styles.listSubtitle, { color: theme.colors.textSecondary }]}>{checkout.propertyTitle} • Room {checkout.roomNumber}</Text>
                       <Text style={[styles.listMeta, { color: theme.colors.textTertiary }]}>{checkout.endDate}</Text>
                     </View>
-                    <View style={[styles.pill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}> 
+                    <View style={[styles.pill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
                       <Text style={[styles.pillText, { color: urgency.fg }]}>{checkout.daysLeft}d</Text>
                     </View>
                   </View>
@@ -1204,7 +1211,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
               <Text style={[styles.sectionHelper, { color: theme.colors.error }]}>{billingHealth.overdueInvoicesCount || 0} overdue</Text>
             </View>
 
-            <View style={[styles.cardContainer, { gap: 12 }]}> 
+            <View style={[styles.cardContainer, { gap: 12 }]}>
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity
                   activeOpacity={0.85}
@@ -1222,13 +1229,13 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
                     navigation.navigate('Payments', { filter: 'pending' });
                   }}
-                  style={{ 
-                    flex: 1, 
-                    padding: 12, 
-                    borderRadius: 10, 
-                    borderWidth: 1, 
-                    borderColor: theme.isDark ? '#92400E' : '#FCD34D', 
-                    backgroundColor: theme.isDark ? 'rgba(146,64,14,0.1)' : '#FFFBEB' 
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: theme.isDark ? '#92400E' : '#FCD34D',
+                    backgroundColor: theme.isDark ? 'rgba(146,64,14,0.1)' : '#FFFBEB'
                   }}
                 >
                   <Text style={{ fontSize: 11, color: theme.isDark ? '#fbbf24' : '#92400E', fontWeight: '700' }}>Due This Week</Text>
@@ -1250,13 +1257,13 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
                     navigation.navigate('Payments', { filter: 'overdue' });
                   }}
-                  style={{ 
-                    flex: 1, 
-                    padding: 12, 
-                    borderRadius: 10, 
-                    borderWidth: 1, 
-                    borderColor: theme.isDark ? '#991B1B' : '#FCA5A5', 
-                    backgroundColor: theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2' 
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: theme.isDark ? '#991B1B' : '#FCA5A5',
+                    backgroundColor: theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2'
                   }}
                 >
                   <Text style={{ fontSize: 11, color: theme.isDark ? '#f87171' : '#991B1B', fontWeight: '700' }}>Overdue Invoices</Text>
@@ -1280,14 +1287,14 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                     drilldownToken: Date.now(),
                   })}
                   style={[
-                    styles.listItem, 
-                    { 
-                      borderColor: theme.isDark ? '#991B1B' : '#FCA5A5', 
+                    styles.listItem,
+                    {
+                      borderColor: theme.isDark ? '#991B1B' : '#FCA5A5',
                       backgroundColor: theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2',
                       borderWidth: 1
                     }
                   ]}
-                > 
+                >
                   <View style={styles.listContent}>
                     <Text style={[styles.listTitle, { color: theme.colors.text }]}>{invoice.tenantName}</Text>
                     <Text style={[styles.listSubtitle, { color: theme.colors.textSecondary }]}>{invoice.propertyTitle} • Room {invoice.roomNumber}</Text>
@@ -1322,17 +1329,17 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                 </View>
               ) : (
                 unpaidBookings.slice(0, 5).map((booking) => (
-                  <View 
-                    key={booking.id} 
+                  <View
+                    key={booking.id}
                     style={[
-                      styles.listItem, 
-                      { 
-                        borderColor: theme.isDark ? '#991B1B' : '#F87171', 
+                      styles.listItem,
+                      {
+                        borderColor: theme.isDark ? '#991B1B' : '#F87171',
                         backgroundColor: theme.isDark ? 'rgba(153,27,27,0.1)' : '#FEF2F2',
                         borderWidth: 1
                       }
                     ]}
-                  > 
+                  >
                     <View style={styles.listContent}>
                       <Text style={[styles.listTitle, { color: theme.colors.text }]}>{booking.tenantName}</Text>
                       <Text style={[styles.listSubtitle, { color: theme.colors.textSecondary }]}>{booking.propertyTitle} • Room {booking.roomNumber}</Text>

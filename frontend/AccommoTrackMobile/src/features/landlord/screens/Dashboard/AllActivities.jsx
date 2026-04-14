@@ -63,6 +63,7 @@ const statusBadgeMap = {
   failed: { bg: '#FEE2E2', fg: '#991B1B' },
   declined: { bg: '#FEE2E2', fg: '#991B1B' },
   overdue: { bg: '#FEE2E2', fg: '#991B1B' },
+  refunded: { bg: '#FEE2E2', fg: '#991B1B' },
   inactive: { bg: '#E5E7EB', fg: '#374151' },
   maintenance: { bg: '#E5E7EB', fg: '#374151' },
   draft: { bg: '#E5E7EB', fg: '#374151' }
@@ -81,7 +82,7 @@ const resolveActivityColorKey = (activity) => {
 
   if (type === 'property' && (status === 'updated' || status === 'changed')) return 'blue';
   if (type === 'room' && status === 'occupied') return 'blue';
-  if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'red';
+  if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'red';
   if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
   if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
   if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
@@ -168,7 +169,7 @@ export default function AllActivities({ navigation, route }) {
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(activity => 
+      result = result.filter(activity =>
         activity.action?.toLowerCase().includes(query) ||
         activity.description?.toLowerCase().includes(query) ||
         activity.status?.toLowerCase().includes(query)
@@ -190,7 +191,7 @@ export default function AllActivities({ navigation, route }) {
     const description = activity.description || '';
 
     // Extract tenant name from description if available
-    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/); 
+    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/);
     const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
 
     switch (type) {
@@ -208,14 +209,17 @@ export default function AllActivities({ navigation, route }) {
         break;
       }
       case 'payment': {
+        const invoiceId = activity.invoice_id || activity.data?.invoice_id || entityId;
         const params = {
           searchQuery: tenantName,
-          focusInvoiceId: entityId || null,
+          focusInvoiceId: invoiceId || null,
           drilldownToken: Date.now(),
         };
         const status = String(activity.status || '').toLowerCase();
         if (status === 'overdue') params.filter = 'overdue';
-        else if (status === 'paid' || status === 'confirmed') params.filter = 'paid';
+        else if (status === 'refunded' || status === 'partially_refunded') params.filter = 'refunded';
+        else if (status === 'paid' || status === 'confirmed' || status === 'succeeded') params.filter = 'paid';
+        else if (status === 'pending_verification' || status === 'pending_offline') params.filter = 'pending_verification';
         else params.filter = 'pending';
         navigation.navigate('Payments', params);
         break;
@@ -246,10 +250,10 @@ export default function AllActivities({ navigation, route }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
-      
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
@@ -280,8 +284,8 @@ export default function AllActivities({ navigation, route }) {
 
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScrollContent}
         >
@@ -333,16 +337,16 @@ export default function AllActivities({ navigation, route }) {
           </View>
         ) : filteredActivities.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons 
-              name={searchQuery ? "search-outline" : "alert-circle-outline"} 
-              size={48} 
-              color="#9CA3AF" 
+            <Ionicons
+              name={searchQuery ? "search-outline" : "alert-circle-outline"}
+              size={48}
+              color="#9CA3AF"
             />
             <Text style={styles.emptyStateTitle}>
               {searchQuery ? 'No results found' : 'No activities'}
             </Text>
             <Text style={styles.emptyStateText}>
-              {searchQuery 
+              {searchQuery
                 ? `No activities match "${searchQuery}"`
                 : 'Your activity feed will appear here'
               }
@@ -360,7 +364,7 @@ export default function AllActivities({ navigation, route }) {
               const palette = activityColorMap[colorKey] || activityColorMap.gray;
               const iconName = activityIconMap[activity.type] || activityIconMap.default;
               const statusStyle = resolveStatusBadgeStyle(activity);
-              
+
               return (
                 <TouchableOpacity
                   key={`${activity.action}-${index}`}
