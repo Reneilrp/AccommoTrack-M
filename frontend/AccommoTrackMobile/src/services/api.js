@@ -197,6 +197,26 @@ api.interceptors.request.use(async (config) => {
       config.headers = {};
     }
 
+    const isFormDataPayload = typeof FormData !== 'undefined' && config.data instanceof FormData;
+    if (isFormDataPayload) {
+      const currentContentType = typeof config.headers?.get === 'function'
+        ? config.headers.get('Content-Type')
+        : (config.headers['Content-Type'] || config.headers['content-type']);
+
+      const isJsonContentType = String(currentContentType || '')
+        .toLowerCase()
+        .includes('application/json');
+
+      if (isJsonContentType) {
+        if (typeof config.headers?.delete === 'function') {
+          config.headers.delete('Content-Type');
+        } else {
+          delete config.headers['Content-Type'];
+          delete config.headers['content-type'];
+        }
+      }
+    }
+
     let token = useAuthStore.getState().authToken || null;
     let refreshToken = useAuthStore.getState().refreshToken || null;
     let legacyUser = null;

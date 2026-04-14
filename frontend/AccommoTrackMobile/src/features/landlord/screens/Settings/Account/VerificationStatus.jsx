@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from "../../../../../contexts/ThemeContext.jsx";
@@ -41,6 +42,15 @@ const IMAGE_EXTENSION_TO_MIME = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
+};
+const IMAGE_MIME_TO_EXTENSION = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+const PERMIT_MIME_TO_EXTENSION = {
+  ...IMAGE_MIME_TO_EXTENSION,
+  "application/pdf": "pdf",
 };
 
 export default function VerificationStatus({ navigation }) {
@@ -129,9 +139,21 @@ export default function VerificationStatus({ navigation }) {
   }, [fetchError]);
 
   const resolveImageMimeType = (asset) => {
-    const explicitType = String(asset?.mimeType || asset?.type || "").toLowerCase();
-    if (explicitType.startsWith("image/")) {
+    const explicitType = String(asset?.mimeType || asset?.type || "")
+      .toLowerCase()
+      .trim();
+
+    if (explicitType === "image/jpg") {
+      return "image/jpeg";
+    }
+
+    if (Object.prototype.hasOwnProperty.call(IMAGE_MIME_TO_EXTENSION, explicitType)) {
       return explicitType;
+    }
+
+    if (explicitType.startsWith("image/")) {
+      // Keep camera/library captures as image uploads even when device reports a non-standard subtype.
+      return "image/jpeg";
     }
 
     const uriOrName = String(asset?.fileName || asset?.uri || "");
@@ -139,10 +161,52 @@ export default function VerificationStatus({ navigation }) {
     return IMAGE_EXTENSION_TO_MIME[extension] || "image/jpeg";
   };
 
-  const updatePickedDocument = (field, asset) => {
-    const fallbackName = `${field}-${Date.now()}.jpg`;
-    const filename = asset.fileName || asset.uri.split("/").pop() || fallbackName;
+  const resolvePermitMimeType = (asset) => {
+    const explicitType = String(asset?.mimeType || asset?.type || "")
+      .toLowerCase()
+      .trim();
+
+    if (explicitType === "image/jpg") {
+      return "image/jpeg";
+    }
+
+    if (explicitType === "application/x-pdf") {
+      return "application/pdf";
+    }
+
+    if (Object.prototype.hasOwnProperty.call(PERMIT_MIME_TO_EXTENSION, explicitType)) {
+      return explicitType;
+    }
+
+    const uriOrName = String(asset?.name || asset?.fileName || asset?.uri || "");
+    const extension = uriOrName.split(".").pop()?.toLowerCase() || "";
+
+    if (extension === "pdf") {
+      return "application/pdf";
+    }
+
+    return IMAGE_EXTENSION_TO_MIME[extension] || "application/pdf";
+  };
+
+  const ensureFilenameForMime = (field, rawFilename, mimeType, mimeToExtension, fallbackExtension) => {
+    const preferredExtension = mimeToExtension[mimeType] || fallbackExtension;
+    const baseFilename = String(rawFilename || "").trim();
+
+    if (!baseFilename) {
+      return `${field}-${Date.now()}.${preferredExtension}`;
+    }
+
+    if (new RegExp(`\\.(${Object.values(mimeToExtension).join("|")})$`, "i").test(baseFilename)) {
+      return baseFilename;
+    }
+
+    return `${baseFilename}.${preferredExtension}`;
+  };
+
+  const updatePickedIdImage = (field, asset) => {
+    const rawFilename = asset.fileName || asset.uri.split("/").pop();
     const type = resolveImageMimeType(asset);
+    const filename = ensureFilenameForMime(field, rawFilename, type, IMAGE_MIME_TO_EXTENSION, "jpg");
 
     setFormData((prev) => ({
       ...prev,
@@ -152,6 +216,37 @@ export default function VerificationStatus({ navigation }) {
         type,
       },
     }));
+  };
+
+  const updatePickedPermitDocument = (asset) => {
+    const rawFilename = asset.name || asset.fileName || asset.uri.split("/").pop();
+    const type = resolvePermitMimeType(asset);
+    const filename = ensureFilenameForMime("permit", rawFilename, type, PERMIT_MIME_TO_EXTENSION, "pdf");
+
+    setFormData((prev) => ({
+      ...prev,
+      permit: {
+        uri: asset.uri,
+        name: filename,
+        type,
+      },
+    }));
+  };
+
+  const pickPermitFromFileManager = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        updatePickedPermitDocument(result.assets[0]);
+      }
+    } catch (_error) {
+      showAlert("Error", "Could not open file manager. Please try again.");
+    }
   };
 
   const pickDocumentFromLibrary = async (field) => {
@@ -171,7 +266,11 @@ export default function VerificationStatus({ navigation }) {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      updatePickedDocument(field, result.assets[0]);
+      if (field === "permit") {
+        updatePickedPermitDocument(result.assets[0]);
+      } else {
+        updatePickedIdImage(field, result.assets[0]);
+      }
     }
   };
 
@@ -192,12 +291,18 @@ export default function VerificationStatus({ navigation }) {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      updatePickedDocument(field, result.assets[0]);
+      if (field === "permit") {
+        updatePickedPermitDocument(result.assets[0]);
+      } else {
+        updatePickedIdImage(field, result.assets[0]);
+      }
     }
   };
 
   const handlePickDocument = (field) => {
-    showAlert("Upload Document", "Choose a source for your document image.", [
+    const isPermitField = field === "permit";
+
+    const options = [
       {
         text: "Take Photo",
         onPress: () => {
@@ -205,16 +310,35 @@ export default function VerificationStatus({ navigation }) {
         },
       },
       {
-        text: "Choose from Library",
+        text: isPermitField ? "Choose Image from Library" : "Choose from Library",
         onPress: () => {
           void pickDocumentFromLibrary(field);
         },
       },
-      { text: "Cancel", style: "cancel" },
-    ], {
-      showCloseButton: true,
-      cancelable: true,
-    });
+    ];
+
+    if (isPermitField) {
+      options.push({
+        text: "Choose File (PDF/Image)",
+        onPress: () => {
+          void pickPermitFromFileManager();
+        },
+      });
+    }
+
+    options.push({ text: "Cancel", style: "cancel" });
+
+    showAlert(
+      isPermitField ? "Upload Permit" : "Upload Document",
+      isPermitField
+        ? "Choose a source for your permit file (image or PDF)."
+        : "Choose a source for your document image.",
+      options,
+      {
+        showCloseButton: true,
+        cancelable: true,
+      },
+    );
   };
 
   const handleSubmit = async () => {
@@ -236,6 +360,15 @@ export default function VerificationStatus({ navigation }) {
       && !String(formData.validIdBack?.type || "").toLowerCase().startsWith("image/")
     ) {
       showAlert("Validation", "Valid ID back must be uploaded as an image.");
+      return;
+    }
+
+    const permitType = String(formData.permit?.type || "").toLowerCase();
+    const isPermitImage = permitType.startsWith("image/");
+    const isPermitPdf = permitType === "application/pdf";
+
+    if (!isPermitImage && !isPermitPdf) {
+      showAlert("Validation", "Permit must be an image or PDF file.");
       return;
     }
 
@@ -688,7 +821,7 @@ export default function VerificationStatus({ navigation }) {
             }
           }}
         >
-          <Pressable style={styles.modalContent} onPress={() => {}}>
+          <Pressable style={styles.modalContent} onPress={() => { }}>
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderTopRow}>
                 <Text style={styles.modalTitle}>Submit Verification</Text>
@@ -810,7 +943,7 @@ export default function VerificationStatus({ navigation }) {
                     color="#16a34a"
                   />
                   <Text style={styles.uploadBoxText}>
-                    Upload Permit Document
+                    Upload Permit (Image or PDF)
                   </Text>
                 </TouchableOpacity>
                 {formData.permit && (

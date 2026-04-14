@@ -30,7 +30,7 @@ class LandlordVerificationController extends Controller
             'valid_id_other' => 'nullable|string|max:255',
             'valid_id' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             'valid_id_back' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'permit' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
             'agree' => 'accepted',
             'dob' => 'required|date',
         ]);
@@ -316,7 +316,7 @@ class LandlordVerificationController extends Controller
             'valid_id_other' => 'required_if:valid_id_type,Other,other|nullable|string|max:255',
             'valid_id_front' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             'valid_id_back' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'permit' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -484,7 +484,7 @@ class LandlordVerificationController extends Controller
             'valid_id_other' => 'nullable|string|max:255',
             'valid_id' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             'valid_id_back' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'permit' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
         ]);
 
         if ($validator->fails()) {

@@ -17,7 +17,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import tenantService from '../../../../services/TenantService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { DashboardStatSkeleton } from '../../../../components/Skeletons/index.jsx';
-import { showError } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/DashboardScreen.js';
 import {
   tenantQueryKeys,
@@ -120,7 +119,6 @@ const DashboardScreen = () => {
   );
 
   const [refreshing, setRefreshing] = useState(false);
-  const [userName, setUserName] = useState('');
   const [expandedPanel, setExpandedPanel] = useState(null);
 
   // Guard: Check if user is authenticated
@@ -142,22 +140,6 @@ const DashboardScreen = () => {
 
     checkAuth();
   }, [navigation]);
-
-  useEffect(() => {
-    const loadUserName = async () => {
-      try {
-        const userString = await AsyncStorage.getItem('user');
-        if (userString) {
-          const user = JSON.parse(userString);
-          setUserName(user.first_name || user.name || 'Tenant');
-        }
-      } catch (error) {
-        setUserName('Tenant');
-      }
-    };
-
-    loadUserName();
-  }, []);
 
   const currentStayQuery = useQuery({
     queryKey: tenantQueryKeys.dashboardCurrentStay(),
@@ -263,8 +245,6 @@ const DashboardScreen = () => {
   const upcoming = upcomingQuery.data || {};
 
   const stays = resolveStays(stayData);
-  const primaryStay = stays[0] || null;
-
   const totalDaysStayed = stays.reduce(
     (sum, stay) => sum + getNumeric(stay?.booking?.daysStayed, stay?.booking?.days_stayed),
     0,
@@ -287,6 +267,12 @@ const DashboardScreen = () => {
   );
 
   const hasOverdueInvoices = Boolean(paymentData.hasOverdueInvoices || paymentData.has_overdue_invoices);
+  const totalPaid = getNumeric(
+    paymentData.totalPaid,
+    paymentData.total_paid,
+    paymentData.paidAmount,
+    paymentData.paid_amount,
+  );
 
   const activeRooms = stays.map((stay) => {
     const booking = stay?.booking || {};
@@ -856,7 +842,7 @@ const DashboardScreen = () => {
               </Text>
             </View>
             {balanceDue > 0 ? (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.paymentButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                 onPress={() => navigation.navigate('Payments')}
               >

@@ -16,7 +16,7 @@ const ProfileService = {
           return '/me';
         }
       }
-    } catch (e) { /* ignore – fall through to tenant default */ }
+    } catch (_e) { /* ignore – fall through to tenant default */ }
     return '/tenant/profile';
   },
 
@@ -306,7 +306,7 @@ const ProfileService = {
         success: true,
         data: response.data
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
         data: ['Philippine Passport', "Driver's License", 'PhilSys ID (National ID)', 'UMID'],
@@ -320,7 +320,11 @@ const ProfileService = {
    */
   async resubmitVerification(formData) {
     try {
-      const response = await api.post('/landlord/resubmit-verification', formData);
+      const headers = formData instanceof FormData
+        ? { 'Content-Type': 'multipart/form-data' }
+        : undefined;
+
+      const response = await api.post('/landlord/resubmit-verification', formData, { headers });
       return {
         success: true,
         data: response.data,
@@ -341,7 +345,11 @@ const ProfileService = {
    */
   async registerAsLandlord(formData) {
     try {
-      const response = await api.post('/tenant/register-landlord', formData);
+      const headers = formData instanceof FormData
+        ? { 'Content-Type': 'multipart/form-data' }
+        : undefined;
+
+      const response = await api.post('/tenant/register-landlord', formData, { headers });
 
       return {
         success: true,
@@ -355,7 +363,8 @@ const ProfileService = {
         success: false,
         error: error.response?.data?.message || 'Failed to submit landlord registration',
         errors: error.response?.data?.errors || {},
-        status: error.response?.data?.status || null,
+        status: error.response?.status || null,
+        backendStatus: error.response?.data?.status || null,
       };
     }
   },

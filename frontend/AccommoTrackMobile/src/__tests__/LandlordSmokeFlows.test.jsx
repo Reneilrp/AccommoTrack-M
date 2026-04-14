@@ -100,6 +100,10 @@ jest.mock('expo-image-picker', () => ({
   },
 }));
 
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
+
 jest.mock('../services/ProfileService.js', () => ({
   __esModule: true,
   default: {
@@ -213,7 +217,7 @@ const caretakerFixture = {
 describe('Landlord smoke flows', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    jest.spyOn(Alert, 'alert').mockImplementation(() => { });
     PropertyService.reverseGeocode.mockResolvedValue({ success: false });
   });
 
@@ -922,12 +926,12 @@ describe('Landlord smoke flows', () => {
       />,
     );
 
-      await screen.findByDisplayValue('Dorm One');
-      expect(screen.getByText('GCash Account Name')).toBeTruthy();
-      expect(screen.getByText('GCash Number')).toBeTruthy();
-      expect(screen.getByText('Room Transfer Processing Fee (₱)')).toBeTruthy();
+    await screen.findByDisplayValue('Dorm One');
+    expect(screen.getByText('GCash Account Name')).toBeTruthy();
+    expect(screen.getByText('GCash Number')).toBeTruthy();
+    expect(screen.getByText('Room Transfer Processing Fee (₱)')).toBeTruthy();
 
-      fireEvent.changeText(screen.getByDisplayValue('321'), '654');
+    fireEvent.changeText(screen.getByDisplayValue('321'), '654');
 
     fireEvent.press(screen.getByText('Save Settings'));
 
