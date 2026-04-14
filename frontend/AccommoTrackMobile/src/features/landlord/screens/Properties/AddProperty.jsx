@@ -47,21 +47,21 @@ const GENDER_OPTIONS = [
 ];
 
 const AMENITIES_SUGGESTIONS = [
-  'WiFi', 
+  'WiFi',
   'Air Conditioning',
-  'Security', 
-  'Kitchen', 
+  'Security',
+  'Kitchen',
   'Balcony'
 ];
 
 const RULES_SUGGESTIONS = [
   'No smoking',
-'No pets allowed',
-'No visitors after 10 PM',
-'Quiet hours: 10 PM - 6 AM',
-'Keep common areas clean',
-'Respect other tenants',
-'No cooking in rooms'
+  'No pets allowed',
+  'No visitors after 10 PM',
+  'Quiet hours: 10 PM - 6 AM',
+  'Keep common areas clean',
+  'Respect other tenants',
+  'No cooking in rooms'
 ];
 
 const initialForm = {
@@ -151,7 +151,9 @@ export default function AddProperty({ navigation }) {
             const user = JSON.parse(userString);
             isCaretaker = user?.role === "caretaker";
             isPayMongoVerified =
-              user?.paymongo_verification_status === "verified";
+              user?.paymongo_verification_status === "verified" ||
+              user?.paymongo_verification_bypass === true ||
+              user?.is_paymongo_ready === true;
           } catch (_parseError) {
             isPayMongoVerified = false;
           }
@@ -1621,7 +1623,7 @@ export default function AddProperty({ navigation }) {
         onRequestClose={hideAlert}
       >
         <Pressable style={styles.successModalOverlay} onPress={hideAlert}>
-          <Pressable style={styles.successModalCard} onPress={() => {}}>
+          <Pressable style={styles.successModalCard} onPress={() => { }}>
             <TouchableOpacity
               onPress={hideAlert}
               style={{ position: "absolute", top: 12, right: 12, padding: 4, zIndex: 1 }}

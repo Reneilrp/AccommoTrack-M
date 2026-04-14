@@ -34,6 +34,7 @@ const LandlordRegister = () => {
     validIdType: '',
     validIdOther: '',
     validId: null,
+    validIdBack: null,
     permit: null,
     agree: false,
   });
@@ -47,7 +48,7 @@ const LandlordRegister = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const fieldRefs = useRef({});
-  const fileInputRefs = useRef({ validId: null, permit: null });
+  const fileInputRefs = useRef({ validId: null, validIdBack: null, permit: null });
 
   // Email live-check state + refs for debounce/abort
   const [emailAvailable, setEmailAvailable] = useState(null);
@@ -317,7 +318,7 @@ const LandlordRegister = () => {
       }
       
       if (!form.validId) {
-        errors.validId = 'Please upload your valid ID';
+        errors.validId = 'Please upload the front of your valid ID';
       }
       if (!form.permit) {
         errors.permit = 'Please upload your accommodation or business permit';
@@ -371,6 +372,9 @@ const LandlordRegister = () => {
         formData.append('valid_id_other', form.validIdOther);
       }
       formData.append('valid_id', form.validId);
+      if (form.validIdBack) {
+        formData.append('valid_id_back', form.validIdBack);
+      }
       formData.append('permit', form.permit);
       formData.append('agree', form.agree);
       // formData.append('user_id', ...);
@@ -394,7 +398,7 @@ const LandlordRegister = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setSuccess('Registration submitted! Our team will review your documents.');
-      setForm({ firstName: '', middleName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', validIdType: '', validIdOther: '', validId: null, permit: null, agree: false });
+      setForm({ firstName: '', middleName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', validIdType: '', validIdOther: '', validId: null, validIdBack: null, permit: null, agree: false });
       setStep(1);
       setShowModal(true);
     } catch (err) {
@@ -816,7 +820,7 @@ const LandlordRegister = () => {
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Valid ID <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Valid ID (Front) <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <input
                       type="file"
@@ -846,6 +850,38 @@ const LandlordRegister = () => {
                     )}
                   </div>
                   {fieldErrors.validId && <p className="text-xs text-red-500 mt-2">{fieldErrors.validId}</p>}
+                  <p className="text-[10px] text-gray-500 mt-2">Max 5MB (JPG, PNG, PDF)</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Valid ID (Back) <span className="text-gray-500 dark:text-gray-500">(optional)</span></label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      name="validIdBack"
+                      accept="image/*,.pdf"
+                      onChange={handleChange}
+                      ref={el => { fileInputRefs.current.validIdBack = el; }}
+                      className={`w-full pr-20 px-2 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validIdBack ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
+                      disabled={submitting}
+                    />
+                    {form.validIdBack && (
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                        <button
+                          type="button"
+                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          onClick={() => {
+                            try { if (fileInputRefs.current.validIdBack) fileInputRefs.current.validIdBack.value = ''; } catch (_ignore) { /* ignore */ }
+                            setForm(prev => ({ ...prev, validIdBack: null }));
+                            setFieldErrors(prev => ({ ...prev, validIdBack: '' }));
+                          }}
+                          disabled={submitting}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {fieldErrors.validIdBack && <p className="text-xs text-red-500 mt-2">{fieldErrors.validIdBack}</p>}
                   <p className="text-[10px] text-gray-500 mt-2">Max 5MB (JPG, PNG, PDF)</p>
                 </div>
                 <div>

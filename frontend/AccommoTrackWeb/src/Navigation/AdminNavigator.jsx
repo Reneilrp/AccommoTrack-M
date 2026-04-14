@@ -11,6 +11,7 @@ const Approvals = lazy(() => import('../screens/Admin/Approvals.jsx'));
 const Reports = lazy(() => import('../screens/Admin/Reports.jsx'));
 const PaymentOversight = lazy(() => import('../screens/Admin/PaymentOversight.jsx'));
 const SubscriptionGrants = lazy(() => import('../screens/Admin/SubscriptionGrants.jsx'));
+const PaymongoBypassManagement = lazy(() => import('../screens/Admin/PaymongoBypassManagement.jsx'));
 const AuditExplorer = lazy(() => import('../screens/Admin/AuditExplorer.jsx'));
 const ArchivedProperties = lazy(() => import('../screens/Admin/ArchivedProperties.jsx'));
 const SystemSettings = lazy(() => import('../screens/Admin/SystemSettings.jsx'));
@@ -60,6 +61,10 @@ export default function AdminNavigator({ user, onLogout }) {
         <Route
           path="/admin/subscription-grants"
           element={withLayout(<SubscriptionGrants />, 'Loading subscription grants')}
+        />
+        <Route
+          path="/admin/paymongo-bypass"
+          element={withLayout(<PaymongoBypassManagement />, 'Loading PayMongo bypass management')}
         />
         <Route
           path="/admin/audit-logs"

@@ -42,7 +42,10 @@ export default function PropertyPaymentSettings({ navigation }) {
       if (userString) {
         try {
           const user = JSON.parse(userString);
-          isPayMongoVerified = user?.paymongo_verification_status === 'verified';
+          isPayMongoVerified =
+            user?.paymongo_verification_status === 'verified' ||
+            user?.paymongo_verification_bypass === true ||
+            user?.is_paymongo_ready === true;
         } catch (_error) {
           isPayMongoVerified = false;
         }

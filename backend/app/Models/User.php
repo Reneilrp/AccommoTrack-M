@@ -120,11 +120,13 @@ class User extends Authenticatable
         'notification_preferences' => 'array',
         'preferences' => 'array',
         'date_of_birth' => 'date',
+        'paymongo_verification_bypass' => 'boolean',
     ];
 
     protected $appends = [
         'caretaker_permissions',
         'name',
+        'is_paymongo_ready',
     ];
 
     /**
@@ -450,6 +452,11 @@ class User extends Authenticatable
      * Check if this landlord is ready to accept PayMongo payments.
      * Returns true if verified OR if bypass is enabled for testing.
      */
+    public function getIsPaymongoReadyAttribute(): bool
+    {
+        return $this->isPaymongoReady();
+    }
+
     public function isPaymongoReady(): bool
     {
         // Check if bypass is enabled for this specific user

@@ -743,6 +743,15 @@ class TenantController extends Controller
             }
         }
 
+        // Check if there are 2 or more pending bookings for the requested room
+        $pendingBookingsCount = Booking::where('room_id', $newRoom->id)
+            ->whereIn('status', ['pending', 'pending_reservation', 'reserved'])
+            ->count();
+
+        if ($pendingBookingsCount >= 2) {
+            return response()->json(['error' => 'Room transfer is not available. This room has 2 or more pending bookings.'], 422);
+        }
+
         // Verify new room availability
         if (! $newRoom->isAvailable() || $newRoom->available_slots <= 0) {
             return response()->json(['error' => 'New room is not available'], 400);

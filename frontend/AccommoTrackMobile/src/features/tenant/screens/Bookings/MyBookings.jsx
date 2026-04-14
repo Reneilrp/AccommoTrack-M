@@ -82,6 +82,7 @@ export default function MyBookings() {
   const [activeTab, setActiveTab] = useState(
     uiState.bookings?.activeTab ?? 'current'
   );
+  const [overdueTab, setOverdueTab] = useState('all'); // 'all', 'active', 'pending', 'overdue'
   const [viewMode, setViewMode] = useState('active'); // 'active' or 'pending'
   const slideAnim = useRef(new Animated.Value(0)).current;
   const cachedBookings = uiState.data?.[BUCKET];
@@ -153,6 +154,9 @@ export default function MyBookings() {
   const [moveOutDate, setMoveOutDate] = useState(null);
   const [moveOutReason, setMoveOutReason] = useState('');
   const [showMoveOutDatePicker, setShowMoveOutDatePicker] = useState(false);
+
+  const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
+  const [cancelBookingContext, setCancelBookingContext] = useState(null);
 
   // Auto-fetch financial preview whenever the selected transfer room changes
   React.useEffect(() => {
@@ -1065,16 +1069,28 @@ export default function MyBookings() {
     }
   };
 
-  const handleCancelBooking = async (bookingId) => {
-    if (!bookingId || cancellingBookingId) return;
+  const openCancelBookingModal = (booking) => {
+    if (!booking?.id) return;
+    setCancelBookingContext(booking);
+    setShowCancelBookingModal(true);
+  };
 
-    setCancellingBookingId(bookingId);
-    const result = await BookingService.cancelBooking(bookingId, {
+  const closeCancelBookingModal = () => {
+    setShowCancelBookingModal(false);
+    setCancelBookingContext(null);
+  };
+
+  const handleCancelBooking = async () => {
+    if (!cancelBookingContext?.id || cancellingBookingId) return;
+
+    setCancellingBookingId(cancelBookingContext.id);
+    const result = await BookingService.cancelBooking(cancelBookingContext.id, {
       reason: 'Tenant cancelled the booking',
     });
 
     if (result.success) {
       showAlert('Cancelled', 'Your booking request has been cancelled.');
+      closeCancelBookingModal();
       await refetchMyBookingsBundle();
     } else {
       showAlert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
@@ -1328,58 +1344,59 @@ export default function MyBookings() {
     const [menuVisible, setMenuVisible] = useState(false);
 
     return (
-      <View style={{ position: 'relative' }}>
-        <TouchableOpacity
-          style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            borderRadius: 20,
-            width: 36,
-            height: 36,
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-            elevation: 5,
-          }}
-          onPress={() => setMenuVisible(!menuVisible)}
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <Modal
-          visible={menuVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setMenuVisible(false)}
-          statusBarTranslucent
-          navigationBarTranslucent
-          presentationStyle="overFullScreen"
-        >
+      <>
+        {menuVisible && (
           <TouchableOpacity
             style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              justifyContent: 'center',
-              alignItems: 'center',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 10,
             }}
             activeOpacity={1}
             onPress={() => setMenuVisible(false)}
+          />
+        )}
+        <View style={{ position: 'relative', zIndex: 20 }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              borderRadius: 20,
+              width: 36,
+              height: 36,
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+              elevation: 5,
+            }}
+            onPress={() => setMenuVisible(!menuVisible)}
           >
+            <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {menuVisible && (
             <View
               style={{
+                position: 'absolute',
+                top: 44,
+                right: 0,
                 backgroundColor: theme.colors.surface,
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: theme.colors.border,
-                minWidth: 200,
+                minWidth: 180,
                 overflow: 'hidden',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.3,
                 shadowRadius: 8,
                 elevation: 8,
+                zIndex: 30,
               }}
             >
               <TouchableOpacity
@@ -1439,9 +1456,9 @@ export default function MyBookings() {
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#DC2626' }}>Report</Text>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        </Modal>
-      </View>
+          )}
+        </View>
+      </>
     );
   };
 
@@ -1475,10 +1492,55 @@ export default function MyBookings() {
   const renderCurrentStay = () => {
     const hasStays = stayData?.stays && stayData.stays.length > 0;
     const hasPending = pendingBookings && pendingBookings.length > 0;
+    
+    // Check if any booking is overdue
+    const hasOverdueStays = stayData?.stays?.some(stay => 
+      stay?.booking?.isOverdue || stay?.booking?.is_overdue
+    ) || false;
+    const hasOverduePending = pendingBookings?.some(booking => 
+      booking?.isOverdue || booking?.is_overdue
+    ) || false;
+    const hasAnyOverdue = hasOverdueStays || hasOverduePending;
+
+    // Filter based on overdue tab
+    let filteredStays = stayData?.stays || [];
+    let filteredPending = pendingBookings || [];
+    
+    if (hasAnyOverdue && overdueTab !== 'all') {
+      if (overdueTab === 'active') {
+        filteredStays = filteredStays.filter(stay => 
+          !(stay?.booking?.isOverdue || stay?.booking?.is_overdue)
+        );
+        filteredPending = filteredPending.filter(booking => 
+          !(booking?.isOverdue || booking?.is_overdue)
+        );
+      } else if (overdueTab === 'pending') {
+        // Show only pending status bookings (not overdue)
+        filteredStays = filteredStays.filter(stay => {
+          const status = String(stay?.booking?.status || '').toLowerCase();
+          return ['pending', 'pending_reservation', 'reserved', 'booked'].includes(status) && 
+                 !(stay?.booking?.isOverdue || stay?.booking?.is_overdue);
+        });
+        filteredPending = filteredPending.filter(booking => 
+          !(booking?.isOverdue || booking?.is_overdue)
+        );
+      } else if (overdueTab === 'overdue') {
+        filteredStays = filteredStays.filter(stay => 
+          stay?.booking?.isOverdue || stay?.booking?.is_overdue
+        );
+        filteredPending = filteredPending.filter(booking => 
+          booking?.isOverdue || booking?.is_overdue
+        );
+      }
+    }
 
     const currentData = viewMode === 'active'
-      ? (stayData?.stays?.[selectedStayIndex] || stayData?.stays?.[0])
-      : (pendingBookings?.[selectedPendingIndex] || pendingBookings?.[0]);
+      ? (filteredStays?.[selectedStayIndex] || filteredStays?.[0])
+      : (filteredPending?.[selectedPendingIndex] || filteredPending?.[0]);
+
+    // Check if filtered results are empty
+    const hasFilteredStays = filteredStays.length > 0;
+    const hasFilteredPending = filteredPending.length > 0;
 
     if (!hasStays && !hasPending && !stayData?.upcomingBooking) {
       return (
@@ -1495,6 +1557,21 @@ export default function MyBookings() {
             >
               <Text style={styles.primaryButtonText}>Explore Properties</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    // Show empty state if filter returns no results
+    if (hasAnyOverdue && overdueTab !== 'all' && !hasFilteredStays && !hasFilteredPending) {
+      return (
+        <View style={styles.content}>
+          <View style={styles.emptyState}>
+            <Ionicons name="filter-outline" size={64} color={theme.colors.textTertiary} />
+            <Text style={styles.emptyTitle}>No {overdueTab === 'overdue' ? 'Overdue' : overdueTab === 'pending' ? 'Pending' : 'Active'} Bookings</Text>
+            <Text style={styles.emptyText}>
+              You don't have any {overdueTab === 'overdue' ? 'overdue' : overdueTab === 'pending' ? 'pending' : 'active'} bookings at the moment.
+            </Text>
           </View>
         </View>
       );
@@ -1675,8 +1752,96 @@ export default function MyBookings() {
           </View>
         )}
 
+        {/* Overdue Filter Tabs */}
+        {hasAnyOverdue && (
+          <View style={{ paddingHorizontal: 16, marginTop: 12, marginBottom: 8 }}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8 }}
+            >
+              <TouchableOpacity
+                onPress={() => setOverdueTab('all')}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: overdueTab === 'all' ? theme.colors.primary : theme.colors.backgroundSecondary,
+                  borderWidth: 1,
+                  borderColor: overdueTab === 'all' ? theme.colors.primary : theme.colors.border,
+                }}
+              >
+                <Text style={{ 
+                  fontSize: 12, 
+                  fontWeight: '700', 
+                  color: overdueTab === 'all' ? '#fff' : theme.colors.textSecondary 
+                }}>
+                  All
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setOverdueTab('active')}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: overdueTab === 'active' ? theme.colors.success : theme.colors.backgroundSecondary,
+                  borderWidth: 1,
+                  borderColor: overdueTab === 'active' ? theme.colors.success : theme.colors.border,
+                }}
+              >
+                <Text style={{ 
+                  fontSize: 12, 
+                  fontWeight: '700', 
+                  color: overdueTab === 'active' ? '#fff' : theme.colors.textSecondary 
+                }}>
+                  Active
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setOverdueTab('pending')}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: overdueTab === 'pending' ? (theme.isDark ? '#fbbf24' : '#F59E0B') : theme.colors.backgroundSecondary,
+                  borderWidth: 1,
+                  borderColor: overdueTab === 'pending' ? (theme.isDark ? '#fbbf24' : '#F59E0B') : theme.colors.border,
+                }}
+              >
+                <Text style={{ 
+                  fontSize: 12, 
+                  fontWeight: '700', 
+                  color: overdueTab === 'pending' ? '#fff' : theme.colors.textSecondary 
+                }}>
+                  Pending
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setOverdueTab('overdue')}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: overdueTab === 'overdue' ? theme.colors.error : theme.colors.backgroundSecondary,
+                  borderWidth: 1,
+                  borderColor: overdueTab === 'overdue' ? theme.colors.error : theme.colors.border,
+                }}
+              >
+                <Text style={{ 
+                  fontSize: 12, 
+                  fontWeight: '700', 
+                  color: overdueTab === 'overdue' ? '#fff' : theme.colors.textSecondary 
+                }}>
+                  Overdue
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        )}
+
         {/* Property Selector */}
-        {((viewMode === 'active' && stayData.stays.length > 1) || (viewMode === 'pending' && pendingBookings.length > 1)) && (
+        {((viewMode === 'active' && filteredStays.length > 1) || (viewMode === 'pending' && filteredPending.length > 1)) && (
           <View style={[styles.selectorContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
             <View style={styles.selectorInfo}>
               <View style={[styles.selectorIcon, { backgroundColor: theme.colors.primaryLight }]}>
@@ -1685,7 +1850,7 @@ export default function MyBookings() {
               <View>
                 <Text style={[styles.selectorLabel, { color: theme.colors.text }]}>Switch Property</Text>
                 <Text style={[styles.selectorSublabel, { color: theme.colors.textSecondary }]}>
-                  {viewMode === 'active' ? `${stayData.stays.length} active stays` : `${pendingBookings.length} pending requests`}
+                  {viewMode === 'active' ? `${filteredStays.length} active stays` : `${filteredPending.length} pending requests`}
                 </Text>
               </View>
             </View>
@@ -1814,22 +1979,6 @@ export default function MyBookings() {
             {!booking.isPending && (
               <View style={styles.actionGridContainer}>
                 <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: transferButtonDisabled ? theme.colors.textTertiary : (theme.isDark ? '#6d28d9' : '#7C3AED') }]}
-                    disabled={transferButtonDisabled}
-                    onPress={() => handleRequestTransfer(booking, property)}
-                  >
-                    <Text style={styles.actionBtnText}>
-                      {pendingTransferForBooking
-                        ? 'Transfer Pending'
-                        : transferLimitReached
-                          ? 'Limit Reached'
-                          : submittingTransfer
-                            ? 'Loading...'
-                            : 'Transfer'}
-                    </Text>
-                  </TouchableOpacity>
-
                   {hasMoveOutNotice ? (
                     <View
                       style={[
@@ -1863,26 +2012,43 @@ export default function MyBookings() {
                     <View style={styles.actionBtnPlaceholder} />
                   )}
                 </View>
-              </View>
-            )}
 
-            {!booking.isPending && (
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginBottom: 8 }}>
-                  Transfers this month: {monthlyTransferCount}/2
-                  {transferLimitReached ? ` (available again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'})` : ''}
-                </Text>
-                {pendingTransferForBooking && (
-                  <TouchableOpacity
-                    style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626' }]}
-                    disabled={cancellingTransferRequestId === pendingTransferForBooking.id}
-                    onPress={() => handleCancelTransferRequest(pendingTransferForBooking.id)}
-                  >
-                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                      {cancellingTransferRequestId === pendingTransferForBooking.id ? 'Cancelling...' : 'Cancel Pending Transfer'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                {/* Transfer section - separate row */}
+                <View style={{ marginTop: 12 }}>
+                  <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginBottom: 8 }}>
+                    Transfers this month: {monthlyTransferCount}/2
+                    {transferLimitReached ? ` (available again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'})` : ''}
+                  </Text>
+                  
+                  {pendingTransferForBooking ? (
+                    <TouchableOpacity
+                      style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626', marginTop: 0 }]}
+                      disabled={cancellingTransferRequestId === pendingTransferForBooking.id}
+                      onPress={() => handleCancelTransferRequest(pendingTransferForBooking.id)}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                        {cancellingTransferRequestId === pendingTransferForBooking.id ? 'Cancelling...' : 'Cancel Pending Transfer'}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.reviewBtn, { 
+                        backgroundColor: transferButtonDisabled ? theme.colors.textTertiary : (theme.isDark ? '#6d28d9' : '#7C3AED'),
+                        marginTop: 0
+                      }]}
+                      disabled={transferButtonDisabled}
+                      onPress={() => handleRequestTransfer(booking, property)}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                        {transferLimitReached
+                          ? 'Transfer Limit Reached'
+                          : submittingTransfer
+                            ? 'Loading...'
+                            : 'Request Room Transfer'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             )}
 
@@ -2003,16 +2169,7 @@ export default function MyBookings() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.reviewBtn, { backgroundColor: theme.colors.error }]}
-                      onPress={() => {
-                        showAlert(
-                          "Cancel Request",
-                          "Are you sure you want to cancel this booking request?",
-                          [
-                            { text: "No", style: "cancel" },
-                            { text: "Yes, Cancel", style: "destructive", onPress: () => handleCancelBooking(booking.id) }
-                          ]
-                        );
-                      }}
+                      onPress={() => openCancelBookingModal(booking)}
                       disabled={cancellingBookingId === booking.id}
                     >
                       <Text style={{ color: '#fff', fontWeight: 'bold' }}>
@@ -3852,6 +4009,129 @@ export default function MyBookings() {
               >
                 <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
                   {submittingMoveOut ? 'Submitting...' : 'Submit'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showCancelBookingModal}
+        animationType="fade"
+        transparent
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={closeCancelBookingModal}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+        }}>
+          <View style={{
+            borderRadius: 14,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            overflow: 'hidden',
+          }}>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                Cancel Booking Request
+              </Text>
+              <TouchableOpacity onPress={closeCancelBookingModal} style={{ padding: 4 }}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ padding: 16 }}>
+              <View style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 10,
+                backgroundColor: theme.isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2',
+                borderWidth: 1,
+                borderColor: theme.isDark ? '#EF4444' : '#FECACA',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Ionicons name="warning" size={20} color={theme.colors.error} />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.error }}>
+                    Are you sure?
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary, lineHeight: 18 }}>
+                  This action cannot be undone. Your booking request will be permanently cancelled.
+                </Text>
+              </View>
+
+              {cancelBookingContext && (
+                <View style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  marginBottom: 16,
+                }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.textTertiary, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Booking Details
+                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text }}>
+                    {cancelBookingContext.property?.title || cancelBookingContext.property_title || 'Property'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                    Room {cancelBookingContext.room?.room_number || cancelBookingContext.room_number || 'N/A'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              flexDirection: 'row',
+              gap: 10,
+            }}>
+              <TouchableOpacity
+                onPress={closeCancelBookingModal}
+                disabled={cancellingBookingId}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>No, Keep It</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleCancelBooking}
+                disabled={cancellingBookingId}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  backgroundColor: cancellingBookingId ? theme.colors.textTertiary : '#DC2626',
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
+                  {cancellingBookingId ? 'Cancelling...' : 'Yes, Cancel'}
                 </Text>
               </TouchableOpacity>
             </View>

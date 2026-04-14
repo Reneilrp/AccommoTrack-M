@@ -4,24 +4,23 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
 import { getImageUrl } from '../../utils/api';
-import { Menu, Settings as SettingsIcon, Archive, Scale, Megaphone, Gift } from 'lucide-react';
+import { Menu, Settings as SettingsIcon, Archive, Scale, Megaphone, Gift, KeyRound } from 'lucide-react';
 
-const AdminLayout = ({ children, user, onLogout = () => {} }) => {
+const AdminLayout = ({ children, user, onLogout = () => { } }) => {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const navigate = useNavigate();
 
   const navLinkClasses = (isActive) =>
-    `w-full flex items-center gap-4 px-4 py-4 transition-colors text-sm font-medium ${
-      isActive
-        ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 border-r-4 border-brand-600 dark:border-brand-500'
-        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+    `w-full flex items-center gap-4 px-4 py-4 transition-colors text-sm font-medium ${isActive
+      ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 border-r-4 border-brand-600 dark:border-brand-500'
+      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
     } ${!isSidebarOpen && 'justify-center'}`;
 
   const adminMenu = [
-    { 
-      path: '/admin', 
-      label: 'Dashboard', 
+    {
+      path: '/admin',
+      label: 'Dashboard',
       end: true,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,8 +28,8 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </svg>
       )
     },
-    { 
-      path: '/admin/users', 
+    {
+      path: '/admin/users',
       label: 'Users',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,8 +37,8 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </svg>
       )
     },
-    { 
-      path: '/admin/inquiries', 
+    {
+      path: '/admin/inquiries',
       label: 'Inquiries',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,8 +46,8 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </svg>
       )
     },
-    { 
-      path: '/admin/approvals', 
+    {
+      path: '/admin/approvals',
       label: 'Approvals',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,8 +55,8 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </svg>
       )
     },
-    { 
-      path: '/admin/reports', 
+    {
+      path: '/admin/reports',
       label: 'Reports',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,6 +77,11 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
       path: '/admin/subscription-grants',
       label: 'Subscription Grants',
       icon: <Gift className="w-5 h-5" />
+    },
+    {
+      path: '/admin/paymongo-bypass',
+      label: 'PayMongo Bypass',
+      icon: <KeyRound className="w-5 h-5" />
     },
     {
       path: '/admin/audit-logs',
@@ -124,12 +128,11 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
       {/* Sidebar */}
       <aside
         ref={asideRef}
-        className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
-          isSidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'
-        } w-64 flex flex-col min-h-0`}
+        className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${isSidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'
+          } w-64 flex flex-col min-h-0`}
       >        {/* Logo */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <div 
+          <div
             className="cursor-pointer flex items-center gap-2"
             onClick={() => navigate('/admin')}
             title="Go to Dashboard"
@@ -173,16 +176,16 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         )}
 
         {/* User Profile */}
-        <div 
+        <div
           className="p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           onClick={() => navigate('/admin')}
           title="Admin Profile"
         >
           <div className={`flex items-center gap-4 ${!isSidebarOpen && 'justify-center'}`}>
             {user?.profile_image ? (
-              <img 
-                src={getImageUrl(user.profile_image)} 
-                alt="Admin Profile" 
+              <img
+                src={getImageUrl(user.profile_image)}
+                alt="Admin Profile"
                 className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-600 shadow-sm flex-shrink-0"
               />
             ) : (
@@ -222,9 +225,8 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={handleLogoutClick}
-            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
-              !isSidebarOpen && 'justify-center'
-            }`}
+            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${!isSidebarOpen && 'justify-center'
+              }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -255,14 +257,13 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-all duration-300 ${
-        isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
-      }`}>
+      <main className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
+        }`}>
         {children}
       </main>
 
       {/* Logout Confirmation Modal */}
-      <LogoutConfirmModal 
+      <LogoutConfirmModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={confirmLogout}

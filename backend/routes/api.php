@@ -383,6 +383,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users', [AdminController::class, 'getUsers']);
         Route::get('/users/archived', [AdminController::class, 'getArchivedUsers']);
         Route::post('/users/{id}/password-reset', [AdminController::class, 'sendUserPasswordResetLink']);
+        Route::post('/users/{id}/generate-reset-link', [AdminController::class, 'generateUserPasswordResetLink']);
         Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
         Route::post('/users/{id}/restore', [AdminController::class, 'restoreUser']);
         Route::delete('/users/{id}/force', [AdminController::class, 'purgeUser']);

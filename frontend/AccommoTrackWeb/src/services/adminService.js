@@ -697,17 +697,41 @@ const adminService = {
   },
 
   /**
-   * Disable PayMongo verification bypass for a landlord
+   * Generate a password reset link for a user without sending email.
+   * This is useful for inquiry replies where admin wants to manually send the link.
    * @param {number|string} userId
+   * @param {string} reason
    */
-  async disablePaymongoBypass(userId) {
+  async generateUserPasswordResetLink(userId, reason) {
     try {
-      const response = await api.post(`/admin/users/${userId}/paymongo-bypass/disable`);
+      const response = await api.post(`/admin/users/${userId}/generate-reset-link`, { reason });
       return normalizeEnvelope(response?.data);
     } catch (error) {
       return normalizeRequestError(error);
     }
-  }
+  },
+
+  /**
+   * Search for a user by email to get their ID for password reset.
+   * @param {string} email
+   */
+  async searchUserByEmail(email) {
+    try {
+      const response = await api.get('/admin/users');
+      const envelope = normalizeEnvelope(response?.data);
+      const users = Array.isArray(envelope.data) ? envelope.data : [];
+      
+      const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+      
+      return {
+        success: true,
+        data: user || null,
+        message: user ? 'User found' : 'User not found',
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
 };
 
 export default adminService;

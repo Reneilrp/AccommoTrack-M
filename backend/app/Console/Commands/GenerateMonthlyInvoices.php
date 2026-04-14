@@ -185,35 +185,47 @@ class GenerateMonthlyInvoices extends Command
                 $baseInvoiceAmount = (float) $booking->monthly_rent + (float) $recurringAddonAmount;
 
                 if ($baseInvoiceAmount > 0) {
-                    $reference = 'INV-'.$periodStart->format('Ym').'-'.strtoupper(Str::random(6));
+                    // Check if this is a proxy booking with multiple occupied slots.
+                    $isProxyMode = $booking->booking_mode === 'proxy';
+                    $invoiceSlots = $isProxyMode
+                        ? max((int) ($booking->bed_count ?? 1), (int) $booking->occupants()->count(), 1)
+                        : 1;
+                    
+                    if ($isProxyMode && $invoiceSlots > 1) {
+                        // Generate separate invoices for each occupied slot.
+                        $this->generateProxyOccupantRecurringInvoices($booking, $periodStart, $periodEnd, $periodKey, $baseInvoiceAmount, $invoiceSlots);
+                    } else {
+                        // Generate single invoice
+                        $reference = 'INV-'.$periodStart->format('Ym').'-'.strtoupper(Str::random(6));
 
-                    Invoice::create([
-                        'reference' => $reference,
-                        'landlord_id' => $booking->landlord_id,
-                        'property_id' => $booking->property_id,
-                        'booking_id' => $booking->id,
-                        'tenant_id' => $booking->tenant_id,
-                        'description' => 'Monthly rent and services for '.$periodStart->format('F Y'),
-                        'invoice_type' => 'rent',
-                        'billing_period_start' => $periodStart,
-                        'billing_period_end' => $periodEnd,
-                        'billing_period_key' => $periodKey,
-                        'amount_cents' => (int) round($baseInvoiceAmount * 100),
-                        'currency' => 'PHP',
-                        'status' => 'pending',
-                        'issued_at' => now(),
-                        'due_date' => $periodStart,
-                        'metadata' => [
-                            'generated_by' => 'system',
-                            'billing_period' => $periodStart->format('Y-m'),
+                        Invoice::create([
+                            'reference' => $reference,
+                            'landlord_id' => $booking->landlord_id,
+                            'property_id' => $booking->property_id,
+                            'booking_id' => $booking->id,
+                            'tenant_id' => $booking->tenant_id,
+                            'description' => 'Monthly rent and services for '.$periodStart->format('F Y'),
+                            'invoice_type' => 'rent',
+                            'billing_period_start' => $periodStart,
+                            'billing_period_end' => $periodEnd,
                             'billing_period_key' => $periodKey,
-                        ],
-                    ]);
+                            'amount_cents' => (int) round($baseInvoiceAmount * 100),
+                            'currency' => 'PHP',
+                            'status' => 'pending',
+                            'issued_at' => now(),
+                            'due_date' => $periodStart,
+                            'metadata' => [
+                                'generated_by' => 'system',
+                                'billing_period' => $periodStart->format('Y-m'),
+                                'billing_period_key' => $periodKey,
+                            ],
+                        ]);
 
-                    Log::info('Generated recurring invoice', [
-                        'booking_id' => $booking->id,
-                        'billing_period_key' => $periodKey,
-                    ]);
+                        Log::info('Generated recurring invoice', [
+                            'booking_id' => $booking->id,
+                            'billing_period_key' => $periodKey,
+                        ]);
+                    }
                 }
             }
 
@@ -348,6 +360,75 @@ class GenerateMonthlyInvoices extends Command
 
         if ($dirty) {
             $booking->save();
+        }
+    }
+    
+    /**
+     * Generate separate recurring invoices for each occupant in a proxy booking
+     */
+    protected function generateProxyOccupantRecurringInvoices(
+        Booking $booking,
+        Carbon $periodStart,
+        Carbon $periodEnd,
+        string $periodKey,
+        float $totalAmount,
+        int $invoiceSlots
+    ): void {
+        $occupants = $booking->occupants()->get()->values();
+        $invoiceSlots = max(1, $invoiceSlots);
+        $perOccupantAmount = $totalAmount / $invoiceSlots;
+
+        if ($occupants->count() < $invoiceSlots) {
+            Log::warning('Recurring proxy billing found fewer occupants than billed slots; using fallback labels.', [
+                'booking_id' => $booking->id,
+                'bed_count' => (int) ($booking->bed_count ?? 1),
+                'occupants_count' => $occupants->count(),
+                'invoice_slots' => $invoiceSlots,
+                'billing_period_key' => $periodKey,
+            ]);
+        }
+        
+        for ($index = 0; $index < $invoiceSlots; $index++) {
+            /** @var \App\Models\BookingOccupant|null $occupant */
+            $occupant = $occupants->get($index);
+            $occupantName = $occupant?->full_name ?? ('Occupant #'.($index + 1));
+
+            $reference = 'INV-'.$periodStart->format('Ym').'-'.strtoupper(Str::random(6));
+            
+            Invoice::create([
+                'reference' => $reference,
+                'landlord_id' => $booking->landlord_id,
+                'property_id' => $booking->property_id,
+                'booking_id' => $booking->id,
+                'tenant_id' => $booking->tenant_id,
+                'description' => "Monthly rent for {$occupantName} - ".$periodStart->format('F Y'),
+                'invoice_type' => 'rent',
+                'billing_period_start' => $periodStart,
+                'billing_period_end' => $periodEnd,
+                'billing_period_key' => $periodKey,
+                'amount_cents' => (int) round($perOccupantAmount * 100),
+                'currency' => 'PHP',
+                'status' => 'pending',
+                'issued_at' => now(),
+                'due_date' => $periodStart,
+                'metadata' => [
+                    'generated_by' => 'system',
+                    'billing_period' => $periodStart->format('Y-m'),
+                    'billing_period_key' => $periodKey,
+                    'occupant_id' => $occupant?->id,
+                    'occupant_name' => $occupantName,
+                    'occupant_slot' => $index + 1,
+                    'proxy_booking' => true,
+                ],
+            ]);
+            
+            Log::info('Generated recurring invoice for proxy occupant', [
+                'booking_id' => $booking->id,
+                'occupant_id' => $occupant?->id,
+                'occupant_name' => $occupantName,
+                'occupant_slot' => $index + 1,
+                'billing_period_key' => $periodKey,
+            ]);
         }
     }
 }

@@ -687,6 +687,80 @@ class AdminController extends Controller
     }
 
     /**
+     * Generate a password reset link for a user without sending email.
+     * This is useful for inquiry replies where admin wants to manually send the link.
+     */
+    public function generateUserPasswordResetLink(Request $request, $id)
+    {
+        $admin = $request->user();
+        if (! AdminPermission::can($admin, 'can_reset_user_password')) {
+            return response()->json([
+                'message' => 'You do not have permission to generate password reset links.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $reason = trim((string) $validated['reason']);
+
+        $user = User::findOrFail($id);
+        if (($user->role ?? null) === 'admin') {
+            return response()->json([
+                'message' => 'Admin accounts cannot be reset from this action.',
+            ], 422);
+        }
+
+        try {
+            $code = (string) random_int(100000, 999999);
+            DB::table('password_reset_codes')->where('email', $user->email)->delete();
+            DB::table('password_reset_codes')->insert([
+                'email' => $user->email,
+                'code' => $code,
+                'created_at' => now(),
+            ]);
+
+            $frontendBaseUrl = rtrim((string) config('app.frontend_url', 'https://accommotrack.me'), '/');
+            $resetUrl = sprintf(
+                '%s/login?forced_reset=1&reset_email=%s&reset_code=%s',
+                $frontendBaseUrl,
+                urlencode((string) $user->email),
+                urlencode($code),
+            );
+
+            $this->auditLogService->log('user', 'user.password_reset_link_generated', [
+                'severity' => 'warning',
+                'subject_type' => 'user',
+                'subject_id' => $user->id,
+                'summary' => sprintf('Admin generated a password reset link for %s (%s) for inquiry reply.', $user->email, $user->role ?? 'user'),
+                'metadata' => [
+                    'reason' => $reason,
+                    'delivery' => 'manual_inquiry_reply',
+                    'expires_in_minutes' => 10,
+                ],
+                'tenant_id' => $user->role === 'tenant' ? $user->id : null,
+                'landlord_id' => in_array($user->role, ['landlord', 'caretaker'], true) ? $user->id : null,
+            ]);
+
+            return response()->json([
+                'message' => 'Password reset link generated successfully.',
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                        'name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                    ],
+                    'reset_url' => $resetUrl,
+                    'expires_in_minutes' => 10,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to generate password reset link.', 'error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * Send a forced password reset link to a user.
      */
     public function sendUserPasswordResetLink(Request $request, $id)

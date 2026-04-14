@@ -274,7 +274,8 @@ export default function TransferRequests() {
       });
     } catch (err) {
       console.error(`Failed to ${action} transfer request`, err);
-      toast.error(err?.response?.data?.message || `Failed to ${action} transfer request`);
+      const errorMessage = err?.response?.data?.error || err?.response?.data?.message || `Failed to ${action} transfer request`;
+      toast.error(errorMessage);
     } finally {
       setHandlingAction('');
     }

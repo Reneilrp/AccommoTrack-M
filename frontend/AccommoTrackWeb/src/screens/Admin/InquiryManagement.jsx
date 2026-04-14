@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, X, Send, RefreshCw, ArrowRight } from 'lucide-react';
+import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, X, Send, RefreshCw, ArrowRight, Key, Copy, Search } from 'lucide-react';
 import api from '../../utils/api';
+import adminService from '../../services/adminService';
 import toast from 'react-hot-toast';
 
 const defaultInquiryPermissions = {
@@ -26,6 +27,17 @@ const InquiryManagement = () => {
   // Reply states
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  
+  // Password reset states
+  const [passwordResetFlow, setPasswordResetFlow] = useState({
+    isOpen: false,
+    userEmail: '',
+    reason: '',
+    searchingUser: false,
+    generatingLink: false,
+    foundUser: null,
+    resetLink: '',
+  });
 
   const fetchInquiries = useCallback(async () => {
     setLoading(true);
@@ -143,7 +155,107 @@ const InquiryManagement = () => {
   const openModal = (inquiry) => {
     setSelectedInquiry(inquiry);
     setReplyMessage(''); // Clear previous reply
+    setPasswordResetFlow({
+      isOpen: false,
+      userEmail: inquiry.email || '',
+      reason: '',
+      searchingUser: false,
+      generatingLink: false,
+      foundUser: null,
+      resetLink: '',
+    });
     setShowModal(true);
+  };
+
+  const openPasswordResetFlow = () => {
+    setPasswordResetFlow(prev => ({
+      ...prev,
+      isOpen: true,
+      userEmail: selectedInquiry?.email || '',
+      reason: `Password reset requested via inquiry #${selectedInquiry?.id} from ${selectedInquiry?.name}`,
+    }));
+  };
+
+  const closePasswordResetFlow = () => {
+    setPasswordResetFlow({
+      isOpen: false,
+      userEmail: '',
+      reason: '',
+      searchingUser: false,
+      generatingLink: false,
+      foundUser: null,
+      resetLink: '',
+    });
+  };
+
+  const searchUserForReset = async () => {
+    if (!passwordResetFlow.userEmail.trim()) {
+      toast.error('Please enter an email address');
+      return;
+    }
+
+    setPasswordResetFlow(prev => ({ ...prev, searchingUser: true, foundUser: null, resetLink: '' }));
+    
+    try {
+      const result = await adminService.searchUserByEmail(passwordResetFlow.userEmail);
+      if (result.success && result.data) {
+        setPasswordResetFlow(prev => ({ ...prev, foundUser: result.data, searchingUser: false }));
+        toast.success(`User found: ${result.data.first_name} ${result.data.last_name}`);
+      } else {
+        setPasswordResetFlow(prev => ({ ...prev, foundUser: null, searchingUser: false }));
+        toast.error('User not found with this email address');
+      }
+    } catch (error) {
+      setPasswordResetFlow(prev => ({ ...prev, searchingUser: false }));
+      toast.error('Failed to search for user');
+    }
+  };
+
+  const generateResetLink = async () => {
+    if (!passwordResetFlow.foundUser || !passwordResetFlow.reason.trim()) {
+      toast.error('Please search for user and provide a reason');
+      return;
+    }
+
+    setPasswordResetFlow(prev => ({ ...prev, generatingLink: true }));
+    
+    try {
+      const result = await adminService.generateUserPasswordResetLink(
+        passwordResetFlow.foundUser.id,
+        passwordResetFlow.reason
+      );
+      
+      if (result.success && result.data?.reset_url) {
+        setPasswordResetFlow(prev => ({ 
+          ...prev, 
+          resetLink: result.data.reset_url,
+          generatingLink: false 
+        }));
+        toast.success('Password reset link generated successfully!');
+      } else {
+        setPasswordResetFlow(prev => ({ ...prev, generatingLink: false }));
+        toast.error(result.error || 'Failed to generate reset link');
+      }
+    } catch (error) {
+      setPasswordResetFlow(prev => ({ ...prev, generatingLink: false }));
+      toast.error('Failed to generate reset link');
+    }
+  };
+
+  const copyResetLink = () => {
+    if (passwordResetFlow.resetLink) {
+      navigator.clipboard.writeText(passwordResetFlow.resetLink);
+      toast.success('Reset link copied to clipboard!');
+    }
+  };
+
+  const insertResetLinkIntoReply = () => {
+    if (passwordResetFlow.resetLink) {
+      const resetText = `\n\nPassword Reset Link:\n${passwordResetFlow.resetLink}\n\nThis link expires in 10 minutes. Please use it to reset your password.\n`;
+      setReplyMessage(prev => prev + resetText);
+      closePasswordResetFlow();
+      toast.success('Reset link added to reply message');
+    }
   };
 
   const filteredInquiries = inquiries.filter(i => {
@@ -394,9 +506,20 @@ const InquiryManagement = () => {
 
               {/* Reply Section */}
               <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
-                  Send a Reply
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                    Send a Reply
+                  </label>
+                  <button
+                    onClick={openPasswordResetFlow}
+                    disabled={sendingReply || !permissions.can_reply_inquiry}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Generate password reset link for this user"
+                  >
+                    <Key className="w-3 h-3" />
+                    Reset Password
+                  </button>
+                </div>
                 <textarea
                   value={replyMessage}
                   onChange={(e) => setReplyMessage(e.target.value)}
@@ -434,6 +557,142 @@ const InquiryManagement = () => {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Reset Modal */}
+      {passwordResetFlow.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Generate Password Reset Link</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Search for user and generate a secure reset link to include in your reply.
+                </p>
+              </div>
+              <button 
+                onClick={closePasswordResetFlow} 
+                className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                disabled={passwordResetFlow.searchingUser || passwordResetFlow.generatingLink}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Email Search */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
+                  User Email Address
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={passwordResetFlow.userEmail}
+                    onChange={(e) => setPasswordResetFlow(prev => ({ ...prev, userEmail: e.target.value, foundUser: null, resetLink: '' }))}
+                    placeholder="Enter user's email address"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                    disabled={passwordResetFlow.searchingUser || passwordResetFlow.generatingLink}
+                  />
+                  <button
+                    onClick={searchUserForReset}
+                    disabled={passwordResetFlow.searchingUser || passwordResetFlow.generatingLink || !passwordResetFlow.userEmail.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {passwordResetFlow.searchingUser ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                    Search
+                  </button>
+                </div>
+              </div>
+
+              {/* Found User Display */}
+              {passwordResetFlow.foundUser && (
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2 text-green-800 dark:text-green-300 mb-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span className="font-medium text-sm">User Found</span>
+                  </div>
+                  <div className="text-sm text-green-700 dark:text-green-400">
+                    <p><strong>Name:</strong> {passwordResetFlow.foundUser.first_name} {passwordResetFlow.foundUser.last_name}</p>
+                    <p><strong>Email:</strong> {passwordResetFlow.foundUser.email}</p>
+                    <p><strong>Role:</strong> {passwordResetFlow.foundUser.role}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Reason */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
+                  Reason for Reset
+                </label>
+                <textarea
+                  value={passwordResetFlow.reason}
+                  onChange={(e) => setPasswordResetFlow(prev => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Explain why this password reset is being generated..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm resize-none h-20"
+                  disabled={passwordResetFlow.searchingUser || passwordResetFlow.generatingLink}
+                />
+              </div>
+
+              {/* Generate Link Button */}
+              {passwordResetFlow.foundUser && (
+                <button
+                  onClick={generateResetLink}
+                  disabled={passwordResetFlow.generatingLink || !passwordResetFlow.reason.trim()}
+                  className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {passwordResetFlow.generatingLink ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Generating Link...
+                    </>
+                  ) : (
+                    <>
+                      <Key className="w-4 h-4" />
+                      Generate Reset Link
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Generated Link Display */}
+              {passwordResetFlow.resetLink && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300 mb-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span className="font-medium text-sm">Reset Link Generated</span>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded border text-xs font-mono text-gray-600 dark:text-gray-300 break-all mb-3">
+                    {passwordResetFlow.resetLink}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={copyResetLink}
+                      className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Copy Link
+                    </button>
+                    <button
+                      onClick={insertResetLinkIntoReply}
+                      className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Send className="w-3 h-3" />
+                      Add to Reply
+                    </button>
+                  </div>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 italic">
+                    This link expires in 10 minutes. The user can use it to reset their password.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
