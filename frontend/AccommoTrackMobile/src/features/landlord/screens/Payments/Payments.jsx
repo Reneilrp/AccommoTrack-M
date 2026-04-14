@@ -35,6 +35,14 @@ const REFUND_FIXED_PENALTY_CENTS = 0;
 const REFUND_ELIGIBLE_STATUSES = ['succeeded', 'paid', 'partially_refunded', 'refunded'];
 const EMPTY_INVOICES = [];
 
+const METHOD_OPTIONS = [
+  { id: 'cash', label: 'Cash', icon: 'cash-outline' },
+  { id: 'gcash', label: 'GCash', icon: 'phone-portrait-outline' },
+  { id: 'bank_transfer', label: 'Bank', icon: 'card-outline' },
+  { id: 'check', label: 'Check', icon: 'document-text-outline' },
+  { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' },
+];
+
 const getInvoiceTotal = (invoice) => parseFloat(invoice?.amount || ((invoice?.amount_cents ?? 0) / 100));
 
 const getSettledAmount = (invoice) =>
@@ -98,6 +106,53 @@ const toDateOnly = (value) => {
 const getBillingPolicy = (booking) =>
   String(booking?.billing_policy || booking?.room?.billing_policy || 'monthly').toLowerCase();
 
+// Add one calendar month, anchored to billing day (anniversary-based)
+const addCalendarMonth = (date, billingDay) => {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + 1);
+  
+  // Handle month-end: if billing day is 31 but next month has 30 days, use 30
+  const maxDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(billingDay, maxDay));
+  
+  return result;
+};
+
+// Calculate how many complete billing cycles have elapsed
+const calculateMonthsElapsed = (startDate, currentDate, billingDay) => {
+  if (!startDate || !currentDate) return 0;
+  
+  let months = 0;
+  let cursor = new Date(startDate);
+  
+  while (cursor <= currentDate) {
+    const nextBilling = addCalendarMonth(cursor, billingDay);
+    if (nextBilling <= currentDate) {
+      months++;
+      cursor = nextBilling;
+    } else {
+      break;
+    }
+  }
+  
+  return months;
+};
+
+// Calculate total billing cycles between two dates
+const calculateTotalMonths = (startDate, endDate, billingDay) => {
+  if (!startDate || !endDate) return 0;
+  
+  let months = 0;
+  let cursor = new Date(startDate);
+  
+  while (cursor < endDate) {
+    months++;
+    cursor = addCalendarMonth(cursor, billingDay);
+  }
+  
+  return months;
+};
+
 const getStayProgress = (booking) => {
   const start = toDateOnly(booking?.start_date || booking?.checkIn);
   const end = toDateOnly(booking?.end_date || booking?.checkOut);
@@ -105,6 +160,7 @@ const getStayProgress = (booking) => {
 
   const today = toDateOnly(new Date());
   const totalDays = Math.max(1, Math.floor((end - start) / 86400000) + 1);
+  const billingDay = booking?.billing_day || start.getDate();
   const billingPolicy = getBillingPolicy(booking);
 
   if (billingPolicy === 'daily') {
@@ -115,13 +171,12 @@ const getStayProgress = (booking) => {
     return { mode: 'daily', totalUnits: totalDays, usedUnits: stayedDays, refundableUnits: refundableDays, refundableRatio: totalDays > 0 ? refundableDays / totalDays : 0, unitLabel: 'days', totalDays, stayedDays, refundableDays };
   }
 
-  const totalMonths = Math.max(1, Number(booking?.total_months || Math.ceil(totalDays / 30)));
-  let elapsedDays = 0;
-  if (today > start && today <= end) elapsedDays = Math.floor((today - start) / 86400000);
-  else if (today > end) elapsedDays = totalMonths * 30;
-  const usedMonths = Math.min(totalMonths, Math.max(0, Math.floor(elapsedDays / 30)));
+  // Monthly billing: use anniversary-based calculation
+  const totalMonths = calculateTotalMonths(start, end, billingDay);
+  const usedMonths = calculateMonthsElapsed(start, today, billingDay);
   const refundableMonths = Math.max(0, totalMonths - usedMonths);
-  return { mode: 'monthly', totalUnits: totalMonths, usedUnits: usedMonths, refundableUnits: refundableMonths, refundableRatio: totalMonths > 0 ? refundableMonths / totalMonths : 0, unitLabel: totalMonths === 1 ? 'month' : 'months', totalDays, stayedDays: Math.min(totalDays, elapsedDays), refundableDays: Math.max(0, totalDays - elapsedDays) };
+  
+  return { mode: 'monthly', totalUnits: totalMonths, usedUnits: usedMonths, refundableUnits: refundableMonths, refundableRatio: totalMonths > 0 ? refundableMonths / totalMonths : 0, unitLabel: totalMonths === 1 ? 'month' : 'months', totalDays, stayedDays: Math.min(totalDays, Math.floor((today - start) / 86400000)), refundableDays: Math.max(0, totalDays - Math.floor((today - start) / 86400000)) };
 };
 
 const getTransactionRefundPreview = (invoice, tx, booking) => {
@@ -764,7 +819,21 @@ export default function Payments({ navigation, route }) {
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: theme.isDark ? 1 : 0 }]}>
               <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Manage Payment</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Invoice Details</Text>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                    {selectedInvoice?.reference || `INV-${selectedInvoice?.id}`}
+                  </Text>
+                </View>
+                {(() => {
+                  const status = getInvoiceStatus(selectedInvoice);
+                  const statusStyle = getStatusStyle(status);
+                  return (
+                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg, marginRight: 8 }]}>
+                      <Text style={[styles.statusText, { color: statusStyle.fg }]}>{getStatusLabel(status)}</Text>
+                    </View>
+                  );
+                })()}
                 <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeButton}>
                   <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
@@ -772,20 +841,79 @@ export default function Payments({ navigation, route }) {
 
               <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 {/* Invoice Summary */}
-                <View style={[styles.summaryGrid, { backgroundColor: theme.colors.backgroundSecondary }]}>
-                  <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Tenant</Text>
-                    <Text style={[styles.summaryValue, { color: theme.colors.text }]} numberOfLines={2}>
-                      {selectedInvoice?.tenant?.full_name || (selectedInvoice?.tenant ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` : '—')}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Invoice Total</Text>
-                    <Text style={[styles.summaryValue, { color: theme.isDark ? '#4ade80' : '#16a34a' }]}>
-                      ₱{parseFloat(selectedInvoice?.amount || ((selectedInvoice?.amount_cents ?? 0) / 100)).toLocaleString()}
-                    </Text>
-                  </View>
-                </View>
+                {(() => {
+                  const status = getInvoiceStatus(selectedInvoice);
+                  const statusStyle = getStatusStyle(status);
+                  const totalAmount = getInvoiceTotal(selectedInvoice);
+                  const paidAmount = getSettledAmount(selectedInvoice);
+                  const remainingAmount = getRemainingAmount(selectedInvoice);
+                  const propertyTitle = selectedInvoice?.property?.title || selectedInvoice?.property_title || selectedInvoice?.booking?.property?.title || '—';
+                  const roomNumber = selectedInvoice?.booking?.room?.room_number || '—';
+                  const dueDate = selectedInvoice?.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : '—';
+                  
+                  return (
+                    <View style={[styles.summaryCard, {
+                      borderLeftWidth: 4,
+                      borderLeftColor: statusStyle.fg,
+                      borderRadius: 10,
+                      padding: 14,
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      gap: 12,
+                    }]}>
+                      {/* Row 1: Tenant + Total Amount */}
+                      <View style={styles.summaryRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Tenant</Text>
+                          <Text style={[styles.summaryValue, { color: theme.colors.text }]} numberOfLines={1}>
+                            {selectedInvoice?.tenant?.full_name || (selectedInvoice?.tenant ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` : '—')}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Total Amount</Text>
+                          <Text style={[styles.summaryValue, { color: theme.isDark ? '#4ade80' : '#16a34a', fontSize: 16 }]}>
+                            ₱{totalAmount.toLocaleString()}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {/* Row 2: Property/Room + Due Date */}
+                      <View style={styles.summaryRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Property</Text>
+                          <Text style={[styles.summaryValue, { color: theme.colors.text, fontSize: 13 }]} numberOfLines={1}>
+                            {propertyTitle} {roomNumber !== '—' ? `• Room ${roomNumber}` : ''}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Due Date</Text>
+                          <Text style={[styles.summaryValue, { color: theme.colors.text, fontSize: 13 }]}>
+                            {dueDate}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {/* Row 3: Paid + Remaining */}
+                      <View style={styles.summaryRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Paid So Far</Text>
+                          <Text style={[styles.summaryValue, { color: theme.colors.text, fontSize: 13 }]}>
+                            ₱{paidAmount.toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Balance</Text>
+                          <Text style={[styles.summaryValue, { 
+                            color: remainingAmount > 0 ? (theme.isDark ? '#fbbf24' : '#D97706') : (theme.isDark ? '#4ade80' : '#16a34a'),
+                            fontSize: 13,
+                            fontWeight: '800'
+                          }]}>
+                            ₱{remainingAmount.toLocaleString()}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })()}
 
                 {/* Status-based Conditional Rendering */}
                 {(() => {
@@ -799,10 +927,10 @@ export default function Payments({ navigation, route }) {
                     return (
                       <View style={[styles.verificationSection, { backgroundColor: theme.isDark ? 'rgba(194,65,12,0.1)' : '#FFF7ED', borderColor: theme.isDark ? '#C2410C' : '#FFEDD5' }]}>
                         <View style={styles.verificationHeader}>
-                          <Ionicons name="shield-checkmark-outline" size={24} color="#C2410C" />
+                          <Ionicons name="shield-checkmark-outline" size={24} color={theme.isDark ? '#fb923c' : '#C2410C'} />
                           <View style={{ flex: 1 }}>
-                            <Text style={[styles.verificationTitle, { color: theme.colors.text }]}>Cash Payment Awaiting Verification</Text>
-                            <Text style={[styles.verificationSubtitle, { color: theme.colors.textSecondary }]}>
+                            <Text style={[styles.verificationTitle, { color: theme.isDark ? '#fb923c' : '#9A3412' }]}>Cash Payment Awaiting Verification</Text>
+                            <Text style={[styles.verificationSubtitle, { color: theme.isDark ? '#fdba74' : '#C2410C' }]}>
                               The tenant reported this invoice as paid in cash. Approve or reject after checking proof.
                             </Text>
                           </View>
@@ -849,6 +977,37 @@ export default function Payments({ navigation, route }) {
                       <View style={[styles.sectionDivider, { borderTopColor: theme.colors.border }]}>
                         <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Record a Payment</Text>
                       </View>
+                      
+                      {/* Payment Progress Bar */}
+                      {(() => {
+                        const paidAmount = getSettledAmount(selectedInvoice);
+                        const totalAmount = getInvoiceTotal(selectedInvoice);
+                        const progress = totalAmount > 0 ? Math.min(1, paidAmount / totalAmount) : 0;
+                        
+                        return (
+                          <View style={{ marginBottom: 16 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: '600' }}>
+                                Paid: ₱{paidAmount.toLocaleString()}
+                              </Text>
+                              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: '600' }}>
+                                Total: ₱{totalAmount.toLocaleString()}
+                              </Text>
+                            </View>
+                            <View style={{ height: 8, backgroundColor: theme.isDark ? 'rgba(156,163,175,0.2)' : '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+                              <View style={{
+                                height: 8,
+                                width: `${progress * 100}%`,
+                                backgroundColor: progress >= 1 ? '#16a34a' : '#D97706',
+                                borderRadius: 4,
+                              }} />
+                            </View>
+                            <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginTop: 4, textAlign: 'center' }}>
+                              {(progress * 100).toFixed(0)}% paid
+                            </Text>
+                          </View>
+                        );
+                      })()}
 
                       {/* Amount */}
                       <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>Amount Paid (₱) *</Text>
@@ -865,26 +1024,25 @@ export default function Payments({ navigation, route }) {
                       {/* Payment Method */}
                       <Text style={[styles.fieldLabel, { marginTop: 16, color: theme.colors.textSecondary }]}>Payment Method *</Text>
                       <View style={styles.methodRow}>
-                        {[
-                          { id: 'cash', label: 'Cash' },
-                          { id: 'gcash', label: 'GCash' },
-                          { id: 'bank_transfer', label: 'Bank' },
-                          { id: 'check', label: 'Check' },
-                          { id: 'other', label: 'Other' },
-                        ].map((m) => (
+                        {METHOD_OPTIONS.map((m) => (
                           <TouchableOpacity
                             key={m.id}
                             style={[
                               styles.methodChip,
-                              { backgroundColor: theme.colors.backgroundSecondary },
+                              { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border },
                               recordData.method === m.id && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
                             ]}
                             onPress={() => setRecordData((d) => ({ ...d, method: m.id }))}
                           >
+                            <Ionicons 
+                              name={m.icon} 
+                              size={14} 
+                              color={recordData.method === m.id ? '#FFFFFF' : theme.colors.textSecondary} 
+                            />
                             <Text style={[
                               styles.methodChipText,
                               { color: theme.colors.textSecondary },
-                              recordData.method === m.id && { color: theme.colors.textInverse, fontWeight: '700' },
+                              recordData.method === m.id && { color: '#FFFFFF', fontWeight: '700' },
                             ]}>{m.label}</Text>
                           </TouchableOpacity>
                         ))}
@@ -913,14 +1071,17 @@ export default function Payments({ navigation, route }) {
                       />
 
                       <TouchableOpacity
-                        style={[styles.recordButton, recording && { opacity: 0.6 }]}
+                        style={[styles.recordButton, { backgroundColor: theme.colors.primary }, recording && { opacity: 0.6 }]}
                         onPress={handleRecordPayment}
                         disabled={recording}
                       >
                         {recording ? (
                           <ActivityIndicator size="small" color="#fff" />
                         ) : (
-                          <Text style={styles.recordButtonText}>Record Payment</Text>
+                          <>
+                            <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                            <Text style={styles.recordButtonText}>Record Payment</Text>
+                          </>
                         )}
                       </TouchableOpacity>
 
@@ -931,9 +1092,9 @@ export default function Payments({ navigation, route }) {
 
                       <View style={styles.statusGrid}>
                         {[
-                          { id: 'unpaid', label: 'Unpaid', color: theme.isDark ? 'rgba(153,27,27,0.2)' : '#FEE2E2', text: theme.isDark ? '#f87171' : '#991B1B', border: theme.isDark ? '#991B1B' : '#FCA5A5' },
-                          { id: 'partial', label: 'Partial', color: theme.isDark ? 'rgba(146,64,14,0.2)' : '#FEF3C7', text: theme.isDark ? '#fbbf24' : '#92400E', border: theme.isDark ? '#92400E' : '#FCD34D' },
-                          { id: 'paid', label: 'Paid', color: theme.isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7', text: theme.isDark ? '#4ade80' : '#166534', border: theme.isDark ? '#166534' : '#86EFAC' },
+                          { id: 'unpaid', label: 'Mark as Unpaid', icon: 'close-circle', color: theme.isDark ? 'rgba(153,27,27,0.2)' : '#FEE2E2', text: theme.isDark ? '#f87171' : '#991B1B', border: theme.isDark ? '#991B1B' : '#FCA5A5' },
+                          { id: 'partial', label: 'Mark as Partial', icon: 'time', color: theme.isDark ? 'rgba(146,64,14,0.2)' : '#FEF3C7', text: theme.isDark ? '#fbbf24' : '#92400E', border: theme.isDark ? '#92400E' : '#FCD34D' },
+                          { id: 'paid', label: 'Mark as Paid', icon: 'checkmark-circle', color: theme.isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7', text: theme.isDark ? '#4ade80' : '#166534', border: theme.isDark ? '#166534' : '#86EFAC' },
                         ].map((s) => (
                           <TouchableOpacity
                             key={s.id}
@@ -944,7 +1105,10 @@ export default function Payments({ navigation, route }) {
                             {updating ? (
                               <ActivityIndicator size="small" color={s.text} />
                             ) : (
-                              <Text style={[styles.statusOptionText, { color: s.text }]}>{s.label}</Text>
+                              <>
+                                <Ionicons name={s.icon} size={18} color={s.text} />
+                                <Text style={[styles.statusOptionText, { color: s.text }]}>{s.label}</Text>
+                              </>
                             )}
                           </TouchableOpacity>
                         ))}
@@ -963,15 +1127,30 @@ export default function Payments({ navigation, route }) {
                       const isRefunding = refundingTxId === tx.id;
                       const isRefunded = tx.status === 'refunded';
                       const txAmount = tx.amount_cents ? tx.amount_cents / 100 : (tx.amount || 0);
+                      const refundedAmount = tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
+                      const txStatus = (tx.status || '').toLowerCase();
+                      
+                      const borderColor = isRefunded || txStatus === 'refunded' ? '#a855f7'
+                        : ['succeeded', 'paid', 'partially_refunded'].includes(txStatus) ? '#16a34a'
+                        : '#D97706';
                       
                       return (
-                        <View key={tx.id || idx} style={[styles.transactionItem, { borderBottomColor: theme.colors.border }]}>
+                        <View key={tx.id || idx} style={[styles.transactionItem, { 
+                          borderBottomColor: theme.colors.border,
+                          borderLeftWidth: 3,
+                          borderLeftColor: borderColor,
+                        }]}>
                           <View style={styles.transactionInfo}>
                              <Text style={[styles.transactionAmount, { color: theme.colors.text }]}>₱{Number(txAmount).toLocaleString()}</Text>
                              <Text style={[styles.transactionMeta, { color: theme.colors.textSecondary }]}>
                                {tx.method?.replace('_', ' ')} • {new Date(tx.created_at || tx.date).toLocaleDateString()}
                              </Text>
                              {tx.reference && <Text style={[styles.transactionRef, { color: theme.colors.textTertiary }]}>Ref: {tx.reference}</Text>}
+                             {refundedAmount > 0 && (
+                               <Text style={{ fontSize: 10, color: '#a855f7', marginTop: 2, fontWeight: '600' }}>
+                                 Refunded: ₱{refundedAmount.toLocaleString()}
+                               </Text>
+                             )}
                           </View>
                           
                           {isRefunded ? (
@@ -980,7 +1159,10 @@ export default function Payments({ navigation, route }) {
                             </View>
                           ) : (
                             <TouchableOpacity 
-                              style={[styles.refundButton, { borderColor: theme.isDark ? '#a855f7' : '#7E22CE' }, isRefunding && { opacity: 0.7 }]}
+                              style={[styles.refundButton, { 
+                                borderColor: theme.isDark ? '#a855f7' : '#7E22CE',
+                                backgroundColor: theme.isDark ? 'rgba(168,85,247,0.15)' : '#F3E8FF'
+                              }, isRefunding && { opacity: 0.7 }]}
                               onPress={() => handleRefund(tx)}
                               disabled={isRefunding}
                             >

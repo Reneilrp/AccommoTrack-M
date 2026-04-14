@@ -248,7 +248,7 @@ class RoomController extends Controller
 
             // PayMongo readiness check
             $isPaymongoReady = false;
-            if ($landlord && $landlord->paymongo_child_id && $landlord->paymongo_verification_status === 'verified') {
+            if ($landlord && $landlord->isPaymongoReady()) {
                 $isPaymongoReady = true;
             }
 

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Booking;
 use App\Models\Invoice;
+use App\Services\BillingCycleCalculator;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -162,7 +163,7 @@ class GenerateMonthlyInvoices extends Command
             }
 
             $periodStart = $billingDate->copy();
-            $periodEnd = $billingDate->copy()->addMonthNoOverflow()->subDay();
+            $periodEnd = BillingCycleCalculator::calculatePeriodEnd($billingDate, $booking->billing_day);
             $periodKey = $periodStart->format('Y-m-d');
 
             $invoiceExists = Invoice::query()
@@ -216,7 +217,7 @@ class GenerateMonthlyInvoices extends Command
                 }
             }
 
-            $nextBillingDate = $billingDate->copy()->addMonthNoOverflow();
+            $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($billingDate, $booking->billing_day);
             $booking->next_billing_date = $booking->end_date && $nextBillingDate->gt(Carbon::parse($booking->end_date))
                 ? null
                 : $nextBillingDate->toDateString();
@@ -323,10 +324,10 @@ class GenerateMonthlyInvoices extends Command
         }
 
         if (! $booking->next_billing_date) {
-            $nextBillingDate = $startDate->copy()->addMonthNoOverflow();
+            $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($startDate, $booking->billing_day);
 
             if (($booking->room->billing_policy ?? 'monthly') !== 'daily' && $booking->room->requiresAdvance()) {
-                $nextBillingDate = $nextBillingDate->addMonthNoOverflow();
+                $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($nextBillingDate, $booking->billing_day);
             }
 
             $latestDueDate = $booking->invoices()
@@ -335,7 +336,7 @@ class GenerateMonthlyInvoices extends Command
                 ->value('due_date');
 
             if ($latestDueDate) {
-                $candidate = Carbon::parse($latestDueDate)->addMonthNoOverflow();
+                $candidate = BillingCycleCalculator::calculateNextBillingDate(Carbon::parse($latestDueDate), $booking->billing_day);
                 if ($candidate->gt($nextBillingDate)) {
                     $nextBillingDate = $candidate;
                 }

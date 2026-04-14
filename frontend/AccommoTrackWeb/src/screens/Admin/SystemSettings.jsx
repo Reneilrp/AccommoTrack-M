@@ -11,6 +11,7 @@ export default function SystemSettings() {
   
   const [tenantPaymentsDisabled, setTenantPaymentsDisabled] = useState(true);
   const [invoicePaymongoDisabled, setInvoicePaymongoDisabled] = useState(true);
+  const [paymongoTestModeEnabled, setPaymongoTestModeEnabled] = useState(false);
   const [reservationFeeDisabled, setReservationFeeDisabled] = useState(true);
   const [mobileLatestVersion, setMobileLatestVersion] = useState('1.0.0');
   const [mobileDownloadUrl, setMobileDownloadUrl] = useState('https://accommotrack.me/downloads/AccommoTrack.apk');
@@ -62,6 +63,7 @@ export default function SystemSettings() {
   const [initialSettings, setInitialSettings] = useState({
     tenantPaymentsDisabled: true,
     invoicePaymongoDisabled: true,
+    paymongoTestModeEnabled: false,
     reservationFeeDisabled: true,
     mobileLatestVersion: '1.0.0',
     mobileDownloadUrl: 'https://accommotrack.me/downloads/AccommoTrack.apk',
@@ -80,6 +82,7 @@ export default function SystemSettings() {
       const nextSettings = {
         tenantPaymentsDisabled: Boolean(response.data?.tenantPaymentsDisabled),
         invoicePaymongoDisabled: Boolean(response.data?.invoicePaymongoDisabled),
+        paymongoTestModeEnabled: Boolean(response.data?.paymongoTestModeEnabled),
         reservationFeeDisabled: Boolean(response.data?.reservationFeeDisabled),
         mobileLatestVersion: response.data?.mobileLatestVersion || '1.0.0',
         mobileDownloadUrl: response.data?.mobileDownloadUrl || 'https://accommotrack.me/downloads/AccommoTrack.apk',
@@ -89,6 +92,7 @@ export default function SystemSettings() {
 
       setTenantPaymentsDisabled(nextSettings.tenantPaymentsDisabled);
       setInvoicePaymongoDisabled(nextSettings.invoicePaymongoDisabled);
+      setPaymongoTestModeEnabled(nextSettings.paymongoTestModeEnabled);
       setReservationFeeDisabled(nextSettings.reservationFeeDisabled);
       setMobileLatestVersion(nextSettings.mobileLatestVersion);
       setMobileDownloadUrl(nextSettings.mobileDownloadUrl);
@@ -115,6 +119,7 @@ export default function SystemSettings() {
       const response = await adminService.updatePaymentControlSettings({
         tenantPaymentsDisabled,
         invoicePaymongoDisabled,
+        paymongoTestModeEnabled,
         reservationFeeDisabled,
         mobileLatestVersion,
         mobileDownloadUrl,
@@ -129,6 +134,7 @@ export default function SystemSettings() {
       setInitialSettings({
         tenantPaymentsDisabled,
         invoicePaymongoDisabled,
+        paymongoTestModeEnabled,
         reservationFeeDisabled,
         mobileLatestVersion,
         mobileDownloadUrl,
@@ -165,6 +171,7 @@ export default function SystemSettings() {
   const handleCancelEdit = () => {
     setTenantPaymentsDisabled(initialSettings.tenantPaymentsDisabled);
     setInvoicePaymongoDisabled(initialSettings.invoicePaymongoDisabled);
+    setPaymongoTestModeEnabled(initialSettings.paymongoTestModeEnabled);
     setReservationFeeDisabled(initialSettings.reservationFeeDisabled);
     setMobileLatestVersion(initialSettings.mobileLatestVersion);
     setMobileDownloadUrl(initialSettings.mobileDownloadUrl);
@@ -261,6 +268,33 @@ export default function SystemSettings() {
                       } ${invoicePaymongoDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                     >
                       <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${invoicePaymongoDisabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </label>
+                </div>
+
+                <div className={`p-5 rounded-xl border transition-all duration-200 ${paymongoTestModeEnabled ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800' : 'bg-gray-50/50 border-gray-100 dark:bg-gray-800/30 dark:border-gray-700/50'}`}>
+                  <label className="flex items-start justify-between gap-6 cursor-pointer">
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        Enable PayMongo Test Mode
+                        {paymongoTestModeEnabled && (
+                          <span className="px-2 py-0.5 rounded-full bg-blue-500 text-[10px] text-white uppercase font-black tracking-wider">Testing</span>
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
+                        Use PayMongo test API keys instead of live keys for all transactions. Safe for testing payments without real money. Affects subscriptions, invoices, and QRPh payments.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      disabled={!isEditing || saving}
+                      onClick={() => setPaymongoTestModeEnabled(!paymongoTestModeEnabled)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
+                        !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${paymongoTestModeEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${paymongoTestModeEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
                   </label>
                 </div>

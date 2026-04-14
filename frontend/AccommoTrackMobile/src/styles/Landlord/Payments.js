@@ -243,21 +243,21 @@ export const getStyles = (theme) => StyleSheet.create({
   modalBody: {
     padding: 16,
   },
-  summaryGrid: {
-    flexDirection: 'row',
-    gap: 16,
+  summaryCard: {
     marginBottom: 24,
   },
-  summaryItem: {
-    flex: 1,
-    backgroundColor: theme.colors.backgroundSecondary,
-    padding: 16,
-    borderRadius: 10,
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: 4,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   summaryValue: {
     fontSize: 14,
@@ -271,17 +271,18 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
   },
   statusGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     gap: 8,
   },
   statusOption: {
-    width: '48%',
-    paddingVertical: 16,
+    width: '100%',
+    paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     backgroundColor: theme.colors.backgroundSecondary,
     borderColor: theme.colors.border,
   },
@@ -308,11 +309,9 @@ export const getStyles = (theme) => StyleSheet.create({
   verificationTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#9A3412',
   },
   verificationSubtitle: {
     fontSize: 12,
-    color: '#C2410C',
     marginTop: 4,
     lineHeight: 18,
   },
@@ -387,6 +386,9 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.backgroundSecondary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   methodChipActive: {
     backgroundColor: theme.colors.primary,
@@ -402,11 +404,13 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   recordButton: {
     marginTop: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   recordButtonText: {
     fontSize: 15,
@@ -461,13 +465,11 @@ export const getStyles = (theme) => StyleSheet.create({
   refundButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    backgroundColor: '#F3E8FF',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D8B4FE',
   },
   refundButtonText: {
     fontSize: 12,

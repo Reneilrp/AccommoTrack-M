@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Services\PaymentLedgerService;
 use App\Support\SystemToggle;
+use App\Support\PaymongoKeyResolver;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -146,7 +147,7 @@ class PaymongoController extends Controller
             ];
 
             $res = $client->post('sources', [
-                'auth' => [config('services.paymongo.secret_key'), ''],
+                'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
                 'json' => $payload,
             ]);
 
@@ -290,7 +291,7 @@ class PaymongoController extends Controller
             ];
 
             $res = $client->post('sources', [
-                'auth' => [config('services.paymongo.secret_key'), ''],
+                'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
                 'json' => $payload,
             ]);
 
@@ -422,7 +423,7 @@ class PaymongoController extends Controller
             ]);
 
             $res = $client->post('payments', [
-                'auth' => [config('services.paymongo.secret_key'), ''],
+                'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
                 'json' => $paymentPayload,
             ]);
 
@@ -547,7 +548,7 @@ class PaymongoController extends Controller
             ]);
 
             $res = $client->post('payments', [
-                'auth' => [config('services.paymongo.secret_key'), ''],
+                'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
                 'json' => $paymentPayload,
             ]);
 
@@ -664,7 +665,7 @@ class PaymongoController extends Controller
                     $ref = $lockedTx->gateway_reference;
 
                     try {
-                        $res = $client->get("sources/{$ref}", ['auth' => [config('services.paymongo.secret_key'), '']]);
+                        $res = $client->get("sources/{$ref}", ['auth' => [PaymongoKeyResolver::getSecretKey(), '']]);
                         $body = json_decode((string) $res->getBody(), true);
                         if (! is_array($body)) {
                             throw new \Exception('Invalid response from PayMongo');
@@ -704,7 +705,7 @@ class PaymongoController extends Controller
 
                         return [false, $lockedTx->invoice_id];
                     } catch (\GuzzleHttp\Exception\ClientException $e) {
-                        $res = $client->get("payments/{$ref}", ['auth' => [config('services.paymongo.secret_key'), '']]);
+                        $res = $client->get("payments/{$ref}", ['auth' => [PaymongoKeyResolver::getSecretKey(), '']]);
                         $body = json_decode((string) $res->getBody(), true);
                         if (! is_array($body)) {
                             throw new \Exception('Invalid response from PayMongo');
@@ -746,7 +747,7 @@ class PaymongoController extends Controller
     {
         try {
             $res = $client->post('payments', [
-                'auth' => [config('services.paymongo.secret_key'), ''],
+                'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
                 'json' => [
                     'data' => [
                         'attributes' => [
@@ -825,7 +826,7 @@ class PaymongoController extends Controller
         ];
 
         $res = $client->post('links', [
-            'auth' => [config('services.paymongo.secret_key'), ''],
+            'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
             'json' => $payload,
         ]);
 

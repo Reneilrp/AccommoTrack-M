@@ -37,6 +37,7 @@ class AdminController extends Controller
         $data = [
             'tenant_payments_disabled' => $tenantPaymentsDisabled,
             'invoice_paymongo_disabled' => SystemToggle::getBool('invoice_paymongo_disabled', $tenantPaymentsDisabled),
+            'paymongo_test_mode_enabled' => SystemToggle::getBool('paymongo_test_mode_enabled', false),
             'reservation_fee_disabled' => SystemToggle::getBool('reservation_fee_disabled', (bool) config('app.reservation_fee_disabled', false)),
             'mobile_latest_version' => SystemToggle::getString('mobile_latest_version', '1.0.0'),
             'mobile_download_url' => SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),
@@ -61,6 +62,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'tenant_payments_disabled' => 'required|boolean',
             'invoice_paymongo_disabled' => 'nullable|boolean',
+            'paymongo_test_mode_enabled' => 'nullable|boolean',
             'reservation_fee_disabled' => 'required|boolean',
             'mobile_latest_version' => 'nullable|string|max:50',
             'mobile_download_url' => 'nullable|url|max:255',
@@ -72,6 +74,9 @@ class AdminController extends Controller
         SystemToggle::setBool('tenant_payments_disabled', (bool) $validated['tenant_payments_disabled'], $actorId);
         if (array_key_exists('invoice_paymongo_disabled', $validated)) {
             SystemToggle::setBool('invoice_paymongo_disabled', (bool) $validated['invoice_paymongo_disabled'], $actorId);
+        }
+        if (array_key_exists('paymongo_test_mode_enabled', $validated)) {
+            SystemToggle::setBool('paymongo_test_mode_enabled', (bool) $validated['paymongo_test_mode_enabled'], $actorId);
         }
         SystemToggle::setBool('reservation_fee_disabled', (bool) $validated['reservation_fee_disabled'], $actorId);
         
@@ -121,6 +126,9 @@ class AdminController extends Controller
                 'invoice_paymongo_disabled' => array_key_exists('invoice_paymongo_disabled', $validated)
                     ? (bool) $validated['invoice_paymongo_disabled']
                     : SystemToggle::getBool('invoice_paymongo_disabled', (bool) $validated['tenant_payments_disabled']),
+                'paymongo_test_mode_enabled' => array_key_exists('paymongo_test_mode_enabled', $validated)
+                    ? (bool) $validated['paymongo_test_mode_enabled']
+                    : SystemToggle::getBool('paymongo_test_mode_enabled', false),
                 'reservation_fee_disabled' => (bool) $validated['reservation_fee_disabled'],
                 'mobile_latest_version' => $validated['mobile_latest_version'] ?? SystemToggle::getString('mobile_latest_version', '1.0.0'),
                 'mobile_download_url' => $validated['mobile_download_url'] ?? SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),
@@ -1163,5 +1171,72 @@ class AdminController extends Controller
 
         // Return only the 10 most recent activities
         return response()->json(array_slice($activities, 0, 10));
+    }
+
+    /**
+     * Enable PayMongo verification bypass for a specific landlord (for testing).
+     */
+    public function enablePaymongoBypass(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        
+        if ($user->role !== 'landlord') {
+            return response()->json([
+                'message' => 'Only landlord accounts can have PayMongo verification bypass enabled.',
+            ], 422);
+        }
+
+        $user->paymongo_verification_bypass = true;
+        $user->save();
+
+        $this->auditLogService->log('user', 'user.paymongo_bypass_enabled', [
+            'severity' => 'warning',
+            'subject_type' => 'user',
+            'subject_id' => $user->id,
+            'summary' => sprintf('Admin enabled PayMongo verification bypass for %s (testing purposes).', $user->email),
+            'metadata' => [
+                'landlord_id' => $user->id,
+                'reason' => 'testing',
+            ],
+        ]);
+
+        return response()->json([
+            'message' => 'PayMongo verification bypass enabled for testing.',
+            'user' => [
+                'id' => $user->id,
+                'email' => $user->email,
+                'paymongo_verification_bypass' => $user->paymongo_verification_bypass,
+            ],
+        ]);
+    }
+
+    /**
+     * Disable PayMongo verification bypass for a specific landlord.
+     */
+    public function disablePaymongoBypass(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        
+        $user->paymongo_verification_bypass = false;
+        $user->save();
+
+        $this->auditLogService->log('user', 'user.paymongo_bypass_disabled', [
+            'severity' => 'info',
+            'subject_type' => 'user',
+            'subject_id' => $user->id,
+            'summary' => sprintf('Admin disabled PayMongo verification bypass for %s.', $user->email),
+            'metadata' => [
+                'landlord_id' => $user->id,
+            ],
+        ]);
+
+        return response()->json([
+            'message' => 'PayMongo verification bypass disabled.',
+            'user' => [
+                'id' => $user->id,
+                'email' => $user->email,
+                'paymongo_verification_bypass' => $user->paymongo_verification_bypass,
+            ],
+        ]);
     }
 }

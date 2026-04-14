@@ -92,6 +92,7 @@ class User extends Authenticatable
         'is_blocked',
         'paymongo_child_id',
         'paymongo_verification_status',
+        'paymongo_verification_bypass',
         'email_otp_code',
         'email_otp_expires_at',
         'strikes',
@@ -443,5 +444,20 @@ class User extends Authenticatable
             'payments' => (bool) optional($assignment)->can_manage_payments,
             'analytics' => (bool) optional($assignment)->can_view_analytics,
         ];
+    }
+
+    /**
+     * Check if this landlord is ready to accept PayMongo payments.
+     * Returns true if verified OR if bypass is enabled for testing.
+     */
+    public function isPaymongoReady(): bool
+    {
+        // Check if bypass is enabled for this specific user
+        if ((bool) $this->paymongo_verification_bypass) {
+            return true;
+        }
+
+        // Normal verification check
+        return $this->paymongo_child_id && $this->paymongo_verification_status === 'verified';
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Booking\RequestMoveOutNoticeRequest;
 use App\Notifications\MoveOutRequestedNotification;
 use App\Services\AuditLogService;
+use App\Services\BillingCycleCalculator;
 use Illuminate\Support\Facades\Notification;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
@@ -332,7 +333,8 @@ class TenantBookingController extends Controller
 
             // cycleStart is the start date for the current billing cycle
             $cycleStart = $startDate->copy()->addMonths($months)->startOfDay();
-            $cycleEnd = $cycleStart->copy()->addMonthNoOverflow()->subDay();
+            $billingDay = $booking->billing_day ?? $cycleStart->day;
+            $cycleEnd = BillingCycleCalculator::calculatePeriodEnd($cycleStart, $billingDay);
             $periodKey = $cycleStart->format('Y-m-d');
 
             // De-dupe on booking + rent invoice + billing period, including legacy rows
@@ -430,10 +432,10 @@ class TenantBookingController extends Controller
         }
 
         if (! $booking->next_billing_date) {
-            $nextBillingDate = $startDate->copy()->addMonthNoOverflow();
+            $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($startDate, $booking->billing_day);
 
             if (($booking->room->billing_policy ?? 'monthly') !== 'daily' && optional($booking->room)->requiresAdvance()) {
-                $nextBillingDate = $nextBillingDate->addMonthNoOverflow();
+                $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($nextBillingDate, $booking->billing_day);
             }
 
             $latestDueDate = $booking->invoices()
@@ -442,7 +444,7 @@ class TenantBookingController extends Controller
                 ->value('due_date');
 
             if ($latestDueDate) {
-                $candidate = Carbon::parse($latestDueDate)->addMonthNoOverflow();
+                $candidate = BillingCycleCalculator::calculateNextBillingDate(Carbon::parse($latestDueDate), $booking->billing_day);
                 if ($candidate->gt($nextBillingDate)) {
                     $nextBillingDate = $candidate;
                 }
@@ -490,7 +492,8 @@ class TenantBookingController extends Controller
 
     private function createMonthlyRentInvoiceForPeriod(Booking $booking, Carbon $periodStart): ?Invoice
     {
-        $periodEnd = $periodStart->copy()->addMonthNoOverflow()->subDay();
+        $billingDay = $booking->billing_day ?? $periodStart->day;
+        $periodEnd = BillingCycleCalculator::calculatePeriodEnd($periodStart, $billingDay);
         $periodKey = $periodStart->format('Y-m-d');
 
         $recurringAddonAmount = $this->resolveRecurringAddonAmountForPeriod($booking, $periodStart);

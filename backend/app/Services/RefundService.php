@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
+use App\Services\BillingCycleCalculator;
 use Carbon\Carbon;
 
 class RefundService
@@ -26,14 +27,19 @@ class RefundService
     {
         $today = Carbon::today();
         $startDate = Carbon::parse($booking->start_date)->startOfDay();
+        $billingDay = $booking->billing_day ?? $startDate->day;
         
-        // Find next billing date
+        // Find next billing date using anniversary-based calculation
         $nextBillingDate = $startDate->copy();
         while ($nextBillingDate->lte($today)) {
-            $nextBillingDate->addMonthNoOverflow()->startOfDay();
+            $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($nextBillingDate, $billingDay);
         }
 
-        $periodStartDate = $nextBillingDate->copy()->subMonthNoOverflow()->startOfDay();
+        $periodStartDate = $nextBillingDate->copy()->subMonth();
+        // Handle month-end edge cases
+        $maxDayInMonth = $periodStartDate->daysInMonth;
+        $periodStartDate->day(min($billingDay, $maxDayInMonth))->startOfDay();
+        
         $daysInCycle = max(1, (int) $periodStartDate->diffInDays($nextBillingDate));
 
         // Carbon 3 diffInDays can return signed fractional values. Use whole calendar days only.

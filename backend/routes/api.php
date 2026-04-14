@@ -394,6 +394,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users/{id}/block', [AdminController::class, 'blockUser']);
         Route::post('/users/{id}/unblock', [AdminController::class, 'unblockUser']);
         Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser']);
+        Route::post('/users/{id}/paymongo-bypass/enable', [AdminController::class, 'enablePaymongoBypass']);
+        Route::post('/users/{id}/paymongo-bypass/disable', [AdminController::class, 'disablePaymongoBypass']);
         Route::get('/properties/pending', [AdminController::class, 'getPendingProperties']);
         Route::get('/properties/approved', [AdminController::class, 'getApprovedProperties']);
         Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);

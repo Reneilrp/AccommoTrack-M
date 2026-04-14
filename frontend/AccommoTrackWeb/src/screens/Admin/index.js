@@ -6,6 +6,7 @@ export { default as LandlordApproval } from './LandlordApproval.jsx';
 export { default as Approvals } from './Approvals.jsx';
 export { default as PaymentOversight } from './PaymentOversight.jsx';
 export { default as SubscriptionGrants } from './SubscriptionGrants.jsx';
+export { default as PaymongoBypassManagement } from './PaymongoBypassManagement.jsx';
 export { default as AuditExplorer } from './AuditExplorer.jsx';
 export { default as ArchivedProperties } from './ArchivedProperties.jsx';
 export { default as DisputeArbitration } from './DisputeArbitration.jsx';

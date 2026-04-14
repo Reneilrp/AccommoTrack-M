@@ -198,7 +198,7 @@ class PropertyController extends Controller
             $this->assertNotCaretaker($context);
 
             if ($request->boolean('require_reservation_fee')) {
-                $isPaymongoReady = $context['user']->paymongo_child_id && $context['user']->paymongo_verification_status === 'verified';
+                $isPaymongoReady = $context['user']->isPaymongoReady();
                 if (! $isPaymongoReady) {
                     return response()->json(['message' => 'You must complete PayMongo onboarding to require reservation fees.', 'verification_required' => true], 403);
                 }
@@ -234,7 +234,7 @@ class PropertyController extends Controller
             $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
 
             if ($request->boolean('require_reservation_fee')) {
-                $isPaymongoReady = $context['user']->paymongo_child_id && $context['user']->paymongo_verification_status === 'verified';
+                $isPaymongoReady = $context['user']->isPaymongoReady();
                 if (! $isPaymongoReady) {
                     return response()->json(['message' => 'You must complete PayMongo onboarding to require reservation fees.', 'verification_required' => true], 403);
                 }

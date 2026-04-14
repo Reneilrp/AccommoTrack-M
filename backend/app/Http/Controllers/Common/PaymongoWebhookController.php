@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Services\PaymentLedgerService;
 use App\Services\Subscription\SubscriptionCheckoutService;
+use App\Support\PaymongoKeyResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -197,7 +198,7 @@ class PaymongoWebhookController extends Controller
                         'verify' => $verify,
                     ]);
                     $res = $client->post('payments', [
-                        'auth' => [config('services.paymongo.secret_key'), ''],
+                        'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
                         'json' => [
                             'data' => [
                                 'attributes' => [

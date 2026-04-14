@@ -11,6 +11,7 @@ use App\Notifications\RentPaidSuccess;
 use App\Notifications\NewBookingNotification;
 use App\Support\SystemToggle;
 use App\Services\AuditLogService;
+use App\Services\BillingCycleCalculator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -848,10 +849,10 @@ class BookingService
             }
 
             if (! $booking->next_billing_date) {
-                $nextBillingDate = $startDate->copy()->addMonthNoOverflow();
+                $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($startDate, $booking->billing_day);
 
                 if (($booking->room->billing_policy ?? 'monthly') !== 'daily' && $booking->room->requiresAdvance()) {
-                    $nextBillingDate = $nextBillingDate->addMonthNoOverflow();
+                    $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($nextBillingDate, $booking->billing_day);
                 }
 
                 $booking->next_billing_date = $nextBillingDate->toDateString();

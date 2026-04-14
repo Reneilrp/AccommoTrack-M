@@ -297,7 +297,8 @@ class TenantDashboardService
         }
 
         if ($addonRequest->price_type === 'monthly') {
-            $effectiveAt = now()->copy()->addMonthNoOverflow()->startOfMonth();
+            // Schedule cancellation for next month's start
+            $effectiveAt = now()->copy()->addMonth()->startOfMonth();
 
             $booking->addons()->updateExistingPivot($addonId, [
                 'cancellation_requested_at' => now(),

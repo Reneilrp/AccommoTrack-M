@@ -8,6 +8,7 @@ use App\Models\PaymentTransaction;
 use App\Models\SubscriptionEvent;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Support\PaymongoKeyResolver;
 use Carbon\Carbon;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\DB;
@@ -362,7 +363,7 @@ class SubscriptionCheckoutService
             }
 
             $res = $client->post('links', [
-                'auth' => [config('services.paymongo.secret_key'), ''],
+                'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
                 'json' => $payload,
             ]);
 
@@ -645,7 +646,7 @@ class SubscriptionCheckoutService
     {
         return $billingCycle === 'annual'
             ? $periodStart->copy()->addYearNoOverflow()
-            : $periodStart->copy()->addMonthNoOverflow();
+            : $periodStart->copy()->addMonth();
     }
 
     private function createPendingCheckoutInvoice(
