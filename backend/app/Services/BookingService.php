@@ -639,6 +639,11 @@ class BookingService
         try {
             $oldStatus = $booking->status;
 
+            // Validate room relationship exists
+            if (!$booking->room) {
+                throw new \DomainException('Booking room data is missing. Cannot finalize checkout.');
+            }
+
             if (in_array($booking->status, ['cancelled', 'completed'], true)) {
                 throw new \DomainException('Checkout is only allowed for active stays.');
             }
@@ -671,8 +676,19 @@ class BookingService
                     : $existingNotes."\n".$line;
             }
 
-            if ($booking->tenant_id) {
-                $booking->room->removeTenant($booking->tenant_id, $checkoutDate->toDateString());
+            // Remove tenant from room if tenant_id exists
+            if ($booking->tenant_id && $booking->room) {
+                try {
+                    $booking->room->removeTenant($booking->tenant_id, $checkoutDate->toDateString());
+                } catch (\Exception $e) {
+                    Log::error('Failed to remove tenant from room during checkout', [
+                        'booking_id' => $booking->id,
+                        'tenant_id' => $booking->tenant_id,
+                        'room_id' => $booking->room_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Continue with checkout even if tenant removal fails
+                }
             }
 
             $hasOutstandingDeposit = (float) ($booking->deposit_balance ?? 0) > 0;
@@ -831,12 +847,17 @@ class BookingService
             throw new \DomainException('Deposit balance must be settled before marking this booking as completed.');
         }
 
-        $hasActiveAssignment = $booking->tenant_id
-            ? $booking->room->tenants()->where('tenant_id', $booking->tenant_id)->exists()
-            : false;
+        // Validate room relationship exists before checking tenant assignment
+        if (!$booking->room) {
+            Log::warning('Booking completion: room relationship missing', ['booking_id' => $booking->id]);
+        } else {
+            $hasActiveAssignment = $booking->tenant_id
+                ? $booking->room->tenants()->where('tenant_id', $booking->tenant_id)->exists()
+                : false;
 
-        if ($hasActiveAssignment) {
-            throw new \DomainException('Cannot complete booking while tenant is still checked in. Finalize checkout first.');
+            if ($hasActiveAssignment) {
+                throw new \DomainException('Cannot complete booking while tenant is still checked in. Finalize checkout first.');
+            }
         }
 
         if (! $booking->end_date) {
@@ -885,9 +906,17 @@ class BookingService
 
         [$cancelledInvoiceIds, $voidedPendingTransactionIds] = $this->cancelOpenInvoicesForCancelledBooking($booking);
 
-        // Remove tenant from room only if we had a tenant_id
-        if ($booking->tenant_id) {
-            $booking->room->removeTenant($booking->tenant_id);
+        // Remove tenant from room only if we had a tenant_id and room exists
+        if ($booking->tenant_id && $booking->room) {
+            try {
+                $booking->room->removeTenant($booking->tenant_id);
+            } catch (\Exception $e) {
+                Log::error('Failed to remove tenant during cancellation', [
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $booking->tenant_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // Update tenant profile
             $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
@@ -909,7 +938,10 @@ class BookingService
             'voided_pending_transaction_ids' => $voidedPendingTransactionIds,
         ]);
 
-        $booking->room->property->updateAvailableRooms();
+        // Safely update property stats
+        if ($booking->room && $booking->room->property) {
+            $booking->room->property->updateAvailableRooms();
+        }
     }
 
     /**
