@@ -665,6 +665,7 @@ const MyBookings = () => {
 const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, onRequestMaintenance, navigate }) => {
   const ALMOST_PAY_TIME_DAYS = 5;
   const OPEN_INVOICE_STATUSES = new Set(['pending', 'partial', 'overdue', 'unpaid']);
+  const SETTLED_INVOICE_STATUSES = new Set(['paid', 'settled', 'succeeded', 'verified', 'completed']);
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
@@ -713,6 +714,39 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
   };
 
+  const formatMonthDay = (dateValue) => {
+    if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) return '';
+    const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+    const day = String(dateValue.getDate()).padStart(2, '0');
+    return `${month}/${day}`;
+  };
+
+  const getCycleDueDate = (anchorDate, referenceDate = new Date()) => {
+    if (!(anchorDate instanceof Date) || Number.isNaN(anchorDate.getTime())) return null;
+
+    const safeReference = new Date(referenceDate);
+    safeReference.setHours(0, 0, 0, 0);
+
+    const anchorDay = anchorDate.getDate();
+    const currentMonthMaxDay = new Date(safeReference.getFullYear(), safeReference.getMonth() + 1, 0).getDate();
+    let candidate = new Date(
+      safeReference.getFullYear(),
+      safeReference.getMonth(),
+      Math.min(anchorDay, currentMonthMaxDay),
+    );
+
+    if (candidate < safeReference) {
+      const nextMonthMaxDay = new Date(safeReference.getFullYear(), safeReference.getMonth() + 2, 0).getDate();
+      candidate = new Date(
+        safeReference.getFullYear(),
+        safeReference.getMonth() + 1,
+        Math.min(anchorDay, nextMonthMaxDay),
+      );
+    }
+
+    return candidate;
+  };
+
   const resolveMonthlyPaymentCountdown = (bookingEntry, invoices = []) => {
     const billingPolicy = String(bookingEntry?.billing_policy || bookingEntry?.billingPolicy || 'monthly').toLowerCase();
     if (billingPolicy !== 'monthly') return null;
@@ -720,71 +754,72 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const cycleDueDateResolver = () => {
-      const rawBillingDay = Number(bookingEntry?.billing_day ?? bookingEntry?.due_day ?? bookingEntry?.dueDay);
-      if (!Number.isFinite(rawBillingDay)) return null;
+    const moveInDate = parseDateToLocalDay(bookingEntry?.start_date || bookingEntry?.startDate);
+    const rawBillingDay = Number(bookingEntry?.billing_day ?? bookingEntry?.due_day ?? bookingEntry?.dueDay);
+    const fallbackAnchorDate = Number.isFinite(rawBillingDay)
+      ? new Date(today.getFullYear(), today.getMonth(), Math.max(1, Math.min(31, Math.round(rawBillingDay))))
+      : null;
+    const anchorDate = moveInDate || fallbackAnchorDate;
 
-      const billingDay = Math.max(1, Math.min(31, Math.round(rawBillingDay)));
-      const currentMonthMaxDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      let candidate = new Date(today.getFullYear(), today.getMonth(), Math.min(billingDay, currentMonthMaxDay));
-
-      if (candidate < today) {
-        const nextMonthMaxDay = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
-        candidate = new Date(today.getFullYear(), today.getMonth() + 1, Math.min(billingDay, nextMonthMaxDay));
-      }
-
-      return candidate;
-    };
-
-    const dueDateCandidates = [];
-    let hasOutstandingInvoice = false;
+    const openDueDateCandidates = [];
+    const settledDueDateKeys = new Set();
+    const openDueDateKeys = new Set();
 
     if (Array.isArray(invoices)) {
       invoices.forEach((invoice) => {
-        const invoiceStatus = String(invoice?.status || '').toLowerCase();
-        if (!OPEN_INVOICE_STATUSES.has(invoiceStatus)) return;
-
-        hasOutstandingInvoice = true;
         const dueDate = parseDateToLocalDay(
           invoice?.due_date || invoice?.dueDateIso || invoice?.dueDate,
         );
-        if (dueDate) {
-          dueDateCandidates.push(dueDate);
+        if (!dueDate) return;
+
+        const invoiceStatus = String(invoice?.status || '').toLowerCase();
+        const dueDateKey = dueDate.toISOString().slice(0, 10);
+
+        if (OPEN_INVOICE_STATUSES.has(invoiceStatus)) {
+          openDueDateCandidates.push(dueDate);
+          openDueDateKeys.add(dueDateKey);
+          return;
+        }
+
+        if (SETTLED_INVOICE_STATUSES.has(invoiceStatus)) {
+          settledDueDateKeys.add(dueDateKey);
         }
       });
     }
 
-    const nextBillingDate = parseDateToLocalDay(bookingEntry?.next_billing_date || bookingEntry?.nextBillingDate);
-    if (nextBillingDate) {
-      dueDateCandidates.push(nextBillingDate);
+    openDueDateCandidates.sort((left, right) => left.getTime() - right.getTime());
+
+    let nextDueDate = openDueDateCandidates[0] || getCycleDueDate(anchorDate, today);
+    if (!nextDueDate) {
+      const nextBillingDate = parseDateToLocalDay(bookingEntry?.next_billing_date || bookingEntry?.nextBillingDate);
+      nextDueDate = nextBillingDate || null;
     }
 
-    if (dueDateCandidates.length === 0) {
-      const cycleDueDate = cycleDueDateResolver();
-      if (cycleDueDate) {
-        dueDateCandidates.push(cycleDueDate);
+    if (!nextDueDate) return null;
+
+    for (let step = 0; step < 24; step += 1) {
+      const dueDateKey = nextDueDate.toISOString().slice(0, 10);
+      if (openDueDateKeys.has(dueDateKey) || !settledDueDateKeys.has(dueDateKey)) {
+        break;
       }
-    }
 
-    if (dueDateCandidates.length === 0) return null;
-
-    dueDateCandidates.sort((left, right) => left.getTime() - right.getTime());
-    let nextDueDate = dueDateCandidates[0];
-
-    if (nextDueDate < today && !hasOutstandingInvoice) {
-      const cycleDueDate = cycleDueDateResolver();
-      if (cycleDueDate && cycleDueDate >= today) {
-        nextDueDate = cycleDueDate;
-      }
+      const advancedDate = new Date(nextDueDate);
+      advancedDate.setDate(1);
+      advancedDate.setMonth(advancedDate.getMonth() + 1);
+      const maxDay = new Date(advancedDate.getFullYear(), advancedDate.getMonth() + 1, 0).getDate();
+      advancedDate.setDate(Math.min(nextDueDate.getDate(), maxDay));
+      nextDueDate = advancedDate;
     }
 
     const daysUntilDue = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const compactDueDate = formatMonthDay(nextDueDate);
 
     if (daysUntilDue < 0) {
       const overdueDays = Math.abs(daysUntilDue);
       return {
         label: 'Payment Overdue',
-        value: `${overdueDays} ${overdueDays === 1 ? 'Day' : 'Days'} Overdue`,
+        value: compactDueDate || 'Past Due',
+        tinyValue: `${overdueDays}d overdue`,
         tone: 'status',
         statusKey: 'overdue',
       };
@@ -792,8 +827,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
     if (daysUntilDue === 0) {
       return {
-        label: 'Pay Today',
-        value: 'Due Today',
+        label: 'Next Payment',
+        value: compactDueDate || 'Due Today',
+        tinyValue: '0d',
         tone: 'status',
         statusKey: 'pending',
       };
@@ -801,7 +837,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
     return {
       label: daysUntilDue <= ALMOST_PAY_TIME_DAYS ? 'Almost Pay Time' : 'Next Payment',
-      value: `${daysUntilDue} ${daysUntilDue === 1 ? 'Day' : 'Days'} Left`,
+      value: compactDueDate || `${daysUntilDue} ${daysUntilDue === 1 ? 'Day' : 'Days'} Left`,
+      tinyValue: `${daysUntilDue}d`,
       tone: daysUntilDue <= ALMOST_PAY_TIME_DAYS ? 'status' : 'neutral',
       statusKey: 'pending',
     };
@@ -1183,6 +1220,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                               <StatCard
                                 label={paymentCountdown.label}
                                 value={paymentCountdown.value}
+                                tinyValue={paymentCountdown.tinyValue}
                                 tone={paymentCountdown.tone}
                                 statusKey={paymentCountdown.statusKey}
                                 icon={CalendarDays}
@@ -2021,7 +2059,7 @@ const EllipsisMenu = ({ booking, property, onReview, onReport, onRequestMaintena
   );
 };
 
-const StatCard = ({ label, value, icon: Icon, tone = 'neutral', statusKey = '' }) => {
+const StatCard = ({ label, value, tinyValue = '', icon: Icon, tone = 'neutral', statusKey = '' }) => {
   const statusTheme = PAYMENT_STATUS_THEME[(statusKey || '').toLowerCase()] || PAYMENT_STATUS_THEME.default;
   const resolvedTheme = tone === 'status' ? statusTheme : PAYMENT_STATUS_THEME.neutral;
 
@@ -2031,7 +2069,10 @@ const StatCard = ({ label, value, icon: Icon, tone = 'neutral', statusKey = '' }
       <div className="flex justify-center mb-4">
         <Icon className={`w-6 h-6 ${resolvedTheme.icon}`} />
       </div>
-      <p className={`text-xl font-bold leading-tight ${resolvedTheme.value}`}>{value}</p>
+      <div className="flex items-end justify-center gap-1">
+        <p className={`text-xl font-bold leading-tight ${resolvedTheme.value}`}>{value}</p>
+        {tinyValue ? <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">{tinyValue}</p> : null}
+      </div>
       <p className="text-[10px] font-medium text-gray-500 dark:text-gray-500 uppercase mt-2.5 tracking-wider">{label}</p>
     </div>
   );

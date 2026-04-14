@@ -282,6 +282,17 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
     textAlign: 'center',
   },
+  summaryValueRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  summaryValueTiny: {
+    fontSize: 9,
+    fontWeight: '700',
+    marginBottom: 1,
+  },
   summaryDivider: {
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,

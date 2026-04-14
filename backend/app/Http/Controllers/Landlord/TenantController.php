@@ -825,12 +825,14 @@ class TenantController extends Controller
                 if ($originalEndDate) {
                     $parsedOriginalEnd = \Carbon\Carbon::parse($originalEndDate);
                     if ($parsedOriginalEnd->lte(\Carbon\Carbon::parse($moveInDate))) {
-                        $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(1)->format('Y-m-d');
+                        // Keep fallback aligned with 30-day monthly billing blocks.
+                        $endDate = \Carbon\Carbon::parse($moveInDate)->addDays(30)->format('Y-m-d');
                     } else {
                         $endDate = $parsedOriginalEnd->format('Y-m-d');
                     }
                 } else {
-                    $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
+                    // Default transfer lease: exactly 1 billing month (30 days).
+                    $endDate = \Carbon\Carbon::parse($moveInDate)->addDays(30)->format('Y-m-d');
                 }
             }
 

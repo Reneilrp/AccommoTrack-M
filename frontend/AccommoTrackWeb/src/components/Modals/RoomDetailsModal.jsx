@@ -245,9 +245,9 @@ export default function RoomDetailsModal({
   const isBedSpacerRoom = normalizedRoomType === "bedspacer";
   const maxBookableBeds = pricingModel === "per_bed"
     ? Math.max(
-        1,
-        resolvedAvailableSlots >= 0 ? resolvedAvailableSlots : resolvedCapacity,
-      )
+      1,
+      resolvedAvailableSlots >= 0 ? resolvedAvailableSlots : resolvedCapacity,
+    )
     : 1;
   const showBedCountSelector = pricingModel === "per_bed";
   const roomGender = normalizeRoomRestriction(room?.gender_restriction);
@@ -373,7 +373,7 @@ export default function RoomDetailsModal({
         setPromoOffer(res.data.promo_offer || null);
         setPricingPreview(res.data.breakdown);
         setDuration({
-        days: res.data.days || 0,
+          days: res.data.days || 0,
           months: res.data.breakdown?.months || 0,
           extraDays: res.data.breakdown?.remaining_days || 0
         });
@@ -525,17 +525,17 @@ export default function RoomDetailsModal({
     today.setHours(0, 0, 0, 0);
 
     if (isDailyContract) {
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        if (start < tomorrow) {
-            toast.error("For daily rentals, check-in must be at least one day after today.");
-            return;
-        }
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      if (start < tomorrow) {
+        toast.error("For daily rentals, check-in must be at least one day after today.");
+        return;
+      }
     } else {
-        if (start < today) {
-            toast.error(`${isDailyContract ? 'Check-in' : 'Move-in'} date cannot be in the past.`);
-            return;
-        }
+      if (start < today) {
+        toast.error(`${isDailyContract ? 'Check-in' : 'Move-in'} date cannot be in the past.`);
+        return;
+      }
     }
 
     const hasCheckout = Boolean(endDate) && new Date(endDate) > start;
@@ -547,11 +547,11 @@ export default function RoomDetailsModal({
     const end = hasCheckout ? new Date(endDate) : null;
     const diffTime = end ? Math.abs(end - start) : 0;
     const diffDays = end ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
-    
+
     // Explicitly enforce minimum stay for monthly rooms
     const minStay = parseInt(room.min_stay_days) || 1;
     const effectiveMinStay = !isDailyContract
-      ? Math.max(30, minStay) 
+      ? Math.max(30, minStay)
       : minStay;
 
     if (hasCheckout && diffDays < effectiveMinStay) {
@@ -721,7 +721,7 @@ export default function RoomDetailsModal({
         error?.response?.data?.message ||
         error?.message ||
         "Failed to submit booking request.";
-      
+
       // Enhanced error messages for booking limits
       if (errMsg.includes('Normal booking allows only 1')) {
         toast.error(
@@ -766,7 +766,7 @@ export default function RoomDetailsModal({
 
       if (mappedLabel) return mappedLabel;
     }
-    
+
     const typeMap = {
       'single': 'Single Room',
       'double': 'Double Room',
@@ -976,8 +976,8 @@ export default function RoomDetailsModal({
                       Amenities
                     </h4>
                     {room.amenities &&
-                    Array.isArray(room.amenities) &&
-                    room.amenities.length > 0 ? (
+                      Array.isArray(room.amenities) &&
+                      room.amenities.length > 0 ? (
                       <div className="grid grid-cols-2 gap-4">
                         {room.amenities.map((amenity, idx) => (
                           <div
@@ -1004,8 +1004,8 @@ export default function RoomDetailsModal({
                     <h4 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">
                       Room Rules
                     </h4>
-                    {(room.rules && Array.isArray(room.rules) && room.rules.length > 0) || 
-                     (property.rules && Array.isArray(property.rules) && property.rules.length > 0) ? (
+                    {(room.rules && Array.isArray(room.rules) && room.rules.length > 0) ||
+                      (property.rules && Array.isArray(property.rules) && property.rules.length > 0) ? (
                       <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl p-6">
                         <ul className="space-y-4">
                           {(room.rules?.length > 0 ? room.rules : property.rules).map((rule, index) => (
@@ -1042,11 +1042,10 @@ export default function RoomDetailsModal({
                   onClick={() => setViewMode("booking")}
                   disabled={!canBook}
                   className={`px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
-                            ${
-                              canBook
-                                ? "bg-green-600 hover:bg-green-700"
-                                : "bg-gray-400 cursor-not-allowed"
-                            }`}
+                            ${canBook
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-gray-400 cursor-not-allowed"
+                    }`}
                 >
                   {canBook
                     ? "Book This Room"
@@ -1097,7 +1096,7 @@ export default function RoomDetailsModal({
                     </h3>
                     <p className="text-sm text-gray-700 dark:text-gray-300">
                       Booking ID:{" "}
-                      <span className="font-mono font-semibold">
+                      <span className="font-semibold">
                         {bookingResult.id ||
                           bookingResult.booking_id ||
                           bookingResult.reference ||
@@ -1293,11 +1292,10 @@ export default function RoomDetailsModal({
                       </p>
                       {isReservationFeeConfigured && (
                         <p
-                          className={`text-xs mt-1 ${
-                            isReservationFeeRequired
+                          className={`text-xs mt-1 ${isReservationFeeRequired
                               ? "text-amber-700 dark:text-amber-400"
                               : "text-green-700 dark:text-green-400"
-                          }`}
+                            }`}
                         >
                           {isReservationFeeRequired
                             ? `Reservation fee is required because move-in is ${daysUntilMoveIn} days after booking date.`
@@ -1560,9 +1558,9 @@ export default function RoomDetailsModal({
                         </div>
                       );
                     }
-                  
+
                     if (!showPaymentPlanSelector) return null;
-                  
+
                     return (
                       <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl space-y-4 text-sm border border-transparent dark:border-gray-700">
                         <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
@@ -1571,12 +1569,12 @@ export default function RoomDetailsModal({
                         <div className="space-y-4">
                           <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'monthly' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
                             <div className="pt-0.5">
-                              <input 
-                                type="radio" 
-                                name="payment_plan" 
-                                value="monthly" 
-                                checked={paymentPlan === 'monthly'} 
-                                onChange={() => setPaymentPlan('monthly')} 
+                              <input
+                                type="radio"
+                                name="payment_plan"
+                                value="monthly"
+                                checked={paymentPlan === 'monthly'}
+                                onChange={() => setPaymentPlan('monthly')}
                                 className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
                               />
                             </div>
@@ -1683,20 +1681,19 @@ export default function RoomDetailsModal({
                         }
                         className={`
                           w-full px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
-                          ${
-                            isSubmitting ||
+                          ${isSubmitting ||
                             !canBook ||
                             !agreedToRules
-                              ? "bg-gray-400 cursor-not-allowed opacity-70"
-                              : "bg-green-600 hover:bg-green-700"
+                            ? "bg-gray-400 cursor-not-allowed opacity-70"
+                            : "bg-green-600 hover:bg-green-700"
                           }
                         `}
                       >
                         {isSubmitting
                           ? "Processing..."
                           : (isReservationFeeRequired
-                              ? `Pay ₱${reservationFeeAmount.toLocaleString()} to Reserve`
-                              : "Confirm Booking Request")}
+                            ? `Pay ₱${reservationFeeAmount.toLocaleString()} to Reserve`
+                            : "Confirm Booking Request")}
                       </button>
                     ) : (
                       <button

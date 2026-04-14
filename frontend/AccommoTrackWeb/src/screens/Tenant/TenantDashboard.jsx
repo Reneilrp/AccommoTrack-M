@@ -51,14 +51,14 @@ const TenantDashboard = () => {
       setStayData(currentStay);
       setStats(dashboardStats);
       setActivities(Array.isArray(activityRes.activities) ? activityRes.activities.slice(0, 5) : []);
-      
+
       // Use API payment breakdown data
       const breakdownData = paymentBreakdown?.data?.upcoming_months || paymentBreakdown?.upcoming_months || [];
       setUpcomingSchedule(Array.isArray(breakdownData) ? breakdownData.slice(0, 3) : []);
 
-      updateData('dashboard', { 
-        stayData: currentStay, 
-        stats: dashboardStats, 
+      updateData('dashboard', {
+        stayData: currentStay,
+        stats: dashboardStats,
         activities: activityRes.activities,
         upcomingSchedule: breakdownData
       });
@@ -247,20 +247,17 @@ const TenantDashboard = () => {
             { icon: CheckCircle2, label: 'All Paid Up', value: '0', color: 'green' },
           ].map((card, i) => (
             <div key={i} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[14px] p-6 relative overflow-hidden flex flex-col">
-              <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px] ${
-                card.color === 'green' ? 'bg-green-500' : card.color === 'blue' ? 'bg-blue-400' : 'bg-purple-400'
-              }`} />
+              <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px] ${card.color === 'green' ? 'bg-green-500' : card.color === 'blue' ? 'bg-blue-400' : 'bg-purple-400'
+                }`} />
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[13px] text-gray-500 dark:text-slate-400 font-medium tracking-wide">{card.label}</div>
                   <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 truncate">{card.value}</div>
                 </div>
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  card.color === 'green' ? 'bg-green-100 dark:bg-green-500/15' : card.color === 'blue' ? 'bg-blue-100 dark:bg-blue-500/12' : 'bg-purple-100 dark:bg-purple-500/12'
-                }`}>
-                  <card.icon className={`w-5 h-5 ${
-                    card.color === 'green' ? 'text-green-600 dark:text-green-400' : card.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'
-                  }`} />
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${card.color === 'green' ? 'bg-green-100 dark:bg-green-500/15' : card.color === 'blue' ? 'bg-blue-100 dark:bg-blue-500/12' : 'bg-purple-100 dark:bg-purple-500/12'
+                  }`}>
+                  <card.icon className={`w-5 h-5 ${card.color === 'green' ? 'text-green-600 dark:text-green-400' : card.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'
+                    }`} />
                 </div>
               </div>
             </div>
@@ -425,52 +422,52 @@ const TenantDashboard = () => {
       {stayData?.pendingCheckIns && stayData.pendingCheckIns.length > 0 && stayData.pendingCheckIns
         .filter(pending => !dismissedNotifications.pendingCheckIns.includes(pending.id))
         .map(pending => (
-        <div key={pending.id} className={pending.status === 'confirmed' 
-          ? "bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
-          : "bg-orange-50 dark:bg-gradient-to-r dark:from-orange-500/15 dark:to-[#1e2332] border border-orange-200 dark:border-orange-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
-        }>
-          <div className="flex items-start md:items-center gap-4">
-            <div className={pending.status === 'confirmed' 
-              ? "bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0"
-              : "bg-orange-100 dark:bg-orange-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0"
-            }>
-              <AlertCircle className={pending.status === 'confirmed' ? "w-7 h-7 text-red-600 dark:text-red-400" : "w-7 h-7 text-orange-600 dark:text-orange-400"} />
+          <div key={pending.id} className={pending.status === 'confirmed'
+            ? "bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
+            : "bg-orange-50 dark:bg-gradient-to-r dark:from-orange-500/15 dark:to-[#1e2332] border border-orange-200 dark:border-orange-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
+          }>
+            <div className="flex items-start md:items-center gap-4">
+              <div className={pending.status === 'confirmed'
+                ? "bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0"
+                : "bg-orange-100 dark:bg-orange-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0"
+              }>
+                <AlertCircle className={pending.status === 'confirmed' ? "w-7 h-7 text-red-600 dark:text-red-400" : "w-7 h-7 text-orange-600 dark:text-orange-400"} />
+              </div>
+              <div>
+                <h2 className={pending.status === 'confirmed' ? "text-lg font-bold text-red-800 dark:text-red-100" : "text-lg font-bold text-orange-800 dark:text-orange-100"}>
+                  {pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending'}
+                </h2>
+                <p className={pending.status === 'confirmed' ? "text-[15px] text-red-700 dark:text-red-200/80 mt-2 leading-snug" : "text-[15px] text-orange-700 dark:text-orange-200/80 mt-2 leading-snug"}>
+                  {pending.status === 'confirmed'
+                    ? `Your stay at ${pending.property} was scheduled to start on ${formatDate(pending.startDate)}. Please contact your landlord to finalize your check-in.`
+                    : `Your booking for ${pending.property} was set to start on ${formatDate(pending.startDate)}, but it's still awaiting landlord approval.`
+                  }
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className={pending.status === 'confirmed' ? "text-lg font-bold text-red-800 dark:text-red-100" : "text-lg font-bold text-orange-800 dark:text-orange-100"}>
-                {pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending'}
-              </h2>
-              <p className={pending.status === 'confirmed' ? "text-[15px] text-red-700 dark:text-red-200/80 mt-2 leading-snug" : "text-[15px] text-orange-700 dark:text-orange-200/80 mt-2 leading-snug"}>
-                {pending.status === 'confirmed' 
-                  ? `Your stay at ${pending.property} was scheduled to start on ${formatDate(pending.startDate)}. Please contact your landlord to finalize your check-in.`
-                  : `Your booking for ${pending.property} was set to start on ${formatDate(pending.startDate)}, but it's still awaiting landlord approval.`
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/bookings')}
+                className={pending.status === 'confirmed'
+                  ? "w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+                  : "w-full md:w-auto px-8 py-4.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
                 }
-              </p>
+              >
+                View Booking <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => dismissNotification('pendingCheckIns', pending.id)}
+                className={pending.status === 'confirmed'
+                  ? "w-8 h-8 rounded-full border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex-shrink-0"
+                  : "w-8 h-8 rounded-full border border-orange-200 dark:border-orange-500/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-colors flex-shrink-0"
+                }
+                aria-label="Close pending check-in notification"
+              >
+                ×
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/bookings')}
-              className={pending.status === 'confirmed' 
-                ? "w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
-                : "w-full md:w-auto px-8 py-4.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
-              }
-            >
-              View Booking <ArrowRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => dismissNotification('pendingCheckIns', pending.id)}
-              className={pending.status === 'confirmed' 
-                ? "w-8 h-8 rounded-full border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex-shrink-0"
-                : "w-8 h-8 rounded-full border border-orange-200 dark:border-orange-500/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-colors flex-shrink-0"
-              }
-              aria-label="Close pending check-in notification"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      ))}
+        ))}
 
       {/* ── Upcoming Booking Alert ── */}
       {!dismissedNotifications.upcomingBooking && stayData?.upcomingBooking && (
@@ -540,7 +537,7 @@ const TenantDashboard = () => {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[14px] text-gray-500 dark:text-slate-400 font-medium tracking-wide">{card.label}</div>
-                  <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 font-mono truncate">{card.value}</div>
+                  <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 truncate">{card.value}</div>
                 </div>
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${cm.iconBg}`}>
                   <card.icon className={`w-5 h-5 ${cm.iconText}`} />
@@ -592,11 +589,10 @@ const TenantDashboard = () => {
                       <td className="py-4 text-[14px] text-gray-500 dark:text-slate-400">{row.roomType}</td>
                       <td className="py-4 text-[14px] text-gray-500 dark:text-slate-400">{row.moveInLabel}</td>
                       <td className="py-4 text-right">
-                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${
-                          row.status === 'overdue'
+                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.status === 'overdue'
                             ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25'
                             : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20'
-                        }`}>
+                          }`}>
                           {row.status === 'overdue' ? 'Overdue' : 'Active'}
                         </span>
                       </td>
@@ -647,10 +643,10 @@ const TenantDashboard = () => {
                         </span>
                       </td>
                       <td className="py-4 text-[14px] text-gray-500 dark:text-slate-400">{row.moveInLabel}</td>
-                      <td className="py-4 text-[14px] font-mono font-bold text-right text-gray-900 dark:text-slate-100">{row.daysStayed}</td>
+                      <td className="py-4 text-[14px] font-bold text-right text-gray-900 dark:text-slate-100">{row.daysStayed}</td>
                       <td className="py-4 text-right">
                         <div className="inline-flex items-center gap-3">
-                          <span className="text-[12px] font-mono text-gray-500 dark:text-slate-400 min-w-[34px] text-right">{row.dayShare}%</span>
+                          <span className="text-[12px] text-gray-500 dark:text-slate-400 min-w-[34px] text-right">{row.dayShare}%</span>
                           <span className="w-24 h-1.5 rounded bg-gray-200 dark:bg-[#2a3045] overflow-hidden">
                             <span className="h-full block rounded" style={{ width: `${row.dayShare}%`, backgroundColor: row.roomColor }} />
                           </span>
@@ -669,11 +665,11 @@ const TenantDashboard = () => {
           <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Days</p>
-              <p className="text-[18px] font-bold font-mono text-gray-900 dark:text-slate-100">{totalDaysStayed}</p>
+              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{totalDaysStayed}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Average / Room</p>
-              <p className="text-[18px] font-bold font-mono text-blue-600 dark:text-blue-400">
+              <p className="text-[18px] font-bold text-blue-600 dark:text-blue-400">
                 {roomBreakdownRows.length > 0 ? Math.round(totalDaysStayed / roomBreakdownRows.length) : 0}
               </p>
             </div>
@@ -717,7 +713,7 @@ const TenantDashboard = () => {
                         </span>
                       </td>
                       <td className="py-4 text-[14px] text-gray-600 dark:text-slate-300">{row.billingTypeLabel}</td>
-                      <td className="py-4 text-[14px] font-mono font-bold text-center text-gray-900 dark:text-slate-100 whitespace-nowrap">
+                      <td className="py-4 text-[14px] font-bold text-center text-gray-900 dark:text-slate-100 whitespace-nowrap">
                         {row.billingPolicy === 'daily' ? (
                           <span>
                             {formatCurrency(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/day</span>
@@ -728,19 +724,18 @@ const TenantDashboard = () => {
                           </span>
                         )}
                       </td>
-                      <td className="py-4 text-[14px] font-mono font-bold text-center text-gray-900 dark:text-slate-100">
+                      <td className="py-4 text-[14px] font-bold text-center text-gray-900 dark:text-slate-100">
                         {formatCurrency(row.addOns)}
                       </td>
                       <td className="py-4 text-center">
-                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${
-                          row.requiresAdvance
+                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.requiresAdvance
                             ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
                             : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20'
-                        }`}>
+                          }`}>
                           {row.requiresAdvance ? 'Yes' : 'No'}
                         </span>
                       </td>
-                      <td className="py-4 text-[14px] font-mono font-bold text-center text-purple-600 dark:text-purple-400">{formatCurrency(row.grandTotal)}</td>
+                      <td className="py-4 text-[14px] font-bold text-center text-purple-600 dark:text-purple-400">{formatCurrency(row.grandTotal)}</td>
                     </tr>
                   ))
                 ) : (
@@ -754,15 +749,15 @@ const TenantDashboard = () => {
           <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Base Rent</p>
-              <p className="text-[18px] font-bold font-mono text-gray-900 dark:text-slate-100">{formatCurrency(totalBaseRent)}</p>
+              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{formatCurrency(totalBaseRent)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Add-Ons</p>
-              <p className="text-[18px] font-bold font-mono text-blue-600 dark:text-blue-400">{formatCurrency(totalAddOns)}</p>
+              <p className="text-[18px] font-bold text-blue-600 dark:text-blue-400">{formatCurrency(totalAddOns)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Grand Total</p>
-              <p className="text-[18px] font-bold font-mono text-purple-600 dark:text-purple-400">{formatCurrency(totalGrandRent)}</p>
+              <p className="text-[18px] font-bold text-purple-600 dark:text-purple-400">{formatCurrency(totalGrandRent)}</p>
             </div>
           </div>
         </div>
@@ -812,17 +807,16 @@ const TenantDashboard = () => {
                       <td className={`py-4 text-[14px] ${row.status === 'overdue' ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-gray-500 dark:text-slate-400'}`}>
                         {row.dueDate}
                       </td>
-                      <td className={`py-4 text-[14px] font-mono font-bold text-right ${row.status === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                      <td className={`py-4 text-[14px] font-bold text-right ${row.status === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
                         {formatCurrency(row.amount)}
                       </td>
                       <td className="py-4 text-right">
-                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${
-                          row.status === 'overdue'
+                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.status === 'overdue'
                             ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25'
                             : row.status === 'partial'
                               ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
                               : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
-                        }`}>
+                          }`}>
                           {row.status === 'partial' ? 'Pending' : row.status.charAt(0).toUpperCase() + row.status.slice(1)}
                         </span>
                       </td>
@@ -838,7 +832,7 @@ const TenantDashboard = () => {
                   <tr>
                     <td colSpan={2} className="pt-5 pb-3 text-[14px] italic text-gray-500 dark:text-slate-500">Partial payment applied</td>
                     <td className="pt-5 pb-3 text-[14px] text-gray-500 dark:text-slate-500 text-right">—</td>
-                    <td className="pt-5 pb-3 text-[14px] font-mono font-bold text-right text-green-600 dark:text-green-400">-{formatCurrency(totalPaid)}</td>
+                    <td className="pt-5 pb-3 text-[14px] font-bold text-right text-green-600 dark:text-green-400">-{formatCurrency(totalPaid)}</td>
                     <td className="pt-5 pb-3 text-right">
                       <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold border bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20">
                         Paid
@@ -853,15 +847,15 @@ const TenantDashboard = () => {
           <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Billed</p>
-              <p className="text-[18px] font-bold font-mono text-gray-900 dark:text-slate-100">{formatCurrency(unpaidBalance + totalPaid)}</p>
+              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{formatCurrency(unpaidBalance + totalPaid)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Paid</p>
-              <p className="text-[18px] font-bold font-mono text-green-600 dark:text-green-400">{formatCurrency(totalPaid)}</p>
+              <p className="text-[18px] font-bold text-green-600 dark:text-green-400">{formatCurrency(totalPaid)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Unpaid Balance</p>
-              <p className="text-[18px] font-bold font-mono text-red-600 dark:text-red-400">{formatCurrency(unpaidBalance)}</p>
+              <p className="text-[18px] font-bold text-red-600 dark:text-red-400">{formatCurrency(unpaidBalance)}</p>
             </div>
           </div>
         </div>
@@ -922,35 +916,36 @@ const TenantDashboard = () => {
           </div>
           <div className="px-6 py-6 flex-1 flex flex-col justify-center">
             {upcomingSchedule.length > 0 ? (
-               <div className="space-y-0 relative">
-                  {upcomingSchedule.map((schedule, idx) => {
-                    const scheduleDate = new Date(schedule.due_date || schedule.dueDate);
-                    const isNext = idx === 0;
-                    return (
+              <div className="space-y-0 relative">
+                {upcomingSchedule.map((schedule, idx) => {
+                  const scheduleDate = new Date(schedule.due_date || schedule.dueDate);
+                  const isNext = idx === 0;
+                  return (
                     <div key={idx} className="flex gap-4">
-                       <div className="flex flex-col items-center">
-                          <div className={`w-3.5 h-3.5 rounded-full mt-2.5 flex-shrink-0 relative z-10 ${isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
-                          {idx !== upcomingSchedule.length - 1 && <div className="w-[2px] min-h-[40px] h-full bg-gray-200 dark:bg-[#2a3045] my-2 flex-1"></div>}
-                       </div>
-                       <div className="pb-6">
-                          <p className={`text-[15px] font-bold leading-tight ${isNext ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
-                            {scheduleDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-[14px] font-semibold text-gray-500 dark:text-slate-500">
-                              {formatCurrency(schedule.month_total || schedule.amount)}
-                            </span>
-                            {isNext && <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">Next Due</span>}
-                          </div>
-                       </div>
+                      <div className="flex flex-col items-center">
+                        <div className={`w-3.5 h-3.5 rounded-full mt-2.5 flex-shrink-0 relative z-10 ${isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
+                        {idx !== upcomingSchedule.length - 1 && <div className="w-[2px] min-h-[40px] h-full bg-gray-200 dark:bg-[#2a3045] my-2 flex-1"></div>}
+                      </div>
+                      <div className="pb-6">
+                        <p className={`text-[15px] font-bold leading-tight ${isNext ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
+                          {scheduleDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[14px] font-semibold text-gray-500 dark:text-slate-500">
+                            {formatCurrency(schedule.month_total || schedule.amount)}
+                          </span>
+                          {isNext && <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">Next Due</span>}
+                        </div>
+                      </div>
                     </div>
-                  )})}
-               </div>
+                  )
+                })}
+              </div>
             ) : (
-               <div className="py-8 flex flex-col items-center justify-center text-center h-full">
-                 <CalendarClock className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
-                 <p className="text-[14px] text-gray-500 dark:text-slate-500">No upcoming scheduled payments.</p>
-               </div>
+              <div className="py-8 flex flex-col items-center justify-center text-center h-full">
+                <CalendarClock className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
+                <p className="text-[14px] text-gray-500 dark:text-slate-500">No upcoming scheduled payments.</p>
+              </div>
             )}
           </div>
         </div>
@@ -977,7 +972,7 @@ const TenantDashboard = () => {
             <div className="pt-6 border-t border-gray-100 dark:border-[#2a3045]">
               <div className="flex justify-between items-center mb-6">
                 <span className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Remaining Balance</span>
-                <span className={`text-[20px] font-bold font-mono ${unpaidBalance > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                <span className={`text-[20px] font-bold ${unpaidBalance > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                   {formatCurrency(unpaidBalance)}
                 </span>
               </div>

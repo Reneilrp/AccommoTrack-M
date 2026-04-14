@@ -277,7 +277,7 @@ export default function TenantPayments({ user }) {
   }, [payments, statusFilter, timeRange, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-transparent dark:bg-gray-900">
+    <div className="min-h-screen bg-transparent dark:bg-gray-900 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading && payments.length === 0 ? (
           <SkeletonWallet />
@@ -372,8 +372,8 @@ export default function TenantPayments({ user }) {
                   key={option.value}
                   onClick={() => updateScreenState('wallet', { statusFilter: option.value })}
                   className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${statusFilter === option.value
-                      ? 'bg-green-600 text-white shadow-md shadow-green-500/20'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    ? 'bg-green-600 text-white shadow-md shadow-green-500/20'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                 >
                   {option.label}
@@ -388,8 +388,8 @@ export default function TenantPayments({ user }) {
                     key={r.value}
                     onClick={() => updateScreenState('wallet', { timeRange: r.value })}
                     className={`px-3 py-2 text-xs font-bold rounded-md transition-colors ${timeRange === r.value
-                        ? 'bg-green-600 text-white'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      ? 'bg-green-600 text-white'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                   >
                     {r.label}
@@ -447,7 +447,7 @@ export default function TenantPayments({ user }) {
                           {payment.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm font-mono text-gray-700 dark:text-gray-300">{payment.referenceNo || '—'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.referenceNo || '—'}</td>
                       <td className="px-6 py-4 text-sm">
                         <button
                           onClick={() => {
@@ -519,7 +519,7 @@ export default function TenantPayments({ user }) {
                     )}
                   </div>
                   {payment.referenceNo && (
-                    <p className="text-xs text-gray-500 dark:text-gray-500 font-mono">Ref: {payment.referenceNo}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">Ref: {payment.referenceNo}</p>
                   )}
                   <button
                     onClick={() => {
@@ -586,7 +586,7 @@ export default function TenantPayments({ user }) {
                   {selectedPayment.referenceNo && (
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Reference</span>
-                      <span className="text-sm font-mono text-gray-700 dark:text-gray-300">{selectedPayment.referenceNo}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{selectedPayment.referenceNo}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
