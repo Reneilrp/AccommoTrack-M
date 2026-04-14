@@ -37,6 +37,7 @@ function AppContent() {
   const { theme, isDarkMode, isLoading: isThemeLoading } = useTheme();
   const { isLoaded: isUIStateLoaded } = useUIState();
   const isAuthHydrated = useAuthStore((state) => state.hasHydrated);
+  const setHydrated = useAuthStore((state) => state.setHydrated);
   const toastConfig = React.useMemo(() => getToastConfig(theme), [theme]);
   const {
     latestVersion,
@@ -49,6 +50,17 @@ function AppContent() {
   // Show startup update prompt at most once per app open.
   const [showStartupUpdateModal, setShowStartupUpdateModal] = React.useState(false);
   const [hasPromptedThisLaunch, setHasPromptedThisLaunch] = React.useState(false);
+
+  // Safety timeout: force hydration after 2 seconds
+  React.useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!isAuthHydrated) {
+        console.warn('[App] Forcing auth hydration after timeout');
+        setHydrated(true);
+      }
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, [isAuthHydrated, setHydrated]);
 
   React.useEffect(() => {
     if (isVersionLoading || hasPromptedThisLaunch) return;

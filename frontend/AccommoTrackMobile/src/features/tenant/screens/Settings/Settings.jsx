@@ -388,11 +388,12 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           onConfirm: () => performRoleSwitch('landlord'),
         });
       } else if (effectiveVerificationStatus === 'pending') {
-        openRoleModal({
-          title: 'Registration Pending',
-          message: 'Your landlord registration is still under review. Please wait for approval before switching.',
-          confirmLabel: 'OK',
-        });
+        // Hard block: Do not allow role switch for pending status
+        showError(
+          'Registration Pending',
+          'Your landlord registration is still under review. Please wait for admin approval before switching to landlord mode.'
+        );
+        return;
       } else {
         openRoleModal({
           title: 'Register as Landlord',

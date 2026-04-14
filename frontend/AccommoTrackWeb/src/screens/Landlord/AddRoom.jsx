@@ -621,7 +621,8 @@ export default function AddRoomModal({
       if (formData.billingPolicy)
         payload.append("billing_policy", formData.billingPolicy);
       // Append new billing-related fields if provided
-      if (formData.minStayDays) {
+      // Only send min_stay_days for non-monthly billing (monthly auto-enforces 30 days)
+      if (formData.billingPolicy !== "monthly" && formData.minStayDays) {
         const v = parseInt(formData.minStayDays);
         if (Number.isFinite(v)) payload.append("min_stay_days", v);
       }
@@ -965,22 +966,43 @@ export default function AddRoomModal({
 
             {/* Row 3: Minimum Stay | Capacity */}
             <div className="grid grid-cols-3 gap-4 mt-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Minimum Stay (days)
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g., 30"
-                  value={formData.minStayDays}
-                  onChange={(e) =>
-                    handleInputChange("minStayDays", e.target.value)
-                  }
-                  className={`w-full px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.minStayDays ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
-                  min="1"
-                  step="1"
-                />
-              </div>
+              {/* Only show minimum stay for daily and monthly_with_daily billing */}
+              {formData.billingPolicy !== "monthly" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Minimum Stay (days)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 7"
+                    ref={minStayRef}
+                    value={formData.minStayDays}
+                    onChange={(e) =>
+                      handleInputChange("minStayDays", e.target.value)
+                    }
+                    className={`w-full px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.minStayDays ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                    min="1"
+                    step="1"
+                  />
+                  {fieldErrors.minStayDays && <p className="text-red-500 text-xs mt-2">{fieldErrors.minStayDays}</p>}
+                </div>
+              )}
+              {/* Show info message for monthly billing */}
+              {formData.billingPolicy === "monthly" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Minimum Stay
+                  </label>
+                  <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-sm text-blue-700 dark:text-blue-400 font-medium">
+                      30 days (auto-enforced)
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                      Monthly billing requires minimum 1 month stay
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <div className="flex items-baseline justify-between">

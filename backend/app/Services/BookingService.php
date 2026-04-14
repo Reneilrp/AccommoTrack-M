@@ -194,16 +194,25 @@ class BookingService
                 throw new \DomainException('You cannot book a room more than 3 months in advance.');
             }
 
-            // Enforce minimum stay if configured
-            $minStay = $room->min_stay_days ?? null;
+            // Enforce minimum stay requirement
+            $minStay = (int) ($room->min_stay_days ?? 1);
 
             // Monthly contract bookings should always observe at least a 30-day minimum stay.
-            if ($contractMode === 'monthly' && ($minStay === null || $minStay < 30)) {
+            if ($contractMode === 'monthly' && $minStay < 30) {
                 $minStay = 30;
             }
 
-            if ($minStay && $endDate && $days < $minStay) {
-                throw new \DomainException("Minimum stay for this room is {$minStay} days.");
+            // Only enforce minimum stay when an end_date is provided (fixed-duration bookings)
+            // Open-ended monthly stays don't need minimum stay validation
+            if ($endDate && $days < $minStay) {
+                $stayType = $contractMode === 'monthly' ? 'month' : 'day';
+                $minStayDisplay = $minStay >= 30 && $contractMode === 'monthly' 
+                    ? ($minStay / 30) . ' ' . ($minStay === 30 ? 'month' : 'months')
+                    : $minStay . ' ' . ($minStay === 1 ? 'day' : 'days');
+                    
+                throw new \DomainException(
+                    "This room requires a minimum stay of {$minStayDisplay}. Your requested stay is {$days} days."
+                );
             }
 
             // Calculate pricing (use calendar-period-aware calculation when a move-out date exists).

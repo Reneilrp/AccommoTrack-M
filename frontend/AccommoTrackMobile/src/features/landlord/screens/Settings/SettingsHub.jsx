@@ -316,14 +316,12 @@ export default function SettingsScreen({ navigation, onLogout }) {
         });
         setConfirmModalVisible(true);
       } else if (normalizedVerificationStatus === 'pending') {
-        setConfirmModalConfig({
-          title: 'Registration Pending',
-          message: 'Your landlord registration is still under review. Please wait for approval before switching.',
-          confirmText: 'Got it',
-          singleAction: true,
-          onConfirm: () => setConfirmModalVisible(false)
-        });
-        setConfirmModalVisible(true);
+        // Hard block: Do not allow role switch for pending status
+        showError(
+          'Registration Pending',
+          'Your landlord registration is still under review. Please wait for admin approval before switching to landlord mode.'
+        );
+        return;
       } else {
         setConfirmModalConfig({
           title: 'Register as Landlord',

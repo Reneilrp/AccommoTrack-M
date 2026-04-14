@@ -122,14 +122,17 @@ export const useAuthStore = create(
           isAuthenticated: Boolean(mergedState.authToken),
         };
       },
-      onRehydrateStorage: () => (state, error) => {
-        if (error) {
-          console.warn('[authStore] Failed to hydrate auth store:', error);
-        }
-
-        if (state) {
-          state.setHydrated(true);
-        }
+      onRehydrateStorage: (state) => {
+        return (hydratedState, error) => {
+          if (error) {
+            console.warn('[authStore] Failed to hydrate auth store:', error);
+          }
+          
+          const targetState = hydratedState || state;
+          if (targetState?.setHydrated) {
+            targetState.setHydrated(true);
+          }
+        };
       },
     },
   ),

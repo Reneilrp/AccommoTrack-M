@@ -1323,6 +1323,123 @@ export default function MyBookings() {
 
   // ==================== Sub-components for Tabs ====================
 
+  // ==================== Ellipsis Menu Component ====================
+  const EllipsisMenu = ({ booking, property, room, reviewAlreadySubmitted, onReview, onMaintenance, onReport, theme }) => {
+    const [menuVisible, setMenuVisible] = useState(false);
+
+    return (
+      <View style={{ flex: 1, position: 'relative' }}>
+        <TouchableOpacity
+          style={[
+            styles.actionBtn,
+            {
+              backgroundColor: theme.colors.surface,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+            },
+          ]}
+          onPress={() => setMenuVisible(!menuVisible)}
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.text} />
+        </TouchableOpacity>
+
+        <Modal
+          visible={menuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuVisible(false)}
+          statusBarTranslucent
+          navigationBarTranslucent
+          presentationStyle="overFullScreen"
+        >
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            activeOpacity={1}
+            onPress={() => setMenuVisible(false)}
+          >
+            <View
+              style={{
+                backgroundColor: theme.colors.surface,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                minWidth: 200,
+                overflow: 'hidden',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
+              }}
+            >
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  gap: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.border,
+                }}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onMaintenance();
+                }}
+              >
+                <Ionicons name="construct-outline" size={20} color="#F97316" />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Maintenance</Text>
+              </TouchableOpacity>
+
+              {!reviewAlreadySubmitted && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    gap: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.border,
+                  }}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    onReview();
+                  }}
+                >
+                  <Ionicons name="star-outline" size={20} color="#F59E0B" />
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Review</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  gap: 12,
+                }}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onReport();
+                }}
+              >
+                <Ionicons name="shield-outline" size={20} color="#DC2626" />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#DC2626' }}>Report</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </View>
+    );
+  };
+
   const renderTabs = () => (
     <View style={styles.tabsContainer}>
       {TABS.map((tab) => (
@@ -1690,25 +1807,6 @@ export default function MyBookings() {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: reviewAlreadySubmitted ? theme.colors.backgroundTertiary : theme.colors.primary }]}
-                    disabled={reviewAlreadySubmitted}
-                    onPress={() => openReviewModal({ booking, property })}
-                  >
-                    <Text style={[styles.actionBtnText, { color: reviewAlreadySubmitted ? theme.colors.textTertiary : '#fff' }]}>
-                      {reviewAlreadySubmitted ? 'Reviewed' : 'Review'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: theme.isDark ? '#c2410c' : '#F97316' }]}
-                    onPress={() => openMaintenanceModal({ booking, property, room })}
-                  >
-                    <Text style={styles.actionBtnText}>Maintenance</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.actionRow}>
                   {hasMoveOutNotice ? (
                     <View
                       style={[
@@ -1741,13 +1839,19 @@ export default function MyBookings() {
                   ) : (
                     <View style={styles.actionBtnPlaceholder} />
                   )}
+                </View>
 
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626' }]}
-                    onPress={() => openReportModal({ booking, property })}
-                  >
-                    <Text style={styles.actionBtnText}>Report</Text>
-                  </TouchableOpacity>
+                <View style={styles.actionRow}>
+                  <EllipsisMenu
+                    booking={booking}
+                    property={property}
+                    room={room}
+                    reviewAlreadySubmitted={reviewAlreadySubmitted}
+                    onReview={() => openReviewModal({ booking, property })}
+                    onMaintenance={() => openMaintenanceModal({ booking, property, room })}
+                    onReport={() => openReportModal({ booking, property })}
+                    theme={theme}
+                  />
                 </View>
               </View>
             )}

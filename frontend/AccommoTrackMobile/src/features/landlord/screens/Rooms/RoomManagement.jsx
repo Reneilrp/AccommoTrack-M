@@ -667,7 +667,10 @@ export default function RoomManagementScreen({ navigation, route }) {
       payload.append("capacity", isApartment ? "1" : formData.capacity);
       payload.append("billing_policy", formData.billingPolicy);
       payload.append("pricing_model", formData.pricingModel);
-      payload.append("min_stay_days", formData.minStayDays);
+      // Only send min_stay_days for non-monthly billing (monthly auto-enforces 30 days)
+      if (formData.billingPolicy !== "monthly" && formData.minStayDays) {
+        payload.append("min_stay_days", formData.minStayDays);
+      }
       payload.append("description", formData.description || "");
       payload.append("status", formData.status);
       // Only send if explicitly set; null means inherit from property
@@ -1467,19 +1470,41 @@ export default function RoomManagementScreen({ navigation, route }) {
 
             {/* Min Stay & Capacity Row */}
             <View style={styles.inputRow}>
-              <View style={styles.inputHalf}>
-                <Text style={styles.label}>Minimum Stay (days)</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    fieldErrors.minStayDays && { borderColor: "#EF4444" },
-                  ]}
-                  keyboardType="numeric"
-                  value={formData.minStayDays}
-                  onChangeText={(t) => handleInputChange("minStayDays", t)}
-                  placeholder="e.g., 30"
-                />
-              </View>
+              {/* Only show minimum stay for daily and monthly_with_daily billing */}
+              {formData.billingPolicy !== "monthly" && (
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>Minimum Stay (days)</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      fieldErrors.minStayDays && { borderColor: "#EF4444" },
+                    ]}
+                    keyboardType="numeric"
+                    value={formData.minStayDays}
+                    onChangeText={(t) => handleInputChange("minStayDays", t)}
+                    placeholder="e.g., 7"
+                  />
+                  {fieldErrors.minStayDays && (
+                    <Text style={{ color: "#EF4444", fontSize: 11, marginTop: 4 }}>
+                      {fieldErrors.minStayDays}
+                    </Text>
+                  )}
+                </View>
+              )}
+              {/* Show info message for monthly billing */}
+              {formData.billingPolicy === "monthly" && (
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>Minimum Stay</Text>
+                  <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, padding: 12, borderWidth: 1, borderColor: "#93C5FD" }}>
+                    <Text style={{ fontSize: 13, color: "#1E40AF", fontWeight: "600" }}>
+                      30 days (auto-enforced)
+                    </Text>
+                    <Text style={{ fontSize: 11, color: "#2563EB", marginTop: 4 }}>
+                      Monthly billing requires minimum 1 month stay
+                    </Text>
+                  </View>
+                </View>
+              )}
               <View style={styles.inputHalf}>
                 <View style={styles.inputLabelRow}>
                   <Text style={styles.label}>

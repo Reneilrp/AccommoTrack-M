@@ -57,7 +57,7 @@ class StoreBookingRequest extends FormRequest
             $isDailyContract ? 'required' : 'nullable',
             'date',
             'after:start_date',
-            function ($attribute, $value, $fail) {
+            function ($attribute, $value, $fail) use ($roomId, $resolvedContractMode) {
                 if (! $value) {
                     return;
                 }
@@ -67,6 +67,24 @@ class StoreBookingRequest extends FormRequest
                     $fourYearsLater = Carbon::parse($startDate)->addYears(4);
                     if (Carbon::parse($value)->gt($fourYearsLater)) {
                         $fail('The booking duration cannot exceed 4 years.');
+                    }
+
+                    // Enforce minimum stay requirement
+                    if ($roomId) {
+                        $room = Room::find($roomId);
+                        if ($room && $room->min_stay_days) {
+                            $minStay = (int) $room->min_stay_days;
+                            
+                            // For monthly contracts, enforce at least 30 days minimum
+                            if ($resolvedContractMode === 'monthly' && $minStay < 30) {
+                                $minStay = 30;
+                            }
+
+                            $requestedDays = Carbon::parse($startDate)->diffInDays(Carbon::parse($value));
+                            if ($requestedDays < $minStay) {
+                                $fail("This room requires a minimum stay of {$minStay} days. Your requested stay is only {$requestedDays} days.");
+                            }
+                        }
                     }
                 }
             },
