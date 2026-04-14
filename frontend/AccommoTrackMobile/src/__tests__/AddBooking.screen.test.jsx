@@ -240,7 +240,12 @@ describe('AddBooking mobile smoke', () => {
     renderScreen();
     await waitForInitialLoad();
 
-    expect(screen.getByTestId('add-booking-bed-count-picker')).toBeTruthy();
+    fireEvent(screen.getByTestId('add-booking-property-picker'), 'valueChange', 1);
+    fireEvent(screen.getByTestId('add-booking-room-picker'), 'valueChange', 12);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('add-booking-bed-count-picker')).toBeTruthy();
+    });
 
     fireEvent(screen.getByTestId('add-booking-bed-count-picker'), 'valueChange', 2);
     fireEvent.changeText(

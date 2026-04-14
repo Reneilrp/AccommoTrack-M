@@ -6,11 +6,12 @@ import invoiceService from '../../../services/invoiceService';
 
 const mockUpdateData = jest.fn();
 const mockInvalidateData = jest.fn();
+const mockNavigate = jest.fn();
 let mockSearch = '';
-const originalPrompt = window.prompt;
 
 jest.mock('react-router-dom', () => ({
   useLocation: () => ({ search: mockSearch }),
+  useNavigate: () => mockNavigate,
 }));
 
 jest.mock('react-hot-toast', () => ({
@@ -82,7 +83,6 @@ describe('Landlord Payments runtime cash verification', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSearch = '';
-    window.prompt = jest.fn();
 
     invoiceService.getInvoices.mockResolvedValue({
       success: true,
@@ -110,16 +110,12 @@ describe('Landlord Payments runtime cash verification', () => {
     });
   });
 
-  afterAll(() => {
-    window.prompt = originalPrompt;
-  });
-
   it('approves a pending-verification invoice from the manage modal', async () => {
     render(<Payments />);
 
     await screen.findByText('INV-501');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Manage' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
 
     fireEvent.click(await screen.findByRole('button', { name: /Approve Payment/i }));
 
@@ -136,23 +132,28 @@ describe('Landlord Payments runtime cash verification', () => {
     });
   });
 
-  it('rejects a pending-verification invoice with prompt-based reason payload', async () => {
-    window.prompt
-      .mockReturnValueOnce('unclear_image')
-      .mockReturnValueOnce('  Proof is unreadable  ');
-
+  it('rejects a pending-verification invoice with structured reason payload', async () => {
     render(<Payments />);
 
     await screen.findByText('INV-501');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Manage' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
 
     fireEvent.click(await screen.findByRole('button', { name: /Reject Payment/i }));
+
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'wrong_amount' },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText('Explain what is wrong so the tenant can correct and resubmit.'),
+      { target: { value: '  Proof is unreadable  ' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Confirm Rejection/i }));
 
     await waitFor(() => {
       expect(invoiceService.verifyCash).toHaveBeenCalledWith(501, {
         action: 'reject',
-        reason_code: 'unclear_image',
+        reason_code: 'wrong_amount',
         reason: 'Proof is unreadable',
       });
     });
@@ -160,7 +161,5 @@ describe('Landlord Payments runtime cash verification', () => {
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith('Cash payment rejected — tenant will be notified.');
     });
-
-    expect(window.prompt).toHaveBeenCalledTimes(2);
   });
 });

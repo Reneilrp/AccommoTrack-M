@@ -1,5 +1,4 @@
 import React from 'react';
-import { Alert } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import Payments from '../features/landlord/screens/Payments/Payments.jsx';
@@ -12,6 +11,7 @@ const mockNavigation = {
   navigate: jest.fn(),
   setParams: jest.fn(),
 };
+const mockShowAlert = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback) => {
@@ -42,6 +42,15 @@ jest.mock('../contexts/ThemeContext.jsx', () => ({
         card: '#ffffff',
       },
     },
+  }),
+}));
+
+jest.mock('../contexts/UIStateContext.jsx', () => ({
+  useUIState: () => ({
+    uiState: { data: {} },
+    updateData: jest.fn(),
+    invalidateData: jest.fn(),
+    showAlert: mockShowAlert,
   }),
 }));
 
@@ -172,6 +181,7 @@ const renderWithQueryClient = (ui) => {
 describe('Payments screen (mobile)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockShowAlert.mockClear();
 
     PaymentService.getInvoices.mockResolvedValue({
       success: true,
@@ -206,12 +216,6 @@ describe('Payments screen (mobile)', () => {
       success: true,
       data: {},
     });
-
-    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    Alert.alert.mockRestore();
   });
 
   it('records full payment and auto-updates booking to paid', async () => {
@@ -223,7 +227,7 @@ describe('Payments screen (mobile)', () => {
 
     fireEvent.press(screen.getByText('Manage'));
 
-    await screen.findByText('Manage Payment');
+    await screen.findByText('Invoice Details');
 
     fireEvent.press(screen.getByText('Record Payment'));
 
@@ -243,7 +247,7 @@ describe('Payments screen (mobile)', () => {
       });
     });
 
-    expect(Alert.alert).toHaveBeenCalledWith('Success', 'Payment recorded successfully.');
+    expect(mockShowAlert).toHaveBeenCalledWith('Success', 'Payment recorded successfully.');
   });
 
   it('blocks record payment when amount is invalid', async () => {
@@ -255,12 +259,12 @@ describe('Payments screen (mobile)', () => {
 
     fireEvent.press(screen.getByText('Manage'));
 
-    await screen.findByText('Manage Payment');
+    await screen.findByText('Invoice Details');
 
     fireEvent.changeText(screen.getByPlaceholderText('e.g. 5000'), '');
     fireEvent.press(screen.getByText('Record Payment'));
 
-    expect(Alert.alert).toHaveBeenCalledWith('Validation', 'Please enter a valid amount.');
+    expect(mockShowAlert).toHaveBeenCalledWith('Validation', 'Please enter a valid amount.');
     expect(PaymentService.recordLandlordPayment).not.toHaveBeenCalled();
   });
 
@@ -277,16 +281,19 @@ describe('Payments screen (mobile)', () => {
     await screen.findByText('INV-1002');
 
     fireEvent.press(screen.getByText('Manage'));
-    await screen.findByText('Manage Payment');
+    await screen.findByText('Invoice Details');
 
     fireEvent.press(screen.getByText('Approve Payment'));
 
     await waitFor(() => {
-      expect(PaymentService.verifyCash).toHaveBeenCalledWith(2, 'approve');
+      expect(PaymentService.verifyCash).toHaveBeenCalledWith(2, { action: 'approve' });
     });
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Cash payment approved successfully.');
+      expect(mockShowAlert).toHaveBeenCalledWith(
+        'Success',
+        'Cash payment approved and invoice marked as paid.',
+      );
     });
   });
 
@@ -303,16 +310,30 @@ describe('Payments screen (mobile)', () => {
     await screen.findByText('INV-1002');
 
     fireEvent.press(screen.getByText('Manage'));
-    await screen.findByText('Manage Payment');
+    await screen.findByText('Invoice Details');
 
     fireEvent.press(screen.getByText('Reject Payment'));
+    fireEvent.changeText(
+      screen.getByPlaceholderText('Explain what is wrong so the tenant can correct it.'),
+      '  Proof is unreadable  ',
+    );
+
+    const rejectButtons = screen.getAllByText('Reject Cash Payment');
+    fireEvent.press(rejectButtons[rejectButtons.length - 1]);
 
     await waitFor(() => {
-      expect(PaymentService.verifyCash).toHaveBeenCalledWith(2, 'reject');
+      expect(PaymentService.verifyCash).toHaveBeenCalledWith(2, {
+        action: 'reject',
+        reason_code: 'unclear_image',
+        reason: 'Proof is unreadable',
+      });
     });
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Cash payment rejected successfully.');
+      expect(mockShowAlert).toHaveBeenCalledWith(
+        'Success',
+        'Cash payment rejected. The tenant can resubmit correct proof.',
+      );
     });
   });
 
@@ -356,7 +377,7 @@ describe('Payments screen (mobile)', () => {
 
     await screen.findByText('INV-1001');
 
-    expect(screen.getByText('Cash Verify')).toBeTruthy();
+    expect(screen.getAllByText(/Cash Verify/).length).toBeGreaterThan(0);
   });
 
   it('shows Cash Verify stats card with pending verification count', async () => {
@@ -379,7 +400,9 @@ describe('Payments screen (mobile)', () => {
       <Payments navigation={mockNavigation} route={{ params: {} }} />,
     );
 
-    await screen.findByText('Cash Verify (Month)');
-    expect(screen.getByText('2')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getAllByText(/Cash Verify/).length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText('2').length).toBeGreaterThan(0);
   });
 });

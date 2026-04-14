@@ -429,7 +429,7 @@ export const getStyles = (theme) => StyleSheet.create({
   paymentSummaryButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: theme.colors.textInverse,
   },
   paymentSummarySettledBadge: {
     marginTop: 2,
