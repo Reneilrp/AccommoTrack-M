@@ -211,7 +211,8 @@ class GenerateMonthlyInvoices extends Command
                     })
                     ->sum(DB::raw("booking_addons.price_at_booking * booking_addons.quantity"));
 
-                $baseInvoiceAmount = (float) $booking->monthly_rent + (float) $recurringAddonAmount;
+                $effectiveMonthlyRent = $booking->resolveEffectiveMonthlyRent($expectedInvoiceCount);
+                $baseInvoiceAmount = $effectiveMonthlyRent + (float) $recurringAddonAmount;
 
                 if ($baseInvoiceAmount > 0) {
                     if ($isProxyMode && $expectedInvoiceCount > 1) {

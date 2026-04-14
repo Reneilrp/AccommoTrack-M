@@ -360,8 +360,8 @@ class TenantBookingController extends Controller
                 return response()->json(['success' => true, 'data' => $existing], 200);
             }
 
-            // Base monthly amount (use booking.monthly_rent for tenant-specific rent)
-            $monthlyDue = (float) ($booking->monthly_rent ?? $booking->room->monthly_rate ?? 0);
+            // Base monthly amount (normalize legacy proxy/per-bed records when needed)
+            $monthlyDue = $booking->resolveEffectiveMonthlyRent();
 
             // Partial calculation: if tenant has exceeded the cycle start (i.e., today is after cycle start), charge partial extra days
             $daysInMonth = 30; // Hardcoded to 30
@@ -499,7 +499,7 @@ class TenantBookingController extends Controller
         $periodKey = $periodStart->format('Y-m-d');
 
         $recurringAddonAmount = $this->resolveRecurringAddonAmountForPeriod($booking, $periodStart);
-        $monthlyRent = (float) ($booking->monthly_rent ?? $booking->room->monthly_rate ?? 0);
+        $monthlyRent = $booking->resolveEffectiveMonthlyRent();
         $baseInvoiceAmount = $monthlyRent + $recurringAddonAmount;
 
         if ($baseInvoiceAmount <= 0) {

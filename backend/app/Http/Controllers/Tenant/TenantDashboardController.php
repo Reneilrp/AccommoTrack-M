@@ -87,6 +87,23 @@ class TenantDashboardController extends Controller
         ];
     }
 
+    private function resolveBookingRentSnapshot($booking, ?int $resolvedOccupantCount = null): array
+    {
+        $resolvedSlots = $booking->resolveOccupiedSlots($resolvedOccupantCount);
+        $monthlyRent = (float) $booking->resolveEffectiveMonthlyRent($resolvedSlots);
+
+        $billingPolicy = strtolower((string) ($booking->room->billing_policy ?? 'monthly'));
+        $unitPrice = $billingPolicy === 'daily'
+            ? (float) ($booking->room->daily_rate ?? ($monthlyRent / 30))
+            : $monthlyRent;
+
+        return [
+            'monthly_rent' => $monthlyRent,
+            'unit_price' => $unitPrice,
+            'billing_policy' => $billingPolicy,
+        ];
+    }
+
     public function __construct(TenantDashboardService $dashboardService)
     {
         $this->dashboardService = $dashboardService;
@@ -130,12 +147,13 @@ class TenantDashboardController extends Controller
 
             $upcomingCheckouts = $data['upcomingCheckouts']->map(function ($booking) {
                 $daysLeft = $booking->end_date ? now()->diffInDays($booking->end_date, false) : null;
+                $rentSnapshot = $this->resolveBookingRentSnapshot($booking);
 
                 return [
                     'id' => $booking->id, 'propertyTitle' => $booking->property->title, 'roomNumber' => $booking->room->room_number,
                     'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
                     'daysLeft' => $daysLeft !== null ? (int) $daysLeft : null,
-                    'amount' => (float) $booking->monthly_rent, 'paymentStatus' => $booking->payment_status,
+                    'amount' => (float) $rentSnapshot['monthly_rent'], 'paymentStatus' => $booking->payment_status,
                     'urgency' => $daysLeft === null ? 'low' : ($daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low')),
                 ];
             });
@@ -206,6 +224,7 @@ class TenantDashboardController extends Controller
                 if ($resolvedOccupantCount <= 0 && $booking->booking_mode === 'proxy') {
                     $resolvedOccupantCount = $resolvedBedCount;
                 }
+                $rentSnapshot = $this->resolveBookingRentSnapshot($booking, $resolvedOccupantCount);
                 $roomCapacity = (int) ($booking->room->capacity ?? 0);
                 $occupants = $booking->occupants->map(function ($occupant) {
                     return [
@@ -240,10 +259,10 @@ class TenantDashboardController extends Controller
                         'occupantCount' => $resolvedOccupantCount,
                         'occupant_count' => $resolvedOccupantCount,
                         'occupants' => $occupants,
-                        'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $booking->monthly_rent,
-                        'total_months' => $booking->total_months, 'monthly_rent' => (float) $booking->monthly_rent,
+                        'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $rentSnapshot['monthly_rent'],
+                        'total_months' => $booking->total_months, 'monthly_rent' => (float) $rentSnapshot['monthly_rent'],
                         'billing_policy' => $booking->room->billing_policy ?? 'monthly',
-                        'unit_price' => (float) ($booking->room->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
+                        'unit_price' => (float) $rentSnapshot['unit_price'],
                         'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
                         'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
                         'contract_mode' => $booking->contract_mode,
@@ -267,6 +286,7 @@ class TenantDashboardController extends Controller
                         'capacity' => $roomCapacity,
                         'roomType' => $booking->room->room_type ?? null,
                         'room_type' => $booking->room->room_type ?? null,
+                        'pricing_model' => $booking->room->pricing_model ?? 'full_room',
                         'require_1month_advance' => $booking->room->requiresAdvance(),
                         'advance_feature_enabled' => $booking->room->requiresAdvance(),
                         'advance_feature_status' => $booking->room->requiresAdvance() ? 'enabled' : 'disabled',
@@ -305,11 +325,11 @@ class TenantDashboardController extends Controller
                         'pendingCount' => $booking->addons->where('pivot.status', 'pending')->count(),
                     ],
                     'financials' => [
-                        'monthlyRent' => (float) $booking->monthly_rent, 'monthlyAddons' => (float) $monthlyAddonTotal,
+                        'monthlyRent' => (float) $rentSnapshot['monthly_rent'], 'monthlyAddons' => (float) $monthlyAddonTotal,
                         'billing_policy' => $booking->room->billing_policy ?? 'monthly',
-                        'unit_price' => (float) ($booking->room->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
-                        'monthlyTotal' => (float) ($booking->monthly_rent + $monthlyAddonTotal),
-                        'invoices' => $booking->invoices->map(function ($invoice) use ($booking) {
+                        'unit_price' => (float) $rentSnapshot['unit_price'],
+                        'monthlyTotal' => (float) ($rentSnapshot['monthly_rent'] + $monthlyAddonTotal),
+                        'invoices' => $booking->invoices->map(function ($invoice) use ($booking, $rentSnapshot) {
                             $metadata = is_array($invoice->metadata) ? $invoice->metadata : [];
                             $rawLineItems = collect($metadata['line_items'] ?? $metadata['lineItems'] ?? []);
                             $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
@@ -354,8 +374,8 @@ class TenantDashboardController extends Controller
                                 $baseTotalCents = max(0, $invoiceTotalCents - $addonsTotalCents);
                                 $billingPolicy = $booking->room->billing_policy ?? 'monthly';
                                 $unitPrice = (float) ($billingPolicy === 'daily'
-                                    ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30))
-                                    : $booking->monthly_rent);
+                                    ? ($booking->room->daily_rate ?? ($rentSnapshot['monthly_rent'] / 30))
+                                    : $rentSnapshot['monthly_rent']);
                                 $inferredDays = $billingPolicy === 'daily' && $unitPrice > 0
                                     ? max(1, (int) round(($baseTotalCents / 100) / $unitPrice))
                                     : 0;
@@ -427,6 +447,7 @@ class TenantDashboardController extends Controller
                 $startDate = $booking->start_date ? $booking->start_date->format('Y-m-d') : null;
                 $endDate = $booking->end_date ? $booking->end_date->format('Y-m-d') : null;
                 $hasReview = ! is_null($booking->review);
+                $rentSnapshot = $this->resolveBookingRentSnapshot($booking);
 
                 $totalPaid = $booking->payments->where('status', 'completed')->sum('amount');
                 $addonTotal = $booking->addons->sum(function ($a) {
@@ -505,11 +526,11 @@ class TenantDashboardController extends Controller
                     'status' => $booking->status,
                     'reservation_policy' => $this->buildReservationPolicyPayload($booking),
                     'billing_policy' => $booking->room?->billing_policy ?? 'monthly',
-                    'unit_price' => (float) ($booking->room?->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
+                    'unit_price' => (float) $rentSnapshot['unit_price'],
                     'confirmedAt' => $booking->confirmed_at,
                     'noticeGivenAt' => $booking->notice_given_at,
                     'activityLog' => $sortedActivity,
-                    'financials' => ['monthlyRent' => (float) $booking->monthly_rent, 'totalAmount' => (float) $booking->total_amount, 'addonTotal' => (float) $addonTotal, 'totalPaid' => (float) $totalPaid, 'paymentsCount' => $booking->payments->count()],
+                    'financials' => ['monthlyRent' => (float) $rentSnapshot['monthly_rent'], 'totalAmount' => (float) $booking->total_amount, 'addonTotal' => (float) $addonTotal, 'totalPaid' => (float) $totalPaid, 'paymentsCount' => $booking->payments->count()],
                     'addons' => $booking->addons->map(function ($a) {
                         $price = $this->resolveAddonEffectivePrice($a);
 

@@ -337,4 +337,80 @@ class Booking extends Model
     {
         return $query->whereIn('payment_status', ['unpaid', 'partial']);
     }
+
+    /**
+     * Resolve occupied slots for billing/display.
+     */
+    public function resolveOccupiedSlots(?int $occupantsCount = null): int
+    {
+        $bedCount = max(1, (int) ($this->bed_count ?? 1));
+
+        if (($this->booking_mode ?? 'normal') !== 'proxy') {
+            return $bedCount;
+        }
+
+        $resolvedOccupants = $occupantsCount;
+        if ($resolvedOccupants === null) {
+            $resolvedOccupants = (int) ($this->occupants_count ?? 0);
+        }
+
+        if ($resolvedOccupants <= 0 && $this->relationLoaded('occupants')) {
+            $resolvedOccupants = (int) $this->occupants->count();
+        }
+
+        if ($resolvedOccupants <= 0) {
+            $resolvedOccupants = $bedCount;
+        }
+
+        return max($bedCount, $resolvedOccupants, 1);
+    }
+
+    /**
+     * Resolve monthly rent total for this booking.
+     *
+     * For legacy proxy/per-bed records where monthly_rent was stored as a single-bed price,
+     * normalize to room monthly_rate * occupied slots.
+     */
+    public function resolveEffectiveMonthlyRent(?int $occupiedSlots = null): float
+    {
+        $storedMonthlyRent = max(0.0, (float) ($this->monthly_rent ?? 0));
+        $room = $this->room;
+
+        if (! $room) {
+            return $storedMonthlyRent;
+        }
+
+        if (($this->booking_mode ?? 'normal') !== 'proxy') {
+            return $storedMonthlyRent;
+        }
+
+        $billingPolicy = strtolower((string) ($room->billing_policy ?? 'monthly'));
+        if ($billingPolicy === 'daily') {
+            return $storedMonthlyRent;
+        }
+
+        $pricingModel = strtolower((string) ($room->pricing_model ?? 'full_room'));
+        if ($pricingModel !== 'per_bed') {
+            return $storedMonthlyRent;
+        }
+
+        $slots = max(1, (int) ($occupiedSlots ?? $this->resolveOccupiedSlots()));
+        $perBedMonthlyRate = max(0.0, (float) ($room->monthly_rate ?? 0));
+
+        if ($slots <= 1 || $perBedMonthlyRate <= 0) {
+            return $storedMonthlyRent;
+        }
+
+        $expectedTotal = $perBedMonthlyRate * $slots;
+
+        if ($storedMonthlyRent <= 0.0) {
+            return $expectedTotal;
+        }
+
+        if ($storedMonthlyRent <= ($perBedMonthlyRate + 0.01)) {
+            return $expectedTotal;
+        }
+
+        return $storedMonthlyRent;
+    }
 }

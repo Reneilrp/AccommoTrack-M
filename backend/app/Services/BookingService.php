@@ -634,6 +634,15 @@ class BookingService
      */
     public function finalizeCheckout(Booking $booking, ?string $moveOutDate = null, ?string $note = null): array
     {
+        Log::info('Starting finalizeCheckout', [
+            'booking_id' => $booking->id,
+            'booking_status' => $booking->status,
+            'tenant_id' => $booking->tenant_id,
+            'room_id' => $booking->room_id,
+            'deposit_balance' => $booking->deposit_balance,
+            'payment_status' => $booking->payment_status,
+        ]);
+
         DB::beginTransaction();
 
         try {
@@ -641,8 +650,14 @@ class BookingService
 
             // Validate room relationship exists
             if (!$booking->room) {
+                Log::error('Room relationship is null', [
+                    'booking_id' => $booking->id,
+                    'room_id' => $booking->room_id,
+                ]);
                 throw new \DomainException('Booking room data is missing. Cannot finalize checkout.');
             }
+
+            Log::info('Room relationship validated', ['room_id' => $booking->room->id]);
 
             if (in_array($booking->status, ['cancelled', 'completed'], true)) {
                 throw new \DomainException('Checkout is only allowed for active stays.');
@@ -676,16 +691,23 @@ class BookingService
                     : $existingNotes."\n".$line;
             }
 
+            Log::info('About to remove tenant from room', [
+                'tenant_id' => $booking->tenant_id,
+                'room_id' => $booking->room->id,
+            ]);
+
             // Remove tenant from room if tenant_id exists
             if ($booking->tenant_id && $booking->room) {
                 try {
                     $booking->room->removeTenant($booking->tenant_id, $checkoutDate->toDateString());
+                    Log::info('Tenant removed successfully');
                 } catch (\Exception $e) {
                     Log::error('Failed to remove tenant from room during checkout', [
                         'booking_id' => $booking->id,
                         'tenant_id' => $booking->tenant_id,
                         'room_id' => $booking->room_id,
                         'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
                     ]);
                     // Continue with checkout even if tenant removal fails
                 }
@@ -696,10 +718,20 @@ class BookingService
                 ? 'completed'
                 : 'partial-completed';
 
+            Log::info('Resolved status', [
+                'resolved_status' => $resolvedStatus,
+                'payment_status' => $booking->payment_status,
+                'has_outstanding_deposit' => $hasOutstandingDeposit,
+            ]);
+
             $booking->status = $resolvedStatus;
+            
+            Log::info('About to call handleCompletion');
             $this->handleCompletion($booking, $resolvedStatus);
+            Log::info('handleCompletion completed');
 
             $booking->save();
+            Log::info('Booking saved');
 
             $this->auditLogService->bookingEvent('booking.completed', [
                 'subject_type' => 'booking',
@@ -1163,7 +1195,8 @@ class BookingService
     {
         $occupants = $booking->occupants()->get()->values();
         $invoiceSlots = max(1, $invoiceSlots);
-        $perOccupantAmount = (float) $booking->monthly_rent / $invoiceSlots;
+        $effectiveMonthlyRent = $booking->resolveEffectiveMonthlyRent($invoiceSlots);
+        $perOccupantAmount = $effectiveMonthlyRent / $invoiceSlots;
 
         if ($occupants->count() < $invoiceSlots) {
             Log::warning('Proxy booking has fewer occupant records than billed slots; using fallback labels.', [

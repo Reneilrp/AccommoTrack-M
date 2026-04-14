@@ -165,6 +165,42 @@ class GenerateMonthlyInvoicesIdempotencyTest extends TestCase
         $this->assertSame([$periodKey, $periodKey.'#2'], $periodKeys);
     }
 
+    public function test_proxy_booking_legacy_per_bed_monthly_rent_is_scaled_to_all_slots(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-15'));
+
+        [$booking] = $this->buildProxyScenario();
+        $periodKey = '2026-04-15';
+
+        // Simulate legacy records where monthly_rent stored only one bed amount.
+        $booking->update([
+            'monthly_rent' => 10000,
+            'next_billing_date' => $periodKey,
+        ]);
+
+        $this->artisan('invoices:generate-monthly')->assertExitCode(0);
+
+        $periodInvoices = Invoice::query()
+            ->where('booking_id', $booking->id)
+            ->where('invoice_type', 'rent')
+            ->where(function ($query) use ($periodKey) {
+                $query->where('billing_period_key', $periodKey)
+                    ->orWhere('billing_period_key', 'like', $periodKey.'#%');
+            })
+            ->get();
+
+        $this->assertCount(2, $periodInvoices);
+        $this->assertSame(4000000, (int) $periodInvoices->sum('amount_cents'));
+
+        $amounts = $periodInvoices
+            ->pluck('amount_cents')
+            ->sort()
+            ->values()
+            ->all();
+
+        $this->assertSame([2000000, 2000000], $amounts);
+    }
+
     /**
      * @return array{Booking}
      */

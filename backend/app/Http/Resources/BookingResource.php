@@ -25,6 +25,12 @@ class BookingResource extends JsonResource
             $resolvedOccupantCount = $resolvedBedCount;
         }
 
+        $resolvedOccupiedSlots = $this->resource->resolveOccupiedSlots($resolvedOccupantCount);
+        $effectiveMonthlyRent = $this->resource->resolveEffectiveMonthlyRent($resolvedOccupiedSlots);
+        $resolvedUnitPrice = (float) ($this->room?->billing_policy === 'daily'
+            ? ($this->room->daily_rate ?? ($effectiveMonthlyRent / 30))
+            : $effectiveMonthlyRent);
+
         return [
             'id' => $this->id,
             'booking_reference' => $this->booking_reference,
@@ -63,9 +69,9 @@ class BookingResource extends JsonResource
             'total_months' => $this->total_months,
             'amount' => (float) $this->total_amount,
             'total_amount' => (float) $this->total_amount,
-            'monthlyRent' => (float) $this->monthly_rent,
-            'monthly_rent' => (float) $this->monthly_rent,
-            'unit_price' => (float) ($this->room?->billing_policy === 'daily' ? ($this->room->daily_rate ?? ($this->monthly_rent / 30)) : $this->monthly_rent),
+            'monthlyRent' => (float) $effectiveMonthlyRent,
+            'monthly_rent' => (float) $effectiveMonthlyRent,
+            'unit_price' => $resolvedUnitPrice,
             'billing_policy' => $this->room?->billing_policy ?? 'monthly',
             'status' => $this->status,
             'is_overdue' => $this->end_date
@@ -142,6 +148,7 @@ class BookingResource extends JsonResource
                 'floor' => $this->room->floor,
                 'status' => $this->room->status,
                 'billing_policy' => $this->room->billing_policy ?? 'monthly',
+                'pricing_model' => $this->room->pricing_model ?? 'full_room',
                 'monthly_rate' => (float) $this->room->monthly_rate,
                 'daily_rate' => (float) $this->room->daily_rate,
                 'currentTenant' => $this->room->currentTenant ? [
