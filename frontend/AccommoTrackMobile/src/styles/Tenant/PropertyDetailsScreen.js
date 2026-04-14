@@ -94,6 +94,28 @@ export const getStyles = (theme, viewportWidth = 390) => {
     borderRadius: 12,
     backgroundColor: theme.colors.backgroundTertiary,
   },
+  imagePagination: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  paginationDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  paginationDotActive: {
+    width: 18,
+    backgroundColor: '#FFFFFF',
+  },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.3)',

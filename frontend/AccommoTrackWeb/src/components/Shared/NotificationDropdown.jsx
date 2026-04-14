@@ -46,8 +46,8 @@ const NotificationDropdown = () => {
 
       const [notifRes, activitiesRes] = await Promise.allSettled([
         api.get(`/notifications?role=${role}&per_page=200`),
-        isLandlordOrCaretaker 
-          ? api.get('/landlord/dashboard/recent-activities') 
+        isLandlordOrCaretaker
+          ? api.get('/landlord/dashboard/recent-activities')
           : (isTenant ? api.get('/tenant/dashboard/activities') : Promise.resolve({ data: [] })),
       ]);
 
@@ -150,7 +150,17 @@ const NotificationDropdown = () => {
       }
       else if (notification.type === 'payment') {
         const invoiceId = notification.invoice_id || notification.data?.invoice_id;
-        navigate(invoiceId ? `/payments?invoiceId=${invoiceId}` : '/payments');
+        const status = String(notification.status || notification.data?.status || '').toLowerCase();
+        const params = new URLSearchParams();
+        if (invoiceId) {
+          params.set('invoiceId', String(invoiceId));
+        }
+        if (status === 'overdue') params.set('filter', 'overdue');
+        else if (status === 'refunded' || status === 'partially_refunded') params.set('filter', 'refunded');
+        else if (status === 'paid' || status === 'confirmed' || status === 'succeeded') params.set('filter', 'paid');
+        else if (status === 'pending_verification' || status === 'pending_offline') params.set('filter', 'pending_verification');
+        else params.set('filter', 'pending');
+        navigate(`/payments?${params.toString()}`);
       }
       else if (notification.type === 'room') navigate('/rooms');
       return;
@@ -249,7 +259,7 @@ const NotificationDropdown = () => {
       </button>
 
       {isOpen && (
-        <div 
+        <div
           role="menu"
           aria-labelledby="notification-trigger"
           className="absolute right-0 mt-2 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right border border-gray-100 dark:border-gray-700"

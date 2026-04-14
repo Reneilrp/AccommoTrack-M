@@ -62,7 +62,7 @@ export default function Analytics() {
 
   useEffect(() => {
     // Auto-collapse sidebar when entering analytics for wider chart area.
-    if (collapse) collapse().catch(() => {});
+    if (collapse) collapse().catch(() => { });
 
     // Always refresh property access on analytics entry to avoid stale cached IDs.
     loadProperties();
@@ -108,19 +108,19 @@ export default function Analytics() {
 
       // Fetch fresh data in background
       const response = await api.get(`/landlord/analytics/dashboard?${params}`);
-      
+
       // Update with fresh data
       setAnalytics(response.data);
-      
+
       // Cache per filter combination
       cacheManager.set(cacheKey, response.data);
-      
+
       // Also update global cache for backward compatibility
       const newState = { ...uiState.data?.landlord_analytics, analytics: response.data };
       updateData('landlord_analytics', newState);
     } catch (err) {
       console.error('Analytics error:', err);
-      
+
       // Only clear analytics if we don't have cached data to fall back on
       if (!cachedForFilter) {
         setAnalytics(null);
@@ -149,7 +149,7 @@ export default function Analytics() {
       'analytics_all_year',
       'landlord_analytics'
     ];
-    
+
     // Clear individual property caches
     if (properties && properties.length > 0) {
       properties.forEach(p => {
@@ -158,10 +158,10 @@ export default function Analytics() {
         cacheKeys.push(`analytics_${p.id}_year`);
       });
     }
-    
+
     cacheKeys.forEach(key => cacheManager.invalidate(key));
     updateData('landlord_analytics', null);
-    
+
     // Force fresh load
     loadAnalytics(true);
   };
@@ -306,10 +306,10 @@ export default function Analytics() {
         toast.error('Server export unavailable. Downloading local report instead.');
       }
     }
-    
-    const formatCurrency = (amount) => `PHP ${Number(amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+
+    const formatCurrency = (amount) => `PHP ${Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
     const formatPercent = (val) => `${Number(val || 0).toFixed(1)}%`;
-    
+
     const rows = [
       ['AccommoTrack Analytics Detailed Report'],
       ['Generated:', new Date().toLocaleString()],
@@ -362,8 +362,8 @@ export default function Analytics() {
       ['=== PROPERTY PERFORMANCE BREAKDOWN ==='],
       ['Property Name', 'Occupancy Rate', 'Rooms (Occ/Total)', 'Monthly Revenue', 'Income / Room', 'Status'],
       ...analytics.properties.map(p => [
-        p.name, 
-        formatPercent(p.occupancy_rate), 
+        p.name,
+        formatPercent(p.occupancy_rate),
         `${p.occupied_slots}/${p.total_slots}`,
         formatCurrency(p.monthly_revenue || 0),
         formatCurrency(p.revpar || 0),
@@ -400,15 +400,14 @@ export default function Analytics() {
   const paymentCounts = analytics?.payments || null;
   const pendingOrUnpaidCount = Number(paymentCounts?.unpaid ?? paymentCounts?.pending ?? 0);
   const totalPaymentCount = paymentCounts ? (Number(paymentCounts.paid || 0) + pendingOrUnpaidCount + Number(paymentCounts.partial || 0) + Number(paymentCounts.overdue || 0)) : 0;
-  const ghostPaymentData = [ { name: 'Paid', value: 0, fill: '#d1d5db' }, { name: 'Pending', value: 0, fill: '#e5e7eb' }, { name: 'Partial', value: 0, fill: '#c7d2fe' }, { name: 'Overdue', value: 0, fill: '#fca5a5' } ];
-  const realPaymentData = [ { name: 'Paid', value: Number(paymentCounts?.paid || 0), fill: COLORS.primary }, { name: 'Pending', value: pendingOrUnpaidCount, fill: COLORS.warning }, { name: 'Partial', value: Number(paymentCounts?.partial || 0), fill: COLORS.secondary }, { name: 'Overdue', value: Number(paymentCounts?.overdue || 0), fill: COLORS.danger } ];
+  const ghostPaymentData = [{ name: 'Paid', value: 0, fill: '#d1d5db' }, { name: 'Pending', value: 0, fill: '#e5e7eb' }, { name: 'Partial', value: 0, fill: '#c7d2fe' }, { name: 'Overdue', value: 0, fill: '#fca5a5' }];
+  const realPaymentData = [{ name: 'Paid', value: Number(paymentCounts?.paid || 0), fill: COLORS.primary }, { name: 'Pending', value: pendingOrUnpaidCount, fill: COLORS.warning }, { name: 'Partial', value: Number(paymentCounts?.partial || 0), fill: COLORS.secondary }, { name: 'Overdue', value: Number(paymentCounts?.overdue || 0), fill: COLORS.danger }];
   const paymentChartData = totalPaymentCount === 0 ? ghostPaymentData : realPaymentData;
   const monthlyGrowthRate = Number(analytics?.overview?.revenue_growth_rate || 0);
   const hasMonthlyGrowthData = Number.isFinite(monthlyGrowthRate);
   const isMonthlyGrowthPositive = monthlyGrowthRate >= 0;
-  const revenueTrendTitle = `Revenue Trend - ${
-    timeRange === 'week' ? 'Weekly' : timeRange === 'year' ? 'Yearly' : 'Monthly'
-  }`;
+  const revenueTrendTitle = `Revenue Trend - ${timeRange === 'week' ? 'Weekly' : timeRange === 'year' ? 'Yearly' : 'Monthly'
+    }`;
   const formatCurrencyCompact = (value) => `₱${Number(value || 0).toLocaleString()}`;
   const allPropertiesBreakdown = (analytics?.properties || [])
     .map((property) => ({
@@ -495,12 +494,12 @@ export default function Analytics() {
           <Icon className={`w-5 h-5 md:w-6 md:h-6 ${iconColorClass}`} />
         </div>
         <div className="flex items-center justify-between gap-2 min-w-0">
-          <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-white truncate">{title}</p>
+          <p className="text-sm md:text-base leading-tight font-semibold text-gray-900 dark:text-white">{title}</p>
           {topRightValue ? (
             <div className="flex flex-col items-end gap-1 shrink-0">
               {topRightLabel ? <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">{topRightLabel}</p> : null}
-              <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] md:text-xs font-semibold ${topRightValueClass}`}>
-                {TopRightIcon ? <TopRightIcon className="w-3.5 h-3.5" /> : null}
+              <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] md:text-[10px] font-semibold ${topRightValueClass}`}>
+                {TopRightIcon ? <TopRightIcon className="w-3 h-3" /> : null}
                 <span>{topRightValue}</span>
               </div>
             </div>
@@ -513,11 +512,11 @@ export default function Analytics() {
           <p className={`text-lg md:text-2xl font-bold ${valueClass}`}>{value}</p>
         </div>
       </div>
-      
+
       {showProgress && (
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-1.5">
           <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500"
               style={{ width: `${Math.min(progressValue, 100)}%` }}
             />
@@ -543,18 +542,17 @@ export default function Analytics() {
           </div>
           <div className="flex items-center justify-between gap-2 min-w-0">
             <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-white truncate">Collection Efficiency</p>
-            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] md:text-xs font-semibold shrink-0 ${
-              collectionRate >= 80
+            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] md:text-xs font-semibold shrink-0 ${collectionRate >= 80
                 ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-900/30 dark:border-green-800'
                 : collectionRate >= 60
-                ? 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-900/30 dark:border-amber-800'
-                : 'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-900/30 dark:border-red-800'
-            }`}>
+                  ? 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-900/30 dark:border-amber-800'
+                  : 'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-900/30 dark:border-red-800'
+              }`}>
               <span>{collectionRate.toFixed(1)}%</span>
             </div>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-[1fr,auto] items-end gap-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {showProgress ? 'Collected vs expected this month' : 'Payment collection rate'}
@@ -571,7 +569,7 @@ export default function Analytics() {
               <span className="font-semibold text-gray-700 dark:text-gray-300">₱{expected.toLocaleString()}</span>
             </div>
             <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-green-500 to-teal-500 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(collectionRate, 100)}%` }}
               />
@@ -593,12 +591,10 @@ export default function Analytics() {
     return (
       <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
         <div className="grid grid-cols-[auto,1fr] items-center gap-3 mb-4">
-          <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center ${
-            hasUrgent ? 'bg-red-100' : 'bg-amber-100'
-          }`}>
-            <TrendingUp className={`w-5 h-5 md:w-6 md:h-6 ${
-              hasUrgent ? 'text-red-600' : 'text-amber-600'
-            }`} />
+          <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center ${hasUrgent ? 'bg-red-100' : 'bg-amber-100'
+            }`}>
+            <TrendingUp className={`w-5 h-5 md:w-6 md:h-6 ${hasUrgent ? 'text-red-600' : 'text-amber-600'
+              }`} />
           </div>
           <div className="flex items-center justify-between gap-2 min-w-0">
             <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-white truncate">Pending Actions</p>
@@ -609,13 +605,13 @@ export default function Analytics() {
             ) : null}
           </div>
         </div>
-        
+
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500 dark:text-gray-400">Total items</span>
             <span className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{totalActions}</span>
           </div>
-          
+
           <div className="space-y-2">
             <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
               <span className="text-xs font-medium text-blue-700 dark:text-blue-300">📋 Bookings</span>
@@ -665,33 +661,33 @@ export default function Analytics() {
               {properties?.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
             </select>
           </div>
-          
-          <button 
-            onClick={openExportModal} 
-            disabled={loading || !analytics} 
+
+          <button
+            onClick={openExportModal}
+            disabled={loading || !analytics}
             className="flex items-center justify-center gap-2 p-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50 lg:hidden"
             title="Download CSV Report"
           >
             <Download className="w-5 h-5 text-green-600" />
           </button>
 
-          <button 
-            onClick={handleRefresh} 
-            disabled={loading} 
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
             className="flex items-center justify-center gap-2 p-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50 lg:hidden"
             title="Refresh Data"
           >
             <RotateCcw className={`w-5 h-5 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-        
+
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="flex bg-gray-100 dark:bg-gray-700 p-2 rounded-lg">
               {['week', 'month', 'year'].map(r => (
-                <button 
-                  key={r} 
-                  onClick={() => setTimeRange(r)} 
+                <button
+                  key={r}
+                  onClick={() => setTimeRange(r)}
                   className={`px-4 py-2.5 rounded-md text-xs font-bold transition-all ${timeRange === r ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   {r.toUpperCase()}
@@ -701,9 +697,9 @@ export default function Analytics() {
           </div>
 
           <div className="hidden lg:flex items-center gap-2">
-            <button 
-              onClick={handleRefresh} 
-              disabled={loading} 
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
               className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50"
               title="Refresh Data"
             >
@@ -711,9 +707,9 @@ export default function Analytics() {
               <span>Refresh</span>
             </button>
 
-            <button 
-              onClick={openExportModal} 
-              disabled={loading || !analytics} 
+            <button
+              onClick={openExportModal}
+              disabled={loading || !analytics}
               className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50"
               title="Download CSV Report"
             >
@@ -800,15 +796,15 @@ export default function Analytics() {
                     <CartesianGrid strokeDasharray="3 3" stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
                     <XAxis dataKey="month" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
                     <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff', 
-                        border: effectiveTheme === 'dark' ? '1px solid #374151' : '1px solid #e5e7eb', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff',
+                        border: effectiveTheme === 'dark' ? '1px solid #374151' : '1px solid #e5e7eb',
                         borderRadius: '8px',
                         color: effectiveTheme === 'dark' ? '#fff' : '#000'
-                      }} 
+                      }}
                       itemStyle={{ color: effectiveTheme === 'dark' ? '#fff' : '#000' }}
-                      formatter={(value) => ['₱' + Number(value || 0).toLocaleString(), 'Revenue']} 
+                      formatter={(value) => ['₱' + Number(value || 0).toLocaleString(), 'Revenue']}
                     />
                     <Line type="monotone" dataKey="revenue" stroke={COLORS.primary} strokeWidth={3} dot={{ fill: COLORS.primary, r: 4 }} activeDot={{ r: 6 }} />
                   </LineChart>
@@ -926,10 +922,10 @@ export default function Analytics() {
                     {selectedProperty === 'all' ? 'Income Per Properties' : 'Income Per Room'}
                   </h2>
                   <div className={`${selectedProperty !== 'all' ? 'overflow-auto max-h-[500px] pr-2 custom-scrollbar' : ''}`}>
-                    <div style={{ 
-                      height: selectedProperty === 'all' 
-                        ? '250px' 
-                        : `${Math.max(250, (roomIncomeData.length || 0) * 45)}px` 
+                    <div style={{
+                      height: selectedProperty === 'all'
+                        ? '250px'
+                        : `${Math.max(250, (roomIncomeData.length || 0) * 45)}px`
                     }}>
                       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                         {selectedProperty === 'all' ? (
@@ -937,33 +933,33 @@ export default function Analytics() {
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
                             <XAxis dataKey="name" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '10px' }} />
                             <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '10px' }} />
-                            <Tooltip 
+                            <Tooltip
                               formatter={(value) => '₱' + (Number(value) || 0).toLocaleString()}
                               contentStyle={{ borderRadius: '8px' }}
                             />
                             <Bar dataKey="income" fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
                           </BarChart>
                         ) : (
-                          <BarChart 
-                            data={roomIncomeData} 
-                            layout="vertical" 
+                          <BarChart
+                            data={roomIncomeData}
+                            layout="vertical"
                             margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
                           >
                             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
-                            <XAxis 
-                              type="number" 
-                              stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} 
-                              style={{ fontSize: '10px' }} 
+                            <XAxis
+                              type="number"
+                              stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'}
+                              style={{ fontSize: '10px' }}
                               tickFormatter={(value) => '₱' + value.toLocaleString()}
                             />
-                            <YAxis 
-                              dataKey="name" 
-                              type="category" 
-                              stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} 
-                              style={{ fontSize: '10px' }} 
+                            <YAxis
+                              dataKey="name"
+                              type="category"
+                              stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'}
+                              style={{ fontSize: '10px' }}
                               width={70}
                             />
-                            <Tooltip 
+                            <Tooltip
                               formatter={(value) => ['₱' + (Number(value) || 0).toLocaleString(), 'Income/Room']}
                               contentStyle={{ borderRadius: '8px' }}
                             />
@@ -1024,73 +1020,73 @@ export default function Analytics() {
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                       {selectedProperty === 'all'
                         ? analytics.properties.map((property, index) => {
-                            const occupancyRate = Number(property.occupancy_rate || 0);
-                            const statusMeta = getPerformanceStatus(occupancyRate);
+                          const occupancyRate = Number(property.occupancy_rate || 0);
+                          const statusMeta = getPerformanceStatus(occupancyRate);
 
-                            return (
-                              <tr key={property.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{property.name || property.title}</td>
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                      <div
-                                        className={`h-full rounded-full ${occupancyRate >= 80 ? 'bg-green-500' : occupancyRate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`}
-                                        style={{ width: `${occupancyRate}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-gray-600 dark:text-gray-300">{occupancyRate}%</span>
+                          return (
+                            <tr key={property.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                              <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{property.name || property.title}</td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${occupancyRate >= 80 ? 'bg-green-500' : occupancyRate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`}
+                                      style={{ width: `${occupancyRate}%` }}
+                                    />
                                   </div>
-                                </td>
-                                <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{property.occupied_slots} / {property.total_slots}</td>
-                                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{(property.monthly_revenue || 0).toLocaleString()}</td>
-                                <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{(property.revpar || 0).toLocaleString()}</td>
-                                <td className="px-6 py-4">
-                                  <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${statusMeta.className}`}>
-                                    {statusMeta.label}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        : (roomPerformanceRows.length > 0 ? roomPerformanceRows.map((room, index) => {
-                            const occupancyRate = Number(room.occupancy_rate || 0);
-                            const statusMeta = getPerformanceStatus(occupancyRate);
-                            const monthlyRevenueValue = Number(room.revenue ?? room.monthly_revenue ?? 0);
-                            const incomePerRoomValue = Number(room.revpar ?? room.income_per_room ?? 0);
-
-                            return (
-                              <tr key={room.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                                  {room.name || room.room_name || room.room_number || `Room ${index + 1}`}
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                      <div
-                                        className={`h-full rounded-full ${occupancyRate >= 80 ? 'bg-green-500' : occupancyRate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`}
-                                        style={{ width: `${occupancyRate}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-gray-600 dark:text-gray-300">{occupancyRate}%</span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{Number(room.capacity || 0)}</td>
-                                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{monthlyRevenueValue.toLocaleString()}</td>
-                                <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{incomePerRoomValue.toLocaleString()}</td>
-                                <td className="px-6 py-4">
-                                  <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${statusMeta.className}`}>
-                                    {statusMeta.label}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          }) : (
-                            <tr>
-                              <td className="px-6 py-6 text-gray-500 dark:text-gray-400" colSpan={6}>
-                                No room performance data available.
+                                  <span className="text-gray-600 dark:text-gray-300">{occupancyRate}%</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{property.occupied_slots} / {property.total_slots}</td>
+                              <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{(property.monthly_revenue || 0).toLocaleString()}</td>
+                              <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{(property.revpar || 0).toLocaleString()}</td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${statusMeta.className}`}>
+                                  {statusMeta.label}
+                                </span>
                               </td>
                             </tr>
-                          ))}
+                          );
+                        })
+                        : (roomPerformanceRows.length > 0 ? roomPerformanceRows.map((room, index) => {
+                          const occupancyRate = Number(room.occupancy_rate || 0);
+                          const statusMeta = getPerformanceStatus(occupancyRate);
+                          const monthlyRevenueValue = Number(room.revenue ?? room.monthly_revenue ?? 0);
+                          const incomePerRoomValue = Number(room.revpar ?? room.income_per_room ?? 0);
+
+                          return (
+                            <tr key={room.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                              <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                {room.name || room.room_name || room.room_number || `Room ${index + 1}`}
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${occupancyRate >= 80 ? 'bg-green-500' : occupancyRate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`}
+                                      style={{ width: `${occupancyRate}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-gray-600 dark:text-gray-300">{occupancyRate}%</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{Number(room.capacity || 0)}</td>
+                              <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{monthlyRevenueValue.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{incomePerRoomValue.toLocaleString()}</td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${statusMeta.className}`}>
+                                  {statusMeta.label}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        }) : (
+                          <tr>
+                            <td className="px-6 py-6 text-gray-500 dark:text-gray-400" colSpan={6}>
+                              No room performance data available.
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>

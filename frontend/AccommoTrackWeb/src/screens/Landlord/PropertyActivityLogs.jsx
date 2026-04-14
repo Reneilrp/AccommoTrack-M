@@ -62,7 +62,7 @@ export default function PropertyActivityLogs({ propertyId, _propertyTitle, isOpe
     if (['pending', 'pending_offline', 'partial', 'partial-completed', 'processing', 'in_progress'].includes(status)) {
       return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
     }
-    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) {
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) {
       return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
     }
 
@@ -88,7 +88,7 @@ export default function PropertyActivityLogs({ propertyId, _propertyTitle, isOpe
     if (filter !== 'All') {
       const t = (log.type || '').toLowerCase();
       const title = (log.title || log.action || '').toLowerCase();
-      
+
       let categoryMatch = false;
       if (filter === 'Dorm Settings') categoryMatch = t === 'property' || title.includes('setting') || title.includes('profile');
       else if (filter === 'Room Management') categoryMatch = t === 'room' || title.includes('room') || title.includes('occupy') || title.includes('added') || title.includes('removed');
@@ -96,7 +96,7 @@ export default function PropertyActivityLogs({ propertyId, _propertyTitle, isOpe
       else if (filter === 'Maintenance') categoryMatch = t === 'maintenance' || title.includes('maintenance');
       else if (filter === 'Add-ons') categoryMatch = t === 'addon' || title.includes('addon');
       else if (filter === 'Due') categoryMatch = title.includes('due') || !!log.due_date || t.includes('due');
-      
+
       if (!categoryMatch) return false;
     }
 
@@ -156,14 +156,14 @@ export default function PropertyActivityLogs({ propertyId, _propertyTitle, isOpe
                 className="w-full pl-10 pr-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all shadow-sm"
               />
             </div>
-            
+
             <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 no-scrollbar">
               {['All', 'Dorm Settings', 'Room Management', 'Payments', 'Maintenance', 'Add-ons', 'Due'].map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap flex-shrink-0 ${filter === f 
-                    ? 'bg-green-600 text-white shadow-md shadow-green-500/20' 
+                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap flex-shrink-0 ${filter === f
+                    ? 'bg-green-600 text-white shadow-md shadow-green-500/20'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent'}`}
                 >
                   {f}

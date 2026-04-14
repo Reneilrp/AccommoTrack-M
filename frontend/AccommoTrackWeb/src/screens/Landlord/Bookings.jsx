@@ -28,6 +28,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [cancellationData, setCancellationData] = useState({ reason: '', refundAmount: 0, shouldRefund: false });
   const [showAddBookingModal, setShowAddBookingModal] = useState(false);
@@ -66,6 +67,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const closeDetailModal = () => {
     setShowDetailModal(false);
+    setShowFinalizeModal(false);
     setSelectedBooking(null);
     resetDepositSettlementState();
     // Clear bookingId from URL when closing modal
@@ -301,7 +303,15 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       closeDetailModal();
       setShowCancelModal(false);
 
-      toast.success(`Booking ${newStatus} successfully!`, { id: toastId });
+      if (newStatus === 'cancelled' && refundData?.shouldRefund) {
+        const refundedAmount = Number(refundData?.refundAmount || 0);
+        const amountLabel = refundedAmount > 0
+          ? ` (₱${refundedAmount.toLocaleString()})`
+          : '';
+        toast.success(`Booking cancelled and refund sent to tenant${amountLabel}.`, { id: toastId });
+      } else {
+        toast.success(`Booking ${newStatus} successfully!`, { id: toastId });
+      }
     } catch (err) {
       console.error('Error updating status:', err);
       toast.error(err.message || err.response?.data?.message || 'Failed to update booking status', { id: toastId });
@@ -362,7 +372,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to update payment status');
       }
-      
+
       const result = response.data || {};
 
       refreshLandlordMutationViews();
@@ -384,6 +394,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         toast.success(result.message || 'Payment updated, but deposit must be settled before completion.');
       } else if (result.status_upgraded) {
         toast.success('Payment updated! Booking automatically upgraded to Completed.');
+      } else if (paymentStatus === 'refunded') {
+        toast.success(result.message || 'Tenant payment was marked as refunded.');
       } else {
         toast.success(result.message || 'Payment status updated!');
       }
@@ -396,9 +408,25 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const handleFinalizeCheckout = async (bookingId, payload = {}) => {
     if (readOnlyGuard()) return;
 
+    if (!bookingId) {
+      toast.error('Unable to finalize checkout: booking reference is missing.');
+      return;
+    }
+
     const activeBooking = selectedBooking?.id === bookingId
       ? selectedBooking
       : bookings.find((booking) => booking.id === bookingId);
+
+    if (!activeBooking) {
+      toast.error('Unable to finalize checkout: booking details are unavailable.');
+      return;
+    }
+
+    const status = String(activeBooking?.status || '').toLowerCase();
+    if (!['confirmed', 'partial-completed', 'partial_completed'].includes(status)) {
+      toast.error('Checkout can only be finalized for confirmed stays.');
+      return;
+    }
 
     // Validate deposit balance before proceeding
     if (Number(activeBooking?.deposit_balance || 0) > 0) {
@@ -417,6 +445,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       refreshLandlordMutationViews();
       await fetchBookings();
       await fetchStats();
+      setShowFinalizeModal(false);
       closeDetailModal();
 
       toast.success(response.message || 'Checkout finalized successfully.', { id: toastId });
@@ -437,6 +466,23 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       shouldRefund: false
     });
     setShowCancelModal(true);
+  };
+
+  const handleOpenFinalizeModal = (booking) => {
+    if (readOnlyGuard()) return;
+
+    if (!booking?.id) {
+      toast.error('Unable to finalize checkout: booking details are unavailable.');
+      return;
+    }
+
+    if (Number(booking?.deposit_balance || 0) > 0) {
+      toast.error(`Please settle the deposit balance of ₱${Number(booking.deposit_balance).toLocaleString()} before finalizing checkout.`);
+      return;
+    }
+
+    setSelectedBooking(booking);
+    setShowFinalizeModal(true);
   };
 
   const fetchDepositSettlementHistory = async (bookingId, showError = true) => {
@@ -659,8 +705,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-6">
         {isCaretaker && !canManageBookings && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             You are viewing bookings as a caretaker. Management actions are disabled.
@@ -734,16 +780,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700 flex flex-col lg:flex-row gap-4 lg:items-center">
           <div className="relative flex-1 w-full">
             {filterStatus !== 'extensions' && filterStatus !== 'transfers' && (
-            <>
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, room, property..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white outline-none text-sm"
-            />
-            </>
+              <>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name, room, property..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white outline-none text-sm"
+                />
+              </>
             )}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
@@ -759,30 +805,30 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-              <button
-                onClick={handleRefresh}
-                disabled={loading}
-                title="Refresh"
-                className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-5 h-5" />
-                )}
-              </button>
-            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              title="Refresh"
+              className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Table / Extensions List */}
         {filterStatus === 'extensions' ? (
-          <ExtensionRequestsList 
-            requests={extensionRequests} 
+          <ExtensionRequestsList
+            requests={extensionRequests}
             loading={loadingExtensions}
             onHandle={handleHandleExtension}
           />
         ) : filterStatus === 'transfers' ? (
-          <TransferRequestsList 
+          <TransferRequestsList
             requests={transferRequests}
             loading={loadingTransfers}
             onHandle={handleHandleTransfer}
@@ -791,63 +837,63 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
-              <thead className="bg-gray-50 dark:bg-gray-700 text-xs font-bold uppercase text-gray-500 dark:text-gray-400 tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Guest</th>
-                  <th className="px-6 py-4">Property/Room</th>
-                  <th className="px-6 py-4">Dates</th>
-                  <th className="px-6 py-4">Amount</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {loading ? [...Array(5)].map((_, i) => <SkeletonTableRow key={i} columns={6} />) : 
-                  filteredBookings.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 font-medium">
-                        No bookings found matching your search.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredBookings.map((b) => (
-                      <tr key={b.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <p className="font-bold text-gray-900 dark:text-white">{b.guestName}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{b.email}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="font-bold text-gray-900 dark:text-white">{b.propertyTitle}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Room {b.roomNumber}</p>
-                          {String(b.booking_mode || b.bookingMode || 'normal').toLowerCase() === 'proxy' && (
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-1">
-                              Mode: {getBookingModeLabel(b)} · Beds: {resolveBedCount(b)} · {getOccupancySummary(b)}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          <p>{formatDate(b.checkIn)}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">to {formatDate(b.checkOut)}</p>
-                        </td>
-                        <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">
-                          <PriceRow amount={b.amount} />
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${getStatusColor(b.status)}`}>{b.status}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <button onClick={() => handleOpenDetailModal(b)} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-2 transition-colors">
-                            <Eye className="w-3.5 h-3.5" /> View
-                          </button>
+                <thead className="bg-gray-50 dark:bg-gray-700 text-xs font-bold uppercase text-gray-500 dark:text-gray-400 tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4">Guest</th>
+                    <th className="px-6 py-4">Property/Room</th>
+                    <th className="px-6 py-4">Dates</th>
+                    <th className="px-6 py-4">Amount</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {loading ? [...Array(5)].map((_, i) => <SkeletonTableRow key={i} columns={6} />) :
+                    filteredBookings.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 font-medium">
+                          No bookings found matching your search.
                         </td>
                       </tr>
-                    ))
-                  )
-                }
-              </tbody>
-            </table>
+                    ) : (
+                      filteredBookings.map((b) => (
+                        <tr key={b.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <p className="font-bold text-gray-900 dark:text-white">{b.guestName}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{b.email}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="font-bold text-gray-900 dark:text-white">{b.propertyTitle}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Room {b.roomNumber}</p>
+                            {String(b.booking_mode || b.bookingMode || 'normal').toLowerCase() === 'proxy' && (
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-1">
+                                Mode: {getBookingModeLabel(b)} · Beds: {resolveBedCount(b)} · {getOccupancySummary(b)}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <p>{formatDate(b.checkIn)}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">to {formatDate(b.checkOut)}</p>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">
+                            <PriceRow amount={b.amount} />
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${getStatusColor(b.status)}`}>{b.status}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button onClick={() => handleOpenDetailModal(b)} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-2 transition-colors">
+                              <Eye className="w-3.5 h-3.5" /> View
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
         )}
       </div>
 
@@ -872,7 +918,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   <p className="font-bold text-lg text-right text-gray-900 dark:text-white">{formatDate(selectedBooking.checkOut) || 'Open-ended'}</p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Guest Name</p>
@@ -1312,7 +1358,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                       // Confirmed status - smart completion based on payment
                       if (status === 'confirmed') {
                         const hasDepositBalance = Number(selectedBooking.deposit_balance || 0) > 0;
-                        
+
                         if (paymentStatus === 'paid') {
                           return (
                             <div className="flex flex-col gap-4 w-full">
@@ -1325,11 +1371,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               )}
                               <div className="flex gap-4">
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm('Finalize checkout for this tenant now?')) {
-                                      handleFinalizeCheckout(selectedBooking.id);
-                                    }
-                                  }}
+                                  onClick={() => handleOpenFinalizeModal(selectedBooking)}
                                   className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                                 >
                                   <CheckCircle className="w-5 h-5" />
@@ -1362,11 +1404,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               )}
                               <div className="flex gap-4">
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm('Finalize checkout now?')) {
-                                      handleFinalizeCheckout(selectedBooking.id);
-                                    }
-                                  }}
+                                  onClick={() => handleOpenFinalizeModal(selectedBooking)}
                                   className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                                 >
                                   <CheckCircle className="w-5 h-5" />
@@ -1399,11 +1437,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               )}
                               <div className="flex gap-4">
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm('Finalize checkout now?')) {
-                                      handleFinalizeCheckout(selectedBooking.id);
-                                    }
-                                  }}
+                                  onClick={() => handleOpenFinalizeModal(selectedBooking)}
                                   className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                                 >
                                   <CheckCircle className="w-5 h-5" />
@@ -1478,7 +1512,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               {(selectedBooking.paymentStatus === 'paid' || selectedBooking.paymentStatus === 'partial') && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 cursor-pointer group"
-                       onClick={() => setCancellationData({...cancellationData, shouldRefund: !cancellationData.shouldRefund, refundAmount: !cancellationData.shouldRefund ? selectedBooking.amount : 0})}>
+                    onClick={() => setCancellationData({ ...cancellationData, shouldRefund: !cancellationData.shouldRefund, refundAmount: !cancellationData.shouldRefund ? selectedBooking.amount : 0 })}>
                     <input
                       type="checkbox"
                       id="shouldRefund"
@@ -1543,6 +1577,56 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           </div>
         </div>
       )}
+
+      {/* Finalize Checkout Confirmation Modal */}
+      {showFinalizeModal && selectedBooking && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[115] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Finalize Checkout</h3>
+              <button
+                onClick={() => setShowFinalizeModal(false)}
+                className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                disabled={processing}
+              >
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-500" />
+              </button>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6 border border-blue-100 dark:border-blue-900/30">
+              <p className="text-sm text-blue-800 dark:text-blue-300 font-bold mb-2">Booking: {selectedBooking.guestName}</p>
+              <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Ref: {selectedBooking.bookingReference}</p>
+              <p className="text-xs text-blue-700 dark:text-blue-400 font-medium mt-2">
+                This will close the current stay and mark checkout as completed based on payment status.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowFinalizeModal(false)}
+                className="flex-1 px-5 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all"
+                disabled={processing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleFinalizeCheckout(selectedBooking.id)}
+                disabled={processing}
+                className="flex-1 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Finalizing...
+                  </span>
+                ) : (
+                  'Confirm Checkout'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1588,11 +1672,10 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
               <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name}</h4>
               <p className="text-xs text-gray-500">Room {req.booking?.room?.room_number} • {req.booking?.room?.property?.title}</p>
             </div>
-            <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${
-              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+            <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
               req.status === 'approved' ? 'bg-green-100 text-green-700' :
-              'bg-red-100 text-red-700'
-            }`}>
+                'bg-red-100 text-red-700'
+              }`}>
               {req.status}
             </span>
           </div>
@@ -1605,10 +1688,10 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
               <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-2">Requested End</p>
               {modifying === req.id ? (
-                <input 
+                <input
                   type="date"
                   value={modifyData.requested_end_date}
-                  onChange={e => setModifyData({...modifyData, requested_end_date: e.target.value})}
+                  onChange={e => setModifyData({ ...modifyData, requested_end_date: e.target.value })}
                   className="w-full bg-transparent text-sm font-bold outline-none border-b border-blue-300"
                 />
               ) : (
@@ -1623,10 +1706,10 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
               {modifying === req.id ? (
                 <div className="flex items-center">
                   <span className="text-green-600 font-bold mr-2">₱</span>
-                  <input 
+                  <input
                     type="number"
                     value={modifyData.proposed_amount}
-                    onChange={e => setModifyData({...modifyData, proposed_amount: e.target.value})}
+                    onChange={e => setModifyData({ ...modifyData, proposed_amount: e.target.value })}
                     className="w-24 bg-transparent text-xl font-black text-green-600 outline-none border-b border-green-300"
                   />
                 </div>
@@ -1650,13 +1733,13 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
             <div className="flex gap-2">
               {modifying === req.id ? (
                 <>
-                  <button 
+                  <button
                     onClick={() => onHandle(req.id, 'modify', modifyData)}
                     className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-blue-500/20"
                   >
                     Apply Changes
                   </button>
-                  <button 
+                  <button
                     onClick={() => setModifying(null)}
                     className="px-4 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 py-2 rounded-lg text-xs font-bold"
                   >
@@ -1665,19 +1748,19 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
                 </>
               ) : (
                 <>
-                  <button 
+                  <button
                     onClick={() => onHandle(req.id, 'approve')}
                     className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-3.5 h-3.5" /> Approve
                   </button>
-                  <button 
+                  <button
                     onClick={() => startModify(req)}
                     className="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2"
                   >
                     <Edit3 className="w-3.5 h-3.5" /> Modify
                   </button>
-                  <button 
+                  <button
                     onClick={() => onHandle(req.id, 'reject')}
                     className="flex-1 border border-red-200 text-red-600 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
                   >
@@ -1744,7 +1827,7 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
       landlord_notes: '',
       prorated_adjustment: '',
     });
-    
+
     setLoadingProration(true);
     setProrationDetails(null);
     try {
@@ -1780,11 +1863,10 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
               <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name || (req.tenant?.first_name + ' ' + req.tenant?.last_name)}</h4>
               <p className="text-xs text-gray-500">{req.requested_room?.property?.title}</p>
             </div>
-            <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${
-              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+            <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
               req.status === 'approved' ? 'bg-green-100 text-green-700' :
-              'bg-red-100 text-red-700'
-            }`}>
+                'bg-red-100 text-red-700'
+              }`}>
               {req.status}
             </span>
           </div>
@@ -1808,15 +1890,15 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="col-span-2 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex items-center justify-between">
-               <div>
-                 <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">New Lease Duration</p>
-                 <p className="text-sm font-bold text-blue-900 dark:text-blue-200">
-                   {req.new_end_date ? 'Ends on: ' + new Date(req.new_end_date).toLocaleDateString() : 'Keep current lease logic'}
-                 </p>
-               </div>
-               <CalendarDays className="w-5 h-5 text-blue-500 opacity-50"/>
+              <div>
+                <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">New Lease Duration</p>
+                <p className="text-sm font-bold text-blue-900 dark:text-blue-200">
+                  {req.new_end_date ? 'Ends on: ' + new Date(req.new_end_date).toLocaleDateString() : 'Keep current lease logic'}
+                </p>
+              </div>
+              <CalendarDays className="w-5 h-5 text-blue-500 opacity-50" />
             </div>
           </div>
 
@@ -1831,11 +1913,11 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
             <div className="space-y-4">
               {approving === req.id ? (
                 <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-2 mx-auto">
-                  
+
                   {/* Proration Calculation block */}
                   <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 space-y-4">
                     <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase flex items-center gap-2">
-                       <Calculator className="w-4 h-4" /> Rent Proration Math
+                      <Calculator className="w-4 h-4" /> Rent Proration Math
                     </p>
                     {loadingProration ? (
                       <div className="flex items-center gap-2 text-sm text-blue-600 py-4">
@@ -1869,7 +1951,7 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                     ) : (
                       <p className="text-xs text-red-500 py-4">Could not calculate proration automatically.</p>
                     )}
-                    
+
                     <div className="pt-2">
                       <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mt-2 mb-2">Transfer Fee (₱)</label>
                       <input
@@ -1878,7 +1960,7 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                         min="0"
                         placeholder="0.00"
                         value={approvalData.transfer_fee}
-                        onChange={e => setApprovalData({...approvalData, transfer_fee: e.target.value})}
+                        onChange={e => setApprovalData({ ...approvalData, transfer_fee: e.target.value })}
                         className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all text-gray-900 dark:text-white"
                       />
                       <p className="text-[10px] text-gray-500 font-medium mt-2">Cannot exceed the quoted fee from transfer request.</p>
@@ -1886,12 +1968,12 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
 
                     <div className="pt-2">
                       <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mt-2 mb-2">Final Override Adjustment (₱)</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         step="0.01"
                         placeholder="0.00"
                         value={approvalData.prorated_adjustment}
-                        onChange={e => setApprovalData({...approvalData, prorated_adjustment: e.target.value})}
+                        onChange={e => setApprovalData({ ...approvalData, prorated_adjustment: e.target.value })}
                         className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all text-gray-900 dark:text-white"
                       />
                       <p className="text-[10px] text-gray-500 font-medium mt-2">Positive = Create Invoice Charge. Negative = Apply Discount to Next Bill.</p>
@@ -1902,43 +1984,43 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                   <div className="space-y-4">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Damage Charge for Old Room (Optional)</label>
                     <div className="flex flex-col md:flex-row gap-3">
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         placeholder="0.00"
                         value={approvalData.damage_charge}
-                        onChange={e => setApprovalData({...approvalData, damage_charge: e.target.value})}
+                        onChange={e => setApprovalData({ ...approvalData, damage_charge: e.target.value })}
                         className="w-full md:w-1/3 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500"
                       />
                       {parseFloat(approvalData.damage_charge) > 0 && (
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           placeholder="What was damaged?"
                           required
                           value={approvalData.damage_description}
-                          onChange={e => setApprovalData({...approvalData, damage_description: e.target.value})}
+                          onChange={e => setApprovalData({ ...approvalData, damage_description: e.target.value })}
                           className="w-full md:flex-1 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500"
                         />
                       )}
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Landlord Notes / Message to Tenant</label>
-                    <textarea 
+                    <textarea
                       placeholder="Any instructions for moving in..."
                       value={approvalData.landlord_notes}
-                      onChange={e => setApprovalData({...approvalData, landlord_notes: e.target.value})}
+                      onChange={e => setApprovalData({ ...approvalData, landlord_notes: e.target.value })}
                       className="w-full text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 min-h-[80px] resize-none"
                     />
                   </div>
                   <div className="flex gap-4 pt-4">
-                    <button 
+                    <button
                       onClick={() => setApproving(null)}
                       className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 py-4 rounded-xl font-bold bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       Cancel
                     </button>
-                    <button 
+                    <button
                       onClick={() => onHandle(req.id, 'approve', approvalData)}
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
                     >
@@ -1948,13 +2030,13 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                 </div>
               ) : (
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     onClick={() => startApprove(req)}
                     className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-3.5 h-3.5" /> Approve
                   </button>
-                  <button 
+                  <button
                     onClick={() => requestReject(req.id)}
                     className="flex-1 border border-red-200 text-red-600 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
                   >

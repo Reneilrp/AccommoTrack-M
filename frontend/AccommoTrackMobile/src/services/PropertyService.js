@@ -110,6 +110,9 @@ const PropertyService = {
       if (filters.min_rating) {
         params.append("min_rating", filters.min_rating);
       }
+      if (filters.gender_policy) {
+        params.append("gender_policy", filters.gender_policy);
+      }
       if (Array.isArray(filters.amenities) && filters.amenities.length > 0) {
         filters.amenities.forEach((amenity) => {
           params.append("amenities[]", amenity);

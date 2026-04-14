@@ -121,7 +121,7 @@ export default function DashboardPage({ user }) {
 
     if (type === 'property' && (status === 'updated' || status === 'changed')) return 'blue';
     if (type === 'room' && status === 'occupied') return 'blue';
-    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'red';
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'red';
     if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
     if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
     if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
@@ -146,7 +146,7 @@ export default function DashboardPage({ user }) {
     if (status === 'updated' || status === 'changed') return 'bg-blue-100 text-blue-600';
     if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'bg-yellow-100 text-yellow-600';
     if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'bg-green-100 text-green-600';
-    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue'].includes(status)) return 'bg-red-100 text-red-600';
+    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'bg-red-100 text-red-600';
     if (['inactive', 'maintenance', 'draft'].includes(status)) return 'bg-gray-100 text-gray-600';
 
     return getActivityColor(activity);
@@ -209,7 +209,7 @@ export default function DashboardPage({ user }) {
     const description = activity.description || '';
 
     // Extract tenant name from description if available
-    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/); 
+    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/);
     const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
 
     switch (type) {
@@ -230,15 +230,18 @@ export default function DashboardPage({ user }) {
       }
       case 'payment': {
         const params = new URLSearchParams();
-        if (entityId) {
-          params.set('invoiceId', String(entityId));
+        const invoiceId = activity.invoice_id || activity.data?.invoice_id || entityId;
+        if (invoiceId) {
+          params.set('invoiceId', String(invoiceId));
         }
         if (tenantName) {
           params.set('search', tenantName);
         }
         const status = String(activity.status || '').toLowerCase();
         if (status === 'overdue') params.set('filter', 'overdue');
-        else if (status === 'paid' || status === 'confirmed') params.set('filter', 'paid');
+        else if (status === 'refunded' || status === 'partially_refunded') params.set('filter', 'refunded');
+        else if (status === 'paid' || status === 'confirmed' || status === 'succeeded') params.set('filter', 'paid');
+        else if (status === 'pending_verification' || status === 'pending_offline') params.set('filter', 'pending_verification');
         else params.set('filter', 'pending');
         __navigate(`/payments?${params.toString()}`);
         break;
@@ -421,7 +424,7 @@ export default function DashboardPage({ user }) {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                 <LucidePhilippinePeso className="w-6 h-6 text-orange-600" />
+                <LucidePhilippinePeso className="w-6 h-6 text-orange-600" />
               </div>
               <TrendingUp className="w-4 h-4 text-green-500" />
             </div>
@@ -436,7 +439,7 @@ export default function DashboardPage({ user }) {
         <div className={`${isCaretaker ? 'lg:col-span-2' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-400/50 dark:border-gray-700 p-6`}>
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activities</h2>
           <div className="space-y-4">
-            {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> : 
+            {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> :
               activities.slice(0, 6).map((activity, index) => (
                 <button
                   key={index}

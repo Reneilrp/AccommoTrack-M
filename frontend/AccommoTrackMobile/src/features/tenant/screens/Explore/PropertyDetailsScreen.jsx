@@ -96,6 +96,8 @@ export default function PropertyDetailsScreen({
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [videoVisible, setVideoVisible] = useState(false);
   const [reviewPage, setReviewPage] = useState(1);
+  const [currentPropertyImageIndex, setCurrentPropertyImageIndex] = useState(0);
+  const propertyImageScrollRef = React.useRef(null);
 
   const effectiveId = accommodation?.id || propertyId;
 
@@ -504,6 +506,51 @@ export default function PropertyDetailsScreen({
 
   const active = detailedAccommodation || accommodation;
 
+  const carouselWidth = React.useMemo(
+    () => Math.max(280, Math.min((viewportWidth || 390) - 32, 900)),
+    [viewportWidth],
+  );
+
+  const propertyImageItems = React.useMemo(() => {
+    if (!active) return [];
+
+    if (Array.isArray(active.images) && active.images.length > 0) {
+      return active.images;
+    }
+
+    return [active.image || active.cover_image || null];
+  }, [active]);
+
+  useEffect(() => {
+    setCurrentPropertyImageIndex(0);
+    propertyImageScrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [effectiveId, propertyImageItems.length]);
+
+  useEffect(() => {
+    if (propertyImageItems.length <= 1) return;
+
+    const intervalId = setInterval(() => {
+      setCurrentPropertyImageIndex((previousIndex) => {
+        const nextIndex = (previousIndex + 1) % propertyImageItems.length;
+        propertyImageScrollRef.current?.scrollTo({
+          x: nextIndex * carouselWidth,
+          animated: true,
+        });
+        return nextIndex;
+      });
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [propertyImageItems.length, carouselWidth]);
+
+  const handlePropertyImageScroll = useCallback((event) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    if (!slideSize) return;
+
+    const index = Math.round(event.nativeEvent.contentOffset.x / slideSize);
+    setCurrentPropertyImageIndex(index);
+  }, []);
+
   const formatReviewDate = (review) => {
     if (review?.time_ago) return review.time_ago;
     if (!review?.created_at) return 'Recently';
@@ -710,50 +757,54 @@ export default function PropertyDetailsScreen({
 
           {/* Gender Restriction Badge */}
           {active.gender_restriction && active.gender_restriction !== 'mixed' && (
-             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -4, marginBottom: 16, gap: 8 }}>
-                <Ionicons name={active.gender_restriction === 'male' ? 'male' : 'female'} size={14} color={theme.colors.primary} />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.primary }}>
-                   {active.gender_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
-                </Text>
-             </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -4, marginBottom: 16, gap: 8 }}>
+              <Ionicons name={active.gender_restriction === 'male' ? 'male' : 'female'} size={14} color={theme.colors.primary} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.primary }}>
+                {active.gender_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
+              </Text>
+            </View>
           )}
 
           {/* Media Section */}
           <View style={styles.mediaContainer}>
             <ScrollView
+              ref={propertyImageScrollRef}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
+              onScroll={handlePropertyImageScroll}
+              scrollEventThrottle={16}
               style={styles.imageCarousel}
             >
-              {active &&
-              Array.isArray(active.images) &&
-              active.images.length > 0 ? (
-                active.images.map((img, idx) => (
-                  <Image
-                    key={idx}
-                    source={{
-                      uri:
-                        getImageUrl(img) ||
-                        "https://via.placeholder.com/800x400",
-                    }}
-                    style={styles.mainImage}
-                    resizeMode="cover"
-                  />
-                ))
-              ) : (
+              {propertyImageItems.map((img, idx) => (
                 <Image
                   source={{
                     uri:
-                      getImageUrl(active.image) ||
-                      getImageUrl(active.cover_image) ||
+                      getImageUrl(img) ||
                       "https://via.placeholder.com/800x400",
                   }}
+                  key={idx}
                   style={styles.mainImage}
                   resizeMode="cover"
                 />
-              )}
+              ))}
             </ScrollView>
+
+            {propertyImageItems.length > 1 && (
+              <View style={styles.imagePagination}>
+                {propertyImageItems.map((_, index) => (
+                  <View
+                    key={`property-image-dot-${index}`}
+                    style={[
+                      styles.paginationDot,
+                      index === currentPropertyImageIndex
+                        ? styles.paginationDotActive
+                        : null,
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
 
             {active && active.video_url && (
               <TouchableOpacity
@@ -1155,7 +1206,7 @@ export default function PropertyDetailsScreen({
                     style={[
                       styles.filterChipText,
                       selectedFilter === filter.key &&
-                        styles.filterChipTextActive,
+                      styles.filterChipTextActive,
                     ]}
                   >
                     {filter.label}
@@ -1202,116 +1253,116 @@ export default function PropertyDetailsScreen({
                 {filteredRooms.map((room) => {
                   const isOccupied = room.status === "occupied";
                   return (
-                  <TouchableOpacity
-                    key={room.id}
-                    style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
-                    onPress={() => handleRoomPress(room)}
-                  >
-                    <View style={styles.roomImageWrapper}>
-                      <Image
-                        source={{
-                          uri:
-                            getImageUrl(room.images?.[0]) ||
-                            getImageUrl(room.image) ||
-                            "https://via.placeholder.com/120x120?text=Room",
-                        }}
-                        style={styles.roomImage}
-                        resizeMode="cover"
-                      />
-                    </View>
-
-                    <View style={styles.roomInfo}>
-                      {/* Top Row: Room Number and Price */}
-                      <View style={styles.roomHeader}>
-                        <Text style={styles.roomNumber} numberOfLines={1}>
-                          Room {room.room_number}
-                        </Text>
-                        <Text style={styles.roomPrice} numberOfLines={1}>
-                          ₱{room.monthly_rate.toLocaleString()}
-                        </Text>
+                    <TouchableOpacity
+                      key={room.id}
+                      style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
+                      onPress={() => handleRoomPress(room)}
+                    >
+                      <View style={styles.roomImageWrapper}>
+                        <Image
+                          source={{
+                            uri:
+                              getImageUrl(room.images?.[0]) ||
+                              getImageUrl(room.image) ||
+                              "https://via.placeholder.com/120x120?text=Room",
+                          }}
+                          style={styles.roomImage}
+                          resizeMode="cover"
+                        />
                       </View>
 
-                      {/* Second Row: Status Badge and Price Label */}
-                      <View style={styles.roomStatusRow}>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor:
-                                getStatusColor(room.status) + "20",
-                            },
-                          ]}
-                        >
-                          <Ionicons
-                            name={getStatusIcon(room.status)}
-                            size={14}
-                            color={getStatusColor(room.status)}
-                          />
-                          <Text
+                      <View style={styles.roomInfo}>
+                        {/* Top Row: Room Number and Price */}
+                        <View style={styles.roomHeader}>
+                          <Text style={styles.roomNumber} numberOfLines={1}>
+                            Room {room.room_number}
+                          </Text>
+                          <Text style={styles.roomPrice} numberOfLines={1}>
+                            ₱{room.monthly_rate.toLocaleString()}
+                          </Text>
+                        </View>
+
+                        {/* Second Row: Status Badge and Price Label */}
+                        <View style={styles.roomStatusRow}>
+                          <View
                             style={[
-                              styles.statusText,
-                              { color: getStatusColor(room.status) },
+                              styles.statusBadge,
+                              {
+                                backgroundColor:
+                                  getStatusColor(room.status) + "20",
+                              },
                             ]}
-                            numberOfLines={1}
                           >
-                            {capitalizeStatus(room.status)}
+                            <Ionicons
+                              name={getStatusIcon(room.status)}
+                              size={14}
+                              color={getStatusColor(room.status)}
+                            />
+                            <Text
+                              style={[
+                                styles.statusText,
+                                { color: getStatusColor(room.status) },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {capitalizeStatus(room.status)}
+                            </Text>
+                          </View>
+                          <Text style={styles.priceLabel} numberOfLines={1}>
+                            /month
                           </Text>
                         </View>
-                        <Text style={styles.priceLabel} numberOfLines={1}>
-                          /month
-                        </Text>
-                      </View>
 
-                      {/* Third Row: Room Type and Floor */}
-                      <View style={styles.roomDetailsRow}>
-                        <View style={styles.roomDetailItem}>
-                          <Text style={styles.roomType} numberOfLines={1}>
-                            {room.type_label || room.room_type}
-                          </Text>
+                        {/* Third Row: Room Type and Floor */}
+                        <View style={styles.roomDetailsRow}>
+                          <View style={styles.roomDetailItem}>
+                            <Text style={styles.roomType} numberOfLines={1}>
+                              {room.type_label || room.room_type}
+                            </Text>
+                          </View>
+                          <View style={styles.roomDetailItem}>
+                            <Ionicons
+                              name="layers-outline"
+                              size={16}
+                              color="#6b7280"
+                            />
+                            <Text style={styles.roomDetailText} numberOfLines={1}>
+                              {room.floor_label || `Floor ${room.floor}`}
+                            </Text>
+                          </View>
                         </View>
-                        <View style={styles.roomDetailItem}>
-                          <Ionicons
-                            name="layers-outline"
-                            size={16}
-                            color="#6b7280"
-                          />
-                          <Text style={styles.roomDetailText} numberOfLines={1}>
-                            {room.floor_label || `Floor ${room.floor}`}
-                          </Text>
-                        </View>
-                      </View>
 
-                      {/* Fourth Row: Capacity and View Details */}
-                      <View style={styles.roomDetailsRow}>
-                        <View style={styles.roomDetailItem}>
-                          <Ionicons
-                            name="people-outline"
-                            size={16}
-                            color="#6b7280"
-                          />
-                          <Text style={styles.roomDetailText} numberOfLines={1}>
-                            Capacity: {room.capacity}
-                          </Text>
-                        </View>
-                        <View style={styles.viewDetailsButton}>
-                          <Text
-                            style={[
-                              styles.viewDetailsText,
-                              { color: theme.colors.primary },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            View Details
-                          </Text>
-                          <Ionicons
-                            name="arrow-forward"
-                            size={14}
-                            color={theme.colors.primary}
-                          />
+                        {/* Fourth Row: Capacity and View Details */}
+                        <View style={styles.roomDetailsRow}>
+                          <View style={styles.roomDetailItem}>
+                            <Ionicons
+                              name="people-outline"
+                              size={16}
+                              color="#6b7280"
+                            />
+                            <Text style={styles.roomDetailText} numberOfLines={1}>
+                              Capacity: {room.capacity}
+                            </Text>
+                          </View>
+                          <View style={styles.viewDetailsButton}>
+                            <Text
+                              style={[
+                                styles.viewDetailsText,
+                                { color: theme.colors.primary },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              View Details
+                            </Text>
+                            <Ionicons
+                              name="arrow-forward"
+                              size={14}
+                              color={theme.colors.primary}
+                            />
+                          </View>
                         </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
+                    </TouchableOpacity>
                   );
                 })}
               </View>

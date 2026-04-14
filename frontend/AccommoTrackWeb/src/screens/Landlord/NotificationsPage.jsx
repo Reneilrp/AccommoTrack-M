@@ -12,12 +12,12 @@ const FILTERS = [
 ];
 
 const TYPE_CONFIG = {
-  booking:      { icon: Calendar,    color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-100 dark:bg-blue-900/30' },
-  payment:      { icon: CreditCard,  color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30' },
-  maintenance:  { icon: AlertCircle, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-  message:      { icon: Bell,        color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/30' },
-  tenant:       { icon: Users,       color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/30' },
-  room:         { icon: Home,        color: 'text-teal-600 dark:text-teal-400',   bg: 'bg-teal-100 dark:bg-teal-900/30' },
+  booking: { icon: Calendar, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+  payment: { icon: CreditCard, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30' },
+  maintenance: { icon: AlertCircle, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+  message: { icon: Bell, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+  tenant: { icon: Users, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/30' },
+  room: { icon: Home, color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-100 dark:bg-teal-900/30' },
 };
 
 const DEFAULT_CONFIG = { icon: Bell, color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-700' };
@@ -156,7 +156,23 @@ export default function NotificationsPage() {
   const handleClick = (n) => {
     if (n._kind === 'notification' && !n.read) markAsRead(n.id);
     if (n.type === 'booking') navigate('/bookings');
-    else if (n.type === 'payment') navigate('/payments');
+    else if (n.type === 'payment') {
+      const params = new URLSearchParams();
+      const payload = n._kind === 'activity' ? (n.data || {}) : (n.data || {});
+      const invoiceId = payload.invoice_id || payload.invoiceId;
+      const status = String(payload.status || '').toLowerCase();
+
+      if (invoiceId) {
+        params.set('invoiceId', String(invoiceId));
+      }
+      if (status === 'overdue') params.set('filter', 'overdue');
+      else if (status === 'refunded' || status === 'partially_refunded') params.set('filter', 'refunded');
+      else if (status === 'paid' || status === 'confirmed' || status === 'succeeded') params.set('filter', 'paid');
+      else if (status === 'pending_verification' || status === 'pending_offline') params.set('filter', 'pending_verification');
+      else params.set('filter', 'pending');
+
+      navigate(`/payments?${params.toString()}`);
+    }
     else if (n.type === 'maintenance') navigate('/maintenance');
     else if (n.type === 'message') navigate('/messages');
   };
@@ -200,11 +216,10 @@ export default function NotificationsPage() {
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
-            className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${
-              filter === f.id
+            className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${filter === f.id
                 ? 'bg-green-600 text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-            }`}
+              }`}
           >
             {f.label}
             {f.id === 'unread' && unreadCount > 0 && (
@@ -254,9 +269,8 @@ export default function NotificationsPage() {
                 <li
                   key={n.id}
                   onClick={() => handleClick(n)}
-                  className={`flex items-start gap-4 px-6 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
-                    !n.read ? 'bg-green-50/40 dark:bg-green-900/10' : ''
-                  }`}
+                  className={`flex items-start gap-4 px-6 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${!n.read ? 'bg-green-50/40 dark:bg-green-900/10' : ''
+                    }`}
                 >
                   <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center ${cfg.bg}`}>
                     <Icon className={`w-5 h-5 ${cfg.color}`} />

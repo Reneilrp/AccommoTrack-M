@@ -56,11 +56,11 @@ const SCROLL_DIRECTION_DELTA = 3;
 const hasActiveAdvancedFilters = (filters = {}) =>
   Boolean(
     filters.minPrice
-      || filters.maxPrice
-      || filters.availabilityOnly
-      || Number(filters.minRating) > 0
-      || (Array.isArray(filters.amenities) && filters.amenities.length > 0)
-      || (filters.gender && filters.gender !== "All"),
+    || filters.maxPrice
+    || filters.availabilityOnly
+    || Number(filters.minRating) > 0
+    || (Array.isArray(filters.amenities) && filters.amenities.length > 0)
+    || (filters.gender && filters.gender !== "All"),
   );
 
 const buildExploreApiFilters = (type, advancedFilters) => {
@@ -83,6 +83,9 @@ const buildExploreApiFilters = (type, advancedFilters) => {
   }
   if (Array.isArray(advancedFilters.amenities) && advancedFilters.amenities.length > 0) {
     filters.amenities = advancedFilters.amenities;
+  }
+  if (advancedFilters.gender && advancedFilters.gender !== "All") {
+    filters.gender_policy = advancedFilters.gender;
   }
 
   return filters;
@@ -335,7 +338,7 @@ export default function TenantHomePage({
     if (advancedFilters.gender !== "All") {
       filtered = filtered.filter((prop) => {
         const propGender = (prop.gender_restriction || "mixed").toLowerCase();
-      return propGender === advancedFilters.gender.toLowerCase();
+        return propGender === advancedFilters.gender.toLowerCase();
       });
     }
 
@@ -741,7 +744,7 @@ export default function TenantHomePage({
           onClearFilter={handleClearFilter}
           properties={properties}
           userRole={isGuest ? "guest" : "authenticated"}
-          onSelectProperty={() => {}}
+          onSelectProperty={() => { }}
         />
 
         {renderFilterControls()}
@@ -994,238 +997,253 @@ export default function TenantHomePage({
                 contentContainerStyle={{ paddingBottom: 4 }}
               >
 
-            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>
-              Minimum Price
-            </Text>
-            <TextInput
-              value={draftAdvancedFilters.minPrice}
-              onChangeText={(value) =>
-                setDraftAdvancedFilters((prev) => ({
-                  ...prev,
-                  minPrice: value.replace(/[^0-9]/g, ''),
-                }))
-              }
-              keyboardType="numeric"
-              placeholder="e.g. 2500"
-              placeholderTextColor={theme.colors.textTertiary}
-              style={{
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                color: theme.colors.text,
-                marginBottom: 12,
-                backgroundColor: theme.colors.backgroundSecondary,
-              }}
-            />
-
-            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>
-              Maximum Price
-            </Text>
-            <TextInput
-              value={draftAdvancedFilters.maxPrice}
-              onChangeText={(value) =>
-                setDraftAdvancedFilters((prev) => ({
-                  ...prev,
-                  maxPrice: value.replace(/[^0-9]/g, ''),
-                }))
-              }
-              keyboardType="numeric"
-              placeholder="e.g. 8000"
-              placeholderTextColor={theme.colors.textTertiary}
-              style={{
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                color: theme.colors.text,
-                marginBottom: 12,
-                backgroundColor: theme.colors.backgroundSecondary,
-              }}
-            />
-
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                marginBottom: 12,
-                backgroundColor: theme.colors.backgroundSecondary,
-              }}
-              onPress={() =>
-                setDraftAdvancedFilters((prev) => ({
-                  ...prev,
-                  availabilityOnly: !prev.availabilityOnly,
-                }))
-              }
-            >
-              <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Available Rooms Only</Text>
-              <Ionicons
-                name={draftAdvancedFilters.availabilityOnly ? 'checkbox' : 'square-outline'}
-                size={20}
-                color={draftAdvancedFilters.availabilityOnly ? theme.colors.primary : theme.colors.textTertiary}
-              />
-            </TouchableOpacity>
-
-            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
-              Gender Restriction
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-              {genderOptions.map((opt) => {
-                const isSelected = (draftAdvancedFilters.gender || 'All') === opt.value;
-                return (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-                      backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.backgroundSecondary,
-                      borderRadius: 999,
-                      paddingHorizontal: 12,
-                      paddingVertical: 7,
-                    }}
-                    onPress={() =>
-                      setDraftAdvancedFilters((prev) => ({
-                        ...prev,
-                        gender: opt.value,
-                      }))
-                    }
-                  >
-                    <Text
-                      style={{
-                        color: isSelected ? theme.colors.primary : theme.colors.textSecondary,
-                        fontWeight: isSelected ? '700' : '600',
-                        fontSize: 12,
-                      }}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
-              Minimum Rating
-            </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-              {[0, 1, 2, 3, 4, 5].map((rating) => (
-                <TouchableOpacity
-                  key={rating}
+                <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>
+                  Minimum Price
+                </Text>
+                <TextInput
+                  value={draftAdvancedFilters.minPrice}
+                  onChangeText={(value) =>
+                    setDraftAdvancedFilters((prev) => ({
+                      ...prev,
+                      minPrice: value.replace(/[^0-9]/g, ''),
+                    }))
+                  }
+                  keyboardType="numeric"
+                  placeholder="e.g. 2500"
+                  placeholderTextColor={theme.colors.textTertiary}
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor:
-                      Number(draftAdvancedFilters.minRating) === rating
-                        ? theme.colors.primary
-                        : theme.colors.backgroundSecondary,
                     borderWidth: 1,
-                    borderColor:
-                      Number(draftAdvancedFilters.minRating) === rating
-                        ? theme.colors.primary
-                        : theme.colors.border,
+                    borderColor: theme.colors.border,
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    color: theme.colors.text,
+                    marginBottom: 12,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                  }}
+                />
+
+                <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>
+                  Maximum Price
+                </Text>
+                <TextInput
+                  value={draftAdvancedFilters.maxPrice}
+                  onChangeText={(value) =>
+                    setDraftAdvancedFilters((prev) => ({
+                      ...prev,
+                      maxPrice: value.replace(/[^0-9]/g, ''),
+                    }))
+                  }
+                  keyboardType="numeric"
+                  placeholder="e.g. 8000"
+                  placeholderTextColor={theme.colors.textTertiary}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    color: theme.colors.text,
+                    marginBottom: 12,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                  }}
+                />
+
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    marginBottom: 12,
+                    backgroundColor: theme.colors.backgroundSecondary,
                   }}
                   onPress={() =>
                     setDraftAdvancedFilters((prev) => ({
                       ...prev,
-                      minRating: rating,
+                      availabilityOnly: !prev.availabilityOnly,
                     }))
                   }
                 >
-                  <Text
-                    style={{
-                      color:
-                        Number(draftAdvancedFilters.minRating) === rating
-                          ? '#fff'
-                          : theme.colors.textSecondary,
-                      fontWeight: '700',
-                    }}
-                  >
-                    {rating}
-                  </Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Available Rooms Only</Text>
+                  <Ionicons
+                    name={draftAdvancedFilters.availabilityOnly ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={draftAdvancedFilters.availabilityOnly ? theme.colors.primary : theme.colors.textTertiary}
+                  />
                 </TouchableOpacity>
-              ))}
-            </View>
 
-            {availableAmenities.length > 0 && (
-              <>
                 <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
-                  Amenities
+                  Gender Restriction
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                  {availableAmenities.map((amenity) => {
-                    const isSelected = (draftAdvancedFilters.amenities || []).includes(amenity);
+                  {genderOptions.map((opt) => {
+                    const isSelected = (draftAdvancedFilters.gender || 'All') === opt.value;
                     return (
                       <TouchableOpacity
-                        key={amenity}
+                        key={opt.value}
                         style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 6,
-                          borderRadius: 999,
                           borderWidth: 1,
                           borderColor: isSelected ? theme.colors.primary : theme.colors.border,
                           backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.backgroundSecondary,
-                          paddingHorizontal: 10,
-                          paddingVertical: 6,
+                          borderRadius: 999,
+                          paddingHorizontal: 12,
+                          paddingVertical: 7,
                         }}
-                        onPress={() => {
-                          setDraftAdvancedFilters((prev) => {
-                            const currentAmenities = prev.amenities || [];
-                            const nextAmenities = currentAmenities.includes(amenity)
-                              ? currentAmenities.filter((item) => item !== amenity)
-                              : [...currentAmenities, amenity];
-                            return { ...prev, amenities: nextAmenities };
-                          });
-                        }}
+                        onPress={() =>
+                          setDraftAdvancedFilters((prev) => ({
+                            ...prev,
+                            gender: opt.value,
+                          }))
+                        }
                       >
-                        <Ionicons
-                          name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                          size={14}
-                          color={isSelected ? theme.colors.primary : theme.colors.textTertiary}
-                        />
                         <Text
                           style={{
                             color: isSelected ? theme.colors.primary : theme.colors.textSecondary,
-                            fontSize: 12,
                             fontWeight: isSelected ? '700' : '600',
+                            fontSize: 12,
                           }}
                         >
-                          {amenity}
+                          {opt.label}
                         </Text>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
-              </>
-            )}
 
-            <TouchableOpacity style={styles.modalButton} onPress={applyAdvancedFilters}>
-              <Text style={styles.modalButtonText}>Apply Filters</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.modalButton,
-                {
-                  backgroundColor: theme.colors.backgroundSecondary,
-                  borderWidth: 1,
-                  borderColor: theme.colors.primary,
-                },
-              ]}
-              onPress={clearAdvancedFilters}
-            >
-              <Text style={[styles.modalButtonText, { color: theme.colors.primary }]}>Reset Filters</Text>
-            </TouchableOpacity>
+                <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
+                  Rating
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                    gap: 10,
+                  }}
+                >
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Reset rating"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.backgroundSecondary,
+                    }}
+                    onPress={() =>
+                      setDraftAdvancedFilters((prev) => ({
+                        ...prev,
+                        minRating: 0,
+                      }))
+                    }
+                  >
+                    <Ionicons name="close" size={16} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+
+                  {[1, 2, 3, 4, 5].map((rating) => {
+                    const isFilled = Number(draftAdvancedFilters.minRating) >= rating;
+
+                    return (
+                      <TouchableOpacity
+                        key={rating}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Set minimum rating to ${rating} stars`}
+                        style={{ padding: 2 }}
+                        onPress={() =>
+                          setDraftAdvancedFilters((prev) => ({
+                            ...prev,
+                            minRating: rating,
+                          }))
+                        }
+                      >
+                        <Ionicons
+                          name={isFilled ? 'star' : 'star-outline'}
+                          size={24}
+                          color={isFilled ? '#F59E0B' : theme.colors.textTertiary}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {availableAmenities.length > 0 && (
+                  <>
+                    <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
+                      Amenities
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                      {availableAmenities.map((amenity) => {
+                        const isSelected = (draftAdvancedFilters.amenities || []).includes(amenity);
+                        return (
+                          <TouchableOpacity
+                            key={amenity}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                              borderRadius: 999,
+                              borderWidth: 1,
+                              borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                              backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.backgroundSecondary,
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                            }}
+                            onPress={() => {
+                              setDraftAdvancedFilters((prev) => {
+                                const currentAmenities = prev.amenities || [];
+                                const nextAmenities = currentAmenities.includes(amenity)
+                                  ? currentAmenities.filter((item) => item !== amenity)
+                                  : [...currentAmenities, amenity];
+                                return { ...prev, amenities: nextAmenities };
+                              });
+                            }}
+                          >
+                            <Ionicons
+                              name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                              size={14}
+                              color={isSelected ? theme.colors.primary : theme.colors.textTertiary}
+                            />
+                            <Text
+                              style={{
+                                color: isSelected ? theme.colors.primary : theme.colors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: isSelected ? '700' : '600',
+                              }}
+                            >
+                              {amenity}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
+
+                <TouchableOpacity style={styles.modalButton} onPress={applyAdvancedFilters}>
+                  <Text style={styles.modalButtonText}>Apply Filters</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    {
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      borderWidth: 1,
+                      borderColor: theme.colors.primary,
+                    },
+                  ]}
+                  onPress={clearAdvancedFilters}
+                >
+                  <Text style={[styles.modalButtonText, { color: theme.colors.primary }]}>Reset Filters</Text>
+                </TouchableOpacity>
               </ScrollView>
             </View>
           </SafeAreaView>

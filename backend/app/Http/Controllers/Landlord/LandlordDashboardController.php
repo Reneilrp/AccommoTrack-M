@@ -117,25 +117,38 @@ class LandlordDashboardController extends Controller
                     ];
                 }
                 if ($item instanceof \App\Models\PaymentTransaction) {
+                    $transactionStatus = strtolower((string) $item->status);
                     $isPending = $item->status === 'pending_offline';
                     $invoiceStatus = (string) ($item->invoice->status ?? '');
                     $method = (string) ($item->method ?? '');
                     $isPaymongoMethod = str_starts_with($method, 'paymongo_');
+                    $isRefund = (int) $item->amount_cents < 0;
+                    $amountCents = abs((int) $item->amount_cents);
+                    $roomNumber = $this->resolveRoomNumberFromPaymentTransaction($item);
+                    $methodLabel = $this->formatPaymentMethodLabel($method);
 
                     // Only for PayMongo: avoid misleading "Payment Received" items
                     // for attempts that did not settle the invoice.
-                    if (! $isPending && $isPaymongoMethod && $invoiceStatus !== 'paid') {
+                    if (! $isPending && ! $isRefund && $isPaymongoMethod && $invoiceStatus !== 'paid') {
                         return null;
                     }
 
-                    $status = $isPending ? 'pending' : 'confirmed';
+                    $status = $isPending
+                        ? 'pending'
+                        : ($isRefund ? 'refunded' : ($transactionStatus !== '' ? $transactionStatus : 'confirmed'));
 
                     return [
                         'id' => $item->id, 'type' => 'payment',
-                        'action' => $isPending ? 'Cash Payment Awaiting Verification' : 'Payment Received',
-                        'description' => ($isPending ? 'Recorded ' : 'Received ').'₱'.number_format($item->amount_cents / 100, 2).' via '.ucfirst($item->method).' for Room '.($item->invoice->booking->room->room_number ?? 'N/A'),
+                        'action' => $isPending ? 'Cash Payment Awaiting Verification' : ($isRefund ? 'Payment Refunded' : 'Payment Received'),
+                        'description' => $isPending
+                            ? 'Recorded ₱'.number_format($amountCents / 100, 2).' via '.$methodLabel.' for Room '.$roomNumber
+                            : ($isRefund
+                                ? 'Gave/Sent ₱'.number_format($amountCents / 100, 2).' via '.$methodLabel.' for Room '.$roomNumber
+                                : 'Received ₱'.number_format($amountCents / 100, 2).' via '.$methodLabel.' for Room '.$roomNumber),
                         'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
                         'status' => $status,
+                        'invoice_id' => $item->invoice_id ?? $item->invoice?->id,
+                        'booking_id' => $item->invoice?->booking?->id,
                         'timestamp' => $item->created_at,
                         'icon' => 'cash-outline',
                         'color' => $this->resolveActivityColor('payment', $status),
@@ -223,6 +236,10 @@ class LandlordDashboardController extends Controller
             return 'red';
         }
 
+        if (in_array($normalizedStatus, ['refunded'], true)) {
+            return 'red';
+        }
+
         if (in_array($normalizedStatus, ['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'], true)) {
             return 'yellow';
         }
@@ -236,6 +253,42 @@ class LandlordDashboardController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveRoomNumberFromPaymentTransaction(\App\Models\PaymentTransaction $transaction): string
+    {
+        $roomNumber = $transaction->invoice?->booking?->room?->room_number
+            ?? $transaction->invoice?->booking?->room?->number
+            ?? data_get($transaction->invoice?->metadata, 'room_number')
+            ?? data_get($transaction->invoice?->metadata, 'roomNumber')
+            ?? data_get($transaction->invoice?->metadata, 'room_label');
+
+        if (! empty($roomNumber)) {
+            return (string) $roomNumber;
+        }
+
+        $invoiceDescription = (string) ($transaction->invoice?->description ?? '');
+        if (preg_match('/room\s*#?\s*([A-Za-z0-9-]+)/i', $invoiceDescription, $matches) === 1) {
+            return (string) $matches[1];
+        }
+
+        return 'N/A';
+    }
+
+    private function formatPaymentMethodLabel(?string $method): string
+    {
+        $normalized = strtolower(trim((string) $method));
+
+        return match ($normalized) {
+            'paymongo_gcash' => 'PayMongo (GCash)',
+            'paymongo_card' => 'PayMongo (Card)',
+            'paymongo_payment', 'paymongo' => 'PayMongo',
+            'gcash' => 'GCash',
+            'cash', 'manual_cash' => 'Cash',
+            'bank_transfer' => 'Bank Transfer',
+            'paymaya' => 'PayMaya',
+            default => $normalized !== '' ? ucfirst(str_replace('_', ' ', $normalized)) : 'N/A',
+        };
     }
 
     public function getUpcomingPayments(Request $request)
