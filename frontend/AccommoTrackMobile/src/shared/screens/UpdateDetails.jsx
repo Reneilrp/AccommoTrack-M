@@ -157,9 +157,9 @@ export default function UpdateDetails({ navigation }) {
           <View style={styles.card}>
             <Text style={styles.releaseNotesTitle}>What's New</Text>
             <Text style={styles.releaseNotesText}>
-              • Performance improvements and bug fixes.{"\n"}
-              • UI enhancements for a better user experience.{"\n"}
-              • Security updates and system stability improvements.{"\n"}
+              • **Minimum Stay Enforcement:** You can now set minimum stay requirements for your rooms. Monthly contracts automatically enforce a 30-day minimum.{"\n"}
+              • **Updated Room Forms:** The UI for adding and editing rooms has been improved to better reflect the new billing policy rules.{"\n"}
+              • **System Stability:** Includes various bug fixes and performance improvements.{"\n"}
               {"\n"}
               This update was delivered automatically via Expo EAS Updates (Over-The-Air).
             </Text>

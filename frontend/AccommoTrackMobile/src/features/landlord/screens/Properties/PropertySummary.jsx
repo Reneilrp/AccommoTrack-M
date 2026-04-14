@@ -330,7 +330,7 @@ export default function PropertySummaryScreen({ route, navigation }) {
         <TouchableOpacity style={styles.iconButtonBg} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Property Summary</Text>
+        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">{propertyTitle}</Text>
         <View style={{ width: 48, alignItems: 'flex-end', justifyContent: 'center', position: 'relative', zIndex: 40 }}>
           <TouchableOpacity
             style={{
@@ -407,7 +407,14 @@ export default function PropertySummaryScreen({ route, navigation }) {
 
           <>
               {/* Activity & Requests Section ONLY */}
-              <View style={styles.sectionCard}>
+              <View style={[
+                styles.sectionCard,
+                {
+                  borderBottomWidth: 2,
+                  borderBottomColor: theme.colors.border,
+                  marginBottom: 16,
+                }
+              ]}>
                 <View style={[styles.sectionHeader, { marginBottom: 8 }]}> 
                   <Text style={styles.sectionTitle}>Activity & Requests</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -451,7 +458,53 @@ export default function PropertySummaryScreen({ route, navigation }) {
                 ) : (
                   <View style={{ gap: 12, marginTop: 12 }}>
                     {filteredActivityItems.map((item) => (
-                      <View key={item.key} style={{ padding: 12, borderWidth: 1, borderColor: theme.colors.borderLight, borderRadius: 12, backgroundColor: theme.colors.background }}>
+                      <TouchableOpacity 
+                        key={item.key}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          if (item.type === 'booking') {
+                            navigation.navigate('MainTabs', {
+                              screen: 'Bookings',
+                              params: {
+                                filter: 'pending',
+                                focusBookingId: item.id,
+                                drilldownToken: Date.now(),
+                              },
+                            });
+                          }
+                          else if (item.type === 'payment') {
+                            navigation.navigate('Payments', {
+                              filter: 'overdue',
+                              searchQuery: propertyTitle || '',
+                              drilldownToken: Date.now(),
+                            });
+                          }
+                          else if (item.type === 'maintenance') navigation.navigate('MaintenanceRequests', { propertyId: propertyId, propertyTitle: propertyTitle });
+                          else if (item.type === 'review') navigation.navigate('Reviews', { propertyId: propertyId, propertyTitle: propertyTitle });
+                          else if (item.type === 'transfer') navigation.navigate('TransferRequests', { propertyId: propertyId, propertyTitle: propertyTitle });
+                          else if (item.type === 'addon') navigation.navigate('AddonManagement', { propertyId: propertyId, propertyTitle: propertyTitle });
+                          else {
+                            navigation.navigate('MainTabs', {
+                              screen: 'Bookings',
+                              params: {
+                                drilldownToken: Date.now(),
+                              },
+                            });
+                          }
+                        }}
+                        style={{ 
+                          padding: 12, 
+                          borderWidth: theme.isDark ? 1 : 1.5, 
+                          borderColor: theme.isDark ? theme.colors.borderLight : '#E5E7EB', 
+                          borderRadius: 12, 
+                          backgroundColor: theme.isDark ? theme.colors.background : '#FFFFFF',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: theme.isDark ? 0 : 0.08,
+                          shadowRadius: 4,
+                          elevation: theme.isDark ? 0 : 2,
+                        }}
+                      >
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <View style={{ flex: 1, paddingRight: 8 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -483,46 +536,7 @@ export default function PropertySummaryScreen({ route, navigation }) {
                             )}
                           </View>
                         </View>
-                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
-                          <TouchableOpacity 
-                            onPress={() => {
-                              if (item.type === 'booking') {
-                                navigation.navigate('MainTabs', {
-                                  screen: 'Bookings',
-                                  params: {
-                                    filter: 'pending',
-                                    focusBookingId: item.id,
-                                    drilldownToken: Date.now(),
-                                  },
-                                });
-                              }
-                              else if (item.type === 'payment') {
-                                navigation.navigate('Payments', {
-                                  filter: 'overdue',
-                                  searchQuery: propertyTitle || '',
-                                  drilldownToken: Date.now(),
-                                });
-                              }
-                              else if (item.type === 'maintenance') navigation.navigate('MaintenanceRequests', { propertyId: propertyId, propertyTitle: propertyTitle });
-                              else if (item.type === 'review') navigation.navigate('Reviews', { propertyId: propertyId, propertyTitle: propertyTitle });
-                              else if (item.type === 'transfer') navigation.navigate('TransferRequests', { propertyId: propertyId, propertyTitle: propertyTitle });
-                              else if (item.type === 'addon') navigation.navigate('AddonManagement', { propertyId: propertyId, propertyTitle: propertyTitle });
-                              else {
-                                navigation.navigate('MainTabs', {
-                                  screen: 'Bookings',
-                                  params: {
-                                    drilldownToken: Date.now(),
-                                  },
-                                });
-                              }
-                            }}
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                          >
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.primary }}>View</Text>
-                            <Ionicons name="chevron-forward" size={12} color={theme.colors.primary} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 )}

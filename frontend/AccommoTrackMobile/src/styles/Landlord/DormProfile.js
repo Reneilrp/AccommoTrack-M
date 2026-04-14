@@ -45,6 +45,7 @@ export const getStyles = (theme) => StyleSheet.create({
     textTransform: 'capitalize'
   },
   content: {
+    paddingTop: 12,
     paddingBottom: 40,
     paddingHorizontal: 16,
     gap: 16

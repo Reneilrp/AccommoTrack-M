@@ -201,6 +201,77 @@ export default function DashboardPage({ user }) {
     return date.toLocaleDateString();
   };
 
+  const handleActivityClick = (activity) => {
+    if (!activity) return;
+
+    const type = String(activity.type || '').toLowerCase();
+    const entityId = activity.id;
+    const description = activity.description || '';
+
+    // Extract tenant name from description if available
+    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/); 
+    const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
+
+    switch (type) {
+      case 'booking': {
+        const params = new URLSearchParams();
+        if (entityId) {
+          params.set('bookingId', String(entityId));
+        }
+        if (tenantName) {
+          params.set('search', tenantName);
+        }
+        const status = String(activity.status || '').toLowerCase();
+        if (status) {
+          params.set('status', status);
+        }
+        __navigate(`/bookings?${params.toString()}`);
+        break;
+      }
+      case 'payment': {
+        const params = new URLSearchParams();
+        if (entityId) {
+          params.set('invoiceId', String(entityId));
+        }
+        if (tenantName) {
+          params.set('search', tenantName);
+        }
+        const status = String(activity.status || '').toLowerCase();
+        if (status === 'overdue') params.set('filter', 'overdue');
+        else if (status === 'paid' || status === 'confirmed') params.set('filter', 'paid');
+        else params.set('filter', 'pending');
+        __navigate(`/payments?${params.toString()}`);
+        break;
+      }
+      case 'room': {
+        const params = new URLSearchParams();
+        if (entityId) {
+          params.set('roomId', String(entityId));
+        }
+        __navigate(`/rooms?${params.toString()}`);
+        break;
+      }
+      case 'property': {
+        const params = new URLSearchParams();
+        if (entityId) {
+          params.set('propertyId', String(entityId));
+        }
+        __navigate(`/properties?${params.toString()}`);
+        break;
+      }
+      case 'maintenance': {
+        const params = new URLSearchParams();
+        if (entityId) {
+          params.set('requestId', String(entityId));
+        }
+        __navigate(`/maintenance?${params.toString()}`);
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
   const getVerificationBannerConfig = (status) => {
     switch (status) {
       case 'pending':
@@ -359,7 +430,11 @@ export default function DashboardPage({ user }) {
           <div className="space-y-4">
             {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> : 
               activities.slice(0, 6).map((activity, index) => (
-                <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                <button
+                  key={index}
+                  onClick={() => handleActivityClick(activity)}
+                  className="w-full flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors rounded-lg px-2 py-2 -mx-2"
+                >
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity)}`}>{getActivityIcon(activity.type)}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
@@ -367,7 +442,7 @@ export default function DashboardPage({ user }) {
                     <p className="text-xs text-gray-500 mt-2">{formatDate(activity.timestamp)}</p>
                   </div>
                   <span className={`px-2 py-2 text-xs font-medium rounded-full capitalize ${getStatusColor(activity)}`}>{activity.status}</span>
-                </div>
+                </button>
               ))
             }
           </div>

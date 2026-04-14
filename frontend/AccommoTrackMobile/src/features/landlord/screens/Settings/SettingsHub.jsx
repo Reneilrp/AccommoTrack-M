@@ -161,6 +161,8 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [comingSoonVisible, setComingSoonVisible] = useState(false);
   const [comingSoonInfo, setComingSoonInfo] = useState({ title: "Coming Soon", message: "This option will be available soon." });
+  const [downloadingUpdate, setDownloadingUpdate] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState({ title: "", message: "", confirmText: "Confirm", onConfirm: () => { }, singleAction: false });
   const [notificationPrefs, setNotificationPrefs] = useState({
@@ -672,23 +674,34 @@ export default function SettingsScreen({ navigation, onLogout }) {
           },
           ...(updateAvailable ? [{
             id: "update-available",
-            label: "Update App",
+            label: downloadingUpdate ? "Downloading..." : "Update App",
             icon: "cloud-download-outline",
             type: "action",
-            description: `Tap to download v${latestVersion}`,
+            description: downloadingUpdate ? `${Math.round(downloadProgress * 100)}% complete` : `Tap to download v${latestVersion}`,
+            disabled: downloadingUpdate,
             action: async () => {
               if (!downloadUrl) {
                 showError('Update unavailable', 'No update link is configured right now.');
                 return;
               }
 
+              setDownloadingUpdate(true);
+              setDownloadProgress(0);
               try {
-                await downloadAndInstallUpdate({ downloadUrl });
+                await downloadAndInstallUpdate({ 
+                  downloadUrl,
+                  onProgress: (progress) => {
+                    setDownloadProgress(progress);
+                  }
+                });
               } catch (error) {
                 showError(
                   'Update failed',
                   error?.message || 'Unable to download/install update inside the app.',
                 );
+              } finally {
+                setDownloadingUpdate(false);
+                setDownloadProgress(0);
               }
             },
           }] : []),

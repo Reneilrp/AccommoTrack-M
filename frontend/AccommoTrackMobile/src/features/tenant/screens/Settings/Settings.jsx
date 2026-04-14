@@ -96,6 +96,8 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [roleModalShowCancel, setRoleModalShowCancel] = useState(false);
   const [roleModalProcessing, setRoleModalProcessing] = useState(false);
   const [roleModalAction, setRoleModalAction] = useState(null);
+  const [downloadingUpdate, setDownloadingUpdate] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -249,13 +251,23 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           showError('Update unavailable', 'No update link is configured right now.');
           break;
         }
+        setDownloadingUpdate(true);
+        setDownloadProgress(0);
         try {
-          await downloadAndInstallUpdate({ downloadUrl });
+          await downloadAndInstallUpdate({ 
+            downloadUrl,
+            onProgress: (progress) => {
+              setDownloadProgress(progress);
+            }
+          });
         } catch (error) {
           showError(
             'Update failed',
             error?.message || 'Unable to download/install update inside the app.',
           );
+        } finally {
+          setDownloadingUpdate(false);
+          setDownloadProgress(0);
         }
         break;
       case "EAS Update ID":
@@ -545,10 +557,10 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         items: [
           ...(updateAvailable ? [{
             id: 16,
-            label: "Update App",
+            label: downloadingUpdate ? "Downloading..." : "Update App",
             icon: "cloud-download-outline",
             highlight: true,
-            value: `v${latestVersion}`,
+            value: downloadingUpdate ? `${Math.round(downloadProgress * 100)}%` : `v${latestVersion}`,
           }] : []),
           {
             id: 18,
@@ -610,7 +622,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
                         item.highlight && styles.settingItemHighlight,
                         item.highlight && { backgroundColor: theme.colors.primary + '10' }
                       ]}
-                      disabled={item.toggle || item.label === "App Version"}
+                      disabled={item.toggle || item.label === "App Version" || downloadingUpdate}
                       onPress={() => handleSettingPress(item.label)}
                       activeOpacity={item.toggle ? 1 : 0.7}
                     >

@@ -470,6 +470,67 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     navigation.navigate(action.screen);
   }, [hasQuickActionAccess, navigation]);
 
+  const handleActivityPress = useCallback((activity) => {
+    if (!activity) return;
+
+    const type = String(activity.type || '').toLowerCase();
+    const entityId = activity.id;
+    const description = activity.description || '';
+
+    // Extract tenant name from description if available
+    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/); 
+    const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
+
+    switch (type) {
+      case 'booking': {
+        const params = {
+          searchQuery: tenantName,
+          focusBookingId: entityId || null,
+          drilldownToken: Date.now(),
+        };
+        const status = String(activity.status || '').toLowerCase();
+        if (status) {
+          params.filter = status;
+        }
+        navigation.navigate('Bookings', params);
+        break;
+      }
+      case 'payment': {
+        const params = {
+          searchQuery: tenantName,
+          focusInvoiceId: entityId || null,
+          drilldownToken: Date.now(),
+        };
+        const status = String(activity.status || '').toLowerCase();
+        if (status === 'overdue') params.filter = 'overdue';
+        else if (status === 'paid' || status === 'confirmed') params.filter = 'paid';
+        else params.filter = 'pending';
+        navigation.navigate('Payments', params);
+        break;
+      }
+      case 'room': {
+        const params = {};
+        if (entityId) params.focusRoomId = entityId;
+        navigation.navigate('RoomManagement', params);
+        break;
+      }
+      case 'property': {
+        const params = {};
+        if (entityId) params.focusPropertyId = entityId;
+        navigation.navigate('Properties', params);
+        break;
+      }
+      case 'maintenance': {
+        const params = {};
+        if (entityId) params.focusRequestId = entityId;
+        navigation.navigate('MaintenanceRequests', params);
+        break;
+      }
+      default:
+        break;
+    }
+  }, [navigation]);
+
   useEffect(() => {
     if (dashboardQuery.data) {
       updateData(BUCKET, dashboardQuery.data);
@@ -1026,7 +1087,12 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                 const iconName = activityIconMap[activity.type] || activityIconMap.default;
                 const statusStyle = resolveStatusBadgeStyle(activity, theme.isDark);
                 return (
-                  <View key={`${activity.action}-${index}`} style={[styles.activityItem, { borderBottomColor: theme.colors.border }]}>
+                  <TouchableOpacity
+                    key={`${activity.action}-${index}`}
+                    activeOpacity={0.7}
+                    onPress={() => handleActivityPress(activity)}
+                    style={[styles.activityItem, { borderBottomColor: theme.colors.border }]}
+                  >
                     <View style={[styles.activityIcon, { backgroundColor: palette.bg }]}>
                       <Ionicons name={iconName} size={20} color={palette.fg} />
                     </View>
@@ -1040,7 +1106,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
                         {activity.status}
                       </Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             )}

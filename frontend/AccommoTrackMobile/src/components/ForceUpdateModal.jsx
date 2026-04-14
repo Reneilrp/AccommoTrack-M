@@ -49,7 +49,7 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
       <TouchableWithoutFeedback onPress={handleClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback onPress={() => { }}>
-            <View style={styles.container}>
+            <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
               {!required && !downloading && (
                 <TouchableOpacity
                   style={styles.closeButton}
@@ -64,11 +64,11 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
                 <Ionicons name="cloud-download" size={48} color={theme.colors.primary} />
               </View>
 
-              <Text style={styles.title}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
                 {required ? 'Update Required' : 'Update Available'}
               </Text>
 
-              <Text style={styles.message}>
+              <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
                 {required
                   ? `A new version of AccommoTrack (${latestVersion}) is available. Please update the app to continue using it.`
                   : `A new version of AccommoTrack (${latestVersion}) is available. You can update now or later from Settings.`}
@@ -77,7 +77,7 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
               {/* Progress UI injected here */}
               {downloading ? (
                 <View style={styles.progressContainer}>
-                  <Text style={styles.progressText}>
+                  <Text style={[styles.progressText, { color: theme.colors.text }]}>
                     Downloading... {Math.round(progress * 100)}%
                   </Text>
                   <View style={styles.progressBarBackground}>
@@ -92,7 +92,7 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
                       onPress={onLater}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.secondaryButtonText}>Later</Text>
+                      <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>Later</Text>
                     </TouchableOpacity>
                   ) : null}
 
@@ -123,7 +123,6 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -150,14 +149,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    color: '#111827',
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
-    color: '#4B5563',
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
@@ -187,7 +184,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   secondaryButtonText: {
-    color: '#4B5563',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -197,7 +193,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   progressText: {
-    color: '#111827',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,

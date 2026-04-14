@@ -13,6 +13,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -144,6 +145,11 @@ export default function Payments({ navigation, route }) {
   const { theme } = useTheme();
   const { showAlert } = useUIState();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+
+  const screenWidth = Dimensions.get('window').width;
+  const isTablet = screenWidth > 768;
+  const cardWidth = isTablet ? 160 : 130;
+  const cardHeight = isTablet ? 120 : 100;
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -686,10 +692,22 @@ export default function Payments({ navigation, route }) {
               { label: statsRange === 'month' ? 'Cash Verify (Month)' : 'Cash Verify', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
               { label: statsRange === 'month' ? 'Overdue (Month)' : 'Overdue', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
             ].map((card, i) => (
-              <View key={i} style={{ backgroundColor: theme.isDark ? theme.colors.surface : card.bg, borderRadius: 12, padding: 14, minWidth: 110, borderWidth: 1, borderColor: theme.isDark ? theme.colors.border : 'transparent' }}>
-                <Ionicons name={card.icon} size={20} color={theme.isDark ? theme.colors.textSecondary : card.color} />
-                <Text style={{ fontSize: 18, fontWeight: '800', color: theme.isDark ? theme.colors.text : card.color, marginTop: 6 }}>{card.value}</Text>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: theme.isDark ? theme.colors.textSecondary : card.color, opacity: 0.8, marginTop: 2 }}>{card.label}</Text>
+              <View 
+                key={i} 
+                style={{ 
+                  backgroundColor: theme.isDark ? theme.colors.surface : card.bg, 
+                  borderRadius: 12, 
+                  padding: isTablet ? 16 : 14, 
+                  width: cardWidth,
+                  height: cardHeight,
+                  borderWidth: 1, 
+                  borderColor: theme.isDark ? theme.colors.border : 'transparent',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Ionicons name={card.icon} size={isTablet ? 24 : 20} color={theme.isDark ? theme.colors.textSecondary : card.color} />
+                <Text style={{ fontSize: isTablet ? 20 : 18, fontWeight: '800', color: theme.isDark ? theme.colors.text : card.color, marginTop: 6 }}>{card.value}</Text>
+                <Text style={{ fontSize: isTablet ? 12 : 11, fontWeight: '600', color: theme.isDark ? theme.colors.textSecondary : card.color, opacity: 0.8, marginTop: 2 }}>{card.label}</Text>
               </View>
             ))}
           </ScrollView>

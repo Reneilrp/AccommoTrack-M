@@ -1328,19 +1328,24 @@ export default function MyBookings() {
     const [menuVisible, setMenuVisible] = useState(false);
 
     return (
-      <View style={{ flex: 1, position: 'relative' }}>
+      <View style={{ position: 'relative' }}>
         <TouchableOpacity
-          style={[
-            styles.actionBtn,
-            {
-              backgroundColor: theme.colors.surface,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-            },
-          ]}
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            borderRadius: 20,
+            width: 36,
+            height: 36,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+          }}
           onPress={() => setMenuVisible(!menuVisible)}
         >
-          <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.text} />
+          <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
         </TouchableOpacity>
 
         <Modal
@@ -1713,10 +1718,26 @@ export default function MyBookings() {
 
         {/* Main Property Card */}
         <View style={[styles.bookingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-          <Image
-            source={getImageUrl(property.image)}
-            style={styles.bookingImage}
-          />
+          <View style={{ position: 'relative' }}>
+            <Image
+              source={getImageUrl(property.image)}
+              style={styles.bookingImage}
+            />
+            {!booking.isPending && (
+              <View style={{ position: 'absolute', top: 12, right: 12 }}>
+                <EllipsisMenu
+                  booking={booking}
+                  property={property}
+                  room={room}
+                  reviewAlreadySubmitted={reviewAlreadySubmitted}
+                  onReview={() => openReviewModal({ booking, property })}
+                  onMaintenance={() => openMaintenanceModal({ booking, property, room })}
+                  onReport={() => openReportModal({ booking, property })}
+                  theme={theme}
+                />
+              </View>
+            )}
+          </View>
           <View style={styles.bookingInfo}>
             <View style={styles.bookingHeader}>
               <Text style={[styles.bookingName, { color: theme.colors.text }]}>{property.title}</Text>
@@ -1737,10 +1758,12 @@ export default function MyBookings() {
                 <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Room</Text>
                 <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{room.roomNumber || room.room_number}</Text>
               </View>
-              <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
-                <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{occupancySummary.label}</Text>
-                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{occupancySummary.value}</Text>
-              </View>
+              {shouldShowProxyOccupants && (
+                <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                  <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{occupancySummary.label}</Text>
+                  <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{occupancySummary.value}</Text>
+                </View>
+              )}
               <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
                 <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
                   {booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
@@ -1839,19 +1862,6 @@ export default function MyBookings() {
                   ) : (
                     <View style={styles.actionBtnPlaceholder} />
                   )}
-                </View>
-
-                <View style={styles.actionRow}>
-                  <EllipsisMenu
-                    booking={booking}
-                    property={property}
-                    room={room}
-                    reviewAlreadySubmitted={reviewAlreadySubmitted}
-                    onReview={() => openReviewModal({ booking, property })}
-                    onMaintenance={() => openMaintenanceModal({ booking, property, room })}
-                    onReport={() => openReportModal({ booking, property })}
-                    theme={theme}
-                  />
                 </View>
               </View>
             )}

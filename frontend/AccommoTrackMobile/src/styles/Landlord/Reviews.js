@@ -45,6 +45,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   ratingFilterContainer: {
     paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 8,
   },
   ratingFilterScroll: {
