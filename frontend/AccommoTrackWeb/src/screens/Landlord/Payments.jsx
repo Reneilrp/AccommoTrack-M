@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, FileDown, Filter, ShieldCheck, ShieldX } from "lucide-react";
 import toast from "react-hot-toast";
 import PriceRow from "../../components/Shared/PriceRow";
@@ -149,6 +149,7 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
 
 export default function Payments() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { uiState, updateData, invalidateData } = useUIState();
   const cachedData = uiState.data?.landlord_payments;
 
@@ -1281,6 +1282,12 @@ export default function Payments() {
                     setShowInvoiceModal(false);
                     setRefundConfirmTx(null);
                     setRefundAmount("");
+                    // Clear invoiceId from URL when closing modal
+                    const params = new URLSearchParams(location.search);
+                    if (params.has('invoiceId')) {
+                      params.delete('invoiceId');
+                      navigate({ search: params.toString() }, { replace: true });
+                    }
                   }}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                 >
@@ -1714,7 +1721,15 @@ export default function Payments() {
 
               <div className="p-6 bg-gray-50 dark:bg-gray-700/30 text-right">
                 <button
-                  onClick={() => setShowInvoiceModal(false)}
+                  onClick={() => {
+                    setShowInvoiceModal(false);
+                    // Clear invoiceId from URL when closing modal
+                    const params = new URLSearchParams(location.search);
+                    if (params.has('invoiceId')) {
+                      params.delete('invoiceId');
+                      navigate({ search: params.toString() }, { replace: true });
+                    }
+                  }}
                   className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
                 >
                   Close

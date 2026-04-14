@@ -731,9 +731,14 @@ class BookingService
      */
     protected function handleConfirmation(Booking $booking): void
     {
+        // Validate room relationship exists
+        if (!$booking->room) {
+            throw new \DomainException('Booking room relationship is missing. Cannot confirm booking.');
+        }
+
         // Check if room has physical space for more active tenants
         if ($booking->room->tenants()->count() >= $booking->room->capacity) {
-            throw new \Exception('Room is fully occupied by active tenants');
+            throw new \DomainException('Room is fully occupied by active tenants');
         }
 
         $booking->confirmed_at = now();
@@ -764,6 +769,12 @@ class BookingService
             })
             ->first();
         if (! $existingInvoice) {
+            // Validate room relationship before accessing billing_policy
+            if (!$booking->room) {
+                Log::error('Cannot generate invoice: booking room relationship missing', ['booking_id' => $booking->id]);
+                throw new \DomainException('Cannot generate invoice: room data is missing.');
+            }
+
             $billingPolicy = $booking->room->billing_policy ?? 'monthly';
             $isProxyMode = $booking->booking_mode === 'proxy';
             $occupiedSlots = $isProxyMode
@@ -790,7 +801,8 @@ class BookingService
             if (! $booking->next_billing_date) {
                 $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($startDate, $booking->billing_day);
 
-                if (($booking->room->billing_policy ?? 'monthly') !== 'daily' && $booking->room->requiresAdvance()) {
+                // Safely check room billing policy and advance requirement
+                if ($booking->room && ($booking->room->billing_policy ?? 'monthly') !== 'daily' && $booking->room->requiresAdvance()) {
                     $nextBillingDate = BillingCycleCalculator::calculateNextBillingDate($nextBillingDate, $booking->billing_day);
                 }
 
@@ -804,7 +816,10 @@ class BookingService
             'room_id' => $booking->room_id,
         ]);
 
-        $booking->room->property->updateAvailableRooms();
+        // Safely update property stats if relationships exist
+        if ($booking->room && $booking->room->property) {
+            $booking->room->property->updateAvailableRooms();
+        }
     }
 
     /**
@@ -1222,6 +1237,12 @@ class BookingService
      */
     protected function generateSingleBookingInvoice(Booking $booking, string $billingPolicy): void
     {
+        // Validate room relationship
+        if (!$booking->room) {
+            Log::error('Cannot generate single invoice: booking room relationship missing', ['booking_id' => $booking->id]);
+            throw new \DomainException('Cannot generate invoice: room data is missing.');
+        }
+
         $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
         
         // For monthly billing policies:

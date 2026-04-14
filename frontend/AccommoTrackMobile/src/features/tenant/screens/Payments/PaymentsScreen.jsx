@@ -421,28 +421,28 @@ export default function PaymentsScreen() {
 
           {/* Stats Cards */}
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
+            <View style={[styles.statCard, { backgroundColor: '#DCFCE7', minHeight: 110, justifyContent: 'center' }]}>
               <Ionicons name="checkmark-circle" size={26} color={theme.colors.primary} />
-              <Text numberOfLines={1} style={[styles.statValue, { color: '#166534' }]}>
-                {formatCurrency(stats?.totalPaidThisMonth || 0)}
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.statValue, { color: '#166534' }]}>
+                {statsLoading ? '...' : formatCurrency(stats?.totalPaidThisMonth || 0)}
               </Text>
-              <Text style={[styles.statLabel, { color: '#15803D' }]}>Paid This Month</Text>
+              <Text numberOfLines={1} style={[styles.statLabel, { color: '#15803D' }]}>Paid This Month</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: '#FEF3C7' }]}>
+            <View style={[styles.statCard, { backgroundColor: '#FEF3C7', minHeight: 110, justifyContent: 'center' }]}>
               <Ionicons name="time" size={26} color="#F59E0B" />
-              <Text numberOfLines={1} style={[styles.statValue, { color: '#92400E' }]}>
-                {formatCurrency(stats?.pendingAmount || 0)}
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.statValue, { color: '#92400E' }]}>
+                {statsLoading ? '...' : formatCurrency(stats?.pendingAmount || 0)}
               </Text>
-              <Text style={[styles.statLabel, { color: '#B45309' }]}>Pending</Text>
+              <Text numberOfLines={1} style={[styles.statLabel, { color: '#B45309' }]}>Pending</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: '#DBEAFE' }]}>
+            <View style={[styles.statCard, { backgroundColor: '#DBEAFE', minHeight: 110, justifyContent: 'center' }]}>
               <Ionicons name="calendar" size={26} color="#3B82F6" />
-              <Text numberOfLines={1} style={[styles.statValue, { color: '#1E3A8A' }]}>
-                {formatDate(nextDueDateValue)}
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.statValue, { color: '#1E3A8A' }]}>
+                {statsLoading ? '...' : formatDate(nextDueDateValue)}
               </Text>
-              <Text style={[styles.statLabel, { color: '#1E40AF' }]}>Next Due</Text>
+              <Text numberOfLines={1} style={[styles.statLabel, { color: '#1E40AF' }]}>Next Due</Text>
             </View>
           </View>
 
@@ -586,6 +586,7 @@ export default function PaymentsScreen() {
                   key={payment.id || index}
                   style={[
                     styles.paymentItem,
+                    { minHeight: 88 },
                     index < filteredPayments.length - 1 && {
                       borderBottomWidth: 1,
                       borderBottomColor: theme.colors.border,
@@ -596,7 +597,7 @@ export default function PaymentsScreen() {
                     <View
                       style={[
                         styles.paymentIcon,
-                        { backgroundColor: `${getStatusColor(payment.status)}20` },
+                        { backgroundColor: `${getStatusColor(payment.status)}20`, width: 48, height: 48, borderRadius: 24 },
                       ]}
                     >
                       <Ionicons
@@ -613,23 +614,23 @@ export default function PaymentsScreen() {
                         color={getStatusColor(payment.status)}
                       />
                     </View>
-                    <View style={styles.paymentInfo}>
-                      <Text style={[styles.paymentTitle, { color: theme.colors.text }]}>
+                    <View style={[styles.paymentInfo, { flex: 1, maxWidth: '60%' }]}>
+                      <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.paymentTitle, { color: theme.colors.text }]}>
                         {payment.description || `Payment #${payment.id}`}
                       </Text>
-                      <Text style={[styles.paymentDate, { color: theme.colors.textSecondary }]}>
+                      <Text numberOfLines={1} style={[styles.paymentDate, { color: theme.colors.textSecondary }]}>
                         {formatDate(payment.date)}
                       </Text>
                     </View>
                   </View>
-                  <View style={styles.paymentRight}>
-                    <Text style={[styles.paymentAmount, { color: theme.colors.text }]}>
+                  <View style={[styles.paymentRight, { minWidth: 100, alignItems: 'flex-end' }]}>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.paymentAmount, { color: theme.colors.text }]}>
                       {formatCurrency(payment.amount)}
                     </Text>
                     <View
-                      style={[styles.statusBadge, { backgroundColor: `${getStatusColor(payment.status)}20` }]}
+                      style={[styles.statusBadge, { backgroundColor: `${getStatusColor(payment.status)}20`, minWidth: 70, height: 24 }]}
                     >
-                      <Text style={[styles.statusText, { color: getStatusColor(payment.status) }]}>
+                      <Text numberOfLines={1} style={[styles.statusText, { color: getStatusColor(payment.status) }]}>
                         {payment.status}
                       </Text>
                     </View>
@@ -649,6 +650,8 @@ export default function PaymentsScreen() {
                           {
                             backgroundColor: theme.colors.primary,
                             opacity: resolvingPaymentId === resolveEntryKey(payment) ? 0.65 : 1,
+                            minWidth: 70,
+                            height: 32,
                           },
                         ]}
                       >

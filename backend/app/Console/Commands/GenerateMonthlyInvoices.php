@@ -166,13 +166,42 @@ class GenerateMonthlyInvoices extends Command
             $periodEnd = BillingCycleCalculator::calculatePeriodEnd($billingDate, $booking->billing_day);
             $periodKey = $periodStart->format('Y-m-d');
 
-            $invoiceExists = Invoice::query()
+            $isProxyMode = $booking->booking_mode === 'proxy';
+            $expectedInvoiceCount = $isProxyMode
+                ? max((int) ($booking->bed_count ?? 1), (int) $booking->occupants()->count(), 1)
+                : 1;
+
+            $existingInvoices = Invoice::query()
                 ->where('booking_id', $booking->id)
                 ->where('invoice_type', 'rent')
-                ->where('billing_period_key', $periodKey)
-                ->exists();
+                ->where(function ($query) use ($periodKey) {
+                    $query->where('billing_period_key', $periodKey)
+                        ->orWhere('billing_period_key', 'like', $periodKey.'#%');
+                })
+                ->get(['id', 'billing_period_key', 'metadata']);
 
-            if (! $invoiceExists) {
+            $existingInvoiceCount = $existingInvoices->count();
+            $generatedInvoices = false;
+            $missingProxySlots = collect();
+
+            if ($isProxyMode && $expectedInvoiceCount > 1) {
+                $expectedSlots = collect(range(1, $expectedInvoiceCount));
+                $existingSlots = $existingInvoices
+                    ->map(fn (Invoice $invoice) => $this->resolveProxySlotNumber($invoice, $periodKey, $expectedInvoiceCount))
+                    ->filter()
+                    ->filter(fn (int $slot) => $slot >= 1 && $slot <= $expectedInvoiceCount)
+                    ->unique()
+                    ->values();
+
+                $missingProxySlots = $expectedSlots->diff($existingSlots)->values();
+
+                // Legacy rows may not have occupant_slot metadata; fallback to count-based gap fill.
+                if ($missingProxySlots->isEmpty() && $existingInvoiceCount < $expectedInvoiceCount) {
+                    $missingProxySlots = collect(range($existingInvoiceCount + 1, $expectedInvoiceCount));
+                }
+            }
+
+            if ($existingInvoiceCount < $expectedInvoiceCount || $missingProxySlots->isNotEmpty()) {
                 $recurringAddonAmount = $booking->addons()
                     ->where('booking_addons.status', 'active')
                     ->where('price_type', 'monthly')
@@ -185,16 +214,27 @@ class GenerateMonthlyInvoices extends Command
                 $baseInvoiceAmount = (float) $booking->monthly_rent + (float) $recurringAddonAmount;
 
                 if ($baseInvoiceAmount > 0) {
-                    // Check if this is a proxy booking with multiple occupied slots.
-                    $isProxyMode = $booking->booking_mode === 'proxy';
-                    $invoiceSlots = $isProxyMode
-                        ? max((int) ($booking->bed_count ?? 1), (int) $booking->occupants()->count(), 1)
-                        : 1;
-                    
-                    if ($isProxyMode && $invoiceSlots > 1) {
-                        // Generate separate invoices for each occupied slot.
-                        $this->generateProxyOccupantRecurringInvoices($booking, $periodStart, $periodEnd, $periodKey, $baseInvoiceAmount, $invoiceSlots);
-                    } else {
+                    if ($isProxyMode && $expectedInvoiceCount > 1) {
+                        $slotsToGenerate = $missingProxySlots;
+
+                        if ($slotsToGenerate->isEmpty() && $existingInvoiceCount < $expectedInvoiceCount) {
+                            $slotsToGenerate = collect(range($existingInvoiceCount + 1, $expectedInvoiceCount));
+                        }
+
+                        if ($slotsToGenerate->isNotEmpty()) {
+                            $generated = $this->generateProxyOccupantRecurringInvoices(
+                                $booking,
+                                $periodStart,
+                                $periodEnd,
+                                $periodKey,
+                                $baseInvoiceAmount,
+                                $expectedInvoiceCount,
+                                $slotsToGenerate->all(),
+                            );
+
+                            $generatedInvoices = $generatedInvoices || $generated > 0;
+                        }
+                    } elseif ($existingInvoiceCount < 1) {
                         // Generate single invoice
                         $reference = 'INV-'.$periodStart->format('Ym').'-'.strtoupper(Str::random(6));
 
@@ -225,6 +265,8 @@ class GenerateMonthlyInvoices extends Command
                             'booking_id' => $booking->id,
                             'billing_period_key' => $periodKey,
                         ]);
+
+                        $generatedInvoices = true;
                     }
                 }
             }
@@ -235,7 +277,7 @@ class GenerateMonthlyInvoices extends Command
                 : $nextBillingDate->toDateString();
             $booking->save();
 
-            return $invoiceExists ? 'skipped' : 'generated';
+            return $generatedInvoices ? 'generated' : 'skipped';
         });
     }
 
@@ -372,26 +414,45 @@ class GenerateMonthlyInvoices extends Command
         Carbon $periodEnd,
         string $periodKey,
         float $totalAmount,
-        int $invoiceSlots
-    ): void {
+        int $totalSlots,
+        ?array $slotNumbers = null,
+    ): int {
         $occupants = $booking->occupants()->get()->values();
-        $invoiceSlots = max(1, $invoiceSlots);
-        $perOccupantAmount = $totalAmount / $invoiceSlots;
+        $totalSlots = max(1, $totalSlots);
+        $perOccupantAmount = $totalAmount / $totalSlots;
 
-        if ($occupants->count() < $invoiceSlots) {
+        if ($slotNumbers === null) {
+            $slotNumbers = range(1, $totalSlots);
+        }
+
+        $slotNumbers = collect($slotNumbers)
+            ->map(fn ($slot) => (int) $slot)
+            ->filter(fn (int $slot) => $slot >= 1 && $slot <= $totalSlots)
+            ->unique()
+            ->values();
+
+        if ($slotNumbers->isEmpty()) {
+            return 0;
+        }
+
+        if ($occupants->count() < $totalSlots) {
             Log::warning('Recurring proxy billing found fewer occupants than billed slots; using fallback labels.', [
                 'booking_id' => $booking->id,
                 'bed_count' => (int) ($booking->bed_count ?? 1),
                 'occupants_count' => $occupants->count(),
-                'invoice_slots' => $invoiceSlots,
+                'invoice_slots' => $totalSlots,
                 'billing_period_key' => $periodKey,
             ]);
         }
-        
-        for ($index = 0; $index < $invoiceSlots; $index++) {
+
+        $generatedCount = 0;
+
+        foreach ($slotNumbers as $slotNumber) {
+            $index = $slotNumber - 1;
             /** @var \App\Models\BookingOccupant|null $occupant */
             $occupant = $occupants->get($index);
-            $occupantName = $occupant?->full_name ?? ('Occupant #'.($index + 1));
+            $occupantName = $occupant?->full_name ?? ('Occupant #'.$slotNumber);
+            $slotBillingPeriodKey = $slotNumber === 1 ? $periodKey : $periodKey.'#'.$slotNumber;
 
             $reference = 'INV-'.$periodStart->format('Ym').'-'.strtoupper(Str::random(6));
             
@@ -405,7 +466,7 @@ class GenerateMonthlyInvoices extends Command
                 'invoice_type' => 'rent',
                 'billing_period_start' => $periodStart,
                 'billing_period_end' => $periodEnd,
-                'billing_period_key' => $periodKey,
+                'billing_period_key' => $slotBillingPeriodKey,
                 'amount_cents' => (int) round($perOccupantAmount * 100),
                 'currency' => 'PHP',
                 'status' => 'pending',
@@ -415,20 +476,48 @@ class GenerateMonthlyInvoices extends Command
                     'generated_by' => 'system',
                     'billing_period' => $periodStart->format('Y-m'),
                     'billing_period_key' => $periodKey,
+                    'billing_period_slot_key' => $slotBillingPeriodKey,
                     'occupant_id' => $occupant?->id,
                     'occupant_name' => $occupantName,
-                    'occupant_slot' => $index + 1,
+                    'occupant_slot' => $slotNumber,
                     'proxy_booking' => true,
                 ],
             ]);
+
+            $generatedCount++;
             
             Log::info('Generated recurring invoice for proxy occupant', [
                 'booking_id' => $booking->id,
                 'occupant_id' => $occupant?->id,
                 'occupant_name' => $occupantName,
-                'occupant_slot' => $index + 1,
+                'occupant_slot' => $slotNumber,
                 'billing_period_key' => $periodKey,
             ]);
         }
+
+        return $generatedCount;
+    }
+
+    private function resolveProxySlotNumber(Invoice $invoice, string $basePeriodKey, int $maxSlot): ?int
+    {
+        $slotFromMetadata = (int) data_get($invoice->metadata, 'occupant_slot');
+        if ($slotFromMetadata >= 1 && $slotFromMetadata <= $maxSlot) {
+            return $slotFromMetadata;
+        }
+
+        $key = (string) ($invoice->billing_period_key ?? '');
+        if ($key === $basePeriodKey) {
+            return 1;
+        }
+
+        if (str_starts_with($key, $basePeriodKey.'#')) {
+            $suffix = substr($key, strlen($basePeriodKey) + 1);
+            $slotFromSuffix = (int) $suffix;
+            if ($slotFromSuffix >= 1 && $slotFromSuffix <= $maxSlot) {
+                return $slotFromSuffix;
+            }
+        }
+
+        return null;
     }
 }

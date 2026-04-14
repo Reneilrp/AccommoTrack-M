@@ -212,6 +212,13 @@ class LandlordBookingController extends Controller
 
             $this->checkPropertyAccess($context, $booking->property_id);
 
+            // Validate room relationship exists
+            if (!$booking->room) {
+                return response()->json([
+                    'message' => 'Booking room data is missing. Cannot update status.',
+                ], 422);
+            }
+
             $result = $this->bookingService->updateStatus(
                 $booking,
                 $request->validated()
@@ -227,15 +234,20 @@ class LandlordBookingController extends Controller
             return response()->json([
                 'message' => $e->getMessage(),
             ], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Booking not found.',
+            ], 404);
         } catch (\Exception $e) {
             Log::error('Failed to update booking status', [
+                'booking_id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
-                'message' => 'Failed to update booking status',
-                'error' => $e->getMessage(),
+                'message' => 'Failed to update booking status. Please try again or contact support.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
@@ -271,10 +283,20 @@ class LandlordBookingController extends Controller
                 'status_upgraded' => $result['status_upgraded'],
                 'completion_blocked' => $result['completion_blocked'],
             ], 200);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
-                'message' => 'Failed to update payment status',
+                'message' => 'Booking not found.',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to update payment status', [
+                'booking_id' => $id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to update payment status. Please try again or contact support.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
@@ -293,6 +315,15 @@ class LandlordBookingController extends Controller
                 ->findOrFail($id);
 
             $this->checkPropertyAccess($context, $booking->property_id);
+
+            // Validate deposit balance before proceeding
+            if ((float) ($booking->deposit_balance ?? 0) > 0) {
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'Please settle the deposit balance of ₱' . number_format($booking->deposit_balance, 2) . ' before finalizing checkout.',
+                ], 422);
+            }
 
             $result = $this->bookingService->finalizeCheckout(
                 $booking,
@@ -316,16 +347,23 @@ class LandlordBookingController extends Controller
                 'data' => null,
                 'message' => $e->getMessage(),
             ], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Booking not found.',
+            ], 404);
         } catch (\Exception $e) {
             Log::error('Failed to finalize booking checkout', [
                 'booking_id' => $id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'Failed to finalize checkout.',
+                'message' => 'Failed to finalize checkout. Please try again or contact support.',
             ], 500);
         }
     }

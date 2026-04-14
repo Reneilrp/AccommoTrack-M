@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw, CalendarDays, Calculator, Users } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
@@ -11,6 +11,7 @@ import { LANDLORD_MUTATION_FRESHNESS, refreshAfterMutation } from '../../utils/m
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { uiState, updateData, invalidateData } = useUIState();
   const cachedData = uiState.data?.landlord_bookings;
 
@@ -67,6 +68,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     setShowDetailModal(false);
     setSelectedBooking(null);
     resetDepositSettlementState();
+    // Clear bookingId from URL when closing modal
+    const params = new URLSearchParams(location.search);
+    if (params.has('bookingId')) {
+      params.delete('bookingId');
+      navigate({ search: params.toString() }, { replace: true });
+    }
   };
 
   const refreshLandlordMutationViews = () => {
@@ -388,6 +395,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const handleFinalizeCheckout = async (bookingId, payload = {}) => {
     if (readOnlyGuard()) return;
+
+    const activeBooking = selectedBooking?.id === bookingId
+      ? selectedBooking
+      : bookings.find((booking) => booking.id === bookingId);
+
+    // Validate deposit balance before proceeding
+    if (Number(activeBooking?.deposit_balance || 0) > 0) {
+      toast.error(`Please settle the deposit balance of ₱${Number(activeBooking.deposit_balance).toLocaleString()} before finalizing checkout.`);
+      return;
+    }
 
     const toastId = toast.loading('Finalizing checkout...');
     setProcessing(true);
@@ -1294,31 +1311,38 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
                       // Confirmed status - smart completion based on payment
                       if (status === 'confirmed') {
+                        const hasDepositBalance = Number(selectedBooking.deposit_balance || 0) > 0;
+                        
                         if (paymentStatus === 'paid') {
                           return (
-                            <div className="flex gap-4 w-full">
-                              <button
-                                onClick={() => {
-                                  if (window.confirm('Finalize checkout for this tenant now?')) {
-                                    if (Number(selectedBooking.deposit_balance || 0) > 0 && paymentStatus === 'paid') {
-                                      toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before finalizing as completed.`);
-                                      return;
+                            <div className="flex flex-col gap-4 w-full">
+                              {hasDepositBalance && (
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                                  <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                                    <strong>Deposit Balance:</strong> ₱{Number(selectedBooking.deposit_balance).toLocaleString()} must be settled before finalizing checkout.
+                                  </p>
+                                </div>
+                              )}
+                              <div className="flex gap-4">
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Finalize checkout for this tenant now?')) {
+                                      handleFinalizeCheckout(selectedBooking.id);
                                     }
-                                    handleFinalizeCheckout(selectedBooking.id);
-                                  }
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
-                              >
-                                <CheckCircle className="w-5 h-5" />
-                                Finalize Checkout
-                              </button>
-                              <button
-                                onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                              >
-                                <XCircle className="w-5 h-5" />
-                                Cancel & Refund
-                              </button>
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                >
+                                  <CheckCircle className="w-5 h-5" />
+                                  Finalize Checkout
+                                </button>
+                                <button
+                                  onClick={() => handleOpenCancelModal(selectedBooking)}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                >
+                                  <XCircle className="w-5 h-5" />
+                                  Cancel & Refund
+                                </button>
+                              </div>
                             </div>
                           );
                         } else if (paymentStatus === 'partial') {
@@ -1329,6 +1353,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                                   <strong>Outstanding Balance:</strong> Finalizing checkout will close the stay as partial-completed.
                                 </p>
                               </div>
+                              {hasDepositBalance && (
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                                  <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                                    <strong>Deposit Balance:</strong> ₱{Number(selectedBooking.deposit_balance).toLocaleString()} must be settled before finalizing checkout.
+                                  </p>
+                                </div>
+                              )}
                               <div className="flex gap-4">
                                 <button
                                   onClick={() => {
@@ -1359,6 +1390,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                                   <strong>Unpaid Stay:</strong> You can finalize checkout, but booking will be marked partial-completed until balances are settled.
                                 </p>
                               </div>
+                              {hasDepositBalance && (
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 mb-4">
+                                  <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                                    <strong>Deposit Balance:</strong> ₱{Number(selectedBooking.deposit_balance).toLocaleString()} must be settled before finalizing checkout.
+                                  </p>
+                                </div>
+                              )}
                               <div className="flex gap-4">
                                 <button
                                   onClick={() => {

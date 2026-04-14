@@ -344,6 +344,7 @@ class TenantBookingController extends Controller
                 ->where('invoice_type', 'rent')
                 ->where(function ($query) use ($periodKey, $cycleStart) {
                     $query->where('billing_period_key', $periodKey)
+                        ->orWhere('billing_period_key', 'like', $periodKey.'#%')
                         ->orWhere(function ($legacy) use ($cycleStart) {
                             $legacy->whereNull('billing_period_key')
                                 ->whereYear('issued_at', $cycleStart->year)
@@ -468,6 +469,7 @@ class TenantBookingController extends Controller
             ->where('invoice_type', 'rent')
             ->where(function ($query) use ($periodKey, $periodStart) {
                 $query->where('billing_period_key', $periodKey)
+                    ->orWhere('billing_period_key', 'like', $periodKey.'#%')
                     ->orWhere(function ($legacy) use ($periodStart) {
                         $legacy->whereNull('billing_period_key')
                             ->whereYear('issued_at', $periodStart->year)
