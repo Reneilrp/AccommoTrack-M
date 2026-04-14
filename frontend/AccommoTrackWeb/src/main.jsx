@@ -31,6 +31,7 @@ createRoot(document.getElementById('root')).render(
               background: 'var(--bg-secondary)',
               color: 'var(--text-primary)',
               border: '1px solid var(--border-color)',
+              maxWidth: '650px',
             },
             success: {
               iconTheme: {
@@ -43,6 +44,7 @@ createRoot(document.getElementById('root')).render(
                 primary: '#EF4444',
                 secondary: 'var(--bg-secondary)',
               },
+              duration: 5000,
             },
           }}
         />

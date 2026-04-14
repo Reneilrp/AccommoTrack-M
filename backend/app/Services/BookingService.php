@@ -70,19 +70,28 @@ class BookingService
                     throw new \DomainException('You already have an active or pending booking for this room.');
                 }
 
-                $samePropertyBookingCount = Booking::where('property_id', $room->property_id)
-                    ->where('tenant_id', $tenantId)
-                    ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
-                    ->count();
+                // Check booking limits per mode (normal and proxy are independent)
+                if ($bookingMode === 'normal') {
+                    $normalBookingCount = Booking::where('property_id', $room->property_id)
+                        ->where('tenant_id', $tenantId)
+                        ->where('booking_mode', 'normal')
+                        ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
+                        ->count();
 
-                $samePropertyLimit = $bookingMode === 'proxy' ? 3 : 1;
+                    if ($normalBookingCount >= 1) {
+                        throw new \DomainException('Normal booking allows only 1 active or pending booking in this property.');
+                    }
+                } else {
+                    // Proxy mode
+                    $proxyBookingCount = Booking::where('property_id', $room->property_id)
+                        ->where('tenant_id', $tenantId)
+                        ->where('booking_mode', 'proxy')
+                        ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
+                        ->count();
 
-                if ($samePropertyBookingCount >= $samePropertyLimit) {
-                    if ($bookingMode === 'proxy') {
+                    if ($proxyBookingCount >= 3) {
                         throw new \DomainException('Proxy booking limit reached. Only up to 3 active or pending bookings are allowed in this property.');
                     }
-
-                    throw new \DomainException('Normal booking allows only 1 active or pending booking in this property.');
                 }
             }
 

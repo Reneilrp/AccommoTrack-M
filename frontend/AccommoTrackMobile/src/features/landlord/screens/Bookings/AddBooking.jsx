@@ -27,6 +27,16 @@ import {
 const EMPTY_PROPERTIES = [];
 const EMPTY_ROOMS = [];
 
+const getRoomBillingPolicy = (room) =>
+  String(room?.billing_policy || room?.contract_mode || 'monthly').toLowerCase();
+
+const resolveFirstValidationError = (details) => {
+  if (!details || typeof details !== 'object') return null;
+  const firstFieldErrors = Object.values(details).find((value) => Array.isArray(value) && value.length > 0);
+  if (!firstFieldErrors) return null;
+  return firstFieldErrors[0] || null;
+};
+
 export default function AddBooking({ navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -41,7 +51,7 @@ export default function AddBooking({ navigation }) {
     roomId: '',
     bedCount: 1,
     checkIn: new Date(),
-    checkOut: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+    checkOut: null,
     amount: '',
     paymentPlan: 'full',
   });
@@ -90,6 +100,11 @@ export default function AddBooking({ navigation }) {
     () => rooms.find((room) => String(room.id) === String(formData.roomId)),
     [rooms, formData.roomId],
   );
+  const selectedRoomBillingPolicy = useMemo(
+    () => getRoomBillingPolicy(selectedRoom),
+    [selectedRoom],
+  );
+  const requiresCheckOut = !selectedRoom || selectedRoomBillingPolicy === 'daily';
   const selectedRoomType = String(selectedRoom?.room_type || selectedRoom?.type_label || '').toLowerCase();
   const isBedSpacerRoom = selectedRoomType.replace(/[\s_-]/g, '') === 'bedspacer';
   const maxSelectableBeds = Math.max(
@@ -169,6 +184,18 @@ export default function AddBooking({ navigation }) {
   }, [formData.bedCount, maxSelectableBeds, selectedRoom]);
 
   useEffect(() => {
+    if (!selectedRoom || selectedRoomBillingPolicy !== 'daily') return;
+    if (formData.checkOut) return;
+
+    const nextDay = new Date(formData.checkIn);
+    nextDay.setDate(nextDay.getDate() + 1);
+    setFormData((prev) => ({
+      ...prev,
+      checkOut: nextDay,
+    }));
+  }, [selectedRoom, selectedRoomBillingPolicy, formData.checkIn, formData.checkOut]);
+
+  useEffect(() => {
     if (!guestSearch || guestSearch.trim().length < 2 || selectedGuest) {
       setGuestResults([]);
       return;
@@ -202,9 +229,9 @@ export default function AddBooking({ navigation }) {
   const handleRoomChange = (roomId) => {
     const selectedRoom = rooms.find((room) => String(room.id) === String(roomId));
     const nextMaxBeds = Math.max(1, Number(selectedRoom?.available_slots ?? selectedRoom?.capacity ?? 1));
-    setFormData(prev => ({ 
-      ...prev, 
-      roomId: roomId, 
+    setFormData(prev => ({
+      ...prev,
+      roomId: roomId,
       amount: selectedRoom?.monthly_rate?.toString() || prev.amount,
       bedCount: Math.min(Math.max(1, Number(prev.bedCount || 1)), nextMaxBeds),
     }));
@@ -213,7 +240,19 @@ export default function AddBooking({ navigation }) {
   const onCheckInChange = (event, selectedDate) => {
     setShowCheckIn(Platform.OS === 'ios');
     if (selectedDate) {
-      setFormData(prev => ({ ...prev, checkIn: selectedDate }));
+      setFormData(prev => {
+        const next = { ...prev, checkIn: selectedDate };
+        if (prev.checkOut && prev.checkOut <= selectedDate) {
+          if (selectedRoomBillingPolicy === 'daily') {
+            const nextDay = new Date(selectedDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            next.checkOut = nextDay;
+          } else {
+            next.checkOut = null;
+          }
+        }
+        return next;
+      });
     }
   };
 
@@ -240,7 +279,12 @@ export default function AddBooking({ navigation }) {
       return;
     }
 
-    if (formData.checkOut <= formData.checkIn) {
+    if (requiresCheckOut && !formData.checkOut) {
+      showError('Validation', 'Check-out date is required for daily bookings.');
+      return;
+    }
+
+    if (formData.checkOut && formData.checkOut <= formData.checkIn) {
       showError('Validation', 'Check-out date must be after check-in date.');
       return;
     }
@@ -257,7 +301,7 @@ export default function AddBooking({ navigation }) {
         room_id: formData.roomId,
         bed_count: isBedSpacerRoom ? formData.bedCount : 1,
         start_date: formData.checkIn.toISOString().split('T')[0],
-        end_date: formData.checkOut.toISOString().split('T')[0],
+        end_date: formData.checkOut ? formData.checkOut.toISOString().split('T')[0] : null,
         payment_plan: formData.paymentPlan,
       };
 
@@ -272,10 +316,11 @@ export default function AddBooking({ navigation }) {
         showSuccess('Success', 'Booking created successfully!');
         navigation.goBack();
       } else {
-        showError('Error', res.error || 'Failed to create booking');
+        const detailsMessage = resolveFirstValidationError(res.details);
+        showError('Error', detailsMessage || res.error || 'Failed to create booking');
       }
-    } catch (_error) {
-      showError('Error', 'An unexpected error occurred');
+    } catch (error) {
+      showError('Error', error?.message || 'Failed to create booking');
     } finally {
       setSubmitting(false);
     }
@@ -294,7 +339,7 @@ export default function AddBooking({ navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -329,7 +374,7 @@ export default function AddBooking({ navigation }) {
         {/* Guest Information */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Guest Information</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name <Text style={styles.requiredAsterisk}>*</Text></Text>
             <TextInput
@@ -398,7 +443,7 @@ export default function AddBooking({ navigation }) {
         {/* Property & Room */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Room Selection</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Select Property <Text style={styles.requiredAsterisk}>*</Text></Text>
             <View style={styles.pickerWrapper}>
@@ -437,10 +482,10 @@ export default function AddBooking({ navigation }) {
                 >
                   <Picker.Item label={rooms.length === 0 ? "No available rooms" : "Select a room"} value="" />
                   {rooms.map((room) => (
-                    <Picker.Item 
-                      key={room.id} 
-                      label={`Room ${room.room_number} (${room.type_label})${room.gender_restriction && room.gender_restriction !== 'mixed' ? ` - ${String(room.gender_restriction).toUpperCase()} ONLY` : ''}`} 
-                      value={room.id} 
+                    <Picker.Item
+                      key={room.id}
+                      label={`Room ${room.room_number} (${room.type_label})${room.gender_restriction && room.gender_restriction !== 'mixed' ? ` - ${String(room.gender_restriction).toUpperCase()} ONLY` : ''}`}
+                      value={room.id}
                     />
                   ))}
                 </Picker>
@@ -489,13 +534,13 @@ export default function AddBooking({ navigation }) {
         {/* Schedule & Payment */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Schedule & Payment</Text>
-          
+
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.flex1]}>
               <Text style={styles.label}>Check-in Date <Text style={styles.requiredAsterisk}>*</Text></Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 testID="add-booking-checkin-button"
-                style={styles.dateButton} 
+                style={styles.dateButton}
                 onPress={() => setShowCheckIn(true)}
               >
                 <Text style={styles.dateButtonText}>{formData.checkIn.toLocaleDateString()}</Text>
@@ -503,7 +548,7 @@ export default function AddBooking({ navigation }) {
               </TouchableOpacity>
               {showCheckIn && (
                 <DateTimePicker
-                    testID="add-booking-checkin-picker"
+                  testID="add-booking-checkin-picker"
                   value={formData.checkIn}
                   mode="date"
                   display="default"
@@ -514,25 +559,39 @@ export default function AddBooking({ navigation }) {
             </View>
 
             <View style={[styles.inputGroup, styles.flex1]}>
-              <Text style={styles.label}>Check-out Date <Text style={styles.requiredAsterisk}>*</Text></Text>
-              <TouchableOpacity 
+              <Text style={styles.label}>
+                Check-out Date{requiresCheckOut ? <Text style={styles.requiredAsterisk}> *</Text> : ' (Optional)'}
+              </Text>
+              <TouchableOpacity
                 testID="add-booking-checkout-button"
-                style={styles.dateButton} 
+                style={styles.dateButton}
                 onPress={() => setShowCheckOut(true)}
               >
-                <Text style={styles.dateButtonText}>{formData.checkOut.toLocaleDateString()}</Text>
+                <Text style={styles.dateButtonText}>
+                  {formData.checkOut
+                    ? formData.checkOut.toLocaleDateString()
+                    : (requiresCheckOut ? 'Select check-out date' : 'No check-out (open-ended)')}
+                </Text>
                 <Ionicons name="calendar-outline" size={20} color="#16a34a" />
               </TouchableOpacity>
               {showCheckOut && (
                 <DateTimePicker
-                    testID="add-booking-checkout-picker"
-                  value={formData.checkOut}
+                  testID="add-booking-checkout-picker"
+                  value={formData.checkOut || formData.checkIn}
                   mode="date"
                   display="default"
                   onChange={onCheckOutChange}
                   minimumDate={formData.checkIn}
                 />
               )}
+              {!requiresCheckOut && formData.checkOut ? (
+                <TouchableOpacity
+                  onPress={() => setFormData((prev) => ({ ...prev, checkOut: null }))}
+                  style={{ marginTop: 8 }}
+                >
+                  <Text style={[styles.fieldHelpText, { color: theme.colors.primary }]}>Clear check-out (open-ended monthly)</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
 
@@ -565,9 +624,9 @@ export default function AddBooking({ navigation }) {
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           testID="add-booking-submit-button"
-          style={[styles.submitButton, submitting && styles.disabledButton]} 
+          style={[styles.submitButton, submitting && styles.disabledButton]}
           onPress={handleSubmit}
           disabled={submitting}
         >

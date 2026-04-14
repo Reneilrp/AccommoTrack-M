@@ -478,6 +478,40 @@ export const getStyles = (theme) =>
       fontWeight: '700',
       fontSize: 14,
     },
+    invoiceCard: {
+      borderRadius: 10,
+      borderWidth: 1,
+      backgroundColor: theme.colors.backgroundSecondary,
+      padding: 12,
+    },
+    invoiceHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    invoiceLeft: {
+      flex: 1,
+      gap: 4,
+    },
+    invoiceRight: {
+      alignItems: 'flex-end',
+      gap: 6,
+    },
+    invoiceTitle: {
+      color: theme.colors.text,
+      fontWeight: '700',
+      fontSize: 13,
+    },
+    invoiceMeta: {
+      color: theme.colors.textSecondary,
+      fontSize: 11,
+    },
+    invoiceAmount: {
+      color: theme.colors.text,
+      fontWeight: '700',
+      fontSize: 14,
+    },
   });
 
 export default getStyles;

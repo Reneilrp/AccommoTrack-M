@@ -55,6 +55,54 @@ class ProxyBookingModeLimitTest extends TestCase
             ->assertJsonPath('error', 'Normal booking allows only 1 active or pending booking in this property.');
     }
 
+    public function test_normal_and_proxy_booking_limits_are_independent(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $property = $this->createProperty($landlord->id);
+
+        $roomA = $this->createRoom($property->id, '101');
+        $roomB = $this->createRoom($property->id, '102');
+
+        // Create 1 normal booking
+        Booking::create([
+            'property_id' => $property->id,
+            'room_id' => $roomA->id,
+            'tenant_id' => $tenant->id,
+            'booking_mode' => 'normal',
+            'landlord_id' => $landlord->id,
+            'booking_reference' => 'BK-NORMAL-'.uniqid(),
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(31)->toDateString(),
+            'total_months' => 1,
+            'monthly_rent' => 12000,
+            'total_amount' => 12000,
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
+            'payment_plan' => 'full',
+            'contract_mode' => 'monthly',
+        ]);
+
+        Sanctum::actingAs($tenant);
+
+        // Should still be able to create a proxy booking
+        $response = $this->postJson('/api/bookings', [
+            'room_id' => $roomB->id,
+            'booking_mode' => 'proxy',
+            'start_date' => now()->addDays(2)->toDateString(),
+            'end_date' => now()->addDays(35)->toDateString(),
+            'occupants' => [
+                [
+                    'full_name' => 'Proxy Occupant',
+                    'date_of_birth' => '2000-01-01',
+                    'gender' => 'male',
+                    'relationship_to_booker' => 'child',
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(201);
+    }
+
     public function test_proxy_booking_allows_three_and_blocks_fourth_in_same_property(): void
     {
         [$landlord, $tenant] = $this->createUsers();

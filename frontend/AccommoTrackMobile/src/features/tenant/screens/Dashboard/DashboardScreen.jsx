@@ -592,7 +592,7 @@ const DashboardScreen = () => {
 
         {unpaidInvoices.length > 0 && (
           <Text style={styles.tableCaption}>
-            Outstanding invoices: {unpaidInvoices.length} item(s) pending/overdue.
+            View all invoices in "Payments & Invoices" section above.
           </Text>
         )}
       </View>
@@ -627,6 +627,52 @@ const DashboardScreen = () => {
           />
         }
       >
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Payments & Invoices</Text>
+            {unpaidInvoices.length > 0 && (
+              <TouchableOpacity onPress={() => navigation.navigate('Payments')}>
+                <Text style={[styles.alertLink, { color: theme.colors.primary }]}>View All</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {unpaidInvoices.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyCardText}>No pending invoices.</Text>
+            </View>
+          ) : (
+            unpaidInvoices.map((invoice) => {
+              const palette = getPaymentStatusPalette(invoice.status, theme);
+              return (
+                <TouchableOpacity
+                  key={`invoice-${invoice.id}`}
+                  style={[
+                    styles.invoiceCard,
+                    { borderColor: palette.bg }
+                  ]}
+                  onPress={() => navigation.navigate('PaymentDetail', { invoiceId: invoice.id })}
+                >
+                  <View style={styles.invoiceHeader}>
+                    <View style={styles.invoiceLeft}>
+                      <Text style={styles.invoiceTitle}>{invoice.description}</Text>
+                      <Text style={styles.invoiceMeta}>Due {formatDate(invoice.dueDate)}</Text>
+                    </View>
+                    <View style={styles.invoiceRight}>
+                      <Text style={styles.invoiceAmount}>{formatCurrency(invoice.amount)}</Text>
+                      <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}>
+                        <Text style={[styles.statusBadgeInlineText, { color: palette.fg }]}>
+                          {toTitleCaseWords(invoice.status)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

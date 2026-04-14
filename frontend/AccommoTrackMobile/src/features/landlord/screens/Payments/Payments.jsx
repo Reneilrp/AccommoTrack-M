@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { useUIState } from '../../../../contexts/UIStateContext.jsx';
@@ -42,6 +43,17 @@ const METHOD_OPTIONS = [
   { id: 'check', label: 'Check', icon: 'document-text-outline' },
   { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' },
 ];
+
+const CASH_REJECTION_REASONS = [
+  { id: 'invalid_proof', label: 'Invalid payment proof' },
+  { id: 'duplicate_submission', label: 'Duplicate submission' },
+  { id: 'mismatch_amount', label: 'Amount does not match invoice' },
+  { id: 'mismatch_reference', label: 'Reference does not match records' },
+  { id: 'outside_window', label: 'Submission outside allowed window' },
+  { id: 'unclear_image', label: 'Proof image is unclear' },
+  { id: 'other', label: 'Other' },
+];
+const CASH_REJECTION_REASON_IDS = CASH_REJECTION_REASONS.map((item) => item.id);
 
 const getInvoiceTotal = (invoice) => parseFloat(invoice?.amount || ((invoice?.amount_cents ?? 0) / 100));
 
@@ -110,21 +122,21 @@ const getBillingPolicy = (booking) =>
 const addCalendarMonth = (date, billingDay) => {
   const result = new Date(date);
   result.setMonth(result.getMonth() + 1);
-  
+
   // Handle month-end: if billing day is 31 but next month has 30 days, use 30
   const maxDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
   result.setDate(Math.min(billingDay, maxDay));
-  
+
   return result;
 };
 
 // Calculate how many complete billing cycles have elapsed
 const calculateMonthsElapsed = (startDate, currentDate, billingDay) => {
   if (!startDate || !currentDate) return 0;
-  
+
   let months = 0;
   let cursor = new Date(startDate);
-  
+
   while (cursor <= currentDate) {
     const nextBilling = addCalendarMonth(cursor, billingDay);
     if (nextBilling <= currentDate) {
@@ -134,22 +146,22 @@ const calculateMonthsElapsed = (startDate, currentDate, billingDay) => {
       break;
     }
   }
-  
+
   return months;
 };
 
 // Calculate total billing cycles between two dates
 const calculateTotalMonths = (startDate, endDate, billingDay) => {
   if (!startDate || !endDate) return 0;
-  
+
   let months = 0;
   let cursor = new Date(startDate);
-  
+
   while (cursor < endDate) {
     months++;
     cursor = addCalendarMonth(cursor, billingDay);
   }
-  
+
   return months;
 };
 
@@ -175,7 +187,7 @@ const getStayProgress = (booking) => {
   const totalMonths = calculateTotalMonths(start, end, billingDay);
   const usedMonths = calculateMonthsElapsed(start, today, billingDay);
   const refundableMonths = Math.max(0, totalMonths - usedMonths);
-  
+
   return { mode: 'monthly', totalUnits: totalMonths, usedUnits: usedMonths, refundableUnits: refundableMonths, refundableRatio: totalMonths > 0 ? refundableMonths / totalMonths : 0, unitLabel: totalMonths === 1 ? 'month' : 'months', totalDays, stayedDays: Math.min(totalDays, Math.floor((today - start) / 86400000)), refundableDays: Math.max(0, totalDays - Math.floor((today - start) / 86400000)) };
 };
 
@@ -216,6 +228,9 @@ export default function Payments({ navigation, route }) {
   const [recording, setRecording] = useState(false);
   const [refundingTxId, setRefundingTxId] = useState(null);
   const [verifyingAction, setVerifyingAction] = useState(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReasonCode, setRejectReasonCode] = useState('unclear_image');
+  const [rejectReason, setRejectReason] = useState('');
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
   const [pendingFocusInvoiceId, setPendingFocusInvoiceId] = useState(null);
 
@@ -340,6 +355,13 @@ export default function Payments({ navigation, route }) {
     }
   }, [invoices, pendingFocusInvoiceId, openInvoiceModal, navigation]);
 
+  useEffect(() => {
+    if (showModal) return;
+    setShowRejectModal(false);
+    setRejectReasonCode('unclear_image');
+    setRejectReason('');
+  }, [showModal]);
+
   const handleUpdatePayment = async (status) => {
     if (!selectedInvoice?.booking_id) return;
     setUpdating(true);
@@ -359,30 +381,71 @@ export default function Payments({ navigation, route }) {
     }
   };
 
-  const handleVerifyCash = async (action) => {
+  const handleVerifyCash = async (payload) => {
     if (!selectedInvoice?.id) return;
+
+    const action = payload?.action;
+    if (!action || !['approve', 'reject'].includes(action)) {
+      showAlert('Validation', 'Please choose a valid verification action.');
+      return;
+    }
+
+    const reasonCode = String(payload?.reason_code || '').trim();
+    const reason = String(payload?.reason || '').trim();
+    if (action === 'reject') {
+      if (!CASH_REJECTION_REASON_IDS.includes(reasonCode)) {
+        showAlert('Validation', 'Please select a rejection reason.');
+        return;
+      }
+      if (!reason) {
+        showAlert('Validation', 'Please provide details for this rejection.');
+        return;
+      }
+    }
+
+    const verificationPayload =
+      action === 'approve'
+        ? { action }
+        : { action, reason_code: reasonCode, reason };
 
     setVerifyingAction(action);
     try {
-      const response = await PaymentService.verifyCash(selectedInvoice.id, action);
+      const response = await PaymentService.verifyCash(selectedInvoice.id, verificationPayload);
       if (!response.success) {
         showAlert('Error', response.error || 'Failed to verify cash payment');
         return;
       }
 
+      setShowRejectModal(false);
       setShowModal(false);
+      setRejectReasonCode('unclear_image');
+      setRejectReason('');
       await refetchLandlordQueries(invoiceRefetchers);
       showAlert(
         'Success',
         action === 'approve'
-          ? 'Cash payment approved successfully.'
-          : 'Cash payment rejected successfully.',
+          ? 'Cash payment approved and invoice marked as paid.'
+          : 'Cash payment rejected. The tenant can resubmit correct proof.',
       );
-    } catch {
-      showAlert('Error', 'An unexpected error occurred');
+    } catch (error) {
+      showAlert('Error', error?.message || 'Failed to verify cash payment.');
     } finally {
       setVerifyingAction(null);
     }
+  };
+
+  const openRejectVerificationModal = () => {
+    setRejectReasonCode('unclear_image');
+    setRejectReason('');
+    setShowRejectModal(true);
+  };
+
+  const submitRejectVerification = () => {
+    handleVerifyCash({
+      action: 'reject',
+      reason_code: rejectReasonCode,
+      reason: rejectReason,
+    });
   };
 
   const handleRecordPayment = async () => {
@@ -407,10 +470,10 @@ export default function Payments({ navigation, route }) {
         // Calculate if full payment reached to auto-update booking status
         const invoiceTotal = getInvoiceTotal(selectedInvoice);
         const currentPaid = getSettledAmount(selectedInvoice);
-        
+
         if (currentPaid + amountNum >= invoiceTotal && selectedInvoice.booking_id) {
-           // Auto-update booking to paid if threshold reached
-           await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'paid' });
+          // Auto-update booking to paid if threshold reached
+          await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'paid' });
         }
 
         setShowModal(false);
@@ -442,7 +505,7 @@ export default function Payments({ navigation, route }) {
 
     const stayInfo = preview?.stayProgress
       ? `\n\nStay Progress: ${preview.stayProgress.usedUnits}/${preview.stayProgress.totalUnits} ${preview.stayProgress.unitLabel} used`
-        + (preview.fixedPenaltyCents > 0 ? `\nPenalty: ₱${(preview.fixedPenaltyCents / 100).toLocaleString()}` : '')
+      + (preview.fixedPenaltyCents > 0 ? `\nPenalty: ₱${(preview.fixedPenaltyCents / 100).toLocaleString()}` : '')
       : '';
 
     showAlert(
@@ -485,16 +548,16 @@ export default function Payments({ navigation, route }) {
       const bookingStatus = (inv.booking?.status || '').toLowerCase();
 
       const matchesFilter = activeFilter === 'all' || status === activeFilter;
-      
+
       if (!matchesFilter) return false;
       if (activeFilter === 'all' && (bookingStatus === 'cancelled' || bookingStatus === 'pending')) return false;
-      
+
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       const ref = (inv.reference || inv.id || '').toString().toLowerCase();
       const tenant = ((inv.tenant?.full_name || `${inv.tenant?.first_name || ''} ${inv.tenant?.last_name || ''}`) || '').toLowerCase();
       const property = (inv.property?.title || inv.property_title || inv.booking?.property?.title || '').toLowerCase();
-      
+
       return ref.includes(q) || tenant.includes(q) || property.includes(q);
     });
   }, [invoices, activeFilter, searchQuery]);
@@ -549,17 +612,17 @@ export default function Payments({ navigation, route }) {
 
     const totalPaid = Number(
       totals.total_paid ??
-        ((Number.isFinite(Number(totals.total_paid_cents))
-          ? Number(totals.total_paid_cents)
-          : 0) /
-          100),
+      ((Number.isFinite(Number(totals.total_paid_cents))
+        ? Number(totals.total_paid_cents)
+        : 0) /
+        100),
     );
     const totalBalance = Number(
       totals.total_balance ??
-        ((Number.isFinite(Number(totals.total_balance_cents))
-          ? Number(totals.total_balance_cents)
-          : 0) /
-          100),
+      ((Number.isFinite(Number(totals.total_balance_cents))
+        ? Number(totals.total_balance_cents)
+        : 0) /
+        100),
     );
 
     return {
@@ -575,19 +638,19 @@ export default function Payments({ navigation, route }) {
   const getStatusStyle = (status) => {
     const isDark = theme.isDark;
     switch (status?.toLowerCase()) {
-      case 'paid': 
+      case 'paid':
         return { bg: isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7', fg: isDark ? '#4ade80' : '#166534' };
-      case 'pending_verification': 
+      case 'pending_verification':
         return { bg: isDark ? 'rgba(194,65,12,0.2)' : '#FFEDD5', fg: isDark ? '#fb923c' : '#C2410C' };
       case 'pending':
-      case 'partial': 
+      case 'partial':
         return { bg: isDark ? 'rgba(146,64,14,0.2)' : '#FEF3C7', fg: isDark ? '#fbbf24' : '#92400E' };
       case 'unpaid':
-      case 'cancelled': 
+      case 'cancelled':
         return { bg: isDark ? 'rgba(153,27,27,0.2)' : '#FEE2E2', fg: isDark ? '#f87171' : '#991B1B' };
-      case 'refunded': 
+      case 'refunded':
         return { bg: isDark ? 'rgba(88,28,135,0.2)' : '#F3E8FF', fg: isDark ? '#a855f7' : '#7E22CE' };
-      default: 
+      default:
         return { bg: isDark ? 'rgba(55,65,81,0.2)' : '#F3F4F6', fg: isDark ? '#9ca3af' : '#4B5563' };
     }
   };
@@ -600,7 +663,7 @@ export default function Payments({ navigation, route }) {
     const tenantName = item.tenant?.full_name || (item.tenant ? `${item.tenant.first_name} ${item.tenant.last_name}` : '—');
     const propertyTitle = item.property?.title || item.property_title || item.booking?.property?.title || '—';
     const roomNumber = item.booking?.room?.room_number || '—';
-    
+
     return (
       <View style={[styles.invoiceCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
         <View style={[styles.invoiceHeader, { borderBottomColor: theme.colors.border }]}>
@@ -635,7 +698,7 @@ export default function Payments({ navigation, route }) {
             <Text style={[styles.amountValue, { color: theme.colors.text }]}>₱{parseFloat(amount).toLocaleString()}</Text>
           </View>
           {item.booking_id && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.viewButton, { backgroundColor: theme.colors.primary }]}
               onPress={() => openInvoiceModal(item)}
             >
@@ -661,7 +724,7 @@ export default function Payments({ navigation, route }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
-      
+
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -691,8 +754,8 @@ export default function Payments({ navigation, route }) {
 
       {/* Filters */}
       <View style={styles.filterContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScroll}
         >
@@ -738,11 +801,11 @@ export default function Payments({ navigation, route }) {
             ))}
           </View>
 
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            contentContainerStyle={{ 
-              paddingHorizontal: 16, 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
               paddingVertical: 8,
             }}
           >
@@ -754,15 +817,15 @@ export default function Payments({ navigation, route }) {
               { label: statsRange === 'month' ? 'Cash Verify' : 'Cash Verify', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
               { label: statsRange === 'month' ? 'Overdue' : 'Overdue', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
             ].map((card, i) => (
-              <View 
-                key={i} 
-                style={{ 
-                  backgroundColor: theme.isDark ? theme.colors.surface : card.bg, 
-                  borderRadius: 12, 
-                  padding: isTablet ? 16 : 14, 
+              <View
+                key={i}
+                style={{
+                  backgroundColor: theme.isDark ? theme.colors.surface : card.bg,
+                  borderRadius: 12,
+                  padding: isTablet ? 16 : 14,
                   width: cardWidth,
                   height: cardHeight,
-                  borderWidth: 1, 
+                  borderWidth: 1,
                   borderColor: theme.isDark ? theme.colors.border : 'transparent',
                   justifyContent: 'space-between',
                   marginRight: 8,
@@ -850,7 +913,7 @@ export default function Payments({ navigation, route }) {
                   const propertyTitle = selectedInvoice?.property?.title || selectedInvoice?.property_title || selectedInvoice?.booking?.property?.title || '—';
                   const roomNumber = selectedInvoice?.booking?.room?.room_number || '—';
                   const dueDate = selectedInvoice?.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : '—';
-                  
+
                   return (
                     <View style={[styles.summaryCard, {
                       borderLeftWidth: 4,
@@ -875,7 +938,7 @@ export default function Payments({ navigation, route }) {
                           </Text>
                         </View>
                       </View>
-                      
+
                       {/* Row 2: Property/Room + Due Date */}
                       <View style={styles.summaryRow}>
                         <View style={{ flex: 1 }}>
@@ -891,7 +954,7 @@ export default function Payments({ navigation, route }) {
                           </Text>
                         </View>
                       </View>
-                      
+
                       {/* Row 3: Paid + Remaining */}
                       <View style={styles.summaryRow}>
                         <View style={{ flex: 1 }}>
@@ -902,7 +965,7 @@ export default function Payments({ navigation, route }) {
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                           <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Balance</Text>
-                          <Text style={[styles.summaryValue, { 
+                          <Text style={[styles.summaryValue, {
                             color: remainingAmount > 0 ? (theme.isDark ? '#fbbf24' : '#D97706') : (theme.isDark ? '#4ade80' : '#16a34a'),
                             fontSize: 13,
                             fontWeight: '800'
@@ -920,7 +983,7 @@ export default function Payments({ navigation, route }) {
                   const status = getInvoiceStatus(selectedInvoice);
 
                   const isSettled = ['paid', 'refunded', 'cancelled'].includes(status);
-                  
+
                   if (isSettled) return null;
 
                   if (status === 'pending_verification') {
@@ -939,7 +1002,7 @@ export default function Payments({ navigation, route }) {
                         <View style={styles.verificationActionRow}>
                           <TouchableOpacity
                             style={[styles.verifyButton, styles.verifyApproveButton]}
-                            onPress={() => handleVerifyCash('approve')}
+                            onPress={() => handleVerifyCash({ action: 'approve' })}
                             disabled={Boolean(verifyingAction)}
                           >
                             {verifyingAction === 'approve' ? (
@@ -954,7 +1017,7 @@ export default function Payments({ navigation, route }) {
 
                           <TouchableOpacity
                             style={[styles.verifyButton, styles.verifyRejectButton]}
-                            onPress={() => handleVerifyCash('reject')}
+                            onPress={openRejectVerificationModal}
                             disabled={Boolean(verifyingAction)}
                           >
                             {verifyingAction === 'reject' ? (
@@ -977,13 +1040,13 @@ export default function Payments({ navigation, route }) {
                       <View style={[styles.sectionDivider, { borderTopColor: theme.colors.border }]}>
                         <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Record a Payment</Text>
                       </View>
-                      
+
                       {/* Payment Progress Bar */}
                       {(() => {
                         const paidAmount = getSettledAmount(selectedInvoice);
                         const totalAmount = getInvoiceTotal(selectedInvoice);
                         const progress = totalAmount > 0 ? Math.min(1, paidAmount / totalAmount) : 0;
-                        
+
                         return (
                           <View style={{ marginBottom: 16 }}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -1034,10 +1097,10 @@ export default function Payments({ navigation, route }) {
                             ]}
                             onPress={() => setRecordData((d) => ({ ...d, method: m.id }))}
                           >
-                            <Ionicons 
-                              name={m.icon} 
-                              size={14} 
-                              color={recordData.method === m.id ? '#FFFFFF' : theme.colors.textSecondary} 
+                            <Ionicons
+                              name={m.icon}
+                              size={14}
+                              color={recordData.method === m.id ? '#FFFFFF' : theme.colors.textSecondary}
                             />
                             <Text style={[
                               styles.methodChipText,
@@ -1129,37 +1192,37 @@ export default function Payments({ navigation, route }) {
                       const txAmount = tx.amount_cents ? tx.amount_cents / 100 : (tx.amount || 0);
                       const refundedAmount = tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
                       const txStatus = (tx.status || '').toLowerCase();
-                      
+
                       const borderColor = isRefunded || txStatus === 'refunded' ? '#a855f7'
                         : ['succeeded', 'paid', 'partially_refunded'].includes(txStatus) ? '#16a34a'
-                        : '#D97706';
-                      
+                          : '#D97706';
+
                       return (
-                        <View key={tx.id || idx} style={[styles.transactionItem, { 
+                        <View key={tx.id || idx} style={[styles.transactionItem, {
                           borderBottomColor: theme.colors.border,
                           borderLeftWidth: 3,
                           borderLeftColor: borderColor,
                         }]}>
                           <View style={styles.transactionInfo}>
-                             <Text style={[styles.transactionAmount, { color: theme.colors.text }]}>₱{Number(txAmount).toLocaleString()}</Text>
-                             <Text style={[styles.transactionMeta, { color: theme.colors.textSecondary }]}>
-                               {tx.method?.replace('_', ' ')} • {new Date(tx.created_at || tx.date).toLocaleDateString()}
-                             </Text>
-                             {tx.reference && <Text style={[styles.transactionRef, { color: theme.colors.textTertiary }]}>Ref: {tx.reference}</Text>}
-                             {refundedAmount > 0 && (
-                               <Text style={{ fontSize: 10, color: '#a855f7', marginTop: 2, fontWeight: '600' }}>
-                                 Refunded: ₱{refundedAmount.toLocaleString()}
-                               </Text>
-                             )}
+                            <Text style={[styles.transactionAmount, { color: theme.colors.text }]}>₱{Number(txAmount).toLocaleString()}</Text>
+                            <Text style={[styles.transactionMeta, { color: theme.colors.textSecondary }]}>
+                              {tx.method?.replace('_', ' ')} • {new Date(tx.created_at || tx.date).toLocaleDateString()}
+                            </Text>
+                            {tx.reference && <Text style={[styles.transactionRef, { color: theme.colors.textTertiary }]}>Ref: {tx.reference}</Text>}
+                            {refundedAmount > 0 && (
+                              <Text style={{ fontSize: 10, color: '#a855f7', marginTop: 2, fontWeight: '600' }}>
+                                Refunded: ₱{refundedAmount.toLocaleString()}
+                              </Text>
+                            )}
                           </View>
-                          
+
                           {isRefunded ? (
                             <View style={[styles.refundedBadge, { backgroundColor: theme.colors.backgroundSecondary }]}>
-                               <Text style={[styles.refundedText, { color: theme.colors.textSecondary }]}>REFUNDED</Text>
+                              <Text style={[styles.refundedText, { color: theme.colors.textSecondary }]}>REFUNDED</Text>
                             </View>
                           ) : (
-                            <TouchableOpacity 
-                              style={[styles.refundButton, { 
+                            <TouchableOpacity
+                              style={[styles.refundButton, {
                                 borderColor: theme.isDark ? '#a855f7' : '#7E22CE',
                                 backgroundColor: theme.isDark ? 'rgba(168,85,247,0.15)' : '#F3E8FF'
                               }, isRefunding && { opacity: 0.7 }]}
@@ -1192,6 +1255,121 @@ export default function Payments({ navigation, route }) {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={showRejectModal}
+        transparent={true}
+        animationType="fade"
+        statusBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => {
+          if (!verifyingAction) setShowRejectModal(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+                borderWidth: theme.isDark ? 1 : 0,
+                width: '92%',
+                maxHeight: '70%',
+              },
+            ]}
+          >
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Reject Cash Payment</Text>
+              <TouchableOpacity
+                onPress={() => setShowRejectModal(false)}
+                style={styles.closeButton}
+                disabled={Boolean(verifyingAction)}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={{ flexGrow: 0 }}
+              contentContainerStyle={styles.modalBody}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>Reason Category *</Text>
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  marginTop: 6,
+                  marginBottom: 16,
+                  overflow: 'hidden',
+                  backgroundColor: theme.colors.backgroundSecondary,
+                }}
+              >
+                <Picker
+                  selectedValue={rejectReasonCode}
+                  onValueChange={(value) => setRejectReasonCode(value)}
+                  style={{ color: theme.colors.text }}
+                  dropdownIconColor={theme.colors.textSecondary}
+                >
+                  {CASH_REJECTION_REASONS.map((item) => (
+                    <Picker.Item key={item.id} label={item.label} value={item.id} />
+                  ))}
+                </Picker>
+              </View>
+
+              <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>Rejection Details *</Text>
+              <TextInput
+                style={[
+                  styles.fieldInput,
+                  styles.fieldTextarea,
+                  {
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    color: theme.colors.text,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                placeholder="Explain what is wrong so the tenant can correct it."
+                placeholderTextColor={theme.colors.textTertiary}
+                multiline
+                numberOfLines={4}
+                value={rejectReason}
+                onChangeText={setRejectReason}
+                editable={!verifyingAction}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.recordButton,
+                  { backgroundColor: '#DC2626', marginTop: 18 },
+                  verifyingAction && { opacity: 0.7 },
+                ]}
+                onPress={submitRejectVerification}
+                disabled={Boolean(verifyingAction)}
+              >
+                {verifyingAction === 'reject' ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="close-circle-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.recordButtonText}>Reject Cash Payment</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cancelButton, { marginTop: 10, backgroundColor: theme.colors.backgroundSecondary }]}
+                onPress={() => setShowRejectModal(false)}
+                disabled={Boolean(verifyingAction)}
+              >
+                <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );

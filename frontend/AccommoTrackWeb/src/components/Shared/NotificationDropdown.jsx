@@ -144,16 +144,35 @@ const NotificationDropdown = () => {
     setIsOpen(false);
 
     if (notification._kind === 'activity') {
-      if (notification.type === 'booking') navigate('/bookings');
-      else if (notification.type === 'payment') navigate('/wallet');
+      if (notification.type === 'booking') {
+        const bookingId = notification.booking_id || notification.data?.booking_id;
+        navigate(bookingId ? `/bookings?bookingId=${bookingId}` : '/bookings');
+      }
+      else if (notification.type === 'payment') {
+        const invoiceId = notification.invoice_id || notification.data?.invoice_id;
+        navigate(invoiceId ? `/payments?invoiceId=${invoiceId}` : '/payments');
+      }
       else if (notification.type === 'room') navigate('/rooms');
       return;
     }
 
-    if (notification.data?.type === 'booking') navigate('/bookings');
-    else if (notification.data?.type === 'payment') navigate('/wallet');
-    else if (notification.data?.type === 'message') navigate('/messages');
-    else if (notification.data?.type === 'move_out_notice') navigate('/');
+    // Handle DB notifications
+    const notifType = notification.data?.type;
+    const bookingId = notification.data?.booking_id;
+    const invoiceId = notification.data?.invoice_id;
+
+    if (notifType === 'booking') {
+      navigate(bookingId ? `/bookings?bookingId=${bookingId}` : '/bookings');
+    }
+    else if (notifType === 'payment') {
+      navigate(invoiceId ? `/payments?invoiceId=${invoiceId}` : '/payments');
+    }
+    else if (notifType === 'message') {
+      navigate('/messages');
+    }
+    else if (notifType === 'move_out_notice') {
+      navigate(bookingId ? `/bookings?bookingId=${bookingId}` : '/bookings');
+    }
   };
 
   const renderItem = (item, key) => {

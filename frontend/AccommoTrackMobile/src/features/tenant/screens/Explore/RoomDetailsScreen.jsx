@@ -909,7 +909,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           ]
         );
       } else {
-        // Handle errors...
+        // Handle errors with enhanced messages for booking limits
         if (result.error && (
           result.error.toLowerCase().includes('authentication') ||
           result.error.toLowerCase().includes('unauthenticated')
@@ -919,7 +919,28 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           return;
         }
 
-        if (result.details) {
+        // Enhanced error messages for booking limits
+        if (result.error && result.error.includes('Normal booking allows only 1')) {
+          showAlert(
+            'Normal Booking Limit Reached',
+            'You already have 1 active or pending normal booking in this property.\n\nNote: Normal (1) and Proxy (3) booking limits are independent. You can still create proxy bookings.'
+          );
+        } else if (result.error && result.error.includes('Proxy booking limit reached')) {
+          showAlert(
+            'Proxy Booking Limit Reached',
+            'You have reached the maximum of 3 active or pending proxy bookings in this property.\n\nNote: Normal (1) and Proxy (3) booking limits are independent. You can still create 1 normal booking.'
+          );
+        } else if (result.error && result.error.includes('already have an active or pending booking for this room')) {
+          showAlert(
+            'Room Already Reserved',
+            'You already have an active or pending booking for this specific room.\n\nTip: Check your bookings page to view or manage your existing reservation.'
+          );
+        } else if (result.error && result.error.includes('overdue invoices')) {
+          showAlert(
+            'Payment Required',
+            'You cannot create new bookings while you have overdue invoices.\n\nTip: Please settle your outstanding balance in the Payments section first.'
+          );
+        } else if (result.details) {
           const errorMessages = Object.values(result.details).flat().join('\n');
           showAlert('Validation Error', errorMessages);
         } else {
@@ -1279,7 +1300,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 </TouchableOpacity>
               </View>
               <Text style={styles.summaryNote}>
-                Normal allows 1 active/pending booking per property. Proxy allows up to 3 and requires occupant details.
+                Normal: 1 booking limit (for yourself). Proxy: 3 bookings limit (for others). Limits are independent per property.
               </Text>
             </View>
 

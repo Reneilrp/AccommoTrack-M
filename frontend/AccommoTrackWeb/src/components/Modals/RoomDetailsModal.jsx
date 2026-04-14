@@ -721,7 +721,31 @@ export default function RoomDetailsModal({
         error?.response?.data?.message ||
         error?.message ||
         "Failed to submit booking request.";
-      toast.error(errMsg);
+      
+      // Enhanced error messages for booking limits
+      if (errMsg.includes('Normal booking allows only 1')) {
+        toast.error(
+          `Normal Booking Limit Reached\n\nYou already have 1 active or pending normal booking in this property.\n\nNote: Normal (1) and Proxy (3) booking limits are independent. You can still create proxy bookings.`,
+          { duration: 6000 }
+        );
+      } else if (errMsg.includes('Proxy booking limit reached')) {
+        toast.error(
+          `Proxy Booking Limit Reached\n\nYou have reached the maximum of 3 active or pending proxy bookings in this property.\n\nNote: Normal (1) and Proxy (3) booking limits are independent. You can still create 1 normal booking.`,
+          { duration: 6000 }
+        );
+      } else if (errMsg.includes('already have an active or pending booking for this room')) {
+        toast.error(
+          `Room Already Reserved\n\nYou already have an active or pending booking for this specific room.\n\nTip: Check your bookings page to view or manage your existing reservation.`,
+          { duration: 6000 }
+        );
+      } else if (errMsg.includes('overdue invoices')) {
+        toast.error(
+          `Payment Required\n\nYou cannot create new bookings while you have overdue invoices.\n\nTip: Please settle your outstanding balance in the Payments section first.`,
+          { duration: 6000 }
+        );
+      } else {
+        toast.error(errMsg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1155,7 +1179,7 @@ export default function RoomDetailsModal({
                       </button>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      Normal allows 1 active/pending booking per property. Proxy allows up to 3 and requires occupant details.
+                      Normal: 1 booking limit (for yourself). Proxy: 3 bookings limit (for others). Limits are independent per property.
                     </p>
                   </div>
 

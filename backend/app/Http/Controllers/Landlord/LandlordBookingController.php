@@ -214,8 +214,13 @@ class LandlordBookingController extends Controller
 
             // Validate room relationship exists
             if (!$booking->room) {
+                Log::error('Cannot update booking status: room record missing', [
+                    'booking_id' => $booking->id,
+                    'room_id' => $booking->room_id,
+                    'requested_status' => $request->validated()['status'] ?? 'unknown',
+                ]);
                 return response()->json([
-                    'message' => 'Booking room data is missing. Cannot update status.',
+                    'message' => 'Cannot update booking status: The room associated with this booking no longer exists. Please contact support with booking ID: ' . $id,
                 ], 422);
             }
 
@@ -246,7 +251,7 @@ class LandlordBookingController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Failed to update booking status. Please try again or contact support.',
+                'message' => 'Failed to update booking status due to a system error. Please contact support with booking ID: ' . $id,
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
@@ -316,6 +321,34 @@ class LandlordBookingController extends Controller
 
             $this->checkPropertyAccess($context, $booking->property_id);
 
+            // Validate room exists
+            if (!$booking->room) {
+                Log::error('Cannot finalize checkout: room record missing', [
+                    'booking_id' => $booking->id,
+                    'room_id' => $booking->room_id,
+                    'tenant_id' => $booking->tenant_id,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'Cannot finalize checkout: The room associated with this booking no longer exists in the system. Please contact support to resolve this data issue.',
+                ], 422);
+            }
+
+            // Validate property exists
+            if (!$booking->room->property) {
+                Log::error('Cannot finalize checkout: property record missing', [
+                    'booking_id' => $booking->id,
+                    'room_id' => $booking->room_id,
+                    'property_id' => $booking->room->property_id,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'Cannot finalize checkout: The property associated with this booking no longer exists. Please contact support to resolve this data issue.',
+                ], 422);
+            }
+
             // Validate deposit balance before proceeding
             if ((float) ($booking->deposit_balance ?? 0) > 0) {
                 return response()->json([
@@ -363,7 +396,7 @@ class LandlordBookingController extends Controller
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'Failed to finalize checkout. Please try again or contact support.',
+                'message' => 'Failed to finalize checkout due to a system error. Please contact support with booking ID: ' . $id,
             ], 500);
         }
     }
