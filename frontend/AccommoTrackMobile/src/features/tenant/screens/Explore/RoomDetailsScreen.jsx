@@ -27,6 +27,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { getStyles } from '../../../../styles/Tenant/RoomDetailsScreen.js';
 import BookingService from '../../../../services/BookingService.js';
+import CartService from '../../../../services/CartService.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
@@ -98,8 +99,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [roomData, setRoomData] = useState(room || null);
   const [receiptImage, setReceiptImage] = useState(null);
   const [bookingMode, setBookingMode] = useState('normal');
+  const [isCartMode, setIsCartMode] = useState(false);
   const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(
     SystemToggleService.getDefaults().reservationFeeDisabled,
+  );
+  const [manualGcashReservationDisabled, setManualGcashReservationDisabled] = useState(
+    SystemToggleService.getDefaults().manualGcashReservationDisabled,
   );
   const createEmptyOccupant = (defaultSex = '') => ({
     full_name: '',
@@ -213,6 +218,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     SystemToggleService.getToggles().then((result) => {
       if (!mounted || !result?.data) return;
       setReservationFeeTempDisabled(Boolean(result.data.reservationFeeDisabled));
+      setManualGcashReservationDisabled(Boolean(result.data.manualGcashReservationDisabled));
     });
 
     return () => {
@@ -297,6 +303,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   const isReservationRequired =
     isReservationConfigured && daysUntilMoveIn > reservationFeeThresholdDays;
+  const isManualGcashReservationFlow = !isCartMode && isReservationRequired && !manualGcashReservationDisabled;
+  const requiresOnlineReservationFee = !isCartMode && isReservationRequired && manualGcashReservationDisabled;
+  const canSelectCashMethod = paymentOptions.methods.includes('cash') && !requiresOnlineReservationFee;
+  const canSelectOnlineMethod = paymentOptions.methods.includes('online') && paymentOptions.is_paymongo_ready;
 
   const roomBillingPolicy = String(activeRoom?.billing_policy || 'monthly').toLowerCase();
   const roomPricingModel = String(activeRoom?.pricing_model || 'full_room').toLowerCase();
@@ -310,16 +320,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (bookingMode !== 'proxy') return;
 
     setProxyOccupants((prev) => {
-      const next = (prev.length > 0 ? prev : [createEmptyOccupant(requiredProxyGender)]).slice(0, occupantLimit);
-
-      if (!requiredProxyGender) {
-        return next;
-      }
-
-      return next.map((occupant) => ({
-        ...occupant,
-        sex: requiredProxyGender,
-      }));
+      const next = (prev.length > 0 ? prev : [createEmptyOccupant()]).slice(0, occupantLimit);
+      return next;
     });
   }, [bookingMode, occupantLimit, requiredProxyGender]);
 
@@ -477,6 +479,16 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     });
   }, [isDailyContract, hasCheckoutDate, showPaymentPlanSelector, hasPromoOffer]);
 
+  useEffect(() => {
+    if (!requiresOnlineReservationFee || !canSelectOnlineMethod) return;
+    if (bookingData.payment_method === 'online') return;
+
+    setBookingData((prev) => ({
+      ...prev,
+      payment_method: 'online',
+    }));
+  }, [requiresOnlineReservationFee, canSelectOnlineMethod, bookingData.payment_method]);
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'available': return theme.colors.success;
@@ -577,7 +589,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   };
 
   // AUTH GATE: Check if user is authenticated before booking
-  const handleBook = () => {
+  const handleBook = (forCart = false) => {
+    setIsCartMode(forCart);
     if (activeRoom.status !== 'available') {
       showAlert('Unavailable', 'This room is not available for booking.');
       return;
@@ -695,14 +708,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const handleAddProxyOccupant = () => {
     setProxyOccupants((prev) => {
       if (prev.length >= occupantLimit) return prev;
-      return [...prev, createEmptyOccupant(requiredProxyGender)];
+      return [...prev, createEmptyOccupant()];
     });
   };
 
   const handleRemoveProxyOccupant = (index) => {
     setProxyOccupants((prev) => {
       const next = prev.filter((_, idx) => idx !== index);
-      return next.length > 0 ? next : [createEmptyOccupant(requiredProxyGender)];
+      return next.length > 0 ? next : [createEmptyOccupant()];
     });
 
     setActiveProxyDobPickerIndex((prevIndex) => {
@@ -717,7 +730,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     let nextValue = value;
     if (field === 'sex') {
       const normalizedGender = normalizeGenderValue(value);
-      nextValue = requiredProxyGender || normalizedGender;
+      nextValue = normalizedGender;
     }
 
     setProxyOccupants((prev) => prev.map((occupant, idx) => (
@@ -877,7 +890,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         }
       }
 
-      if (isReservationRequired && !receiptImage) {
+      if (!isCartMode && isReservationRequired && manualGcashReservationDisabled && bookingData.payment_method !== 'online') {
+        showError('Required', 'Please select Online (PayMongo) as your payment method to complete the reservation.');
+        return;
+      }
+
+      if (!isCartMode && isReservationRequired && !manualGcashReservationDisabled && !receiptImage) {
         showError('Required', 'Please attach your GCash receipt to confirm your reservation.');
         return;
       }
@@ -885,6 +903,57 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       setIsSubmitting(true);
 
       const data = new FormData();
+
+      if (isCartMode) {
+        let occupantsPayload = undefined;
+        if (bookingMode === 'proxy') {
+          const inferredBedCount = Math.max(1, normalizedOccupants.length);
+          occupantsPayload = normalizedOccupants.map(o => {
+            const parts = o.full_name.split(' ');
+            return {
+              first_name: parts[0] || 'Unknown',
+              last_name: parts.slice(1).join(' ') || 'Unknown',
+              full_name: o.full_name,
+              sex: o.sex,
+              date_of_birth: o.date_of_birth,
+              relationship_to_booker: o.relationship_to_booker,
+              phone: o.phone || '',
+              email: o.email || '',
+              bed_number: 1
+            };
+          });
+        }
+
+        let payload = {
+          room_id: activeRoom.id,
+          booking_mode: bookingMode,
+          start_date: bookingData.start_date.toISOString().split('T')[0],
+          end_date: bookingData.end_date ? bookingData.end_date.toISOString().split('T')[0] : null,
+          contract_mode: isDailyContract ? 'daily' : 'monthly',
+          payment_method: bookingData.payment_method || 'cash',
+          payment_plan: isDailyContract ? 'full' : bookingData.payment_plan,
+          bed_count: bookingMode === 'proxy' ? Math.max(1, normalizedOccupants.length) : 1,
+          notes: bookingData.notes || '',
+          occupants: occupantsPayload
+        };
+
+        const result = await CartService.addToCart(payload);
+        if (result.success) {
+          showAlert(
+            'Added to Cart',
+            'Room added to your cart successfully!',
+            [
+              { text: 'Continue Exploring', onPress: () => setBookingModalVisible(false) },
+              { text: 'Go to Cart', onPress: () => { setBookingModalVisible(false); navigation.navigate('CartStack'); } }
+            ]
+          );
+        } else {
+          showError('Failed to Add', result.error || 'Something went wrong.');
+        }
+        setIsSubmitting(false);
+        return;
+      }
+
       data.append('room_id', activeRoom.id);
       data.append('booking_mode', bookingMode);
       data.append('start_date', bookingData.start_date.toISOString().split('T')[0]);
@@ -1285,10 +1354,19 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
           {/* Action Buttons */}
           {roomIsBookable && (
-            <TouchableOpacity style={styles.bookButton} onPress={handleBook}>
+            <TouchableOpacity style={styles.bookButton} onPress={() => handleBook(false)}>
               <Text style={styles.bookButtonText}>
                 {isGuest ? 'Sign In to Book' : 'Book This Room'}
               </Text>
+            </TouchableOpacity>
+          )}
+
+          {roomIsBookable && !isGuest && (
+            <TouchableOpacity
+              style={[styles.bookButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10 }]}
+              onPress={() => handleBook(true)}
+            >
+              <Text style={[styles.bookButtonText, { color: theme.colors.primary }]}>Add to Cart</Text>
             </TouchableOpacity>
           )}
 
@@ -1315,7 +1393,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.modalScrollContent}
             >
-              <Text style={styles.modalTitle}>Book Room {activeRoom.room_number}</Text>
+              <Text style={styles.modalTitle}>{isCartMode ? 'Add Room' : 'Book Room'} {activeRoom.room_number}</Text>
               <Text style={styles.psText}>Monthly = 30 days (no prorate)</Text>
 
               <View style={styles.inputContainer}>
@@ -1566,8 +1644,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                               <Picker.Item label="Select sex" value="" />
                               <Picker.Item label="Male" value="male" />
                               <Picker.Item label="Female" value="female" />
-                              <Picker.Item label="Other" value="other" />
-                              <Picker.Item label="Prefer not to say" value="prefer_not_to_say" />
                             </>
                           )}
                         </Picker>
@@ -1614,7 +1690,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <Text style={styles.inputLabel}>Payment Method <Text style={{ color: '#ef4444' }}>*</Text></Text>
 
                 <View style={styles.paymentMethodRow}>
-                  {paymentOptions.methods.includes('cash') && (
+                  {canSelectCashMethod && (
                     <TouchableOpacity
                       style={[
                         styles.paymentMethodBtn,
@@ -1629,7 +1705,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     </TouchableOpacity>
                   )}
 
-                  {paymentOptions.methods.includes('online') && paymentOptions.is_paymongo_ready && (
+                  {canSelectOnlineMethod && (
                     <TouchableOpacity
                       style={[
                         styles.paymentMethodBtn,
@@ -1644,6 +1720,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {requiresOnlineReservationFee && (
+                  <Text style={[styles.summaryNote, { marginTop: 8, color: theme.colors.warning || '#f59e0b' }]}>
+                    Manual GCash reservation payment is currently disabled. Use Online (PayMongo) to continue.
+                  </Text>
+                )}
               </View>
 
               {/* Payment Plan Selection - Only for monthly contract stays >= 2 months */}
@@ -1766,55 +1848,67 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     </View>
                   )}
 
-                  {isReservationRequired && (
+                  {!isCartMode && isReservationRequired && (
                     <View style={{ marginTop: 24, padding: 12, backgroundColor: theme.colors.surface || '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border || '#e2e8f0' }}>
                       <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>
                         <Ionicons name="warning-outline" size={14} /> Reservation Payment Required
                       </Text>
                       <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 16 }}>
-                        This property requires a ₱{reservationFeeAmount.toLocaleString()} reservation fee paid manually via GCash.
+                        {manualGcashReservationDisabled
+                          ? `This property requires a ₱${reservationFeeAmount.toLocaleString()} reservation fee paid online via PayMongo.`
+                          : `This property requires a ₱${reservationFeeAmount.toLocaleString()} reservation fee paid manually via GCash.`}
                       </Text>
 
-                      <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 }}>GCash Account Details:</Text>
-                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text }}>{gcashName || 'Not Provided'}</Text>
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.primary, marginVertical: 4 }}>{gcashNumber || 'Not Provided'}</Text>
-                        {gcashQrPath ? (
-                          <TouchableOpacity style={{ marginTop: 8 }} onPress={() => Linking.openURL(getRoomImageUrl(gcashQrPath))}>
-                            <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: 'bold' }}>View QR Code</Text>
-                          </TouchableOpacity>
-                        ) : null}
-                      </View>
+                      {isManualGcashReservationFlow ? (
+                        <>
+                          <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 }}>GCash Account Details:</Text>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text }}>{gcashName || 'Not Provided'}</Text>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.primary, marginVertical: 4 }}>{gcashNumber || 'Not Provided'}</Text>
+                            {gcashQrPath ? (
+                              <TouchableOpacity style={{ marginTop: 8 }} onPress={() => Linking.openURL(getRoomImageUrl(gcashQrPath))}>
+                                <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: 'bold' }}>View QR Code</Text>
+                              </TouchableOpacity>
+                            ) : null}
+                          </View>
 
-                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>Upload Receipt <Text style={{ color: theme.colors.error }}>*</Text></Text>
-                      <TouchableOpacity
-                        style={{
-                          height: 120,
-                          borderWidth: 2,
-                          borderColor: receiptImage ? theme.colors.primary : (theme.colors.border || '#cbd5e1'),
-                          borderStyle: 'dashed',
-                          borderRadius: 12,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          backgroundColor: receiptImage ? (theme.colors.primary + '10') : 'transparent'
-                        }}
-                        onPress={pickReceiptImage}
-                      >
-                        {receiptImage ? (
-                          <>
-                            <Image source={{ uri: receiptImage.uri }} style={{ width: '100%', height: '100%', borderRadius: 10, position: 'absolute' }} opacity={0.3} resizeMode="cover" />
-                            <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary} />
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.primary, marginTop: 4 }}>Receipt Attached</Text>
-                            <Text style={{ fontSize: 10, color: theme.colors.primary }}>Tap to change</Text>
-                          </>
-                        ) : (
-                          <>
-                            <Ionicons name="cloud-upload-outline" size={32} color={theme.colors.textTertiary || '#94a3b8'} />
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.textSecondary, marginTop: 8 }}>Tap to upload GCash receipt</Text>
-                            <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 4 }}>PNG, JPG up to 5MB</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>Upload Receipt <Text style={{ color: theme.colors.error }}>*</Text></Text>
+                          <TouchableOpacity
+                            style={{
+                              height: 120,
+                              borderWidth: 2,
+                              borderColor: receiptImage ? theme.colors.primary : (theme.colors.border || '#cbd5e1'),
+                              borderStyle: 'dashed',
+                              borderRadius: 12,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              backgroundColor: receiptImage ? (theme.colors.primary + '10') : 'transparent'
+                            }}
+                            onPress={pickReceiptImage}
+                          >
+                            {receiptImage ? (
+                              <>
+                                <Image source={{ uri: receiptImage.uri }} style={{ width: '100%', height: '100%', borderRadius: 10, position: 'absolute' }} opacity={0.3} resizeMode="cover" />
+                                <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary} />
+                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.primary, marginTop: 4 }}>Receipt Attached</Text>
+                                <Text style={{ fontSize: 10, color: theme.colors.primary }}>Tap to change</Text>
+                              </>
+                            ) : (
+                              <>
+                                <Ionicons name="cloud-upload-outline" size={32} color={theme.colors.textTertiary || '#94a3b8'} />
+                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.textSecondary, marginTop: 8 }}>Tap to upload GCash receipt</Text>
+                                <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 4 }}>PNG, JPG up to 5MB</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </>
+                      ) : (
+                        <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8 }}>
+                          <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                            Manual GCash upload is unavailable for reservation fees. Continue using Online (PayMongo) to proceed.
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -1855,7 +1949,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 {isSubmitting ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.submitButtonText}>Submit Booking</Text>
+                  <Text style={styles.submitButtonText}>{isCartMode ? 'Add to Cart' : 'Submit Booking'}</Text>
                 )}
               </TouchableOpacity>
 

@@ -86,6 +86,50 @@ export const paymentService = {
     },
 
     /**
+     * Get the tenant's wallet credit balance for a given property.
+     * @param {number} propertyId – The property the invoice belongs to
+     */
+    async getWalletBalance(propertyId) {
+        try {
+            const params = propertyId ? { property_id: propertyId } : {};
+            const response = await api.get('/tenant/wallet-credit/balance', { params });
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Failed to fetch wallet balance',
+                balance: 0
+            };
+        }
+    },
+
+    /**
+     * Apply wallet credits to an invoice.
+     * POST /tenant/invoices/{id}/apply-wallet-credit
+     * @param {number} invoiceId
+     * @param {number} amountCents  – Amount in centavos (e.g. 50000 = ₱500.00)
+     */
+    async applyWalletCredit(invoiceId, amountCents) {
+        try {
+            const response = await api.post(`/tenant/invoices/${invoiceId}/apply-wallet-credit`, {
+                amount_cents: amountCents
+            });
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Failed to apply wallet credits'
+            };
+        }
+    },
+
+    /**
      * Generate advance monthly invoices for early payment (up to 2 months).
      */
     async createAdvanceBookingInvoices(bookingId, monthsCount = 2) {

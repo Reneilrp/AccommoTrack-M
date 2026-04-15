@@ -886,6 +886,9 @@ export default function Payments() {
         <td className="pl-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
           {invoiceId}
         </td>
+        <td className="px-6 py-4 text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 uppercase">
+          {inv.receipt_reference || "—"}
+        </td>
         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
           {bookingFromMap?.__derived?.tenant_name || tenantDisplay}
         </td>
@@ -936,10 +939,12 @@ export default function Payments() {
     );
   });
 
-  // Skeleton row component for loading state
   const SkeletonRow = () => (
     <tr className="animate-pulse">
       <td className="pl-6 py-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+      </td>
+      <td className="px-6 py-4">
         <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
       </td>
       <td className="px-6 py-4">
@@ -1078,8 +1083,8 @@ export default function Payments() {
               key={option.value}
               onClick={() => setStatsRange(option.value)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${statsRange === option.value
-                  ? "bg-green-600 text-white shadow-sm shadow-green-500/20"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                ? "bg-green-600 text-white shadow-sm shadow-green-500/20"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                 }`}
             >
               {option.label}
@@ -1196,8 +1201,8 @@ export default function Payments() {
                   key={s}
                   onClick={() => setPaymentFilter(s)}
                   className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${paymentFilter === s
-                      ? s === 'pending_verification' ? "bg-orange-500 text-white shadow-md shadow-orange-500/20" : "bg-green-600 text-white shadow-md shadow-green-500/20"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    ? s === 'pending_verification' ? "bg-orange-500 text-white shadow-md shadow-orange-500/20" : "bg-green-600 text-white shadow-md shadow-green-500/20"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                     }`}
                 >
                   {s === 'pending_verification' ? 'Cash Verify' : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -1235,6 +1240,9 @@ export default function Payments() {
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Invoice ID
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">
+                    Receipt No.
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Tenant Name

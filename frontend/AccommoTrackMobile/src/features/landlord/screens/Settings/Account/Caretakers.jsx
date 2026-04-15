@@ -74,8 +74,8 @@ export default function Caretakers() {
     password: '',
     passwordConfirmation: '',
     permissions: {
-      bookings: false,
-      messages: false,
+      bookings: true,
+      messages: true,
       tenants: false,
       rooms: false,
       properties: false,
@@ -143,8 +143,8 @@ export default function Caretakers() {
       password: '',
       passwordConfirmation: '',
       permissions: {
-        bookings: false,
-        messages: false,
+        bookings: true,
+        messages: true,
         tenants: false,
         rooms: false,
         properties: false,

@@ -77,6 +77,9 @@ class PropertyService
                 : 0.0;
             $reservationFeeGapDaysRaw = $validated['reservation_fee_gap_days'] ?? 3;
             $reservationFeeGapDays = max(0, (int) $reservationFeeGapDaysRaw);
+            $normalBookingLimit = min(4, max(1, (int) ($validated['normal_booking_limit'] ?? 1)));
+            $proxyBookingLimit = min(4, max(1, (int) ($validated['proxy_booking_limit'] ?? 3)));
+            $minPartialPaymentPct = min(100, max(1, (int) ($validated['min_partial_payment_pct'] ?? 20)));
 
             $property = Property::create([
                 'landlord_id' => $user->id,
@@ -109,6 +112,9 @@ class PropertyService
                 'allow_partial_payments' => array_key_exists('allow_partial_payments', $validated)
                     ? (bool) $validated['allow_partial_payments']
                     : true,
+                'normal_booking_limit' => $normalBookingLimit,
+                'proxy_booking_limit' => $proxyBookingLimit,
+                'min_partial_payment_pct' => $minPartialPaymentPct,
                 'require_reservation_fee' => (bool) ($validated['require_reservation_fee'] ?? false),
                 'reservation_fee' => $reservationFeeAmount,
                 'reservation_fee_gap_days' => $reservationFeeGapDays,
@@ -213,6 +219,18 @@ class PropertyService
 
             if (array_key_exists('allow_partial_payments', $validated)) {
                 $validated['allow_partial_payments'] = (bool) $validated['allow_partial_payments'];
+            }
+
+            if (array_key_exists('normal_booking_limit', $validated)) {
+                $validated['normal_booking_limit'] = min(4, max(1, (int) $validated['normal_booking_limit']));
+            }
+
+            if (array_key_exists('proxy_booking_limit', $validated)) {
+                $validated['proxy_booking_limit'] = min(4, max(1, (int) $validated['proxy_booking_limit']));
+            }
+
+            if (array_key_exists('min_partial_payment_pct', $validated)) {
+                $validated['min_partial_payment_pct'] = min(100, max(1, (int) $validated['min_partial_payment_pct']));
             }
 
             if (array_key_exists('require_reservation_fee', $validated)) {

@@ -39,6 +39,7 @@ class AdminController extends Controller
             'invoice_paymongo_disabled' => SystemToggle::getBool('invoice_paymongo_disabled', $tenantPaymentsDisabled),
             'paymongo_test_mode_enabled' => SystemToggle::getBool('paymongo_test_mode_enabled', false),
             'reservation_fee_disabled' => SystemToggle::getBool('reservation_fee_disabled', (bool) config('app.reservation_fee_disabled', false)),
+            'manual_gcash_reservation_disabled' => SystemToggle::getBool('manual_gcash_reservation_disabled', false),
             'mobile_latest_version' => SystemToggle::getString('mobile_latest_version', '1.0.0'),
             'mobile_download_url' => SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),
             'mobile_force_update' => SystemToggle::getBool('mobile_force_update', true),
@@ -64,6 +65,7 @@ class AdminController extends Controller
             'invoice_paymongo_disabled' => 'nullable|boolean',
             'paymongo_test_mode_enabled' => 'nullable|boolean',
             'reservation_fee_disabled' => 'required|boolean',
+            'manual_gcash_reservation_disabled' => 'required|boolean',
             'mobile_latest_version' => 'nullable|string|max:50',
             'mobile_download_url' => 'nullable|url|max:255',
             'mobile_force_update' => 'nullable|boolean',
@@ -79,6 +81,7 @@ class AdminController extends Controller
             SystemToggle::setBool('paymongo_test_mode_enabled', (bool) $validated['paymongo_test_mode_enabled'], $actorId);
         }
         SystemToggle::setBool('reservation_fee_disabled', (bool) $validated['reservation_fee_disabled'], $actorId);
+        SystemToggle::setBool('manual_gcash_reservation_disabled', (bool) $validated['manual_gcash_reservation_disabled'], $actorId);
         
         if (isset($validated['mobile_latest_version'])) {
             SystemToggle::setString('mobile_latest_version', $validated['mobile_latest_version'], $actorId);
@@ -130,6 +133,7 @@ class AdminController extends Controller
                     ? (bool) $validated['paymongo_test_mode_enabled']
                     : SystemToggle::getBool('paymongo_test_mode_enabled', false),
                 'reservation_fee_disabled' => (bool) $validated['reservation_fee_disabled'],
+                'manual_gcash_reservation_disabled' => (bool) $validated['manual_gcash_reservation_disabled'],
                 'mobile_latest_version' => $validated['mobile_latest_version'] ?? SystemToggle::getString('mobile_latest_version', '1.0.0'),
                 'mobile_download_url' => $validated['mobile_download_url'] ?? SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),
                 'mobile_force_update' => isset($validated['mobile_force_update']) ? (bool) $validated['mobile_force_update'] : SystemToggle::getBool('mobile_force_update', true),

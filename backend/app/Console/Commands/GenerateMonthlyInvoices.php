@@ -202,17 +202,8 @@ class GenerateMonthlyInvoices extends Command
             }
 
             if ($existingInvoiceCount < $expectedInvoiceCount || $missingProxySlots->isNotEmpty()) {
-                $recurringAddonAmount = $booking->addons()
-                    ->where('booking_addons.status', 'active')
-                    ->where('price_type', 'monthly')
-                    ->where(function ($query) use ($periodStart) {
-                        $query->whereNull('booking_addons.cancellation_effective_at')
-                            ->orWhere('booking_addons.cancellation_effective_at', '>', $periodStart);
-                    })
-                    ->sum(DB::raw("booking_addons.price_at_booking * booking_addons.quantity"));
-
                 $effectiveMonthlyRent = $booking->resolveEffectiveMonthlyRent($expectedInvoiceCount);
-                $baseInvoiceAmount = $effectiveMonthlyRent + (float) $recurringAddonAmount;
+                $baseInvoiceAmount = $effectiveMonthlyRent;
 
                 if ($baseInvoiceAmount > 0) {
                     if ($isProxyMode && $expectedInvoiceCount > 1) {
@@ -236,7 +227,7 @@ class GenerateMonthlyInvoices extends Command
                             $generatedInvoices = $generatedInvoices || $generated > 0;
                         }
                     } elseif ($existingInvoiceCount < 1) {
-                        // Generate single invoice
+                        // Generate single rent invoice
                         $reference = 'INV-'.$periodStart->format('Ym').'-'.strtoupper(Str::random(6));
 
                         Invoice::create([
@@ -245,7 +236,7 @@ class GenerateMonthlyInvoices extends Command
                             'property_id' => $booking->property_id,
                             'booking_id' => $booking->id,
                             'tenant_id' => $booking->tenant_id,
-                            'description' => 'Monthly rent and services for '.$periodStart->format('F Y'),
+                            'description' => 'Monthly rent for '.$periodStart->format('F Y'),
                             'invoice_type' => 'rent',
                             'billing_period_start' => $periodStart,
                             'billing_period_end' => $periodEnd,
@@ -262,11 +253,71 @@ class GenerateMonthlyInvoices extends Command
                             ],
                         ]);
 
-                        Log::info('Generated recurring invoice', [
+                        Log::info('Generated recurring rent invoice', [
                             'booking_id' => $booking->id,
                             'billing_period_key' => $periodKey,
                         ]);
 
+                        $generatedInvoices = true;
+                    }
+                }
+
+                // Add-ons Decoupling: Generate discrete standalone invoices for active add-ons
+                $activeMonthlyAddons = $booking->addons()
+                    ->wherePivot('status', 'active')
+                    ->where('price_type', 'monthly')
+                    ->where(function ($query) use ($periodStart) {
+                        $query->whereNull('booking_addons.cancellation_effective_at')
+                            ->orWhere('booking_addons.cancellation_effective_at', '>', $periodStart);
+                    })
+                    ->get();
+
+                foreach ($activeMonthlyAddons as $addon) {
+                    // Check if this addon was already billed for this period
+                    // (prevent duplicate addon invoices if the script is run multiple times)
+                    $addonExists = Invoice::where('booking_id', $booking->id)
+                        ->where('invoice_type', 'addon')
+                        ->where('billing_period_key', "addon-{$addon->id}-{$periodKey}")
+                        ->exists();
+
+                    if (!$addonExists) {
+                        $priceCents = (int) round($addon->pivot->price_at_booking * $addon->pivot->quantity * 100);
+
+                        $addonInvoice = Invoice::create([
+                            'reference' => 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6)),
+                            'landlord_id' => $booking->landlord_id,
+                            'property_id' => $booking->property_id,
+                            'booking_id' => $booking->id,
+                            'tenant_id' => $booking->tenant_id,
+                            'description' => "Monthly Add-on: {$addon->name} - ".$periodStart->format('F Y'),
+                            'invoice_type' => 'addon',
+                            'billing_period_start' => $periodStart,
+                            'billing_period_end' => $periodEnd,
+                            'billing_period_key' => "addon-{$addon->id}-{$periodKey}",
+                            'amount_cents' => $priceCents,
+                            'currency' => 'PHP',
+                            'status' => 'pending',
+                            'issued_at' => now(),
+                            'due_date' => $periodStart,
+                            'metadata' => ['addons' => [[
+                                'addon_id' => $addon->id,
+                                'addon_name' => $addon->name,
+                                'quantity' => $addon->pivot->quantity,
+                                'price' => $priceCents,
+                                'price_type' => 'monthly',
+                            ]]],
+                        ]);
+
+                        $booking->addons()->updateExistingPivot($addon->id, [
+                            'invoice_id' => $addonInvoice->id,
+                            'invoiced_at' => now(),
+                        ]);
+
+                        Log::info('Generated recurring standalone addon invoice', [
+                            'booking_id' => $booking->id,
+                            'addon_id' => $addon->id,
+                            'invoice_id' => $addonInvoice->id,
+                        ]);
                         $generatedInvoices = true;
                     }
                 }

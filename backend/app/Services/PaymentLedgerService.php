@@ -21,8 +21,18 @@ class PaymentLedgerService
         $invoice->status = $resolvedStatus;
         if ($resolvedStatus === 'paid') {
             $invoice->paid_at = $invoice->paid_at ?? now();
+            
+            if (!$invoice->receipt_reference) {
+                // Generate a unique receipt key
+                do {
+                    $ref = 'RCPT-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+                } while (Invoice::where('receipt_reference', $ref)->exists());
+                
+                $invoice->receipt_reference = $ref;
+            }
         } else {
             $invoice->paid_at = null;
+            $invoice->receipt_reference = null;
         }
         $invoice->save();
 
@@ -36,10 +46,21 @@ class PaymentLedgerService
             try {
                 $this->subscriptionCheckoutService->activateCheckoutSubscriptionFromPaidInvoice($invoice, $actorUserId);
             } catch (\Throwable $subscriptionError) {
-                Log::warning('Failed to auto-activate subscription after invoice recompute', [
+                \Illuminate\Support\Facades\Log::warning('Failed to auto-activate subscription after invoice recompute', [
                     'invoice_id' => $invoice->id,
                     'error' => $subscriptionError->getMessage(),
                 ]);
+            }
+            
+            // Dispatch Receipt Email if not sent
+            if (!$invoice->receipt_sent_at && $invoice->tenant) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($invoice->tenant->email)->send(new \App\Mail\PaymentReceiptMail($invoice));
+                    $invoice->receipt_sent_at = now();
+                    $invoice->save();
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to send Payment Receipt Email', ['error' => $e->getMessage()]);
+                }
             }
         }
 

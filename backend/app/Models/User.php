@@ -419,6 +419,9 @@ class User extends Authenticatable
         if (! $this->isCaretaker()) {
             return [
                 'bookings' => true,
+                'approve_bookings' => true,
+                'cancel_bookings' => true,
+                'manage_add_ons' => true,
                 'messages' => true,
                 'tenants' => true,
                 'rooms' => true,
@@ -426,6 +429,11 @@ class User extends Authenticatable
                 'maintenance' => true,
                 'payments' => true,
                 'analytics' => true,
+                'view_audit_logs' => true,
+                'can_approve_bookings' => true,
+                'can_cancel_bookings' => true,
+                'can_manage_add_ons' => true,
+                'can_view_audit_logs' => true,
             ];
         }
 
@@ -438,6 +446,9 @@ class User extends Authenticatable
 
         return [
             'bookings' => (bool) optional($assignment)->can_view_bookings,
+            'approve_bookings' => (bool) optional($assignment)->can_approve_bookings,
+            'cancel_bookings' => (bool) optional($assignment)->can_cancel_bookings,
+            'manage_add_ons' => (bool) optional($assignment)->can_manage_add_ons,
             'messages' => (bool) optional($assignment)->can_view_messages,
             'tenants' => (bool) optional($assignment)->can_view_tenants,
             'rooms' => (bool) optional($assignment)->can_view_rooms,
@@ -445,6 +456,11 @@ class User extends Authenticatable
             'maintenance' => (bool) optional($assignment)->can_manage_maintenance,
             'payments' => (bool) optional($assignment)->can_manage_payments,
             'analytics' => (bool) optional($assignment)->can_view_analytics,
+            'view_audit_logs' => (bool) optional($assignment)->can_view_audit_logs,
+            'can_approve_bookings' => (bool) optional($assignment)->can_approve_bookings,
+            'can_cancel_bookings' => (bool) optional($assignment)->can_cancel_bookings,
+            'can_manage_add_ons' => (bool) optional($assignment)->can_manage_add_ons,
+            'can_view_audit_logs' => (bool) optional($assignment)->can_view_audit_logs,
         ];
     }
 

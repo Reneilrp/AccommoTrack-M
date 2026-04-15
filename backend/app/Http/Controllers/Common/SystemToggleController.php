@@ -21,6 +21,7 @@ class SystemToggleController extends Controller
                 'invoice_paymongo_disabled' => SystemToggle::getBool('invoice_paymongo_disabled', $tenantPaymentsDisabled),
                 'paymongo_test_mode_enabled' => SystemToggle::getBool('paymongo_test_mode_enabled', false),
                 'reservation_fee_disabled' => SystemToggle::getBool('reservation_fee_disabled', (bool) config('app.reservation_fee_disabled', false)),
+                'manual_gcash_reservation_disabled' => SystemToggle::getBool('manual_gcash_reservation_disabled', false),
                 'mobile_latest_version' => SystemToggle::getString('mobile_latest_version', '1.0.0'),
                 'mobile_download_url' => SystemToggle::getString('mobile_download_url', 'https://accommotrack.me/downloads/AccommoTrack.apk'),
                 'mobile_force_update' => SystemToggle::getBool('mobile_force_update', true),

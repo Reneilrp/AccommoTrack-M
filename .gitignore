@@ -24,8 +24,10 @@ Diagrams
 .unused_vars.json
 extract_unused.json
 unused_vars.json
+temp_inject_ui.js
+temp_replace.js
+temp_sed_systemsettings.js
 
-# Docs (ignored)
 AGENTS.md
 *.md
 *.txt

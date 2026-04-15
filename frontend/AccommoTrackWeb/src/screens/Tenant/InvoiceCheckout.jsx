@@ -5,6 +5,7 @@ import { ArrowLeft, CreditCard, Wallet, Landmark, Loader2, CheckCircle2, AlertCi
 import PriceRow from '../../components/Shared/PriceRow';
 import toast from 'react-hot-toast';
 import systemToggleService from '../../services/systemToggleService';
+import paymentService from '../../services/paymentService';
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
@@ -87,6 +88,8 @@ export default function InvoiceCheckout() {
   const [proofImagePreview, setProofImagePreview] = useState(null);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
   const [invoicePaymongoDisabled, setInvoicePaymongoDisabled] = useState(DEFAULT_TOGGLES.invoicePaymongoDisabled);
+  const [manualGcashReservationDisabled, setManualGcashReservationDisabled] = useState(DEFAULT_TOGGLES.manualGcashReservationDisabled);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const loadInvoice = useCallback(async () => {
     try {
@@ -132,12 +135,26 @@ export default function InvoiceCheckout() {
     loadInvoice();
   }, [loadInvoice]);
 
+  // Load tenant wallet balance
+  useEffect(() => {
+    let mounted = true;
+    api.get('/tenant/profile').then((res) => {
+      if (!mounted) return;
+      const balance = Number(res.data?.wallet_balance ?? 0);
+      setWalletBalance(isFinite(balance) ? balance : 0);
+    }).catch(() => {
+      // Non-critical; wallet button will simply not show if balance is 0
+    });
+    return () => { mounted = false; };
+  }, [id]);
+
   useEffect(() => {
     let mounted = true;
     systemToggleService.getToggles().then((result) => {
       if (!mounted || !result?.data) return;
       setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
       setInvoicePaymongoDisabled(Boolean(result.data.invoicePaymongoDisabled));
+      setManualGcashReservationDisabled(Boolean(result.data.manualGcashReservationDisabled));
     });
     return () => {
       mounted = false;
@@ -187,6 +204,47 @@ export default function InvoiceCheckout() {
       window.location.href = checkoutUrl;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to initiate payment');
+      setProcessing(false);
+    }
+  };
+
+  const handleWalletCreditPayment = async () => {
+    if (tenantPaymentsTempDisabled) {
+      return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+    }
+
+    const amountToPay = Number(paymentAmount);
+    if (isNaN(amountToPay) || amountToPay <= 0) {
+      return toast.error('Please enter a valid amount');
+    }
+
+    const prop = invoice?.property || invoice?.booking?.property;
+    const allowPartial = prop?.allow_partial_payments !== 0 && prop?.allow_partial_payments !== false;
+    if (!allowPartial && amountToPay !== remainingBalance) {
+      return toast.error('Partial payments are disabled. Please pay the exact remaining balance.');
+    }
+
+    if (amountToPay > remainingBalance) {
+      return toast.error(`Amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString()}`);
+    }
+
+    const amountCents = Math.round(amountToPay * 100);
+    if (amountCents > Math.round(walletBalance * 100)) {
+      return toast.error(`Insufficient wallet credits. Available: ₱${walletBalance.toLocaleString()}`);
+    }
+
+    setProcessing(true);
+    try {
+      const result = await paymentService.applyWalletCredit(id, amountCents);
+      if (result.success) {
+        toast.success('Wallet credits applied successfully!');
+        navigate('/payments');
+      } else {
+        toast.error(result.error || 'Failed to apply wallet credits');
+      }
+    } catch (err) {
+      toast.error('Failed to apply wallet credits');
+    } finally {
       setProcessing(false);
     }
   };
@@ -282,9 +340,11 @@ export default function InvoiceCheckout() {
   const allowPartialPayments = property?.allow_partial_payments !== 0 && property?.allow_partial_payments !== false;
   const isPendingManualVerification = String(invoice?.status || '').toLowerCase() === 'pending_verification';
 
+  const isReservation = String(invoice?.invoice_type || invoice?.type || '').toLowerCase() === 'reservation_fee';
+
   const showOnline = !tenantPaymentsTempDisabled && !invoicePaymongoDisabled && !isPendingManualVerification && acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
   const showCash = !tenantPaymentsTempDisabled && acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
-  const showManualGcash = !tenantPaymentsTempDisabled && globalSettings.allowed?.includes('gcash');
+  const showManualGcash = !tenantPaymentsTempDisabled && globalSettings.allowed?.includes('gcash') && (!isReservation || !manualGcashReservationDisabled);
 
   const addonLines = normalizeInvoiceAddonLines(invoice);
   const addonTotalCents = addonLines.reduce((sum, line) => sum + line.amountCents, 0);
@@ -537,7 +597,7 @@ export default function InvoiceCheckout() {
                           </div>
                           <div>
                             <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Manual GCash</p>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2">{globalSettings.details?.gcash_info || 'Transfer to Landlord'}</p>
+                            <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2">Auto-approved securely upon upload</p>
                           </div>
                         </div>
                       </button>
@@ -567,7 +627,37 @@ export default function InvoiceCheckout() {
                       </button>
                     )}
 
-                    {!showOnline && !showCash && !showManualGcash && (
+                    {/* Wallet Credit */}
+                    {!tenantPaymentsTempDisabled && walletBalance > 0 && (
+                      <button
+                        onClick={() => {
+                          const parsed = Number(paymentAmount);
+                          if (isNaN(parsed) || parsed <= 0) return toast.error('Please enter a valid amount first.');
+                          if (parsed > remainingBalance) return toast.error(`Amount cannot exceed ₱${remainingBalance.toLocaleString()}`);
+                          handleWalletCreditPayment();
+                        }}
+                        disabled={processing}
+                        className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50/30 dark:hover:bg-purple-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
+                      >
+                        <div className="flex items-center gap-6">
+                          <div className="w-14 h-14 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+                            <Wallet className="w-7 h-7" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Wallet Credits</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Pay instantly using your credits</p>
+                            <p className="text-xs text-purple-600 dark:text-purple-400 font-bold mt-1">
+                              Available: ₱{walletBalance.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-purple-500 flex items-center justify-center transition-colors">
+                          <div className="w-3 h-3 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        </div>
+                      </button>
+                    )}
+
+                    {!showOnline && !showCash && !showManualGcash && walletBalance <= 0 && (
                       <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
                         <p className="text-gray-500 dark:text-gray-400 font-medium">No payment methods currently available for this property. Please contact the landlord.</p>
                       </div>

@@ -421,7 +421,7 @@ export default function PaymentOversight() {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Invoice</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Invoice / Receipt</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Tenant / Property</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Amount</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Method</th>
@@ -435,7 +435,14 @@ export default function PaymentOversight() {
                   {hasData ? (
                     records.map((record) => (
                       <tr key={record.id || `${record.invoiceId}-${record.submittedAt}`} className="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
-                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">{record.invoiceReference || `#${record.invoiceId || 'N/A'}`}</td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{record.invoiceReference || `#${record.invoiceId || 'N/A'}`}</p>
+                          {record.invoice?.receipt_reference && (
+                            <p className="text-xs font-mono font-bold text-indigo-500 mt-1 uppercase" title="Receipt Reference Number">
+                              {record.invoice.receipt_reference}
+                            </p>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">{record.tenantName || 'Unknown Tenant'}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{record.propertyTitle || 'Unknown Property'}{record.roomNumber ? ` • Room ${record.roomNumber}` : ''}</p>

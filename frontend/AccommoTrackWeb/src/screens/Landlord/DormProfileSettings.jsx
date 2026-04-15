@@ -636,6 +636,36 @@ export default function DormProfileSettings({
   };
 
   const handleSave = async () => {
+    // Perform strict GCash validations before saving
+    const hasGcashName = Boolean((dormData.gcash_name || "").trim());
+    const hasGcashNumber = Boolean((dormData.gcash_number || "").trim());
+
+    if (hasGcashName || hasGcashNumber) {
+      if (!hasGcashName || !hasGcashNumber) {
+        setError("Both GCash Name and GCash Number are required if you want to provide manual GCash payment.");
+        toast.error("Complete your GCash details.");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      // Check strictly 11 digits starting with 09
+      const gcashRegex = /^09\d{9}$/;
+      if (!gcashRegex.test(dormData.gcash_number)) {
+        setError("GCash Number must be exactly 11 digits starting with 09.");
+        toast.error("Invalid GCash Number format.");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      // Request final verification from landlord to ensure security
+      const confirmGcash = window.confirm(
+        "Please double check your GCash Name and Number.\nIncorrect details will result in lost payments. Proceed with save?"
+      );
+      if (!confirmGcash) {
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -1071,13 +1101,13 @@ export default function DormProfileSettings({
                 {Object.keys(fieldErrors).some((k) =>
                   ["name", "type", "description"].includes(k),
                 ) && (
-                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
-                    {["name", "type", "description"]
-                      .map((k) => fieldErrors[k])
-                      .filter(Boolean)
-                      .join(" • ")}
-                  </p>
-                )}
+                    <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                      {["name", "type", "description"]
+                        .map((k) => fieldErrors[k])
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </p>
+                  )}
               </div>
 
               <div className="space-y-4">
@@ -1141,14 +1171,14 @@ export default function DormProfileSettings({
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white capitalize"
                       >
                         <option value="mixed">Mixed (Any Sex)</option>
-                        <option 
-                          value="male" 
+                        <option
+                          value="male"
                           disabled={dormData.hasFemaleRooms}
                           title={dormData.hasFemaleRooms ? "Contains Female rooms" : ""}
                         >
                           Boys Only {isEditing && dormData.hasFemaleRooms ? "(Disabled: Has Female Rooms)" : ""}
                         </option>
-                        <option 
+                        <option
                           value="female"
                           disabled={dormData.hasMaleRooms}
                           title={dormData.hasMaleRooms ? "Contains Male rooms" : ""}
@@ -1185,11 +1215,10 @@ export default function DormProfileSettings({
                     )}
 
                     <label
-                      className={`mt-4 flex items-start space-x-3 ${
-                        !isEditing || dormData.status !== 'active'
+                      className={`mt-4 flex items-start space-x-3 ${!isEditing || dormData.status !== 'active'
                           ? 'opacity-60 cursor-not-allowed'
                           : 'cursor-pointer'
-                      }`}
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -1276,13 +1305,11 @@ export default function DormProfileSettings({
                           {Array.from({ length: parseInt(dormData.total_floors) }, (_, i) => i + 1).map((floor) => (
                             <label
                               key={floor}
-                              className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 cursor-pointer transition-all ${
-                                !isEditing ? "opacity-60 cursor-not-allowed" : ""
-                              } ${
-                                (dormData.floor_level || "").split(",").includes(String(floor))
+                              className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 cursor-pointer transition-all ${!isEditing ? "opacity-60 cursor-not-allowed" : ""
+                                } ${(dormData.floor_level || "").split(",").includes(String(floor))
                                   ? "bg-green-500 border-green-500 text-white"
                                   : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-500 hover:border-green-200"
-                              }`}
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -1307,251 +1334,251 @@ export default function DormProfileSettings({
                         </p>
                       </div>
                     )}
-                    
-                    <div className="md:col-span-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-2">
-                       <label className="flex items-start space-x-4 cursor-pointer group mb-6">
-                         <div className="flex items-center h-5 mt-0.5">
-                           <input
-                             type="checkbox"
-                             disabled={!isEditing}
-                             checked={dormData.require_1month_advance || false}
-                             onChange={(e) => handleInputChange('require_1month_advance', e.target.checked)}
-                             className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
-                           />
-                         </div>
-                         <div className="flex flex-col">
-                           <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                             Require 1-Month Advance Payment
-                           </span>
-                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                             If enabled, tenants will be billed for their first month's rent plus an additional month as an advance payment upon booking confirmation. This acts as the default for new rooms.
-                           </span>
-                         </div>
-                       </label>
 
-                       <label className={`flex items-start space-x-4 group ${(!user?.is_paymongo_ready) ? 'opacity-60' : 'cursor-pointer'} mt-6`}>
-                         <div className="flex items-center h-5 mt-0.5">
-                           <input
-                             type="checkbox"
-                             disabled={!isEditing || !user?.is_paymongo_ready}
-                             checked={dormData.require_reservation_fee || false}
-                             onChange={(e) => handleInputChange('require_reservation_fee', e.target.checked)}
-                             className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
-                           />
-                         </div>
-                         <div className="flex flex-col w-full">
-                           <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors">
-                             Require Instant Reservation Fee
-                           </span>
-                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                             If enabled, tenants must pay a non-refundable reservation fee immediately to secure their booking request.
-                             {!user?.is_paymongo_ready && (
-                               <span className="text-red-500 block mt-2">You must complete PayMongo onboarding to enable instant payments.</span>
-                             )}
-                           </span>
-                           {dormData.require_reservation_fee && (
-                              <div className="mt-4 space-y-4">
+                    <div className="md:col-span-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-2">
+                      <label className="flex items-start space-x-4 cursor-pointer group mb-6">
+                        <div className="flex items-center h-5 mt-0.5">
+                          <input
+                            type="checkbox"
+                            disabled={!isEditing}
+                            checked={dormData.require_1month_advance || false}
+                            onChange={(e) => handleInputChange('require_1month_advance', e.target.checked)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                            Require 1-Month Advance Payment
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            If enabled, tenants will be billed for their first month's rent plus an additional month as an advance payment upon booking confirmation. This acts as the default for new rooms.
+                          </span>
+                        </div>
+                      </label>
+
+                      <label className={`flex items-start space-x-4 group ${(!user?.is_paymongo_ready) ? 'opacity-60' : 'cursor-pointer'} mt-6`}>
+                        <div className="flex items-center h-5 mt-0.5">
+                          <input
+                            type="checkbox"
+                            disabled={!isEditing || !user?.is_paymongo_ready}
+                            checked={dormData.require_reservation_fee || false}
+                            onChange={(e) => handleInputChange('require_reservation_fee', e.target.checked)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col w-full">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors">
+                            Require Instant Reservation Fee
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            If enabled, tenants must pay a non-refundable reservation fee immediately to secure their booking request.
+                            {!user?.is_paymongo_ready && (
+                              <span className="text-red-500 block mt-2">You must complete PayMongo onboarding to enable instant payments.</span>
+                            )}
+                          </span>
+                          {dormData.require_reservation_fee && (
+                            <div className="mt-4 space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Reservation Fee Amount (₱)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  disabled={!isEditing}
+                                  value={dormData.reservation_fee_amount}
+                                  onChange={(e) => handleInputChange('reservation_fee_amount', e.target.value)}
+                                  className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                  placeholder="e.g. 500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Require fee when move-in is more than (days)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  disabled={!isEditing}
+                                  value={dormData.reservation_fee_gap_days ?? "3"}
+                                  onChange={(e) => handleInputChange("reservation_fee_gap_days", e.target.value)}
+                                  className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                  placeholder="3"
+                                />
+                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                  Default is 3 days. Reservation fee applies only when the booking gap is above this value.
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Reservation Fee Amount (₱)
+                                    GCash Account Name
                                   </label>
                                   <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
+                                    type="text"
                                     disabled={!isEditing}
-                                    value={dormData.reservation_fee_amount}
-                                    onChange={(e) => handleInputChange('reservation_fee_amount', e.target.value)}
+                                    value={dormData.gcash_name}
+                                    onChange={(e) => handleInputChange('gcash_name', e.target.value)}
                                     className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
-                                    placeholder="e.g. 500"
+                                    placeholder="e.g. Juan De La Cruz"
                                   />
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Require fee when move-in is more than (days)
+                                    GCash Number
                                   </label>
                                   <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
+                                    type="text"
                                     disabled={!isEditing}
-                                    value={dormData.reservation_fee_gap_days ?? "3"}
-                                    onChange={(e) => handleInputChange("reservation_fee_gap_days", e.target.value)}
+                                    value={dormData.gcash_number}
+                                    onChange={(e) => handleInputChange('gcash_number', e.target.value)}
                                     className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
-                                    placeholder="3"
+                                    placeholder="e.g. 09123456789"
                                   />
-                                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                    Default is 3 days. Reservation fee applies only when the booking gap is above this value.
-                                  </p>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                      GCash Account Name
-                                    </label>
-                                    <input
-                                      type="text"
-                                      disabled={!isEditing}
-                                      value={dormData.gcash_name}
-                                      onChange={(e) => handleInputChange('gcash_name', e.target.value)}
-                                      className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
-                                      placeholder="e.g. Juan De La Cruz"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                      GCash Number
-                                    </label>
-                                    <input
-                                      type="text"
-                                      disabled={!isEditing}
-                                      value={dormData.gcash_number}
-                                      onChange={(e) => handleInputChange('gcash_number', e.target.value)}
-                                      className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
-                                      placeholder="e.g. 09123456789"
-                                    />
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    GCash QR Code Image
-                                  </label>
-                                  {(gcashQrPreview) ? (
-                                    <div className="relative inline-block border rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800 dark:border-gray-600 p-2">
-                                      <img src={gcashQrPreview} alt="GCash QR" className="max-h-48 w-auto object-contain" />
-                                      {isEditing && (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setGcashQrPreview(null);
-                                            setGcashQrFile(null);
-                                            setDeleteExistingGcashQr(true);
-                                          }}
-                                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-sm focus:outline-none"
-                                        >
-                                          <Trash size={14} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <label className={`w-full max-w-sm flex flex-col items-center justify-center px-4 py-6 bg-white border-2 border-dashed rounded-lg dark:bg-gray-800 ${isEditing ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 transition-colors' : 'opacity-60 border-gray-200 dark:border-gray-700 cursor-not-allowed'}`}>
-                                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Click to upload GCash QR Code</span>
-                                      <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">PNG, JPG, JPEG</span>
-                                      {isEditing && (
-                                        <input
-                                          type="file"
-                                          className="hidden"
-                                          accept="image/png, image/jpeg, image/jpg"
-                                          onChange={(e) => {
-                                            const file = e.target.files[0];
-                                            if (file) {
-                                              if (file.size > 5 * 1024 * 1024) {
-                                                toast.error("File size must be less than 5MB");
-                                                return;
-                                              }
-                                              setGcashQrFile(file);
-                                              const reader = new FileReader();
-                                              reader.onloadend = () => setGcashQrPreview(reader.result);
-                                              reader.readAsDataURL(file);
-                                              setDeleteExistingGcashQr(false);
-                                            }
-                                          }}
-                                        />
-                                      )}
-                                    </label>
-                                  )}
                                 </div>
                               </div>
-                           )}
-                         </div>
-                       </label>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  GCash QR Code Image
+                                </label>
+                                {(gcashQrPreview) ? (
+                                  <div className="relative inline-block border rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800 dark:border-gray-600 p-2">
+                                    <img src={gcashQrPreview} alt="GCash QR" className="max-h-48 w-auto object-contain" />
+                                    {isEditing && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setGcashQrPreview(null);
+                                          setGcashQrFile(null);
+                                          setDeleteExistingGcashQr(true);
+                                        }}
+                                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-sm focus:outline-none"
+                                      >
+                                        <Trash size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <label className={`w-full max-w-sm flex flex-col items-center justify-center px-4 py-6 bg-white border-2 border-dashed rounded-lg dark:bg-gray-800 ${isEditing ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 transition-colors' : 'opacity-60 border-gray-200 dark:border-gray-700 cursor-not-allowed'}`}>
+                                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Click to upload GCash QR Code</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">PNG, JPG, JPEG</span>
+                                    {isEditing && (
+                                      <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/png, image/jpeg, image/jpg"
+                                        onChange={(e) => {
+                                          const file = e.target.files[0];
+                                          if (file) {
+                                            if (file.size > 5 * 1024 * 1024) {
+                                              toast.error("File size must be less than 5MB");
+                                              return;
+                                            }
+                                            setGcashQrFile(file);
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => setGcashQrPreview(reader.result);
+                                            reader.readAsDataURL(file);
+                                            setDeleteExistingGcashQr(false);
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </label>
 
-                       <label className="flex items-start space-x-4 cursor-pointer group mt-6">
-                         <div className="flex items-center h-5 mt-0.5">
-                           <input
-                             type="checkbox"
-                             disabled={!isEditing}
-                             checked={dormData.allow_partial_payments !== false}
-                             onChange={(e) => handleInputChange('allow_partial_payments', e.target.checked)}
-                             className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
-                           />
-                         </div>
-                         <div className="flex flex-col">
-                           <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                             Allow Partial Payments
-                           </span>
-                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                             If enabled, tenants can pay their invoice balance in smaller increments. If disabled, they will be required to pay the full remaining invoice balance in a single transaction.
-                           </span>
-                         </div>
-                       </label>
+                      <label className="flex items-start space-x-4 cursor-pointer group mt-6">
+                        <div className="flex items-center h-5 mt-0.5">
+                          <input
+                            type="checkbox"
+                            disabled={!isEditing}
+                            checked={dormData.allow_partial_payments !== false}
+                            onChange={(e) => handleInputChange('allow_partial_payments', e.target.checked)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                            Allow Partial Payments
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            If enabled, tenants can pay their invoice balance in smaller increments. If disabled, they will be required to pay the full remaining invoice balance in a single transaction.
+                          </span>
+                        </div>
+                      </label>
 
-                       {/* Booking Limits & Partial Minimum */}
-                       <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
-                          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                            Normal Booking Limit (per property)
-                          </label>
+                      {/* Booking Limits & Partial Minimum */}
+                      <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Normal Booking Limit (per property)
+                        </label>
+                        <input
+                          type="number"
+                          min="1" max="4"
+                          value={dormData.normal_booking_limit || 1}
+                          onChange={(e) => handleInputChange('normal_booking_limit', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                        />
+                      </div>
+                      <div className="mt-4">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Proxy Booking Limit (per property)
+                        </label>
+                        <input
+                          type="number"
+                          min="1" max="4"
+                          value={dormData.proxy_booking_limit || 3}
+                          onChange={(e) => handleInputChange('proxy_booking_limit', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                        />
+                      </div>
+
+                      <div className="mt-4 mb-4">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Minimum Partial Payment (%)
+                        </label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                          Minimum percentage a tenant can pay if partial payments are allowed.
+                        </p>
+                        <input
+                          type="number"
+                          min="1" max="100"
+                          value={dormData.min_partial_payment_pct || 20}
+                          onChange={(e) => handleInputChange('min_partial_payment_pct', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                          disabled={dormData.allow_partial_payments === false}
+                        />
+                      </div>
+
+
+                      <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Room Transfer Processing Fee (₱)
+                        </label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                          The fee quoted to tenants during a transfer request. You can discount or waive this during approval, but you cannot increase it above this quoted amount.
+                        </p>
+                        <div className="relative max-w-[200px]">
+                          <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400">₱</span>
                           <input
                             type="number"
-                            min="1" max="4"
-                            value={dormData.normal_booking_limit || 1}
-                            onChange={(e) => handleInputChange('normal_booking_limit', e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                            min="0"
+                            step="0.01"
+                            disabled={!isEditing}
+                            value={dormData.transfer_fee}
+                            onChange={(e) => handleInputChange('transfer_fee', e.target.value)}
+                            className="w-full pl-7 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200"
+                            placeholder="0.00"
                           />
-                       </div>
-                       <div className="mt-4">
-                          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                            Proxy Booking Limit (per property)
-                          </label>
-                          <input
-                            type="number"
-                            min="1" max="4"
-                            value={dormData.proxy_booking_limit || 3}
-                            onChange={(e) => handleInputChange('proxy_booking_limit', e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
-                          />
-                       </div>
-                       
-                       <div className="mt-4 mb-4">
-                          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                            Minimum Partial Payment (%)
-                          </label>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                             Minimum percentage a tenant can pay if partial payments are allowed.
-                          </p>
-                          <input
-                            type="number"
-                            min="1" max="100"
-                            value={dormData.min_partial_payment_pct || 20}
-                            onChange={(e) => handleInputChange('min_partial_payment_pct', e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
-                            disabled={dormData.allow_partial_payments === false}
-                          />
-                       </div>
-    
-
-                       <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
-                          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                            Room Transfer Processing Fee (₱)
-                          </label>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                            The fee quoted to tenants during a transfer request. You can discount or waive this during approval, but you cannot increase it above this quoted amount.
-                          </p>
-                          <div className="relative max-w-[200px]">
-                            <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400">₱</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              disabled={!isEditing}
-                              value={dormData.transfer_fee}
-                              onChange={(e) => handleInputChange('transfer_fee', e.target.value)}
-                              className="w-full pl-7 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200"
-                              placeholder="0.00"
-                            />
-                          </div>
-                       </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1575,21 +1602,21 @@ export default function DormProfileSettings({
                     "longitude",
                   ].includes(k),
                 ) && (
-                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
-                    {[
-                      "street",
-                      "barangay",
-                      "city",
-                      "province",
-                      "zipCode",
-                      "latitude",
-                      "longitude",
-                    ]
-                      .map((k) => fieldErrors[k])
-                      .filter(Boolean)
-                      .join(" • ")}
-                  </p>
-                )}
+                    <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                      {[
+                        "street",
+                        "barangay",
+                        "city",
+                        "province",
+                        "zipCode",
+                        "latitude",
+                        "longitude",
+                      ]
+                        .map((k) => fieldErrors[k])
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </p>
+                  )}
               </div>
 
               <div className="space-y-4">
@@ -1779,11 +1806,9 @@ export default function DormProfileSettings({
                     return (
                       <div
                         key={imageId || `new-${index}`}
-                        className={`relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group ${
-                          isEditing ? "cursor-move" : ""
-                        } ${draggedImageIndex === index ? "opacity-50 ring-2 ring-green-500" : ""} ${
-                          isPrimary ? "ring-2 ring-yellow-400" : ""
-                        }`}
+                        className={`relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group ${isEditing ? "cursor-move" : ""
+                          } ${draggedImageIndex === index ? "opacity-50 ring-2 ring-green-500" : ""} ${isPrimary ? "ring-2 ring-yellow-400" : ""
+                          }`}
                         draggable={isEditing}
                         onDragStart={(e) =>
                           isEditing && handleDragStart(e, index)
@@ -2212,11 +2237,10 @@ export default function DormProfileSettings({
                       verifyPassword();
                     }
                   }}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white ${
-                    passwordError
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white ${passwordError
                       ? "border-red-500"
                       : "border-gray-300 dark:border-gray-600"
-                  }`}
+                    }`}
                   placeholder="Enter your password"
                   autoFocus
                 />

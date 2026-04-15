@@ -119,6 +119,7 @@ const normalizeInvoiceAddonLines = (invoice) => {
 export default function PaymentDetail() {
   const route = useRoute();
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const { theme } = useTheme();
   const showAlert = Alert.alert;
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -134,6 +135,9 @@ export default function PaymentDetail() {
   );
   const [invoicePaymongoDisabled, setInvoicePaymongoDisabled] = useState(
     SystemToggleService.getDefaults().invoicePaymongoDisabled,
+  );
+  const [manualGcashReservationDisabled, setManualGcashReservationDisabled] = useState(
+    SystemToggleService.getDefaults().manualGcashReservationDisabled,
   );
   const paymentDetailQuery = useQuery({
     queryKey: tenantQueryKeys.paymentDetail(invoiceId),
@@ -157,9 +161,10 @@ export default function PaymentDetail() {
   );
   const acceptedPayments = normalizeArray(property?.accepted_payments, ['cash']);
   const allowPartialPayments = property?.allow_partial_payments !== 0 && property?.allow_partial_payments !== false;
+  const isReservationInvoice = String(invoice?.invoice_type || invoice?.type || '').toLowerCase() === 'reservation_fee';
   const showOnline = acceptedPayments.includes('online') && landlordSettings.allowed.includes('online');
   const showCash = acceptedPayments.includes('cash') && landlordSettings.allowed.includes('cash');
-  const showManualGcash = landlordSettings.allowed.includes('gcash');
+  const showManualGcash = landlordSettings.allowed.includes('gcash') && (!isReservationInvoice || !manualGcashReservationDisabled);
   const manualPaymentDetails = landlordSettings.details || {};
   const isPendingManualVerification = String(invoice?.status || '').toLowerCase() === 'pending_verification';
 
@@ -197,6 +202,7 @@ export default function PaymentDetail() {
       if (!mounted || !result?.data) return;
       setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
       setInvoicePaymongoDisabled(Boolean(result.data.invoicePaymongoDisabled));
+      setManualGcashReservationDisabled(Boolean(result.data.manualGcashReservationDisabled));
     });
 
     return () => {
@@ -431,11 +437,12 @@ export default function PaymentDetail() {
       }
 
       showAlert('Submitted', method === 'gcash'
-        ? 'Manual GCash transfer details submitted. Waiting for landlord verification.'
+        ? 'Manual GCash transfer successfully auto-approved securely.'
         : 'Cash payment request submitted. Waiting for landlord confirmation.');
       setOfflineDetails({ reference: '', notes: '' });
       setProofImage(null);
       await refetchPaymentDetail();
+      queryClient.invalidateQueries(tenantQueryKeys.all);
     } catch (error) {
       console.error('Offline payment submit error', error);
       showAlert('Payment Error', 'Failed to submit offline payment details.');

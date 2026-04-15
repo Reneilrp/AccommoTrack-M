@@ -167,8 +167,9 @@ class BookingService
                         ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
                         ->count();
 
-                    if ($normalBookingCount >= 1) {
-                        throw new \DomainException('Normal booking allows only 1 active or pending booking in this property.');
+                    $normalLimit = min(4, (int) ($room->property->normal_booking_limit ?? 1));
+                    if ($normalBookingCount >= $normalLimit) {
+                        throw new \DomainException("Normal booking allows only {$normalLimit} active or pending booking(s) in this property.");
                     }
                 } else {
                     // Proxy mode
@@ -178,8 +179,9 @@ class BookingService
                         ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
                         ->count();
 
-                    if ($proxyBookingCount >= 3) {
-                        throw new \DomainException('Proxy booking limit reached. Only up to 3 active or pending bookings are allowed in this property.');
+                    $proxyLimit = min(4, (int) ($room->property->proxy_booking_limit ?? 3));
+                    if ($proxyBookingCount >= $proxyLimit) {
+                        throw new \DomainException("Proxy booking limit reached. Only up to {$proxyLimit} active or pending bookings are allowed in this property.");
                     }
                 }
             }
@@ -543,6 +545,7 @@ class BookingService
                     'phone' => $occupant['phone'] ?? null,
                     'email' => $occupant['email'] ?? null,
                     'notes' => $occupant['notes'] ?? null,
+                    'bed_number' => isset($occupant['bed_number']) ? (int) $occupant['bed_number'] : null,
                 ];
             })
             ->values()

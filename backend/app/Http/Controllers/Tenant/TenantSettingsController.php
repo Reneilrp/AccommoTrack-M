@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\TenantProfile;
 use App\Models\User;
+use App\Models\TenantCredit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,7 @@ class TenantSettingsController extends Controller
                 'is_active' => $user->is_active,
                 'notification_preferences' => $user->notification_preferences,
                 'age' => $age,
+                'wallet_balance' => TenantCredit::getBalance($userId) / 100, // Send as regular value instead of cents for frontend
                 'sex' => $user->sex,
                 'identified_as' => $user->identified_as,
                 'date_of_birth' => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,

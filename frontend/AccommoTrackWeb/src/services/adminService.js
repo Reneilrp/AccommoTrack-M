@@ -399,6 +399,7 @@ const adminService = {
           ),
           paymongoTestModeEnabled: toBoolean(payload.paymongo_test_mode_enabled, false),
           reservationFeeDisabled: toBoolean(payload.reservation_fee_disabled, false),
+          manualGcashReservationDisabled: toBoolean(payload.manual_gcash_reservation_disabled, false),
           mobileLatestVersion: toStringOrNull(payload.mobile_latest_version) || '1.0.0',
           mobileDownloadUrl: toStringOrNull(payload.mobile_download_url) || 'https://accommotrack.me/downloads/AccommoTrack.apk',
           mobileForceUpdate: toBoolean(payload.mobile_force_update, true),
@@ -413,7 +414,7 @@ const adminService = {
 
   /**
    * Update admin payment control settings.
-   * @param {{tenantPaymentsDisabled: boolean, reservationFeeDisabled: boolean, mobileLatestVersion: string, mobileDownloadUrl: string, mobileForceUpdate: boolean, systemForcedNow: string}} payload
+    * @param {{tenantPaymentsDisabled: boolean, reservationFeeDisabled: boolean, manualGcashReservationDisabled: boolean, mobileLatestVersion: string, mobileDownloadUrl: string, mobileForceUpdate: boolean, systemForcedNow: string}} payload
    */
   async updatePaymentControlSettings(payload = {}) {
     try {
@@ -427,6 +428,7 @@ const adminService = {
         invoice_paymongo_disabled: invoicePaymongoDisabled,
         paymongo_test_mode_enabled: Boolean(payload.paymongoTestModeEnabled),
         reservation_fee_disabled: Boolean(payload.reservationFeeDisabled),
+        manual_gcash_reservation_disabled: Boolean(payload.manualGcashReservationDisabled),
         mobile_latest_version: String(payload.mobileLatestVersion || '1.0.0'),
         mobile_download_url: String(payload.mobileDownloadUrl || 'https://accommotrack.me/downloads/AccommoTrack.apk'),
         mobile_force_update: Boolean(payload.mobileForceUpdate),
@@ -443,6 +445,7 @@ const adminService = {
           invoicePaymongoDisabled: toBoolean(data.invoice_paymongo_disabled, body.invoice_paymongo_disabled),
           paymongoTestModeEnabled: toBoolean(data.paymongo_test_mode_enabled, body.paymongo_test_mode_enabled),
           reservationFeeDisabled: toBoolean(data.reservation_fee_disabled, body.reservation_fee_disabled),
+          manualGcashReservationDisabled: toBoolean(data.manual_gcash_reservation_disabled, body.manual_gcash_reservation_disabled),
           mobileLatestVersion: toStringOrNull(data.mobile_latest_version) || body.mobile_latest_version,
           mobileDownloadUrl: toStringOrNull(data.mobile_download_url) || body.mobile_download_url,
           mobileForceUpdate: toBoolean(data.mobile_force_update, body.mobile_force_update),

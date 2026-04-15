@@ -20,12 +20,12 @@ const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'paymen
 const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
 
 const createCaretakerPermissionDefaults = () => ({
-  bookings: false,
+  bookings: true,
   approve_bookings: false,
   cancel_bookings: false,
   manage_add_ons: false,
   tenants: false,
-  messages: false,
+  messages: true,
   rooms: false,
   properties: false,
   maintenance: false,

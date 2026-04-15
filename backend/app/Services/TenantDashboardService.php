@@ -272,7 +272,7 @@ class TenantDashboardService
 
         // Allow cancelling pending, active, or approved addons
         $addonRequest = $booking->addons()
-            ->where('addon_id', $addonId)
+            ->where('addons.id', $addonId)
             ->wherePivotIn('status', ['pending', 'active', 'approved'])
             ->first();
 

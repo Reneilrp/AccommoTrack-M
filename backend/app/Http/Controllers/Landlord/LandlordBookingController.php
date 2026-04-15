@@ -23,11 +23,41 @@ class LandlordBookingController extends Controller
 {
     use ResolvesLandlordAccess;
 
+    private const CANCELLATION_STATUSES = ['cancelled'];
+
+    private const APPROVAL_STATUSES = ['confirmed', 'completed', 'partial-completed', 'pending'];
+
     protected BookingService $bookingService;
 
     public function __construct(BookingService $bookingService)
     {
         $this->bookingService = $bookingService;
+    }
+
+    private function enforceCaretakerStatusPermission(array $context, ?string $status): void
+    {
+        if (! ($context['is_caretaker'] ?? false) || ! $status) {
+            return;
+        }
+
+        if (in_array($status, self::CANCELLATION_STATUSES, true)) {
+            $this->ensureCaretakerCan($context, 'can_cancel_bookings');
+
+            return;
+        }
+
+        if (in_array($status, self::APPROVAL_STATUSES, true)) {
+            $this->ensureCaretakerCan($context, 'can_approve_bookings');
+        }
+    }
+
+    private function ensureCaretakerCanApproveBookings(array $context): void
+    {
+        if (! ($context['is_caretaker'] ?? false)) {
+            return;
+        }
+
+        $this->ensureCaretakerCan($context, 'can_approve_bookings');
     }
 
     /**
@@ -184,6 +214,8 @@ class LandlordBookingController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $validated = $request->validated();
+            $this->enforceCaretakerStatusPermission($context, $validated['status'] ?? null);
 
             $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
                 ->forLandlord($context['landlord_id'])
@@ -205,7 +237,7 @@ class LandlordBookingController extends Controller
 
             $result = $this->bookingService->updateStatus(
                 $booking,
-                $request->validated()
+                $validated
             );
 
             return response()->json([
@@ -293,6 +325,7 @@ class LandlordBookingController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $this->ensureCaretakerCanApproveBookings($context);
 
             $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
                 ->forLandlord($context['landlord_id'])
@@ -606,6 +639,7 @@ class LandlordBookingController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $this->ensureCaretakerCanApproveBookings($context);
 
             $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
                 ->forLandlord($context['landlord_id'])
@@ -639,6 +673,7 @@ class LandlordBookingController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $this->ensureCaretakerCanApproveBookings($context);
 
             $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
                 ->forLandlord($context['landlord_id'])

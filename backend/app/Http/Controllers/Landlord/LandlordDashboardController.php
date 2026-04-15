@@ -40,6 +40,11 @@ class LandlordDashboardController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
+
+            if ($context['is_caretaker'] && $context['assignment'] && ! $context['assignment']->can_view_audit_logs) {
+                return response()->json([], 200);
+            }
+
             $assignedPropertyIds = ($context['is_caretaker'] && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
             $propertyId = $request->query('property_id');
             $roomId = $request->query('room_id');

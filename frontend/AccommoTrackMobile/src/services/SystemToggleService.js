@@ -12,6 +12,7 @@ const DEFAULT_TOGGLES = {
   tenantPaymentsDisabled: TENANT_PAYMENTS_TEMP_DISABLED,
   invoicePaymongoDisabled: INVOICE_PAYMONGO_TEMP_DISABLED,
   reservationFeeDisabled: RESERVATION_FEE_TEMP_DISABLED,
+  manualGcashReservationDisabled: false,
 };
 
 let cached = null;
@@ -22,6 +23,7 @@ const normalize = (payload = {}) => ({
   tenantPaymentsDisabled: toBool(payload.tenant_payments_disabled, DEFAULT_TOGGLES.tenantPaymentsDisabled),
   invoicePaymongoDisabled: toBool(payload.invoice_paymongo_disabled, DEFAULT_TOGGLES.invoicePaymongoDisabled),
   reservationFeeDisabled: toBool(payload.reservation_fee_disabled, DEFAULT_TOGGLES.reservationFeeDisabled),
+  manualGcashReservationDisabled: toBool(payload.manual_gcash_reservation_disabled, DEFAULT_TOGGLES.manualGcashReservationDisabled),
 });
 
 class SystemToggleService {

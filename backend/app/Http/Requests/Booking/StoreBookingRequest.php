@@ -124,7 +124,7 @@ class StoreBookingRequest extends FormRequest
              $rules['occupants'] = 'required_if:booking_mode,proxy|array|min:1';
              $rules['occupants.*.full_name'] = 'required_with:occupants|string|max:255';
              $rules['occupants.*.date_of_birth'] = ['required_with:occupants', 'date', 'before_or_equal:'.$minimumAdultDob];
-             $rules['occupants.*.sex'] = 'required_with:occupants|string|in:male,female,other,prefer_not_to_say|max:32';
+             $rules['occupants.*.sex'] = 'required_with:occupants|string|in:male,female|max:32';
              $rules['occupants.*.relationship_to_booker'] = 'required_with:occupants|string|max:64';
              $rules['occupants.*.phone'] = 'nullable|string|max:32';
              $rules['occupants.*.email'] = 'nullable|email|max:255';
@@ -143,7 +143,7 @@ class StoreBookingRequest extends FormRequest
              $rules['items.*.occupants'] = 'required_if:booking_mode,proxy|array|min:1';
              $rules['items.*.occupants.*.full_name'] = 'required_with:items.*.occupants|string|max:255';
              $rules['items.*.occupants.*.date_of_birth'] = ['required_with:items.*.occupants', 'date', 'before_or_equal:'.$minimumAdultDob];
-             $rules['items.*.occupants.*.sex'] = 'required_with:items.*.occupants|string|in:male,female,other,prefer_not_to_say|max:32';
+             $rules['items.*.occupants.*.sex'] = 'required_with:items.*.occupants|string|in:male,female|max:32';
              $rules['items.*.occupants.*.relationship_to_booker'] = 'required_with:items.*.occupants|string|max:64';
              $rules['items.*.occupants.*.phone'] = 'nullable|string|max:32';
              $rules['items.*.occupants.*.email'] = 'nullable|email|max:255';
@@ -171,7 +171,7 @@ class StoreBookingRequest extends FormRequest
             'occupants.*.date_of_birth.required_with' => 'Each occupant must include a date of birth.',
             'occupants.*.date_of_birth.before_or_equal' => 'Each occupant must be at least 18 years old.',
             'occupants.*.sex.required_with' => 'Each occupant must include a sex.',
-            'occupants.*.sex.in' => 'Each occupant sex must be one of: male, female, other, prefer_not_to_say.',
+            'occupants.*.sex.in' => 'Each occupant sex must be male or female.',
             'occupants.*.relationship_to_booker.required_with' => 'Each occupant must include relationship to booker.',
             'start_date.required' => 'Please select a check-in date.',
             'start_date.after_or_equal' => 'Check-in date must be today or later.',

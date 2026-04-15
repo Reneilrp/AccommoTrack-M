@@ -189,7 +189,7 @@ export default function TenantHomePage({
   ];
 
   const genderOptions = [
-    { label: "All Genders", value: "All" },
+    { label: "All", value: "All" },
     { label: "Mixed", value: "mixed" },
     { label: "Boys Only", value: "male" },
     { label: "Girls Only", value: "female" },

@@ -14,7 +14,7 @@ const ProfileTab = ({ onUserUpdate }) => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [nameErrors, setNameErrors] = useState({});
   const [imagePreview, setImagePreview] = useState(null);
-  
+
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
 
@@ -25,7 +25,7 @@ const ProfileTab = ({ onUserUpdate }) => {
     email: '',
     phone: '',
     profile_image: null,
-    
+
     // Tenant Fields
     date_of_birth: '',
     sex: '', // The actual value stored
@@ -67,7 +67,7 @@ const ProfileTab = ({ onUserUpdate }) => {
       emergency_contact_relationship: data.tenant_profile?.emergency_contact_relationship || '',
       profile_image: null, // Reset file input
     });
-    
+
     if (data.profile_image) {
       // In ProfileTab, data.profile_image might already be a full URL from getProfile or just a path
       setImagePreview(getImageUrl(data.profile_image));
@@ -80,10 +80,10 @@ const ProfileTab = ({ onUserUpdate }) => {
     try {
       if (!cachedProfile) setLoading(true);
       const data = await tenantService.getProfile();
-      
+
       mapDataToForm(data);
       updateData('profile', data);
-      
+
     } catch (error) {
       console.error('Failed to load profile', error);
       setMessage({ type: 'error', text: 'Failed to load profile data.' });
@@ -161,9 +161,9 @@ const ProfileTab = ({ onUserUpdate }) => {
           data.append(key, formData[key]);
         }
       });
-      
+
       const response = await tenantService.updateProfile(data);
-      
+
       // Propagate the updated user up to App.jsx (updates header avatar, etc.)
       // App.jsx's handleUserUpdate handles both setUser() and localStorage correctly.
       if (onUserUpdate && response.user) {
@@ -172,7 +172,7 @@ const ProfileTab = ({ onUserUpdate }) => {
 
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setIsEditing(false);
-      
+
       // Refetch to ensure all cached data is synced
       fetchProfile();
     } catch (error) {
@@ -187,8 +187,8 @@ const ProfileTab = ({ onUserUpdate }) => {
 
   const toggleEdit = () => {
     if (isEditing) {
-       // Cancelled: Revert changes by refetching
-       fetchProfile();
+      // Cancelled: Revert changes by refetching
+      fetchProfile();
     }
     setIsEditing(!isEditing);
     setMessage({ type: '', text: '' });
@@ -207,10 +207,24 @@ const ProfileTab = ({ onUserUpdate }) => {
           </button>
         )}
       </div>
-      
+
       {message.text && (
         <div className={`mb-6 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
           {message.text}
+        </div>
+      )}
+
+      {cachedProfile && cachedProfile.wallet_balance !== undefined && (
+        <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg border border-green-600 dark:from-green-600 dark:to-emerald-800 text-white flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold mb-1">My Wallet & Credits</h3>
+            <p className="text-green-100 text-sm">Available balance for your next payment or invoice.</p>
+          </div>
+          <div className="text-right">
+            <span className="text-3xl font-black tracking-tight">
+              ₱{parseFloat(cachedProfile.wallet_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
         </div>
       )}
 
@@ -219,13 +233,13 @@ const ProfileTab = ({ onUserUpdate }) => {
         <div className="flex items-center gap-6">
           <div className="relative">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 border-2 border-white dark:border-gray-600 shadow-sm">
-               {imagePreview ? (
-                  <img src={imagePreview} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-500">
-                    <CircleUser className="w-12 h-12" />
-                  </div>
-                )}
+              {imagePreview ? (
+                <img src={imagePreview} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-500">
+                  <CircleUser className="w-12 h-12" />
+                </div>
+              )}
             </div>
             <label className={`absolute bottom-0 right-0 bg-white dark:bg-gray-800 rounded-full p-2 shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 ${!isEditing ? 'hidden' : 'cursor-pointer'}`}>
               <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} disabled={!isEditing} />
@@ -266,7 +280,7 @@ const ProfileTab = ({ onUserUpdate }) => {
             />
             {nameErrors.last_name && <p className="mt-2 text-xs text-red-500">{nameErrors.last_name}</p>}
           </div>
-          
+
           {/* Sex Section */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Sex</label>
@@ -282,7 +296,7 @@ const ProfileTab = ({ onUserUpdate }) => {
               <option value="female">Female</option>
             </select>
           </div>
-          
+
           {/* Pronouns Section */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Pronouns <span className="text-gray-500 text-xs font-normal">(e.g., He/Him, She/Her)</span></label>
@@ -312,7 +326,7 @@ const ProfileTab = ({ onUserUpdate }) => {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 cursor-pointer"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Phone Number</label>
             <input
@@ -395,19 +409,19 @@ const ProfileTab = ({ onUserUpdate }) => {
         {isEditing && (
           <div className="flex justify-end pt-4 gap-4">
             <button
-                type="button"
-                onClick={toggleEdit}
-                disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              type="button"
+              onClick={toggleEdit}
+              disabled={saving}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
-                Cancel
+              Cancel
             </button>
             <button
-                type="submit"
-                disabled={saving || Object.values(nameErrors).some(e => e)}
-                className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${(saving || Object.values(nameErrors).some(e => e)) ? 'opacity-70 cursor-not-allowed' : ''}`}
+              type="submit"
+              disabled={saving || Object.values(nameErrors).some(e => e)}
+              className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${(saving || Object.values(nameErrors).some(e => e)) ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-                {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         )}

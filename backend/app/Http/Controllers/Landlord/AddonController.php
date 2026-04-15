@@ -85,7 +85,7 @@ class AddonController extends Controller
     public function store(Request $request, $propertyId)
     {
         try {
-            $this->resolveAddonPropertyContext($request, (int) $propertyId);
+            $this->resolveAddonPropertyContext($request, (int) $propertyId, 'can_manage_add_ons');
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
@@ -126,7 +126,7 @@ class AddonController extends Controller
     public function update(Request $request, $propertyId, $addonId)
     {
         try {
-            $this->resolveAddonPropertyContext($request, (int) $propertyId);
+            $this->resolveAddonPropertyContext($request, (int) $propertyId, 'can_manage_add_ons');
 
             $addon = Addon::where('id', $addonId)
                 ->where('property_id', $propertyId)
@@ -171,7 +171,7 @@ class AddonController extends Controller
     public function destroy(Request $request, $propertyId, $addonId)
     {
         try {
-            $this->resolveAddonPropertyContext($request, (int) $propertyId);
+            $this->resolveAddonPropertyContext($request, (int) $propertyId, 'can_manage_add_ons');
 
             $addon = Addon::where('id', $addonId)
                 ->where('property_id', $propertyId)
@@ -286,7 +286,7 @@ class AddonController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $this->ensureCaretakerCan($context, 'can_manage_add_ons');
 
             $validated = $request->validate([
                 'action' => 'required|in:approve,reject',
@@ -432,7 +432,7 @@ class AddonController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $this->ensureCaretakerCan($context, 'can_manage_add_ons');
 
             $validated = $request->validate([
                 'new_price' => 'required|numeric|min:0',

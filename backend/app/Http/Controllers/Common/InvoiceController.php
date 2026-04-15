@@ -578,26 +578,52 @@ class InvoiceController extends Controller
 
             $statusBefore = $invoice->status;
 
+            $invoiceType = strtolower((string) ($invoice->invoice_type ?? $invoice->type ?? ''));
+            if ($validated['method'] === 'gcash' && $invoiceType === 'reservation_fee') {
+                $manualGcashDisabled = \App\Support\SystemToggle::getBool('manual_gcash_reservation_disabled', false);
+                if ($manualGcashDisabled) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Manual GCash is currently disabled for reservation fees.',
+                    ], 422);
+                }
+            }
+
             $proofImagePath = null;
             if (isset($validated['proof_image'])) {
                 $proofImagePath = $validated['proof_image']->store('payment_proofs');
             }
 
-            $tx = PaymentTransaction::create([
-                'invoice_id' => $invoice->id,
-                'tenant_id' => $tenantId,
-                'amount_cents' => $validated['amount_cents'],
-                'currency' => $invoice->currency,
-                'status' => 'pending_offline',
-                'method' => $validated['method'],
-                'gateway_reference' => $validated['reference'] ?? null,
-                'gateway_response' => [
-                    'notes' => $validated['notes'] ?? null,
-                    'proof_image_path' => $proofImagePath,
-                    'proof_image_url' => $proofImagePath ? \Illuminate\Support\Facades\Storage::url($proofImagePath) : null,
-                ],
-            ]);
+$isGCash = $validated['method'] === 'gcash';
+        $txStatus = $isGCash ? 'success' : 'pending_offline';
 
+        $tx = PaymentTransaction::create([
+            'invoice_id' => $invoice->id,
+            'tenant_id' => $tenantId,
+            'amount_cents' => $validated['amount_cents'],
+            'currency' => $invoice->currency,
+            'status' => $txStatus,
+            'method' => $validated['method'],
+            'gateway_reference' => $validated['reference'] ?? null,
+            'gateway_response' => [
+                'notes' => $validated['notes'] ?? null,
+                'proof_image_path' => $proofImagePath,
+                'proof_image_url' => $proofImagePath ? \Illuminate\Support\Facades\Storage::url($proofImagePath) : null,
+            ],
+        ]);
+
+        if ($isGCash) {
+            $invoice->status = 'paid';
+            $invoice->save();
+            
+            $this->logInvoiceStatusTransition($invoice, $statusBefore, [
+                'payment_transaction_id' => $tx->id,
+                'summary' => 'Invoice automatically marked as paid via GCash.',
+            ]);
+            
+            $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, Auth::id());
+            $invoice->refresh();
+        } else {
             // Mark invoice as pending_verification so landlord can confirm
             $invoice->status = 'pending_verification';
             $invoice->save();
@@ -606,33 +632,50 @@ class InvoiceController extends Controller
                 'payment_transaction_id' => $tx->id,
                 'summary' => 'Invoice moved to pending verification after tenant manual submission.',
             ]);
+        }
 
-            $this->auditLogService->paymentEvent($hadPreviousDeniedSubmission ? 'payment.resubmitted' : 'payment.submitted', [
-                'subject_type' => 'invoice',
-                'subject_id' => $invoice->id,
-                'booking_id' => $invoice->booking_id,
-                'invoice_id' => $invoice->id,
-                'payment_transaction_id' => $tx->id,
-                'property_id' => $invoice->property_id,
-                'tenant_id' => $invoice->tenant_id,
-                'landlord_id' => $invoice->landlord_id,
-                'status_before' => $statusBefore,
-                'status_after' => $invoice->status,
-                'summary' => $hadPreviousDeniedSubmission
-                    ? 'Tenant re-submitted manual payment proof after a denial.'
-                    : 'Tenant submitted manual payment proof.',
-                'metadata' => [
-                    'amount_cents' => $validated['amount_cents'],
-                    'method' => $validated['method'],
-                    'reference' => $validated['reference'] ?? null,
-                    'proof_image_path' => $proofImagePath,
-                ],
-            ]);
+        $summaryLog = $isGCash
+            ? 'Tenant submitted manual GCash payment (auto-approved).'
+            : ($hadPreviousDeniedSubmission ? 'Tenant re-submitted manual payment proof after a denial.' : 'Tenant submitted manual payment proof.');
 
+        $this->auditLogService->paymentEvent($hadPreviousDeniedSubmission ? 'payment.resubmitted' : 'payment.submitted', [
+            'subject_type' => 'invoice',
+            'subject_id' => $invoice->id,
+            'booking_id' => $invoice->booking_id,
+            'invoice_id' => $invoice->id,
+            'payment_transaction_id' => $tx->id,
+            'property_id' => $invoice->property_id,
+            'tenant_id' => $invoice->tenant_id,
+            'landlord_id' => $invoice->landlord_id,
+            'status_before' => $statusBefore,
+            'status_after' => $invoice->status,
+            'summary' => $summaryLog,
+            'metadata' => [
+                'amount_cents' => $validated['amount_cents'],
+                'method' => $validated['method'],
+                'reference' => $validated['reference'] ?? null,
+                'proof_image_path' => $proofImagePath,
+            ],
+        ]);
+
+        if ($isGCash) {
+            if ($invoice->tenant) {
+                try {
+                    $invoice->tenant->notify(new \App\Notifications\InvoiceVerifiedNotification($invoice, 'approved'));
+                } catch (\Throwable $notifyError) {
+                    \Log::warning('gcash auto-verify notification failed', [
+                        'invoice_id' => $invoice->id,
+                        'error' => $notifyError->getMessage(),
+                    ]);
+                }
+            }
+            \App\Events\InvoiceUpdated::dispatch($invoice->loadMissing(['booking.property', 'tenant', 'transactions']));
+        } else {
             // Notify landlord about the cash payment awaiting verification
             $landlord = User::find($invoice->landlord_id);
             if ($landlord) {
-                $landlord->notify(new NewPaymentReceived(true));
+                $landlord->notify(new \App\Notifications\NewPaymentReceived(true));
+            }
             }
 
             DB::commit();

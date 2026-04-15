@@ -8,17 +8,18 @@ export default function SystemSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  
+
   const [tenantPaymentsDisabled, setTenantPaymentsDisabled] = useState(true);
   const [invoicePaymongoDisabled, setInvoicePaymongoDisabled] = useState(true);
   const [paymongoTestModeEnabled, setPaymongoTestModeEnabled] = useState(false);
   const [reservationFeeDisabled, setReservationFeeDisabled] = useState(true);
+  const [manualGcashReservationDisabled, setManualGcashReservationDisabled] = useState(false);
   const [mobileLatestVersion, setMobileLatestVersion] = useState('1.0.0');
   const [mobileDownloadUrl, setMobileDownloadUrl] = useState('https://accommotrack.me/downloads/AccommoTrack.apk');
   const [mobileForceUpdate, setMobileForceUpdate] = useState(true);
   const [systemForcedNow, setSystemForcedNow] = useState('');
   const [clearingCache, setClearingCache] = useState(false);
-  
+
   const [tempForcedNow, setTempForcedNow] = useState('');
   const [isSystemTimeForced, setIsSystemTimeForced] = useState(false);
 
@@ -65,6 +66,7 @@ export default function SystemSettings() {
     invoicePaymongoDisabled: true,
     paymongoTestModeEnabled: false,
     reservationFeeDisabled: true,
+    manualGcashReservationDisabled: false,
     mobileLatestVersion: '1.0.0',
     mobileDownloadUrl: 'https://accommotrack.me/downloads/AccommoTrack.apk',
     mobileForceUpdate: true,
@@ -84,6 +86,7 @@ export default function SystemSettings() {
         invoicePaymongoDisabled: Boolean(response.data?.invoicePaymongoDisabled),
         paymongoTestModeEnabled: Boolean(response.data?.paymongoTestModeEnabled),
         reservationFeeDisabled: Boolean(response.data?.reservationFeeDisabled),
+        manualGcashReservationDisabled: Boolean(response.data?.manualGcashReservationDisabled),
         mobileLatestVersion: response.data?.mobileLatestVersion || '1.0.0',
         mobileDownloadUrl: response.data?.mobileDownloadUrl || 'https://accommotrack.me/downloads/AccommoTrack.apk',
         mobileForceUpdate: Boolean(response.data?.mobileForceUpdate),
@@ -94,6 +97,7 @@ export default function SystemSettings() {
       setInvoicePaymongoDisabled(nextSettings.invoicePaymongoDisabled);
       setPaymongoTestModeEnabled(nextSettings.paymongoTestModeEnabled);
       setReservationFeeDisabled(nextSettings.reservationFeeDisabled);
+      setManualGcashReservationDisabled(nextSettings.manualGcashReservationDisabled);
       setMobileLatestVersion(nextSettings.mobileLatestVersion);
       setMobileDownloadUrl(nextSettings.mobileDownloadUrl);
       setMobileForceUpdate(nextSettings.mobileForceUpdate);
@@ -121,6 +125,7 @@ export default function SystemSettings() {
         invoicePaymongoDisabled,
         paymongoTestModeEnabled,
         reservationFeeDisabled,
+        manualGcashReservationDisabled,
         mobileLatestVersion,
         mobileDownloadUrl,
         mobileForceUpdate,
@@ -136,6 +141,7 @@ export default function SystemSettings() {
         invoicePaymongoDisabled,
         paymongoTestModeEnabled,
         reservationFeeDisabled,
+        manualGcashReservationDisabled,
         mobileLatestVersion,
         mobileDownloadUrl,
         mobileForceUpdate,
@@ -173,6 +179,7 @@ export default function SystemSettings() {
     setInvoicePaymongoDisabled(initialSettings.invoicePaymongoDisabled);
     setPaymongoTestModeEnabled(initialSettings.paymongoTestModeEnabled);
     setReservationFeeDisabled(initialSettings.reservationFeeDisabled);
+    setManualGcashReservationDisabled(initialSettings.manualGcashReservationDisabled);
     setMobileLatestVersion(initialSettings.mobileLatestVersion);
     setMobileDownloadUrl(initialSettings.mobileDownloadUrl);
     setMobileForceUpdate(initialSettings.mobileForceUpdate);
@@ -225,7 +232,7 @@ export default function SystemSettings() {
                 <Wallet className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Financial Controls</h2>
               </div>
-              
+
               <div className="space-y-4">
                 {/* Toggle Item */}
                 <div className={`p-5 rounded-xl border transition-all duration-200 ${tenantPaymentsDisabled ? 'bg-orange-50/50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-800' : 'bg-gray-50/50 border-gray-100 dark:bg-gray-800/30 dark:border-gray-700/50'}`}>
@@ -241,9 +248,8 @@ export default function SystemSettings() {
                       role="switch"
                       disabled={!isEditing || saving}
                       onClick={() => setTenantPaymentsDisabled(!tenantPaymentsDisabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
-                        !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
-                      } ${tenantPaymentsDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${!isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${tenantPaymentsDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                     >
                       <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tenantPaymentsDisabled ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
@@ -263,9 +269,8 @@ export default function SystemSettings() {
                       role="switch"
                       disabled={!isEditing || saving}
                       onClick={() => setInvoicePaymongoDisabled(!invoicePaymongoDisabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
-                        !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
-                      } ${invoicePaymongoDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${!isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${invoicePaymongoDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                     >
                       <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${invoicePaymongoDisabled ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
@@ -290,15 +295,41 @@ export default function SystemSettings() {
                       role="switch"
                       disabled={!isEditing || saving}
                       onClick={() => setPaymongoTestModeEnabled(!paymongoTestModeEnabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
-                        !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
-                      } ${paymongoTestModeEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${!isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${paymongoTestModeEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
                     >
                       <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${paymongoTestModeEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
                   </label>
                 </div>
-                
+
+                {/* Toggle Item */}
+                <div className={`p-5 rounded-xl border transition-all duration-200 ${manualGcashReservationDisabled ? 'bg-red-50/50 border-red-200 dark:bg-red-900/10 dark:border-red-800' : 'bg-gray-50/50 border-gray-100 dark:bg-gray-800/30 dark:border-gray-700/50'}`}>
+                  <label className="flex items-start justify-between gap-6 cursor-pointer">
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        Disable Manual GCash for Reservations
+                        {manualGcashReservationDisabled && (
+                          <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 text-xs font-bold border border-red-200 dark:border-red-800">DISABLED</span>
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
+                        If enabled, tenants can only use PayMongo strictly for reservation fees. If disabled, tenants can upload a GCash receipt for instant reservation approval bypass logic based on landlord rules.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      disabled={!isEditing || saving || tenantPaymentsDisabled}
+                      onClick={() => setManualGcashReservationDisabled(!manualGcashReservationDisabled)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${!isEditing || saving || tenantPaymentsDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${manualGcashReservationDisabled ? 'bg-red-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${manualGcashReservationDisabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </label>
+                </div>
+
                 {/* Toggle Item */}
                 <div className={`p-5 rounded-xl border transition-all duration-200 ${reservationFeeDisabled ? 'bg-orange-50/50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-800' : 'bg-gray-50/50 border-gray-100 dark:bg-gray-800/30 dark:border-gray-700/50'}`}>
                   <label className="flex items-start justify-between gap-6 cursor-pointer">
@@ -316,9 +347,8 @@ export default function SystemSettings() {
                       role="switch"
                       disabled={!isEditing || saving}
                       onClick={() => setReservationFeeDisabled(!reservationFeeDisabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
-                        !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
-                      } ${reservationFeeDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${!isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${reservationFeeDisabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                     >
                       <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${reservationFeeDisabled ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
@@ -333,7 +363,7 @@ export default function SystemSettings() {
                 <Smartphone className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Mobile App Management</h2>
               </div>
-              
+
               <div className="space-y-6 bg-brand-50/30 dark:bg-transparent dark:border dark:border-gray-800 rounded-xl p-5 md:p-6">
                 <label className="flex items-start justify-between gap-6 cursor-pointer">
                   <div className="flex-1">
@@ -347,9 +377,8 @@ export default function SystemSettings() {
                     role="switch"
                     disabled={!isEditing || saving}
                     onClick={() => setMobileForceUpdate(!mobileForceUpdate)}
-                    className={`relative mt-1 inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
-                      !isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
-                    } ${mobileForceUpdate ? 'bg-brand-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                    className={`relative mt-1 inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${!isEditing || saving ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${mobileForceUpdate ? 'bg-brand-600' : 'bg-gray-200 dark:bg-gray-700'}`}
                   >
                     <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${mobileForceUpdate ? 'translate-x-5' : 'translate-x-0'}`} />
                   </button>
@@ -403,7 +432,7 @@ export default function SystemSettings() {
                       <span className="text-[10px] text-brand-600/70 dark:text-brand-400/70 font-semibold tracking-wider uppercase text-center w-16">Patch</span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      Must follow semantic versioning. 
+                      Must follow semantic versioning.
                     </p>
                   </div>
 
@@ -433,7 +462,7 @@ export default function SystemSettings() {
                 <CalendarDays className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">System Time Override</h2>
               </div>
-              
+
               <div className={`p-6 rounded-xl border transition-all duration-200 ${isSystemTimeForced ? 'bg-amber-50/50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' : 'bg-gray-50/50 border-gray-100 dark:bg-gray-800/30 dark:border-gray-700/50'}`}>
                 <div className="space-y-4">
                   <div>
@@ -444,7 +473,7 @@ export default function SystemSettings() {
                       )}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
-                      Force the entire platform to behave as if it's a specific date/time. Useful for testing automated billing, due dates, and expirations. 
+                      Force the entire platform to behave as if it's a specific date/time. Useful for testing automated billing, due dates, and expirations.
                       <span className="block mt-2 font-medium text-amber-600 dark:text-amber-400">⚠️ CAUTION: This affects all users and operations.</span>
                     </p>
                   </div>
@@ -477,7 +506,7 @@ export default function SystemSettings() {
                       </button>
                     </div>
                   </div>
-                  
+
                   {isSystemTimeForced && (
                     <div className="pt-2">
                       <p className="text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100/50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800">

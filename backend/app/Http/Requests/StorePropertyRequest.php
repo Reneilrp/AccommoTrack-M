@@ -71,6 +71,9 @@ class StorePropertyRequest extends FormRequest
             'require_1month_advance' => 'sometimes|boolean',
             // Fix #1: allow_partial_payments was silently dropped before
             'allow_partial_payments' => 'sometimes|boolean',
+            'normal_booking_limit' => 'sometimes|integer|min:1|max:4',
+            'proxy_booking_limit' => 'sometimes|integer|min:1|max:4',
+            'min_partial_payment_pct' => 'sometimes|integer|min:1|max:100',
             'require_reservation_fee' => 'sometimes|boolean',
             'reservation_fee_amount' => 'nullable|numeric|min:0',
             'reservation_fee_gap_days' => 'nullable|integer|min:0|max:365',

@@ -319,14 +319,18 @@ export default function CareTakerAccess({
 
       // Map to backend keys
       const mappedPermissions = {
-        can_view_bookings: !!editFormData.permissions.bookings,
-        can_view_messages: !!editFormData.permissions.messages,
-        can_view_tenants: !!editFormData.permissions.tenants,
-        can_view_rooms: !!editFormData.permissions.rooms,
-        can_view_properties: !!editFormData.permissions.properties,
+        can_view_bookings:      !!editFormData.permissions.bookings,
+        can_approve_bookings:   !!editFormData.permissions.approve_bookings,
+        can_cancel_bookings:    !!editFormData.permissions.cancel_bookings,
+        can_manage_add_ons:     !!editFormData.permissions.manage_add_ons,
+        can_view_messages:      !!editFormData.permissions.messages,
+        can_view_tenants:       !!editFormData.permissions.tenants,
+        can_view_rooms:         !!editFormData.permissions.rooms,
+        can_view_properties:    !!editFormData.permissions.properties,
         can_manage_maintenance: !!editFormData.permissions.maintenance,
-        can_manage_payments: !!editFormData.permissions.payments,
-        can_view_analytics: !!editFormData.permissions.analytics,
+        can_manage_payments:    !!editFormData.permissions.payments,
+        can_view_analytics:     !!editFormData.permissions.analytics,
+        can_view_audit_logs:    !!editFormData.permissions.view_audit_logs,
       };
 
       const updateData = {

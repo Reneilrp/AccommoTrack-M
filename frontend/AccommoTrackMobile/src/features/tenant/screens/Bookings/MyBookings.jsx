@@ -2134,7 +2134,7 @@ export default function MyBookings() {
                   <Text style={{ color: theme.isDark ? '#fb923c' : '#EA580C', fontWeight: '700', fontSize: 13 }}>Receipt Verification Pending</Text>
                 </View>
                 <Text style={{ color: theme.isDark ? '#fdba74' : '#7C2D12', fontSize: 12, lineHeight: 18 }}>
-                  Your GCash receipt was submitted. The landlord will verify your payment and confirm your reservation shortly.
+                  Your GCash receipt was auto-approved securely. The landlord will confirm your reservation shortly.
                 </Text>
                 {(currentData?.move_in_date || currentData?.start_date) && (
                   <Text style={{ color: theme.isDark ? '#fb923c' : '#9A3412', fontSize: 12, fontWeight: '600', marginTop: 6 }}>

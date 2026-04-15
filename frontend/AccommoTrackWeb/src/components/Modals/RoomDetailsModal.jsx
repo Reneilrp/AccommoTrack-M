@@ -16,6 +16,7 @@ import api from "../../utils/api";
 import ImagePlaceholder from "../Shared/ImagePlaceholder";
 import ImageCarousel from "../Shared/ImageCarousel";
 import bookingServiceDefault from "../../services/bookingService";
+import { useCart } from "../../contexts/CartContext.jsx";
 import systemToggleService from "../../services/systemToggleService";
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
@@ -32,7 +33,9 @@ export default function RoomDetailsModal({
 }) {
   const PROXY_MINIMUM_AGE = 18;
   const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
+  const [isCartMode, setIsCartMode] = useState(false);
   const [bedCount, setBedCount] = useState(1);
   const [startDate, setStartDate] = useState(
     new Date().toISOString().split("T")[0],
@@ -403,17 +406,8 @@ export default function RoomDetailsModal({
     }
 
     setProxyOccupants((prev) => {
-      const base = prev.length > 0 ? prev : [createEmptyOccupant(requiredProxyGender)];
-      const limited = base.slice(0, occupantLimit);
-
-      if (!requiredProxyGender) {
-        return limited;
-      }
-
-      return limited.map((occupant) => ({
-        ...occupant,
-        sex: requiredProxyGender,
-      }));
+      const base = prev.length > 0 ? prev : [createEmptyOccupant("")];
+      return base.slice(0, occupantLimit);
     });
   }, [bookingMode, occupantLimit, requiredProxyGender]);
 
@@ -483,7 +477,7 @@ export default function RoomDetailsModal({
   const handleAddProxyOccupant = () => {
     setProxyOccupants((prev) => {
       if (prev.length >= occupantLimit) return prev;
-      return [...prev, createEmptyOccupant(requiredProxyGender)];
+      return [...prev, createEmptyOccupant("")];
     });
   };
 
@@ -497,7 +491,7 @@ export default function RoomDetailsModal({
   const handleProxyOccupantChange = (index, field, value) => {
     let nextValue = value;
     if (field === "sex") {
-      nextValue = requiredProxyGender || normalizeProxyOccupantGender(value);
+      nextValue = normalizeProxyOccupantGender(value);
     }
 
     setProxyOccupants((prev) =>
@@ -677,6 +671,34 @@ export default function RoomDetailsModal({
 
       if (bookingMode === "proxy") {
         payload.occupants = normalizedOccupants;
+      }
+
+      if (isCartMode) {
+        if (payload.occupants) {
+          payload.occupants = payload.occupants.map((o) => {
+            const parts = o.full_name.split(" ");
+            return {
+              ...o,
+              first_name: parts[0] || "Unknown",
+              last_name: parts.slice(1).join(" ") || "Unknown",
+              bed_number: null,
+            };
+          });
+        }
+
+        try {
+          const result = await addToCart(payload);
+          if (result && result.success) {
+            toast.success("Room added to cart successfully!");
+            onClose();
+          } else {
+            toast.error(result?.error || "Failed to add room to cart.");
+          }
+        } catch (error) {
+          toast.error("Failed to add room to cart.");
+        }
+        setIsSubmitting(false);
+        return;
       }
 
       const svc = bookingService || bookingServiceDefault;
@@ -1038,19 +1060,29 @@ export default function RoomDetailsModal({
                 </p>
               </div>
               {isAuthenticated ? (
-                <button
-                  onClick={() => setViewMode("booking")}
-                  disabled={!canBook}
-                  className={`px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
-                            ${canBook
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-gray-400 cursor-not-allowed"
-                    }`}
-                >
-                  {canBook
-                    ? "Book This Room"
-                    : "Not Available"}
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  {canBook && (
+                    <button
+                      onClick={() => { setIsCartMode(true); setViewMode("booking"); }}
+                      className="px-6 py-4 border-2 border-green-600 dark:border-green-500 text-green-700 dark:text-green-400 font-bold rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition-all"
+                    >
+                      Add to Cart
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setIsCartMode(false); setViewMode("booking"); }}
+                    disabled={!canBook}
+                    className={`px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
+                              ${canBook
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "bg-gray-400 cursor-not-allowed"
+                      }`}
+                  >
+                    {canBook
+                      ? "Book This Room"
+                      : "Not Available"}
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={onLoginRequired}
@@ -1076,7 +1108,7 @@ export default function RoomDetailsModal({
                   <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" />
                 </button>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Book This Room
+                  {isCartMode ? 'Add to Cart' : 'Book This Room'}
                 </h2>
               </div>
               <button
@@ -1293,8 +1325,8 @@ export default function RoomDetailsModal({
                       {isReservationFeeConfigured && (
                         <p
                           className={`text-xs mt-1 ${isReservationFeeRequired
-                              ? "text-amber-700 dark:text-amber-400"
-                              : "text-green-700 dark:text-green-400"
+                            ? "text-amber-700 dark:text-amber-400"
+                            : "text-green-700 dark:text-green-400"
                             }`}
                         >
                           {isReservationFeeRequired
@@ -1691,9 +1723,11 @@ export default function RoomDetailsModal({
                       >
                         {isSubmitting
                           ? "Processing..."
-                          : (isReservationFeeRequired
-                            ? `Pay ₱${reservationFeeAmount.toLocaleString()} to Reserve`
-                            : "Confirm Booking Request")}
+                          : isCartMode
+                            ? "Add to Cart"
+                            : (isReservationFeeRequired
+                              ? `Pay ₱${reservationFeeAmount.toLocaleString()} to Reserve`
+                              : "Confirm Booking Request")}
                       </button>
                     ) : (
                       <button

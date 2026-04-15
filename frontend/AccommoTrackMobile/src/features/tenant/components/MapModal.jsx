@@ -162,10 +162,10 @@ export default function MapModal({ visible, onClose, properties = [], userRole =
         style={{ flex: 1 }}
         onMessage={(event) => {
           // Always log messages from the WebView so you can debug in Metro/console
-          try { console.log('MapModal onMessage:', event.nativeEvent.data); } catch(e){}
+          try { console.log('MapModal onMessage:', event.nativeEvent.data); } catch (e) { }
           try {
             const data = JSON.parse(event.nativeEvent.data);
-            if(onSelectProperty && data){
+            if (onSelectProperty && data) {
               onSelectProperty(data);
             }
           } catch (err) {

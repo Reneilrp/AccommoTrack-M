@@ -498,6 +498,38 @@ export default function DormProfileSettings({ route, navigation }) {
   };
 
   const handleSave = async () => {
+    // Perform strict GCash validations before saving
+    const hasGcashName = Boolean((form.gcashName || "").trim());
+    const hasGcashNumber = Boolean((form.gcashNumber || "").trim());
+
+    if (hasGcashName || hasGcashNumber) {
+      if (!hasGcashName || !hasGcashNumber) {
+        Alert.alert("Validation Error", "Both GCash Name and GCash Number are required if you want to provide manual GCash payment.");
+        return;
+      }
+
+      // Check strictly 11 digits starting with 09
+      const gcashRegex = /^09\d{9}$/;
+      if (!gcashRegex.test(form.gcashNumber)) {
+        Alert.alert("Validation Error", "GCash Number must be exactly 11 digits starting with 09.");
+        return;
+      }
+      
+      // Request final verification
+      const confirmPromise = new Promise((resolve) => {
+        Alert.alert(
+          "Double Check Details",
+          "Please double check your GCash Name and Number.\nIncorrect details will result in lost payments. Proceed with save?",
+          [
+            { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+            { text: "Proceed", onPress: () => resolve(true) }
+          ]
+        );
+      });
+      const confirmGcash = await confirmPromise;
+      if (!confirmGcash) return;
+    }
+
     try {
       setSaving(true);
       const payload = new FormData();

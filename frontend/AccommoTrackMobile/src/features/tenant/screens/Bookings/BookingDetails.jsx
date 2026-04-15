@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    Image, 
-    ActivityIndicator, 
-    ScrollView, 
-    TouchableOpacity, 
-    Alert, 
+import {
+    View,
+    Text,
+    Image,
+    ActivityIndicator,
+    ScrollView,
+    TouchableOpacity,
+    Alert,
     RefreshControl,
     StatusBar,
     useWindowDimensions,
@@ -164,7 +164,7 @@ export default function BookingDetails() {
     // Data parsing
     const property = booking.property || {};
     const landlord = booking.landlord || {};
-    
+
     let imageUri = { uri: 'https://via.placeholder.com/800x400?text=No+Image' };
     if (property.images && property.images.length > 0) {
         const primary = property.images.find(i => i.is_primary) || property.images[0];
@@ -175,7 +175,7 @@ export default function BookingDetails() {
     }
 
     const location = [property.city, property.province].filter(Boolean).join(', ') || 'Location not available';
-    
+
     const checkIn = booking.checkIn ? new Date(booking.checkIn).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
     const checkOut = booking.checkOut ? new Date(booking.checkOut).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
 
@@ -209,8 +209,8 @@ export default function BookingDetails() {
 
         showAlert('Cancel Add-on', 'Are you sure you want to cancel this add-on request?', [
             { text: 'No', style: 'cancel' },
-            { 
-                text: 'Yes, Cancel', 
+            {
+                text: 'Yes, Cancel',
                 style: 'destructive',
                 onPress: async () => {
                     setCancelingAddonId(reqId);
@@ -235,8 +235,8 @@ export default function BookingDetails() {
     const handleCancelBooking = () => {
         showAlert('Cancel Booking', 'Are you sure you want to cancel this booking? This action might be subject to terms and conditions.', [
             { text: 'No', style: 'cancel' },
-            { 
-                text: 'Confirm Cancellation', 
+            {
+                text: 'Confirm Cancellation',
                 style: 'destructive',
                 onPress: async () => {
                     setIsCanceling(true);
@@ -261,14 +261,14 @@ export default function BookingDetails() {
     return (
         <View style={styles.fullFlex}>
             <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
-            
-            <Header 
+
+            <Header
                 title={booking?.property?.title || "Booking Details"}
                 onBack={() => navigation.goBack()}
                 onProfilePress={() => navigation.navigate('Profile')}
             />
 
-            <ScrollView 
+            <ScrollView
                 style={styles.fullFlex}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 16 }}
@@ -291,7 +291,7 @@ export default function BookingDetails() {
                 </View>
 
                 <View style={styles.content}>
-                    
+
                     {/* Reference Card */}
                     <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
                         <View style={styles.refRow}>
@@ -382,8 +382,8 @@ export default function BookingDetails() {
                                 </View>
                                 <Text style={{ fontSize: 13, color: booking.status === 'reserved' ? '#134E4A' : '#7C2D12', lineHeight: 20 }}>
                                     {booking.status === 'reserved'
-                                        ? `Your GCash payment was verified. The landlord will ${isDailyContract ? 'check you in on your check-in date' : 'check you in on your move-in date'}.`
-                                        : 'Your GCash receipt was submitted and is being reviewed. You will be notified once confirmed.'}
+                                        ? `Your GCash payment was auto-approved securely. The landlord will ${isDailyContract ? 'check you in on your check-in date' : 'check you in on your move-in date'}.`
+                                        : 'Your GCash receipt was auto-approved securely and confirmed.'}
                                 </Text>
                                 {booking.reference_number && (
                                     <View style={{ marginTop: 10, backgroundColor: booking.status === 'reserved' ? '#CCFBF1' : '#FFEDD5', borderRadius: 8, padding: 8 }}>
@@ -449,7 +449,7 @@ export default function BookingDetails() {
                                 const addonStatus = (addon.pivot?.status || addon.status || 'pending').toLowerCase();
                                 const canCancel = !addon.pivot?.cancellation_effective_at && (addonStatus === 'pending' || addonStatus === 'active' || addonStatus === 'approved');
                                 const hasCancellationScheduled = Boolean(addon.pivot?.cancellation_effective_at);
-                                
+
                                 return (
                                     <View key={addon.id || idx} style={[styles.itemCard, { backgroundColor: theme.colors.surface }]}>
                                         <View style={styles.itemHeader}>
@@ -459,7 +459,7 @@ export default function BookingDetails() {
                                             </View>
                                         </View>
                                         <Text style={[styles.itemSub, { color: theme.colors.textSecondary }]}>Quantity: {addon.pivot?.quantity || 1}</Text>
-                                        
+
                                         {hasCancellationScheduled && (
                                             <View style={{ marginTop: 8, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: '#FEE2E2', borderRadius: 6 }}>
                                                 <Text style={{ fontSize: 10, fontWeight: '700', color: '#B91C1C', textTransform: 'uppercase' }}>
@@ -467,15 +467,15 @@ export default function BookingDetails() {
                                                 </Text>
                                             </View>
                                         )}
-                                        
+
                                         {canCancel && (
-                                            <TouchableOpacity 
+                                            <TouchableOpacity
                                                 onPress={() => handleCancelAddon(addon)}
                                                 disabled={cancelingAddonId === (addon.pivot?.id || addon.id)}
                                                 style={styles.itemAction}
                                             >
-                                                {cancelingAddonId === (addon.pivot?.id || addon.id) ? 
-                                                    <ActivityIndicator size="small" color="#EF4444" /> : 
+                                                {cancelingAddonId === (addon.pivot?.id || addon.id) ?
+                                                    <ActivityIndicator size="small" color="#EF4444" /> :
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                                         <Ionicons name="close-circle" size={16} color="#EF4444" />
                                                         <Text style={styles.cancelText}>
@@ -506,7 +506,7 @@ export default function BookingDetails() {
                                             </View>
                                         </View>
                                         <Text style={[styles.itemSub, { color: theme.colors.textSecondary }]} numberOfLines={1}>{req.description}</Text>
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             onPress={() => navigation.navigate('MyMaintenanceRequests')}
                                             style={styles.itemAction}
                                         >

@@ -16,6 +16,7 @@ import ErrorBoundary from "./components/Shared/ErrorBoundary";
 import { getDefaultLandingRoute } from "./utils/userRoutes";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { UIStateProvider } from "./contexts/UIStateContext";
+import { CartProvider } from "./contexts/CartContext";
 import { cacheManager } from "./utils/cache";
 
 function App() {
@@ -223,11 +224,21 @@ function App() {
             <Route
               path="/*"
               element={
-                <WebNavigator
-                  user={user}
-                  onLogout={handleLogout}
-                  onUserUpdate={handleUserUpdate}
-                />
+                user?.role === 'tenant' ? (
+                  <CartProvider>
+                    <WebNavigator
+                      user={user}
+                      onLogout={handleLogout}
+                      onUserUpdate={handleUserUpdate}
+                    />
+                  </CartProvider>
+                ) : (
+                  <WebNavigator
+                    user={user}
+                    onLogout={handleLogout}
+                    onUserUpdate={handleUserUpdate}
+                  />
+                )
               }
             />
           </Routes>
