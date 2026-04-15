@@ -22,7 +22,7 @@ class ConversationResource extends JsonResource
                 'first_name' => $otherUser->first_name,
                 'last_name' => $otherUser->last_name,
                 'role' => $otherUser->role,
-                'gender' => $otherUser->gender,
+                'sex' => $otherUser->sex,
                 'identified_as' => $otherUser->identified_as,
                 'date_of_birth' => optional($otherUser->date_of_birth)->toDateString(),
                 'preferences' => $otherUser->preferences,

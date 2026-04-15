@@ -133,9 +133,9 @@ class BookingService
                 throw new \DomainException('Room is temporarily locked for new bookings due to a pending eviction process.');
             }
 
-            $roomRestriction = $this->normalizeRoomRestriction((string) ($room->gender_restriction ?? 'mixed'));
+            $roomRestriction = $this->normalizeRoomRestriction((string) ($room->sex_restriction ?? 'mixed'));
 
-            // Check Gender Compatibility
+            // Check Sex Compatibility
             $tenant = $tenantId ? User::find($tenantId) : null;
             if ($tenant && $tenant->role === 'tenant') {
                 $property = $room->property;
@@ -145,13 +145,13 @@ class BookingService
 
                 // Only enforce for specific property types
                 if ($propertyType !== 'apartment' && in_array($propertyType, $targetTypes)) {
-                    $tenantGender = $this->normalizeGender($tenant->gender);
+                    $tenantSex = $this->normalizeGender($tenant->sex);
 
                     if ($roomRestriction !== 'mixed') {
-                        if (! $tenantGender) {
-                            throw new \DomainException('Please complete your profile gender (male/female) before booking this room type.');
+                        if (! $tenantSex) {
+                            throw new \DomainException('Please complete your profile sex (male/female) before booking this room type.');
                         }
-                        if ($roomRestriction !== $tenantGender) {
+                        if ($roomRestriction !== $tenantSex) {
                             throw new \DomainException("Sorry, this room is only for specifically {$roomRestriction} only");
                         }
                     }
@@ -160,10 +160,10 @@ class BookingService
 
             if ($bookingMode === 'proxy' && $roomRestriction !== 'mixed') {
                 foreach ($occupantsPayload as $index => $occupant) {
-                    $occupantGender = $this->normalizeGender((string) ($occupant['gender'] ?? ''));
+                    $occupantSex = $this->normalizeGender((string) ($occupant['sex'] ?? ''));
 
-                    if ($occupantGender !== $roomRestriction) {
-                        throw new \DomainException('Occupant '.($index + 1).' gender must match the room restriction ('.$roomRestriction.').');
+                    if ($occupantSex !== $roomRestriction) {
+                        throw new \DomainException('Occupant '.($index + 1).' sex must match the room restriction ('.$roomRestriction.').');
                     }
                 }
             }
@@ -449,7 +449,7 @@ class BookingService
                 return [
                     'full_name' => trim((string) ($occupant['full_name'] ?? '')),
                     'date_of_birth' => $occupant['date_of_birth'] ?? null,
-                    'gender' => isset($occupant['gender']) ? strtolower((string) $occupant['gender']) : null,
+                    'sex' => isset($occupant['sex']) ? strtolower((string) $occupant['sex']) : null,
                     'relationship_to_booker' => $occupant['relationship_to_booker'] ?? null,
                     'phone' => $occupant['phone'] ?? null,
                     'email' => $occupant['email'] ?? null,
@@ -1171,13 +1171,13 @@ class BookingService
         ];
     }
 
-    protected function normalizeGender(?string $gender): ?string
+    protected function normalizeGender(?string $sex): ?string
     {
-        if (! $gender) {
+        if (! $sex) {
             return null;
         }
 
-        $normalized = strtolower(trim($gender));
+        $normalized = strtolower(trim($sex));
 
         return match ($normalized) {
             'male', 'boy', 'boys' => 'male',

@@ -43,16 +43,16 @@ class RoomService
                 ? Room::sanitizeDurationPricing($validatedData['duration_pricing'])
                 : [];
 
-            $propertyGender = strtolower($property->gender_restriction ?? 'mixed');
-            $defaultGender = in_array($propertyGender, ['male', 'female', 'boys', 'girls'])
-                ? (in_array($propertyGender, ['male', 'boys']) ? 'male' : 'female')
+            $propertySex = strtolower($property->sex_restriction ?? 'mixed');
+            $defaultSex = in_array($propertySex, ['male', 'female', 'boys', 'girls'])
+                ? (in_array($propertySex, ['male', 'boys']) ? 'male' : 'female')
                 : 'mixed';
 
             $room = Room::create([
                 'property_id' => $property->id,
                 'room_number' => $validatedData['room_number'],
                 'room_type' => $validatedData['room_type'],
-                'gender_restriction' => $validatedData['gender_restriction'] ?? $defaultGender,
+                'sex_restriction' => $validatedData['sex_restriction'] ?? $defaultSex,
                 'floor' => $validatedData['floor'],
                 'monthly_rate' => $validatedData['monthly_rate'] ?? null,
                 'daily_rate' => $validatedData['daily_rate'] ?? null,

@@ -272,7 +272,7 @@ class TenantController extends Controller
             'full_name' => $tenant->first_name.' '.$tenant->last_name,
             'email' => $tenant->email,
             'phone' => $tenant->phone,
-            'gender' => $tenant->gender,
+            'sex' => $tenant->sex,
             'date_of_birth' => $tenant->date_of_birth,
             'room' => $room ? ['room_number' => $room->room_number, 'property_name' => $room->property->title] : null,
             'tenantProfile' => $tenant->tenantProfile,
@@ -305,7 +305,7 @@ class TenantController extends Controller
             'phone' => 'nullable|string|max:20',
             'password' => 'required|string|min:8',
             'date_of_birth' => 'nullable|date',
-            'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
+            'sex' => ['nullable', Rule::in(['male', 'female'])],
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:20',
             'emergency_contact_relationship' => 'nullable|string|max:100',
@@ -317,8 +317,8 @@ class TenantController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        if (array_key_exists('gender', $validated)) {
-            $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
+        if (array_key_exists('sex', $validated)) {
+            $validated['sex'] = $this->normalizeGenderForStorage($validated['sex']);
         }
 
         $room = null;
@@ -361,7 +361,7 @@ class TenantController extends Controller
                 'password' => bcrypt($validated['password']),
                 'role' => 'tenant',
                 'date_of_birth' => $validated['date_of_birth'] ?? null,
-                'gender' => $validated['gender'] ?? null,
+                'sex' => $validated['sex'] ?? null,
             ]);
 
             $user->tenantProfile()->create([
@@ -424,7 +424,7 @@ class TenantController extends Controller
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'phone' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
-            'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
+            'sex' => ['nullable', Rule::in(['male', 'female'])],
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:20',
             'emergency_contact_relationship' => 'nullable|string|max:100',
@@ -432,11 +432,11 @@ class TenantController extends Controller
             'preference' => 'nullable|string',
         ]);
 
-        if (array_key_exists('gender', $validated)) {
-            $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
+        if (array_key_exists('sex', $validated)) {
+            $validated['sex'] = $this->normalizeGenderForStorage($validated['sex']);
         }
 
-        $userFields = array_intersect_key($validated, array_flip(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'date_of_birth', 'gender']));
+        $userFields = array_intersect_key($validated, array_flip(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'date_of_birth', 'sex']));
         if (! empty($userFields)) {
             $user->update($userFields);
         }
@@ -1564,18 +1564,18 @@ class TenantController extends Controller
         ];
     }
 
-    private function normalizeGenderForStorage(?string $gender): ?string
+    private function normalizeGenderForStorage(?string $sex): ?string
     {
-        if ($gender === null) {
+        if ($sex === null) {
             return null;
         }
 
-        $normalized = strtolower(trim($gender));
+        $normalized = strtolower(trim($sex));
 
         return match ($normalized) {
             'male' => 'male',
             'female' => 'female',
-            'rather_not_say', 'prefer_not_to_say', 'other' => 'rather_not_say',
+            
             default => null,
         };
     }

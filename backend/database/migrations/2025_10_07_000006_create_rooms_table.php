@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
             $table->string('room_number', 50);
             $table->enum('room_type', ['single', 'double', 'quad', 'bedSpacer']);
-            $table->enum('gender_restriction', ['male', 'female', 'mixed'])->default('mixed');
+            $table->enum('sex_restriction', ['male', 'female', 'mixed'])->default('mixed');
             $table->integer('floor');
             $table->decimal('monthly_rate', 10, 2)->nullable();
             $table->decimal('daily_rate', 10, 2)->nullable();

@@ -35,7 +35,7 @@ class AuthService
             'role' => $data['role'],
             'phone' => $data['phone'] ?? null,
             'date_of_birth' => $data['date_of_birth'] ?? null,
-            'gender' => $this->normalizeGenderForStorage($data['gender'] ?? null),
+            'sex' => $this->normalizeGenderForStorage($data['sex'] ?? null),
             'is_verified' => false, // User is not verified until OTP is confirmed
             'is_active' => true,
             'email_otp_code' => Hash::make($otp),
@@ -136,18 +136,18 @@ class AuthService
         return $user;
     }
 
-    private function normalizeGenderForStorage(?string $gender): ?string
+    private function normalizeGenderForStorage(?string $sex): ?string
     {
-        if ($gender === null) {
+        if ($sex === null) {
             return null;
         }
 
-        $normalized = strtolower(trim($gender));
+        $normalized = strtolower(trim($sex));
 
         return match ($normalized) {
             'male' => 'male',
             'female' => 'female',
-            'rather_not_say', 'prefer_not_to_say', 'other' => 'rather_not_say',
+            
             default => null,
         };
     }

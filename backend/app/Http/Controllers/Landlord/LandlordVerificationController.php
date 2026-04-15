@@ -377,7 +377,7 @@ class LandlordVerificationController extends Controller
             $permitPath = $request->file('permit')->store('landlord_permits');
 
             $validIdType = $request->valid_id_type;
-            $validIdOther = in_array(strtolower((string) $validIdType), ['other'], true)
+            $validIdOther = in_array(strtolower((string) $validIdType), [], true)
                 ? $request->valid_id_other
                 : null;
 

@@ -45,7 +45,7 @@ class UpdatePropertyRequest extends FormRequest
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
             'property_type' => 'sometimes|required|string|max:255',
-            'gender_restriction' => [
+            'sex_restriction' => [
                 'nullable',
                 'in:boys,girls,mixed,male,female',
                 function ($attribute, $value, $fail) {
@@ -66,18 +66,18 @@ class UpdatePropertyRequest extends FormRequest
                         return;
                     }
 
-                    // If switching to male/female, check if there are rooms of the opposite gender
+                    // If switching to male/female, check if there are rooms of the opposite sex
                     $property = \App\Models\Property::find($propertyId);
                     if (! $property) {
                         return;
                     }
 
                     $roomConflicts = \App\Models\Room::where('property_id', $propertyId)
-                        ->where('gender_restriction', '!=', $newRestriction)
+                        ->where('sex_restriction', '!=', $newRestriction)
                         ->count();
 
                     if ($roomConflicts > 0) {
-                        $fail("Cannot change property to {$value} only because it contains {$roomConflicts} room(s) restricted to the opposite gender. Please update or remove those rooms first.");
+                        $fail("Cannot change property to {$value} only because it contains {$roomConflicts} room(s) restricted to the opposite sex. Please update or remove those rooms first.");
                     }
                 },
             ],

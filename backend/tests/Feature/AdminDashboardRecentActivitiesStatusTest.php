@@ -88,7 +88,7 @@ class AdminDashboardRecentActivitiesStatusTest extends TestCase
             'title' => $title,
             'description' => 'Property activity test',
             'property_type' => 'dormitory',
-            'gender_restriction' => 'mixed',
+            'sex_restriction' => 'mixed',
             'current_status' => $status,
             'street_address' => '123 Activity Street',
             'city' => 'Zamboanga City',

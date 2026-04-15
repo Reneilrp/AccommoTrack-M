@@ -110,7 +110,7 @@ class LandlordPropertySettingsContractTest extends TestCase
             'title' => 'Settings Contract Property',
             'description' => 'Property for settings contract tests',
             'property_type' => 'apartment',
-            'gender_restriction' => 'mixed',
+            'sex_restriction' => 'mixed',
             'current_status' => Property::STATUS_ACTIVE,
             'street_address' => '123 Contract Street',
             'city' => 'Test City',

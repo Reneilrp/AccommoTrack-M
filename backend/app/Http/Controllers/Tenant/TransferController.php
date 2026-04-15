@@ -65,11 +65,11 @@ class TransferController extends Controller
         }
 
         $property = $activeBooking->property;
-        if (! $this->hasTransferEligibleGender($tenant, $property)) {
+        if (! $this->hasTransferEligibleSex($tenant, $property)) {
             return response()->json([
                 'success' => false,
                 'data' => [],
-                'message' => 'Please complete your profile gender (male/female) before requesting a room transfer for this property type.',
+                'message' => 'Please complete your profile sex (male/female) before requesting a room transfer for this property type.',
             ], 422);
         }
 
@@ -81,7 +81,7 @@ class TransferController extends Controller
             ->filter(function (Room $room) use ($tenant) {
                 return $room->status === 'available'
                     && $room->available_slots > 0
-                    && $this->isRoomGenderCompatible($room, $tenant);
+                    && $this->isRoomSexCompatible($room, $tenant);
             })
             ->values();
 
@@ -127,8 +127,8 @@ class TransferController extends Controller
         }
 
         $property = $activeBooking->property;
-        if (! $this->hasTransferEligibleGender($tenant, $property)) {
-            return response()->json(['message' => 'Please complete your profile gender (male/female) before requesting a room transfer for this property type.'], 422);
+        if (! $this->hasTransferEligibleSex($tenant, $property)) {
+            return response()->json(['message' => 'Please complete your profile sex (male/female) before requesting a room transfer for this property type.'], 422);
         }
 
         $requestedRoom = Room::with('property')->findOrFail($validated['requested_room_id']);
@@ -146,8 +146,8 @@ class TransferController extends Controller
             return response()->json(['message' => 'The requested room is not available.'], 422);
         }
 
-        if (! $this->isRoomGenderCompatible($requestedRoom, $tenant)) {
-            return response()->json(['message' => 'The requested room is not compatible with your gender restriction.'], 422);
+        if (! $this->isRoomSexCompatible($requestedRoom, $tenant)) {
+            return response()->json(['message' => 'The requested room is not compatible with your sex restriction.'], 422);
         }
 
         // Check for existing pending request for this specific room
@@ -199,29 +199,29 @@ class TransferController extends Controller
             ->exists();
     }
 
-    private function hasTransferEligibleGender($tenant, \App\Models\Property $property): bool
+    private function hasTransferEligibleSex($tenant, \App\Models\Property $property): bool
     {
         $propertyType = $this->normalizePropertyTypeToken($property->property_type ?? '');
         $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
 
-        // If it's an Apartment or not one of the target types, gender profile completion is not mandatory for transfer
+        // If it's an Apartment or not one of the target types, sex profile completion is not mandatory for transfer
         if ($propertyType === 'apartment' || ! in_array($propertyType, $targetTypes, true)) {
             return true;
         }
 
-        // For restricted types, user must have a male/female gender set
-        $gender = $this->normalizeTenantGender($tenant?->gender);
+        // For restricted types, user must have a male/female sex set
+        $sex = $this->normalizeTenantGender($tenant?->sex);
 
-        return in_array($gender, ['male', 'female'], true);
+        return in_array($sex, ['male', 'female'], true);
     }
 
-    private function normalizeTenantGender(?string $gender): ?string
+    private function normalizeTenantGender(?string $sex): ?string
     {
-        if (! $gender) {
+        if (! $sex) {
             return null;
         }
 
-        $normalized = strtolower(trim($gender));
+        $normalized = strtolower(trim($sex));
 
         return match ($normalized) {
             'male', 'boy', 'boys' => 'male',
@@ -230,17 +230,17 @@ class TransferController extends Controller
         };
     }
 
-    private function isRoomGenderCompatible(Room $room, $tenant): bool
+    private function isRoomSexCompatible(Room $room, $tenant): bool
     {
         $property = $room->property;
         $propertyType = $this->normalizePropertyTypeToken($property->property_type ?? '');
 
-        // 1. Apartment type properties are excluded from gender restrictions
+        // 1. Apartment type properties are excluded from sex restrictions
         if ($propertyType === 'apartment') {
             return true;
         }
 
-        // 2. Gender constraints only apply to Dormitory, Boarding house, and bedSpacer
+        // 2. Sex constraints only apply to Dormitory, Boarding house, and bedSpacer
         $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
         if (! in_array($propertyType, $targetTypes, true)) {
             // If it's not one of the target types and not an apartment,
@@ -249,9 +249,9 @@ class TransferController extends Controller
             return true;
         }
 
-        // 3. For target types, check gender compatibility
-        $tenantGender = $this->normalizeTenantGender($tenant?->gender);
-        $roomRestriction = strtolower((string) ($room->gender_restriction ?? 'mixed'));
+        // 3. For target types, check sex compatibility
+        $tenantSex = $this->normalizeTenantGender($tenant?->sex);
+        $roomRestriction = strtolower((string) ($room->sex_restriction ?? 'mixed'));
 
         // If room is mixed, anyone can join
         if ($roomRestriction === 'mixed') {
@@ -259,11 +259,11 @@ class TransferController extends Controller
         }
 
         // If room has a specific restriction (male/female), tenant must match
-        if (! $tenantGender) {
+        if (! $tenantSex) {
             return false;
         }
 
-        return $roomRestriction === $tenantGender;
+        return $roomRestriction === $tenantSex;
     }
 
     private function normalizePropertyTypeToken(?string $propertyType): string

@@ -38,7 +38,7 @@ class PropertyResource extends JsonResource
             'title' => $this->title,
             'description' => $this->description,
             'property_type' => $this->property_type,
-            'gender_restriction' => $this->gender_restriction,
+            'sex_restriction' => $this->sex_restriction,
             'type' => $this->formatPropertyTypeLabel($this->property_type),
             'has_bedspacer_room' => $availableRooms->contains(function ($room) {
                 $roomType = strtolower(str_replace([' ', '_', '-'], '', (string) ($room->room_type ?? '')));

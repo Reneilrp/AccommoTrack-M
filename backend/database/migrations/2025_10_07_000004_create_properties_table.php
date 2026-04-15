@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
             $table->string('property_type');
-            $table->enum('gender_restriction', ['male', 'female', 'mixed'])->default('mixed');
+            $table->enum('sex_restriction', ['male', 'female', 'mixed'])->default('mixed');
             $table->enum('current_status', ['active', 'inactive', 'pending', 'maintenance', 'draft'])->default('active');
 
             // Location Details

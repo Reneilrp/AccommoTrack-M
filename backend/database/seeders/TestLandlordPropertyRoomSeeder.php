@@ -24,11 +24,11 @@ class TestLandlordPropertyRoomSeeder extends Seeder
     private const SEED_MODE_APPROVED_LIVE = 'approved_live';
 
     private const LANDLORD_PROFILES = [
-        ['first_name' => 'Mateo', 'middle_name' => 'Santos', 'last_name' => 'Reyes', 'gender' => 'male', 'identified_as' => 'He/Him'],
-        ['first_name' => 'Liza', 'middle_name' => 'Cruz', 'last_name' => 'Dela Vega', 'gender' => 'female', 'identified_as' => 'She/Her'],
-        ['first_name' => 'Paolo', 'middle_name' => 'Diaz', 'last_name' => 'Torres', 'gender' => 'male', 'identified_as' => 'He/Him'],
-        ['first_name' => 'Andrea', 'middle_name' => 'Lopez', 'last_name' => 'Garcia', 'gender' => 'female', 'identified_as' => 'She/Her'],
-        ['first_name' => 'Jordan', 'middle_name' => 'Ramos', 'last_name' => 'Navarro', 'gender' => 'female', 'identified_as' => 'They/Them'],
+        ['first_name' => 'Mateo', 'middle_name' => 'Santos', 'last_name' => 'Reyes', 'sex' => 'male', 'identified_as' => 'He/Him'],
+        ['first_name' => 'Liza', 'middle_name' => 'Cruz', 'last_name' => 'Dela Vega', 'sex' => 'female', 'identified_as' => 'She/Her'],
+        ['first_name' => 'Paolo', 'middle_name' => 'Diaz', 'last_name' => 'Torres', 'sex' => 'male', 'identified_as' => 'He/Him'],
+        ['first_name' => 'Andrea', 'middle_name' => 'Lopez', 'last_name' => 'Garcia', 'sex' => 'female', 'identified_as' => 'She/Her'],
+        ['first_name' => 'Jordan', 'middle_name' => 'Ramos', 'last_name' => 'Navarro', 'sex' => 'female', 'identified_as' => 'They/Them'],
     ];
 
     private const PROPERTY_TYPES = [
@@ -135,7 +135,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 'first_name' => $profile['first_name'],
                 'middle_name' => $profile['middle_name'],
                 'last_name' => $profile['last_name'],
-                'gender' => $profile['gender'],
+                'sex' => $profile['sex'],
                 'identified_as' => $profile['identified_as'],
                 'phone' => '09'.str_pad((string) $landlordNumber, 9, '0', STR_PAD_LEFT),
                 'date_of_birth' => $dateOfBirth,
@@ -171,7 +171,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $propertyTitle = "test{$landlordNumber}-{$propertyType}";
         $roomCount = $propertyType === 'apartment' ? 8 : 6;
         $typeProfile = $this->buildPropertyProfile($propertyType);
-        $genderRestriction = $this->resolvePropertyGenderRestriction($propertyType, $landlordNumber);
+        $sexRestriction = $this->resolvePropertySexRestriction($propertyType, $landlordNumber);
         $visibility = $this->resolvePropertyVisibility($seedMode);
         $latitude = round(6.900100 + ($landlordNumber * 0.010000) + $typeProfile['lat_offset'], 7);
         $longitude = round(122.073100 + ($landlordNumber * 0.010000) + $typeProfile['lng_offset'], 7);
@@ -184,7 +184,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
             [
                 'description' => ucfirst($propertyType).' property managed by '.$landlord->first_name.' '.$landlord->last_name.'.',
                 'property_type' => $propertyType,
-                'gender_restriction' => $genderRestriction,
+                'sex_restriction' => $sexRestriction,
                 'current_status' => $visibility['current_status'],
                 'street_address' => "{$landlordNumber}01 Test Street",
                 'city' => 'Zamboanga City',
@@ -233,7 +233,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
     private function upsertRoomsForProperty(Property $property, string $propertyType, array &$stats): void
     {
         $roomTemplates = $this->buildRoomTemplates($propertyType);
-        $roomGenderRestriction = strtolower((string) ($property->gender_restriction ?: 'mixed'));
+        $roomSexRestriction = strtolower((string) ($property->sex_restriction ?: 'mixed'));
 
         foreach ($roomTemplates as $roomTemplate) {
             $roomRules = $this->buildRoomRules($propertyType, $roomTemplate['room_type'], $roomTemplate['billing_policy']);
@@ -246,7 +246,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 ],
                 [
                     'room_type' => $roomTemplate['room_type'],
-                    'gender_restriction' => $roomGenderRestriction,
+                    'sex_restriction' => $roomSexRestriction,
                     'floor' => $roomTemplate['floor'],
                     'monthly_rate' => $roomTemplate['monthly_rate'],
                     'daily_rate' => $roomTemplate['daily_rate'],
@@ -273,7 +273,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $property->updateAvailableRooms();
     }
 
-    private function resolvePropertyGenderRestriction(string $propertyType, int $landlordNumber): string
+    private function resolvePropertySexRestriction(string $propertyType, int $landlordNumber): string
     {
         if ($propertyType === 'apartment') {
             return 'mixed';

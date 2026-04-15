@@ -28,7 +28,7 @@ class RegisterOtpFlowTest extends TestCase
             'role' => 'tenant',
             'phone' => '09171234567',
             'date_of_birth' => now()->subYears(22)->toDateString(),
-            'gender' => 'male',
+            'sex' => 'male',
             'agree_to_terms' => true,
             'terms_version' => 'v2.0',
             'privacy_version' => 'v2.0',

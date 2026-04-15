@@ -365,8 +365,8 @@ class GenerateMonthlyInvoicesIdempotencyTest extends TestCase
         ]);
 
         $booking->occupants()->createMany([
-            ['full_name' => 'Proxy Occupant One', 'gender' => 'female'],
-            ['full_name' => 'Proxy Occupant Two', 'gender' => 'female'],
+            ['full_name' => 'Proxy Occupant One', 'sex' => 'female'],
+            ['full_name' => 'Proxy Occupant Two', 'sex' => 'female'],
         ]);
 
         return [$booking];

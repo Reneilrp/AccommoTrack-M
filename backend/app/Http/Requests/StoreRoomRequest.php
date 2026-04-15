@@ -34,15 +34,15 @@ class StoreRoomRequest extends FormRequest
         $normalizedPropertyType = $this->normalizePropertyTypeToken($property?->property_type);
         $isApartment = $normalizedPropertyType === 'apartment';
 
-        $propertyGender = $property ? strtolower($property->gender_restriction) : 'mixed';
+        $propertySex = $property ? strtolower($property->sex_restriction) : 'mixed';
         $allowedGenders = ['male', 'female'];
         if (! in_array($normalizedPropertyType, ['dormitory', 'boardinghouse', 'bedspacer'], true)) {
             $allowedGenders[] = 'mixed';
         }
 
-        if (in_array($propertyGender, ['female', 'girls'])) {
+        if (in_array($propertySex, ['female', 'girls'])) {
             $allowedGenders = ['female'];
-        } elseif (in_array($propertyGender, ['male', 'boys'])) {
+        } elseif (in_array($propertySex, ['male', 'boys'])) {
             $allowedGenders = ['male'];
         }
 
@@ -60,7 +60,7 @@ class StoreRoomRequest extends FormRequest
                     }
                 },
             ],
-            'gender_restriction' => $genderRule,
+            'sex_restriction' => $genderRule,
             'floor' => [
                 'required',
                 'integer',
@@ -177,18 +177,18 @@ class StoreRoomRequest extends FormRequest
     {
         $propertyId = $this->input('property_id');
         $property = Property::find($propertyId);
-        $propertyGender = $property ? strtolower($property->gender_restriction) : 'mixed';
+        $propertySex = $property ? strtolower($property->sex_restriction) : 'mixed';
 
-        if (in_array($propertyGender, ['female', 'girls'])) {
+        if (in_array($propertySex, ['female', 'girls'])) {
             $message = 'This property is restricted to females only. All rooms must also be female-only.';
-        } elseif (in_array($propertyGender, ['male', 'boys'])) {
+        } elseif (in_array($propertySex, ['male', 'boys'])) {
             $message = 'This property is restricted to males only. All rooms must also be male-only.';
         } else {
-            $message = 'The selected gender restriction is invalid.';
+            $message = 'The selected sex restriction is invalid.';
         }
 
         return [
-            'gender_restriction.in' => $message,
+            'sex_restriction.in' => $message,
         ];
     }
 

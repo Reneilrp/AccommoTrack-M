@@ -79,7 +79,7 @@ class User extends Authenticatable
         'first_name',
         'middle_name',
         'last_name',
-        'gender',
+        'sex',
         'identified_as',
         'phone',
         'date_of_birth',

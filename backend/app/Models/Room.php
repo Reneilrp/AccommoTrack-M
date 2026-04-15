@@ -75,7 +75,7 @@ class Room extends Model
         'property_id',
         'room_number',
         'room_type',
-        'gender_restriction',
+        'sex_restriction',
         'floor',
         'monthly_rate',
         'daily_rate',

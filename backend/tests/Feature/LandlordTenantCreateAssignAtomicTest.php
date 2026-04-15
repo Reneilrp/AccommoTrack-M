@@ -131,7 +131,7 @@ class LandlordTenantCreateAssignAtomicTest extends TestCase
             'property_id' => $propertyId,
             'room_number' => $roomNumber,
             'room_type' => 'single',
-            'gender_restriction' => 'mixed',
+            'sex_restriction' => 'mixed',
             'floor' => 1,
             'monthly_rate' => 8500,
             'daily_rate' => 450,

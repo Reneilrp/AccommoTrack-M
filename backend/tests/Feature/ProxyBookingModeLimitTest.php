@@ -94,7 +94,7 @@ class ProxyBookingModeLimitTest extends TestCase
                 [
                     'full_name' => 'Proxy Occupant',
                     'date_of_birth' => '2000-01-01',
-                    'gender' => 'male',
+                    'sex' => 'male',
                     'relationship_to_booker' => 'child',
                 ],
             ],
@@ -146,7 +146,7 @@ class ProxyBookingModeLimitTest extends TestCase
                 [
                     'full_name' => 'Proxy Occupant',
                     'date_of_birth' => '2000-01-01',
-                    'gender' => 'male',
+                    'sex' => 'male',
                     'relationship_to_booker' => 'child',
                 ],
             ],
@@ -185,7 +185,7 @@ class ProxyBookingModeLimitTest extends TestCase
                 [
                     'full_name' => 'Child One',
                     'date_of_birth' => '1990-01-01',
-                    'gender' => 'female',
+                    'sex' => 'female',
                     'relationship_to_booker' => 'child',
                     'phone' => '09171234567',
                     'email' => 'child.one@example.com',
@@ -193,7 +193,7 @@ class ProxyBookingModeLimitTest extends TestCase
                 [
                     'full_name' => 'Child Two',
                     'date_of_birth' => '1992-06-01',
-                    'gender' => 'male',
+                    'sex' => 'male',
                     'relationship_to_booker' => 'child',
                 ],
             ],
@@ -238,13 +238,13 @@ class ProxyBookingModeLimitTest extends TestCase
             [
                 'full_name' => 'Proxy Occupant One',
                 'date_of_birth' => '1990-01-01',
-                'gender' => 'female',
+                'sex' => 'female',
                 'relationship_to_booker' => 'child',
             ],
             [
                 'full_name' => 'Proxy Occupant Two',
                 'date_of_birth' => '1991-01-01',
-                'gender' => 'male',
+                'sex' => 'male',
                 'relationship_to_booker' => 'child',
             ],
         ]);
@@ -378,7 +378,7 @@ class ProxyBookingModeLimitTest extends TestCase
                 [
                     'full_name' => 'Scope Occupant',
                     'date_of_birth' => '2000-01-01',
-                    'gender' => 'male',
+                    'sex' => 'male',
                     'relationship_to_booker' => 'child',
                 ],
             ],
@@ -406,13 +406,13 @@ class ProxyBookingModeLimitTest extends TestCase
                 [
                     'full_name' => 'Occupant One',
                     'date_of_birth' => '1990-01-01',
-                    'gender' => 'female',
+                    'sex' => 'female',
                     'relationship_to_booker' => 'child',
                 ],
                 [
                     'full_name' => 'Occupant Two',
                     'date_of_birth' => '1991-01-01',
-                    'gender' => 'male',
+                    'sex' => 'male',
                     'relationship_to_booker' => 'child',
                 ],
             ],
@@ -440,14 +440,14 @@ class ProxyBookingModeLimitTest extends TestCase
                 [
                     'full_name' => 'Occupant One',
                     'date_of_birth' => '1990-01-01',
-                    'gender' => 'male',
+                    'sex' => 'male',
                     'relationship_to_booker' => 'child',
                 ],
             ],
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error', 'Occupant 1 gender must match the room restriction (female).');
+            ->assertJsonPath('error', 'Occupant 1 sex must match the room restriction (female).');
     }
 
     private function createUsers(): array
@@ -503,7 +503,7 @@ class ProxyBookingModeLimitTest extends TestCase
         string $roomNumber,
         int $capacity = 1,
         string $pricingModel = 'full_room',
-        string $genderRestriction = 'mixed',
+        string $sexRestriction = 'mixed',
     ): Room
     {
         return Room::create([
@@ -515,7 +515,7 @@ class ProxyBookingModeLimitTest extends TestCase
             'daily_rate' => 600,
             'capacity' => $capacity,
             'pricing_model' => $pricingModel,
-            'gender_restriction' => $genderRestriction,
+            'sex_restriction' => $sexRestriction,
             'status' => 'available',
             'billing_policy' => 'monthly',
         ]);

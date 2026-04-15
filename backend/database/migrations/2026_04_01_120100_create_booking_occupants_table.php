@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('booking_id')->constrained('bookings')->cascadeOnDelete();
             $table->string('full_name');
             $table->date('date_of_birth')->nullable();
-            $table->string('gender', 32)->nullable();
+            $table->string('sex', 32)->nullable();
             $table->string('relationship_to_booker', 64)->nullable();
             $table->string('phone', 32)->nullable();
             $table->string('email')->nullable();

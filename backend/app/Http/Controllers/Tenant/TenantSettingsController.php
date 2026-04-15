@@ -23,7 +23,7 @@ class TenantSettingsController extends Controller
             $user = User::select([
                 'id', 'first_name', 'middle_name', 'last_name', 'email', 'phone',
                 'profile_image', 'is_verified', 'is_active', 'notification_preferences',
-                'date_of_birth', 'gender', 'identified_as',
+                'date_of_birth', 'sex', 'identified_as',
             ])->findOrFail($userId);
 
             // Get tenant profile directly
@@ -68,7 +68,7 @@ class TenantSettingsController extends Controller
                 'is_active' => $user->is_active,
                 'notification_preferences' => $user->notification_preferences,
                 'age' => $age,
-                'gender' => $user->gender,
+                'sex' => $user->sex,
                 'identified_as' => $user->identified_as,
                 'date_of_birth' => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
                 'tenant_profile' => $tenantProfile ? [
@@ -109,7 +109,7 @@ class TenantSettingsController extends Controller
 
                 // TenantProfile fields
                 'date_of_birth' => ['nullable', 'date', 'before_or_equal:'.now()->subYears(18)->format('Y-m-d')],
-                'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
+                'sex' => ['nullable', Rule::in(['male', 'female'])],
                 'emergency_contact_name' => 'nullable|string|max:255',
                 'emergency_contact_phone' => 'nullable|string|max:20',
                 'emergency_contact_relationship' => 'nullable|string|max:100',
@@ -123,8 +123,8 @@ class TenantSettingsController extends Controller
                 'date_of_birth.before_or_equal' => 'Tenants must be at least 18 years old.',
             ]);
 
-            if (array_key_exists('gender', $validated)) {
-                $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
+            if (array_key_exists('sex', $validated)) {
+                $validated['sex'] = $this->normalizeGenderForStorage($validated['sex']);
             }
 
             DB::beginTransaction();
@@ -149,8 +149,8 @@ class TenantSettingsController extends Controller
             if ($request->has('date_of_birth')) {
                 $userData['date_of_birth'] = $validated['date_of_birth'];
             }
-            if ($request->has('gender')) {
-                $userData['gender'] = $validated['gender'];
+            if ($request->has('sex')) {
+                $userData['sex'] = $validated['sex'];
             }
             if ($request->has('identified_as')) {
                 $userData['identified_as'] = $validated['identified_as'] ?? null;
@@ -251,18 +251,18 @@ class TenantSettingsController extends Controller
         }
     }
 
-    private function normalizeGenderForStorage(?string $gender): ?string
+    private function normalizeGenderForStorage(?string $sex): ?string
     {
-        if ($gender === null) {
+        if ($sex === null) {
             return null;
         }
 
-        $normalized = strtolower(trim($gender));
+        $normalized = strtolower(trim($sex));
 
         return match ($normalized) {
             'male' => 'male',
             'female' => 'female',
-            'rather_not_say', 'prefer_not_to_say', 'other' => 'rather_not_say',
+            
             default => null,
         };
     }

@@ -108,7 +108,7 @@ class BookingResource extends JsonResource
                 'id' => $occupant->id,
                 'full_name' => $occupant->full_name,
                 'date_of_birth' => $occupant->date_of_birth,
-                'gender' => $occupant->gender,
+                'sex' => $occupant->sex,
                 'relationship_to_booker' => $occupant->relationship_to_booker,
                 'phone' => $occupant->phone,
                 'email' => $occupant->email,

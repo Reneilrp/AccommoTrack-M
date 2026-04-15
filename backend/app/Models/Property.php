@@ -112,7 +112,7 @@ class Property extends Model
         'title',
         'description',
         'property_type',
-        'gender_restriction',
+        'sex_restriction',
         'current_status',
 
         // Location Details

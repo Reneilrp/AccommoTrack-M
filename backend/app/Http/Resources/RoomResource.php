@@ -24,7 +24,7 @@ class RoomResource extends JsonResource
             'room_number' => $this->room_number,
             'floor' => $this->floor,
             'room_type' => $this->room_type,
-            'gender_restriction' => $this->gender_restriction,
+            'sex_restriction' => $this->sex_restriction,
             'type_label' => $this->getRoomTypeLabel($this->room_type),
             'monthly_rate' => (string) $this->monthly_rate,
             'daily_rate' => isset($this->daily_rate) ? (string) $this->daily_rate : null,
@@ -45,7 +45,7 @@ class RoomResource extends JsonResource
                 'reason' => $lock->reason,
                 'scheduled_for' => optional($lock->scheduled_for)->toISOString(),
             ] : null,
-            'is_gender_compatible' => $this->when(Auth::check(), function () {
+            'is_sex_compatible' => $this->when(Auth::check(), function () {
                 $tenant = Auth::user();
                 $property = $this->property;
                 $propertyType = $this->normalizePropertyTypeToken($property?->property_type);
@@ -55,17 +55,17 @@ class RoomResource extends JsonResource
                     return true;
                 }
 
-                $roomRestriction = strtolower((string) ($this->gender_restriction ?? 'mixed'));
+                $roomRestriction = strtolower((string) ($this->sex_restriction ?? 'mixed'));
                 if ($roomRestriction === 'mixed') {
                     return true;
                 }
 
-                $tenantGender = null;
-                $g = strtolower(trim($tenant->gender ?? ''));
-                if (in_array($g, ['male', 'boy', 'boys'])) $tenantGender = 'male';
-                if (in_array($g, ['female', 'girl', 'girls'])) $tenantGender = 'female';
+                $tenantSex = null;
+                $g = strtolower(trim($tenant->sex ?? ''));
+                if (in_array($g, ['male', 'boy', 'boys'])) $tenantSex = 'male';
+                if (in_array($g, ['female', 'girl', 'girls'])) $tenantSex = 'female';
 
-                return $roomRestriction === $tenantGender;
+                return $roomRestriction === $tenantSex;
             }),
             'tenant' => $this->tenant,
             'tenants' => $this->whenLoaded('tenants', function () {
@@ -85,7 +85,7 @@ class RoomResource extends JsonResource
                         return [
                             'id' => $occupant->id,
                             'full_name' => $occupant->full_name,
-                            'gender' => $occupant->gender,
+                            'sex' => $occupant->sex,
                             'date_of_birth' => $occupant->date_of_birth,
                             'relationship_to_booker' => $occupant->relationship_to_booker,
                             'email' => $occupant->email,
@@ -129,7 +129,7 @@ class RoomResource extends JsonResource
                             return [
                                 'id' => $occupant->id,
                                 'full_name' => $occupant->full_name,
-                                'gender' => $occupant->gender,
+                                'sex' => $occupant->sex,
                                 'date_of_birth' => $occupant->date_of_birth,
                                 'relationship_to_booker' => $occupant->relationship_to_booker,
                                 'email' => $occupant->email,

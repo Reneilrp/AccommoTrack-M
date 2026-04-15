@@ -60,8 +60,8 @@ class PropertyService
                 $validated['property_rules'] = json_decode($validated['property_rules'], true) ?? [];
             }
 
-            $genderRestriction = strtolower($validated['gender_restriction'] ?? 'mixed');
-            $genderRestriction = match ($genderRestriction) {
+            $sexRestriction = strtolower($validated['sex_restriction'] ?? 'mixed');
+            $sexRestriction = match ($sexRestriction) {
                 'boys', 'male' => 'male',
                 'girls', 'female' => 'female',
                 default => 'mixed',
@@ -83,7 +83,7 @@ class PropertyService
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
                 'property_type' => $propertyType,
-                'gender_restriction' => $genderRestriction,
+                'sex_restriction' => $sexRestriction,
                 'current_status' => $currentStatus,
                 'street_address' => $validated['street_address'],
                 'city' => $validated['city'],
@@ -194,9 +194,9 @@ class PropertyService
                 $validated['property_rules'] = json_decode($validated['property_rules'], true) ?? [];
             }
 
-            if (isset($validated['gender_restriction'])) {
-                $val = strtolower($validated['gender_restriction']);
-                $validated['gender_restriction'] = match ($val) {
+            if (isset($validated['sex_restriction'])) {
+                $val = strtolower($validated['sex_restriction']);
+                $validated['sex_restriction'] = match ($val) {
                     'boys', 'male' => 'male',
                     'girls', 'female' => 'female',
                     default => 'mixed',
@@ -288,15 +288,15 @@ class PropertyService
             });
         }
 
-        if ($request->filled('gender_policy')) {
-            $genderPolicy = strtolower(trim((string) $request->input('gender_policy')));
+        if ($request->filled('sex_policy')) {
+            $sexPolicy = strtolower(trim((string) $request->input('sex_policy')));
 
-            if (in_array($genderPolicy, ['male', 'boys', 'boy'], true)) {
-                $query->whereIn('gender_restriction', ['male', 'boys']);
-            } elseif (in_array($genderPolicy, ['female', 'girls', 'girl'], true)) {
-                $query->whereIn('gender_restriction', ['female', 'girls']);
-            } elseif ($genderPolicy === 'mixed') {
-                $query->where('gender_restriction', 'mixed');
+            if (in_array($sexPolicy, ['male', 'boys', 'boy'], true)) {
+                $query->whereIn('sex_restriction', ['male', 'boys']);
+            } elseif (in_array($sexPolicy, ['female', 'girls', 'girl'], true)) {
+                $query->whereIn('sex_restriction', ['female', 'girls']);
+            } elseif ($sexPolicy === 'mixed') {
+                $query->where('sex_restriction', 'mixed');
             }
         }
 

@@ -213,18 +213,18 @@ class AuthController extends Controller
         ], $tokenPayload, $extra));
     }
 
-    private function normalizeGenderForStorage(?string $gender): ?string
+    private function normalizeGenderForStorage(?string $sex): ?string
     {
-        if ($gender === null) {
+        if ($sex === null) {
             return null;
         }
 
-        $normalized = strtolower(trim($gender));
+        $normalized = strtolower(trim($sex));
 
         return match ($normalized) {
             'male' => 'male',
             'female' => 'female',
-            'rather_not_say', 'prefer_not_to_say', 'other' => 'rather_not_say',
+            
             default => null,
         };
     }
@@ -272,7 +272,7 @@ class AuthController extends Controller
                 'role' => 'required|in:landlord,tenant',
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'required|date',
-                'gender' => ['required', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
+                'sex' => ['required', Rule::in(['male', 'female'])],
                 'agree_to_terms' => 'accepted',
                 'terms_version' => 'nullable|string|max:40',
                 'privacy_version' => 'nullable|string|max:40',
@@ -283,7 +283,7 @@ class AuthController extends Controller
                 'agree_to_terms.accepted' => 'You must agree to the Terms and Privacy Policy to register.',
             ]);
 
-            $validated['gender'] = $this->normalizeGenderForStorage($validated['gender'] ?? null);
+            $validated['sex'] = $this->normalizeGenderForStorage($validated['sex'] ?? null);
 
             // Role-based age validation
             if (isset($validated['date_of_birth'])) {
@@ -668,7 +668,7 @@ class AuthController extends Controller
                 'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'nullable|date',
-                'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say', 'prefer_not_to_say', 'other'])],
+                'sex' => ['nullable', Rule::in(['male', 'female'])],
                 'identified_as' => 'nullable|string|max:50',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'payment_methods_settings' => 'nullable|array',
@@ -692,8 +692,8 @@ class AuthController extends Controller
                 'date_of_birth.before_or_equal' => 'User must be at least '.($user->role === 'landlord' ? '21' : '18').' years old.',
             ]);
 
-            if (array_key_exists('gender', $validated)) {
-                $validated['gender'] = $this->normalizeGenderForStorage($validated['gender']);
+            if (array_key_exists('sex', $validated)) {
+                $validated['sex'] = $this->normalizeGenderForStorage($validated['sex']);
             }
 
             // Handle profile image upload
@@ -715,7 +715,7 @@ class AuthController extends Controller
             $userFields = [
                 'first_name', 'middle_name', 'last_name', 'phone', 'profile_image',
                 'payment_methods_settings', 'notification_preferences', 'preferences',
-                'date_of_birth', 'gender', 'identified_as',
+                'date_of_birth', 'sex', 'identified_as',
             ];
 
             $userData = array_intersect_key($validated, array_flip($userFields));

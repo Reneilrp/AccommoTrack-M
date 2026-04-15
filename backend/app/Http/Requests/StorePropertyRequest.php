@@ -46,7 +46,7 @@ class StorePropertyRequest extends FormRequest
             'description' => 'nullable|string',
             'property_type' => 'required|string|max:255',
             // Accept both frontend values ('male'/'female') and legacy values ('boys'/'girls'/'mixed')
-            'gender_restriction' => 'nullable|in:male,female,boys,girls,mixed',
+            'sex_restriction' => 'nullable|in:male,female,boys,girls,mixed',
             'current_status' => 'nullable|in:pending,draft',
             'is_draft' => 'sometimes|boolean',
             'street_address' => 'required|string',
