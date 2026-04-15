@@ -118,7 +118,7 @@ export default function CartScreen() {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return { uri: 'https://via.placeholder.com/400x200?text=No+Image' };
     if (typeof imagePath === 'string' && imagePath.startsWith('http')) return { uri: imagePath };
-    const cleanPath = typeof imagePath === 'string' ? imagePath.replace(/^\\/?(storage\\/)?/, '') : '';
+    const cleanPath = typeof imagePath === 'string' ? imagePath.replace(/^\/?(storage\/)?/, '') : '';
     return { uri: `${API_BASE_URL}/storage/${cleanPath}` };
   };
 

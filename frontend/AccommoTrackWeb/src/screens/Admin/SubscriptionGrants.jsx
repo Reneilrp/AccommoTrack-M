@@ -462,7 +462,7 @@ export default function SubscriptionGrants() {
     refreshOverview(landlordId);
   };
 
-  const useGrantForExtend = (grantId) => {
+  const handleUseGrantForExtend = (grantId) => {
     setExtendForm((prev) => ({ ...prev, grant_id: String(grantId) }));
     setActiveActionTab('extend');
     setFocusedActionPanel('extend');
@@ -473,7 +473,7 @@ export default function SubscriptionGrants() {
     toast.success(`Grant #${grantId} loaded into Extend Grant.`);
   };
 
-  const useGrantForRevoke = (grantId) => {
+  const handleUseGrantForRevoke = (grantId) => {
     setRevokeForm((prev) => ({ ...prev, grant_id: String(grantId) }));
     setActiveActionTab('revoke');
     setFocusedActionPanel('revoke');

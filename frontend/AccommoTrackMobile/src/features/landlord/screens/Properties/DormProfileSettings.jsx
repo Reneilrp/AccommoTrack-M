@@ -12,6 +12,7 @@ import {
   Switch,
   Modal,
   Image,
+  Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -202,6 +203,7 @@ const normalizeSettings = (data) => {
 
 export default function DormProfileSettings({ route, navigation }) {
   const { theme } = useTheme();
+  const showAlert = Alert.alert;
   const styles = useMemo(() => getStyles(theme), [theme]);
   const propertyId = route.params?.propertyId;
   const [form, setForm] = useState(buildEmptyForm);

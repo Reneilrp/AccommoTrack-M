@@ -150,12 +150,8 @@ const AddonManagement = ({ propertyId }) => {
   };
 
   const handleUpdateActivePrice = async (bookingId, addonId, newPrice) => {
-    try {
-      await addonService.updateActiveAddonPrice(bookingId, addonId, newPrice);
-      fetchData();
-    } catch (error) {
-      throw error;
-    }
+    await addonService.updateActiveAddonPrice(bookingId, addonId, newPrice);
+    fetchData();
   };
 
   const handleRequest = async (bookingId, addonId, action, customPrice = null) => {

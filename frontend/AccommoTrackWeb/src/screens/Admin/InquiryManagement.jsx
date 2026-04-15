@@ -205,7 +205,7 @@ const InquiryManagement = () => {
         setPasswordResetFlow(prev => ({ ...prev, foundUser: null, searchingUser: false }));
         toast.error('User not found with this email address');
       }
-    } catch (error) {
+    } catch (_error) {
       setPasswordResetFlow(prev => ({ ...prev, searchingUser: false }));
       toast.error('Failed to search for user');
     }
@@ -236,7 +236,7 @@ const InquiryManagement = () => {
         setPasswordResetFlow(prev => ({ ...prev, generatingLink: false }));
         toast.error(result.error || 'Failed to generate reset link');
       }
-    } catch (error) {
+    } catch (_error) {
       setPasswordResetFlow(prev => ({ ...prev, generatingLink: false }));
       toast.error('Failed to generate reset link');
     }

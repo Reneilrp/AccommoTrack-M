@@ -242,7 +242,7 @@ export default function InvoiceCheckout() {
       } else {
         toast.error(result.error || 'Failed to apply wallet credits');
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to apply wallet credits');
     } finally {
       setProcessing(false);
