@@ -1291,118 +1291,120 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             </span>
                           </p>
 
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {/* Extend Stay button — only if expiring within 30 days */}
-                            {(() => {
-                              const contractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
-                              const isOpenEndedMonthly = contractMode === 'monthly' && !booking.endDate;
-                              if (isOpenEndedMonthly || !booking.endDate) return null;
-                              const end = new Date(booking.endDate);
-                              const today = new Date();
-                              const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
-                              if (daysLeft > 30) return null;
-                              return (
-                                <button
-                                  onClick={onRequestExtension}
-                                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
-                                >
-                                  <CalendarDays className="w-4 h-4" />
-                                  Extend Stay
-                                </button>
-                              );
-                            })()}
-
-                            {/* Transfer button */}
-                            {(() => {
-                              const isPendingForThisBooking = pendingTransferBookingIds.includes(booking.id);
-                              const pendingRequestForThisBooking = pendingTransferRequests.find(
-                                (request) => Number(request.booking_id) === Number(booking.id),
-                              );
-                              const limitReached = monthlyTransferCount >= 2;
-                              const now = new Date();
-                              const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-                              const daysUntilTransferReset = Math.max(
-                                1,
-                                Math.ceil((nextMonthStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-                              );
-                              const isDisabled = isPendingForThisBooking || limitReached;
-                              let buttonText = 'Transfer';
-                              let buttonTitle = 'Request a room transfer';
-                              if (isPendingForThisBooking) {
-                                buttonText = 'Transfer Pending';
-                                buttonTitle = 'You already have a pending transfer request for this booking';
-                              } else if (limitReached) {
-                                buttonText = 'Limit Reached';
-                                buttonTitle = `Monthly transfer limit reached. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
-                              }
-                              return (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => {
-                                      if (isPendingForThisBooking) return;
-                                      if (limitReached) {
-                                        toast.error(`Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
-                                        return;
-                                      }
-                                      onRequestTransfer?.();
-                                    }}
-                                    disabled={isPendingForThisBooking}
-                                    title={buttonTitle}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isDisabled
-                                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
-                                      : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
-                                      }`}
-                                  >
-                                    <Shuffle className="w-4 h-4" />
-                                    {buttonText}
-                                  </button>
-                                  {pendingRequestForThisBooking && (
-                                    <button
-                                      onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
-                                      disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
-                                      title="Cancel pending transfer request"
-                                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-60"
-                                    >
-                                      {cancellingTransferRequestId === pendingRequestForThisBooking.id ? (
-                                        <RefreshCw className="w-4 h-4 animate-spin" />
-                                      ) : (
-                                        <XCircle className="w-4 h-4" />
-                                      )}
-                                      Cancel Transfer
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })()}
-
-                            {/* Move-out button */}
-                            {(() => {
-                              const rawStatus = String(booking.status || booking.status_raw || '').toLowerCase();
-                              const effectiveStatus = rawStatus || 'confirmed';
-                              const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
-                              const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
-                              if (!canRequestMoveOut) return null;
-                              if (hasNotice) {
+                          <div className="flex flex-col items-start md:items-end gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {/* Extend Stay button — only if expiring within 30 days */}
+                              {(() => {
+                                const contractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
+                                const isOpenEndedMonthly = contractMode === 'monthly' && !booking.endDate;
+                                if (isOpenEndedMonthly || !booking.endDate) return null;
+                                const end = new Date(booking.endDate);
+                                const today = new Date();
+                                const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+                                if (daysLeft > 30) return null;
                                 return (
-                                  <div
-                                    title="Move-out notice already submitted."
-                                    className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"
+                                  <button
+                                    onClick={onRequestExtension}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
                                   >
-                                    <DoorOpen className="w-4 h-4" />
-                                    Notice Submitted
+                                    <CalendarDays className="w-4 h-4" />
+                                    Extend Stay
+                                  </button>
+                                );
+                              })()}
+
+                              {/* Transfer button */}
+                              {(() => {
+                                const isPendingForThisBooking = pendingTransferBookingIds.includes(booking.id);
+                                const pendingRequestForThisBooking = pendingTransferRequests.find(
+                                  (request) => Number(request.booking_id) === Number(booking.id),
+                                );
+                                const limitReached = monthlyTransferCount >= 2;
+                                const now = new Date();
+                                const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                                const daysUntilTransferReset = Math.max(
+                                  1,
+                                  Math.ceil((nextMonthStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                                );
+                                const isDisabled = isPendingForThisBooking || limitReached;
+                                let buttonText = 'Transfer';
+                                let buttonTitle = 'Request a room transfer';
+                                if (isPendingForThisBooking) {
+                                  buttonText = 'Transfer Pending';
+                                  buttonTitle = 'You already have a pending transfer request for this booking';
+                                } else if (limitReached) {
+                                  buttonText = 'Limit Reached';
+                                  buttonTitle = `Monthly transfer limit reached. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
+                                }
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        if (isPendingForThisBooking) return;
+                                        if (limitReached) {
+                                          toast.error(`Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
+                                          return;
+                                        }
+                                        onRequestTransfer?.();
+                                      }}
+                                      disabled={isPendingForThisBooking}
+                                      title={buttonTitle}
+                                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isDisabled
+                                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
+                                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
+                                        }`}
+                                    >
+                                      <Shuffle className="w-4 h-4" />
+                                      {buttonText}
+                                    </button>
+                                    {pendingRequestForThisBooking && (
+                                      <button
+                                        onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
+                                        disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
+                                        title="Cancel pending transfer request"
+                                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-60"
+                                      >
+                                        {cancellingTransferRequestId === pendingRequestForThisBooking.id ? (
+                                          <RefreshCw className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          <XCircle className="w-4 h-4" />
+                                        )}
+                                        Cancel Transfer
+                                      </button>
+                                    )}
                                   </div>
                                 );
-                              }
-                              return (
-                                <button
-                                  onClick={() => onRequestMoveOut?.()}
-                                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 transition-all active:scale-95"
-                                >
-                                  <DoorOpen className="w-4 h-4" />
-                                  Move-out
-                                </button>
-                              );
-                            })()}
+                              })()}
+
+                              {/* Move-out button */}
+                              {(() => {
+                                const rawStatus = String(booking.status || booking.status_raw || '').toLowerCase();
+                                const effectiveStatus = rawStatus || 'confirmed';
+                                const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
+                                const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
+                                if (!canRequestMoveOut || hasNotice) return null;
+
+                                return (
+                                  <button
+                                    onClick={() => onRequestMoveOut?.()}
+                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 transition-all active:scale-95"
+                                  >
+                                    <DoorOpen className="w-4 h-4" />
+                                    Move-out
+                                  </button>
+                                );
+                              })()}
+                            </div>
+
+                            {!!(booking.notice_given_at || booking.noticeGivenAt) && (
+                              <div
+                                title="Move-out notice already submitted."
+                                className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"
+                              >
+                                <DoorOpen className="w-4 h-4" />
+                                Notice Submitted
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

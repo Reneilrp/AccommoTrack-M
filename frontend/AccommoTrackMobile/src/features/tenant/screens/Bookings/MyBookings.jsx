@@ -2025,16 +2025,7 @@ export default function MyBookings() {
             {!booking.isPending && (
               <View style={styles.actionGridContainer}>
                 <View style={styles.actionRow}>
-                  {hasMoveOutNotice ? (
-                    <View
-                      style={[
-                        styles.actionBtn,
-                        { backgroundColor: theme.isDark ? 'rgba(13,148,136,0.1)' : '#F0FDFA', borderWidth: 1, borderColor: theme.isDark ? '#0D9488' : '#99F6E4' },
-                      ]}
-                    >
-                      <Text style={[styles.actionBtnText, { color: theme.isDark ? '#2dd4bf' : '#0D9488' }]}>Notice Submitted</Text>
-                    </View>
-                  ) : (
+                  {!hasMoveOutNotice ? (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : (theme.isDark ? '#3730a3' : '#4F46E5') }]}
                       disabled={submittingMoveOut}
@@ -2044,6 +2035,8 @@ export default function MyBookings() {
                         {submittingMoveOut ? 'Submitting...' : 'Move-out'}
                       </Text>
                     </TouchableOpacity>
+                  ) : (
+                    <View style={styles.actionBtnPlaceholder} />
                   )}
 
                   {canRequestExtension ? (
@@ -2059,8 +2052,30 @@ export default function MyBookings() {
                   )}
                 </View>
 
+                {hasMoveOutNotice && (
+                  <View
+                    style={{
+                      alignSelf: 'flex-start',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                      backgroundColor: theme.isDark ? 'rgba(13,148,136,0.1)' : '#F0FDFA',
+                      borderWidth: 1,
+                      borderColor: theme.isDark ? '#0D9488' : '#99F6E4',
+                    }}
+                  >
+                    <Ionicons name="exit-outline" size={14} color={theme.isDark ? '#2dd4bf' : '#0D9488'} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: theme.isDark ? '#2dd4bf' : '#0D9488' }}>
+                      Notice Submitted
+                    </Text>
+                  </View>
+                )}
+
                 {/* Transfer section - separate row */}
-                <View style={{ marginTop: 12 }}>
+                <View style={{ marginTop: hasMoveOutNotice ? 8 : 12 }}>
                   <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginBottom: 8 }}>
                     Transfers this month: {monthlyTransferCount}/2
                     {transferLimitReached ? ` (available again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'})` : ''}

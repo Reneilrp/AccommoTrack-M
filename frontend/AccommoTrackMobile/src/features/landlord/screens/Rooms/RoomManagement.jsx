@@ -1488,7 +1488,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                   style={styles.selectTrigger}
                   onPress={() => setFloorSelectModalVisible(true)}
                 >
-                  <Text style={styles.selectTriggerText}>
+                  <Text style={styles.selectTriggerText} numberOfLines={1} ellipsizeMode="tail">
                     {getOptionLabel(floorOptions, formData.floor, "Select floor")}
                   </Text>
                   <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
@@ -1513,7 +1513,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                 }
               }}
             >
-              <Text style={styles.selectTriggerText}>
+              <Text style={styles.selectTriggerText} numberOfLines={1} ellipsizeMode="tail">
                 {getOptionLabel(roomTypes, roomTypeValue, "Select room type")}
               </Text>
               <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
