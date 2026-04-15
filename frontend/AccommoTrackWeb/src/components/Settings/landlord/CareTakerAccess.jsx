@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, 
-  Plus, 
-  Shield, 
-  Trash2, 
-  Mail, 
-  Phone, 
-  Building2, 
+import {
+  Users,
+  Plus,
+  Shield,
+  Trash2,
+  Mail,
+  Phone,
+  Building2,
   AlertCircle,
   CheckCircle2,
   XCircle,
@@ -91,8 +91,26 @@ export default function CareTakerAccess({
     {
       key: 'bookings',
       label: 'Bookings',
-      description: 'View and manage reservation requests.',
+      description: 'View reservation requests.',
       icon: <CheckCircle2 className="w-4 h-4" />,
+    },
+    {
+      key: 'approve_bookings',
+      label: 'Approve Bookings',
+      description: 'Accept pending bookings.',
+      icon: <CheckCircle2 className="w-4 h-4" />,
+    },
+    {
+      key: 'cancel_bookings',
+      label: 'Cancel Bookings',
+      description: 'Cancel active/pending bookings.',
+      icon: <XCircle className="w-4 h-4" />,
+    },
+    {
+      key: 'manage_add_ons',
+      label: 'Manage Add-ons',
+      description: 'Approve/reject tenant add-ons.',
+      icon: <Plus className="w-4 h-4" />,
     },
     {
       key: 'tenants',
@@ -136,14 +154,24 @@ export default function CareTakerAccess({
       description: 'View performance dashboards and trends.',
       icon: <Shield className="w-4 h-4" />,
     },
+    {
+      key: 'view_audit_logs',
+      label: 'Audit Logs',
+      description: 'View tracking of actions & recent activity.',
+      icon: <CheckCircle2 className="w-4 h-4" />,
+    },
   ];
-  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics']);
+  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics', 'view_audit_logs', 'approve_bookings', 'cancel_bookings', 'manage_add_ons']);
   const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
     rooms: 'Enabling this allows caretakers to modify room availability and tenant placements.',
     properties: 'Enabling this allows caretakers to edit core property details and settings.',
     maintenance: 'Enabling this allows caretakers to process and update maintenance workflows.',
     payments: 'Enabling this allows caretakers to manage sensitive billing and payment operations.',
     analytics: 'Enabling this allows caretakers to view occupancy, revenue, and trend insights.',
+    view_audit_logs: 'Enabling this allows caretakers to view exact tracking of property actions.',
+    approve_bookings: 'Enabling this gives explicit right to accept or approve new booking requests.',
+    cancel_bookings: 'Enabling this gives explicit right to decline, cancel, or reject bookings.',
+    manage_add_ons: 'Enabling this allows the caretaker to approve or modify tenant add-ons.',
   };
 
   const isLandlordLevelPermission = (key) => LANDLORD_LEVEL_PERMISSION_KEYS.has(key);
@@ -220,6 +248,9 @@ export default function CareTakerAccess({
       password_confirmation: '',
       permissions: {
         bookings: !!c.permissions.bookings,
+        approve_bookings: !!c.permissions.approve_bookings,
+        cancel_bookings: !!c.permissions.cancel_bookings,
+        manage_add_ons: !!c.permissions.manage_add_ons,
         messages: !!c.permissions.messages,
         tenants: !!c.permissions.tenants,
         rooms: !!c.permissions.rooms,
@@ -227,6 +258,7 @@ export default function CareTakerAccess({
         maintenance: !!c.permissions.maintenance,
         payments: !!c.permissions.payments,
         analytics: !!c.permissions.analytics,
+        view_audit_logs: !!c.permissions.view_audit_logs,
       },
       property_ids: (c.assigned_properties || []).map(p => p.id)
     });
@@ -267,7 +299,7 @@ export default function CareTakerAccess({
 
   const handleUpdateSubmit = async (ev) => {
     if (ev && ev.preventDefault) ev.preventDefault();
-    
+
     // Validate required
     if (!editFormData.first_name || !editFormData.last_name || !editFormData.email) {
       toast.error('Please fill in all required fields');
@@ -337,16 +369,16 @@ export default function CareTakerAccess({
       return;
     }
     setSelectedCaretaker(null);
-    navigate('/messages', { 
-      state: { 
-        startConversation: true, 
+    navigate('/messages', {
+      state: {
+        startConversation: true,
         recipient_id: c.caretaker.id,
-        recipient: { 
-          id: c.caretaker.id, 
+        recipient: {
+          id: c.caretaker.id,
           name: `${c.caretaker.first_name} ${c.caretaker.last_name}`,
           role: 'caretaker'
-        } 
-      } 
+        }
+      }
     });
   };
 
@@ -380,7 +412,7 @@ export default function CareTakerAccess({
       toast.error('Please provide a reason for revocation');
       return;
     }
-    
+
     try {
       await handleRevokeCaretaker(revocationModal.caretaker.id, revocationModal.reason);
       setRevocationModal({ show: false, caretaker: null, reason: '' });
@@ -429,7 +461,7 @@ export default function CareTakerAccess({
 
   const handleRegister = async (ev) => {
     if (ev && ev.preventDefault) ev.preventDefault();
-    
+
     // Final check for errors
     const errors = {
       first_name: validateField('first_name', safeForm.first_name),
@@ -442,7 +474,7 @@ export default function CareTakerAccess({
       toast.error('Please fix the errors before submitting');
       return;
     }
-    
+
     if (!safeForm.first_name || !safeForm.last_name || !safeForm.email) {
       toast.error('Please fill in all required fields');
       return;
@@ -654,11 +686,10 @@ export default function CareTakerAccess({
                         {CARETAKER_PERMISSION_FIELDS.map((field) => (
                           <label
                             key={field.key}
-                            className={`flex flex-col p-4 rounded-2xl border transition-all cursor-pointer group ${
-                              safePermissions[field.key]
+                            className={`flex flex-col p-4 rounded-2xl border transition-all cursor-pointer group ${safePermissions[field.key]
                                 ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 ring-1 ring-green-100 dark:ring-green-900/30'
                                 : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 shadow-sm'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center justify-between mb-2">
                               <div className={`p-2 rounded-lg ${safePermissions[field.key] ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
@@ -679,15 +710,13 @@ export default function CareTakerAccess({
                     </section>
 
                     {safeProperties.length > 0 && (
-                      <section className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${
-                        propertyError
+                      <section className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${propertyError
                           ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800'
                           : ''
-                      }`}>
+                        }`}>
                         <div className="flex items-center justify-between">
-                          <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${
-                            propertyError ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
-                          }`}>
+                          <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${propertyError ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
+                            }`}>
                             <Building2 className="w-4 h-4" /> Assigned Properties
                           </h3>
                           {propertyError && (
@@ -700,13 +729,12 @@ export default function CareTakerAccess({
                           {safeProperties.map((property) => (
                             <label
                               key={property.id}
-                              className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${
-                                safeSelectedIds.includes(property.id)
+                              className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${safeSelectedIds.includes(property.id)
                                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
                                   : propertyError
                                     ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-900/50 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
                                     : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-gray-600'
-                              }`}
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -824,15 +852,15 @@ export default function CareTakerAccess({
                       const name = `${obj.first_name || ''} ${obj.last_name || ''}`.trim() || 'Staff Member';
                       const assigned = Array.isArray(c?.assigned_properties) ? c.assigned_properties : [];
                       const profileImage = obj.profile_image;
-                      
+
                       return (
                         <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-4">
                               {profileImage ? (
-                                <img 
-                                  src={profileImage} 
-                                  alt={name} 
+                                <img
+                                  src={profileImage}
+                                  alt={name}
                                   className="w-10 h-10 rounded-full object-cover border-2 border-green-100 dark:border-green-900"
                                 />
                               ) : (
@@ -893,7 +921,7 @@ export default function CareTakerAccess({
             {/* Modal Header */}
             <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Caretaker Details</h3>
-              <button 
+              <button
                 onClick={() => setSelectedCaretaker(null)}
                 className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
               >
@@ -905,13 +933,13 @@ export default function CareTakerAccess({
             <div className="p-8 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-8">
               {/* Identity Section - Vertical Split with 2 column base */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 bg-gray-50/50 dark:bg-gray-700/30 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-700">
-                
+
                 {/* Left Column: Picture & Name (Stacked) */}
                 <div className="flex flex-col items-center justify-center space-y-6 text-center">
                   <div className="relative group">
                     {selectedCaretaker.caretaker?.profile_image ? (
-                      <img 
-                        src={selectedCaretaker.caretaker.profile_image} 
+                      <img
+                        src={selectedCaretaker.caretaker.profile_image}
                         className="w-56 h-56 rounded-[2rem] object-cover border-4 border-white dark:border-gray-800 shadow-2xl"
                         alt="Profile"
                       />
@@ -940,7 +968,7 @@ export default function CareTakerAccess({
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-200 truncate">{selectedCaretaker.caretaker?.email}</span>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 group">
                     <div className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 group-hover:scale-110 transition-transform">
                       <Phone className="w-5 h-5 text-emerald-600" />
@@ -968,7 +996,7 @@ export default function CareTakerAccess({
                     <div className="flex flex-col">
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Current Age</p>
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                        {selectedCaretaker.caretaker?.date_of_birth 
+                        {selectedCaretaker.caretaker?.date_of_birth
                           ? `${Math.floor((new Date() - new Date(selectedCaretaker.caretaker.date_of_birth)) / 31557600000)} Years Old`
                           : 'Not provided'}
                       </span>
@@ -985,18 +1013,17 @@ export default function CareTakerAccess({
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                   {Object.entries(selectedCaretaker.permissions || {})
                     .map(([key, val]) => (
-                    <div 
-                      key={key} 
-                      className={`flex items-center gap-2 p-4 rounded-2xl border text-xs font-bold transition-all ${
-                        val 
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 text-green-700 dark:text-green-400' 
-                          : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700 text-gray-500'
-                      }`}
-                    >
-                      {val ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                      <span className="capitalize">{key}</span>
-                    </div>
-                  ))}
+                      <div
+                        key={key}
+                        className={`flex items-center gap-2 p-4 rounded-2xl border text-xs font-bold transition-all ${val
+                            ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 text-green-700 dark:text-green-400'
+                            : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700 text-gray-500'
+                          }`}
+                      >
+                        {val ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                        <span className="capitalize">{key}</span>
+                      </div>
+                    ))}
                 </div>
               </div>
 
@@ -1154,7 +1181,7 @@ export default function CareTakerAccess({
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Caretaker</h3>
-              <button 
+              <button
                 onClick={() => setShowEditModal(false)}
                 className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
               >
@@ -1255,11 +1282,10 @@ export default function CareTakerAccess({
                   {CARETAKER_PERMISSION_FIELDS.map((field) => (
                     <label
                       key={field.key}
-                      className={`flex flex-col p-4 rounded-2xl border transition-all cursor-pointer group ${
-                        editFormData.permissions[field.key] 
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 ring-1 ring-green-100 dark:ring-green-900/30' 
+                      className={`flex flex-col p-4 rounded-2xl border transition-all cursor-pointer group ${editFormData.permissions[field.key]
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 ring-1 ring-green-100 dark:ring-green-900/30'
                           : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 shadow-sm'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className={`p-2 rounded-lg ${editFormData.permissions[field.key] ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
@@ -1280,15 +1306,13 @@ export default function CareTakerAccess({
               </div>
 
               {/* Properties Section */}
-              <div className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${
-                editFormData.property_ids.length === 0 
-                  ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800' 
+              <div className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${editFormData.property_ids.length === 0
+                  ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800'
                   : ''
-              }`}>
+                }`}>
                 <div className="flex items-center justify-between">
-                  <h4 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${
-                    editFormData.property_ids.length === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
-                  }`}>
+                  <h4 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${editFormData.property_ids.length === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
+                    }`}>
                     <Building2 className="w-4 h-4" /> Assigned Properties
                   </h4>
                   {editFormData.property_ids.length === 0 && (
@@ -1299,15 +1323,14 @@ export default function CareTakerAccess({
                 </div>
                 <div className="flex flex-wrap gap-4">
                   {safeProperties.map((property) => (
-                    <label 
-                      key={property.id} 
-                      className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${
-                        editFormData.property_ids.includes(property.id)
+                    <label
+                      key={property.id}
+                      className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${editFormData.property_ids.includes(property.id)
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
                           : editFormData.property_ids.length === 0
                             ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-900/50 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
                             : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-gray-600'
-                      }`}
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -1372,7 +1395,7 @@ export default function CareTakerAccess({
                     <span className="text-xl font-mono font-bold text-gray-900 dark:text-white tracking-widest">
                       {passwordResetModal.tempPassword}
                     </span>
-                    <button 
+                    <button
                       onClick={() => {
                         navigator.clipboard.writeText(passwordResetModal.tempPassword);
                         toast.success('Copied to clipboard');

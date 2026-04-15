@@ -21,6 +21,9 @@ const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
 
 const createCaretakerPermissionDefaults = () => ({
   bookings: false,
+  approve_bookings: false,
+  cancel_bookings: false,
+  manage_add_ons: false,
   tenants: false,
   messages: false,
   rooms: false,
@@ -28,6 +31,7 @@ const createCaretakerPermissionDefaults = () => ({
   maintenance: false,
   payments: false,
   analytics: false,
+  view_audit_logs: false,
 });
 
 const DEFAULT_SECURITY_PREFERENCES = {
@@ -177,7 +181,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
 
   useEffect(() => {
     if (activeTab === 'subscription-plan' && collapseSidebar) {
-      collapseSidebar().catch(() => {});
+      collapseSidebar().catch(() => { });
     }
   }, [activeTab, collapseSidebar]);
 
@@ -361,11 +365,11 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     setCaretakerState(s => ({ ...s, loading: true }));
     try {
       const [cRes, pRes] = await Promise.all([api.get('/landlord/caretakers'), api.get('/landlord/properties')]);
-      
+
       // The backend returns { caretakers: [...], landlord_properties: [...] }
       const caretakersData = Array.isArray(cRes.data?.caretakers) ? cRes.data.caretakers : [];
       const propertiesData = Array.isArray(pRes.data.data) ? pRes.data.data : (Array.isArray(pRes.data) ? pRes.data : []);
-      
+
       setCaretakers(caretakersData);
       setLandlordProperties(propertiesData);
       updateData('landlord_settings', { caretakers: caretakersData, landlordProperties: propertiesData });
@@ -385,6 +389,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       // Map frontend permission keys to backend 'can_view_*' keys
       const mappedPermissions = {
         can_view_bookings: !!caretakerPermissions.bookings,
+        can_approve_bookings: !!caretakerPermissions.approve_bookings,
+        can_cancel_bookings: !!caretakerPermissions.cancel_bookings,
+        can_manage_add_ons: !!caretakerPermissions.manage_add_ons,
         can_view_messages: !!caretakerPermissions.messages,
         can_view_tenants: !!caretakerPermissions.tenants,
         can_view_rooms: !!caretakerPermissions.rooms,
@@ -392,6 +399,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_manage_maintenance: !!caretakerPermissions.maintenance,
         can_manage_payments: !!caretakerPermissions.payments,
         can_view_analytics: !!caretakerPermissions.analytics,
+        can_view_audit_logs: !!caretakerPermissions.view_audit_logs,
       };
 
       await api.post('/landlord/caretakers', {
@@ -400,7 +408,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         permissions: mappedPermissions
       });
       await fetchCaretakers();
-      
+
       toast.success('Caretaker added!');
       setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
       setSelectedPropertyIds([]);
@@ -418,6 +426,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       // Map frontend permission keys to backend 'can_view_*' keys
       const mappedPermissions = {
         can_view_bookings: !!caretakerPermissions.bookings,
+        can_approve_bookings: !!caretakerPermissions.approve_bookings,
+        can_cancel_bookings: !!caretakerPermissions.cancel_bookings,
+        can_manage_add_ons: !!caretakerPermissions.manage_add_ons,
         can_view_messages: !!caretakerPermissions.messages,
         can_view_tenants: !!caretakerPermissions.tenants,
         can_view_rooms: !!caretakerPermissions.rooms,
@@ -425,6 +436,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_manage_maintenance: !!caretakerPermissions.maintenance,
         can_manage_payments: !!caretakerPermissions.payments,
         can_view_analytics: !!caretakerPermissions.analytics,
+        can_view_audit_logs: !!caretakerPermissions.view_audit_logs,
       };
 
       const response = await api.patch(`/landlord/caretakers/${id}`, {
@@ -432,7 +444,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         property_ids: selectedPropertyIds,
         permissions: mappedPermissions
       });
-      
+
       const updatedCaretakerData = response.data.caretaker;
 
       const transformedCaretaker = {
@@ -504,7 +516,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
 
         <div className="lg:col-span-3">
           {activeTab === 'profile' && (
-            <MyProfile 
+            <MyProfile
               user={user}
               profileData={profileData}
               setProfileData={setProfileData}
@@ -524,8 +536,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
           )}
           {activeTab === 'notifications' && <Notifications user={user} onUpdate={onUserUpdate} />}
           {activeTab === 'security' && (
-            <Security 
-              user={user} 
+            <Security
+              user={user}
               accessRole={normalizedRole}
               passwordData={passwordData}
               setPasswordData={setPasswordData}
@@ -550,7 +562,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
             />
           )}
           {activeTab === 'caretaker' && (
-            <CareTakerAccess 
+            <CareTakerAccess
               caretakers={caretakers}
               setCaretakers={setCaretakers}
               caretakerForm={caretakerForm}

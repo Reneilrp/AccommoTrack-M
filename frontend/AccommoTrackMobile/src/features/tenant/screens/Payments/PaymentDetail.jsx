@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Menu/Payments.js';
@@ -127,6 +128,7 @@ export default function PaymentDetail() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentAmountError, setPaymentAmountError] = useState('');
   const [offlineDetails, setOfflineDetails] = useState({ reference: '', notes: '' });
+  const [proofImage, setProofImage] = useState(null);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
     SystemToggleService.getDefaults().tenantPaymentsDisabled,
   );
@@ -346,6 +348,25 @@ export default function PaymentDetail() {
     navigation.navigate('PaymentCardWebview', { tokenizeUrl, invoiceId: invoice.id, amount: amountToPay });
   };
 
+  const handleProofImagePick = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      showAlert('Permission required', "You've refused to allow this app to access your photos!");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setProofImage(result.assets[0]);
+    }
+  };
+
   const handleOfflinePayment = async (method) => {
     if (tenantPaymentsTempDisabled) {
       showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
@@ -373,14 +394,36 @@ export default function PaymentDetail() {
       return;
     }
 
+    if (!proofImage) {
+      showAlert('Proof Required', 'Please upload a proof of payment attachment.');
+      return;
+    }
+
     try {
       setIsPaying(true);
-      const response = await PaymentService.createOfflineRecord(invoice.id, {
-        amount_cents: Math.round(amountToPay * 100),
-        method,
-        reference: offlineDetails.reference.trim() || null,
-        notes: offlineDetails.notes.trim() || (method === 'gcash' ? 'Manual GCash transfer submitted by tenant' : 'Cash payment request submitted by tenant'),
+      const formData = new FormData();
+      formData.append("amount_cents", Math.round(amountToPay * 100));
+      formData.append("method", method);
+
+      if (offlineDetails.reference.trim()) {
+        formData.append("reference", offlineDetails.reference.trim());
+      }
+
+      formData.append(
+        "notes",
+        offlineDetails.notes.trim() ||
+        (method === 'gcash'
+          ? 'Manual GCash transfer submitted by tenant'
+          : 'Cash payment request submitted by tenant'),
+      );
+
+      formData.append("proof_image", {
+        uri: proofImage.uri,
+        type: proofImage.mimeType || "image/jpeg",
+        name: proofImage.fileName || "proof.jpg",
       });
+
+      const response = await PaymentService.createOfflineRecord(invoice.id, formData);
 
       if (!response.success) {
         showAlert('Payment Error', response.error || 'Failed to submit offline payment details.');
@@ -391,6 +434,7 @@ export default function PaymentDetail() {
         ? 'Manual GCash transfer details submitted. Waiting for landlord verification.'
         : 'Cash payment request submitted. Waiting for landlord confirmation.');
       setOfflineDetails({ reference: '', notes: '' });
+      setProofImage(null);
       await refetchPaymentDetail();
     } catch (error) {
       console.error('Offline payment submit error', error);
@@ -631,6 +675,32 @@ export default function PaymentDetail() {
                     value={offlineDetails.notes}
                     onChangeText={(value) => setOfflineDetails((prev) => ({ ...prev, notes: value }))}
                   />
+
+                  <TouchableOpacity
+                    onPress={handleProofImagePick}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 14,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      borderRadius: 10,
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Ionicons name="image-outline" size={20} color={theme.colors.text} style={{ marginRight: 10 }} />
+                    <Text style={{ color: theme.colors.text, fontSize: 14, flex: 1 }}>
+                      {proofImage ? 'Change Proof of Payment' : 'Upload Proof of Payment *'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {proofImage && (
+                    <Image
+                      source={{ uri: proofImage.uri }}
+                      style={{ width: '100%', height: 150, borderRadius: 10, marginBottom: 8, objectFit: 'contain' }}
+                    />
+                  )}
 
                   {showManualGcash && (
                     <TouchableOpacity
