@@ -5,6 +5,8 @@ import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
 import api, { getImageUrl } from '../../utils/api';
 import NotificationDropdown from '../Shared/NotificationDropdown';
+import { useCart } from '../../contexts/CartContext';
+import CartDrawer from '../Tenant/CartDrawer';
 import { 
   LayoutDashboard, 
   Search, 
@@ -19,13 +21,16 @@ import {
   Bell,
   Package,
   Star,
-  HelpCircle
+  HelpCircle,
+  ShoppingCart
 } from 'lucide-react';
 
 export default function TenantLayout({ user, onLogout, children }) {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [messageUnreadCount, setMessageUnreadCount] = useState(0);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { getItemCount } = useCart();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -253,11 +258,24 @@ export default function TenantLayout({ user, onLogout, children }) {
             {getPageTitle()}
           </h1>
 
-          {location.pathname === '/dashboard' && (
-            <div className="z-10">
+          <div className="flex items-center gap-4 z-10">
+            {/* Cart Icon Button */}
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {getItemCount() > 0 && (
+                <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 border-2 border-white dark:border-gray-800 rounded-full -mt-1 -mr-1">
+                  {getItemCount()}
+                </span>
+              )}
+            </button>
+
+            {location.pathname === '/dashboard' && (
               <NotificationDropdown />
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
         {/* Page Content */}
@@ -278,6 +296,8 @@ export default function TenantLayout({ user, onLogout, children }) {
           onLogout();
         }}
       />
+      
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );
 }

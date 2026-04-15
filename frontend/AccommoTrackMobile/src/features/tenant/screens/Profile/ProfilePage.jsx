@@ -496,33 +496,7 @@ export default function ProfilePage() {
             </Text>
           )}
 
-          {/* Wallet Banner inside photoSection */}
-          {profileData.walletBalance !== undefined && (
-            <View style={{
-              marginTop: 15,
-              backgroundColor: '#10B981', // Tailwind green-500
-              borderRadius: 12,
-              padding: 15,
-              width: '90%',
-              alignSelf: 'center',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              shadowColor: "#059669", // emerald-600
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 5,
-              elevation: 4,
-            }}>
-              <View>
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>My Wallet & Credits</Text>
-                <Text style={{ color: '#D1FAE5', fontSize: 12, marginTop: 2 }}>Available balance</Text>
-              </View>
-              <Text style={{ color: 'white', fontWeight: '900', fontSize: 24, letterSpacing: -0.5 }}>
-                ₱{parseFloat(profileData.walletBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Text>
-            </View>
-          )}
+
         </View>
 
         {/* Form Section */}

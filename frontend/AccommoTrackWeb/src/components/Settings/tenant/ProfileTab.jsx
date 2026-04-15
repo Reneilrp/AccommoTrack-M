@@ -214,19 +214,7 @@ const ProfileTab = ({ onUserUpdate }) => {
         </div>
       )}
 
-      {cachedProfile && cachedProfile.wallet_balance !== undefined && (
-        <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg border border-green-600 dark:from-green-600 dark:to-emerald-800 text-white flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold mb-1">My Wallet & Credits</h3>
-            <p className="text-green-100 text-sm">Available balance for your next payment or invoice.</p>
-          </div>
-          <div className="text-right">
-            <span className="text-3xl font-black tracking-tight">
-              ₱{parseFloat(cachedProfile.wallet_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-      )}
+
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Profile Image */}

@@ -223,6 +223,9 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       case "Account Security":
         rootNavigate('UpdatePassword');
         break;
+      case "My Wallet & Credits":
+        rootNavigate('MyWallet');
+        break;
       case "Help & Support":
       case "Help Center":
         rootNavigate('HelpSupport');
@@ -517,6 +520,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           { id: 1, label: "Profile", icon: "person-outline", arrow: true },
           { id: 16, label: "Preferences & Lifestyle", icon: "options-outline", arrow: true },
           { id: 2, label: "Account Security", icon: "lock-closed-outline", arrow: true },
+          { id: 18, label: "My Wallet & Credits", icon: "wallet-outline", arrow: true },
           {
             id: 3,
             label: "Dark Mode",

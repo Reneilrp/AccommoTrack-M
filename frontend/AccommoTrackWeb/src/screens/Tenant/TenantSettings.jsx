@@ -6,8 +6,9 @@ import NotificationsTab from '../../components/Settings/tenant/NotificationsTab'
 import ReviewsTab from '../../components/Settings/tenant/ReviewsTab';
 import AppearanceTab from '../../components/Settings/AppearanceTab';
 import SwitchRoleTab from '../../components/Settings/SwitchRoleTab';
+import WalletTab from '../../components/Settings/tenant/WalletTab';
 import TenantSupport from './TenantSupport';
-import { User, Sliders, Shield, Bell, Palette, ArrowLeftRight, Star, HelpCircle } from 'lucide-react';
+import { User, Sliders, Shield, Bell, Palette, ArrowLeftRight, Star, HelpCircle, Wallet } from 'lucide-react';
 
 const TenantSettings = ({ user, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -16,6 +17,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
     { id: 'profile', label: 'Profile', icon: 'User' },
     { id: 'preferences', label: 'Preferences & Lifestyle', icon: 'Sliders' },
     { id: 'account', label: 'Account Security', icon: 'Shield' },
+    { id: 'wallet', label: 'My Wallet & Credits', icon: 'Wallet' },
     { id: 'notifications', label: 'Notifications', icon: 'Bell' },
     { id: 'reviews', label: 'My Reviews', icon: 'Star' },
     { id: 'appearance', label: 'Appearance', icon: 'Palette' },
@@ -54,6 +56,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
             {activeTab === 'profile' && <ProfileTab onUserUpdate={onUserUpdate} />}
             {activeTab === 'preferences' && <PreferencesTab />}
             {activeTab === 'account' && <AccountTab user={user} />}
+            {activeTab === 'wallet' && <WalletTab />}
             {activeTab === 'notifications' && <NotificationsTab />}
             {activeTab === 'reviews' && <ReviewsTab />}
             {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
@@ -75,6 +78,7 @@ const Icon = ({ name, className }) => {
     case 'Star': return <Star className={className} />;
     case 'Palette': return <Palette className={className} />;
     case 'ArrowLeftRight': return <ArrowLeftRight className={className} />;
+    case 'Wallet': return <Wallet className={className} />;
     case 'HelpCircle': return <HelpCircle className={className} />;
     default: return null;
   }

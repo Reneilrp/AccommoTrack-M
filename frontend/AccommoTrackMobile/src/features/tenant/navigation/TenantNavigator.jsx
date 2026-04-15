@@ -21,6 +21,7 @@ import PaymentCardWebview from '../screens/Payments/PaymentCardWebview.jsx';
 import PaymentRedirectWebview from '../screens/Payments/PaymentRedirectWebview.jsx';
 import PaymentHistory from '../screens/Payments/PaymentHistory.jsx';
 import Settings from '../screens/Settings/Settings.jsx';
+import MyWallet from '../screens/Settings/MyWallet.jsx';
 import HelpSupport from '../screens/Support/HelpSupport.jsx';
 import RoomListScreen from '../screens/Explore/RoomListScreen.jsx';
 import RoomDetailsScreen from '../screens/Explore/RoomDetailsScreen.jsx';
@@ -135,6 +136,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="NotificationPreferences" component={NotificationPreferences} options={{ animation: 'none' }} />
             <MainStack.Screen name="PreferencesLifestyle" component={PreferencesLifestyle} options={{ animation: 'none' }} />
             <MainStack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
+            <MainStack.Screen name="MyWallet" component={MyWallet} options={{ animation: 'none' }} />
 
             <MainStack.Screen name="MyBookings" options={{ animation: 'none' }}>
               {(props) => (
