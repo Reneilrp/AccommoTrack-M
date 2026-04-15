@@ -276,6 +276,7 @@ class LandlordBookingController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $this->ensureCaretakerCanApproveBookings($context);
 
             $booking = Booking::forLandlord($context['landlord_id'])->findOrFail($id);
             $this->checkPropertyAccess($context, $booking->property_id);
@@ -421,6 +422,7 @@ class LandlordBookingController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $this->ensureCaretakerCanApproveBookings($context);
 
             $booking = Booking::with(['tenant', 'property', 'room'])
                 ->forLandlord($context['landlord_id'])

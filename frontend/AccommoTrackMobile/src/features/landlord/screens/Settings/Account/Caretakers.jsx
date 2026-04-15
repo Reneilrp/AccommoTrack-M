@@ -11,8 +11,14 @@ import {
   ActivityIndicator,
   Switch,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -40,11 +46,17 @@ export default function Caretakers() {
   
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [modalTab, setModalTab] = useState('profile'); // 'profile' | 'permissions'
   const [isEditing, setIsEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [permissionPrompt, setPermissionPrompt] = useState({ visible: false, key: null });
+  const [permissionPrompt, setPermissionPrompt] = useState({ 
+    visible: false, 
+    key: null, 
+    isBulk: false, 
+    keys: [] 
+  });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
   const [resetPasswordModal, setResetPasswordModal] = useState({
     show: false,
@@ -60,7 +72,40 @@ export default function Caretakers() {
     maintenance: 'Enabling Maintenance allows caretakers to process and update maintenance workflows.',
     payments: 'Enabling Payments allows caretakers to manage sensitive billing and payment operations.',
     analytics: 'Enabling Analytics allows caretakers to view occupancy, revenue, and trend insights.',
+    view_audit_logs: 'Enabling Audit Logs allows caretakers to view property actions history.',
+    approve_bookings: 'Enabling Approve Bookings gives access to directly accept requests.',
+    cancel_bookings: 'Enabling Cancel Bookings gives access to directly decline requests.',
+    manage_add_ons: 'Enabling Add-ons gives access to modify tenant extra requests.',
+    add_tenant_manually: 'Enabling this allows caretakers to seamlessly inject manual tenant entries.',
+    manual_bookings: 'Enabling this allows caretakers to place override bookings forcefully.',
   };
+  
+  const [expandedGroups, setExpandedGroups] = useState([]);
+
+  const CARETAKER_PERMISSION_FIELDS = [
+    { key: 'bookings', label: 'View Bookings', description: 'View reservation requests.' },
+    { key: 'approve_bookings', label: 'Approve Bookings', description: 'Accept pending bookings.' },
+    { key: 'cancel_bookings', label: 'Cancel Bookings', description: 'Cancel active/pending bookings.' },
+    { key: 'manual_bookings', label: 'Manual Bookings', description: 'Create bookings on behalf of tenants.' },
+    { key: 'tenants', label: 'Tenants', description: 'Access profiles and room assignments.' },
+    { key: 'add_tenant_manually', label: 'Add Tenant Manually', description: 'Create tenant profiles without an invite.' },
+    { key: 'messages', label: 'Messages', description: 'Chat with prospects and residents.' },
+    { key: 'rooms', label: 'Room Management', description: 'Full control over room availability.' },
+    { key: 'properties', label: 'Properties', description: 'View and manage property details.' },
+    { key: 'maintenance', label: 'Maintenance', description: 'Handle repairs and upkeep requests.' },
+    { key: 'manage_add_ons', label: 'Manage Add-ons', description: 'Approve/reject tenant add-ons.' },
+    { key: 'payments', label: 'Payments', description: 'Track and verify rental transactions.' },
+    { key: 'analytics', label: 'Analytics', description: 'View performance dashboards and trends.' },
+    { key: 'view_audit_logs', label: 'Audit Logs', description: 'View tracking of actions & recent activity.' },
+  ];
+
+  const MODULE_GROUPS = [
+    { title: 'Bookings', icon: 'calendar-outline', keys: ['bookings', 'approve_bookings', 'cancel_bookings', 'manual_bookings'] },
+    { title: 'Tenant Management', icon: 'people-outline', keys: ['tenants', 'messages', 'add_tenant_manually'] },
+    { title: 'Properties & Rooms', icon: 'business-outline', keys: ['properties', 'rooms', 'maintenance', 'manage_add_ons'] },
+    { title: 'Payments', icon: 'wallet-outline', keys: ['payments'] },
+    { title: 'Analytics & Admin', icon: 'stats-chart-outline', keys: ['analytics', 'view_audit_logs'] }
+  ];
 
   // Form State
   const [formData, setFormData] = useState({
@@ -75,13 +120,19 @@ export default function Caretakers() {
     passwordConfirmation: '',
     permissions: {
       bookings: true,
+      approve_bookings: false,
+      cancel_bookings: false,
+      manual_bookings: false,
+      manage_add_ons: false,
       messages: true,
       tenants: false,
+      add_tenant_manually: false,
       rooms: false,
       properties: false,
       maintenance: false,
       payments: false,
       analytics: false,
+      view_audit_logs: false,
     },
     propertyIds: []
   });
@@ -144,19 +195,27 @@ export default function Caretakers() {
       passwordConfirmation: '',
       permissions: {
         bookings: true,
+        approve_bookings: false,
+        cancel_bookings: false,
+        manual_bookings: false,
+        manage_add_ons: false,
         messages: true,
         tenants: false,
+        add_tenant_manually: false,
         rooms: false,
         properties: false,
         maintenance: false,
         payments: false,
         analytics: false,
+        view_audit_logs: false,
       },
       propertyIds: []
     });
     setFieldErrors({});
     setIsEditing(false);
     setShowPasswords(false);
+    setModalTab('profile');
+    setExpandedGroups([]);
   };
 
   const validateField = (name, value) => {
@@ -190,17 +249,25 @@ export default function Caretakers() {
       passwordConfirmation: '',
       permissions: {
         bookings: permMap.bookings || permMap.can_view_bookings || false,
+        approve_bookings: permMap.approve_bookings || permMap.can_approve_bookings || false,
+        cancel_bookings: permMap.cancel_bookings || permMap.can_cancel_bookings || false,
+        manual_bookings: permMap.manual_bookings || permMap.can_add_manual_bookings || false,
+        manage_add_ons: permMap.manage_add_ons || permMap.can_manage_add_ons || false,
         messages: permMap.messages || permMap.can_view_messages || false,
         tenants: permMap.tenants || permMap.can_view_tenants || false,
+        add_tenant_manually: permMap.add_tenant_manually || permMap.can_add_tenant_manually || false,
         rooms: permMap.rooms || permMap.can_view_rooms || false,
         properties: permMap.properties || permMap.can_view_properties || false,
         maintenance: permMap.maintenance || permMap.can_manage_maintenance || false,
         payments: permMap.payments || permMap.can_manage_payments || false,
         analytics: permMap.analytics || permMap.can_view_analytics || false,
+        view_audit_logs: permMap.view_audit_logs || permMap.can_view_audit_logs || false,
       },
       propertyIds: item.assigned_property_ids || []
     });
     setIsEditing(true);
+    setModalTab('permissions'); // jump straight to permissions when editing
+    setExpandedGroups([]);
     setModalVisible(true);
   };
 
@@ -290,13 +357,19 @@ export default function Caretakers() {
         property_ids: formData.propertyIds,
         permissions: {
           can_view_bookings: formData.permissions.bookings,
+          can_approve_bookings: formData.permissions.approve_bookings,
+          can_cancel_bookings: formData.permissions.cancel_bookings,
+          can_add_manual_bookings: formData.permissions.manual_bookings,
+          can_manage_add_ons: formData.permissions.manage_add_ons,
           can_view_messages: formData.permissions.messages,
           can_view_tenants: formData.permissions.tenants,
+          can_add_tenant_manually: formData.permissions.add_tenant_manually,
           can_view_rooms: formData.permissions.rooms,
           can_view_properties: formData.permissions.properties,
           can_manage_maintenance: formData.permissions.maintenance,
           can_manage_payments: formData.permissions.payments,
           can_view_analytics: formData.permissions.analytics,
+          can_view_audit_logs: formData.permissions.view_audit_logs,
         }
       };
 
@@ -387,19 +460,74 @@ export default function Caretakers() {
     }));
   };
 
-  const confirmPermissionGrant = () => {
-    const key = permissionPrompt.key;
-    if (!key) {
-      setPermissionPrompt({ visible: false, key: null });
-      return;
+  // Toggle all permissions within a group
+  const toggleGroupAll = (keys) => {
+    const allOn = keys.every(k => !!formData.permissions[k]);
+    const nextValue = !allOn;
+
+    if (nextValue === true) {
+      const sensitiveKeys = keys.filter(k => LANDLORD_LEVEL_PERMISSION_KEYS.has(k) && !formData.permissions[k]);
+      if (sensitiveKeys.length > 0) {
+        setPermissionPrompt({ visible: true, key: null, isBulk: true, keys: keys });
+        return;
+      }
     }
 
-    setFormData(prev => ({
-      ...prev,
-      permissions: { ...prev.permissions, [key]: true }
-    }));
+    applyBulkPermissions(keys, nextValue);
+  };
 
-    setPermissionPrompt({ visible: false, key: null });
+  // Toggle all permissions globally
+  const toggleSelectAll = () => {
+    const allKeys = CARETAKER_PERMISSION_FIELDS.map(f => f.key);
+    const allOn = allKeys.every(k => !!formData.permissions[k]);
+    const nextValue = !allOn;
+
+    if (nextValue === true) {
+      const sensitiveKeys = allKeys.filter(k => LANDLORD_LEVEL_PERMISSION_KEYS.has(k) && !formData.permissions[k]);
+      if (sensitiveKeys.length > 0) {
+        setPermissionPrompt({ visible: true, key: null, isBulk: true, keys: allKeys });
+        return;
+      }
+    }
+
+    applyBulkPermissions(allKeys, nextValue);
+  };
+
+  const applyBulkPermissions = (keys, value) => {
+    setFormData(prev => {
+      const newPerms = { ...prev.permissions };
+      keys.forEach(k => { newPerms[k] = value; });
+      return { ...prev, permissions: newPerms };
+    });
+  };
+
+  // Animated expand toggle
+  const toggleGroupExpand = (title) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedGroups(prev => 
+      prev.includes(title) 
+        ? prev.filter(t => t !== title) 
+        : [...prev, title]
+    );
+  };
+
+  const confirmPermissionGrant = () => {
+    if (permissionPrompt.isBulk) {
+      applyBulkPermissions(permissionPrompt.keys, true);
+    } else {
+      const key = permissionPrompt.key;
+      if (!key) {
+        setPermissionPrompt({ visible: false, key: null, isBulk: false, keys: [] });
+        return;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        permissions: { ...prev.permissions, [key]: true }
+      }));
+    }
+
+    setPermissionPrompt({ visible: false, key: null, isBulk: false, keys: [] });
   };
 
   const promptedPermissionLabel = permissionPrompt.key
@@ -657,28 +785,141 @@ export default function Caretakers() {
               )}
 
               <Text style={[styles.sectionHeader, { color: theme.colors.primary, marginTop: isEditing ? 0 : 24 }]}>Module Permissions</Text>
-              {Object.keys(formData.permissions).map(key => (
-                <View key={key} style={styles.switchRow}>
-                  <View>
-                    <Text style={[styles.switchLabel, { color: theme.colors.text }]}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
-                    <Text style={{ fontSize: 11, color: theme.colors.textTertiary }}>
-                      {key === 'bookings' ? 'View and manage reservation requests' : 
-                       key === 'tenants' ? 'Access profiles and room assignments' : 
-                       key === 'messages' ? 'Chat with prospects and residents' : 
-                       key === 'rooms' ? 'Full control over room availability' :
-                       key === 'properties' ? 'View and manage property details' :
-                       key === 'maintenance' ? 'Handle repairs and upkeep requests' :
-                       key === 'payments' ? 'Track and verify rental transactions' :
-                       'View occupancy and revenue insights'}
+
+              {/* Select All Row */}
+              {(() => {
+                const allKeys = CARETAKER_PERMISSION_FIELDS.map(f => f.key);
+                const allOn = allKeys.every(k => !!formData.permissions[k]);
+                return (
+                  <TouchableOpacity
+                    onPress={toggleSelectAll}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: allOn ? '#EF4444' : theme.colors.primary,
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>
+                      {allOn ? '✕  Deselect All Permissions' : '✓  Select All Permissions'}
                     </Text>
+                    <Ionicons
+                      name={allOn ? 'checkbox' : 'square-outline'}
+                      size={20}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                );
+              })()}
+
+              {MODULE_GROUPS.map(group => {
+                const isExpanded = expandedGroups.includes(group.title);
+                const groupFields = CARETAKER_PERMISSION_FIELDS.filter(f => group.keys.includes(f.key));
+                const activeCount = groupFields.filter(f => !!formData.permissions[f.key]).length;
+                const isModuleActive = activeCount > 0;
+                const allGroupOn = groupFields.every(f => !!formData.permissions[f.key]);
+
+                return (
+                  <View key={group.title} style={{
+                    marginBottom: 10,
+                    borderRadius: 14,
+                    borderWidth: 2,
+                    borderColor: isModuleActive ? theme.colors.primary : theme.colors.border,
+                    overflow: 'hidden',
+                  }}>
+                    {/* Card Header */}
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: isModuleActive ? theme.colors.primary : theme.colors.surface,
+                    }}>
+                      {/* Left: tap to expand */}
+                      <TouchableOpacity
+                        onPress={() => toggleGroupExpand(group.title)}
+                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}
+                      >
+                        <View style={{
+                          padding: 8,
+                          backgroundColor: isModuleActive ? 'rgba(255,255,255,0.2)' : theme.colors.background,
+                          borderRadius: 10,
+                        }}>
+                          <Ionicons name={group.icon} size={20} color={isModuleActive ? '#fff' : theme.colors.textSecondary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 15, color: isModuleActive ? '#fff' : theme.colors.text }}>
+                            {group.title}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: isModuleActive ? 'rgba(255,255,255,0.75)' : theme.colors.textTertiary, marginTop: 1 }}>
+                            {activeCount}/{groupFields.length} active
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                          size={18}
+                          color={isModuleActive ? 'rgba(255,255,255,0.8)' : theme.colors.textSecondary}
+                        />
+                      </TouchableOpacity>
+                      {/* Right: master toggle switch */}
+                      <View style={{
+                        borderLeftWidth: 1,
+                        borderLeftColor: isModuleActive ? 'rgba(255,255,255,0.25)' : theme.colors.border,
+                        paddingHorizontal: 12,
+                        paddingVertical: 14,
+                      }}>
+                        <Switch
+                          value={allGroupOn}
+                          onValueChange={() => toggleGroupAll(group.keys)}
+                          trackColor={{ false: theme.colors.border, true: isModuleActive ? 'rgba(255,255,255,0.4)' : theme.colors.primary }}
+                          thumbColor={allGroupOn ? '#ffffff' : theme.colors.textTertiary}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Expanded sub-perms */}
+                    {isExpanded && (
+                      <View style={{ backgroundColor: theme.colors.background + 'CC' }}>
+                        {groupFields.map((field, idx) => {
+                          const isOn = !!formData.permissions[field.key];
+                          return (
+                            <View
+                              key={field.key}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                paddingHorizontal: 16,
+                                paddingVertical: 12,
+                                borderTopWidth: 1,
+                                borderTopColor: theme.colors.border + '80',
+                                backgroundColor: isOn ? (theme.colors.primary + '12') : 'transparent',
+                              }}
+                            >
+                              <View style={{ flex: 1, paddingRight: 12 }}>
+                                <Text style={{ fontSize: 14, fontWeight: '600', color: isOn ? theme.colors.primary : theme.colors.text }}>
+                                  {field.label}
+                                </Text>
+                                <Text style={{ fontSize: 12, color: theme.colors.textTertiary, marginTop: 2 }}>
+                                  {field.description}
+                                </Text>
+                              </View>
+                              <Switch
+                                value={isOn}
+                                onValueChange={() => togglePermission(field.key)}
+                                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                                thumbColor={isOn ? '#ffffff' : theme.colors.textTertiary}
+                              />
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
                   </View>
-                  <Switch
-                    value={formData.permissions[key]}
-                    onValueChange={() => togglePermission(key)}
-                    trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
-                  />
-                </View>
-              ))}
+                );
+              })}
 
               <Text style={[styles.sectionHeader, { color: theme.colors.primary, marginTop: 24 }]}>Assigned Properties</Text>
               {landlordProperties.length > 0 ? landlordProperties.map(prop => (
@@ -718,13 +959,17 @@ export default function Caretakers() {
             <View style={styles.alertIconContainer}>
               <Ionicons name="alert-circle" size={48} color="#D97706" />
             </View>
-            <Text style={[styles.alertTitle, { color: theme.colors.text }]}>Landlord-Level Access</Text>
+            <Text style={[styles.alertTitle, { color: theme.colors.text }]}>
+              {permissionPrompt.isBulk ? 'Bulk Access Grant' : 'Landlord-Level Access'}
+            </Text>
             <Text style={[styles.alertMsg, { color: theme.colors.textSecondary }]}>
-              Enabling <Text style={{ fontWeight: 'bold' }}>{promptedPermissionLabel}</Text> grants elevated permissions.
-              {'\n'}{promptedPermissionMessage}
+              {permissionPrompt.isBulk 
+                ? 'You are enabling multiple sensitive features. This grants this caretaker elevated control over bookings, payments, and system settings. Are you sure?'
+                : <>Enabling <Text style={{ fontWeight: 'bold' }}>{promptedPermissionLabel}</Text> grants elevated permissions.{'\n'}{promptedPermissionMessage}</>
+              }
             </Text>
             <View style={styles.alertActions}>
-              <TouchableOpacity style={styles.alertCancel} onPress={() => setPermissionPrompt({ visible: false, key: null })}>
+              <TouchableOpacity style={styles.alertCancel} onPress={() => setPermissionPrompt({ visible: false, key: null, isBulk: false, keys: [] })}>
                 <Text style={styles.alertCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.alertConfirm, { backgroundColor: '#DC2626' }]} onPress={confirmPermissionGrant}>

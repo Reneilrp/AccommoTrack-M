@@ -380,7 +380,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     }
   };
 
-  const handlePermissionToggle = (key) => setCaretakerPermissions(p => ({ ...p, [key]: !p[key] }));
+  const handlePermissionToggle = (key, forcedValue) => setCaretakerPermissions(p => ({ ...p, [key]: forcedValue !== undefined ? forcedValue : !p[key] }));
   const resetCaretakerPermissions = () => setCaretakerPermissions(createCaretakerPermissionDefaults());
 
   const handleCreateCaretaker = async () => {

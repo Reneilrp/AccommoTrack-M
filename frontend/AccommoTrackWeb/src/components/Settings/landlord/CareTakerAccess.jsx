@@ -17,7 +17,11 @@ import {
   User,
   Calendar,
   Key,
-  KeyRound
+  KeyRound,
+  ChevronDown,
+  ChevronUp,
+  BarChart3,
+  Wallet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../../utils/api';
@@ -37,7 +41,13 @@ export default function CareTakerAccess({
   resetCaretakerPermissions,
   handlePermissionToggle
 }) {
-  const [permissionPrompt, setPermissionPrompt] = useState({ open: false, key: null, target: 'create' });
+  const [permissionPrompt, setPermissionPrompt] = useState({ 
+    open: false, 
+    key: null, 
+    target: 'create', 
+    isBulk: false, 
+    keys: [] 
+  });
   const [showPasswords, setShowPasswords] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createStep, setCreateStep] = useState(1);
@@ -58,6 +68,7 @@ export default function CareTakerAccess({
   const [passwordResetModal, setPasswordResetModal] = useState({ show: false, caretaker: null, loading: false, tempPassword: '' });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
   const [propertyError, setPropertyError] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({
     first_name: '',
     middle_name: '',
@@ -107,9 +118,9 @@ export default function CareTakerAccess({
       icon: <XCircle className="w-4 h-4" />,
     },
     {
-      key: 'manage_add_ons',
-      label: 'Manage Add-ons',
-      description: 'Approve/reject tenant add-ons.',
+      key: 'manual_bookings',
+      label: 'Manual Bookings',
+      description: 'Create bookings on behalf of tenants.',
       icon: <Plus className="w-4 h-4" />,
     },
     {
@@ -117,6 +128,12 @@ export default function CareTakerAccess({
       label: 'Tenants',
       description: 'Access profiles and room assignments.',
       icon: <Users className="w-4 h-4" />,
+    },
+    {
+      key: 'add_tenant_manually',
+      label: 'Add Tenant Manually',
+      description: 'Create tenant profiles without invites.',
+      icon: <Plus className="w-4 h-4" />,
     },
     {
       key: 'messages',
@@ -135,6 +152,12 @@ export default function CareTakerAccess({
       label: 'Properties',
       description: 'View and manage property details.',
       icon: <Shield className="w-4 h-4" />,
+    },
+    {
+      key: 'manage_add_ons',
+      label: 'Manage Add-ons',
+      description: 'Approve/reject tenant add-ons.',
+      icon: <Plus className="w-4 h-4" />,
     },
     {
       key: 'maintenance',
@@ -161,7 +184,36 @@ export default function CareTakerAccess({
       icon: <CheckCircle2 className="w-4 h-4" />,
     },
   ];
-  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics', 'view_audit_logs', 'approve_bookings', 'cancel_bookings', 'manage_add_ons']);
+
+  const MODULE_GROUPS = [
+    {
+      title: 'Bookings',
+      icon: <Calendar className="w-5 h-5" />,
+      keys: ['bookings', 'approve_bookings', 'cancel_bookings', 'manual_bookings']
+    },
+    {
+      title: 'Tenant Management',
+      icon: <Users className="w-5 h-5" />,
+      keys: ['tenants', 'messages', 'add_tenant_manually']
+    },
+    {
+      title: 'Properties & Rooms',
+      icon: <Building2 className="w-5 h-5" />,
+      keys: ['properties', 'rooms', 'maintenance', 'manage_add_ons']
+    },
+    {
+      title: 'Payments',
+      icon: <Wallet className="w-5 h-5" />,
+      keys: ['payments']
+    },
+    {
+      title: 'Analytics & Admin',
+      icon: <BarChart3 className="w-5 h-5" />,
+      keys: ['analytics', 'view_audit_logs']
+    }
+  ];
+
+  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics', 'view_audit_logs', 'approve_bookings', 'cancel_bookings', 'manage_add_ons', 'add_tenant_manually', 'manual_bookings']);
   const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
     rooms: 'Enabling this allows caretakers to modify room availability and tenant placements.',
     properties: 'Enabling this allows caretakers to edit core property details and settings.',
@@ -172,16 +224,76 @@ export default function CareTakerAccess({
     approve_bookings: 'Enabling this gives explicit right to accept or approve new booking requests.',
     cancel_bookings: 'Enabling this gives explicit right to decline, cancel, or reject bookings.',
     manage_add_ons: 'Enabling this allows the caretaker to approve or modify tenant add-ons.',
+    add_tenant_manually: 'Enabling this allows caretakers to securely add new tenants into the system.',
+    manual_bookings: 'Enabling this allows caretakers to place override bookings forcefully behind the scenes.',
+  };
+
+  const handleGroupSelectAll = (e, keys, target, currentState) => {
+    e.stopPropagation();
+    const allSelected = keys.every(k => !!currentState[k]);
+    const nextState = !allSelected;
+
+    if (nextState === true) {
+      const sensitiveKeys = keys.filter(k => isLandlordLevelPermission(k) && !currentState[k]);
+      
+      if (sensitiveKeys.length > 0) {
+        setPermissionPrompt({
+          open: true,
+          key: null,
+          target,
+          isBulk: true,
+          keys: keys
+        });
+        return;
+      }
+    }
+
+    applyBulkPermissions(keys, nextState, target);
+  };
+
+  const handleGlobalSelectAll = (target, currentState) => {
+    const allKeys = CARETAKER_PERMISSION_FIELDS.map(f => f.key);
+    const allSelected = allKeys.every(k => !!currentState[k]);
+    const nextState = !allSelected;
+
+    if (nextState === true) {
+      const sensitiveKeys = allKeys.filter(k => isLandlordLevelPermission(k) && !currentState[k]);
+
+      if (sensitiveKeys.length > 0) {
+        setPermissionPrompt({
+          open: true,
+          key: null,
+          target,
+          isBulk: true,
+          keys: allKeys
+        });
+        return;
+      }
+    }
+
+    applyBulkPermissions(allKeys, nextState, target);
+  };
+
+  const applyBulkPermissions = (keys, value, target) => {
+    if (target === 'create') {
+      keys.forEach(k => handlePermissionToggle(k, value));
+    } else {
+      setEditFormData(prev => {
+        const newPerms = { ...prev.permissions };
+        keys.forEach(k => newPerms[k] = value);
+        return { ...prev, permissions: newPerms };
+      });
+    }
   };
 
   const isLandlordLevelPermission = (key) => LANDLORD_LEVEL_PERMISSION_KEYS.has(key);
 
   const closePermissionPrompt = () => {
-    setPermissionPrompt({ open: false, key: null, target: 'create' });
+    setPermissionPrompt({ open: false, key: null, target: 'create', isBulk: false, keys: [] });
   };
 
   const requestPermissionPrompt = (key, target) => {
-    setPermissionPrompt({ open: true, key, target });
+    setPermissionPrompt({ open: true, key, target, isBulk: false, keys: [] });
   };
   const resetCreationForm = () => {
     if (setCaretakerForm) setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
@@ -440,21 +552,19 @@ export default function CareTakerAccess({
   };
 
   const confirmPermissionGrant = () => {
-    const { key, target } = permissionPrompt;
-    if (!key) {
-      closePermissionPrompt();
-      return;
+    if (permissionPrompt.isBulk) {
+      applyBulkPermissions(permissionPrompt.keys, true, permissionPrompt.target);
+    } else {
+      const { key, target } = permissionPrompt;
+      if (target === 'create') {
+        handlePermissionToggle(key, true);
+      } else {
+        setEditFormData(prev => ({
+          ...prev,
+          permissions: { ...prev.permissions, [key]: true }
+        }));
+      }
     }
-
-    if (target === 'edit') {
-      setEditFormData(prev => ({
-        ...prev,
-        permissions: { ...prev.permissions, [key]: true }
-      }));
-    } else if (typeof handlePermissionToggle === 'function') {
-      handlePermissionToggle(key);
-    }
-
     closePermissionPrompt();
   };
 
@@ -683,33 +793,123 @@ export default function CareTakerAccess({
                 {createStep === 2 && (
                   <>
                     <section className="space-y-4">
-                      <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <Shield className="w-4 h-4" /> Module Permissions
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {CARETAKER_PERMISSION_FIELDS.map((field) => (
-                          <label
-                            key={field.key}
-                            className={`flex flex-col p-4 rounded-2xl border transition-all cursor-pointer group ${safePermissions[field.key]
-                                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 ring-1 ring-green-100 dark:ring-green-900/30'
-                                : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 shadow-sm'
-                              }`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className={`p-2 rounded-lg ${safePermissions[field.key] ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
-                                {field.icon}
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                          <Shield className="w-4 h-4" /> Module Permissions
+                        </h3>
+                        {(() => {
+                          const allKeys = CARETAKER_PERMISSION_FIELDS.map(f => f.key);
+                          const allSelected = allKeys.every(k => !!safePermissions[k]);
+                          return (
+                            <button
+                              onClick={() => handleGlobalSelectAll('create', safePermissions)}
+                              className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all ${allSelected ? 'bg-red-600 text-white border-red-600 hover:bg-red-700' : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'}`}
+                            >
+                              {allSelected ? '✕ Deselect All' : '✓ Select All'}
+                            </button>
+                          );
+                        })()}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {MODULE_GROUPS.map((group) => {
+                          const isExpanded = expandedGroups.includes(group.title);
+                          const groupFields = CARETAKER_PERMISSION_FIELDS.filter(f => group.keys.includes(f.key));
+                          const activeCount = groupFields.filter(f => !!safePermissions[f.key]).length;
+                          const isModuleActive = activeCount > 0;
+
+                          const toggleGroup = () => {
+                            setExpandedGroups(prev => 
+                              prev.includes(group.title) 
+                                ? prev.filter(t => t !== group.title) 
+                                : [...prev, group.title]
+                            );
+                          };
+
+                          return (
+                            <div key={group.title} className={`rounded-2xl overflow-hidden border-2 transition-all duration-200 ${
+                              isModuleActive
+                                ? 'border-emerald-500 shadow-lg shadow-emerald-100 dark:shadow-emerald-900/20'
+                                : 'border-gray-200 dark:border-gray-700'
+                            }`}>
+                              {/* Card Header — always visible */}
+                              <div className={`flex items-center transition-colors ${
+                                isModuleActive
+                                  ? 'bg-emerald-600 dark:bg-emerald-700'
+                                  : 'bg-white dark:bg-gray-800'
+                              }`}>
+                                {/* Left: checkbox + icon + title — toggles all */}
+                                <button
+                                  onClick={(e) => handleGroupSelectAll(e, group.keys, 'create', safePermissions)}
+                                  className="flex-1 flex items-center gap-3 p-4 text-left"
+                                >
+                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                    isModuleActive
+                                      ? 'bg-white border-white'
+                                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+                                  }`}>
+                                    {isModuleActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                                  </div>
+                                  <div className={`p-1.5 rounded-lg ${
+                                    isModuleActive ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'
+                                  }`}>
+                                    <span className={isModuleActive ? 'text-white' : 'text-gray-500 dark:text-gray-400'}>
+                                      {group.icon}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className={`font-bold text-sm ${ isModuleActive ? 'text-white' : 'text-gray-900 dark:text-white'}`}>{group.title}</p>
+                                    <p className={`text-[10px] font-semibold ${ isModuleActive ? 'text-emerald-100' : 'text-gray-400 dark:text-gray-500'}`}>
+                                      {activeCount}/{groupFields.length} active
+                                    </p>
+                                  </div>
+                                </button>
+                                {/* Right: expand arrow only */}
+                                <button
+                                  onClick={toggleGroup}
+                                  className={`p-4 border-l transition-colors ${
+                                    isModuleActive
+                                      ? 'border-emerald-500/40 hover:bg-emerald-700/50 text-white'
+                                      : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-400'
+                                  }`}
+                                >
+                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </button>
                               </div>
-                              <input
-                                type="checkbox"
-                                checked={!!safePermissions[field.key]}
-                                onChange={() => handlePermissionFieldToggle(field.key)}
-                                className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                              />
+
+                              {/* Expanded sub-perms */}
+                              {isExpanded && (
+                                <div className="bg-gray-50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700">
+                                  {groupFields.map((field, idx) => {
+                                    const isChecked = !!safePermissions[field.key];
+                                    return (
+                                      <label
+                                        key={field.key}
+                                        className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
+                                          idx < groupFields.length - 1 ? 'border-b border-gray-100 dark:border-gray-700/60' : ''
+                                        } ${
+                                          isChecked
+                                            ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+                                            : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                                        }`}
+                                      >
+                                        <div className="pr-4">
+                                          <p className={`text-[13px] font-semibold ${ isChecked ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>{field.label}</p>
+                                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{field.description}</p>
+                                        </div>
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => handlePermissionFieldToggle(field.key)}
+                                          className="w-4 h-4 accent-emerald-600 cursor-pointer flex-shrink-0 rounded"
+                                        />
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                            <span className="font-bold text-gray-900 dark:text-white text-sm">{field.label}</span>
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-2">{field.description}</span>
-                          </label>
-                        ))}
+                          );
+                        })}
                       </div>
                     </section>
 
@@ -1155,10 +1355,14 @@ export default function CareTakerAccess({
               <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="w-10 h-10 text-amber-600 dark:text-amber-400" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Landlord-Level Access</h3>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {permissionPrompt.isBulk ? 'Bulk Access Grant' : 'Landlord-Level Access'}
+              </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Enabling <span className="font-bold text-gray-900 dark:text-white">{promptedPermissionLabel}</span> grants elevated landlord-level permissions.<br />
-                {promptedPermissionMessage}
+                {permissionPrompt.isBulk 
+                  ? 'You are enabling multiple sensitive features. This grants this caretaker elevated control over bookings, payments, and system settings. Are you sure?'
+                  : <>Enabling <span className="font-bold text-gray-900 dark:text-white">{promptedPermissionLabel}</span> grants elevated landlord-level permissions.<br />{promptedPermissionMessage}</>
+                }
               </p>
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <button
@@ -1278,34 +1482,124 @@ export default function CareTakerAccess({
               </div>
 
               {/* Permissions Section */}
-              <div className="space-y-4">
-                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                  <Shield className="w-4 h-4" /> Update Permissions
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {CARETAKER_PERMISSION_FIELDS.map((field) => (
-                    <label
-                      key={field.key}
-                      className={`flex flex-col p-4 rounded-2xl border transition-all cursor-pointer group ${editFormData.permissions[field.key]
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 ring-1 ring-green-100 dark:ring-green-900/30'
-                          : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 shadow-sm'
-                        }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className={`p-2 rounded-lg ${editFormData.permissions[field.key] ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
-                          {field.icon}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Shield className="w-4 h-4" /> Update Permissions
+                  </h4>
+                  {(() => {
+                    const allKeys = CARETAKER_PERMISSION_FIELDS.map(f => f.key);
+                    const allSelected = allKeys.every(k => !!editFormData.permissions[k]);
+                    return (
+                      <button
+                        onClick={() => handleGlobalSelectAll('edit', editFormData.permissions)}
+                        className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all ${allSelected ? 'bg-red-600 text-white border-red-600 hover:bg-red-700' : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'}`}
+                      >
+                        {allSelected ? '✕ Deselect All' : '✓ Select All'}
+                      </button>
+                    );
+                  })()}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {MODULE_GROUPS.map((group) => {
+                    const isExpanded = expandedGroups.includes(group.title);
+                    const groupFields = CARETAKER_PERMISSION_FIELDS.filter(f => group.keys.includes(f.key));
+                    const activeCount = groupFields.filter(f => !!editFormData.permissions[f.key]).length;
+                    const isModuleActive = activeCount > 0;
+
+                    const toggleGroup = () => {
+                      setExpandedGroups(prev => 
+                        prev.includes(group.title) 
+                          ? prev.filter(t => t !== group.title) 
+                          : [...prev, group.title]
+                      );
+                    };
+
+                    return (
+                      <div key={group.title} className={`rounded-2xl overflow-hidden border-2 transition-all duration-200 ${
+                        isModuleActive
+                          ? 'border-emerald-500 shadow-lg shadow-emerald-100 dark:shadow-emerald-900/20'
+                          : 'border-gray-200 dark:border-gray-700'
+                      }`}>
+                        {/* Card Header */}
+                        <div className={`flex items-center transition-colors ${
+                          isModuleActive
+                            ? 'bg-emerald-600 dark:bg-emerald-700'
+                            : 'bg-white dark:bg-gray-800'
+                        }`}>
+                          {/* Left: checkbox + icon + title — toggles all */}
+                          <button
+                            onClick={(e) => handleGroupSelectAll(e, group.keys, 'edit', editFormData.permissions)}
+                            className="flex-1 flex items-center gap-3 p-4 text-left"
+                          >
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                              isModuleActive
+                                ? 'bg-white border-white'
+                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+                            }`}>
+                              {isModuleActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                            </div>
+                            <div className={`p-1.5 rounded-lg ${
+                              isModuleActive ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'
+                            }`}>
+                              <span className={isModuleActive ? 'text-white' : 'text-gray-500 dark:text-gray-400'}>
+                                {group.icon}
+                              </span>
+                            </div>
+                            <div>
+                              <p className={`font-bold text-sm ${ isModuleActive ? 'text-white' : 'text-gray-900 dark:text-white'}`}>{group.title}</p>
+                              <p className={`text-[10px] font-semibold ${ isModuleActive ? 'text-emerald-100' : 'text-gray-400 dark:text-gray-500'}`}>
+                                {activeCount}/{groupFields.length} active
+                              </p>
+                            </div>
+                          </button>
+                          {/* Right: expand arrow only */}
+                          <button
+                            onClick={toggleGroup}
+                            className={`p-4 border-l transition-colors ${
+                              isModuleActive
+                                ? 'border-emerald-500/40 hover:bg-emerald-700/50 text-white'
+                                : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-400'
+                            }`}
+                          >
+                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </button>
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={!!editFormData.permissions[field.key]}
-                          onChange={() => toggleEditPermission(field.key)}
-                          className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
+
+                        {/* Expanded sub-perms */}
+                        {isExpanded && (
+                          <div className="bg-gray-50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700">
+                            {groupFields.map((field, idx) => {
+                              const isChecked = !!editFormData.permissions[field.key];
+                              return (
+                                <label
+                                  key={field.key}
+                                  className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
+                                    idx < groupFields.length - 1 ? 'border-b border-gray-100 dark:border-gray-700/60' : ''
+                                  } ${
+                                    isChecked
+                                      ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+                                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                                  }`}
+                                >
+                                  <div className="pr-4">
+                                    <p className={`text-[13px] font-semibold ${ isChecked ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>{field.label}</p>
+                                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{field.description}</p>
+                                  </div>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => toggleEditPermission(field.key)}
+                                    className="w-4 h-4 accent-emerald-600 cursor-pointer flex-shrink-0 rounded"
+                                  />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <span className="font-bold text-gray-900 dark:text-white text-sm">{field.label}</span>
-                      <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-2">{field.description}</span>
-                    </label>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

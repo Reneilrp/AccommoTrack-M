@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import {
@@ -113,6 +114,7 @@ export default function BookingsScreen({ navigation, route }) {
   const [settlementHistoryLoading, setSettlementHistoryLoading] = useState(false);
   const [submittingSettlement, setSubmittingSettlement] = useState(false);
   const [pendingFocusBookingId, setPendingFocusBookingId] = useState(null);
+  const [user, setUser] = useState(null);
   const [settlementForm, setSettlementForm] = useState({
     damageFee: '',
     cleaningFee: '',
@@ -122,6 +124,93 @@ export default function BookingsScreen({ navigation, route }) {
     refundReference: '',
     note: ''
   });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUser = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (!mounted || !userString) return;
+        setUser(JSON.parse(userString));
+      } catch (_error) {
+        // Keep default role assumptions when user payload is unavailable.
+      }
+    };
+
+    loadUser();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const normalizedRole = user?.role || 'landlord';
+  const isCaretaker = normalizedRole === 'caretaker';
+  const caretakerPermissions = user?.caretaker_permissions || {};
+
+  const normalizePermissionValue = useCallback((value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+
+    return Boolean(value);
+  }, []);
+
+  const buildPermissionCandidates = useCallback((key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  }, []);
+
+  const hasCaretakerPermission = useCallback((key, aliases = []) => {
+    if (!isCaretaker) return true;
+
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(caretakerPermissions?.[candidate]),
+    );
+  }, [buildPermissionCandidates, caretakerPermissions, isCaretaker, normalizePermissionValue]);
+
+  const canApproveBookings = hasCaretakerPermission('approve_bookings', ['approve_booking']);
+  const canCancelBookings = hasCaretakerPermission('cancel_bookings', ['cancel_booking']);
+  const canManageBookings = canApproveBookings || canCancelBookings;
+
+  const guardAnyBookingAction = useCallback(() => {
+    if (canManageBookings) return false;
+    showAlert('Permission Required', 'Caretaker booking actions are disabled.');
+    return true;
+  }, [canManageBookings, showAlert]);
+
+  const guardApprovalAction = useCallback(() => {
+    if (canApproveBookings) return false;
+    showAlert('Permission Required', 'You do not have approval permission for this booking action.');
+    return true;
+  }, [canApproveBookings, showAlert]);
+
+  const guardCancellationAction = useCallback(() => {
+    if (canCancelBookings) return false;
+    showAlert('Permission Required', 'You do not have cancellation permission for this booking action.');
+    return true;
+  }, [canCancelBookings, showAlert]);
 
   const bookingsQuery = useQuery({
     queryKey: landlordQueryKeys.bookings(),
@@ -251,6 +340,8 @@ export default function BookingsScreen({ navigation, route }) {
   );
 
   const handleExtensionRequestAction = async (requestId, action) => {
+    if (guardAnyBookingAction()) return;
+
     try {
       setRequestActionLoading(true);
       const response = await PropertyService.handleExtensionRequest(requestId, { action });
@@ -280,7 +371,7 @@ export default function BookingsScreen({ navigation, route }) {
         <Text style={styles.requestMeta}>Current End: {formatDate(item.current_end_date)}</Text>
         <Text style={styles.requestMeta}>Requested End: {formatDate(item.requested_end_date)}</Text>
         <Text style={styles.requestMeta}>Fee: {formatCurrency(item.proposed_amount || 0)}</Text>
-        {item.status === 'pending' ? (
+        {item.status === 'pending' && canManageBookings ? (
           <View style={styles.requestActionsRow}>
             <TouchableOpacity
               style={styles.requestApproveBtn}
@@ -297,6 +388,8 @@ export default function BookingsScreen({ navigation, route }) {
               <Text style={styles.requestRejectText}>Reject</Text>
             </TouchableOpacity>
           </View>
+        ) : item.status === 'pending' ? (
+          <Text style={styles.requestMeta}>Action unavailable for your caretaker permissions.</Text>
         ) : null}
       </View>
     );
@@ -380,6 +473,8 @@ export default function BookingsScreen({ navigation, route }) {
   };
 
   const openCancelModal = (booking) => {
+    if (guardCancellationAction()) return;
+
     setSelectedBooking(booking);
     setCancelForm({ reason: '', shouldRefund: false, refundAmount: booking.amount?.toString() || '' });
     setCancelVisible(true);
@@ -397,6 +492,13 @@ export default function BookingsScreen({ navigation, route }) {
 
   const handleBookingStatus = async (status, extra = {}) => {
     if (!selectedBooking) return;
+
+    const normalizedStatus = String(status || '').toLowerCase();
+    if (normalizedStatus === 'cancelled') {
+      if (guardCancellationAction()) return;
+    } else if (guardApprovalAction()) {
+      return;
+    }
 
     if (status === 'completed' && Number(selectedBooking.deposit_balance || 0) > 0) {
       showAlert(
@@ -424,6 +526,13 @@ export default function BookingsScreen({ navigation, route }) {
 
   const handlePaymentChange = async (paymentStatus) => {
     if (!selectedBooking) return;
+
+    if (paymentStatus === 'refunded') {
+      if (guardCancellationAction()) return false;
+    } else if (guardApprovalAction()) {
+      return false;
+    }
+
     try {
       setActionLoading(true);
       const response = await PropertyService.updateBookingPayment(selectedBooking.id, { payment_status: paymentStatus });
@@ -478,6 +587,7 @@ export default function BookingsScreen({ navigation, route }) {
 
   const handleFinalizeCheckout = async (booking, options = {}) => {
     if (!booking?.id) return;
+    if (guardApprovalAction()) return;
 
     try {
       setActionLoading(true);
@@ -499,6 +609,7 @@ export default function BookingsScreen({ navigation, route }) {
 
   const handleSettleDeposit = async () => {
     if (!selectedBooking) return;
+    if (guardApprovalAction()) return;
 
     const damageFee = Number.parseFloat(settlementForm.damageFee) || 0;
     const cleaningFee = Number.parseFloat(settlementForm.cleaningFee) || 0;
@@ -568,6 +679,8 @@ export default function BookingsScreen({ navigation, route }) {
   };
 
   const submitCancellation = () => {
+    if (guardCancellationAction()) return;
+
     if (!cancelForm.reason.trim()) {
       showAlert('Cancellation', 'Provide a reason before cancelling.');
       return;
@@ -602,7 +715,7 @@ export default function BookingsScreen({ navigation, route }) {
             <Text style={styles.guestName} numberOfLines={1}>{item.guestName}</Text>
             <Text style={styles.guestEmail} numberOfLines={1}>{item.email}</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusBadge.bg }] }>
+          <View style={[styles.statusBadge, { backgroundColor: statusBadge.bg }]}>
             <Text style={[styles.statusText, { color: statusBadge.color }]}>{statusBadge.label}</Text>
           </View>
         </View>
@@ -636,6 +749,8 @@ export default function BookingsScreen({ navigation, route }) {
   };
 
   const handleTransferRequestAction = async (requestId, action) => {
+    if (guardAnyBookingAction()) return;
+
     try {
       setRequestActionLoading(true);
       const response = await PropertyService.handleTransferRequest(requestId, { action });
@@ -664,7 +779,7 @@ export default function BookingsScreen({ navigation, route }) {
         </Text>
         <Text style={styles.requestMeta}>Property: {item.property?.title || 'Property'}</Text>
         <Text style={styles.requestMeta}>Reason: {item.reason}</Text>
-        {item.status === 'pending' ? (
+        {item.status === 'pending' && canManageBookings ? (
           <View style={styles.requestActionsRow}>
             <TouchableOpacity
               style={styles.requestApproveBtn}
@@ -681,6 +796,8 @@ export default function BookingsScreen({ navigation, route }) {
               <Text style={styles.requestRejectText}>Reject</Text>
             </TouchableOpacity>
           </View>
+        ) : item.status === 'pending' ? (
+          <Text style={styles.requestMeta}>Action unavailable for your caretaker permissions.</Text>
         ) : null}
       </View>
     );
@@ -714,22 +831,22 @@ export default function BookingsScreen({ navigation, route }) {
           { id: 'transfers', label: 'Transfers', icon: 'shuffle', count: transferRequests.filter(r => r.status === 'pending').length },
           { id: 'extensions', label: 'Extensions', icon: 'calendar-outline', count: extensionRequests.filter(r => r.status === 'pending').length }
         ].map((tab) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={tab.id}
             onPress={() => setActiveTab(tab.id)}
-            style={{ 
-              flex: 1, 
-              paddingVertical: 12, 
+            style={{
+              flex: 1,
+              paddingVertical: 12,
               alignItems: 'center',
               borderBottomWidth: 3,
               borderBottomColor: activeTab === tab.id ? theme.colors.primary : 'transparent'
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ 
-                fontSize: 12, 
-                fontWeight: 'bold', 
-                color: activeTab === tab.id ? theme.colors.primary : theme.colors.textSecondary 
+              <Text style={{
+                fontSize: 12,
+                fontWeight: 'bold',
+                color: activeTab === tab.id ? theme.colors.primary : theme.colors.textSecondary
               }}>
                 {tab.label}
               </Text>
@@ -797,13 +914,22 @@ export default function BookingsScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.heroTitle}>Bookings</Text>
-        <TouchableOpacity 
-          style={styles.iconButton} 
-          onPress={() => navigation.navigate('AddBooking')}
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => {
+            if (guardApprovalAction()) return;
+            navigation.navigate('AddBooking');
+          }}
         >
           <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
+
+      {isCaretaker && !canManageBookings ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>You need approve and/or cancel booking permissions to perform actions.</Text>
+        </View>
+      ) : null}
 
       {(error || actionError) ? (
         <View style={styles.errorBanner}>
@@ -992,19 +1118,29 @@ export default function BookingsScreen({ navigation, route }) {
               <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Update Payment Status</Text>
                 <View style={styles.paymentPillRow}>
-                  {['unpaid', 'partial', 'paid', 'refunded'].map((status) => (
-                    <TouchableOpacity
-                      key={status}
-                      style={[styles.paymentPill, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }, selectedBooking.paymentStatus === status && styles.paymentPillActive]}
-                      onPress={() => handlePaymentChange(status)}
-                      disabled={actionLoading}
-                    >
-                      <Text style={[styles.paymentPillText, { color: theme.colors.textSecondary }, selectedBooking.paymentStatus === status && styles.paymentPillTextActive]}>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {['unpaid', 'partial', 'paid', 'refunded'].map((status) => {
+                    const requiresCancel = status === 'refunded';
+                    if ((requiresCancel && !canCancelBookings) || (!requiresCancel && !canApproveBookings)) {
+                      return null;
+                    }
+
+                    return (
+                      <TouchableOpacity
+                        key={status}
+                        style={[styles.paymentPill, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }, selectedBooking.paymentStatus === status && styles.paymentPillActive]}
+                        onPress={() => handlePaymentChange(status)}
+                        disabled={actionLoading}
+                      >
+                        <Text style={[styles.paymentPillText, { color: theme.colors.textSecondary }, selectedBooking.paymentStatus === status && styles.paymentPillTextActive]}>
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
+                {!canApproveBookings && !canCancelBookings ? (
+                  <Text style={[styles.requestMeta, { color: theme.colors.textSecondary }]}>Payment updates are not available for your caretaker permissions.</Text>
+                ) : null}
               </View>
 
               <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -1012,95 +1148,101 @@ export default function BookingsScreen({ navigation, route }) {
                 <Text style={[styles.depositBalanceLabel, { color: theme.colors.textSecondary }]}>Current Deposit Balance</Text>
                 <Text style={[styles.depositBalanceValue, { color: theme.colors.text }]}>{formatCurrency(selectedBooking.deposit_balance || 0)}</Text>
 
-                <View style={styles.settlementFeeRow}>
-                  <View style={styles.settlementFeeField}>
-                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Damage Fee</Text>
-                    <TextInput
-                      value={settlementForm.damageFee}
-                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, damageFee: value }))}
-                      keyboardType="numeric"
-                      placeholder="0.00"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                    />
-                  </View>
-                  <View style={styles.settlementFeeField}>
-                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Cleaning Fee</Text>
-                    <TextInput
-                      value={settlementForm.cleaningFee}
-                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, cleaningFee: value }))}
-                      keyboardType="numeric"
-                      placeholder="0.00"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                    />
-                  </View>
-                  <View style={styles.settlementFeeField}>
-                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Other Fee</Text>
-                    <TextInput
-                      value={settlementForm.otherFee}
-                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, otherFee: value }))}
-                      keyboardType="numeric"
-                      placeholder="0.00"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.switchRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Mark remaining balance as refunded?</Text>
-                  <Switch
-                    value={settlementForm.markRefunded}
-                    onValueChange={(value) => setSettlementForm((prev) => ({ ...prev, markRefunded: value }))}
-                    trackColor={{ true: '#86EFAC', false: theme.colors.border }}
-                    thumbColor={settlementForm.markRefunded ? theme.colors.primary : '#FFFFFF'}
-                  />
-                </View>
-
-                {settlementForm.markRefunded ? (
+                {canApproveBookings ? (
                   <>
-                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Method *</Text>
+                    <View style={styles.settlementFeeRow}>
+                      <View style={styles.settlementFeeField}>
+                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Damage Fee</Text>
+                        <TextInput
+                          value={settlementForm.damageFee}
+                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, damageFee: value }))}
+                          keyboardType="numeric"
+                          placeholder="0.00"
+                          placeholderTextColor={theme.colors.textTertiary}
+                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                        />
+                      </View>
+                      <View style={styles.settlementFeeField}>
+                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Cleaning Fee</Text>
+                        <TextInput
+                          value={settlementForm.cleaningFee}
+                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, cleaningFee: value }))}
+                          keyboardType="numeric"
+                          placeholder="0.00"
+                          placeholderTextColor={theme.colors.textTertiary}
+                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                        />
+                      </View>
+                      <View style={styles.settlementFeeField}>
+                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Other Fee</Text>
+                        <TextInput
+                          value={settlementForm.otherFee}
+                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, otherFee: value }))}
+                          keyboardType="numeric"
+                          placeholder="0.00"
+                          placeholderTextColor={theme.colors.textTertiary}
+                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.switchRow}>
+                      <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Mark remaining balance as refunded?</Text>
+                      <Switch
+                        value={settlementForm.markRefunded}
+                        onValueChange={(value) => setSettlementForm((prev) => ({ ...prev, markRefunded: value }))}
+                        trackColor={{ true: '#86EFAC', false: theme.colors.border }}
+                        thumbColor={settlementForm.markRefunded ? theme.colors.primary : '#FFFFFF'}
+                      />
+                    </View>
+
+                    {settlementForm.markRefunded ? (
+                      <>
+                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Method *</Text>
+                        <TextInput
+                          value={settlementForm.refundMethod}
+                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundMethod: value }))}
+                          placeholder="Cash, GCash, Bank Transfer"
+                          placeholderTextColor={theme.colors.textTertiary}
+                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                        />
+
+                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Reference</Text>
+                        <TextInput
+                          value={settlementForm.refundReference}
+                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundReference: value }))}
+                          placeholder="Optional reference id"
+                          placeholderTextColor={theme.colors.textTertiary}
+                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                        />
+                      </>
+                    ) : null}
+
+                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Notes</Text>
                     <TextInput
-                      value={settlementForm.refundMethod}
-                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundMethod: value }))}
-                      placeholder="Cash, GCash, Bank Transfer"
+                      value={settlementForm.note}
+                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, note: value }))}
+                      placeholder="Optional settlement note"
                       placeholderTextColor={theme.colors.textTertiary}
-                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                      style={[styles.transferApprovalTextArea, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                      multiline
                     />
 
-                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Reference</Text>
-                    <TextInput
-                      value={settlementForm.refundReference}
-                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundReference: value }))}
-                      placeholder="Optional reference id"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                    />
+                    <TouchableOpacity
+                      style={styles.settleDepositBtn}
+                      onPress={handleSettleDeposit}
+                      disabled={submittingSettlement}
+                    >
+                      {submittingSettlement ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.settleDepositBtnText}>Record Deposit Settlement</Text>
+                      )}
+                    </TouchableOpacity>
                   </>
-                ) : null}
-
-                <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Notes</Text>
-                <TextInput
-                  value={settlementForm.note}
-                  onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, note: value }))}
-                  placeholder="Optional settlement note"
-                  placeholderTextColor={theme.colors.textTertiary}
-                  style={[styles.transferApprovalTextArea, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                  multiline
-                />
-
-                <TouchableOpacity
-                  style={styles.settleDepositBtn}
-                  onPress={handleSettleDeposit}
-                  disabled={submittingSettlement}
-                >
-                  {submittingSettlement ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.settleDepositBtnText}>Record Deposit Settlement</Text>
-                  )}
-                </TouchableOpacity>
+                ) : (
+                  <Text style={[styles.requestMeta, { color: theme.colors.textSecondary }]}>Deposit settlement requires booking approval permission.</Text>
+                )}
 
                 <Text style={[styles.settlementHistoryTitle, { color: theme.colors.text }]}>Settlement History</Text>
                 {settlementHistoryLoading ? (
@@ -1131,22 +1273,30 @@ export default function BookingsScreen({ navigation, route }) {
                 <View style={styles.actionButtonsRow}>
                   {selectedBooking.status === 'pending' && (
                     <>
-                      <TouchableOpacity style={styles.confirmBtnFull} onPress={() => handleBookingStatus('confirmed')} disabled={actionLoading}>
-                        {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.confirmBtnText}>Confirm Booking</Text>}
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.rejectBtnFull} onPress={() => openCancelModal(selectedBooking)}>
-                        <Text style={styles.rejectBtnText}>Cancel</Text>
-                      </TouchableOpacity>
+                      {canApproveBookings ? (
+                        <TouchableOpacity style={styles.confirmBtnFull} onPress={() => handleBookingStatus('confirmed')} disabled={actionLoading}>
+                          {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.confirmBtnText}>Confirm Booking</Text>}
+                        </TouchableOpacity>
+                      ) : null}
+                      {canCancelBookings ? (
+                        <TouchableOpacity style={styles.rejectBtnFull} onPress={() => openCancelModal(selectedBooking)}>
+                          <Text style={styles.rejectBtnText}>Cancel</Text>
+                        </TouchableOpacity>
+                      ) : null}
                     </>
                   )}
                   {selectedBooking.status === 'confirmed' && (
                     <>
-                      <TouchableOpacity style={styles.completeBtnFull} onPress={() => handleFinalizeCheckout(selectedBooking)} disabled={actionLoading}>
-                        {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.completeBtnText}>Finalize Checkout</Text>}
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.cancelRefundBtnFull} onPress={() => openCancelModal(selectedBooking)}>
-                        <Text style={styles.cancelRefundBtnText}>Cancel & Refund</Text>
-                      </TouchableOpacity>
+                      {canApproveBookings ? (
+                        <TouchableOpacity style={styles.completeBtnFull} onPress={() => handleFinalizeCheckout(selectedBooking)} disabled={actionLoading}>
+                          {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.completeBtnText}>Finalize Checkout</Text>}
+                        </TouchableOpacity>
+                      ) : null}
+                      {canCancelBookings ? (
+                        <TouchableOpacity style={styles.cancelRefundBtnFull} onPress={() => openCancelModal(selectedBooking)}>
+                          <Text style={styles.cancelRefundBtnText}>Cancel & Refund</Text>
+                        </TouchableOpacity>
+                      ) : null}
                     </>
                   )}
                   {selectedBooking.status === 'partial-completed' && (
@@ -1154,25 +1304,38 @@ export default function BookingsScreen({ navigation, route }) {
                       <Text style={[styles.cancelledNoteText, { color: theme.colors.textSecondary }]}>
                         Partial Complete: Mark as fully completed once all balances are settled.
                       </Text>
-                      <TouchableOpacity
-                        style={[styles.completeBtnFull, { marginTop: 12 }]}
-                        onPress={confirmResolvePartialCompleted}
-                        disabled={actionLoading}
-                      >
-                        {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.completeBtnText}>Mark Fully Paid & Completed</Text>}
-                      </TouchableOpacity>
+                      {canApproveBookings ? (
+                        <TouchableOpacity
+                          style={[styles.completeBtnFull, { marginTop: 12 }]}
+                          onPress={confirmResolvePartialCompleted}
+                          disabled={actionLoading}
+                        >
+                          {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.completeBtnText}>Mark Fully Paid & Completed</Text>}
+                        </TouchableOpacity>
+                      ) : null}
                     </View>
                   )}
                   {selectedBooking.status === 'completed' && (
-                    <TouchableOpacity style={styles.cancelRefundBtnFull} onPress={() => openCancelModal(selectedBooking)}>
-                      <Text style={styles.cancelRefundBtnText}>Cancel & Refund</Text>
-                    </TouchableOpacity>
+                    canCancelBookings ? (
+                      <TouchableOpacity style={styles.cancelRefundBtnFull} onPress={() => openCancelModal(selectedBooking)}>
+                        <Text style={styles.cancelRefundBtnText}>Cancel & Refund</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={[styles.cancelledNote, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                        <Text style={[styles.cancelledNoteText, { color: theme.colors.textSecondary }]}>Cancellation is not allowed without cancel permission.</Text>
+                      </View>
+                    )
                   )}
                   {selectedBooking.status === 'cancelled' && (
                     <View style={[styles.cancelledNote, { backgroundColor: theme.colors.backgroundSecondary }]}>
                       <Text style={[styles.cancelledNoteText, { color: theme.colors.textSecondary }]}>This booking has been cancelled.</Text>
                     </View>
                   )}
+                  {!canManageBookings ? (
+                    <View style={[styles.cancelledNote, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                      <Text style={[styles.cancelledNoteText, { color: theme.colors.textSecondary }]}>No action is available for this booking based on your caretaker permissions.</Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             </ScrollView>
@@ -1201,7 +1364,7 @@ export default function BookingsScreen({ navigation, route }) {
             />
             <View style={styles.switchRow}>
               <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Refund payment?</Text>
-                <Switch
+              <Switch
                 value={cancelForm.shouldRefund}
                 onValueChange={(value) => setCancelForm((prev) => ({ ...prev, shouldRefund: value }))}
                 trackColor={{ true: '#86EFAC', false: theme.colors.border }}

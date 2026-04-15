@@ -11,8 +11,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property int $landlord_id
  * @property int $caretaker_id
  * @property bool $can_view_bookings
+ * @property bool $can_add_manual_bookings
  * @property bool $can_view_messages
  * @property bool $can_view_tenants
+ * @property bool $can_add_tenant_manually
  * @property bool $can_view_rooms
  * @property bool $can_view_properties
  * @property bool $can_view_analytics
@@ -48,8 +50,10 @@ class CaretakerAssignment extends Model
         'can_view_bookings',
         'can_approve_bookings',
         'can_cancel_bookings',
+        'can_add_manual_bookings',
         'can_view_messages',
         'can_view_tenants',
+        'can_add_tenant_manually',
         'can_view_rooms',
         'can_view_properties',
         'can_view_analytics',
@@ -63,8 +67,10 @@ class CaretakerAssignment extends Model
         'can_view_bookings' => 'boolean',
         'can_approve_bookings' => 'boolean',
         'can_cancel_bookings' => 'boolean',
+        'can_add_manual_bookings' => 'boolean',
         'can_view_messages' => 'boolean',
         'can_view_tenants' => 'boolean',
+        'can_add_tenant_manually' => 'boolean',
         'can_view_rooms' => 'boolean',
         'can_view_properties' => 'boolean',
         'can_view_analytics' => 'boolean',

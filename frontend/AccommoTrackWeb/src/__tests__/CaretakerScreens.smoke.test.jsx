@@ -49,6 +49,7 @@ describe('Web caretaker screens smoke coverage', () => {
     expect(source).toContain("const canManageTenants = hasCaretakerPermission('tenants')");
     expect(source).toContain("const canManageMessages = hasCaretakerPermission('messages')");
     expect(source).toContain("const canManageAnalytics = hasCaretakerPermission('analytics')");
+    expect(source).toContain("const canManageAddons = hasCaretakerPermission('manage_add_ons', ['add_ons', 'addons'])");
   });
 
   it('keeps caretaker route gating for allowed modules and hides landlord-only routes', () => {
@@ -61,6 +62,8 @@ describe('Web caretaker screens smoke coverage', () => {
     expect(caretakerBranch).toContain('path="rooms"');
     expect(caretakerBranch).toContain('{canManageMaintenance && (');
     expect(caretakerBranch).toContain('path="maintenance"');
+    expect(caretakerBranch).toContain('{canManageAddons && (');
+    expect(caretakerBranch).toContain('path="addons"');
     expect(caretakerBranch).toContain('{canManageBookings && (');
     expect(caretakerBranch).toContain('path="bookings"');
     expect(caretakerBranch).toContain('{canManagePayments && (');
@@ -76,7 +79,6 @@ describe('Web caretaker screens smoke coverage', () => {
     expect(caretakerBranch).toContain('path="notifications"');
     expect(caretakerBranch).toContain('path="*" element={<Navigate to={caretakerHome} replace />}');
 
-    expect(caretakerBranch).not.toContain('path="addons"');
     expect(caretakerBranch).not.toContain('path="verification"');
   });
 
@@ -86,6 +88,7 @@ describe('Web caretaker screens smoke coverage', () => {
 
     expect(source).toContain("const canManageProperties = hasCaretakerPermission('properties', ['property', 'property_management'])");
     expect(source).toContain("const canManageMaintenance = hasCaretakerPermission('maintenance', ['rooms'])");
+    expect(source).toContain("const canManageAddons = hasCaretakerPermission('manage_add_ons', ['add_ons', 'addons'])");
     expect(source).toContain("const canManagePayments = hasCaretakerPermission('payments')");
     expect(source).toContain("const canManageAnalytics = hasCaretakerPermission('analytics')");
     expect(source).toContain('const caretakerMenu = caretakerAllowedPaths.size > 0');
@@ -95,6 +98,7 @@ describe('Web caretaker screens smoke coverage', () => {
     expect(allowedPathsBlock).toContain("canManageProperties ? '/properties' : null");
     expect(allowedPathsBlock).toContain("hasCaretakerPermission('rooms') ? '/rooms' : null");
     expect(allowedPathsBlock).toContain("canManageMaintenance ? '/maintenance' : null");
+    expect(allowedPathsBlock).toContain("canManageAddons ? '/addons' : null");
     expect(allowedPathsBlock).toContain("hasCaretakerPermission('bookings') ? '/bookings' : null");
     expect(allowedPathsBlock).toContain("canManagePayments ? '/payments' : null");
     expect(allowedPathsBlock).toContain("hasCaretakerPermission('tenants') ? '/tenants' : null");

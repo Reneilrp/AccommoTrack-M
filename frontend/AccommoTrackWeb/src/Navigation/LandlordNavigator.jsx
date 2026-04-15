@@ -81,6 +81,7 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
     const canManageTenants = hasCaretakerPermission('tenants');
     const canManageMessages = hasCaretakerPermission('messages');
     const canManageAnalytics = hasCaretakerPermission('analytics');
+    const canManageAddons = hasCaretakerPermission('manage_add_ons', ['add_ons', 'addons']);
     const caretakerHome = getDefaultLandingRoute(user);
     return (
       <SidebarProvider>
@@ -100,6 +101,9 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
             )}
             {canManageMaintenance && (
               <Route path="maintenance" element={withSuspense(<LandlordMaintenance user={user} accessRole="caretaker" />, 'Loading maintenance')} />
+            )}
+            {canManageAddons && (
+              <Route path="addons" element={withSuspense(<AddonManagement user={user} accessRole="caretaker" />, 'Loading addons')} />
             )}
             {canManageBookings && (
               <Route path="bookings" element={withSuspense(<Bookings user={user} accessRole="caretaker" />, 'Loading bookings')} />

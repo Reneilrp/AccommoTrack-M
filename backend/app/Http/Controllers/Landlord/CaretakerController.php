@@ -47,9 +47,11 @@ class CaretakerController extends Controller
                         'bookings' => $assignment->can_view_bookings,
                         'approve_bookings' => $assignment->can_approve_bookings,
                         'cancel_bookings' => $assignment->can_cancel_bookings,
+                        'manual_bookings' => $assignment->can_add_manual_bookings,
                         'manage_add_ons' => $assignment->can_manage_add_ons,
                         'messages' => $assignment->can_view_messages,
                         'tenants' => $assignment->can_view_tenants,
+                        'add_tenant_manually' => $assignment->can_add_tenant_manually,
                         'rooms' => $assignment->can_view_rooms,
                         'properties' => $assignment->can_view_properties,
                         'maintenance' => $assignment->can_manage_maintenance,
@@ -88,8 +90,10 @@ class CaretakerController extends Controller
             'permissions.can_view_bookings' => 'sometimes|boolean',
             'permissions.can_approve_bookings' => 'sometimes|boolean',
             'permissions.can_cancel_bookings' => 'sometimes|boolean',
+            'permissions.can_add_manual_bookings' => 'sometimes|boolean',
             'permissions.can_view_messages' => 'sometimes|boolean',
             'permissions.can_view_tenants' => 'sometimes|boolean',
+            'permissions.can_add_tenant_manually' => 'sometimes|boolean',
             'permissions.can_view_rooms' => 'sometimes|boolean',
             'permissions.can_view_properties' => 'sometimes|boolean',
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
@@ -134,6 +138,8 @@ class CaretakerController extends Controller
                 'can_manage_maintenance' => data_get($validated, 'permissions.can_manage_maintenance', false),
                 'can_manage_payments' => data_get($validated, 'permissions.can_manage_payments', false),
                  'can_view_analytics' => data_get($validated, 'permissions.can_view_analytics', false),
+                 'can_add_tenant_manually' => data_get($validated, 'permissions.can_add_tenant_manually', false),
+                 'can_add_manual_bookings' => data_get($validated, 'permissions.can_add_manual_bookings', false),
             ];
 
             $assignment = CaretakerAssignment::create(array_merge(
@@ -176,9 +182,11 @@ class CaretakerController extends Controller
                     'bookings' => $permissions['can_view_bookings'],
                     'approve_bookings' => $permissions['can_approve_bookings'] ?? false,
                     'cancel_bookings' => $permissions['can_cancel_bookings'] ?? false,
+                    'manual_bookings' => $permissions['can_add_manual_bookings'] ?? false,
                     'manage_add_ons' => $permissions['can_manage_add_ons'] ?? false,
                     'messages' => $permissions['can_view_messages'],
                     'tenants' => $permissions['can_view_tenants'],
+                    'add_tenant_manually' => $permissions['can_add_tenant_manually'] ?? false,
                     'rooms' => $permissions['can_view_rooms'],
                     'properties' => $permissions['can_view_properties'],
                     'maintenance' => $permissions['can_manage_maintenance'],
@@ -216,8 +224,10 @@ class CaretakerController extends Controller
             'permissions.can_view_bookings' => 'sometimes|boolean',
             'permissions.can_approve_bookings' => 'sometimes|boolean',
             'permissions.can_cancel_bookings' => 'sometimes|boolean',
+            'permissions.can_add_manual_bookings' => 'sometimes|boolean',
             'permissions.can_view_messages' => 'sometimes|boolean',
             'permissions.can_view_tenants' => 'sometimes|boolean',
+            'permissions.can_add_tenant_manually' => 'sometimes|boolean',
             'permissions.can_view_rooms' => 'sometimes|boolean',
             'permissions.can_view_properties' => 'sometimes|boolean',
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
@@ -277,6 +287,12 @@ class CaretakerController extends Controller
                 'can_cancel_bookings' => array_key_exists('can_cancel_bookings', $payload)
                     ? (bool) $payload['can_cancel_bookings']
                     : $assignment->can_cancel_bookings,
+                'can_add_manual_bookings' => array_key_exists('can_add_manual_bookings', $payload)
+                    ? (bool) $payload['can_add_manual_bookings']
+                    : $assignment->can_add_manual_bookings,
+                'can_add_tenant_manually' => array_key_exists('can_add_tenant_manually', $payload)
+                    ? (bool) $payload['can_add_tenant_manually']
+                    : $assignment->can_add_tenant_manually,
                 'can_manage_add_ons' => array_key_exists('can_manage_add_ons', $payload)
                     ? (bool) $payload['can_manage_add_ons']
                     : $assignment->can_manage_add_ons,
@@ -309,9 +325,11 @@ class CaretakerController extends Controller
                     'bookings' => $assignment->can_view_bookings,
                     'approve_bookings' => $assignment->can_approve_bookings,
                     'cancel_bookings' => $assignment->can_cancel_bookings,
+                    'manual_bookings' => $assignment->can_add_manual_bookings,
                     'manage_add_ons' => $assignment->can_manage_add_ons,
                     'messages' => $assignment->can_view_messages,
                     'tenants' => $assignment->can_view_tenants,
+                    'add_tenant_manually' => $assignment->can_add_tenant_manually,
                     'rooms' => $assignment->can_view_rooms,
                     'properties' => $assignment->can_view_properties,
                     'maintenance' => $assignment->can_manage_maintenance,

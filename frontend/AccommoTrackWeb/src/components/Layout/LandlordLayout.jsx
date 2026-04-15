@@ -6,15 +6,17 @@ import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import __api, { getImageUrl } from '../../utils/api';
 import NotificationDropdown from '../Shared/NotificationDropdown';
 import { useUIState } from '../../contexts/UIStateContext';
-import { 
-  Plus, 
-  Banknote, 
-  LayoutDashboard, 
-  Building2, 
-  Users, 
-  Calendar, 
-  MessageSquare, 
-  BarChart3, 
+import {
+  Plus,
+  Banknote,
+  LayoutDashboard,
+  Building2,
+  Wrench,
+  Sparkles,
+  Users,
+  Calendar,
+  MessageSquare,
+  BarChart3,
   Settings as SettingsIcon,
   LogOut,
   Menu,
@@ -82,6 +84,7 @@ export default function LandlordLayout({
   const canManageMaintenance = hasCaretakerPermission('maintenance', ['rooms']);
   const canManagePayments = hasCaretakerPermission('payments');
   const canManageProperties = hasCaretakerPermission('properties', ['property', 'property_management']);
+  const canManageAddons = hasCaretakerPermission('manage_add_ons', ['add_ons', 'addons']);
   const canManageAnalytics = hasCaretakerPermission('analytics');
   const canManageMessages = hasCaretakerPermission('messages');
 
@@ -129,14 +132,14 @@ export default function LandlordLayout({
   }, [refreshMessageUnreadCount]);
 
   const landlordMenu = [
-    { 
-      path: '/dashboard', 
-      label: 'Dashboard', 
+    {
+      path: '/dashboard',
+      label: 'Dashboard',
       icon: <LayoutDashboard className="w-5 h-5" />
     },
-    { 
-      path: '/properties', 
-      label: 'My Properties', 
+    {
+      path: '/properties',
+      label: 'My Properties',
       icon: <Building2 className="w-5 h-5" />
     },
     {
@@ -145,25 +148,35 @@ export default function LandlordLayout({
       icon: <Users className="w-5 h-5" />,
       onlyCaretaker: true
     },
-    
-    { 
-      path: '/bookings', 
-      label: 'Bookings', 
+
+    {
+      path: '/bookings',
+      label: 'Bookings',
       icon: <Calendar className="w-5 h-5" />
     },
-    { 
-      path: '/payments', 
-      label: 'Payments', 
+    {
+      path: '/maintenance',
+      label: 'Maintenance',
+      icon: <Wrench className="w-5 h-5" />
+    },
+    {
+      path: '/addons',
+      label: 'Add-ons',
+      icon: <Sparkles className="w-5 h-5" />
+    },
+    {
+      path: '/payments',
+      label: 'Payments',
       icon: <Banknote className="w-5 h-5" />
     },
-    { 
-      path: '/messages', 
-      label: 'Messages', 
+    {
+      path: '/messages',
+      label: 'Messages',
       icon: <MessageSquare className="w-5 h-5" />
     },
-    { 
-      path: '/analytics', 
-      label: 'Analytics', 
+    {
+      path: '/analytics',
+      label: 'Analytics',
       icon: <BarChart3 className="w-5 h-5" />
     },
     {
@@ -178,6 +191,7 @@ export default function LandlordLayout({
     canManageProperties ? '/properties' : null,
     hasCaretakerPermission('rooms') ? '/rooms' : null,
     canManageMaintenance ? '/maintenance' : null,
+    canManageAddons ? '/addons' : null,
     hasCaretakerPermission('bookings') ? '/bookings' : null,
     canManagePayments ? '/payments' : null,
     hasCaretakerPermission('tenants') ? '/tenants' : null,
@@ -207,11 +221,11 @@ export default function LandlordLayout({
     if (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') {
       return 'Add New Property';
     }
-    
+
     const item = landlordMenu.find(m => m.path === location.pathname);
     if (item) return item.label;
     if (location.pathname === '/settings') return 'Settings';
-    
+
     // Dynamic Property Title
     if (location.pathname.startsWith('/properties/')) {
       const parts = location.pathname.split('/');
@@ -230,29 +244,28 @@ export default function LandlordLayout({
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
-      <aside ref={asideRef} className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
-        isSidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'
-      } w-64 flex flex-col min-h-0`}>
+      <aside ref={asideRef} className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${isSidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'
+        } w-64 flex flex-col min-h-0`}>
         {/* Logo */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
-          <div 
-             className="cursor-pointer"
-             onClick={() => navigate('/dashboard')}
-             title="Go to Dashboard"
+          <div
+            className="cursor-pointer"
+            onClick={() => navigate('/dashboard')}
+            title="Go to Dashboard"
           >
             {isSidebarOpen ? (
               <div className="flex items-center gap-2">
-                <img 
-                  src={Logo} 
-                  alt="AccommoTrack Logo" 
+                <img
+                  src={Logo}
+                  alt="AccommoTrack Logo"
                   className="h-8 w-auto"
                 />
                 <span className="text-lg font-bold text-gray-900 dark:text-white">AccommoTrack</span>
               </div>
             ) : (
-              <img 
-                src={Logo} 
-                alt="AccommoTrack Logo" 
+              <img
+                src={Logo}
+                alt="AccommoTrack Logo"
                 className="h-8 w-auto mx-auto"
               />
             )}
@@ -278,10 +291,10 @@ export default function LandlordLayout({
         )}
 
         {/* User Profile Summary */}
-        <div 
-            className="p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        <div
+          className="p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           onClick={() => navigate('/settings')}
-            title="Go to Profile Settings"
+          title="Go to Profile Settings"
         >
           <div className={`flex items-center gap-4 ${!isSidebarOpen && 'justify-center'}`}>
             <img
@@ -308,8 +321,8 @@ export default function LandlordLayout({
               to={item.path}
               className={({ isActive }) => `
                 w-full flex items-center gap-4 px-4 py-4 transition-colors relative
-                ${isActive 
-                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-r-4 border-green-600 dark:border-green-500' 
+                ${isActive
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-r-4 border-green-600 dark:border-green-500'
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}
                 ${!isSidebarOpen && 'justify-center'}
               `}
@@ -320,9 +333,8 @@ export default function LandlordLayout({
               )}
               {item.path === '/messages' && messageUnreadCount > 0 && (
                 <span
-                  className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${
-                    isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
-                  }`}
+                  className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
+                    }`}
                 >
                   {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
                 </span>
@@ -335,9 +347,8 @@ export default function LandlordLayout({
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={handleLogoutClick}
-            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
-              !isSidebarOpen && 'justify-center'
-            }`}
+            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${!isSidebarOpen && 'justify-center'
+              }`}
           >
             <LogOut className="w-5 h-5" />
             {isSidebarOpen && <span className="font-medium">Log out</span>}
@@ -380,38 +391,37 @@ export default function LandlordLayout({
           location.pathname === '/transfers' ||
           location.pathname === '/addons'
         ) && (
-          <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-start px-4 lg:px-8 flex-shrink-0 z-10 relative">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white text-left">
-              {getPageTitle()}
-            </h1>
-            <div className="absolute right-4 lg:right-8 flex items-center gap-4">
-              {location.pathname === '/properties' && uiState.data?.landlord_property_view !== 'add' && (
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('open-add-property'))}
-                  className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span className="hidden lg:inline">Add Property</span>
-                </button>
-              )}
-              {location.pathname === '/bookings' && uiState.data?.landlord_booking_view !== 'add' && (
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('open-add-booking'))}
-                  className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span className="hidden lg:inline">Add Booking</span>
-                </button>
-              )}
-              {location.pathname === '/dashboard' && <NotificationDropdown />}
-            </div>
-          </header>
-        )}
+            <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-start px-4 lg:px-8 flex-shrink-0 z-10 relative">
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white text-left">
+                {getPageTitle()}
+              </h1>
+              <div className="absolute right-4 lg:right-8 flex items-center gap-4">
+                {location.pathname === '/properties' && uiState.data?.landlord_property_view !== 'add' && (
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-add-property'))}
+                    className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span className="hidden lg:inline">Add Property</span>
+                  </button>
+                )}
+                {location.pathname === '/bookings' && uiState.data?.landlord_booking_view !== 'add' && (
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-add-booking'))}
+                    className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span className="hidden lg:inline">Add Booking</span>
+                  </button>
+                )}
+                {location.pathname === '/dashboard' && <NotificationDropdown />}
+              </div>
+            </header>
+          )}
 
         {/* Page Content */}
-        <div 
-          className={`flex-1 overflow-y-auto ${
-            (
+        <div
+          className={`flex-1 overflow-y-auto ${(
               (location.pathname.startsWith('/properties/') && location.pathname !== '/properties') ||
               (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') ||
               location.pathname === '/rooms' ||
@@ -423,7 +433,7 @@ export default function LandlordLayout({
               location.pathname === '/transfers' ||
               location.pathname === '/addons'
             ) ? 'p-0' : 'p-4 lg:p-8'
-          }`}
+            }`}
           style={{ scrollbarGutter: 'stable' }}
         >
           {children || <Outlet />}
@@ -431,7 +441,7 @@ export default function LandlordLayout({
       </main>
 
       {/* Logout Confirmation Modal */}
-      <LogoutConfirmModal 
+      <LogoutConfirmModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={confirmLogout}

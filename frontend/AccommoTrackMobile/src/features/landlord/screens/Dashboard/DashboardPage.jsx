@@ -198,6 +198,40 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     );
   }, [buildPermissionCandidates, isCaretaker, normalizePermissionValue, user?.caretaker_permissions]);
 
+  const openPermissionModal = useCallback((actionTitle) => {
+    setPermissionModal({
+      visible: true,
+      actionTitle: actionTitle || 'this module',
+    });
+  }, []);
+
+  const canAccessNamedModule = useCallback((moduleKey) => {
+    if (!isCaretaker) return true;
+
+    switch (String(moduleKey || '').toLowerCase()) {
+      case 'properties':
+        return hasPermission('properties', ['property', 'property_management']);
+      case 'rooms':
+        return hasPermission('rooms');
+      case 'tenants':
+        return hasPermission('tenants');
+      case 'bookings':
+        return hasPermission('bookings');
+      case 'payments':
+        return hasPermission('payments');
+      case 'analytics':
+        return hasPermission('analytics');
+      case 'messages':
+        return hasPermission('messages');
+      case 'maintenance':
+        return hasPermission('maintenance');
+      default:
+        return false;
+    }
+  }, [hasPermission, isCaretaker]);
+
+  const canAccessNotifications = !isCaretaker;
+
   const dashboardQuery = useQuery({
     queryKey: landlordQueryKeys.dashboardBundle(),
     queryFn: async () => {
@@ -467,12 +501,12 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     }
 
     if (!hasQuickActionAccess(action)) {
-      setPermissionModal({ visible: true, actionTitle: action?.title || 'this module' });
+      openPermissionModal(action?.title || 'this module');
       return;
     }
 
     navigation.navigate(action.screen);
-  }, [hasQuickActionAccess, navigation]);
+  }, [hasQuickActionAccess, navigation, openPermissionModal]);
 
   const handleActivityPress = useCallback((activity) => {
     if (!activity) return;
@@ -485,8 +519,19 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/);
     const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
 
+    const ensureActivityAccess = (moduleKey, label) => {
+      if (canAccessNamedModule(moduleKey)) {
+        return true;
+      }
+
+      openPermissionModal(label);
+      return false;
+    };
+
     switch (type) {
       case 'booking': {
+        if (!ensureActivityAccess('bookings', 'Bookings')) return;
+
         const params = {
           searchQuery: tenantName,
           focusBookingId: entityId || null,
@@ -500,6 +545,8 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         break;
       }
       case 'payment': {
+        if (!ensureActivityAccess('payments', 'Payments')) return;
+
         const invoiceId = activity.invoice_id || activity.data?.invoice_id || entityId;
         const params = {
           searchQuery: tenantName,
@@ -516,24 +563,35 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         break;
       }
       case 'room': {
+        if (!ensureActivityAccess('rooms', 'Rooms')) return;
+
         const params = {};
         if (entityId) params.focusRoomId = entityId;
         navigation.navigate('RoomManagement', params);
         break;
       }
       case 'property': {
+        if (!ensureActivityAccess('properties', 'Properties')) return;
+
         const params = {};
         if (entityId) params.focusPropertyId = entityId;
         navigation.navigate('Properties', params);
         break;
       }
       case 'maintenance': {
+        if (!ensureActivityAccess('maintenance', 'Maintenance')) return;
+
         const params = {};
         if (entityId) params.focusRequestId = entityId;
         navigation.navigate('MaintenanceRequests', params);
         break;
       }
       case 'addon': {
+        if (isCaretaker) {
+          openPermissionModal('Add-ons');
+          return;
+        }
+
         const params = {};
         if (entityId) params.focusRequestId = entityId;
         navigation.navigate('AddonManagement', params);
@@ -542,7 +600,16 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       default:
         break;
     }
-  }, [navigation]);
+  }, [canAccessNamedModule, isCaretaker, navigation, openPermissionModal]);
+
+  const handleNotificationsPress = useCallback(() => {
+    if (!canAccessNotifications) {
+      openPermissionModal('Notifications');
+      return;
+    }
+
+    navigation.navigate('Notifications');
+  }, [canAccessNotifications, navigation, openPermissionModal]);
 
   useEffect(() => {
     if (dashboardQuery.data) {
@@ -601,9 +668,23 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     refetchLandlordQueries(dashboardRefetchers);
   }, [dashboardRefetchers]);
 
-  const handleMenuItemPress = (screen) => {
+  const handleMenuItemPress = useCallback((screen) => {
+    const menuPermissionMap = {
+      MyProperties: { module: 'properties', label: 'Properties' },
+      RoomManagement: { module: 'rooms', label: 'Rooms' },
+      Tenants: { module: 'tenants', label: 'Tenants' },
+      Payments: { module: 'payments', label: 'Payments' },
+      Analytics: { module: 'analytics', label: 'Analytics' },
+    };
+
+    const mapped = menuPermissionMap?.[screen];
+    if (mapped && !canAccessNamedModule(mapped.module)) {
+      openPermissionModal(mapped.label);
+      return;
+    }
+
     navigation.navigate(screen);
-  };
+  }, [canAccessNamedModule, navigation, openPermissionModal]);
 
   const handleLogout = () => {
     setLogoutModalVisible(true);
@@ -741,8 +822,11 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           <Text style={styles.userName}>{'Dashboard'}</Text>
         </View>
         <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => navigation.navigate('Notifications')}
+          style={[
+            styles.notificationButton,
+            !canAccessNotifications && { opacity: 0.7 },
+          ]}
+          onPress={handleNotificationsPress}
         >
           <Ionicons name="notifications-outline" size={20} color="#fff" />
           {unreadNotificationCount > 0 && (

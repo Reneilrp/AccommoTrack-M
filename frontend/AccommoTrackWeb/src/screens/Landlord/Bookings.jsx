@@ -18,7 +18,51 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
   const caretakerPermissions = user?.caretaker_permissions || {};
-  const canManageBookings = !isCaretaker || Boolean(caretakerPermissions.bookings);
+
+  const normalizePermissionValue = (value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
+    }
+
+    return Boolean(value);
+  };
+
+  const buildPermissionCandidates = (key, aliases = []) => {
+    const base = String(key || '').trim();
+    const singular = base.endsWith('ies')
+      ? `${base.slice(0, -3)}y`
+      : base.endsWith('s')
+        ? base.slice(0, -1)
+        : base;
+    const plural = base.endsWith('s')
+      ? base
+      : singular === 'property'
+        ? 'properties'
+        : `${singular}s`;
+
+    const keys = new Set([base, singular, plural, ...aliases]);
+    const expanded = [];
+
+    keys.forEach((entry) => {
+      if (!entry) return;
+      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
+    });
+
+    return expanded;
+  };
+
+  const hasCaretakerPermission = (key, aliases = []) => {
+    if (!isCaretaker) return true;
+
+    return buildPermissionCandidates(key, aliases).some((candidate) =>
+      normalizePermissionValue(caretakerPermissions?.[candidate]),
+    );
+  };
+
+  const canApproveBookings = hasCaretakerPermission('approve_bookings', ['approve_booking']);
+  const canCancelBookings = hasCaretakerPermission('cancel_bookings', ['cancel_booking']);
+  const canManageBookings = canApproveBookings || canCancelBookings;
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [bookings, setBookings] = useState(cachedData?.bookings || []);
@@ -85,9 +129,21 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     });
   };
 
-  const readOnlyGuard = () => {
+  const guardAnyBookingAction = () => {
     if (canManageBookings) return false;
-    toast.error('Caretaker access for bookings is currently view-only.');
+    toast.error('Caretaker booking actions are disabled.');
+    return true;
+  };
+
+  const guardApprovalAction = () => {
+    if (canApproveBookings) return false;
+    toast.error('You do not have approval permission for this booking action.');
+    return true;
+  };
+
+  const guardCancellationAction = () => {
+    if (canCancelBookings) return false;
+    toast.error('You do not have cancellation permission for this booking action.');
     return true;
   };
 
@@ -233,7 +289,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleHandleExtension = async (id, action, modifyData = null) => {
-    if (readOnlyGuard()) return;
+    if (guardAnyBookingAction()) return;
     const toastId = toast.loading(`${action === 'modify' ? 'Modifying' : 'Updating'} request...`);
     try {
       const response = await bookingService.handleExtension(id, action, modifyData || {});
@@ -251,7 +307,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleHandleTransfer = async (id, action, transferData = null) => {
-    if (readOnlyGuard()) return;
+    if (guardAnyBookingAction()) return;
     const toastId = toast.loading(`${action === 'approve' ? 'Approving' : 'Rejecting'} transfer...`);
     try {
       const response = await bookingService.handleTransfer(id, action, transferData || {});
@@ -274,7 +330,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleUpdateStatus = async (bookingId, newStatus, cancellationReason = null, refundData = null) => {
-    if (readOnlyGuard()) return;
+    const normalizedStatus = String(newStatus || '').toLowerCase();
+    if (normalizedStatus === 'cancelled') {
+      if (guardCancellationAction()) return;
+    } else if (guardApprovalAction()) {
+      return;
+    }
 
     const activeBooking = selectedBooking?.id === bookingId
       ? selectedBooking
@@ -321,7 +382,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleApproveReservation = async (bookingId) => {
-    if (readOnlyGuard()) return;
+    if (guardApprovalAction()) return;
     const toastId = toast.loading('Approving reservation...');
     setProcessing(true);
     try {
@@ -342,7 +403,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleCheckInTenant = async (bookingId) => {
-    if (readOnlyGuard()) return;
+    if (guardApprovalAction()) return;
     const toastId = toast.loading('Checking in tenant...');
     setProcessing(true);
     try {
@@ -364,7 +425,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
 
   const handleUpdatePayment = async (bookingId, paymentStatus) => {
-    if (readOnlyGuard()) return;
+    if (paymentStatus === 'refunded') {
+      if (guardCancellationAction()) return;
+    } else if (guardApprovalAction()) {
+      return;
+    }
     try {
       const response = await bookingService.recordPayment(bookingId, {
         payment_status: paymentStatus
@@ -406,7 +471,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleFinalizeCheckout = async (bookingId, payload = {}) => {
-    if (readOnlyGuard()) return;
+    if (guardApprovalAction()) return;
 
     if (!bookingId) {
       toast.error('Unable to finalize checkout: booking reference is missing.');
@@ -458,7 +523,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleOpenCancelModal = (booking) => {
-    if (readOnlyGuard()) return;
+    if (guardCancellationAction()) return;
     setSelectedBooking(booking);
     setCancellationData({
       reason: '',
@@ -469,7 +534,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleOpenFinalizeModal = (booking) => {
-    if (readOnlyGuard()) return;
+    if (guardApprovalAction()) return;
 
     if (!booking?.id) {
       toast.error('Unable to finalize checkout: booking details are unavailable.');
@@ -533,7 +598,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleSettleDeposit = async () => {
-    if (readOnlyGuard()) return;
+    if (guardApprovalAction()) return;
     if (!selectedBooking) return;
 
     const damageFee = Number.parseFloat(depositSettlementForm.damageFee) || 0;
@@ -610,7 +675,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const handleCancelConfirm = () => {
-    if (readOnlyGuard()) return;
+    if (guardCancellationAction()) return;
     if (!cancellationData.reason.trim()) {
       toast.error('Please provide a cancellation reason');
       return;
@@ -709,7 +774,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       <div className="space-y-6">
         {isCaretaker && !canManageBookings && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-            You are viewing bookings as a caretaker. Management actions are disabled.
+            You are viewing bookings as a caretaker. You need approve and/or cancel booking permissions to perform actions.
           </div>
         )}
 
@@ -1028,7 +1093,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                     </div>
                   </div>
 
-                  {canManageBookings ? (
+                  {canApproveBookings ? (
                     <div className="space-y-4 rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-gray-50/70 dark:bg-gray-700/30">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
@@ -1126,7 +1191,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                     </div>
                   ) : (
                     <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                      Settlement actions are disabled in caretaker view.
+                      Deposit settlement requires booking approval permission.
                     </p>
                   )}
 
@@ -1189,6 +1254,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                             </div>
                           );
                         } else if (paymentStatus === 'paid' || paymentStatus === 'partial') {
+                          if (!canCancelBookings) {
+                            return (
+                              <div className="w-full p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                                <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                                  Refund actions require cancellation permission.
+                                </p>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div className="w-full">
                               <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
@@ -1216,6 +1291,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
                       // Completed - allow cancellation with refund
                       if (status === 'completed') {
+                        if (!canCancelBookings) {
+                          return (
+                            <div className="w-full p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                              <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                                Cancellation is not allowed without cancel permission.
+                              </p>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div className="w-full">
                             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 mb-4">
@@ -1236,6 +1321,16 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
                       // Partial Completed - allow transitioning to fully completed
                       if (status === 'partial-completed') {
+                        if (!canApproveBookings) {
+                          return (
+                            <div className="w-full p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                              <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                                Completion requires booking approval permission.
+                              </p>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div className="w-full">
                             <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
@@ -1271,20 +1366,24 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                       if (status === 'pending') {
                         return (
                           <div className="flex gap-4 w-full">
-                            <button
-                              onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed')}
-                              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
-                            >
-                              <CheckCircle className="w-5 h-5" />
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => handleOpenCancelModal(selectedBooking)}
-                              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                            >
-                              <XCircle className="w-5 h-5" />
-                              Cancel
-                            </button>
+                            {canApproveBookings && (
+                              <button
+                                onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed')}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                                Confirm
+                              </button>
+                            )}
+                            {canCancelBookings && (
+                              <button
+                                onClick={() => handleOpenCancelModal(selectedBooking)}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              >
+                                <XCircle className="w-5 h-5" />
+                                Cancel
+                              </button>
+                            )}
                           </div>
                         );
                       }
@@ -1299,24 +1398,28 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               </p>
                             </div>
                             <div className="flex gap-4">
-                              <button
-                                onClick={() => {
-                                  if (window.confirm('Are you sure you want to approve this reservation? Verify the receipt amount first.')) {
-                                    handleApproveReservation(selectedBooking.id);
-                                  }
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-teal-500/20 active:scale-[0.98]"
-                              >
-                                <CheckCircle className="w-5 h-5" />
-                                Approve Reservation
-                              </button>
-                              <button
-                                onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                              >
-                                <XCircle className="w-5 h-5" />
-                                Cancel
-                              </button>
+                              {canApproveBookings && (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Are you sure you want to approve this reservation? Verify the receipt amount first.')) {
+                                      handleApproveReservation(selectedBooking.id);
+                                    }
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-teal-500/20 active:scale-[0.98]"
+                                >
+                                  <CheckCircle className="w-5 h-5" />
+                                  Approve Reservation
+                                </button>
+                              )}
+                              {canCancelBookings && (
+                                <button
+                                  onClick={() => handleOpenCancelModal(selectedBooking)}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                >
+                                  <XCircle className="w-5 h-5" />
+                                  Cancel
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1332,24 +1435,28 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               </p>
                             </div>
                             <div className="flex gap-4">
-                              <button
-                                onClick={() => {
-                                  if (window.confirm('Check in this tenant? This will officially assign them to the room and generate their first month invoice.')) {
-                                    handleCheckInTenant(selectedBooking.id);
-                                  }
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
-                              >
-                                <CheckCircle className="w-5 h-5" />
-                                Check In Tenant
-                              </button>
-                              <button
-                                onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                              >
-                                <XCircle className="w-5 h-5" />
-                                Revoke & Cancel
-                              </button>
+                              {canApproveBookings && (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Check in this tenant? This will officially assign them to the room and generate their first month invoice.')) {
+                                      handleCheckInTenant(selectedBooking.id);
+                                    }
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
+                                >
+                                  <CheckCircle className="w-5 h-5" />
+                                  Check In Tenant
+                                </button>
+                              )}
+                              {canCancelBookings && (
+                                <button
+                                  onClick={() => handleOpenCancelModal(selectedBooking)}
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                >
+                                  <XCircle className="w-5 h-5" />
+                                  Revoke & Cancel
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1370,20 +1477,24 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                                 </div>
                               )}
                               <div className="flex gap-4">
-                                <button
-                                  onClick={() => handleOpenFinalizeModal(selectedBooking)}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
-                                >
-                                  <CheckCircle className="w-5 h-5" />
-                                  Finalize Checkout
-                                </button>
-                                <button
-                                  onClick={() => handleOpenCancelModal(selectedBooking)}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                                >
-                                  <XCircle className="w-5 h-5" />
-                                  Cancel & Refund
-                                </button>
+                                {canApproveBookings && (
+                                  <button
+                                    onClick={() => handleOpenFinalizeModal(selectedBooking)}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                  >
+                                    <CheckCircle className="w-5 h-5" />
+                                    Finalize Checkout
+                                  </button>
+                                )}
+                                {canCancelBookings && (
+                                  <button
+                                    onClick={() => handleOpenCancelModal(selectedBooking)}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                  >
+                                    <XCircle className="w-5 h-5" />
+                                    Cancel & Refund
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -1403,20 +1514,24 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                                 </div>
                               )}
                               <div className="flex gap-4">
-                                <button
-                                  onClick={() => handleOpenFinalizeModal(selectedBooking)}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
-                                >
-                                  <CheckCircle className="w-5 h-5" />
-                                  Finalize Checkout
-                                </button>
-                                <button
-                                  onClick={() => handleOpenCancelModal(selectedBooking)}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                                >
-                                  <XCircle className="w-5 h-5" />
-                                  Cancel & Refund
-                                </button>
+                                {canApproveBookings && (
+                                  <button
+                                    onClick={() => handleOpenFinalizeModal(selectedBooking)}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                  >
+                                    <CheckCircle className="w-5 h-5" />
+                                    Finalize Checkout
+                                  </button>
+                                )}
+                                {canCancelBookings && (
+                                  <button
+                                    onClick={() => handleOpenCancelModal(selectedBooking)}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                  >
+                                    <XCircle className="w-5 h-5" />
+                                    Cancel & Refund
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -1436,20 +1551,24 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                                 </div>
                               )}
                               <div className="flex gap-4">
-                                <button
-                                  onClick={() => handleOpenFinalizeModal(selectedBooking)}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
-                                >
-                                  <CheckCircle className="w-5 h-5" />
-                                  Finalize Checkout
-                                </button>
-                                <button
-                                  onClick={() => handleOpenCancelModal(selectedBooking)}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                                >
-                                  <XCircle className="w-5 h-5" />
-                                  Cancel
-                                </button>
+                                {canApproveBookings && (
+                                  <button
+                                    onClick={() => handleOpenFinalizeModal(selectedBooking)}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                  >
+                                    <CheckCircle className="w-5 h-5" />
+                                    Finalize Checkout
+                                  </button>
+                                )}
+                                {canCancelBookings && (
+                                  <button
+                                    onClick={() => handleOpenCancelModal(selectedBooking)}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                  >
+                                    <XCircle className="w-5 h-5" />
+                                    Cancel
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -1461,7 +1580,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   </>
                 ) : (
                   <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-800 dark:text-amber-300 w-full font-medium text-center">
-                    Actions are disabled because you are viewing this booking as a caretaker.
+                    No action is available for this booking based on your caretaker permissions.
                   </div>
                 )}
               </div>
