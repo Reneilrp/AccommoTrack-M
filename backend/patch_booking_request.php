@@ -1,35 +1,12 @@
 <?php
+$file = 'app/Http/Requests/Booking/StoreBookingRequest.php';
+$content = file_get_contents($file);
 
-namespace App\Http\Requests\Booking;
+// Let's rewrite the rules method to support an array of items OR single item.
+// This is exactly what the user wants.
 
-use App\Models\Room;
-use Carbon\Carbon;
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-
-class StoreBookingRequest extends FormRequest
-{
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('booking_mode')) {
-            $this->merge([
-                'booking_mode' => strtolower((string) $this->input('booking_mode')),
-            ]);
-        }
-    }
-
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     */
-            public function rules(): array
+$newRules = <<<'EOD'
+    public function rules(): array
     {
         $minimumAdultDob = Carbon::today()->subYears(18)->toDateString();
         
@@ -151,35 +128,9 @@ class StoreBookingRequest extends FormRequest
 
         return $rules;
     }
+EOD;
 
-    /**
-     * Get custom messages for validator errors.
-     */
-    public function messages(): array
-    {
-        return [
-            'room_id.required' => 'Please select a room to book.',
-            'room_id.exists' => 'The selected room does not exist.',
-            'booking_mode.in' => 'Invalid booking mode. Allowed modes are normal or proxy.',
-            'tenant_id.required_without' => 'Please select an existing tenant or enter a guest name.',
-            'tenant_id.exists' => 'The selected tenant is invalid.',
-            'guest_name.required_without' => 'Please enter a guest name when no tenant is selected.',
-            'occupants.required_if' => 'Proxy booking requires at least one occupant entry.',
-            'occupants.array' => 'Occupants payload must be a valid list.',
-            'occupants.min' => 'Proxy booking requires at least one occupant.',
-            'occupants.*.full_name.required_with' => 'Each occupant must include a full name.',
-            'occupants.*.date_of_birth.required_with' => 'Each occupant must include a date of birth.',
-            'occupants.*.date_of_birth.before_or_equal' => 'Each occupant must be at least 18 years old.',
-            'occupants.*.sex.required_with' => 'Each occupant must include a sex.',
-            'occupants.*.sex.in' => 'Each occupant sex must be one of: male, female, other, prefer_not_to_say.',
-            'occupants.*.relationship_to_booker.required_with' => 'Each occupant must include relationship to booker.',
-            'start_date.required' => 'Please select a check-in date.',
-            'start_date.after_or_equal' => 'Check-in date must be today or later.',
-            'move_in_date.after_or_equal' => 'Move-in date cannot be earlier than the selected check-in date.',
-            'end_date.required' => 'Please select a check-out date for daily bookings.',
-            'end_date.after' => 'Check-out date must be after check-in date.',
-            'contract_mode.required' => 'Please choose a booking mode for this room.',
-            'contract_mode.in' => 'Invalid booking mode selected for this room.',
-        ];
-    }
-}
+$content = preg_replace('/public function rules\(\): array\s*\{.*?(?=public function messages)/s', $newRules . "\n\n    /**\n     * Get custom messages for validator errors.\n     */\n    ", $content);
+
+file_put_contents($file, $content);
+echo "Patched StoreBookingRequest.php\n";
