@@ -129,17 +129,20 @@ class TenantPaymentController extends Controller
             $pendingAmountCents = 0;
             foreach ($pendingInvoices as $inv) {
                 $totalPaid = $inv->transactions()
-                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'pending_offline'])
                     ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
                     ->value('net_cents') ?? 0;
                 $pendingAmountCents += max(0, ($inv->total_cents ?? $inv->amount_cents) - $totalPaid);
             }
+
+            $totalCreditsCents = \App\Models\TenantCredit::getBalance($tenantId);
 
             return response()->json([
                 'totalPaidThisMonth' => (float) $totalPaidThisMonthCents / 100,
                 'paidCount' => $paidCount,
                 'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->format('M d') : 'None',
                 'pendingAmount' => (float) $pendingAmountCents / 100,
+                'totalCredits' => (float) $totalCreditsCents / 100,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

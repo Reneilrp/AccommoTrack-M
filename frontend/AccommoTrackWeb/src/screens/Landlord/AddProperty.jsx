@@ -90,7 +90,7 @@ export default function AddProperty({ onBack, onSave }) {
     propertyName: '',
     propertyType: '',
     otherPropertyType: '',
-    genderRestriction: 'mixed',
+    sexRestriction: 'mixed',
     currentStatus: 'pending',
     streetAddress: '',
     city: '',
@@ -433,7 +433,7 @@ export default function AddProperty({ onBack, onSave }) {
       title: formData.propertyName,
       description: formData.description || null,
       property_type: formData.propertyType === 'others' ? formData.otherPropertyType : formData.propertyType,
-      gender_restriction: isGenderRestricted ? formData.genderRestriction : 'mixed',
+      sex_restriction: isGenderRestricted ? formData.sexRestriction : 'mixed',
       // If saving as draft, mark draft; otherwise default to pending
       current_status: isDraft ? 'draft' : 'pending',
       street_address: formData.streetAddress,
@@ -761,14 +761,14 @@ export default function AddProperty({ onBack, onSave }) {
                     {formData.propertyType !== 'apartment' && (
                       <>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Gender Restriction <span className="text-red-500">*</span>
+                          Sex Restriction <span className="text-red-500">*</span>
                         </label>
                         <select
-                          value={formData.genderRestriction}
-                          onChange={(e) => handleInputChange('genderRestriction', e.target.value)}
+                          value={formData.sexRestriction}
+                          onChange={(e) => handleInputChange('sexRestriction', e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
                         >
-                          <option value="mixed">Mixed (Any Gender)</option>
+                          <option value="mixed">Mixed (Any Sex)</option>
                           <option value="male">Boys Only</option>
                           <option value="female">Girls Only</option>
                         </select>

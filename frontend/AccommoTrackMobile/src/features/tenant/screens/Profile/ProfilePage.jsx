@@ -46,7 +46,7 @@ export default function ProfilePage() {
     age: "",
     phone: "",
     bio: "",
-    gender: "",
+    sex: "",
     identifiedAs: "",
     dateOfBirth: "",
     currentAddress: "",
@@ -127,7 +127,7 @@ export default function ProfilePage() {
         lastName: data.last_name || "",
         email: data.email || "",
         phone: data.phone || "",
-        gender: data.gender || "",
+        sex: data.sex || "",
         identifiedAs: data.identified_as || "",
         age: calculatedAge,
         dateOfBirth: data.date_of_birth || "",
@@ -206,7 +206,7 @@ export default function ProfilePage() {
         email: profileData.email.trim(),
         phone: profileData.phone?.trim() || "",
         notes: profileData.bio?.trim() || "",
-        gender: profileData.gender || null,
+        sex: profileData.sex || null,
         identified_as: profileData.identifiedAs?.trim() || null,
         preference: profileData.preferences,
         date_of_birth: profileData.dateOfBirth || null,
@@ -233,7 +233,7 @@ export default function ProfilePage() {
           middleName: u.middle_name || "",
           lastName: u.last_name || "",
           phone: u.phone || "",
-          gender: u.gender || "",
+          sex: u.sex || "",
           identifiedAs: u.identified_as || "",
           bio: tp.notes || "",
           dateOfBirth: u.date_of_birth || "",
@@ -667,14 +667,14 @@ export default function ProfilePage() {
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: theme.colors.text }]}>
-              Gender
+              Sex
             </Text>
             <TouchableOpacity
               onPress={() => {
                 if (!isEditing) return;
-                showAlert("Select Gender", "Choose your gender", [
-                  { text: "Male", onPress: () => handleInputChange("gender", "male") },
-                  { text: "Female", onPress: () => handleInputChange("gender", "female") },
+                showAlert("Select Sex", "Choose your sex", [
+                  { text: "Male", onPress: () => handleInputChange("sex", "male") },
+                  { text: "Female", onPress: () => handleInputChange("sex", "female") },
                   { text: "Cancel", style: "cancel" },
                 ]);
               }}
@@ -704,7 +704,7 @@ export default function ProfilePage() {
                   },
                 ]}
               >
-                {profileData.gender || "Select Gender"}
+                {profileData.sex || "Select Sex"}
               </Text>
             </TouchableOpacity>
           </View>

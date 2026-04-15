@@ -975,7 +975,7 @@ export default function BookingsScreen({ navigation, route }) {
                       <View key={occupant.id || `${occupant.full_name}-${index}`} style={[styles.occupantCard, { borderBottomColor: theme.colors.border }]}>
                         <Text style={[styles.occupantName, { color: theme.colors.text }]}>{occupant.full_name || `Occupant ${index + 1}`}</Text>
                         <Text style={[styles.occupantMeta, { color: theme.colors.textSecondary }]}>
-                          {occupant.relationship_to_booker || 'Relationship not provided'} • {occupant.gender || 'Gender not provided'}
+                          {occupant.relationship_to_booker || 'Relationship not provided'} • {occupant.sex || 'Sex not provided'}
                         </Text>
                         {(occupant.phone || occupant.email) ? (
                           <Text style={[styles.occupantMeta, { color: theme.colors.textSecondary }]}>{[occupant.phone, occupant.email].filter(Boolean).join(' • ')}</Text>

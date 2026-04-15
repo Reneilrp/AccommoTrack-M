@@ -43,7 +43,7 @@ export const mapRoom = (room) => {
     room_type: room.room_type || room.roomType || null,
     type_label: room.type_label || room.typeLabel || null,
     room_number: room.room_number,
-    gender_restriction: room.gender_restriction || room.genderRestriction || 'mixed',
+    sex_restriction: room.sex_restriction || room.sexRestriction || 'mixed',
     floor: room.floor,
     floor_label: room.floor_label,
     raw_capacity: rawCapacity,

@@ -166,6 +166,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/payments/breakdown', [TenantPaymentController::class, 'getBreakdown']);
         Route::get('/payments/{id}', [TenantPaymentController::class, 'show']);
         Route::post('/invoices/{id}/record-offline', [InvoiceController::class, 'recordOfflineForTenant']);
+        Route::post('/invoices/{id}/apply-wallet-credit', [InvoiceController::class, 'applyWalletCreditForTenant']);
         // Tenant PayMongo endpoints (allow tenants to create sources/payments for their invoices)
         Route::post('/invoices/{id}/paymongo-source', [PaymongoController::class, 'createSourceForTenant']);
         Route::post('/invoices/{id}/paymongo-pay', [PaymongoController::class, 'createPaymentForTenant']);
@@ -326,6 +327,16 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ===== SHARED BOOKINGS =====
+    // Cart System (Multi-Room Booking)
+    Route::prefix('cart')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CartController::class, 'index']);
+        Route::post('/items', [\App\Http\Controllers\CartController::class, 'addItem']);
+        Route::put('/items/{itemId}', [\App\Http\Controllers\CartController::class, 'updateItem']);
+        Route::delete('/items/{itemId}', [\App\Http\Controllers\CartController::class, 'removeItem']);
+        Route::delete('/clear', [\App\Http\Controllers\CartController::class, 'clear']);
+        Route::post('/{cartId}/checkout', [\App\Http\Controllers\CartController::class, 'checkout'])->middleware('throttle:5,1');
+    });
+
     // Allow authenticated users (tenants) to submit reviews via /api/reviews
     Route::post('/reviews', [ReviewController::class, 'store']);
     // Allow authenticated users (tenants) to submit reports

@@ -54,20 +54,28 @@ export default function Header({
             hasCustomRightActions && { flexDirection: 'row', justifyContent: 'flex-end' },
           ]}
         >
-          {hasCustomRightActions ? rightActions.map((action, index) => (
-            <TouchableOpacity
-              key={`${action.icon || 'icon'}-${index}`}
-              style={[styles.headerIcon, action.disabled && { opacity: 0.45 }]}
-              onPress={action.onPress}
-              disabled={action.disabled}
-            >
-              <Ionicons
-                name={action.icon || 'ellipse-outline'}
-                size={action.size || 24}
-                color={action.color || theme.colors.textInverse}
-              />
-            </TouchableOpacity>
-          )) : showRightIcon && (
+          {hasCustomRightActions ? rightActions.map((action, index) => {
+            // If action has a component, render it directly
+            if (action.component) {
+              return <View key={action.key || `component-${index}`}>{action.component}</View>;
+            }
+            
+            // Otherwise render as icon button
+            return (
+              <TouchableOpacity
+                key={action.key || `${action.icon || 'icon'}-${index}`}
+                style={[styles.headerIcon, action.disabled && { opacity: 0.45 }]}
+                onPress={action.onPress}
+                disabled={action.disabled}
+              >
+                <Ionicons
+                  name={action.icon || 'ellipse-outline'}
+                  size={action.size || 24}
+                  color={action.color || theme.colors.textInverse}
+                />
+              </TouchableOpacity>
+            );
+          }) : showRightIcon && (
             <TouchableOpacity style={styles.headerIcon} onPress={onRightPress}>
               <View>
                 <Ionicons name={rightIcon} size={28} color={theme.colors.textInverse} />

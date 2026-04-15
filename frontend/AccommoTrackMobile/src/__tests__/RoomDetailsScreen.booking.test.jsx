@@ -254,7 +254,7 @@ describe('RoomDetailsScreen proxy booking', () => {
 
     fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Jane Proxy');
     selectProxyDateOfBirth(0, 1995, 6, 1);
-    fireEvent(screen.getByTestId('proxy-occupant-gender-0'), 'valueChange', 'female');
+    fireEvent(screen.getByTestId('proxy-occupant-sex-0'), 'valueChange', 'female');
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'child');
 
     fireEvent.press(screen.getByText('Submit Booking'));
@@ -269,7 +269,7 @@ describe('RoomDetailsScreen proxy booking', () => {
         ['booking_mode', 'proxy'],
         ['occupants[0][full_name]', 'Jane Proxy'],
         ['occupants[0][date_of_birth]', '1995-06-01'],
-        ['occupants[0][gender]', 'female'],
+        ['occupants[0][sex]', 'female'],
         ['occupants[0][relationship_to_booker]', 'child'],
       ]),
     );
@@ -284,7 +284,7 @@ describe('RoomDetailsScreen proxy booking', () => {
 
     fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Young Occupant');
     selectProxyDateOfBirth(0, 2012, 6, 1);
-    fireEvent(screen.getByTestId('proxy-occupant-gender-0'), 'valueChange', 'female');
+    fireEvent(screen.getByTestId('proxy-occupant-sex-0'), 'valueChange', 'female');
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
 
     fireEvent.press(screen.getByText('Submit Booking'));
@@ -313,11 +313,11 @@ describe('RoomDetailsScreen proxy booking', () => {
     expect(dobPicker.props.maximumDate.toDateString()).toBe(expectedAdultCutoff.toDateString());
   });
 
-  it('defaults proxy occupant gender to room restriction for restricted rooms', async () => {
+  it('defaults proxy occupant sex to room restriction for restricted rooms', async () => {
     renderScreen({
       room: {
         ...room,
-        gender_restriction: 'female',
+        sex_restriction: 'female',
       },
     });
 
@@ -326,7 +326,7 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Book This Room'));
     fireEvent.press(screen.getByText('Proxy'));
 
-    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Default Gender Occupant');
+    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Default Sex Occupant');
     selectProxyDateOfBirth(0, 1994, 6, 1);
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
 
@@ -340,7 +340,7 @@ describe('RoomDetailsScreen proxy booking', () => {
     expect(payload.fields).toEqual(
       expect.arrayContaining([
         ['booking_mode', 'proxy'],
-        ['occupants[0][gender]', 'female'],
+        ['occupants[0][sex]', 'female'],
       ]),
     );
   });

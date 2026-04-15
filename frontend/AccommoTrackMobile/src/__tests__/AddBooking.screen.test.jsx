@@ -93,7 +93,7 @@ const singleBedRooms = [
     monthly_rate: 5500,
     available_slots: 1,
     capacity: 1,
-    gender_restriction: 'mixed',
+    sex_restriction: 'mixed',
   },
 ];
 
@@ -107,7 +107,7 @@ const twoBedRooms = [
     monthly_rate: 5500,
     available_slots: 2,
     capacity: 2,
-    gender_restriction: 'mixed',
+    sex_restriction: 'mixed',
   },
 ];
 

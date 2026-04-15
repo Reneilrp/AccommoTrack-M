@@ -58,10 +58,10 @@ export default function RoomDetailsModal({
   const [proxyOccupants, setProxyOccupants] = useState([]);
   const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(DEFAULT_TOGGLES.reservationFeeDisabled);
 
-  const createEmptyOccupant = (defaultGender = "") => ({
+  const createEmptyOccupant = (defaultSex = "") => ({
     full_name: "",
     date_of_birth: "",
-    gender: defaultGender,
+    sex: defaultSex,
     relationship_to_booker: "",
     phone: "",
     email: "",
@@ -72,8 +72,8 @@ export default function RoomDetailsModal({
       .toLowerCase()
       .replace(/[\s_-]/g, "");
 
-  const normalizeTenantGender = (gender) => {
-    const normalized = String(gender || "").toLowerCase().trim();
+  const normalizeTenantGender = (sex) => {
+    const normalized = String(sex || "").toLowerCase().trim();
     if (["male", "boy", "boys"].includes(normalized)) return "male";
     if (["female", "girl", "girls"].includes(normalized)) return "female";
     return null;
@@ -86,8 +86,8 @@ export default function RoomDetailsModal({
     return "mixed";
   };
 
-  const normalizeProxyOccupantGender = (gender) => {
-    const normalized = String(gender || "").toLowerCase().trim();
+  const normalizeProxyOccupantGender = (sex) => {
+    const normalized = String(sex || "").toLowerCase().trim();
     if (!normalized) return "";
     if (["male", "boy", "boys"].includes(normalized)) return "male";
     if (["female", "girl", "girls"].includes(normalized)) return "female";
@@ -104,9 +104,9 @@ export default function RoomDetailsModal({
 
       const parsed = JSON.parse(raw);
       return (
-        parsed?.gender ||
-        parsed?.user?.gender ||
-        parsed?.data?.gender ||
+        parsed?.sex ||
+        parsed?.user?.sex ||
+        parsed?.data?.sex ||
         null
       );
     } catch {
@@ -250,7 +250,7 @@ export default function RoomDetailsModal({
     )
     : 1;
   const showBedCountSelector = pricingModel === "per_bed";
-  const roomGender = normalizeRoomRestriction(room?.gender_restriction);
+  const roomGender = normalizeRoomRestriction(room?.sex_restriction);
   const requiredProxyGender = roomGender === "male" || roomGender === "female"
     ? roomGender
     : "";
@@ -412,7 +412,7 @@ export default function RoomDetailsModal({
 
       return limited.map((occupant) => ({
         ...occupant,
-        gender: requiredProxyGender,
+        sex: requiredProxyGender,
       }));
     });
   }, [bookingMode, occupantLimit, requiredProxyGender]);
@@ -496,7 +496,7 @@ export default function RoomDetailsModal({
 
   const handleProxyOccupantChange = (index, field, value) => {
     let nextValue = value;
-    if (field === "gender") {
+    if (field === "sex") {
       nextValue = requiredProxyGender || normalizeProxyOccupantGender(value);
     }
 
@@ -571,7 +571,7 @@ export default function RoomDetailsModal({
       .map((occupant) => ({
         full_name: String(occupant.full_name || "").trim(),
         date_of_birth: String(occupant.date_of_birth || "").trim(),
-        gender: normalizeProxyOccupantGender(occupant.gender),
+        sex: normalizeProxyOccupantGender(occupant.sex),
         relationship_to_booker: String(
           occupant.relationship_to_booker || "",
         ).trim(),
@@ -603,11 +603,11 @@ export default function RoomDetailsModal({
         if (
           !occupant.full_name ||
           !occupant.date_of_birth ||
-          !occupant.gender ||
+          !occupant.sex ||
           !occupant.relationship_to_booker
         ) {
           toast.error(
-            `Occupant ${i + 1} is missing required information (name, birth date, gender, relationship).`,
+            `Occupant ${i + 1} is missing required information (name, birth date, sex, relationship).`,
           );
           return;
         }
@@ -629,7 +629,7 @@ export default function RoomDetailsModal({
           return;
         }
 
-        if (requiredProxyGender && occupant.gender !== requiredProxyGender) {
+        if (requiredProxyGender && occupant.sex !== requiredProxyGender) {
           toast.error(
             `Occupant ${i + 1} must be ${requiredProxyGender}. This room is ${requiredProxyGender === "male" ? "for boys" : "for girls"} only.`,
           );
@@ -778,7 +778,7 @@ export default function RoomDetailsModal({
     return typeMap[room.room_type] || (room.room_type ? room.room_type.charAt(0).toUpperCase() + room.room_type.slice(1) : 'Room');
   };
 
-  const getGenderRestrictionMeta = (restriction) => {
+  const getSexRestrictionMeta = (restriction) => {
     const normalized = String(restriction || "mixed").toLowerCase().trim();
 
     if (normalized === "male" || normalized === "boy" || normalized === "boys") {
@@ -811,29 +811,29 @@ export default function RoomDetailsModal({
     };
   };
 
-  const genderMeta = getGenderRestrictionMeta(room.gender_restriction);
+  const genderMeta = getSexRestrictionMeta(room.sex_restriction);
   const propertyType = String(property?.property_type || "").toLowerCase().trim();
   const normalizedPropertyType = normalizePropertyTypeToken(property?.property_type);
   const showGenderBadge = !(propertyType === "apartment" && roomGender === "mixed");
   const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
 
   const isTargetGenderRestrictedType = ["dormitory", "boardinghouse", "bedspacer"].includes(normalizedPropertyType);
-  const tenantGender = normalizeTenantGender(resolveStoredTenantGender());
-  const fallbackGenderCompatible = (() => {
+  const tenantSex = normalizeTenantGender(resolveStoredTenantGender());
+  const fallbackSexCompatible = (() => {
     if (!isAuthenticated) return true;
     if (normalizedPropertyType === "apartment" || !isTargetGenderRestrictedType) return true;
     if (roomGender === "mixed") return true;
-    if (!tenantGender) return false;
-    return roomGender === tenantGender;
+    if (!tenantSex) return false;
+    return roomGender === tenantSex;
   })();
 
   // Use backend compatibility when provided; otherwise derive it from local tenant profile.
-  const isGenderCompatible = room.is_gender_compatible !== undefined
-    ? Boolean(room.is_gender_compatible)
-    : fallbackGenderCompatible;
+  const isSexCompatible = room.is_sex_compatible !== undefined
+    ? Boolean(room.is_sex_compatible)
+    : fallbackSexCompatible;
   const isRoomAvailable = room.is_available !== undefined ? room.is_available : (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
 
-  const canBook = displayStatus === "available" && isRoomAvailable && isGenderCompatible;
+  const canBook = displayStatus === "available" && isRoomAvailable && isSexCompatible;
   const baseTotalPrice = Number(totalPrice || 0);
   const promoDiscountedTotal = Number(promoOffer?.discounted_total ?? baseTotalPrice);
   const hasPromoOffer = Boolean(
@@ -943,10 +943,10 @@ export default function RoomDetailsModal({
                           Billing
                         </span>
                       </div>
-                      {!isGenderCompatible && isAuthenticated && (
+                      {!isSexCompatible && isAuthenticated && (
                         <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 px-4 py-2 rounded-lg shadow-sm">
                           <Shield className="w-4 h-4 shrink-0" />
-                          <span className="font-semibold text-xs text-pretty">Incompatible with your gender profile</span>
+                          <span className="font-semibold text-xs text-pretty">Incompatible with your sex profile</span>
                         </div>
                       )}
                       {(room.require_advance || room.requireAdvance || property?.require_advance) && (
@@ -1146,13 +1146,13 @@ export default function RoomDetailsModal({
                 </div>
               ) : (
                 <div className="max-w-xl mx-auto space-y-6">
-                  {isAuthenticated && !isGenderCompatible && (
+                  {isAuthenticated && !isSexCompatible && (
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-xl">
                       <p className="text-sm font-semibold text-red-700 dark:text-red-300">
                         This room is restricted to {genderMeta.label.toLowerCase()}.
                       </p>
                       <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                        Choose a compatible room or update your profile gender before booking this room type.
+                        Choose a compatible room or update your profile sex before booking this room type.
                       </p>
                     </div>
                   )}
@@ -1410,12 +1410,12 @@ export default function RoomDetailsModal({
 
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Gender <span className="text-red-500">*</span>
+                                Sex <span className="text-red-500">*</span>
                               </label>
                               <select
-                                value={occupant.gender}
+                                value={occupant.sex}
                                 onChange={(e) =>
-                                  handleProxyOccupantChange(index, "gender", e.target.value)
+                                  handleProxyOccupantChange(index, "sex", e.target.value)
                                 }
                                 disabled={Boolean(requiredProxyGender)}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -1426,7 +1426,7 @@ export default function RoomDetailsModal({
                                   </option>
                                 ) : (
                                   <>
-                                    <option value="">Select gender</option>
+                                    <option value="">Select sex</option>
                                     <option value="male">Male</option>
                                     <option value="female">Female</option>
                                     <option value="other">Other</option>

@@ -41,7 +41,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
   const tenants = (Array.isArray(room.tenants) && room.tenants.length > 0)
     ? room.tenants
     : (room.tenant ? (typeof room.tenant === 'string' ? [{ name: room.tenant }] : [room.tenant]) : []);
-  const normalizedGender = String(room.gender_restriction || 'mixed').toLowerCase().trim();
+  const normalizedGender = String(room.sex_restriction || 'mixed').toLowerCase().trim();
   const normalizedPropertyType = String(propertyType || room.property_type || room.property?.property_type || '').toLowerCase().trim();
   const showGenderBadge = !(normalizedPropertyType === 'apartment' && normalizedGender === 'mixed');
 
@@ -56,13 +56,13 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
               {showGenderBadge && (
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                  room.gender_restriction === 'male' 
+                  room.sex_restriction === 'male' 
                     ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
-                    : room.gender_restriction === 'female'
+                    : room.sex_restriction === 'female'
                     ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
                     : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
                 }`}>
-                  {room.gender_restriction === 'male' ? 'Boys' : room.gender_restriction === 'female' ? 'Girls' : 'Mixed'}
+                  {room.sex_restriction === 'male' ? 'Boys' : room.sex_restriction === 'female' ? 'Girls' : 'Mixed'}
                 </span>
               )}
             </div>
@@ -263,7 +263,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
                                   <div key={occupant?.id || `${idKey}_occ_${occIdx}`} className="rounded-md bg-white/80 dark:bg-gray-800/80 border border-amber-100 dark:border-amber-900 px-3 py-2">
                                     <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">{occupantName}</div>
                                     <div className="text-xs text-gray-600 dark:text-gray-300">
-                                      {(occupant?.gender || 'Unspecified').toString()}{relationship}
+                                      {(occupant?.sex || 'Unspecified').toString()}{relationship}
                                     </div>
                                     {(occupant?.phone || occupant?.email) && (
                                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">

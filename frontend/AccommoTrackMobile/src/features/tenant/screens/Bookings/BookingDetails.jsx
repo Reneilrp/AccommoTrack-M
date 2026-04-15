@@ -552,7 +552,7 @@ export default function BookingDetails() {
                                             text: 'Other Problem',
                                             onPress: async () => {
                                                 try {
-                                                    await tenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.', 'other');
+                                                    await tenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.');
                                                     showSuccess('Report submitted. Our admin team will review it.');
                                                 } catch {
                                                     showError('Error', 'Failed to submit report.');

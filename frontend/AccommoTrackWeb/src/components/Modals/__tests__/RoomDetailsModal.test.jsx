@@ -135,7 +135,7 @@ describe('RoomDetailsModal proxy booking', () => {
     expect(createBooking).not.toHaveBeenCalled();
   });
 
-  it('defaults proxy occupant gender to room restriction', async () => {
+  it('defaults proxy occupant sex to room restriction', async () => {
     const createBooking = jest.fn().mockResolvedValue({
       data: {
         booking: {
@@ -148,7 +148,7 @@ describe('RoomDetailsModal proxy booking', () => {
     const { container } = renderBookingForm(
       { createBooking },
       {},
-      { gender_restriction: 'female' },
+      { sex_restriction: 'female' },
     );
 
     const dateInputs = container.querySelectorAll('input[type="date"]');
@@ -159,7 +159,7 @@ describe('RoomDetailsModal proxy booking', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
 
     fireEvent.change(screen.getByPlaceholderText('Full name'), {
-      target: { value: 'Default Gender Occupant' },
+      target: { value: 'Default Sex Occupant' },
     });
     fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
       target: { value: 'sister' },
@@ -181,9 +181,9 @@ describe('RoomDetailsModal proxy booking', () => {
     expect(payload.booking_mode).toBe('proxy');
     expect(payload.occupants).toEqual([
       {
-        full_name: 'Default Gender Occupant',
+        full_name: 'Default Sex Occupant',
         date_of_birth: '1992-05-01',
-        gender: 'female',
+        sex: 'female',
         relationship_to_booker: 'sister',
         phone: '',
         email: '',
@@ -240,7 +240,7 @@ describe('RoomDetailsModal proxy booking', () => {
       {
         full_name: 'Jane Occupant',
         date_of_birth: '1990-05-01',
-        gender: 'female',
+        sex: 'female',
         relationship_to_booker: 'child',
         phone: '',
         email: '',
@@ -341,7 +341,7 @@ describe('RoomDetailsModal proxy booking', () => {
         pricing_model: 'per_bed',
         available_slots: 3,
         capacity: 3,
-        gender_restriction: 'female',
+        sex_restriction: 'female',
       },
     );
 
@@ -494,7 +494,7 @@ describe('RoomDetailsModal proxy booking', () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
-        'Occupant 1 is missing required information (name, birth date, gender, relationship).',
+        'Occupant 1 is missing required information (name, birth date, sex, relationship).',
       );
     });
     expect(createBooking).not.toHaveBeenCalled();
@@ -593,17 +593,17 @@ describe('RoomDetailsModal proxy booking', () => {
     ).toBeInTheDocument();
   });
 
-  it('blocks incompatible gender-restricted room booking when API compatibility flag is absent', async () => {
+  it('blocks incompatible sex-restricted room booking when API compatibility flag is absent', async () => {
     const createBooking = jest.fn();
 
     window.localStorage.setItem(
       'userData',
-      JSON.stringify({ gender: 'female' }),
+      JSON.stringify({ sex: 'female' }),
     );
 
     render(
       <RoomDetailsModal
-        room={{ ...baseRoom, gender_restriction: 'male' }}
+        room={{ ...baseRoom, sex_restriction: 'male' }}
         property={{ ...baseProperty, property_type: 'dormitory' }}
         onClose={jest.fn()}
         isAuthenticated

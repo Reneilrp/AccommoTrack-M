@@ -31,7 +31,7 @@ import {
 } from '../../hooks/useLandlordQueryHelpers.js';
 
 const GENDER_OPTIONS = [
-  { label: 'Mixed (Any Gender)', value: 'mixed' },
+  { label: 'Mixed (Any Sex)', value: 'mixed' },
   { label: 'Boys Only', value: 'male' },
   { label: 'Girls Only', value: 'female' },
 ];
@@ -87,7 +87,7 @@ const parseBooleanFlag = (value, fallback = false) => {
 const buildEmptyForm = () => ({
   id: null,
   propertyType: '',
-  genderRestriction: 'mixed',
+  sexRestriction: 'mixed',
   status: 'pending',
   title: '',
   description: '',
@@ -154,7 +154,7 @@ const normalizeSettings = (data) => {
   return {
     id: data?.id ?? null,
     propertyType: data?.property_type || '',
-    genderRestriction: data?.gender_restriction || 'mixed',
+    sexRestriction: data?.sex_restriction || 'mixed',
     status: data?.current_status || 'pending',
     title: data?.title || '',
     description: data?.description || '',
@@ -504,7 +504,7 @@ export default function DormProfileSettings({ route, navigation }) {
       payload.append('title', form.title);
       payload.append('description', form.description);
       payload.append('property_type', form.propertyType);
-      payload.append('gender_restriction', form.genderRestriction);
+      payload.append('sex_restriction', form.sexRestriction);
       payload.append('current_status', form.status);
       payload.append('is_published', form.status === 'active' ? (form.isPublished ? '1' : '0') : '0');
       payload.append('street_address', form.streetAddress);
@@ -786,14 +786,14 @@ export default function DormProfileSettings({ route, navigation }) {
 
           {isGenderRestricted && (
             <>
-              <Text style={styles.label}>Gender Restriction</Text>
+              <Text style={styles.label}>Sex Restriction</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
-                  testID="dorm-profile-gender-picker"
+                  testID="dorm-profile-sex-picker"
                   mode={pickerMode}
-                  prompt="Select gender restriction"
-                  selectedValue={form.genderRestriction}
-                  onValueChange={(val) => updateForm('genderRestriction', val)}
+                  prompt="Select sex restriction"
+                  selectedValue={form.sexRestriction}
+                  onValueChange={(val) => updateForm('sexRestriction', val)}
                   style={styles.picker}
                   itemStyle={styles.pickerItem}
                   dropdownIconColor={theme.colors.textSecondary}

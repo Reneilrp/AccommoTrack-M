@@ -258,8 +258,8 @@ class PaymentService {
   /**
    * LANDLORD: Record an offline/cash payment against an invoice.
    * amount_cents – integer (e.g. 500000 = ₱5,000)
-   * method      – 'cash' | 'bank_transfer' | 'gcash' | 'check' | 'other'
-   * reference   – optional reference string
+    * method      – 'cash' | 'bank_transfer' | 'gcash' | 'check' | 'other'
+    * reference   – optional reference string
    * notes       – optional notes
    */
   async recordLandlordPayment(

@@ -150,7 +150,7 @@ export default function MyProfileScreen({ navigation }) {
         middle_name: tempUser.middle_name?.trim() || '',
         last_name: tempUser.last_name.trim(),
         phone: tempUser.phone?.trim() || '',
-        gender: tempUser.gender || null,
+        sex: tempUser.sex || null,
         identified_as: tempUser.identified_as || null,
         date_of_birth: tempUser.date_of_birth || null,
       }, selectedImage);
@@ -378,22 +378,22 @@ export default function MyProfileScreen({ navigation }) {
           <View style={styles.fieldContainer}>
             <View style={styles.fieldLabelContainer}>
               <Ionicons name="transgender-outline" size={20} color="#6B7280" />
-              <Text style={styles.fieldLabel}>Gender</Text>
+              <Text style={styles.fieldLabel}>Sex</Text>
             </View>
             <TouchableOpacity
               onPress={() => {
                 if (!isEditing) return;
-                showAlert("Select Gender", "Choose your gender", [
-                  { text: "Male", onPress: () => setTempUser({ ...tempUser, gender: "male" }) },
-                  { text: "Female", onPress: () => setTempUser({ ...tempUser, gender: "female" }) },
+                showAlert("Select Sex", "Choose your sex", [
+                  { text: "Male", onPress: () => setTempUser({ ...tempUser, sex: "male" }) },
+                  { text: "Female", onPress: () => setTempUser({ ...tempUser, sex: "female" }) },
                   { text: "Cancel", style: "cancel" },
                 ]);
               }}
               disabled={!isEditing}
               style={[styles.fieldValue, isEditing && styles.fieldValueEditable]}
             >
-              <Text style={{ color: tempUser?.gender ? theme.colors.text : "#9CA3AF", fontSize: 16, textTransform: "capitalize" }}>
-                {tempUser?.gender ? tempUser.gender.replace(/_/g, ' ') : "Select Gender"}
+              <Text style={{ color: tempUser?.sex ? theme.colors.text : "#9CA3AF", fontSize: 16, textTransform: "capitalize" }}>
+                {tempUser?.sex ? tempUser.sex.replace(/_/g, ' ') : "Select Sex"}
               </Text>
             </TouchableOpacity>
           </View>

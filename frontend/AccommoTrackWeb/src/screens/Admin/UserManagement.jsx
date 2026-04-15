@@ -555,7 +555,7 @@ const UserManagement = () => {
                 <tr>
                   <th className="px-6 py-4 text-left font-semibold">Name</th>
                   <th className="px-6 py-4 text-left font-semibold">Email</th>
-                  <th className="px-6 py-4 text-left font-semibold">Gender</th>
+                  <th className="px-6 py-4 text-left font-semibold">Sex</th>
                   <th className="px-6 py-4 text-left font-semibold">Role</th>
                   <th className="px-6 py-4 text-left font-semibold">Status</th>
                   <th className="px-6 py-4 text-center font-semibold">Actions</th>
@@ -566,7 +566,7 @@ const UserManagement = () => {
                   <tr key={u.id} className="bg-white dark:bg-gray-800 even:bg-gray-50 dark:even:bg-gray-700/30 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/20 transition-colors">
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.name || '—'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{u.email}</td>
-                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{u.gender || '—'}</td>
+                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{u.sex || '—'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{u.role}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                       {u.is_blocked ? (
@@ -668,8 +668,8 @@ const UserManagement = () => {
                     <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Read-only. Email changes must be initiated by the account owner.</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Gender</p>
-                    <p className="font-semibold text-gray-900 dark:text-white capitalize">{selectedUser.gender || 'N/A'}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Sex</p>
+                    <p className="font-semibold text-gray-900 dark:text-white capitalize">{selectedUser.sex || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>

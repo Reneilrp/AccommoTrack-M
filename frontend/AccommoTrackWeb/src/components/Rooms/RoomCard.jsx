@@ -21,7 +21,7 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   };
 
   const displayStatus = (room.display_status || room.displayStatus || room.status || 'available').toString().toLowerCase();
-  const normalizedGender = String(room.gender_restriction || 'mixed').toLowerCase().trim();
+  const normalizedGender = String(room.sex_restriction || 'mixed').toLowerCase().trim();
   const normalizedPropertyType = String(propertyType || room.property_type || room.property?.property_type || '').toLowerCase().trim();
   const showGenderBadge = !(normalizedPropertyType === 'apartment' && normalizedGender === 'mixed');
 
@@ -61,13 +61,13 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
               </span>
               {showGenderBadge && (
                 <span className={`px-2 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                  room.gender_restriction === 'male' 
+                  room.sex_restriction === 'male' 
                     ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
-                    : room.gender_restriction === 'female'
+                    : room.sex_restriction === 'female'
                     ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
                     : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
                 }`}>
-                  {room.gender_restriction === 'male' ? 'Boys Only' : room.gender_restriction === 'female' ? 'Girls Only' : 'Mixed Gender'}
+                  {room.sex_restriction === 'male' ? 'Boys Only' : room.sex_restriction === 'female' ? 'Girls Only' : 'Mixed Sex'}
                 </span>
               )}
             </div>

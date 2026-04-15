@@ -110,8 +110,8 @@ const PropertyService = {
       if (filters.min_rating) {
         params.append("min_rating", filters.min_rating);
       }
-      if (filters.gender_policy) {
-        params.append("gender_policy", filters.gender_policy);
+      if (filters.sex_policy) {
+        params.append("sex_policy", filters.sex_policy);
       }
       if (Array.isArray(filters.amenities) && filters.amenities.length > 0) {
         filters.amenities.forEach((amenity) => {
@@ -267,7 +267,7 @@ const PropertyService = {
       title: property.title,
       type: property.type || property.property_type || "Property",
       property_type: property.property_type, // Raw property type from backend
-      gender_restriction: property.gender_restriction || 'mixed',
+      sex_restriction: property.sex_restriction || 'mixed',
       has_bedspacer_room: property.has_bedspacer_room || false, // Flag for bedspacer filter
       location: property.location || property.city,
       address: property.full_address || property.address,

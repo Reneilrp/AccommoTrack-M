@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // Global Header removed — screens should use TopNavigation when needed
 import BottomNavigation from '../components/BottomNavigation.jsx';
 import Header from '../components/Header.jsx';
+import CartIcon from '../components/CartIcon.jsx';
 import { navigationRef, addNavigationStateListener } from '../../../navigation/RootNavigation.js';
 import TenantNavigator from './TenantNavigator.jsx';
 import { navigate } from '../../../navigation/RootNavigation.js';
@@ -86,7 +87,8 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     'PaymentDetail',
     'PaymentHistory',
     'Notifications',
-    'Messages'
+    'Messages',
+    'Cart'
   ]);
   
   const hideBottomRoutes = new Set([
@@ -239,6 +241,31 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     }
   };
 
+  // Build custom right actions for header (cart icon + profile/notifications)
+  const rightActions = React.useMemo(() => {
+    const actions = [];
+    
+    // Add cart icon for TenantHome and Messages routes
+    if (isProfileRoute) {
+      actions.push({
+        component: <CartIcon isGuest={isGuest} onAuthRequired={onAuthRequired} />,
+        key: 'cart',
+      });
+    }
+    
+    // Add profile/notification icon
+    if (showRightHeaderIcon) {
+      actions.push({
+        icon: rightHeaderIcon,
+        onPress: handleRightPress,
+        size: 28,
+        key: 'right-icon',
+      });
+    }
+    
+    return actions;
+  }, [isProfileRoute, showRightHeaderIcon, rightHeaderIcon, isGuest, onAuthRequired]);
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {canShowHeader && (
@@ -268,9 +295,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
             <Header
               title={title}
               onMenuPress={() => navigate('MenuModal')}
-              showRightIcon={showRightHeaderIcon}
-              rightIcon={rightHeaderIcon}
-              onRightPress={handleRightPress}
+              rightActions={rightActions}
             />
           </View>
         </Animated.View>

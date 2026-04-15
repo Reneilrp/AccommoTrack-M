@@ -43,7 +43,7 @@ const DEFAULT_ADVANCED_FILTERS = {
   availabilityOnly: false,
   minRating: 0,
   amenities: [],
-  gender: "All",
+  sex: "All",
 };
 
 const HEADER_HIDE_GAP = 20;
@@ -60,7 +60,7 @@ const hasActiveAdvancedFilters = (filters = {}) =>
     || filters.availabilityOnly
     || Number(filters.minRating) > 0
     || (Array.isArray(filters.amenities) && filters.amenities.length > 0)
-    || (filters.gender && filters.gender !== "All"),
+    || (filters.sex && filters.sex !== "All"),
   );
 
 const buildExploreApiFilters = (type, advancedFilters) => {
@@ -84,8 +84,8 @@ const buildExploreApiFilters = (type, advancedFilters) => {
   if (Array.isArray(advancedFilters.amenities) && advancedFilters.amenities.length > 0) {
     filters.amenities = advancedFilters.amenities;
   }
-  if (advancedFilters.gender && advancedFilters.gender !== "All") {
-    filters.gender_policy = advancedFilters.gender;
+  if (advancedFilters.sex && advancedFilters.sex !== "All") {
+    filters.sex_policy = advancedFilters.sex;
   }
 
   return filters;
@@ -335,10 +335,10 @@ export default function TenantHomePage({
       });
     }
 
-    if (advancedFilters.gender !== "All") {
+    if (advancedFilters.sex !== "All") {
       filtered = filtered.filter((prop) => {
-        const propGender = (prop.gender_restriction || "mixed").toLowerCase();
-        return propGender === advancedFilters.gender.toLowerCase();
+        const propGender = (prop.sex_restriction || "mixed").toLowerCase();
+        return propGender === advancedFilters.sex.toLowerCase();
       });
     }
 
@@ -420,7 +420,7 @@ export default function TenantHomePage({
       maxPrice: String(draftAdvancedFilters.maxPrice || "").replace(/[^0-9]/g, ""),
       availabilityOnly: Boolean(draftAdvancedFilters.availabilityOnly),
       minRating: Number(draftAdvancedFilters.minRating) || 0,
-      gender: draftAdvancedFilters.gender || "All",
+      sex: draftAdvancedFilters.sex || "All",
       amenities: Array.from(
         new Set(
           (draftAdvancedFilters.amenities || [])
@@ -1078,11 +1078,11 @@ export default function TenantHomePage({
                 </TouchableOpacity>
 
                 <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
-                  Gender Restriction
+                  Sex Restriction
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                   {genderOptions.map((opt) => {
-                    const isSelected = (draftAdvancedFilters.gender || 'All') === opt.value;
+                    const isSelected = (draftAdvancedFilters.sex || 'All') === opt.value;
                     return (
                       <TouchableOpacity
                         key={opt.value}
@@ -1097,7 +1097,7 @@ export default function TenantHomePage({
                         onPress={() =>
                           setDraftAdvancedFilters((prev) => ({
                             ...prev,
-                            gender: opt.value,
+                            sex: opt.value,
                           }))
                         }
                       >

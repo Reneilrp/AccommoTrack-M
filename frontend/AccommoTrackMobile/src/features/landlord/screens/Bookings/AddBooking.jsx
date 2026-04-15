@@ -521,7 +521,7 @@ export default function AddBooking({ navigation }) {
                   {rooms.map((room) => (
                     <Picker.Item
                       key={room.id}
-                      label={`Room ${room.room_number} (${room.type_label})${room.gender_restriction && room.gender_restriction !== 'mixed' ? ` - ${String(room.gender_restriction).toUpperCase()} ONLY` : ''}`}
+                      label={`Room ${room.room_number} (${room.type_label})${room.sex_restriction && room.sex_restriction !== 'mixed' ? ` - ${String(room.sex_restriction).toUpperCase()} ONLY` : ''}`}
                       value={room.id}
                     />
                   ))}

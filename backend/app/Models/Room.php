@@ -160,6 +160,14 @@ class Room extends Model
     }
 
     /**
+     * Relationship: Room has many tenant assignments
+     */
+    public function tenantAssignments()
+    {
+        return $this->hasMany(\App\Models\RoomTenantAssignment::class, 'room_id');
+    }
+
+    /**
      * Relationship: Room has many tenants (many-to-many through room_tenant_assignments)
      */
     public function tenants()
@@ -193,6 +201,25 @@ class Room extends Model
         return $this->hasOne(TenantEviction::class, 'room_id')
             ->where('status', 'scheduled')
             ->oldestOfMany('scheduled_for');
+    }
+
+
+    /**
+     * Get available bed numbers for assignment
+     */
+    public function getAvailableBedNumbers()
+    {
+        $totalBeds = $this->capacity;
+        $assignedBeds = $this->tenantAssignments()
+            ->where('status', 'active')
+            ->get()
+            ->flatMap(fn($a) => explode(',', $a->bed_numbers ?? ''))
+            ->filter()
+            ->map(fn($n) => (int)$n)
+            ->unique()
+            ->values();
+
+        return collect(range(1, $totalBeds))->diff($assignedBeds)->values();
     }
 
     /**
@@ -452,8 +479,13 @@ class Room extends Model
 
     /**
      * Assign tenant to room (supports multiple tenants and beds)
+     * 
+     * @param int $tenantId
+     * @param string|null $moveInDate
+     * @param int $bedCount
+     * @param string|null $bedNumbers Comma-separated bed numbers (e.g., "1,3,5")
      */
-    public function assignTenant($tenantId, $moveInDate = null, $bedCount = 1)
+    public function assignTenant($tenantId, $moveInDate = null, $bedCount = 1, $bedNumbers = null)
     {
         $requestedBeds = (int) ($bedCount ?: 1);
 
@@ -469,6 +501,7 @@ class Room extends Model
         $this->tenants()->attach($tenantId, [
             'start_date' => $moveInDate ?? now()->format('Y-m-d'),
             'bed_count' => $requestedBeds,
+            'bed_numbers' => $bedNumbers,
             'monthly_rent' => $this->monthly_rate ?? 0.00,
             'status' => 'active',
             'created_at' => now(),

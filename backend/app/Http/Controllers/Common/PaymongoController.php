@@ -251,6 +251,16 @@ class PaymongoController extends Controller
                 ], 422);
             }
 
+            if ($allowPartial && $property) {
+                $minPercent = $property->min_partial_payment_pct ?? 20;
+                $minAmount = $remainingBalanceCents * ($minPercent / 100);
+                if ($requestedAmountCents < $remainingBalanceCents && $requestedAmountCents < $minAmount) {
+                    return response()->json([
+                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount / 100, 2).').',
+                    ], 422);
+                }
+            }
+
             $amountToPayCents = $requestedAmountCents;
         } else {
             $amountToPayCents = $remainingBalanceCents;

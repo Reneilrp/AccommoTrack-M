@@ -137,7 +137,7 @@ const ExploreProperties = () => {
     availabilityOnly: false,
     amenities: [],
     rating: 0,
-    genderPolicy: "All",
+    sexPolicy: "All",
   });
   const [propertyTypeOptions, setPropertyTypeOptions] = useState(
     FALLBACK_TYPE_OPTIONS,
@@ -189,7 +189,7 @@ const ExploreProperties = () => {
     (normalizedSelectedType !== "All" ? 1 : 0) +
     (advancedFilters.priceMin || advancedFilters.priceMax ? 1 : 0) +
     (advancedFilters.rating > 0 ? 1 : 0) +
-    (advancedFilters.genderPolicy && advancedFilters.genderPolicy !== "All" ? 1 : 0) +
+    (advancedFilters.sexPolicy && advancedFilters.sexPolicy !== "All" ? 1 : 0) +
     (advancedFilters.amenities.length > 0 ? 1 : 0);
 
   const normalizeGenderPolicy = (value) => {
@@ -333,9 +333,9 @@ const ExploreProperties = () => {
           price_max: advancedFilters.priceMax || undefined,
           availability: advancedFilters.availabilityOnly ? "1" : undefined,
           min_rating: advancedFilters.rating > 0 ? advancedFilters.rating : undefined,
-          gender_policy:
-            advancedFilters.genderPolicy && advancedFilters.genderPolicy !== "All"
-              ? advancedFilters.genderPolicy
+          sex_policy:
+            advancedFilters.sexPolicy && advancedFilters.sexPolicy !== "All"
+              ? advancedFilters.sexPolicy
               : undefined,
           amenities: advancedFilters.amenities,
         };
@@ -361,17 +361,17 @@ const ExploreProperties = () => {
       if (!mapped) return null;
       return {
         ...mapped,
-        gender_restriction: property?.gender_restriction || mapped?.gender_restriction || "mixed",
+        sex_restriction: property?.sex_restriction || mapped?.sex_restriction || "mixed",
       };
     })
     .filter(Boolean);
 
-  // Most filtering is handled by backend query params; gender policy is applied client-side.
+  // Most filtering is handled by backend query params; sex policy is applied client-side.
   const filteredProperties = mapDisplayProperties.filter((property) => {
-    const selectedGender = String(advancedFilters.genderPolicy || "All").toLowerCase().trim();
+    const selectedGender = String(advancedFilters.sexPolicy || "All").toLowerCase().trim();
     if (!selectedGender || selectedGender === "all") return true;
-    const propertyGender = normalizeGenderPolicy(property?.gender_restriction);
-    return propertyGender === selectedGender;
+    const propertySex = normalizeGenderPolicy(property?.sex_restriction);
+    return propertySex === selectedGender;
   });
 
   const availableAmenities = Array.from(
@@ -647,9 +647,9 @@ const ExploreProperties = () => {
                 </span>
               )}
 
-              {advancedFilters.genderPolicy && advancedFilters.genderPolicy !== "All" && (
+              {advancedFilters.sexPolicy && advancedFilters.sexPolicy !== "All" && (
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-700">
-                  Gender: {advancedFilters.genderPolicy === "male" ? "Boys only" : advancedFilters.genderPolicy === "female" ? "Girls only" : "Mixed"}
+                  Sex: {advancedFilters.sexPolicy === "male" ? "Boys only" : advancedFilters.sexPolicy === "female" ? "Girls only" : "Mixed"}
                 </span>
               )}
 
@@ -760,7 +760,7 @@ const ExploreProperties = () => {
                       availabilityOnly: false,
                       amenities: [],
                       rating: 0,
-                      genderPolicy: "All",
+                      sexPolicy: "All",
                     });
                   }}
                   className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
@@ -1738,7 +1738,7 @@ const FilterSidebar = ({
       availabilityOnly: false,
       amenities: [],
       rating: 0,
-      genderPolicy: "All",
+      sexPolicy: "All",
     };
     setLocalFilters(cleared);
     onClear(cleared);
@@ -1965,10 +1965,10 @@ const FilterSidebar = ({
 
               <div className="border-t border-gray-200 dark:border-gray-700 md:hidden"></div>
 
-              {/* Gender Policy */}
+              {/* Sex Policy */}
               <div>
                 <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                  Gender Policy
+                  Sex Policy
                 </h3>
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -1983,11 +1983,11 @@ const FilterSidebar = ({
                       onClick={() =>
                         setLocalFilters((prev) => ({
                           ...prev,
-                          genderPolicy: policy.value,
+                          sexPolicy: policy.value,
                         }))
                       }
                       className={`px-2.5 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
-                        (localFilters.genderPolicy || "All") === policy.value
+                        (localFilters.sexPolicy || "All") === policy.value
                           ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400"
                           : "border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
                       }`}

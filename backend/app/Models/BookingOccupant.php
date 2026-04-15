@@ -15,6 +15,7 @@ class BookingOccupant extends Model
         'last_name',
         'date_of_birth',
         'sex',
+        'bed_number',
         'relationship_to_booker',
         'phone',
         'email',

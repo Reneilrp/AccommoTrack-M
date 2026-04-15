@@ -82,12 +82,16 @@ class CaretakerController extends Controller
             'date_of_birth' => 'nullable|date',
             'password' => 'nullable|string|min:8|confirmed',
             'permissions.can_view_bookings' => 'sometimes|boolean',
+            'permissions.can_approve_bookings' => 'sometimes|boolean',
+            'permissions.can_cancel_bookings' => 'sometimes|boolean',
             'permissions.can_view_messages' => 'sometimes|boolean',
             'permissions.can_view_tenants' => 'sometimes|boolean',
             'permissions.can_view_rooms' => 'sometimes|boolean',
             'permissions.can_view_properties' => 'sometimes|boolean',
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
+            'permissions.can_manage_add_ons' => 'sometimes|boolean',
             'permissions.can_manage_payments' => 'sometimes|boolean',
+            'permissions.can_view_audit_logs' => 'sometimes|boolean',
             'permissions.can_view_analytics' => 'sometimes|boolean',
             'property_ids' => 'sometimes|array',
             'property_ids.*' => 'integer|exists:properties,id',
@@ -202,12 +206,16 @@ class CaretakerController extends Controller
             'password' => 'sometimes|nullable|string|min:6|confirmed',
             'permissions' => 'sometimes|array',
             'permissions.can_view_bookings' => 'sometimes|boolean',
+            'permissions.can_approve_bookings' => 'sometimes|boolean',
+            'permissions.can_cancel_bookings' => 'sometimes|boolean',
             'permissions.can_view_messages' => 'sometimes|boolean',
             'permissions.can_view_tenants' => 'sometimes|boolean',
             'permissions.can_view_rooms' => 'sometimes|boolean',
             'permissions.can_view_properties' => 'sometimes|boolean',
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
+            'permissions.can_manage_add_ons' => 'sometimes|boolean',
             'permissions.can_manage_payments' => 'sometimes|boolean',
+            'permissions.can_view_audit_logs' => 'sometimes|boolean',
             'permissions.can_view_analytics' => 'sometimes|boolean',
             'property_ids' => 'sometimes|array|min:1',
             'property_ids.*' => 'integer|exists:properties,id',
@@ -255,6 +263,18 @@ class CaretakerController extends Controller
                 'can_manage_payments' => array_key_exists('can_manage_payments', $payload)
                     ? (bool) $payload['can_manage_payments']
                     : $assignment->can_manage_payments,
+                'can_approve_bookings' => array_key_exists('can_approve_bookings', $payload)
+                    ? (bool) $payload['can_approve_bookings']
+                    : $assignment->can_approve_bookings,
+                'can_cancel_bookings' => array_key_exists('can_cancel_bookings', $payload)
+                    ? (bool) $payload['can_cancel_bookings']
+                    : $assignment->can_cancel_bookings,
+                'can_manage_add_ons' => array_key_exists('can_manage_add_ons', $payload)
+                    ? (bool) $payload['can_manage_add_ons']
+                    : $assignment->can_manage_add_ons,
+                'can_view_audit_logs' => array_key_exists('can_view_audit_logs', $payload)
+                    ? (bool) $payload['can_view_audit_logs']
+                    : $assignment->can_view_audit_logs,
             ];
 
             $assignment->update($updates);

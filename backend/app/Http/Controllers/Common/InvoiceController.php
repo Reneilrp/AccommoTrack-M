@@ -510,7 +510,7 @@ class InvoiceController extends Controller
             'method' => ['required', 'string', Rule::in(self::MANUAL_PAYMENT_METHODS)],
             'reference' => 'nullable|string',
             'notes' => 'nullable|string',
-            'proof_image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'proof_image' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
         DB::beginTransaction();
@@ -558,6 +558,17 @@ class InvoiceController extends Controller
                 return response()->json([
                     'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingCents / 100, 2),
                 ], 422);
+            }
+
+            if ($allowPartial && $property) {
+                $minPercent = $property->min_partial_payment_pct ?? 20;
+                $minAmount = $remainingCents * ($minPercent / 100);
+                if ($validated['amount_cents'] < $remainingCents && $validated['amount_cents'] < $minAmount) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount / 100, 2).').',
+                    ], 422);
+                }
             }
 
             $hadPreviousDeniedSubmission = $invoice->transactions()
@@ -925,6 +936,114 @@ class InvoiceController extends Controller
             DB::rollBack();
 
             return response()->json(['message' => 'Failed to create cash invoice', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Tenant applying their wallet credits to pay an invoice
+     */
+    public function applyWalletCreditForTenant(Request $request, $id)
+    {
+        if (SystemToggle::getBool('tenant_payments_disabled', (bool) config('app.tenant_payments_disabled', false))) {
+            return response()->json([
+                'message' => 'Tenant payment submissions are temporarily unavailable while payment compliance updates are in progress.',
+            ], 503);
+        }
+
+        $invoice = Invoice::findOrFail($id);
+        $tenantId = Auth::id();
+        if ($invoice->tenant_id !== $tenantId) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'amount_cents' => 'required|integer|min:1',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $invoice = Invoice::with(['property', 'booking.property'])
+                ->whereKey($invoice->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $propertyId = $invoice->property_id ?? $invoice->booking?->property_id;
+            
+            $availableCredits = \App\Models\TenantCredit::getBalance($tenantId, $propertyId);
+
+            if ($validated['amount_cents'] > $availableCredits) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'Insufficient wallet credits.',
+                ], 422);
+            }
+
+            // Recompute remaining balance
+            $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+            $alreadyPaidCents = $invoice->transactions()
+                ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                ->lockForUpdate()
+                ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+                ->value('net_cents') ?? 0;
+            $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
+
+            if ($validated['amount_cents'] > $remainingCents) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'Credit amount cannot exceed the remaining balance of ₱'.number_format($remainingCents / 100, 2),
+                ], 422);
+            }
+
+            // Debit the wallet
+            \App\Models\TenantCredit::create([
+                'tenant_id' => $tenantId,
+                'property_id' => $propertyId,
+                'amount_cents' => $validated['amount_cents'],
+                'type' => 'debit',
+                'description' => 'Applied to invoice #' . $invoice->id,
+            ]);
+
+            // Create successful transaction immediately since it's credit
+            $tx = PaymentTransaction::create([
+                'invoice_id' => $invoice->id,
+                'tenant_id' => $tenantId,
+                'amount_cents' => $validated['amount_cents'],
+                'currency' => $invoice->currency,
+                'status' => 'succeeded',
+                'method' => 'wallet_credit',
+                'gateway_response' => [
+                    'notes' => 'Paid using wallet credit',
+                ],
+            ]);
+
+            // Log event
+            $this->auditLogService->paymentEvent('payment.succeeded', [
+                'invoice_id' => $invoice->id,
+                'tenant_id' => $tenantId,
+                'property_id' => $propertyId,
+                'payment_transaction_id' => $tx->id,
+                'summary' => 'Tenant applied wallet credits to invoice.',
+                'metadata' => [
+                    'amount_cents' => $validated['amount_cents'],
+                ],
+            ]);
+
+            // Update invoice status since it's confirmed
+            $statusBefore = $invoice->status;
+            if ($remainingCents - $validated['amount_cents'] <= 0) {
+                $invoice->status = 'paid';
+            } else {
+                $invoice->status = 'partial';
+            }
+            $invoice->save();
+
+            DB::commit();
+
+            return response()->json(['success' => true, 'transaction' => $tx->fresh(), 'invoice' => $invoice], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json(['message' => 'Failed to apply credits', 'error' => $e->getMessage()], 500);
         }
     }
 }

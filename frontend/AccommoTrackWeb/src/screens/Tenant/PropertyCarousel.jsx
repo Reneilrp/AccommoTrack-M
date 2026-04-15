@@ -71,8 +71,8 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     const billingPolicy = (room?.billing_policy || room?.billingPolicy || 'monthly')
       .toString()
       .toLowerCase();
-    const genderRestriction = String(
-      room?.gender_restriction || room?.genderRestriction || 'mixed',
+    const sexRestriction = String(
+      room?.sex_restriction || room?.sexRestriction || 'mixed',
     )
       .toLowerCase()
       .trim();
@@ -140,7 +140,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     const normalizedRoom = {
       ...room,
       billingPolicy,
-      genderRestriction,
+      sexRestriction,
       primaryPrice,
       alternatePrice,
       primaryLabel: billingPolicy === 'daily' ? 'Price per day' : 'Price per month',
@@ -269,9 +269,9 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             return (a.primaryPrice || 0) - (b.primaryPrice || 0);
           })
           .map((room) => {
-            const genderBadge = getGenderBadge(room.genderRestriction);
+            const genderBadge = getGenderBadge(room.sexRestriction);
             const showGenderBadge = shouldShowGenderBadge(
-              room.genderRestriction,
+              room.sexRestriction,
               property?.property_type,
             );
             const rawDisplayStatus = (room.display_status || room.status || 'available').toString().toLowerCase();

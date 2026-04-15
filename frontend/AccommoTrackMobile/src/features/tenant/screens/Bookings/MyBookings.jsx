@@ -403,7 +403,7 @@ export default function MyBookings() {
     return source.map((occupant, index) => {
       const fullName = String(occupant?.full_name || occupant?.fullName || '').trim() || `Occupant ${index + 1}`;
       const relationship = String(occupant?.relationship_to_booker || occupant?.relationshipToBooker || '').trim();
-      const gender = String(occupant?.gender || '').trim();
+      const sex = String(occupant?.sex || '').trim();
       const phone = String(occupant?.phone || '').trim();
       const email = String(occupant?.email || '').trim();
 
@@ -411,7 +411,7 @@ export default function MyBookings() {
         id: occupant?.id || `${fullName}-${index}`,
         fullName,
         relationship,
-        gender,
+        sex,
         contact: [phone, email].filter(Boolean).join(' • '),
       };
     });
@@ -2006,9 +2006,9 @@ export default function MyBookings() {
                   occupantProfiles.map((occupant) => (
                     <View key={occupant.id} style={[styles.proxyOccupantCard, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border, borderWidth: 1 }]}>
                       <Text style={[styles.proxyOccupantName, { color: theme.colors.text }]}>{occupant.fullName}</Text>
-                      {(occupant.relationship || occupant.gender) ? (
+                      {(occupant.relationship || occupant.sex) ? (
                         <Text style={[styles.proxyOccupantMeta, { color: theme.colors.textSecondary }]}>
-                          {[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}
+                          {[occupant.relationship, occupant.sex].filter(Boolean).join(' • ')}
                         </Text>
                       ) : null}
                       {occupant.contact ? (
@@ -2205,7 +2205,7 @@ export default function MyBookings() {
                               text: 'Other Problem',
                               onPress: async () => {
                                 try {
-                                  await TenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.', 'other');
+                                  await TenantService.reportDispute(booking.id, 'Tenant reported an issue with this reservation.');
                                   showAlert('Report Submitted', 'Our admin team will review your report.');
                                 } catch { showAlert('Error', 'Failed to submit report.'); }
                               }

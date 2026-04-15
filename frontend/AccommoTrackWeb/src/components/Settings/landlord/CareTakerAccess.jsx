@@ -956,8 +956,8 @@ export default function CareTakerAccess({
                       <User className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Gender</p>
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200 capitalize">{selectedCaretaker.caretaker?.gender || 'Not specified'}</span>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sex</p>
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200 capitalize">{selectedCaretaker.caretaker?.sex || 'Not specified'}</span>
                     </div>
                   </div>
 

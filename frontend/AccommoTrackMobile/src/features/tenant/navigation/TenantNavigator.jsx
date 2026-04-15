@@ -32,6 +32,7 @@ import MyReviews from '../screens/Reviews/MyReviews.jsx';
 import BookingDetails from '../screens/Bookings/BookingDetails.jsx';
 import ReportProperty from '../screens/Support/ReportProperty.jsx';
 import ServiceRequests from '../screens/ServiceRequests/ServiceRequests.jsx';
+import CartScreen from '../screens/CartScreen.jsx';
 import VerificationStatus from '../../landlord/screens/Settings/Account/VerificationStatus.jsx';
 import LandlordRegisterScreen from '../../auth/screens/LandlordRegisterScreen.jsx';
 import UpdateDetails from '../../../shared/screens/UpdateDetails.jsx';
@@ -140,6 +141,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
                 <MyBookings {...props} />
               )}
             </MainStack.Screen>
+            <MainStack.Screen name="Cart" component={CartScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="Payments" component={PaymentsScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />

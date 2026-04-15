@@ -782,6 +782,23 @@ class TenantController extends Controller
                 ]);
             }
 
+            // 1.1 Handle transfer fee invoice
+            if (! empty($validated['transfer_fee']) && $validated['transfer_fee'] > 0) {
+                $reference = 'TRF-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
+                Invoice::create([
+                    'reference' => $reference,
+                    'landlord_id' => $context['landlord_id'],
+                    'property_id' => $newRoom->property_id,
+                    'tenant_id' => $tenant->id,
+                    'description' => 'Transfer fee from '.($oldRoom ? $oldRoom->room_number : 'previous room').' to '.$newRoom->room_number,
+                    'amount_cents' => (int) round($validated['transfer_fee'] * 100),
+                    'currency' => 'PHP',
+                    'status' => 'pending',
+                    'issued_at' => now(),
+                    'due_date' => now(),
+                ]);
+            }
+
             // 2. End current booking/assignment
             $originalEndDate = null;
             if ($oldRoom) {

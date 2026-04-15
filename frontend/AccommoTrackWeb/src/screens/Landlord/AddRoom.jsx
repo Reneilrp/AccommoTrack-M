@@ -55,7 +55,7 @@ export default function AddRoomModal({
   const [formData, setFormData] = useState({
     roomNumber: "",
     roomType: initialRoomType,
-    genderRestriction: "select",
+    sexRestriction: "select",
     floor: "1",
     monthlyRate: "",
     // new billing related fields
@@ -98,7 +98,7 @@ export default function AddRoomModal({
 
   const [totalFloors, setTotalFloors] = useState(1);
   const [managedFloors, setManagedFloors] = useState([]);
-  const [propertyGender, setPropertyGender] = useState("mixed");
+  const [propertySex, setPropertyGender] = useState("mixed");
   const [propertyRequireAdvance, setPropertyRequireAdvance] = useState(false);
 
   // Sync amenities list when prop changes (e.g. parent refreshes after onAmenityAdded)
@@ -132,7 +132,7 @@ export default function AddRoomModal({
           }
           setTotalFloors(maxFloor);
 
-          const pGender = p.gender_restriction || "mixed";
+          const pGender = p.sex_restriction || "mixed";
           setPropertyGender(pGender);
           setPropertyRequireAdvance(!!p.require_advance);
 
@@ -147,11 +147,11 @@ export default function AddRoomModal({
             setManagedFloors([]);
           }
 
-          // Auto-set room gender if property is restricted
+          // Auto-set room sex if property is restricted
           if (pGender === "male" || pGender === "boys") {
-            setFormData((prev) => ({ ...prev, genderRestriction: "male" }));
+            setFormData((prev) => ({ ...prev, sexRestriction: "male" }));
           } else if (pGender === "female" || pGender === "girls") {
-            setFormData((prev) => ({ ...prev, genderRestriction: "female" }));
+            setFormData((prev) => ({ ...prev, sexRestriction: "female" }));
           }
         }
       } catch {
@@ -166,17 +166,17 @@ export default function AddRoomModal({
   // Reset form when modal opens or property changes
   useEffect(() => {
     if (isOpen) {
-      // Derive sensible gender default from the property's own setting
-      const defaultGender = (propertyGender === 'male' || propertyGender === 'boys')
+      // Derive sensible sex default from the property's own setting
+      const defaultSex = (propertySex === 'male' || propertySex === 'boys')
         ? 'male'
-        : (propertyGender === 'female' || propertyGender === 'girls')
+        : (propertySex === 'female' || propertySex === 'girls')
           ? 'female'
           : isApartment ? 'mixed' : 'male';
 
       setFormData({
         roomNumber: "",
         roomType: initialRoomType,
-        genderRestriction: defaultGender,
+        sexRestriction: defaultSex,
         floor: "1",
         monthlyRate: "",
         dailyRate: "",
@@ -202,7 +202,7 @@ export default function AddRoomModal({
     initialRoomType,
     initialPricingModel,
     isBedSpacerProperty,
-    propertyGender,
+    propertySex,
     isApartment,
   ]);
 
@@ -602,7 +602,7 @@ export default function AddRoomModal({
       payload.append("property_id", propertyId);
       payload.append("room_number", formData.roomNumber);
       payload.append("room_type", formData.roomType);
-      payload.append("gender_restriction", formData.genderRestriction);
+      payload.append("sex_restriction", formData.sexRestriction);
       payload.append("floor", parseInt(formData.floor));
       if (bp === "monthly" || bp === "monthly_with_daily") {
         const monthlyVal = parseFloat(formData.monthlyRate);
@@ -661,9 +661,9 @@ export default function AddRoomModal({
       setFormData({
         roomNumber: "",
         roomType: initialRoomType,
-        genderRestriction: (propertyGender === 'male' || propertyGender === 'boys')
+        sexRestriction: (propertySex === 'male' || propertySex === 'boys')
           ? 'male'
-          : (propertyGender === 'female' || propertyGender === 'girls')
+          : (propertySex === 'female' || propertySex === 'girls')
             ? 'female'
             : isApartment
               ? 'mixed'
@@ -768,7 +768,7 @@ export default function AddRoomModal({
               )}
             </div>
 
-            {/* Row 2: Room Number | Floor | Room Type | Gender */}
+            {/* Row 2: Room Number | Floor | Room Type | Sex */}
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -826,21 +826,21 @@ export default function AddRoomModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Gender
+                  Sex
                 </label>
                 <select
-                  value={formData.genderRestriction}
-                  onChange={(e) => handleInputChange("genderRestriction", e.target.value)}
-                  disabled={propertyGender !== "mixed"}
-                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${propertyGender !== "mixed" ? "bg-gray-50 dark:bg-gray-600 cursor-not-allowed" : ""}`}
+                  value={formData.sexRestriction}
+                  onChange={(e) => handleInputChange("sexRestriction", e.target.value)}
+                  disabled={propertySex !== "mixed"}
+                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${propertySex !== "mixed" ? "bg-gray-50 dark:bg-gray-600 cursor-not-allowed" : ""}`}
                 >
                   <option value="male">Boys</option>
                   <option value="female">Girls</option>
                   {(isApartment || (!isDormitory && !isBoarding && !isBedSpacerProperty)) && <option value="mixed">Mixed</option>}
                 </select>
-                {propertyGender !== "mixed" && (
+                {propertySex !== "mixed" && (
                   <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 italic">
-                    * Property is restricted to {propertyGender} only.
+                    * Property is restricted to {propertySex} only.
                   </p>
                 )}
               </div>

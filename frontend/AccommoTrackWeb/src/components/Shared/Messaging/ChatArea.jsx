@@ -315,9 +315,9 @@ const ChatArea = ({
                 </div>
 
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-gray-500 dark:text-gray-400">Gender</span>
+                  <span className="text-gray-500 dark:text-gray-400">Sex</span>
                   <span className="text-right font-semibold text-gray-900 dark:text-white capitalize">
-                    {otherUser?.gender || otherUser?.identified_as || 'Not provided'}
+                    {otherUser?.sex || otherUser?.identified_as || 'Not provided'}
                   </span>
                 </div>
 

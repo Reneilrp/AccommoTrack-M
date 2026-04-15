@@ -85,7 +85,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
           </Text>
         </View>
 
-        {/* Curfew & Gender */}
+        {/* Curfew & Sex */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 8 }}>
           {item.curfew_time && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -95,15 +95,15 @@ export default function PropertyCard({ accommodation, property, onPress }) {
               </Text>
             </View>
           )}
-          {item.gender_restriction && item.gender_restriction !== 'mixed' && (
+          {item.sex_restriction && item.sex_restriction !== 'mixed' && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Ionicons 
-                name={item.gender_restriction === 'male' ? 'male-outline' : 'female-outline'} 
+                name={item.sex_restriction === 'male' ? 'male-outline' : 'female-outline'} 
                 size={16} 
                 color={theme.colors.primary} 
               />
               <Text style={{ fontSize: 13, color: theme.colors.primary, fontWeight: '600' }}>
-                {item.gender_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
+                {item.sex_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
               </Text>
             </View>
           )}

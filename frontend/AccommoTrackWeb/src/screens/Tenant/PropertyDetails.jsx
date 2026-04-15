@@ -318,7 +318,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
       setLoading(true);
 
       // Authenticated tenants should use protected tenant endpoint so room
-      // resources include auth-aware compatibility flags (e.g., gender).
+      // resources include auth-aware compatibility flags (e.g., sex).
       const endpointCandidates = isAuthenticated
         ? [`/properties/${propertyId}`, `/public/properties/${propertyId}`]
         : [`/public/properties/${propertyId}`];
@@ -477,9 +477,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
         {filteredRooms.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredRooms.map((room) => {
-              const genderBadge = getGenderBadge(room.gender_restriction);
+              const genderBadge = getGenderBadge(room.sex_restriction);
               const showGenderBadge = shouldShowGenderBadge(
-                room.gender_restriction,
+                room.sex_restriction,
                 property?.property_type,
               );
               const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
@@ -685,12 +685,12 @@ export default function PropertyDetails({ propertyId, onBack }) {
     const CARD = "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-md";
 
     const propertyType = String(property.property_type || "").toLowerCase().trim();
-    const genderRestriction = String(property.gender_restriction || "mixed").toLowerCase().trim();
-    const showPropertyGenderLabel = !(propertyType === "apartment" && genderRestriction === "mixed");
+    const sexRestriction = String(property.sex_restriction || "mixed").toLowerCase().trim();
+    const showPropertyGenderLabel = !(propertyType === "apartment" && sexRestriction === "mixed");
     const genderLabel =
-      genderRestriction === "male" || genderRestriction === "boys" || genderRestriction === "boy"
+      sexRestriction === "male" || sexRestriction === "boys" || sexRestriction === "boy"
         ? { label: "Boys only", icon: <Mars className="w-3.5 h-3.5" />, cls: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 shadow-sm" }
-        : genderRestriction === "female" || genderRestriction === "girls" || genderRestriction === "girl"
+        : sexRestriction === "female" || sexRestriction === "girls" || sexRestriction === "girl"
         ? { label: "Girls only", icon: <Venus className="w-3.5 h-3.5" />, cls: "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-700 shadow-sm" }
         : { label: "Mixed genders", icon: <VenetianMask className="w-3.5 h-3.5" />, cls: "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 shadow-sm" };
 

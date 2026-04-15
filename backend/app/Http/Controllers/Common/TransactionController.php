@@ -156,6 +156,16 @@ class TransactionController extends Controller
                 ]);
             }
 
+            if ($tx->tenant_id && $invoice?->property_id) {
+                \App\Models\TenantCredit::create([
+                    'tenant_id' => $tx->tenant_id,
+                    'property_id' => $invoice->property_id,
+                    'amount_cents' => $refundAmount,
+                    'type' => 'refund',
+                    'description' => 'Refund for transaction #' . $tx->id . ' from invoice #' . $invoice->id,
+                ]);
+            }
+
             DB::commit();
 
             return response()->json([

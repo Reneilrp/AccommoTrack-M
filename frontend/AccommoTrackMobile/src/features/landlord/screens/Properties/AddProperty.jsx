@@ -42,7 +42,7 @@ const PROPERTY_TYPES = [
 ];
 
 const GENDER_OPTIONS = [
-  { label: "Mixed (Any Gender)", value: "mixed" },
+  { label: "Mixed (Any Sex)", value: "mixed" },
   { label: "Boys Only", value: "male" },
   { label: "Girls Only", value: "female" },
 ];
@@ -69,7 +69,7 @@ const initialForm = {
   title: "",
   propertyType: "",
   otherType: "",
-  genderRestriction: "mixed",
+  sexRestriction: "mixed",
   description: "",
   street: "",
   barangay: "",
@@ -584,7 +584,7 @@ export default function AddProperty({ navigation }) {
       title: form.title.trim(),
       description: form.description.trim(),
       property_type: propertyType,
-      gender_restriction: form.genderRestriction,
+      sex_restriction: form.sexRestriction,
       current_status: isDraft ? "draft" : "pending",
       street_address: form.street.trim(),
       barangay: form.barangay.trim(),
@@ -919,15 +919,15 @@ export default function AddProperty({ navigation }) {
               {form.propertyType !== "" && form.propertyType !== "apartment" && (
                 <>
                   <Text style={styles.label}>
-                    Gender Restriction <Text style={styles.requiredAsterisk}>*</Text>
+                    Sex Restriction <Text style={styles.requiredAsterisk}>*</Text>
                   </Text>
                   <TouchableOpacity
-                    testID="add-property-gender-picker"
+                    testID="add-property-sex-picker"
                     style={styles.selectTrigger}
                     onPress={() => setGenderModalVisible(true)}
                   >
                     <Text style={styles.selectTriggerText}>
-                      {getOptionLabel(GENDER_OPTIONS, form.genderRestriction, "Select gender restriction")}
+                      {getOptionLabel(GENDER_OPTIONS, form.sexRestriction, "Select sex restriction")}
                     </Text>
                     <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
                   </TouchableOpacity>
@@ -1730,13 +1730,13 @@ export default function AddProperty({ navigation }) {
         <Pressable style={styles.selectModalOverlay} onPress={() => setGenderModalVisible(false)}>
           <Pressable style={styles.selectModalCard} onPress={() => { }}>
             <View style={styles.selectModalHeader}>
-              <Text style={styles.selectModalTitle}>Select Gender Restriction</Text>
+              <Text style={styles.selectModalTitle}>Select Sex Restriction</Text>
               <TouchableOpacity onPress={() => setGenderModalVisible(false)}>
                 <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
             {GENDER_OPTIONS.map((option, index) => {
-              const isActive = option.value === form.genderRestriction;
+              const isActive = option.value === form.sexRestriction;
               return (
                 <TouchableOpacity
                   key={option.value}
@@ -1745,7 +1745,7 @@ export default function AddProperty({ navigation }) {
                     index === GENDER_OPTIONS.length - 1 && styles.selectModalOptionLast,
                   ]}
                   onPress={() => {
-                    updateForm("genderRestriction", option.value);
+                    updateForm("sexRestriction", option.value);
                     setGenderModalVisible(false);
                   }}
                 >

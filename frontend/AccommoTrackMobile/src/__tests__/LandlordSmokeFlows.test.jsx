@@ -277,7 +277,7 @@ describe('Landlord smoke flows', () => {
     ).toBeTruthy();
   }, 15000);
 
-  it('AddProperty shows gender restriction picker for non-apartment types', async () => {
+  it('AddProperty shows sex restriction picker for non-apartment types', async () => {
     ProfileService.getVerificationStatus.mockResolvedValue({
       success: true,
       data: { status: 'approved', user: { is_verified: true } },
@@ -293,15 +293,15 @@ describe('Landlord smoke flows', () => {
     const propertyTypePicker = screen.getByTestId('add-property-type-picker');
     fireEvent(propertyTypePicker, 'valueChange', 'dormitory');
 
-    const genderPicker = await screen.findByTestId('add-property-gender-picker');
+    const genderPicker = await screen.findByTestId('add-property-sex-picker');
     expect(genderPicker).toBeTruthy();
 
     fireEvent(genderPicker, 'valueChange', 'female');
-    expect(screen.getByTestId('add-property-gender-picker')).toBeTruthy();
+    expect(screen.getByTestId('add-property-sex-picker')).toBeTruthy();
 
     fireEvent(propertyTypePicker, 'valueChange', 'apartment');
     await waitFor(() => {
-      expect(screen.queryByTestId('add-property-gender-picker')).toBeNull();
+      expect(screen.queryByTestId('add-property-sex-picker')).toBeNull();
     });
   });
 
@@ -894,7 +894,7 @@ describe('Landlord smoke flows', () => {
         title: 'Dorm One',
         description: 'Updated description',
         property_type: 'dormitory',
-        gender_restriction: 'mixed',
+        sex_restriction: 'mixed',
         current_status: 'active',
         street_address: '123 Main St',
         barangay: 'Barangay 1',
@@ -957,7 +957,7 @@ describe('Landlord smoke flows', () => {
     });
   });
 
-  it('DormProfileSettings shows gender restriction picker for non-apartment types', async () => {
+  it('DormProfileSettings shows sex restriction picker for non-apartment types', async () => {
     AsyncStorage.getItem.mockResolvedValue(
       JSON.stringify({ paymongo_verification_status: 'verified', is_paymongo_ready: true }),
     );
@@ -969,7 +969,7 @@ describe('Landlord smoke flows', () => {
         title: 'Custom Stay',
         description: 'Custom property type',
         property_type: 'others',
-        gender_restriction: 'mixed',
+        sex_restriction: 'mixed',
         current_status: 'active',
         street_address: '789 Main St',
         barangay: 'Barangay 3',
@@ -993,21 +993,21 @@ describe('Landlord smoke flows', () => {
 
     await screen.findByDisplayValue('Custom Stay');
 
-    expect(screen.getByText('Gender Restriction')).toBeTruthy();
-    expect(screen.getByTestId('dorm-profile-gender-picker')).toBeTruthy();
+    expect(screen.getByText('Sex Restriction')).toBeTruthy();
+    expect(screen.getByTestId('dorm-profile-sex-picker')).toBeTruthy();
 
     const propertyTypePicker = screen.getByTestId('dorm-profile-property-type-picker');
 
     fireEvent(propertyTypePicker, 'valueChange', 'apartment');
     await waitFor(() => {
-      expect(screen.queryByText('Gender Restriction')).toBeNull();
-      expect(screen.queryByTestId('dorm-profile-gender-picker')).toBeNull();
+      expect(screen.queryByText('Sex Restriction')).toBeNull();
+      expect(screen.queryByTestId('dorm-profile-sex-picker')).toBeNull();
     });
 
     fireEvent(propertyTypePicker, 'valueChange', 'others');
     await waitFor(() => {
-      expect(screen.getByText('Gender Restriction')).toBeTruthy();
-      expect(screen.getByTestId('dorm-profile-gender-picker')).toBeTruthy();
+      expect(screen.getByText('Sex Restriction')).toBeTruthy();
+      expect(screen.getByTestId('dorm-profile-sex-picker')).toBeTruthy();
     });
   });
 
@@ -1021,7 +1021,7 @@ describe('Landlord smoke flows', () => {
       title: 'Dorm Two',
       description: 'Initial description',
       property_type: 'dormitory',
-      gender_restriction: 'mixed',
+      sex_restriction: 'mixed',
       current_status: 'active',
       street_address: '456 Main St',
       barangay: 'Barangay 2',

@@ -188,14 +188,14 @@ export default function DormProfileSettings({
         .filter(Boolean)
         .sort((a, b) => a.display_order - b.display_order);
 
-      const hasMaleRooms = (data.rooms || []).some(r => r.gender_restriction === 'male');
-      const hasFemaleRooms = (data.rooms || []).some(r => r.gender_restriction === 'female');
+      const hasMaleRooms = (data.rooms || []).some(r => r.sex_restriction === 'male');
+      const hasFemaleRooms = (data.rooms || []).some(r => r.sex_restriction === 'female');
 
       setDormData({
         id: data.id,
         name: data.title,
         type: data.property_type,
-        gender_restriction: data.gender_restriction || "mixed",
+        sex_restriction: data.sex_restriction || "mixed",
         hasMaleRooms,
         hasFemaleRooms,
         description: data.description || "",
@@ -233,6 +233,9 @@ export default function DormProfileSettings({
         total_floors: data.total_floors || 1,
         require_1month_advance: parseBooleanFlag(data.require_1month_advance, false),
         allow_partial_payments: parseBooleanFlag(data.allow_partial_payments, true),
+        normal_booking_limit: data.normal_booking_limit ?? 1,
+        proxy_booking_limit: data.proxy_booking_limit ?? 3,
+        min_partial_payment_pct: data.min_partial_payment_pct ?? 20,
         require_reservation_fee: parseBooleanFlag(data.require_reservation_fee, false),
         reservation_fee_amount: data.reservation_fee_amount || '',
         reservation_fee_gap_days:
@@ -660,7 +663,7 @@ export default function DormProfileSettings({
         title: dormData.name,
         description: dormData.description,
         property_type: dormData.type,
-        gender_restriction: isGenderRestricted ? dormData.gender_restriction : 'mixed',
+        sex_restriction: isGenderRestricted ? dormData.sex_restriction : 'mixed',
         street_address: dormData.address.street,
         barangay: dormData.address.barangay,
         city: dormData.address.city,
@@ -676,6 +679,9 @@ export default function DormProfileSettings({
         total_rooms: parseInt(dormData.total_rooms) || 0,
         require_1month_advance: dormData.require_1month_advance ? 1 : 0,
         allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
+        normal_booking_limit: parseInt(dormData.normal_booking_limit) || 1,
+        proxy_booking_limit: parseInt(dormData.proxy_booking_limit) || 3,
+        min_partial_payment_pct: parseInt(dormData.min_partial_payment_pct) || 20,
         require_reservation_fee: dormData.require_reservation_fee ? 1 : 0,
         reservation_fee_amount: dormData.require_reservation_fee ? dormData.reservation_fee_amount : 0,
         reservation_fee_gap_days: reservationFeeGapDays,
@@ -1126,15 +1132,15 @@ export default function DormProfileSettings({
                   {['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type) && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Gender Restriction
+                        Sex Restriction
                       </label>
                       <select
-                        value={dormData.gender_restriction}
-                        onChange={(e) => handleInputChange("gender_restriction", e.target.value)}
+                        value={dormData.sex_restriction}
+                        onChange={(e) => handleInputChange("sex_restriction", e.target.value)}
                         disabled={!isEditing}
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white capitalize"
                       >
-                        <option value="mixed">Mixed (Any Gender)</option>
+                        <option value="mixed">Mixed (Any Sex)</option>
                         <option 
                           value="male" 
                           disabled={dormData.hasFemaleRooms}
@@ -1480,6 +1486,50 @@ export default function DormProfileSettings({
                            </span>
                          </div>
                        </label>
+
+                       {/* Booking Limits & Partial Minimum */}
+                       <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                            Normal Booking Limit (per property)
+                          </label>
+                          <input
+                            type="number"
+                            min="1" max="4"
+                            value={dormData.normal_booking_limit || 1}
+                            onChange={(e) => handleInputChange('normal_booking_limit', e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                          />
+                       </div>
+                       <div className="mt-4">
+                          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                            Proxy Booking Limit (per property)
+                          </label>
+                          <input
+                            type="number"
+                            min="1" max="4"
+                            value={dormData.proxy_booking_limit || 3}
+                            onChange={(e) => handleInputChange('proxy_booking_limit', e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                          />
+                       </div>
+                       
+                       <div className="mt-4 mb-4">
+                          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                            Minimum Partial Payment (%)
+                          </label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                             Minimum percentage a tenant can pay if partial payments are allowed.
+                          </p>
+                          <input
+                            type="number"
+                            min="1" max="100"
+                            value={dormData.min_partial_payment_pct || 20}
+                            onChange={(e) => handleInputChange('min_partial_payment_pct', e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                            disabled={dormData.allow_partial_payments === false}
+                          />
+                       </div>
+    
 
                        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
                           <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">

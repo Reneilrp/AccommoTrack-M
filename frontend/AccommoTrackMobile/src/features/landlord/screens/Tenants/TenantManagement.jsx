@@ -1451,8 +1451,8 @@ export default function TenantsScreen({ navigation, route }) {
                       ? new Date(detailTenant.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                       : '—'}
                   </Text>
-                  <Text style={styles.detailLabel}>Gender</Text>
-                  <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>{detailTenant.gender || '—'}</Text>
+                  <Text style={styles.detailLabel}>Sex</Text>
+                  <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>{detailTenant.sex || '—'}</Text>
                 </View>
               </View>
 

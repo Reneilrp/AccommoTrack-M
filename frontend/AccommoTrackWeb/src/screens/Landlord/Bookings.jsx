@@ -962,7 +962,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         <div key={occupant.id || `${occupant.full_name}-${index}`} className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-gray-50/70 dark:bg-gray-700/40">
                           <p className="font-semibold text-gray-900 dark:text-white">{occupant.full_name || `Occupant ${index + 1}`}</p>
                           <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                            {occupant.relationship_to_booker || 'Relationship not provided'} · {occupant.gender || 'Gender not provided'}
+                            {occupant.relationship_to_booker || 'Relationship not provided'} · {occupant.sex || 'Sex not provided'}
                           </p>
                           {(occupant.phone || occupant.email) && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

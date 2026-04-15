@@ -168,16 +168,22 @@ class MessageController extends Controller
         $user = $request->user();
         $actorUserId = Auth::id();
 
-        if ($user?->isCaretaker()) {
-            $context = $this->resolveLandlordContext($request);
-            $this->ensureCaretakerCan($context, 'can_view_messages');
-            $actorUserId = $context['landlord_id'];
-        }
-
         $request->validate([
             'recipient_id' => 'required|exists:users,id',
             'property_id' => 'nullable|exists:properties,id',
         ]);
+
+        if ($user?->isCaretaker()) {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_messages');
+
+            // If the caretaker specifically wants to message the landlord, do not masquerade.
+            if ($request->recipient_id == $context['landlord_id']) {
+                $actorUserId = Auth::id();
+            } else {
+                $actorUserId = $context['landlord_id'];
+            }
+        }
 
         $userId = $actorUserId;
         $recipientId = $request->recipient_id;

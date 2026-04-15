@@ -755,12 +755,12 @@ export default function PropertyDetailsScreen({
             </View>
           </View>
 
-          {/* Gender Restriction Badge */}
-          {active.gender_restriction && active.gender_restriction !== 'mixed' && (
+          {/* Sex Restriction Badge */}
+          {active.sex_restriction && active.sex_restriction !== 'mixed' && (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -4, marginBottom: 16, gap: 8 }}>
-              <Ionicons name={active.gender_restriction === 'male' ? 'male' : 'female'} size={14} color={theme.colors.primary} />
+              <Ionicons name={active.sex_restriction === 'male' ? 'male' : 'female'} size={14} color={theme.colors.primary} />
               <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.primary }}>
-                {active.gender_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
+                {active.sex_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
               </Text>
             </View>
           )}

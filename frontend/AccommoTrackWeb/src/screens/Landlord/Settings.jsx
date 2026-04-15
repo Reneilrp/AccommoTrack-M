@@ -98,7 +98,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     email: user?.email || '',
     phone: user?.phone || '',
     dateOfBirth: user?.date_of_birth || '',
-    gender: user?.gender || '',
+    sex: user?.sex || '',
     identified_as: user?.identified_as || ''
   });
   const [profilePhoto, setProfilePhoto] = useState(user?.profile_image || null);
@@ -115,7 +115,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         email: user.email || '',
         phone: user.phone || '',
         dateOfBirth: user.date_of_birth || '',
-        gender: user.gender || '',
+        sex: user.sex || '',
         identified_as: user.identified_as || ''
       });
       setProfilePhoto(user.profile_image || null);
@@ -216,7 +216,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       // Only append optional fields if they have real values
       if (profileData.phone) formData.append('phone', profileData.phone);
       if (profileData.dateOfBirth) formData.append('date_of_birth', profileData.dateOfBirth);
-      if (profileData.gender) formData.append('gender', profileData.gender);
+      if (profileData.sex) formData.append('sex', profileData.sex);
       if (profileData.identified_as) formData.append('identified_as', profileData.identified_as);
 
       if (fileInputRef.current?.files[0]) {

@@ -313,6 +313,20 @@ class TenantDashboardService
             ];
         }
 
+        if ($addonRequest->pivot->invoice_id) {
+            $invoice = \App\Models\Invoice::find($addonRequest->pivot->invoice_id);
+            if ($invoice && in_array($invoice->status, ['pending', 'overdue'])) {
+                if ($invoice->invoice_type === 'addon' || str_contains($invoice->reference, 'INV-ADD-')) {
+                    $invoice->update(['status' => 'cancelled']);
+                } else {
+                    $expectedAmount = (int) round($addonRequest->pivot->price_at_booking * $addonRequest->pivot->quantity * 100);
+                    $invoice->amount_cents = max(0, $invoice->amount_cents - $expectedAmount);
+                    $invoice->description .= "\n- Cancelled Addon";
+                    $invoice->save();
+                }
+            }
+        }
+
         $booking->addons()->updateExistingPivot($addonId, [
             'status' => 'cancelled',
             'cancellation_requested_at' => now(),

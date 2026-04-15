@@ -422,7 +422,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
         const uri = asset.uri;
         const name = asset.name || (uri.split('/').pop());
         const type = asset.mimeType || asset.type || 'image/jpeg';
-        
+
         formData.append(key, {
           uri,
           name: name,

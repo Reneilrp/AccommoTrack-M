@@ -46,24 +46,32 @@ class CaretakerAssignment extends Model
         'landlord_id',
         'caretaker_id',
         'can_view_bookings',
+        'can_approve_bookings',
+        'can_cancel_bookings',
         'can_view_messages',
         'can_view_tenants',
         'can_view_rooms',
         'can_view_properties',
         'can_view_analytics',
         'can_manage_maintenance',
+        'can_manage_add_ons',
         'can_manage_payments',
+        'can_view_audit_logs',
     ];
 
     protected $casts = [
         'can_view_bookings' => 'boolean',
+        'can_approve_bookings' => 'boolean',
+        'can_cancel_bookings' => 'boolean',
         'can_view_messages' => 'boolean',
         'can_view_tenants' => 'boolean',
         'can_view_rooms' => 'boolean',
         'can_view_properties' => 'boolean',
         'can_view_analytics' => 'boolean',
         'can_manage_maintenance' => 'boolean',
+        'can_manage_add_ons' => 'boolean',
         'can_manage_payments' => 'boolean',
+        'can_view_audit_logs' => 'boolean',
     ];
 
     public function landlord(): BelongsTo

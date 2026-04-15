@@ -775,7 +775,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     confirmPassword: '',
     role: 'tenant', // Default to tenant for mobile app
     dateOfBirth: null,
-    gender: ''
+    sex: ''
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -798,7 +798,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             phone: parsed.phone || '',
             email: parsed.email || '',
             dateOfBirth: parsed.dateOfBirth ? new Date(parsed.dateOfBirth) : null,
-            gender: parsed.gender || '',
+            sex: parsed.sex || '',
           }));
         }
 
@@ -863,7 +863,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         phone: newFormData.phone,
         email: newFormData.email,
         dateOfBirth: newFormData.dateOfBirth,
-        gender: newFormData.gender,
+        sex: newFormData.sex,
       };
       AsyncStorage.setItem('signup_form_draft', JSON.stringify(toSave)).catch(() => {});
     }
@@ -880,7 +880,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     if (!formData.lastName) errors.lastName = 'Last name is required';
     else if (!nameRegex.test(formData.lastName.trim())) errors.lastName = 'Last name contains invalid characters (letters, spaces, hyphens only)';
     if (!formData.dateOfBirth) errors.dateOfBirth = 'Date of birth is required';
-    if (!formData.gender) errors.gender = 'Gender is required';
+    if (!formData.sex) errors.sex = 'Sex is required';
 
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -1133,7 +1133,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         password_confirmation: formData.confirmPassword,
         role: formData.role,
         date_of_birth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString().split('T')[0] : '',
-        gender: formData.gender,
+        sex: formData.sex,
         agree_to_terms: agreedToTerms,
         terms_version: UNIFIED_TERMS_AND_CONDITIONS.version || 'v2.0',
         privacy_version: UNIFIED_TERMS_AND_CONDITIONS.version || 'v2.0',
@@ -1178,7 +1178,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           confirmPassword: '',
           role: 'tenant',
           dateOfBirth: null,
-          gender: ''
+          sex: ''
         });
         setAgreedToTerms(false);
         setSignupStep(1);
@@ -1206,7 +1206,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     setIsLogin(!isLogin);
     setShowAuthMenu(false);
     setSignupStep(1);
-    setFormData({ firstName: '', middleName: '', lastName: '', phone: '', email: '', password: '', confirmPassword: '', role: 'tenant', dateOfBirth: null, gender: '' });
+    setFormData({ firstName: '', middleName: '', lastName: '', phone: '', email: '', password: '', confirmPassword: '', role: 'tenant', dateOfBirth: null, sex: '' });
     setAgreedToTerms(false);
     setError('');
     // Ensure password visibility is reset when switching screens
@@ -1513,24 +1513,24 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                   )}
                   {fieldErrors.dateOfBirth && <Text style={styles.inlineErrorText}>{fieldErrors.dateOfBirth}</Text>}
 
-                  {/* Gender Field */}
+                  {/* Sex Field */}
                   <View style={[styles.inputContainer, { paddingVertical: Platform.OS === 'ios' ? 4 : 0 }]}>
                     <Ionicons name="transgender-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
                     <View style={{ flex: 1, justifyContent: 'center', height: Platform.OS === 'ios' ? 40 : 50 }}>
                       <Picker
-                        selectedValue={formData.gender}
-                        onValueChange={(itemValue) => handleInputChange('gender', itemValue)}
-                        style={{ color: formData.gender ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}
+                        selectedValue={formData.sex}
+                        onValueChange={(itemValue) => handleInputChange('sex', itemValue)}
+                        style={{ color: formData.sex ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}
                         dropdownIconColor="#9CA3AF"
                       >
-                        <Picker.Item label="Select Gender" value="" color="#9CA3AF" />
+                        <Picker.Item label="Select Sex" value="" color="#9CA3AF" />
                         <Picker.Item label="Male" value="male" />
                         <Picker.Item label="Female" value="female" />
                         <Picker.Item label="Prefer not to say" value="prefer_not_to_say" />
                       </Picker>
                     </View>
                   </View>
-                  {fieldErrors.gender && <Text style={styles.inlineErrorText}>{fieldErrors.gender}</Text>}
+                  {fieldErrors.sex && <Text style={styles.inlineErrorText}>{fieldErrors.sex}</Text>}
 
                   {/* Next Button */}
                   <TouchableOpacity

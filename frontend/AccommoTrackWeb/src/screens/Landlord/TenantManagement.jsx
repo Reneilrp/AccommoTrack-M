@@ -105,7 +105,7 @@ export default function TenantManagement() {
     phone: '',
     password: '',
     confirm_password: '',
-    gender: 'prefer_not_to_say',
+    sex: 'prefer_not_to_say',
     room_id: '',
     move_in_date: '',
     end_date: '',
@@ -381,7 +381,7 @@ export default function TenantManagement() {
       phone: '',
       password: '',
       confirm_password: '',
-      gender: 'prefer_not_to_say',
+      sex: 'prefer_not_to_say',
       room_id: '',
       move_in_date: '',
       end_date: '',
@@ -458,7 +458,7 @@ export default function TenantManagement() {
         email,
         phone: phone || undefined,
         password,
-        gender: createTenantData.gender || undefined,
+        sex: createTenantData.sex || undefined,
         room_id: Number(createTenantData.room_id),
         move_in_date: validatedDates.move_in_date,
         end_date: validatedDates.end_date,
@@ -970,11 +970,11 @@ const CreateTenantModal = ({ data, setData, availableRooms, loading, isSubmittin
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Gender</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Sex</label>
             <select
               className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
-              value={data.gender}
-              onChange={e => setData({ ...data, gender: e.target.value })}
+              value={data.sex}
+              onChange={e => setData({ ...data, sex: e.target.value })}
             >
               <option value="prefer_not_to_say">Prefer Not to Say</option>
               <option value="male">Male</option>

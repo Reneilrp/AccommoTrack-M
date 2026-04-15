@@ -198,7 +198,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     }
 
     if (genderMismatch) {
-      const msg = 'Selected tenant is not eligible for this room because of the room gender restriction.';
+      const msg = 'Selected tenant is not eligible for this room because of the room sex restriction.';
       setError(msg);
       toast.error(msg);
       return;
@@ -268,9 +268,9 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
   };
 
   const genderMismatch = selectedGuest && selectedRoomData &&
-    selectedRoomData.gender_restriction &&
-    selectedRoomData.gender_restriction !== 'mixed' &&
-    normalizeGender(selectedGuest.gender) !== selectedRoomData.gender_restriction;
+    selectedRoomData.sex_restriction &&
+    selectedRoomData.sex_restriction !== 'mixed' &&
+    normalizeGender(selectedGuest.sex) !== selectedRoomData.sex_restriction;
 
   if (!isOpen) return null;
 
@@ -307,8 +307,8 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 flex items-start gap-2">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-bold">Gender Restriction</p>
-                <p>This tenant cannot be booked into this room because the room is restricted to <strong>{selectedRoomData.gender_restriction}</strong>.</p>
+                <p className="font-bold">Sex Restriction</p>
+                <p>This tenant cannot be booked into this room because the room is restricted to <strong>{selectedRoomData.sex_restriction}</strong>.</p>
               </div>
             </div>
           )}
@@ -358,9 +358,9 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                           <p className="font-semibold text-gray-800 dark:text-white">{user.full_name || user.name}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                         </div>
-                        {user.gender && (
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${user.gender.toLowerCase() === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
-                            {user.gender}
+                        {user.sex && (
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${user.sex.toLowerCase() === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
+                            {user.sex}
                           </span>
                         )}
                       </div>
@@ -410,7 +410,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 <option value="">Select Room</option>
                 {rooms.map(r => (
                   <option key={r.id} value={r.id}>
-                    Room {r.room_number} ({r.available_slots} slots) {r.gender_restriction && r.gender_restriction !== 'mixed' ? ` - ${r.gender_restriction.toUpperCase()} ONLY` : ''}
+                    Room {r.room_number} ({r.available_slots} slots) {r.sex_restriction && r.sex_restriction !== 'mixed' ? ` - ${r.sex_restriction.toUpperCase()} ONLY` : ''}
                   </option>
                 ))}
               </select>

@@ -141,7 +141,7 @@ export default function RoomManagement() {
   const [propertyRules, setPropertyRules] = useState([]);
   const [propertyAmenitiesList, setPropertyAmenitiesList] = useState([]);
   const [totalFloors, setTotalFloors] = useState(1);
-  const [propertyGender, setPropertyGender] = useState("mixed");
+  const [propertySex, setPropertyGender] = useState("mixed");
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
@@ -159,11 +159,11 @@ export default function RoomManagement() {
         setPropertyRules(p.property_rules || []);
         setPropertyAmenitiesList(p.amenities_list || []);
         setTotalFloors(p.total_floors || 1);
-        const pGender = p.gender_restriction || "mixed";
+        const pGender = p.sex_restriction || "mixed";
         setPropertyGender(pGender);
         
         if (pGender !== "mixed") {
-          setSelectedRoom(prev => prev ? { ...prev, genderRestriction: pGender } : prev);
+          setSelectedRoom(prev => prev ? { ...prev, sexRestriction: pGender } : prev);
         }
       } catch (err) {
         console.error('Failed to fetch property details for edit modal', err);
@@ -330,14 +330,14 @@ export default function RoomManagement() {
   // Edit Room
   const handleEditRoom = (room) => {
     const prop = properties.find(p => p.id === selectedPropertyId);
-    const pGender = prop?.gender_restriction || 'mixed';
+    const pGender = prop?.sex_restriction || 'mixed';
 
     setSelectedRoom({
       ...room,
       type: room.type_label,
       roomNumber: room.room_number,
       price: room.monthly_rate ? Math.round(Number(room.monthly_rate)) : '',
-      genderRestriction: pGender !== 'mixed' ? pGender : (room.gender_restriction || 'mixed'),
+      sexRestriction: pGender !== 'mixed' ? pGender : (room.sex_restriction || 'mixed'),
       floor: `${room.floor}${getOrdinalSuffix(room.floor)} Floor`,
       dailyRate: room.daily_rate ? Math.round(Number(room.daily_rate)) : '',
       billingPolicy: room.billing_policy || 'monthly',
@@ -438,7 +438,7 @@ export default function RoomManagement() {
       const updateData = new FormData();
       updateData.append('room_number', selectedRoom.roomNumber);
       updateData.append('room_type', roomTypeMap[selectedRoom.type] || 'single');
-      updateData.append('gender_restriction', selectedRoom.genderRestriction);
+      updateData.append('sex_restriction', selectedRoom.sexRestriction);
       updateData.append('floor', floorNumber);
       updateData.append('monthly_rate', parseInt(selectedRoom.price, 10) || 0);
       
@@ -978,12 +978,12 @@ export default function RoomManagement() {
                 </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sex</label>
                     <select
-                      value={selectedRoom.genderRestriction}
-                      onChange={(e) => setSelectedRoom({ ...selectedRoom, genderRestriction: e.target.value })}
-                      disabled={propertyGender !== "mixed"}
-                      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${propertyGender !== "mixed" ? "bg-gray-50 dark:bg-gray-800 cursor-not-allowed opacity-70" : ""}`}
+                      value={selectedRoom.sexRestriction}
+                      onChange={(e) => setSelectedRoom({ ...selectedRoom, sexRestriction: e.target.value })}
+                      disabled={propertySex !== "mixed"}
+                      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${propertySex !== "mixed" ? "bg-gray-50 dark:bg-gray-800 cursor-not-allowed opacity-70" : ""}`}
                     >
                       <option value="male">Male Only</option>
                       <option value="female">Female Only</option>
@@ -991,9 +991,9 @@ export default function RoomManagement() {
                         <option value="mixed">Mixed</option>
                       )}
                     </select>
-                    {propertyGender !== "mixed" && (
+                    {propertySex !== "mixed" && (
                       <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 italic">
-                        * Property is restricted to {propertyGender} only.
+                        * Property is restricted to {propertySex} only.
                       </p>
                     )}
                   </div>

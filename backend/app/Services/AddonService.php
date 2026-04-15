@@ -128,57 +128,10 @@ class AddonService
 
                 $amountCents = (int) round($resolvedPrice * ($addonRequest->pivot->quantity ?? 1) * 100);
 
-                // Check for existing unpaid rent-like invoice for this booking
-                $latestInvoice = $booking->invoices()
-                    ->whereIn('status', ['pending', 'partial', 'overdue', 'unpaid'])
-                    ->where(function ($query) {
-                        $query->whereNull('invoice_type')
-                            ->orWhere('invoice_type', 'rent');
-                    })
-                    ->where(function ($query) {
-                        $query->whereNull('reference')
-                            ->orWhere('reference', 'not like', 'INV-ADD-%');
-                    })
-                    ->where(function ($query) {
-                        $query->whereNull('description')
-                            ->orWhere('description', 'not like', 'Add-on:%');
-                    })
-                    ->orderBy('due_date', 'desc')
-                    ->first();
+                // Create a separate invoice for this immediate addon request (decoupled from rent)
+                $reference = 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6));
 
-                if ($latestInvoice) {
-                    // Append to existing pending invoice
-                    $latestInvoice->amount_cents += $amountCents;
-
-                    $new_metadata = $latestInvoice->metadata ?? [];
-                    if (! isset($new_metadata['addons'])) {
-                        $new_metadata['addons'] = [];
-                    }
-                    $new_metadata['addons'][] = [
-                        'addon_id' => $addon->id,
-                        'addon_name' => $addon->name,
-                        'quantity' => $addonRequest->pivot->quantity ?? 1,
-                        'price' => $amountCents,
-                        'price_type' => $addon->price_type,
-                    ];
-
-                    $latestInvoice->metadata = $new_metadata;
-
-                    if (! str_contains($latestInvoice->description, 'Includes Add-ons')) {
-                        $latestInvoice->description .= "\n+ Includes Add-ons";
-                    }
-
-                    $latestInvoice->save();
-
-                    $booking->addons()->updateExistingPivot($addonId, [
-                        'invoice_id' => $latestInvoice->id,
-                        'invoiced_at' => now(),
-                    ]);
-                } else {
-                    // Create a separate invoice for this immediate addon request
-                    $reference = 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6));
-
-                    $invoice = Invoice::create([
+                $invoice = Invoice::create([
                         'reference' => $reference,
                         'landlord_id' => $booking->landlord_id,
                         'property_id' => $booking->property_id,
@@ -209,7 +162,6 @@ class AddonService
                         'invoice_id' => $invoice->id,
                         'invoiced_at' => now(),
                     ]);
-                }
 
                 DB::commit();
 

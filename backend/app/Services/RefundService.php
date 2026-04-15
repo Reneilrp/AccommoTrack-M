@@ -61,8 +61,10 @@ class RefundService
         $damageChargeCents = $this->toCents($damageCharge);
         $transferFeeCents = $this->toCents($transferFee);
 
-        // Deduct damage charge, transfer fee, and penalty
-        $finalCreditCents = max(0, $refundableAmountCents - $damageChargeCents - $transferFeeCents - $penaltyCents);
+        // Deduct only the generic cancellation penalty from the credit.
+        // Damage and Transfer Fees are issued as standalone invoices during transfer, 
+        //, so we DO NOT deduct them from the credit here, preventing double-charging.
+        $finalCreditCents = max(0, $refundableAmountCents - $penaltyCents);
 
         return [
             'period_start_date' => $periodStartDate->format('Y-m-d'),

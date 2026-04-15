@@ -890,7 +890,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
         return {
           ...parsed,
           date_of_birth: parsed.date_of_birth || "",
-          gender: parsed.gender || "",
+          sex: parsed.sex || "",
           password: "",
           password_confirmation: "",
           role: "tenant",
@@ -909,7 +909,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       role: "tenant", // Registration is tenant-only
       phone: "",
       date_of_birth: "",
-      gender: "",
+      sex: "",
     };
   });
 
@@ -1021,7 +1021,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
     if (!formData.email) errors.email = "Email is required";
     if (!formData.date_of_birth)
       errors.date_of_birth = "Date of birth is required";
-    if (!formData.gender) errors.gender = "Gender is required";
+    if (!formData.sex) errors.sex = "Sex is required";
     if (!formData.password) errors.password = "Password is required";
     if (!formData.password_confirmation)
       errors.password_confirmation = "Please confirm your password";
@@ -1091,8 +1091,8 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
     }
 
     const allowedGenders = ["male", "female", "prefer_not_to_say"];
-    if (formData.gender && !allowedGenders.includes(formData.gender)) {
-      errors.gender = "Please select a valid gender";
+    if (formData.sex && !allowedGenders.includes(formData.sex)) {
+      errors.sex = "Please select a valid sex";
     }
 
     // Password rules
@@ -1246,7 +1246,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
           role: "tenant",
           phone: "",
           date_of_birth: "",
-          gender: "",
+          sex: "",
         });
         const landingRoute = getDefaultLandingRoute(me);
         navigate(landingRoute);
@@ -1284,7 +1284,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
             role: "tenant",
             phone: "",
             date_of_birth: "",
-            gender: "",
+            sex: "",
           });
           const landingRoute = getDefaultLandingRoute(me);
           navigate(landingRoute);
@@ -1452,7 +1452,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
             "email",
             "phone",
             "date_of_birth",
-            "gender",
+            "sex",
             "password",
             "password_confirmation",
           ];
@@ -1989,28 +1989,28 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   )}
                 </div>
 
-                {/* Gender */}
+                {/* Sex */}
                 <div>
                   <label className={labelClasses + " flex items-center gap-2"}>
-                    <span>Gender</span>
+                    <span>Sex</span>
                     <span className="text-red-400 text-xs font-bold">*</span>
                   </label>
                   <select
-                    name="gender"
-                    ref={(el) => (fieldRefs.current.gender = el)}
-                    value={formData.gender}
-                    onChange={(e) => handleInputChange("gender", e.target.value)}
+                    name="sex"
+                    ref={(el) => (fieldRefs.current.sex = el)}
+                    value={formData.sex}
+                    onChange={(e) => handleInputChange("sex", e.target.value)}
                     className={inputClasses + " pl-4"}
                     disabled={loading}
                     required
                   >
-                    <option value="">Select your gender</option>
+                    <option value="">Select your sex</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
                     <option value="prefer_not_to_say">Prefer not to say</option>
                   </select>
-                  {fieldErrors.gender && (
-                    <p className="text-xs text-red-500 mt-2">{fieldErrors.gender}</p>
+                  {fieldErrors.sex && (
+                    <p className="text-xs text-red-500 mt-2">{fieldErrors.sex}</p>
                   )}
                 </div>
 

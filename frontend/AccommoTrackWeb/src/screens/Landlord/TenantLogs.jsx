@@ -416,9 +416,9 @@ export default function TenantLogs() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Gender</p>
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Sex</p>
                   <p className="font-semibold text-sm text-gray-900 dark:text-gray-200 capitalize">
-                    {tenant?.gender || '—'}
+                    {tenant?.sex || '—'}
                   </p>
                 </div>
               </div>

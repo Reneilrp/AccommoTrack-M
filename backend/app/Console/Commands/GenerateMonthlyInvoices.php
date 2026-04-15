@@ -346,17 +346,42 @@ class GenerateMonthlyInvoices extends Command
                 'status' => 'pending',
                 'issued_at' => $booking->created_at,
                 'due_date' => Carbon::parse($booking->start_date)->addDays(3),
-                'metadata' => ['addons' => $addonMetadata],
+                'metadata' => ['addons' => []],
             ]);
 
+            // Add-ons Decoupling: Generate discrete standalone invoices for active add-ons instead of merging into Rent.
             foreach ($activeMonthlyAddons as $addon) {
+                $priceCents = (int) round($addon->pivot->price_at_booking * $addon->pivot->quantity * 100);
+                
+                $addonInvoice = Invoice::create([
+                    'reference' => 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6)),
+                    'landlord_id' => $booking->landlord_id,
+                    'property_id' => $booking->property_id,
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $booking->tenant_id,
+                    'description' => "Monthly Add-on: {$addon->name}",
+                    'invoice_type' => 'addon',
+                    'amount_cents' => $priceCents,
+                    'currency' => 'PHP',
+                    'status' => 'pending',
+                    'issued_at' => $booking->created_at,
+                    'due_date' => Carbon::parse($booking->start_date)->addDays(3),
+                    'metadata' => ['addons' => [[
+                        'addon_id' => $addon->id,
+                        'addon_name' => $addon->name,
+                        'quantity' => $addon->pivot->quantity,
+                        'price' => $priceCents,
+                        'price_type' => 'monthly',
+                    ]]],
+                ]);
+
                 $booking->addons()->updateExistingPivot($addon->id, [
-                    'invoice_id' => $invoice->id,
+                    'invoice_id' => $addonInvoice->id,
                     'invoiced_at' => now(),
                 ]);
             }
 
-            Log::info('Backfilled missing invoice for booking', [
+            Log::info('Backfilled missing invoices (Rent + Decoupled Addons) for booking', [
                 'booking_id' => $booking->id,
                 'invoice_id' => $invoice->id,
             ]);

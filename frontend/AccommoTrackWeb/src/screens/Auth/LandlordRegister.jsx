@@ -27,6 +27,7 @@ const LandlordRegister = () => {
     middleName: '',
     lastName: '',
     dob: '',
+    sex: '',
     email: '',
     phone: '',
     password: '',
@@ -187,7 +188,7 @@ const LandlordRegister = () => {
 
       const fieldsByStep = {
         1: ['firstName', 'middleName', 'lastName'],
-        2: ['dob', 'email', 'phone', 'password', 'confirmPassword'],
+        2: ['dob', 'sex', 'email', 'phone', 'password', 'confirmPassword'],
         3: ['validIdOther', 'agree']
       };
 
@@ -364,6 +365,9 @@ const LandlordRegister = () => {
       formData.append('middle_name', form.middleName);
       formData.append('last_name', form.lastName);
       formData.append('dob', form.dob);
+      if (form.sex) {
+        formData.append('sex', form.sex);
+      }
       formData.append('email', form.email);
       formData.append('phone', form.phone);
       formData.append('password', form.password);
@@ -398,7 +402,7 @@ const LandlordRegister = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setSuccess('Registration submitted! Our team will review your documents.');
-      setForm({ firstName: '', middleName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', validIdType: '', validIdOther: '', validId: null, validIdBack: null, permit: null, agree: false });
+      setForm({ firstName: '', middleName: '', lastName: '', dob: '', sex: '', email: '', phone: '', password: '', confirmPassword: '', validIdType: '', validIdOther: '', validId: null, validIdBack: null, permit: null, agree: false });
       setStep(1);
       setShowModal(true);
     } catch (err) {
@@ -604,6 +608,24 @@ const LandlordRegister = () => {
                     />
                   </div>
                   {fieldErrors.dob && <p className="text-xs text-red-500 mt-2">{fieldErrors.dob}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Sex <span className="text-gray-500 dark:text-gray-500">(optional)</span></label>
+                  <select
+                    name="sex"
+                    value={form.sex}
+                    onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    ref={el => fieldRefs.current.sex = el}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.sex ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    disabled={submitting}
+                  >
+                    <option value="">Prefer not to say</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                  {fieldErrors.sex && <p className="text-xs text-red-500 mt-2">{fieldErrors.sex}</p>}
                 </div>
 
                 <div>

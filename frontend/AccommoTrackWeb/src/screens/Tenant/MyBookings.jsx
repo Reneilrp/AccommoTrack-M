@@ -855,14 +855,14 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     return source.map((occupant, index) => {
       const fullName = String(occupant?.full_name || occupant?.fullName || '').trim() || `Occupant ${index + 1}`;
       const relationship = String(occupant?.relationship_to_booker || occupant?.relationshipToBooker || '').trim();
-      const gender = String(occupant?.gender || '').trim();
+      const sex = String(occupant?.sex || '').trim();
       const contact = [occupant?.phone, occupant?.email].filter(Boolean).join(' • ');
 
       return {
         id: occupant?.id || `${fullName}-${index}`,
         fullName,
         relationship,
-        gender,
+        sex,
         contact,
       };
     });
@@ -1056,8 +1056,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           {pendingOccupants.length > 0 ? pendingOccupants.map((occupant) => (
                             <p key={occupant.id} className="text-[11px] opacity-85 leading-tight">
                               {occupant.fullName}
-                              {(occupant.relationship || occupant.gender)
-                                ? ` • ${[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}`
+                              {(occupant.relationship || occupant.sex)
+                                ? ` • ${[occupant.relationship, occupant.sex].filter(Boolean).join(' • ')}`
                                 : ''}
                             </p>
                           )) : (
@@ -1268,8 +1268,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                               {occupantProfiles.map((occupant) => (
                                 <p key={occupant.id} className="text-sm text-gray-700 dark:text-gray-300 leading-tight">
                                   <span className="font-semibold text-gray-900 dark:text-white">{occupant.fullName}</span>
-                                  {(occupant.relationship || occupant.gender)
-                                    ? ` • ${[occupant.relationship, occupant.gender].filter(Boolean).join(' • ')}`
+                                  {(occupant.relationship || occupant.sex)
+                                    ? ` • ${[occupant.relationship, occupant.sex].filter(Boolean).join(' • ')}`
                                     : ''}
                                   {occupant.contact ? ` • ${occupant.contact}` : ''}
                                 </p>

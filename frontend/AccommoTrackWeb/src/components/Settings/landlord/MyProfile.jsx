@@ -189,13 +189,13 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sex</label>
                         <select
-                          value={profileData.gender || ''}
-                          onChange={e => setProfileData({ ...profileData, gender: e.target.value })}
+                          value={profileData.sex || ''}
+                          onChange={e => setProfileData({ ...profileData, sex: e.target.value })}
                           className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         >
-                          <option value="">Select Gender</option>
+                          <option value="">Select Sex</option>
                           <option value="male">Male</option>
                           <option value="female">Female</option>
                         </select>
@@ -235,7 +235,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         email: user.email || '',
                         phone: user.phone || '',
                         dateOfBirth: user.date_of_birth || '',
-                        gender: user.gender || '',
+                        sex: user.sex || '',
                         identified_as: user.identified_as || ''
                       });
                       setIsEditingProfile(false);
@@ -294,11 +294,11 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                     {profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
                   </p>
                 </div>
-                {/* Gender and Pronouns View */}
+                {/* Sex and Pronouns View */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Gender</label>
-                    <p className="text-gray-900 dark:text-white font-medium text-lg capitalize">{profileData.gender ? profileData.gender.replace(/_/g, ' ') : '-'}</p>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Sex</label>
+                    <p className="text-gray-900 dark:text-white font-medium text-lg capitalize">{profileData.sex ? profileData.sex.replace(/_/g, ' ') : '-'}</p>
                   </div>
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
                     <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Pronouns</label>

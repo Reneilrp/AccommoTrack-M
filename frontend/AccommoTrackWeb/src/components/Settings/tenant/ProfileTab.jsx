@@ -28,7 +28,7 @@ const ProfileTab = ({ onUserUpdate }) => {
     
     // Tenant Fields
     date_of_birth: '',
-    gender: '', // The actual value stored
+    sex: '', // The actual value stored
     identified_as: '',
     current_address: '',
     emergency_contact_name: '',
@@ -44,13 +44,13 @@ const ProfileTab = ({ onUserUpdate }) => {
   }, []);
 
   const mapDataToForm = (data) => {
-    // Extract gender from preferences
+    // Extract sex from preferences
     let prefs = data.tenant_profile?.preference || {};
     if (typeof prefs === 'string') {
       try { prefs = JSON.parse(prefs); } catch (__e) { prefs = {}; }
     }
 
-    const backendGender = data.gender || prefs.gender || '';
+    const backendGender = data.sex || prefs.sex || '';
 
     setFormData({
       first_name: data.first_name || '',
@@ -59,7 +59,7 @@ const ProfileTab = ({ onUserUpdate }) => {
       email: data.email || '',
       phone: data.phone || '',
       date_of_birth: data.date_of_birth || '',
-      gender: backendGender,
+      sex: backendGender,
       identified_as: data.identified_as || '',
       current_address: data.tenant_profile?.current_address || '',
       emergency_contact_name: data.tenant_profile?.emergency_contact_name || '',
@@ -150,8 +150,8 @@ const ProfileTab = ({ onUserUpdate }) => {
           return;
         }
 
-        // Skip gender/identified_as empty strings — backend enum validation rejects them
-        if ((key === 'gender' || key === 'identified_as') && !formData[key]) {
+        // Skip sex/identified_as empty strings — backend enum validation rejects them
+        if ((key === 'sex' || key === 'identified_as') && !formData[key]) {
           return;
         }
 
@@ -267,17 +267,17 @@ const ProfileTab = ({ onUserUpdate }) => {
             {nameErrors.last_name && <p className="mt-2 text-xs text-red-500">{nameErrors.last_name}</p>}
           </div>
           
-          {/* Gender Section */}
+          {/* Sex Section */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Gender</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Sex</label>
             <select
-              name="gender"
-              value={formData.gender}
+              name="sex"
+              value={formData.sex}
               onChange={handleChange}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             >
-              <option value="">Select Gender</option>
+              <option value="">Select Sex</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
             </select>

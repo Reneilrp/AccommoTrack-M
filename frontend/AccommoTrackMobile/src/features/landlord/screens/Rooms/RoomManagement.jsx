@@ -196,7 +196,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     id: null,
     roomNumber: "",
     roomType: "single",
-    genderRestriction: "male",
+    sexRestriction: "male",
     floor: "1",
     monthlyRate: "",
     dailyRate: "",
@@ -367,8 +367,8 @@ export default function RoomManagementScreen({ navigation, route }) {
   );
 
   const propertyType = selectedProperty?.property_type || "";
-  const propertyGender = normalizeGenderValue(
-    selectedProperty?.gender_restriction,
+  const propertySex = normalizeGenderValue(
+    selectedProperty?.sex_restriction,
     "mixed",
   );
   const normalizedType = propertyType.toLowerCase();
@@ -563,26 +563,26 @@ export default function RoomManagementScreen({ navigation, route }) {
 
   useEffect(() => {
     const fallbackGender =
-      propertyGender !== "mixed" ? propertyGender : isApartment ? "mixed" : "male";
+      propertySex !== "mixed" ? propertySex : isApartment ? "mixed" : "male";
     const normalizedGender = normalizeGenderValue(
-      formData.genderRestriction,
+      formData.sexRestriction,
       fallbackGender,
     );
     const allowedGenders = new Set(genderOptions.map((option) => option.value));
 
     if (!allowedGenders.has(normalizedGender)) {
-      handleInputChange("genderRestriction", fallbackGender);
+      handleInputChange("sexRestriction", fallbackGender);
       return;
     }
 
-    if (normalizedGender !== formData.genderRestriction) {
-      handleInputChange("genderRestriction", normalizedGender);
+    if (normalizedGender !== formData.sexRestriction) {
+      handleInputChange("sexRestriction", normalizedGender);
     }
   }, [
-    formData.genderRestriction,
+    formData.sexRestriction,
     genderOptions,
     isApartment,
-    propertyGender,
+    propertySex,
   ]);
 
   const updateDurationPricing = (term, patch) => {
@@ -640,7 +640,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       id: null,
       roomNumber: "",
       roomType: initialRT,
-      genderRestriction: propertyGender !== "mixed" ? propertyGender : isApartment ? "mixed" : "male",
+      sexRestriction: propertySex !== "mixed" ? propertySex : isApartment ? "mixed" : "male",
       floor: normalizeFloorValue("1", "1", propertyFloorCount),
       monthlyRate: "",
       dailyRate: "",
@@ -693,7 +693,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       id: room.id,
       roomNumber: room.room_number || "",
       roomType: room.room_type || "single",
-      genderRestriction: room.gender_restriction || (propertyGender !== "mixed" ? propertyGender : isApartment ? "mixed" : "male"),
+      sexRestriction: room.sex_restriction || (propertySex !== "mixed" ? propertySex : isApartment ? "mixed" : "male"),
       floor: normalizeFloorValue(room.floor, "1", propertyFloorCount),
       monthlyRate: String(room.monthly_rate || ""),
       dailyRate: String(room.daily_rate || ""),
@@ -801,7 +801,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       payload.append("property_id", selectedPropertyId);
       payload.append("room_number", formData.roomNumber.trim());
       payload.append("room_type", formData.roomType);
-      payload.append("gender_restriction", formData.genderRestriction);
+      payload.append("sex_restriction", formData.sexRestriction);
       payload.append("floor", formData.floor);
       payload.append("capacity", isApartment ? "1" : formData.capacity);
       payload.append("billing_policy", formData.billingPolicy);
@@ -1379,7 +1379,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                                           || `Occupant ${occupantIndex + 1}`;
                                         const occupantMeta = [
                                           occupant?.relationship_to_booker,
-                                          occupant?.gender,
+                                          occupant?.sex,
                                         ]
                                           .filter(Boolean)
                                           .join(" • ");
@@ -1521,21 +1521,21 @@ export default function RoomManagementScreen({ navigation, route }) {
 
             <>
               <Text style={styles.label}>
-                Gender <Text style={styles.requiredAsterisk}>*</Text>
+                Sex <Text style={styles.requiredAsterisk}>*</Text>
               </Text>
               <View
                 style={[
                   styles.selectTrigger,
-                  propertyGender !== "mixed" && {
+                  propertySex !== "mixed" && {
                     backgroundColor: theme.colors.backgroundSecondary,
                   },
                 ]}
               >
                 <TouchableOpacity
                   style={styles.selectTriggerInner}
-                  disabled={propertyGender !== "mixed"}
+                  disabled={propertySex !== "mixed"}
                   onPress={() => {
-                    if (propertyGender === "mixed") {
+                    if (propertySex === "mixed") {
                       setGenderSelectModalVisible(true);
                     }
                   }}
@@ -1549,16 +1549,16 @@ export default function RoomManagementScreen({ navigation, route }) {
                           ? [{ label: "Mixed", value: "mixed" }]
                           : []),
                       ],
-                      formData.genderRestriction,
-                      "Select gender",
+                      formData.sexRestriction,
+                      "Select sex",
                     )}
                   </Text>
                   <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              {propertyGender !== "mixed" && (
+              {propertySex !== "mixed" && (
                 <Text style={[styles.helperText, { marginTop: -12, marginBottom: 12, color: "#D97706" }]}>
-                  * Property is restricted to {propertyGender} only.
+                  * Property is restricted to {propertySex} only.
                 </Text>
               )}
             </>
@@ -2160,7 +2160,7 @@ export default function RoomManagementScreen({ navigation, route }) {
           onPress={() => setGenderSelectModalVisible(false)}
         >
           <Pressable style={styles.statusSheet} onPress={() => { }}>
-            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Gender</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Sex</Text>
             {[
               { label: "Boys", value: "male" },
               { label: "Girls", value: "female" },
@@ -2169,13 +2169,13 @@ export default function RoomManagementScreen({ navigation, route }) {
                 : []),
             ].map((option, index, arr) => {
               const isLast = index === arr.length - 1;
-              const isActive = option.value === formData.genderRestriction;
+              const isActive = option.value === formData.sexRestriction;
               return (
                 <TouchableOpacity
                   key={option.value}
                   style={[styles.statusOption, isLast && styles.statusOptionLast]}
                   onPress={() => {
-                    handleInputChange("genderRestriction", option.value);
+                    handleInputChange("sexRestriction", option.value);
                     setGenderSelectModalVisible(false);
                   }}
                 >
