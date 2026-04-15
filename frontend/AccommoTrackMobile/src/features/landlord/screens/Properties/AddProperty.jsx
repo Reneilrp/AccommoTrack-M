@@ -107,6 +107,11 @@ const LANDLORD_ACCESS_STATUSES = [
   "pending_documents_review",
 ];
 
+const getOptionLabel = (options, value, fallback = "Select option") => {
+  const matched = options.find((option) => option.value === value);
+  return matched?.label || fallback;
+};
+
 export default function AddProperty({ navigation }) {
   const { theme } = useTheme();
   const styles = getStyles(theme);
@@ -121,6 +126,8 @@ export default function AddProperty({ navigation }) {
   const [loadingAddress, setLoadingAddress] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [propertyTypeModalVisible, setPropertyTypeModalVisible] = useState(false);
+  const [genderModalVisible, setGenderModalVisible] = useState(false);
   const [error, setError] = useState("");
   const [successModal, setSuccessModal] = useState({
     visible: false,
@@ -877,7 +884,12 @@ export default function AddProperty({ navigation }) {
                   itemStyle={styles.pickerItem}
                   dropdownIconColor={theme.colors.textSecondary}
                   selectedValue={form.propertyType}
-                  onValueChange={(value) => updateForm("propertyType", value)}
+                  onValueChange={(value) => {
+                    updateForm("propertyType", value);
+                    if (value !== "others") {
+                      updateForm("otherType", "");
+                    }
+                  }}
                 >
                   <Picker.Item
                     label="Select type"
@@ -909,27 +921,16 @@ export default function AddProperty({ navigation }) {
                   <Text style={styles.label}>
                     Gender Restriction <Text style={styles.requiredAsterisk}>*</Text>
                   </Text>
-                  <View style={styles.pickerWrapper}>
-                    <Picker
-                      testID="add-property-gender-picker"
-                      mode={pickerMode}
-                      prompt="Select gender restriction"
-                      style={styles.picker}
-                      itemStyle={styles.pickerItem}
-                      dropdownIconColor={theme.colors.textSecondary}
-                      selectedValue={form.genderRestriction}
-                      onValueChange={(value) => updateForm("genderRestriction", value)}
-                    >
-                      {GENDER_OPTIONS.map((opt) => (
-                        <Picker.Item
-                          key={opt.value}
-                          label={opt.label}
-                          value={opt.value}
-                          color={theme.colors.text}
-                        />
-                      ))}
-                    </Picker>
-                  </View>
+                  <TouchableOpacity
+                    testID="add-property-gender-picker"
+                    style={styles.selectTrigger}
+                    onPress={() => setGenderModalVisible(true)}
+                  >
+                    <Text style={styles.selectTriggerText}>
+                      {getOptionLabel(GENDER_OPTIONS, form.genderRestriction, "Select gender restriction")}
+                    </Text>
+                    <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
                 </>
               )}
 
@@ -1671,6 +1672,91 @@ export default function AddProperty({ navigation }) {
         )}
       </View>
       {renderSuccessModal()}
+
+      <Modal
+        visible={propertyTypeModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setPropertyTypeModalVisible(false)}
+      >
+        <Pressable style={styles.selectModalOverlay} onPress={() => setPropertyTypeModalVisible(false)}>
+          <Pressable style={styles.selectModalCard} onPress={() => { }}>
+            <View style={styles.selectModalHeader}>
+              <Text style={styles.selectModalTitle}>Select Property Type</Text>
+              <TouchableOpacity onPress={() => setPropertyTypeModalVisible(false)}>
+                <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {PROPERTY_TYPES.map((option, index) => {
+                const isActive = option.value === form.propertyType;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.selectModalOption,
+                      index === PROPERTY_TYPES.length - 1 && styles.selectModalOptionLast,
+                    ]}
+                    onPress={() => {
+                      updateForm("propertyType", option.value);
+                      if (option.value !== "others") {
+                        updateForm("otherType", "");
+                      }
+                      setPropertyTypeModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.selectModalOptionText}>{option.label}</Text>
+                    {isActive ? <Ionicons name="checkmark" size={18} color={theme.colors.primary} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={genderModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setGenderModalVisible(false)}
+      >
+        <Pressable style={styles.selectModalOverlay} onPress={() => setGenderModalVisible(false)}>
+          <Pressable style={styles.selectModalCard} onPress={() => { }}>
+            <View style={styles.selectModalHeader}>
+              <Text style={styles.selectModalTitle}>Select Gender Restriction</Text>
+              <TouchableOpacity onPress={() => setGenderModalVisible(false)}>
+                <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            {GENDER_OPTIONS.map((option, index) => {
+              const isActive = option.value === form.genderRestriction;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.selectModalOption,
+                    index === GENDER_OPTIONS.length - 1 && styles.selectModalOptionLast,
+                  ]}
+                  onPress={() => {
+                    updateForm("genderRestriction", option.value);
+                    setGenderModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.selectModalOptionText}>{option.label}</Text>
+                  {isActive ? <Ionicons name="checkmark" size={18} color={theme.colors.primary} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Custom Alert Modal */}
       <Modal

@@ -254,12 +254,26 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         setDownloadingUpdate(true);
         setDownloadProgress(0);
         try {
-          await downloadAndInstallUpdate({ 
+          const result = await downloadAndInstallUpdate({
             downloadUrl,
             onProgress: (progress) => {
               setDownloadProgress(progress);
             }
           });
+
+          if (result?.openedInstallSettings) {
+            showError(
+              'Allow install permission',
+              'Android opened Install unknown apps settings for AccommoTrack. Enable it, return to app, then tap Update App again.',
+            );
+          }
+
+          if (result?.openedExternally) {
+            showError(
+              'Continue update',
+              'Opened browser/download manager for APK. If install is blocked, allow "Install unknown apps" in Android settings.',
+            );
+          }
         } catch (error) {
           showError(
             'Update failed',

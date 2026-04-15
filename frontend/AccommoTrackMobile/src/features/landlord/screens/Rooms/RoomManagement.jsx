@@ -9,6 +9,8 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -52,6 +54,44 @@ const ALL_ROOM_TYPES = [
   { value: "bedSpacer", label: "Bed Spacer" },
 ];
 
+const normalizeRoomTypeValue = (value, fallback = "single") => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s-]/g, "");
+
+  if (normalized === "single") return "single";
+  if (normalized === "double") return "double";
+  if (normalized === "quad") return "quad";
+  if (normalized === "bedspacer") return "bedSpacer";
+
+  return fallback;
+};
+
+const normalizeGenderValue = (value, fallback = "male") => {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (normalized === "male" || normalized === "boy" || normalized === "boys")
+    return "male";
+  if (
+    normalized === "female" ||
+    normalized === "girl" ||
+    normalized === "girls"
+  )
+    return "female";
+  if (normalized === "mixed" || normalized === "coed" || normalized === "any")
+    return "mixed";
+
+  return fallback;
+};
+
+const normalizeFloorValue = (value, fallback = "1", maxFloor = 15) => {
+  const floor = parseInt(String(value ?? "").trim(), 10);
+  if (!Number.isFinite(floor) || floor < 1) return fallback;
+  if (floor > maxFloor) return String(maxFloor);
+  return String(floor);
+};
+
 const normalizeId = (value) => {
   if (value === null || value === undefined) return null;
   const parsed = Number(value);
@@ -67,13 +107,11 @@ const getOrdinalSuffix = (num) => {
   return "th";
 };
 
-const buildFloors = () =>
-  Array.from({ length: 15 }, (_, i) => ({
+const buildFloors = (count = 1) =>
+  Array.from({ length: Math.max(1, count) }, (_, i) => ({
     value: String(i + 1),
     label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`,
   }));
-
-const FLOORS = buildFloors();
 
 const parseList = (value) => {
   if (!value) return [];
@@ -83,7 +121,7 @@ const parseList = (value) => {
     try {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) return parsed.filter(Boolean);
-    } catch (_err) {}
+    } catch (_err) { }
     return value
       .split(/[\n,]/)
       .map((item) => item.trim())
@@ -136,6 +174,8 @@ export default function RoomManagementScreen({ navigation, route }) {
   const { theme } = useTheme();
   const showAlert = Alert.alert;
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const pickerMode = Platform.OS === "android" ? "dialog" : undefined;
+  const pickerTextColor = theme.colors.text;
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
   const initialFilter = route?.params?.filter || "all";
 
@@ -177,6 +217,9 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [selectedImages, setSelectedImages] = useState([]);
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
+  const [floorSelectModalVisible, setFloorSelectModalVisible] = useState(false);
+  const [roomTypeSelectModalVisible, setRoomTypeSelectModalVisible] = useState(false);
+  const [genderSelectModalVisible, setGenderSelectModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [detailRoom, setDetailRoom] = useState(null);
   const [expandedDetailProxyKeys, setExpandedDetailProxyKeys] = useState({});
@@ -324,7 +367,10 @@ export default function RoomManagementScreen({ navigation, route }) {
   );
 
   const propertyType = selectedProperty?.property_type || "";
-  const propertyGender = selectedProperty?.gender_restriction || "mixed";
+  const propertyGender = normalizeGenderValue(
+    selectedProperty?.gender_restriction,
+    "mixed",
+  );
   const normalizedType = propertyType.toLowerCase();
   const isApartment = normalizedType.includes("apartment");
   const isDormitory = normalizedType.includes("dormitory");
@@ -344,6 +390,47 @@ export default function RoomManagementScreen({ navigation, route }) {
       );
     return ALL_ROOM_TYPES.filter((rt) => rt.value !== "bedSpacer");
   }, [isApartment, isBedSpacerProperty, isDormitory, isBoarding]);
+
+  const genderOptions = useMemo(
+    () => [
+      { label: "Boys", value: "male" },
+      { label: "Girls", value: "female" },
+      ...(isApartment || (!isDormitory && !isBoarding && !isBedSpacerProperty)
+        ? [{ label: "Mixed", value: "mixed" }]
+        : []),
+    ],
+    [isApartment, isDormitory, isBoarding, isBedSpacerProperty],
+  );
+
+  const roomTypeValue = useMemo(() => {
+    const fallback = roomTypes[0]?.value || "single";
+    return normalizeRoomTypeValue(formData.roomType, fallback);
+  }, [formData.roomType, roomTypes]);
+
+  const propertyFloorCount = useMemo(() => {
+    const parsedTotalFloors = Number.parseInt(
+      String(selectedProperty?.total_floors ?? "").trim(),
+      10,
+    );
+    if (Number.isFinite(parsedTotalFloors) && parsedTotalFloors > 0) {
+      return parsedTotalFloors;
+    }
+
+    const parsedFloorLevel = Number.parseInt(
+      String(selectedProperty?.floor_level ?? "").trim(),
+      10,
+    );
+    if (Number.isFinite(parsedFloorLevel) && parsedFloorLevel > 0) {
+      return parsedFloorLevel;
+    }
+
+    return 1;
+  }, [selectedProperty?.floor_level, selectedProperty?.total_floors]);
+
+  const floorOptions = useMemo(
+    () => buildFloors(propertyFloorCount),
+    [propertyFloorCount],
+  );
 
   const propertyAmenities = useMemo(
     () =>
@@ -446,6 +533,58 @@ export default function RoomManagementScreen({ navigation, route }) {
     }
   };
 
+  useEffect(() => {
+    if (roomTypes.length === 0) return;
+
+    const fallback = roomTypes[0]?.value || "single";
+    const normalized = normalizeRoomTypeValue(formData.roomType, fallback);
+    const isAllowed = roomTypes.some((type) => type.value === normalized);
+
+    if (!isAllowed) {
+      handleInputChange("roomType", fallback);
+      return;
+    }
+
+    if (normalized !== formData.roomType) {
+      handleInputChange("roomType", normalized);
+    }
+  }, [formData.roomType, roomTypes]);
+
+  useEffect(() => {
+    const normalizedFloor = normalizeFloorValue(
+      formData.floor,
+      "1",
+      propertyFloorCount,
+    );
+    if (normalizedFloor !== formData.floor) {
+      handleInputChange("floor", normalizedFloor);
+    }
+  }, [formData.floor, propertyFloorCount]);
+
+  useEffect(() => {
+    const fallbackGender =
+      propertyGender !== "mixed" ? propertyGender : isApartment ? "mixed" : "male";
+    const normalizedGender = normalizeGenderValue(
+      formData.genderRestriction,
+      fallbackGender,
+    );
+    const allowedGenders = new Set(genderOptions.map((option) => option.value));
+
+    if (!allowedGenders.has(normalizedGender)) {
+      handleInputChange("genderRestriction", fallbackGender);
+      return;
+    }
+
+    if (normalizedGender !== formData.genderRestriction) {
+      handleInputChange("genderRestriction", normalizedGender);
+    }
+  }, [
+    formData.genderRestriction,
+    genderOptions,
+    isApartment,
+    propertyGender,
+  ]);
+
   const updateDurationPricing = (term, patch) => {
     setFormData((prev) => ({
       ...prev,
@@ -502,7 +641,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       roomNumber: "",
       roomType: initialRT,
       genderRestriction: propertyGender !== "mixed" ? propertyGender : isApartment ? "mixed" : "male",
-      floor: "1",
+      floor: normalizeFloorValue("1", "1", propertyFloorCount),
       monthlyRate: "",
       dailyRate: "",
       billingPolicy: "monthly",
@@ -555,7 +694,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       roomNumber: room.room_number || "",
       roomType: room.room_type || "single",
       genderRestriction: room.gender_restriction || (propertyGender !== "mixed" ? propertyGender : isApartment ? "mixed" : "male"),
-      floor: String(room.floor || "1"),
+      floor: normalizeFloorValue(room.floor, "1", propertyFloorCount),
       monthlyRate: String(room.monthly_rate || ""),
       dailyRate: String(room.daily_rate || ""),
       billingPolicy: room.billing_policy || "monthly",
@@ -662,7 +801,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       payload.append("property_id", selectedPropertyId);
       payload.append("room_number", formData.roomNumber.trim());
       payload.append("room_type", formData.roomType);
-      payload.append("gender_restriction", formData.genderRestriction);      
+      payload.append("gender_restriction", formData.genderRestriction);
       payload.append("floor", formData.floor);
       payload.append("capacity", isApartment ? "1" : formData.capacity);
       payload.append("billing_policy", formData.billingPolicy);
@@ -722,6 +861,11 @@ export default function RoomManagementScreen({ navigation, route }) {
     setDetailModalVisible(true);
   };
 
+  const getOptionLabel = (options, value, fallback = "Select option") => {
+    const matched = options.find((option) => option.value === value);
+    return matched?.label || fallback;
+  };
+
   const renderRoomCard = ({ item }) => {
     const badge = statusTokens[item.status] || statusTokens.available;
     const roomTenants = Array.isArray(item.tenants) ? item.tenants : [];
@@ -765,19 +909,19 @@ export default function RoomManagementScreen({ navigation, route }) {
     const capacityCount = Number(item?.capacity || 0);
     const hasExistingTenant = Boolean(
       item.tenant_id ||
-        item.current_tenant_id ||
-        item.tenant?.id ||
-        item.current_tenant?.id ||
-        occupiedCount > 0,
+      item.current_tenant_id ||
+      item.tenant?.id ||
+      item.current_tenant?.id ||
+      occupiedCount > 0,
     );
     const cover = item.images?.[0]
       ? {
-          uri: getImageUrl(
-            typeof item.images[0] === "string"
-              ? item.images[0]
-              : item.images[0].path,
-          ),
-        }
+        uri: getImageUrl(
+          typeof item.images[0] === "string"
+            ? item.images[0]
+            : item.images[0].path,
+        ),
+      }
       : null;
 
     return (
@@ -795,8 +939,8 @@ export default function RoomManagementScreen({ navigation, route }) {
           </View>
         )}
         <View style={styles.imageOverlayRow}>
-          <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}> 
-            <Text style={[styles.statusText, { color: badge.color }]}> 
+          <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.statusText, { color: badge.color }]}>
               {badge.label}
             </Text>
           </View>
@@ -1188,104 +1332,104 @@ export default function RoomManagementScreen({ navigation, route }) {
                         <View style={styles.proxyHierarchySection}>
                           <Text style={styles.tenantLabel}>Proxy Accounts</Text>
                           {proxyAccounts.map((proxyAccount, idx) => {
-                          const proxyKey = `detail-${detailRoom?.id || "room"}-${proxyAccount?.booking_id || proxyAccount?.id || idx}`;
-                          const isExpanded = Boolean(expandedDetailProxyKeys[proxyKey]);
-                          const proxyName =
-                            proxyAccount?.name
-                            || [proxyAccount?.first_name, proxyAccount?.last_name].filter(Boolean).join(" ")
-                            || "Proxy Account";
-                          const occupantProfiles = Array.isArray(proxyAccount?.occupants)
-                            ? proxyAccount.occupants
-                            : [];
-                          const occupantCount = Math.max(
-                            1,
-                            Number(proxyAccount?.occupant_count || occupantProfiles.length || proxyAccount?.bed_count || 1),
-                          );
+                            const proxyKey = `detail-${detailRoom?.id || "room"}-${proxyAccount?.booking_id || proxyAccount?.id || idx}`;
+                            const isExpanded = Boolean(expandedDetailProxyKeys[proxyKey]);
+                            const proxyName =
+                              proxyAccount?.name
+                              || [proxyAccount?.first_name, proxyAccount?.last_name].filter(Boolean).join(" ")
+                              || "Proxy Account";
+                            const occupantProfiles = Array.isArray(proxyAccount?.occupants)
+                              ? proxyAccount.occupants
+                              : [];
+                            const occupantCount = Math.max(
+                              1,
+                              Number(proxyAccount?.occupant_count || occupantProfiles.length || proxyAccount?.bed_count || 1),
+                            );
 
-                          return (
-                            <View key={proxyKey} style={styles.proxyAccountCard}>
-                              <View style={styles.proxyAccountHeaderRow}>
-                                <Text style={styles.proxyAccountName}>{proxyName}</Text>
-                                <Text style={styles.proxyAccountMeta}>
-                                  {occupantCount} {occupantCount === 1 ? "occupant" : "occupants"}
-                                </Text>
-                              </View>
-
-                              <TouchableOpacity
-                                onPress={() => {
-                                  setExpandedDetailProxyKeys((prev) => ({
-                                    ...prev,
-                                    [proxyKey]: !prev[proxyKey],
-                                  }));
-                                }}
-                                style={styles.proxyToggleButton}
-                              >
-                                <Text style={styles.proxyToggleText}>
-                                  {isExpanded ? "Hide Occupants" : "Show Occupants"}
-                                </Text>
-                              </TouchableOpacity>
-
-                              {isExpanded && (
-                                <View style={styles.proxyOccupantList}>
-                                  {occupantProfiles.length > 0 ? (
-                                    occupantProfiles.map((occupant, occupantIndex) => {
-                                      const occupantName =
-                                        occupant?.full_name
-                                        || occupant?.name
-                                        || `Occupant ${occupantIndex + 1}`;
-                                      const occupantMeta = [
-                                        occupant?.relationship_to_booker,
-                                        occupant?.gender,
-                                      ]
-                                        .filter(Boolean)
-                                        .join(" • ");
-
-                                      return (
-                                        <View key={`${proxyKey}-occupant-${occupant?.id || occupantIndex}`} style={styles.proxyOccupantRow}>
-                                          <Text style={styles.proxyOccupantName}>{occupantName}</Text>
-                                          {occupantMeta ? (
-                                            <Text style={styles.proxyOccupantMeta}>{occupantMeta}</Text>
-                                          ) : null}
-                                        </View>
-                                      );
-                                    })
-                                  ) : (
-                                    <Text style={styles.proxyOccupantMeta}>Occupant details are still syncing.</Text>
-                                  )}
+                            return (
+                              <View key={proxyKey} style={styles.proxyAccountCard}>
+                                <View style={styles.proxyAccountHeaderRow}>
+                                  <Text style={styles.proxyAccountName}>{proxyName}</Text>
+                                  <Text style={styles.proxyAccountMeta}>
+                                    {occupantCount} {occupantCount === 1 ? "occupant" : "occupants"}
+                                  </Text>
                                 </View>
-                              )}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    ) : null}
 
-                    {directTenants.length > 0 ? (
-                      <View style={styles.regularTenantSection}>
-                        <Text style={styles.tenantLabel}>Current Occupants</Text>
-                        {directTenants.map((tenant, idx) => {
-                          const tenantName =
-                            tenant?.name
-                            || [tenant?.first_name, tenant?.last_name].filter(Boolean).join(" ")
-                            || `Tenant ${idx + 1}`;
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    setExpandedDetailProxyKeys((prev) => ({
+                                      ...prev,
+                                      [proxyKey]: !prev[proxyKey],
+                                    }));
+                                  }}
+                                  style={styles.proxyToggleButton}
+                                >
+                                  <Text style={styles.proxyToggleText}>
+                                    {isExpanded ? "Hide Occupants" : "Show Occupants"}
+                                  </Text>
+                                </TouchableOpacity>
 
-                          return (
-                            <Text key={`detail-${detailRoom?.id || "room"}-tenant-${tenant?.id || idx}`} style={styles.tenantText}>
-                              {tenantName}
-                            </Text>
-                          );
-                        })}
-                      </View>
-                    ) : null}
+                                {isExpanded && (
+                                  <View style={styles.proxyOccupantList}>
+                                    {occupantProfiles.length > 0 ? (
+                                      occupantProfiles.map((occupant, occupantIndex) => {
+                                        const occupantName =
+                                          occupant?.full_name
+                                          || occupant?.name
+                                          || `Occupant ${occupantIndex + 1}`;
+                                        const occupantMeta = [
+                                          occupant?.relationship_to_booker,
+                                          occupant?.gender,
+                                        ]
+                                          .filter(Boolean)
+                                          .join(" • ");
 
-                    {proxyAccounts.length === 0 && directTenants.length === 0 ? (
-                      <View>
-                        <Text style={styles.tenantLabel}>Current Occupants</Text>
-                        <Text style={styles.tenantText}>{fallbackTenantName || "No tenant assigned"}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </>
+                                        return (
+                                          <View key={`${proxyKey}-occupant-${occupant?.id || occupantIndex}`} style={styles.proxyOccupantRow}>
+                                            <Text style={styles.proxyOccupantName}>{occupantName}</Text>
+                                            {occupantMeta ? (
+                                              <Text style={styles.proxyOccupantMeta}>{occupantMeta}</Text>
+                                            ) : null}
+                                          </View>
+                                        );
+                                      })
+                                    ) : (
+                                      <Text style={styles.proxyOccupantMeta}>Occupant details are still syncing.</Text>
+                                    )}
+                                  </View>
+                                )}
+                              </View>
+                            );
+                          })}
+                        </View>
+                      ) : null}
+
+                      {directTenants.length > 0 ? (
+                        <View style={styles.regularTenantSection}>
+                          <Text style={styles.tenantLabel}>Current Occupants</Text>
+                          {directTenants.map((tenant, idx) => {
+                            const tenantName =
+                              tenant?.name
+                              || [tenant?.first_name, tenant?.last_name].filter(Boolean).join(" ")
+                              || `Tenant ${idx + 1}`;
+
+                            return (
+                              <Text key={`detail-${detailRoom?.id || "room"}-tenant-${tenant?.id || idx}`} style={styles.tenantText}>
+                                {tenantName}
+                              </Text>
+                            );
+                          })}
+                        </View>
+                      ) : null}
+
+                      {proxyAccounts.length === 0 && directTenants.length === 0 ? (
+                        <View>
+                          <Text style={styles.tenantLabel}>Current Occupants</Text>
+                          <Text style={styles.tenantText}>{fallbackTenantName || "No tenant assigned"}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </>
                 );
               })()}
             </ScrollView>
@@ -1340,48 +1484,40 @@ export default function RoomManagementScreen({ navigation, route }) {
                 <Text style={styles.label}>
                   Floor <Text style={styles.requiredAsterisk}>*</Text>
                 </Text>
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={formData.floor}
-                    onValueChange={(v) => handleInputChange("floor", v)}
-                  >
-                    {FLOORS.map((f) => (
-                      <Picker.Item
-                        key={f.value}
-                        label={f.label}
-                        value={f.value}
-                      />
-                    ))}
-                  </Picker>
-                </View>
+                <TouchableOpacity
+                  style={styles.selectTrigger}
+                  onPress={() => setFloorSelectModalVisible(true)}
+                >
+                  <Text style={styles.selectTriggerText}>
+                    {getOptionLabel(floorOptions, formData.floor, "Select floor")}
+                  </Text>
+                  <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
               </View>
             </View>
 
             <Text style={styles.label}>
               Room Type <Text style={styles.requiredAsterisk}>*</Text>
             </Text>
-            <View
+            <TouchableOpacity
               style={[
-                styles.pickerWrapper,
+                styles.selectTrigger,
                 isBedSpacerProperty && {
                   backgroundColor: theme.colors.backgroundSecondary,
                 },
               ]}
+              disabled={isBedSpacerProperty}
+              onPress={() => {
+                if (!isBedSpacerProperty) {
+                  setRoomTypeSelectModalVisible(true);
+                }
+              }}
             >
-              <Picker
-                selectedValue={formData.roomType}
-                onValueChange={(v) => handleInputChange("roomType", v)}
-                enabled={!isBedSpacerProperty}
-              >
-                {roomTypes.map((rt) => (
-                  <Picker.Item
-                    key={rt.value}
-                    label={rt.label}
-                    value={rt.value}
-                  />
-                ))}
-              </Picker>
-            </View>
+              <Text style={styles.selectTriggerText}>
+                {getOptionLabel(roomTypes, roomTypeValue, "Select room type")}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
 
             <>
               <Text style={styles.label}>
@@ -1389,21 +1525,36 @@ export default function RoomManagementScreen({ navigation, route }) {
               </Text>
               <View
                 style={[
-                  styles.pickerWrapper,
+                  styles.selectTrigger,
                   propertyGender !== "mixed" && {
                     backgroundColor: theme.colors.backgroundSecondary,
                   },
                 ]}
               >
-                <Picker
-                  selectedValue={formData.genderRestriction}
-                  onValueChange={(v) => handleInputChange("genderRestriction", v)}
-                  enabled={propertyGender === "mixed"}
+                <TouchableOpacity
+                  style={styles.selectTriggerInner}
+                  disabled={propertyGender !== "mixed"}
+                  onPress={() => {
+                    if (propertyGender === "mixed") {
+                      setGenderSelectModalVisible(true);
+                    }
+                  }}
                 >
-                  <Picker.Item label="Boys" value="male" />
-                  <Picker.Item label="Girls" value="female" />
-                  {(isApartment || (!isDormitory && !isBoarding && !isBedSpacerProperty)) && <Picker.Item label="Mixed" value="mixed" />}
-                </Picker>
+                  <Text style={styles.selectTriggerText}>
+                    {getOptionLabel(
+                      [
+                        { label: "Boys", value: "male" },
+                        { label: "Girls", value: "female" },
+                        ...(isApartment || (!isDormitory && !isBoarding && !isBedSpacerProperty)
+                          ? [{ label: "Mixed", value: "mixed" }]
+                          : []),
+                      ],
+                      formData.genderRestriction,
+                      "Select gender",
+                    )}
+                  </Text>
+                  <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
               </View>
               {propertyGender !== "mixed" && (
                 <Text style={[styles.helperText, { marginTop: -12, marginBottom: 12, color: "#D97706" }]}>
@@ -1417,15 +1568,20 @@ export default function RoomManagementScreen({ navigation, route }) {
             <Text style={styles.label}>Billing Policy</Text>
             <View style={styles.pickerWrapper}>
               <Picker
+                mode={pickerMode}
+                style={styles.picker}
+                itemStyle={styles.pickerItem}
+                dropdownIconColor={theme.colors.textSecondary}
                 selectedValue={formData.billingPolicy}
                 onValueChange={(v) => handleInputChange("billingPolicy", v)}
               >
-                <Picker.Item label="Monthly Rate" value="monthly" />
+                <Picker.Item label="Monthly Rate" value="monthly" color={pickerTextColor} />
                 <Picker.Item
                   label="Monthly + Daily"
                   value="monthly_with_daily"
+                  color={pickerTextColor}
                 />
-                <Picker.Item label="Daily Rate" value="daily" />
+                <Picker.Item label="Daily Rate" value="daily" color={pickerTextColor} />
               </Picker>
             </View>
 
@@ -1515,9 +1671,9 @@ export default function RoomManagementScreen({ navigation, route }) {
                   style={[
                     styles.input,
                     (isDormitory || isBoarding) &&
-                      formData.roomType !== "bedSpacer" && {
-                        backgroundColor: theme.colors.backgroundSecondary,
-                      },
+                    formData.roomType !== "bedSpacer" && {
+                      backgroundColor: theme.colors.backgroundSecondary,
+                    },
                     fieldErrors.capacity && { borderColor: "#EF4444" },
                   ]}
                   keyboardType="numeric"
@@ -1546,7 +1702,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                   style={[
                     styles.pricingCard,
                     formData.pricingModel === "full_room" &&
-                      styles.pricingCardActive,
+                    styles.pricingCardActive,
                   ]}
                   onPress={() => handleInputChange("pricingModel", "full_room")}
                 >
@@ -1587,47 +1743,47 @@ export default function RoomManagementScreen({ navigation, route }) {
 
               {(formData.roomType !== "single" ||
                 formData.roomType === "bedSpacer") && (
-                <TouchableOpacity
-                  style={[
-                    styles.pricingCard,
-                    formData.pricingModel === "per_bed" &&
+                  <TouchableOpacity
+                    style={[
+                      styles.pricingCard,
+                      formData.pricingModel === "per_bed" &&
                       styles.pricingCardActive,
-                  ]}
-                  onPress={() => handleInputChange("pricingModel", "per_bed")}
-                >
-                  <View style={styles.pricingRadioRow}>
-                    <Ionicons
-                      name={
-                        formData.pricingModel === "per_bed"
-                          ? "radio-button-on"
-                          : "radio-button-off"
-                      }
-                      size={20}
-                      color={
-                        formData.pricingModel === "per_bed"
-                          ? "#16a34a"
-                          : "#6B7280"
-                      }
-                    />
-                    <View style={styles.pricingTextContent}>
-                      <Text
-                        style={[
-                          styles.pricingCardTitle,
-                          formData.pricingModel === "per_bed" && {
-                            color: "#16a34a",
-                          },
-                        ]}
-                      >
-                        Per Bed/Tenant Price
-                      </Text>
-                      <Text style={styles.pricingCardDesc}>
-                        Each tenant pays ₱${formData.monthlyRate || "0"} for
-                        their bed (independent billing)
-                      </Text>
+                    ]}
+                    onPress={() => handleInputChange("pricingModel", "per_bed")}
+                  >
+                    <View style={styles.pricingRadioRow}>
+                      <Ionicons
+                        name={
+                          formData.pricingModel === "per_bed"
+                            ? "radio-button-on"
+                            : "radio-button-off"
+                        }
+                        size={20}
+                        color={
+                          formData.pricingModel === "per_bed"
+                            ? "#16a34a"
+                            : "#6B7280"
+                        }
+                      />
+                      <View style={styles.pricingTextContent}>
+                        <Text
+                          style={[
+                            styles.pricingCardTitle,
+                            formData.pricingModel === "per_bed" && {
+                              color: "#16a34a",
+                            },
+                          ]}
+                        >
+                          Per Bed/Tenant Price
+                        </Text>
+                        <Text style={styles.pricingCardDesc}>
+                          Each tenant pays ₱${formData.monthlyRate || "0"} for
+                          their bed (independent billing)
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              )}
+                  </TouchableOpacity>
+                )}
             </View>
 
             <Text style={styles.sectionTitle}>Lease Advance</Text>
@@ -1695,11 +1851,15 @@ export default function RoomManagementScreen({ navigation, route }) {
                       <View style={styles.promoInputs}>
                         <View style={[styles.pickerWrapper, { flex: 1, marginRight: 8 }]}>
                           <Picker
+                            mode={pickerMode}
+                            style={styles.picker}
+                            itemStyle={styles.pickerItem}
+                            dropdownIconColor={theme.colors.textSecondary}
                             selectedValue={promo.discountType}
                             onValueChange={(v) => updateDurationPricing(term, { discountType: v })}
                           >
-                            <Picker.Item label="% Off" value="percent" />
-                            <Picker.Item label="PHP Off" value="fixed" />
+                            <Picker.Item label="% Off" value="percent" color={pickerTextColor} />
+                            <Picker.Item label="PHP Off" value="fixed" color={pickerTextColor} />
                           </Picker>
                         </View>
                         <TextInput
@@ -1894,6 +2054,148 @@ export default function RoomManagementScreen({ navigation, route }) {
         </SafeAreaView>
       </Modal>
 
+      <Modal
+        visible={floorSelectModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setFloorSelectModalVisible(false)}
+      >
+        <Pressable
+          style={styles.statusModalOverlay}
+          onPress={() => setFloorSelectModalVisible(false)}
+        >
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Floor</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {floorOptions.map((option, index) => {
+                const isLast = index === floorOptions.length - 1;
+                const isActive = option.value === formData.floor;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      handleInputChange("floor", option.value);
+                      setFloorSelectModalVisible(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                      <Text style={styles.statusOptionText}>{option.label}</Text>
+                      {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setFloorSelectModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={roomTypeSelectModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setRoomTypeSelectModalVisible(false)}
+      >
+        <Pressable
+          style={styles.statusModalOverlay}
+          onPress={() => setRoomTypeSelectModalVisible(false)}
+        >
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Room Type</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {roomTypes.map((option, index) => {
+                const isLast = index === roomTypes.length - 1;
+                const isActive = option.value === roomTypeValue;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      handleInputChange("roomType", option.value);
+                      setRoomTypeSelectModalVisible(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                      <Text style={styles.statusOptionText}>{option.label}</Text>
+                      {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setRoomTypeSelectModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={genderSelectModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setGenderSelectModalVisible(false)}
+      >
+        <Pressable
+          style={styles.statusModalOverlay}
+          onPress={() => setGenderSelectModalVisible(false)}
+        >
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Gender</Text>
+            {[
+              { label: "Boys", value: "male" },
+              { label: "Girls", value: "female" },
+              ...(isApartment || (!isDormitory && !isBoarding && !isBedSpacerProperty)
+                ? [{ label: "Mixed", value: "mixed" }]
+                : []),
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = option.value === formData.genderRestriction;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    handleInputChange("genderRestriction", option.value);
+                    setGenderSelectModalVisible(false);
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setGenderSelectModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Status Modal */}
       <Modal
         visible={statusModalVisible}
@@ -1964,7 +2266,7 @@ export default function RoomManagementScreen({ navigation, route }) {
             </Text>
 
             <View style={{ flexDirection: 'row', marginBottom: 24, gap: 8 }}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
                   { flex: 1, padding: 16, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
                   extendType === 'months' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : { borderColor: theme.colors.border }
@@ -1973,7 +2275,7 @@ export default function RoomManagementScreen({ navigation, route }) {
               >
                 <Text style={{ color: extendType === 'months' ? '#FFF' : theme.colors.text }}>Months</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
                   { flex: 1, padding: 16, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
                   extendType === 'days' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : { borderColor: theme.colors.border }
@@ -1993,15 +2295,15 @@ export default function RoomManagementScreen({ navigation, route }) {
             />
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity 
-                style={[styles.secondaryButton, { flex: 1 }]} 
+              <TouchableOpacity
+                style={[styles.secondaryButton, { flex: 1 }]}
                 onPress={() => setExtendModalVisible(false)}
                 disabled={extending}
               >
                 <Text style={styles.buttonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.primaryButton, { flex: 2 }]} 
+              <TouchableOpacity
+                style={[styles.primaryButton, { flex: 2 }]}
                 onPress={async () => {
                   if (!extendValue || isNaN(extendValue) || parseInt(extendValue) <= 0) {
                     showAlert('Invalid Value', `Please enter a valid number of ${extendType}.`);

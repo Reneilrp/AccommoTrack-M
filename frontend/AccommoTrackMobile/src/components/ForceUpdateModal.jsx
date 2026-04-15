@@ -16,17 +16,31 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
     setProgress(0);
 
     try {
-      await downloadAndInstallUpdate({
+      const result = await downloadAndInstallUpdate({
         downloadUrl,
         onProgress: (value) => {
           setProgress(value);
         },
       });
+
+      if (result?.openedInstallSettings) {
+        Alert.alert(
+          'Allow install permission',
+          'Android opened Install unknown apps settings for AccommoTrack. Enable it, go back to the app, then tap Download Update again.',
+        );
+      }
+
+      if (result?.openedExternally) {
+        Alert.alert(
+          'Continue update',
+          'We opened your browser/download manager for the APK. If install is blocked, allow "Install unknown apps" in Android settings and try again.',
+        );
+      }
     } catch (error) {
       console.error('In-app APK update failed:', error);
       Alert.alert(
         'Update failed',
-        'Unable to download/install the update inside the app. Please try again.',
+        error?.message || 'Unable to download/install the update. Please open the APK link in your browser and install manually.',
       );
     } finally {
       setDownloading(false);
