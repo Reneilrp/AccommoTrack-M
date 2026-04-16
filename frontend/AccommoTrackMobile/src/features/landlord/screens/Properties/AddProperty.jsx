@@ -875,37 +875,16 @@ export default function AddProperty({ navigation }) {
               <Text style={styles.label}>
                 Property Type <Text style={styles.requiredAsterisk}>*</Text>
               </Text>
-              <View style={styles.pickerWrapper}>
-                <Picker
-                  testID="add-property-type-picker"
-                  mode={pickerMode}
-                  prompt="Select property type"
-                  style={styles.picker}
-                  itemStyle={styles.pickerItem}
-                  dropdownIconColor={theme.colors.textSecondary}
-                  selectedValue={form.propertyType}
-                  onValueChange={(value) => {
-                    updateForm("propertyType", value);
-                    if (value !== "others") {
-                      updateForm("otherType", "");
-                    }
-                  }}
-                >
-                  <Picker.Item
-                    label="Select type"
-                    value=""
-                    color={theme.colors.textTertiary}
-                  />
-                  {PROPERTY_TYPES.map((type) => (
-                    <Picker.Item
-                      key={type.value}
-                      label={type.label}
-                      value={type.value}
-                      color={theme.colors.text}
-                    />
-                  ))}
-                </Picker>
-              </View>
+              <TouchableOpacity
+                testID="add-property-type-picker"
+                style={styles.selectTrigger}
+                onPress={() => setPropertyTypeModalVisible(true)}
+              >
+                <Text style={styles.selectTriggerText}>
+                  {getOptionLabel(PROPERTY_TYPES, form.propertyType, "Select property type")}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
 
               {form.propertyType === "others" && (
                 <TextInput
@@ -1682,24 +1661,17 @@ export default function AddProperty({ navigation }) {
         presentationStyle="overFullScreen"
         onRequestClose={() => setPropertyTypeModalVisible(false)}
       >
-        <Pressable style={styles.selectModalOverlay} onPress={() => setPropertyTypeModalVisible(false)}>
-          <Pressable style={styles.selectModalCard} onPress={() => { }}>
-            <View style={styles.selectModalHeader}>
-              <Text style={styles.selectModalTitle}>Select Property Type</Text>
-              <TouchableOpacity onPress={() => setPropertyTypeModalVisible(false)}>
-                <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+        <Pressable style={styles.statusModalOverlay} onPress={() => setPropertyTypeModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Property Type</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {PROPERTY_TYPES.map((option, index) => {
+                const isLast = index === PROPERTY_TYPES.length - 1;
                 const isActive = option.value === form.propertyType;
                 return (
                   <TouchableOpacity
                     key={option.value}
-                    style={[
-                      styles.selectModalOption,
-                      index === PROPERTY_TYPES.length - 1 && styles.selectModalOptionLast,
-                    ]}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
                     onPress={() => {
                       updateForm("propertyType", option.value);
                       if (option.value !== "others") {
@@ -1708,12 +1680,18 @@ export default function AddProperty({ navigation }) {
                       setPropertyTypeModalVisible(false);
                     }}
                   >
-                    <Text style={styles.selectModalOptionText}>{option.label}</Text>
-                    {isActive ? <Ionicons name="checkmark" size={18} color={theme.colors.primary} /> : null}
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setPropertyTypeModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1727,33 +1705,32 @@ export default function AddProperty({ navigation }) {
         presentationStyle="overFullScreen"
         onRequestClose={() => setGenderModalVisible(false)}
       >
-        <Pressable style={styles.selectModalOverlay} onPress={() => setGenderModalVisible(false)}>
-          <Pressable style={styles.selectModalCard} onPress={() => { }}>
-            <View style={styles.selectModalHeader}>
-              <Text style={styles.selectModalTitle}>Select Sex Restriction</Text>
-              <TouchableOpacity onPress={() => setGenderModalVisible(false)}>
-                <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+        <Pressable style={styles.statusModalOverlay} onPress={() => setGenderModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Sex Restriction</Text>
             {GENDER_OPTIONS.map((option, index) => {
+              const isLast = index === GENDER_OPTIONS.length - 1;
               const isActive = option.value === form.sexRestriction;
               return (
                 <TouchableOpacity
                   key={option.value}
-                  style={[
-                    styles.selectModalOption,
-                    index === GENDER_OPTIONS.length - 1 && styles.selectModalOptionLast,
-                  ]}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
                   onPress={() => {
                     updateForm("sexRestriction", option.value);
                     setGenderModalVisible(false);
                   }}
                 >
-                  <Text style={styles.selectModalOptionText}>{option.label}</Text>
-                  {isActive ? <Ionicons name="checkmark" size={18} color={theme.colors.primary} /> : null}
+                  <Text style={styles.statusOptionText}>{option.label}</Text>
+                  {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
                 </TouchableOpacity>
               );
             })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setGenderModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>

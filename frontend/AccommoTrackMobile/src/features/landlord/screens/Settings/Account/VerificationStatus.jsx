@@ -63,6 +63,7 @@ export default function VerificationStatus({ navigation }) {
   const [showResubmitForm, setShowResubmitForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [idTypeModalVisible, setIdTypeModalVisible] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -855,21 +856,15 @@ export default function VerificationStatus({ navigation }) {
                 <Text style={styles.label}>
                   Valid ID Type <Text style={styles.required}>*</Text>
                 </Text>
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={formData.validIdType}
-                    onValueChange={(val) =>
-                      setFormData((prev) => ({ ...prev, validIdType: val }))
-                    }
-                    style={styles.picker}
-                  >
-                    <Picker.Item label="Select ID Type" value="" />
-                    {idTypes.map((type) => (
-                      <Picker.Item key={type} label={type} value={type} />
-                    ))}
-                    <Picker.Item label="Other" value="other" />
-                  </Picker>
-                </View>
+                <TouchableOpacity
+                  style={styles.selectTrigger}
+                  onPress={() => setIdTypeModalVisible(true)}
+                >
+                  <Text style={styles.selectTriggerText}>
+                    {formData.validIdType || 'Select ID Type'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
               </View>
 
               {formData.validIdType === "other" && (
@@ -974,6 +969,51 @@ export default function VerificationStatus({ navigation }) {
                 </TouchableOpacity>
               </View>
             </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ID Type Selection Modal */}
+      <Modal
+        visible={idTypeModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setIdTypeModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setIdTypeModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select ID Type</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                ...idTypes.map(type => ({ label: type, value: type })),
+                { label: "Other", value: "other" }
+              ].map((option, index, arr) => {
+                const isLast = index === arr.length - 1;
+                const isActive = formData.validIdType === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      setFormData(prev => ({ ...prev, validIdType: option.value }));
+                      setIdTypeModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setIdTypeModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>

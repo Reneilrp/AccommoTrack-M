@@ -340,6 +340,7 @@ export default function Payments({ navigation, route }) {
   };
   const [verifyingAction, setVerifyingAction] = useState(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [reasonModalVisible, setReasonModalVisible] = useState(false);
   const [rejectReasonCode, setRejectReasonCode] = useState('unclear_image');
   const [rejectReason, setRejectReason] = useState('');
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
@@ -1471,28 +1472,27 @@ export default function Payments({ navigation, route }) {
               showsVerticalScrollIndicator={false}
             >
               <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>Reason Category *</Text>
-              <View
+              <TouchableOpacity
                 style={{
                   borderWidth: 1,
                   borderColor: theme.colors.border,
                   borderRadius: 10,
                   marginTop: 6,
                   marginBottom: 16,
-                  overflow: 'hidden',
+                  minHeight: 52,
+                  paddingHorizontal: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                   backgroundColor: theme.colors.backgroundSecondary,
                 }}
+                onPress={() => setReasonModalVisible(true)}
               >
-                <Picker
-                  selectedValue={rejectReasonCode}
-                  onValueChange={(value) => setRejectReasonCode(value)}
-                  style={{ color: theme.colors.text }}
-                  dropdownIconColor={theme.colors.textSecondary}
-                >
-                  {CASH_REJECTION_REASONS.map((item) => (
-                    <Picker.Item key={item.id} label={item.label} value={item.id} />
-                  ))}
-                </Picker>
-              </View>
+                <Text style={{ flex: 1, fontSize: 14, color: theme.colors.text, fontWeight: '500' }}>
+                  {CASH_REJECTION_REASONS.find(r => r.id === rejectReasonCode)?.label || 'Select reason'}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
 
               <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>Rejection Details *</Text>
               <TextInput
@@ -1543,6 +1543,48 @@ export default function Payments({ navigation, route }) {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* Reason Category Modal */}
+      <Modal
+        visible={reasonModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setReasonModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setReasonModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.modalTitle, { marginBottom: 20 }]}>Select Reason</Text>
+            {[
+              ...CASH_REJECTION_REASONS
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = rejectReasonCode === option.id;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[styles.statusModalOption, isLast && styles.statusModalOptionLast]}
+                  onPress={() => {
+                    setRejectReasonCode(option.id);
+                    setReasonModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.statusModalOptionText}>{option.label}</Text>
+                  {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusModalOption, styles.statusModalOptionLast]}
+              onPress={() => setReasonModalVisible(false)}
+            >
+              <Text style={[styles.statusModalOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );

@@ -234,6 +234,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   const [proxyOccupants, setProxyOccupants] = useState([createEmptyOccupant()]);
   const [activeProxyDobPickerIndex, setActiveProxyDobPickerIndex] = useState(null);
+  const [proxySexModalVisible, setProxySexModalVisible] = useState(false);
+  const [activeProxySexIndex, setActiveProxySexIndex] = useState(null);
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param
   const activeRoom = roomData || room;
@@ -1768,28 +1770,25 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       <Text style={styles.proxyFieldHelp}>Birth date only, not move-in date. Occupant must be at least 18 years old.</Text>
 
                       <Text style={styles.proxyFieldLabel}>Sex <Text style={styles.requiredAsterisk}>*</Text></Text>
-                      <View style={styles.proxyGenderPickerWrapper}>
-                        <Picker
-                          testID={`proxy-occupant-sex-${index}`}
-                          selectedValue={occupant.sex || requiredProxyGender || ''}
-                          onValueChange={(value) => handleProxyOccupantChange(index, 'sex', value)}
-                          enabled={!requiredProxyGender}
-                          style={styles.proxyGenderPicker}
-                        >
-                          {requiredProxyGender ? (
-                            <Picker.Item
-                              label={requiredProxyGender === 'male' ? 'Male' : 'Female'}
-                              value={requiredProxyGender}
-                            />
-                          ) : (
-                            <>
-                              <Picker.Item label="Select sex" value="" />
-                              <Picker.Item label="Male" value="male" />
-                              <Picker.Item label="Female" value="female" />
-                            </>
-                          )}
-                        </Picker>
-                      </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.selectTrigger,
+                          { marginBottom: 10, minHeight: 48 },
+                          requiredProxyGender ? { backgroundColor: theme.colors.backgroundSecondary } : {}
+                        ]}
+                        disabled={!!requiredProxyGender}
+                        onPress={() => {
+                          setActiveProxySexIndex(index);
+                          setProxySexModalVisible(true);
+                        }}
+                      >
+                        <Text style={styles.selectTriggerText}>
+                          {(occupant.sex || requiredProxyGender)
+                            ? (normalizeGenderValue(occupant.sex || requiredProxyGender) === 'male' ? 'Male' : 'Female')
+                            : 'Select sex'}
+                        </Text>
+                        {!requiredProxyGender && <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />}
+                      </TouchableOpacity>
                       {requiredProxyGender ? (
                         <Text style={[styles.proxyFieldHelp, { color: theme.colors.error || '#ef4444' }]}>
                           This room is restricted to {requiredProxyGender === 'male' ? 'boys' : 'girls'} only.
@@ -2105,6 +2104,50 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             </ScrollView>
           </View>
         </View>
+      </Modal>
+      {/* Proxy Sex Modal */}
+      <Modal
+        visible={proxySexModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setProxySexModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setProxySexModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Sex</Text>
+            {[
+              { label: "Male", value: "male" },
+              { label: "Female", value: "female" },
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = activeProxySexIndex !== null && normalizeGenderValue(proxyOccupants[activeProxySexIndex]?.sex) === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    if (activeProxySexIndex !== null) {
+                      handleProxyOccupantChange(activeProxySexIndex, 'sex', option.value);
+                    }
+                    setProxySexModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.statusOptionText}>{option.label}</Text>
+                  {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setProxySexModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );

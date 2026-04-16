@@ -55,6 +55,8 @@ export default function AddonManagement({ route, navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [rejectContext, setRejectContext] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
+  const [priceTypeModalVisible, setPriceTypeModalVisible] = useState(false);
+  const [addonTypeModalVisible, setAddonTypeModalVisible] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -839,38 +841,30 @@ export default function AddonManagement({ route, navigation }) {
                 </View>
                 <View style={[styles.inputGroup, styles.flex1]}>
                   <Text style={styles.label}>Price Type *</Text>
-                  <View style={styles.pickerWrapper}>
-                    <Picker
-                      selectedValue={formData.price_type}
-                      onValueChange={(value) => setFormData({ ...formData, price_type: value })}
-                      mode="dropdown"
-                      itemStyle={styles.pickerItem}
-                      dropdownIconColor={theme.colors.textSecondary}
-                      style={styles.picker}
-                    >
-                      <Picker.Item label="Monthly" value="monthly" />
-                      <Picker.Item label="One-time" value="one_time" />
-                    </Picker>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.selectTrigger}
+                    onPress={() => setPriceTypeModalVisible(true)}
+                  >
+                    <Text style={styles.selectTriggerText}>
+                      {formData.price_type === 'monthly' ? 'Monthly' : 'One-time'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
                 </View>
               </View>
 
               <View style={styles.row}>
                 <View style={[styles.inputGroup, styles.flex1]}>
                   <Text style={styles.label}>Add-on Type *</Text>
-                  <View style={styles.pickerWrapper}>
-                    <Picker
-                      selectedValue={formData.addon_type}
-                      onValueChange={(value) => setFormData({ ...formData, addon_type: value })}
-                      mode="dropdown"
-                      itemStyle={styles.pickerItem}
-                      dropdownIconColor={theme.colors.textSecondary}
-                      style={styles.picker}
-                    >
-                      <Picker.Item label="Usage Fee" value="fee" />
-                      <Picker.Item label="Rental" value="rental" />
-                    </Picker>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.selectTrigger}
+                    onPress={() => setAddonTypeModalVisible(true)}
+                  >
+                    <Text style={styles.selectTriggerText}>
+                      {formData.addon_type === 'fee' ? 'Usage Fee' : 'Rental'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
                 </View>
                 <View style={[styles.inputGroup, styles.flex1]}>
                   <Text style={styles.label}>Stock (Rentals)</Text>
@@ -978,6 +972,91 @@ export default function AddonManagement({ route, navigation }) {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Selection Modals */}
+      <Modal
+        visible={priceTypeModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setPriceTypeModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setPriceTypeModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.modalTitle, { marginBottom: 20 }]}>Select Price Type</Text>
+            {[
+              { label: 'Monthly', value: 'monthly' },
+              { label: 'One-time', value: 'one_time' }
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = formData.price_type === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    setFormData({ ...formData, price_type: option.value });
+                    setPriceTypeModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.statusOptionText}>{option.label}</Text>
+                  {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setPriceTypeModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={addonTypeModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setAddonTypeModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setAddonTypeModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.modalTitle, { marginBottom: 20 }]}>Select Add-on Type</Text>
+            {[
+              { label: 'Usage Fee', value: 'fee' },
+              { label: 'Rental', value: 'rental' }
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = formData.addon_type === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    setFormData({ ...formData, addon_type: option.value });
+                    setAddonTypeModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.statusOptionText}>{option.label}</Text>
+                  {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setAddonTypeModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );

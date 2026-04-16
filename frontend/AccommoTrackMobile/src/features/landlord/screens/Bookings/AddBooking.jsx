@@ -7,7 +7,9 @@ import {
   TextInput,
   StatusBar,
   ActivityIndicator,
-  Platform
+  Platform,
+  Modal,
+  Pressable
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,6 +68,11 @@ export default function AddBooking({ navigation }) {
   const [guestResults, setGuestResults] = useState([]);
   const [selectedGuest, setSelectedGuest] = useState(null);
   const [isSearchingGuests, setIsSearchingGuests] = useState(false);
+
+  const [propertyModalVisible, setPropertyModalVisible] = useState(false);
+  const [roomModalVisible, setRoomModalVisible] = useState(false);
+  const [bedCountModalVisible, setBedCountModalVisible] = useState(false);
+  const [paymentPlanModalVisible, setPaymentPlanModalVisible] = useState(false);
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -483,79 +490,55 @@ export default function AddBooking({ navigation }) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Select Property <Text style={styles.requiredAsterisk}>*</Text></Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                testID="add-booking-property-picker"
-                selectedValue={formData.propertyId}
-                onValueChange={(value) => handlePropertyChange(value)}
-                style={styles.picker}
-                itemStyle={styles.pickerItem}
-                dropdownIconColor={theme.colors.textSecondary}
-                mode="dropdown"
-              >
-                <Picker.Item label="Select a property" value="" />
-                {properties.map((prop) => (
-                  <Picker.Item key={prop.id} label={prop.title} value={prop.id} />
-                ))}
-              </Picker>
-            </View>
+            <TouchableOpacity
+              testID="add-booking-property-picker"
+              style={styles.selectTrigger}
+              onPress={() => setPropertyModalVisible(true)}
+            >
+              <Text style={styles.selectTriggerText}>
+                {properties.find(p => String(p.id) === String(formData.propertyId))?.title || 'Select a property'}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Select Room <Text style={styles.requiredAsterisk}>*</Text></Text>
-            <View style={styles.pickerWrapper}>
-              {loadingRooms ? (
-                <ActivityIndicator size="small" color="#16a34a" style={{ padding: 8 }} />
-              ) : (
-                <Picker
-                  testID="add-booking-room-picker"
-                  selectedValue={formData.roomId}
-                  onValueChange={(value) => handleRoomChange(value)}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItem}
-                  dropdownIconColor={theme.colors.textSecondary}
-                  mode="dropdown"
-                  enabled={formData.propertyId !== ''}
-                >
-                  <Picker.Item label={rooms.length === 0 ? "No available rooms" : "Select a room"} value="" />
-                  {rooms.map((room) => (
-                    <Picker.Item
-                      key={room.id}
-                      label={`Room ${room.room_number} (${room.type_label})${room.sex_restriction && room.sex_restriction !== 'mixed' ? ` - ${String(room.sex_restriction).toUpperCase()} ONLY` : ''}`}
-                      value={room.id}
-                    />
-                  ))}
-                </Picker>
-              )}
-            </View>
+            {loadingRooms ? (
+              <View style={[styles.selectTrigger, { justifyContent: 'center' }]}>
+                <ActivityIndicator size="small" color="#16a34a" />
+              </View>
+            ) : (
+              <TouchableOpacity
+                testID="add-booking-room-picker"
+                style={[styles.selectTrigger, formData.propertyId === '' && { opacity: 0.5 }]}
+                disabled={formData.propertyId === ''}
+                onPress={() => setRoomModalVisible(true)}
+              >
+                <Text style={styles.selectTriggerText}>
+                  {selectedRoom 
+                    ? `Room ${selectedRoom.room_number} (${selectedRoom.type_label})` 
+                    : (rooms.length === 0 ? "No available rooms" : "Select a room")}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {selectedRoom && isBedSpacerRoom && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Number of Beds <Text style={styles.requiredAsterisk}>*</Text></Text>
               {maxSelectableBeds > 1 ? (
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    testID="add-booking-bed-count-picker"
-                    selectedValue={formData.bedCount}
-                    onValueChange={(value) => setFormData((prev) => ({
-                      ...prev,
-                      bedCount: Number(value),
-                    }))}
-                    style={styles.picker}
-                    itemStyle={styles.pickerItem}
-                    dropdownIconColor={theme.colors.textSecondary}
-                    mode="dropdown"
-                  >
-                    {[...Array(maxSelectableBeds)].map((_, index) => (
-                      <Picker.Item
-                        key={`bed-count-${index + 1}`}
-                        label={`${index + 1} ${index === 0 ? 'Bed' : 'Beds'}`}
-                        value={index + 1}
-                      />
-                    ))}
-                  </Picker>
-                </View>
+                <TouchableOpacity
+                  testID="add-booking-bed-count-picker"
+                  style={styles.selectTrigger}
+                  onPress={() => setBedCountModalVisible(true)}
+                >
+                  <Text style={styles.selectTriggerText}>
+                    {formData.bedCount} {formData.bedCount === 1 ? 'Bed' : 'Beds'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
               ) : (
                 <View testID="add-booking-bed-count-static" style={styles.staticInfoBox}>
                   <Text style={styles.staticInfoText}>1 Bed</Text>
@@ -645,19 +628,15 @@ export default function AddBooking({ navigation }) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Payment Plan</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={formData.paymentPlan}
-                onValueChange={(value) => setFormData({ ...formData, paymentPlan: value })}
-                style={styles.picker}
-                itemStyle={styles.pickerItem}
-                dropdownIconColor={theme.colors.textSecondary}
-                mode="dropdown"
-              >
-                <Picker.Item label="Full Payment (Total Stay)" value="full" />
-                <Picker.Item label="Monthly Installments" value="monthly" />
-              </Picker>
-            </View>
+            <TouchableOpacity
+              style={styles.selectTrigger}
+              onPress={() => setPaymentPlanModalVisible(true)}
+            >
+              <Text style={styles.selectTriggerText}>
+                {formData.paymentPlan === 'full' ? 'Full Payment (Total Stay)' : 'Monthly Installments'}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -674,6 +653,183 @@ export default function AddBooking({ navigation }) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Selection Modals */}
+      <Modal
+        visible={propertyModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setPropertyModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setPropertyModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={styles.sectionTitle}>Select Property</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {properties.map((option, index, arr) => {
+                const isLast = index === arr.length - 1;
+                const isActive = String(option.id) === String(formData.propertyId);
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      handlePropertyChange(option.id);
+                      setPropertyModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.statusOptionText}>{option.title}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setPropertyModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={roomModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setRoomModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setRoomModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={styles.sectionTitle}>Select Room</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {rooms.map((option, index, arr) => {
+                const isLast = index === arr.length - 1;
+                const isActive = String(option.id) === String(formData.roomId);
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      handleRoomChange(option.id);
+                      setRoomModalVisible(false);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.statusOptionText}>Room {option.room_number} ({option.type_label})</Text>
+                      {option.sex_restriction && option.sex_restriction !== 'mixed' && (
+                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>{String(option.sex_restriction).toUpperCase()} ONLY</Text>
+                      )}
+                    </View>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+              {rooms.length === 0 && (
+                <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                  <Text style={{ color: theme.colors.textSecondary }}>No available rooms found for this property.</Text>
+                </View>
+              )}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setRoomModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={bedCountModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setBedCountModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setBedCountModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={styles.sectionTitle}>Number of Beds</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[...Array(maxSelectableBeds)].map((_, index, arr) => {
+                const val = index + 1;
+                const isLast = index === arr.length - 1;
+                const isActive = formData.bedCount === val;
+                return (
+                  <TouchableOpacity
+                    key={`bed-count-${val}`}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      setFormData(prev => ({ ...prev, bedCount: val }));
+                      setBedCountModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.statusOptionText}>{val} {val === 1 ? 'Bed' : 'Beds'}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setBedCountModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={paymentPlanModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setPaymentPlanModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setPaymentPlanModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={styles.sectionTitle}>Select Payment Plan</Text>
+            {[
+              { label: 'Full Payment (Total Stay)', value: 'full' },
+              { label: 'Monthly Installments', value: 'monthly' }
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = formData.paymentPlan === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    setFormData({ ...formData, paymentPlan: option.value });
+                    setPaymentPlanModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.statusOptionText}>{option.label}</Text>
+                  {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setPaymentPlanModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

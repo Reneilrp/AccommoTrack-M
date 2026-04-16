@@ -155,13 +155,43 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
-    minHeight: 56,
+    minHeight: 52,
     backgroundColor: theme.colors.background,
     marginBottom: 16,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  statusModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  statusSheet: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border,
+    maxHeight: '80%'
+  },
+  statusOption: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  statusOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text
+  },
+  statusOptionLast: {
+    borderBottomWidth: 0
   },
   selectTriggerText: {
     flex: 1,

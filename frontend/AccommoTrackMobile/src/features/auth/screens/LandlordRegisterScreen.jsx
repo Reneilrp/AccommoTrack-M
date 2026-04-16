@@ -133,6 +133,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [idTypeModalVisible, setIdTypeModalVisible] = useState(false);
 
   // ID types
   const [idTypes, setIdTypes] = useState([]);
@@ -694,19 +695,15 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                   {idTypesLoading ? (
                     <ActivityIndicator color={theme.colors.primary} style={{ marginBottom: 16 }} />
                   ) : (
-                    <View style={styles.idTypePickerWrapper}>
-                      <Picker
-                        selectedValue={form.validIdType}
-                        onValueChange={(value) => handleChange('validIdType', value)}
-                        style={styles.idTypePicker}
-                      >
-                        <Picker.Item label="Select ID Type" value="" />
-                        {idTypeOptions.map((type) => (
-                          <Picker.Item key={type} label={type} value={type} />
-                        ))}
-                        <Picker.Item label="Other (specify below)" value="other" />
-                      </Picker>
-                    </View>
+                    <TouchableOpacity
+                      style={styles.selectTrigger}
+                      onPress={() => setIdTypeModalVisible(true)}
+                    >
+                      <Text style={styles.selectTriggerText}>
+                        {form.validIdType || 'Select ID Type'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
                   )}
                   {fieldErrors.validIdType ? <Text style={styles.inlineErrorText}>{fieldErrors.validIdType}</Text> : null}
                 </View>
@@ -830,6 +827,51 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ID Type Selection Modal */}
+      <Modal
+        visible={idTypeModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setIdTypeModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setIdTypeModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.title, { fontSize: 18, marginBottom: 20, textAlign: 'center' }]}>Select ID Type</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                ...idTypeOptions.map(type => ({ label: type, value: type })),
+                { label: "Other (specify below)", value: "other" }
+              ].map((option, index, arr) => {
+                const isLast = index === arr.length - 1;
+                const isActive = form.validIdType === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      handleChange('validIdType', option.value);
+                      setIdTypeModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setIdTypeModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

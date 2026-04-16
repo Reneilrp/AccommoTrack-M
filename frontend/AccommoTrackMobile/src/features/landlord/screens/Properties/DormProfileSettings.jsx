@@ -214,6 +214,9 @@ export default function DormProfileSettings({ route, navigation }) {
   const [password, setPassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [isPayMongoVerified, setIsPayMongoVerified] = useState(false);
+  const [propertyTypeModalVisible, setPropertyTypeModalVisible] = useState(false);
+  const [sexRestrictionModalVisible, setSexRestrictionModalVisible] = useState(false);
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
 
   const settingsQuery = useQuery({
     queryKey: landlordQueryKeys.propertySettings(propertyId),
@@ -802,57 +805,41 @@ export default function DormProfileSettings({ route, navigation }) {
           <Text style={styles.sectionSubtitle}>Define room capacities and managed floors</Text>
 
           <Text style={styles.label}>Property Type</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              testID="dorm-profile-property-type-picker"
-              mode={pickerMode}
-              prompt="Select property type"
-              selectedValue={form.propertyType}
-              onValueChange={(val) => updateForm('propertyType', val)}
-              style={styles.picker}
-              itemStyle={styles.pickerItem}
-              dropdownIconColor={theme.colors.textSecondary}
-            >
-              <Picker.Item label="Select Type" value="" />
-              {PROPERTY_TYPES.map(t => <Picker.Item key={t.value} label={t.label} value={t.value} />)}
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.selectTrigger}
+            onPress={() => setPropertyTypeModalVisible(true)}
+          >
+            <Text style={styles.selectTriggerText}>
+              {PROPERTY_TYPES.find(t => t.value === form.propertyType)?.label || 'Select Type'}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
 
           {isGenderRestricted && (
             <>
               <Text style={styles.label}>Sex Restriction</Text>
-              <View style={styles.pickerWrapper}>
-                <Picker
-                  testID="dorm-profile-sex-picker"
-                  mode={pickerMode}
-                  prompt="Select sex restriction"
-                  selectedValue={form.sexRestriction}
-                  onValueChange={(val) => updateForm('sexRestriction', val)}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItem}
-                  dropdownIconColor={theme.colors.textSecondary}
-                >
-                  {GENDER_OPTIONS.map(o => <Picker.Item key={o.value} label={o.label} value={o.value} />)}
-                </Picker>
-              </View>
+              <TouchableOpacity
+                style={styles.selectTrigger}
+                onPress={() => setSexRestrictionModalVisible(true)}
+              >
+                <Text style={styles.selectTriggerText}>
+                  {GENDER_OPTIONS.find(o => o.value === form.sexRestriction)?.label || 'Select Sex'}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
             </>
           )}
 
           <Text style={styles.label}>Status</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              testID="dorm-profile-status-picker"
-              mode={pickerMode}
-              prompt="Select property status"
-              selectedValue={form.status}
-              onValueChange={(val) => updateForm('status', val)}
-              style={styles.picker}
-              itemStyle={styles.pickerItem}
-              dropdownIconColor={theme.colors.textSecondary}
-            >
-              {STATUS_OPTIONS.map(o => <Picker.Item key={o.value} label={o.label} value={o.value} />)}
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.selectTrigger}
+            onPress={() => setStatusModalVisible(true)}
+          >
+            <Text style={styles.selectTriggerText}>
+              {STATUS_OPTIONS.find(o => o.value === form.status)?.label || 'Select Status'}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
 
           <View style={styles.switchRowContainer}>
             <View style={{ flex: 1 }}>
@@ -1279,6 +1266,130 @@ export default function DormProfileSettings({ route, navigation }) {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Selection Modals */}
+      <Modal
+        visible={propertyTypeModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setPropertyTypeModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setPropertyTypeModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Property Type</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {PROPERTY_TYPES.map((option, index, arr) => {
+                const isLast = index === arr.length - 1;
+                const isActive = option.value === form.propertyType;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      updateForm('propertyType', option.value);
+                      setPropertyTypeModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setPropertyTypeModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={sexRestrictionModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setSexRestrictionModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setSexRestrictionModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Sex Restriction</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {GENDER_OPTIONS.map((option, index, arr) => {
+                const isLast = index === arr.length - 1;
+                const isActive = option.value === form.sexRestriction;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      updateForm('sexRestriction', option.value);
+                      setSexRestrictionModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setSexRestrictionModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={statusModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setStatusModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setStatusModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Status</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {STATUS_OPTIONS.map((option, index, arr) => {
+                const isLast = index === arr.length - 1;
+                const isActive = option.value === form.status;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      updateForm('status', option.value);
+                      setStatusModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setStatusModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );

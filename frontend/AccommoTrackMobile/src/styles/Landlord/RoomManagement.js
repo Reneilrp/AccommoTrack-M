@@ -867,6 +867,39 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row', 
     gap: 8
   },
+  requiredAsterisk: {
+    color: '#EF4444',
+    marginLeft: 2,
+    fontWeight: '700'
+  },
+  promoCard: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 16,
+    gap: 12
+  },
+  promoCardActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '05'
+  },
+  promoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  promoTermText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text
+  },
+  promoInputs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4
+  },
 });
 
 export default getStyles;

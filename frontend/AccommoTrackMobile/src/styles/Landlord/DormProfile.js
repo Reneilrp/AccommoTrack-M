@@ -84,6 +84,55 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
     marginBottom: 6
   },
+  selectTrigger: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    minHeight: 52,
+    backgroundColor: theme.colors.background,
+    marginBottom: 16,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectTriggerText: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: '500',
+    paddingRight: 8,
+  },
+  statusModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  statusSheet: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border,
+    maxHeight: '80%'
+  },
+  statusOption: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  statusOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text
+  },
+  statusOptionLast: {
+    borderBottomWidth: 0
+  },
   pickerWrapper: {
     borderWidth: 1,
     borderColor: theme.colors.border,

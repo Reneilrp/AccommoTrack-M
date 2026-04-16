@@ -228,6 +228,9 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [floorSelectModalVisible, setFloorSelectModalVisible] = useState(false);
   const [roomTypeSelectModalVisible, setRoomTypeSelectModalVisible] = useState(false);
   const [genderSelectModalVisible, setGenderSelectModalVisible] = useState(false);
+  const [billingPolicySelectModalVisible, setBillingPolicySelectModalVisible] = useState(false);
+  const [promoTermSelectModalVisible, setPromoTermSelectModalVisible] = useState(false);
+  const [activePromoTerm, setActivePromoTerm] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [detailRoom, setDetailRoom] = useState(null);
   const [expandedDetailProxyKeys, setExpandedDetailProxyKeys] = useState({});
@@ -1607,24 +1610,23 @@ export default function RoomManagementScreen({ navigation, route }) {
             {/* Billing Row */}
             <Text style={styles.sectionTitle}>Billing & Rates</Text>
             <Text style={styles.label}>Billing Policy</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                mode={pickerMode}
-                style={styles.picker}
-                itemStyle={styles.pickerItem}
-                dropdownIconColor={theme.colors.textSecondary}
-                selectedValue={formData.billingPolicy}
-                onValueChange={(v) => handleInputChange("billingPolicy", v)}
-              >
-                <Picker.Item label="Monthly Rate" value="monthly" color={pickerTextColor} />
-                <Picker.Item
-                  label="Monthly + Daily"
-                  value="monthly_with_daily"
-                  color={pickerTextColor}
-                />
-                <Picker.Item label="Daily Rate" value="daily" color={pickerTextColor} />
-              </Picker>
-            </View>
+            <TouchableOpacity
+              style={styles.selectTrigger}
+              onPress={() => setBillingPolicySelectModalVisible(true)}
+            >
+              <Text style={styles.selectTriggerText}>
+                {getOptionLabel(
+                  [
+                    { label: "Monthly Rate", value: "monthly" },
+                    { label: "Monthly + Daily", value: "monthly_with_daily" },
+                    { label: "Daily Rate", value: "daily" },
+                  ],
+                  formData.billingPolicy,
+                  "Select billing policy"
+                )}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
 
             <View style={styles.inputRow}>
               {formData.billingPolicy !== "daily" && (
@@ -1893,19 +1895,18 @@ export default function RoomManagementScreen({ navigation, route }) {
                     </View>
                     {promo.enabled && (
                       <View style={styles.promoInputs}>
-                        <View style={[styles.pickerWrapper, { flex: 1, marginRight: 8 }]}>
-                          <Picker
-                            mode={pickerMode}
-                            style={styles.picker}
-                            itemStyle={styles.pickerItem}
-                            dropdownIconColor={theme.colors.textSecondary}
-                            selectedValue={promo.discountType}
-                            onValueChange={(v) => updateDurationPricing(term, { discountType: v })}
-                          >
-                            <Picker.Item label="% Off" value="percent" color={pickerTextColor} />
-                            <Picker.Item label="PHP Off" value="fixed" color={pickerTextColor} />
-                          </Picker>
-                        </View>
+                        <TouchableOpacity
+                          style={[styles.selectTrigger, { flex: 1, marginRight: 8, marginBottom: 0 }]}
+                          onPress={() => {
+                            setActivePromoTerm(term);
+                            setPromoTermSelectModalVisible(true);
+                          }}
+                        >
+                          <Text style={styles.selectTriggerText}>
+                            {promo.discountType === "percent" ? "% Off" : "PHP Off"}
+                          </Text>
+                          <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                        </TouchableOpacity>
                         <TextInput
                           style={[styles.input, { flex: 1, marginBottom: 0 }]}
                           keyboardType="numeric"
@@ -2240,11 +2241,107 @@ export default function RoomManagementScreen({ navigation, route }) {
               <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </View>
+        </Modal>
 
-      {/* Status Modal */}
-      <Modal
+        <Modal
+        visible={billingPolicySelectModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setBillingPolicySelectModalVisible(false)}
+        >
+        <Pressable
+          style={styles.statusModalOverlay}
+          onPress={() => setBillingPolicySelectModalVisible(false)}
+        >
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Billing Policy</Text>
+            {[
+              { label: "Monthly Rate", value: "monthly" },
+              { label: "Monthly + Daily", value: "monthly_with_daily" },
+              { label: "Daily Rate", value: "daily" },
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = option.value === formData.billingPolicy;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    handleInputChange("billingPolicy", option.value);
+                    setBillingPolicySelectModalVisible(false);
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setBillingPolicySelectModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+        </Modal>
+
+        <Modal
+        visible={promoTermSelectModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setPromoTermSelectModalVisible(false)}
+        >
+        <Pressable
+          style={styles.statusModalOverlay}
+          onPress={() => setPromoTermSelectModalVisible(false)}
+        >
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Discount Type</Text>
+            {[
+              { label: "% Off", value: "percent" },
+              { label: "PHP Off", value: "fixed" },
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = activePromoTerm ? formData.durationPricing?.[activePromoTerm]?.discountType === option.value : false;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    if (activePromoTerm) {
+                      updateDurationPricing(activePromoTerm, { discountType: option.value });
+                    }
+                    setPromoTermSelectModalVisible(false);
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setPromoTermSelectModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+        </Modal>
+
+        <Modal
         visible={statusModalVisible}
         transparent
         animationType="fade"

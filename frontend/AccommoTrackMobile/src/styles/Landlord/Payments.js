@@ -286,6 +286,31 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.backgroundSecondary,
     borderColor: theme.colors.border,
   },
+  statusSheet: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border,
+    maxHeight: '80%'
+  },
+  statusModalOption: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  statusModalOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text
+  },
+  statusModalOptionLast: {
+    borderBottomWidth: 0
+  },
   statusOptionText: {
     fontSize: 14,
     fontWeight: '700',

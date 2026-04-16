@@ -754,6 +754,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showAuthMenu, setShowAuthMenu] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [sexModalVisible, setSexModalVisible] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
   const [emailAvailable, setEmailAvailable] = useState(null);
@@ -1514,22 +1515,21 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                     {fieldErrors.dateOfBirth && <Text style={styles.inlineErrorText}>{fieldErrors.dateOfBirth}</Text>}
 
                     {/* Sex Field */}
-                    <View style={[styles.inputContainer, { paddingVertical: Platform.OS === 'ios' ? 4 : 0 }]}>
-                      <Ionicons name="transgender-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                      <View style={{ flex: 1, justifyContent: 'center', height: Platform.OS === 'ios' ? 40 : 50 }}>
-                        <Picker
-                          selectedValue={formData.sex}
-                          onValueChange={(itemValue) => handleInputChange('sex', itemValue)}
-                          style={{ color: formData.sex ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}
-                          dropdownIconColor="#9CA3AF"
-                        >
-                          <Picker.Item label="Select Sex" value="" color="#9CA3AF" />
-                          <Picker.Item label="Male" value="male" />
-                          <Picker.Item label="Female" value="female" />
-                        </Picker>
-                      </View>
+                    <View style={{ marginBottom: 16 }}>
+                      <TouchableOpacity
+                        style={styles.selectTrigger}
+                        onPress={() => setSexModalVisible(true)}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons name="transgender-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                          <Text style={{ color: formData.sex ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF', fontSize: 16 }}>
+                            {formData.sex ? (formData.sex === 'male' ? 'Male' : 'Female') : 'Select Sex'}
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
+                      </TouchableOpacity>
+                      {fieldErrors.sex && <Text style={styles.inlineErrorText}>{fieldErrors.sex}</Text>}
                     </View>
-                    {fieldErrors.sex && <Text style={styles.inlineErrorText}>{fieldErrors.sex}</Text>}
 
                     {/* Next Button */}
                     <TouchableOpacity
@@ -1759,6 +1759,49 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Sex Selection Modal */}
+      <Modal
+        visible={sexModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setSexModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setSexModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.title, { fontSize: 18, marginBottom: 20, textAlign: 'center' }]}>Select Sex</Text>
+            {[
+              { label: "Male", value: "male" },
+              { label: "Female", value: "female" },
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = formData.sex === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    handleInputChange('sex', option.value);
+                    setSexModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.statusOptionText}>{option.label}</Text>
+                  {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setSexModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
