@@ -91,6 +91,43 @@ const computeInvoiceTotals = (invoice) => {
   };
 };
 
+const buildTenantName = (invoice) => {
+  const directTenant = invoice?.tenant;
+  const bookingTenant = invoice?.booking?.tenant;
+
+  const fromProfile =
+    directTenant?.full_name ||
+    [directTenant?.first_name, directTenant?.last_name].filter(Boolean).join(' ').trim() ||
+    bookingTenant?.full_name ||
+    [bookingTenant?.first_name, bookingTenant?.last_name].filter(Boolean).join(' ').trim();
+
+  return (
+    fromProfile ||
+    invoice?.tenant_name ||
+    invoice?.booking?.tenant_name ||
+    null
+  );
+};
+
+const buildRoomLabel = (invoice) => {
+  const room = invoice?.booking?.room || invoice?.room || null;
+  const rawRoomValue =
+    room?.room_number ||
+    room?.name ||
+    room?.room_name ||
+    invoice?.room_number ||
+    invoice?.room_name ||
+    invoice?.booking?.room_number ||
+    invoice?.booking?.room_name ||
+    null;
+
+  if (!rawRoomValue) return null;
+
+  const value = String(rawRoomValue).trim();
+  if (!value) return null;
+  return /^room\b/i.test(value) ? value : `Room ${value}`;
+};
+
 const buildHistory = (invoices) => {
   const events = [];
 
@@ -220,6 +257,8 @@ export default function BillingCenterScreen({ navigation }) {
             id: tx.id,
             invoiceId: invoice.id,
             invoiceReference: invoice.reference,
+            tenantName: buildTenantName(invoice),
+            roomLabel: buildRoomLabel(invoice),
             method: tx.method || 'unknown',
             status: tx.status || 'pending',
             amount: Number(tx.amount_cents ? tx.amount_cents / 100 : tx.amount || 0),
@@ -463,6 +502,10 @@ export default function BillingCenterScreen({ navigation }) {
                 <Text style={styles.itemMeta}>
                   Due: {formatDate(invoice.due_date)} • {String(invoice.status).replace(/_/g, ' ')}
                 </Text>
+                {buildTenantName(invoice) ? (
+                  <Text style={styles.itemMeta}>Tenant: {buildTenantName(invoice)}</Text>
+                ) : null}
+                {buildRoomLabel(invoice) ? <Text style={styles.itemMeta}>{buildRoomLabel(invoice)}</Text> : null}
               </View>
             ))}
 
@@ -486,6 +529,8 @@ export default function BillingCenterScreen({ navigation }) {
                 <Text style={styles.itemMeta}>
                   {payment.method} • {String(payment.status).replace(/_/g, ' ')} • {formatDate(payment.createdAt)}
                 </Text>
+                {payment.tenantName ? <Text style={styles.itemMeta}>Tenant: {payment.tenantName}</Text> : null}
+                {payment.roomLabel ? <Text style={styles.itemMeta}>{payment.roomLabel}</Text> : null}
               </View>
             ))}
 
@@ -502,6 +547,10 @@ export default function BillingCenterScreen({ navigation }) {
                   <Text style={styles.itemAmount}>{formatCurrency(invoice.totals.total)}</Text>
                 </View>
                 <Text style={styles.itemMeta}>Status: {String(invoice.status).replace(/_/g, ' ')}</Text>
+                {buildTenantName(invoice) ? (
+                  <Text style={styles.itemMeta}>Tenant: {buildTenantName(invoice)}</Text>
+                ) : null}
+                {buildRoomLabel(invoice) ? <Text style={styles.itemMeta}>{buildRoomLabel(invoice)}</Text> : null}
               </View>
             ))}
 

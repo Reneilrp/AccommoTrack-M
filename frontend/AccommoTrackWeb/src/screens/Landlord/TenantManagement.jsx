@@ -153,6 +153,22 @@ export default function TenantManagement() {
     return new Date(scheduledFor).getTime() <= Date.now();
   };
 
+  const formatEvictionFinalizeAt = (tenant) => {
+    const scheduledFor = tenant?.pending_eviction?.scheduled_for;
+    if (!scheduledFor) return null;
+
+    const dueDate = new Date(scheduledFor);
+    if (Number.isNaN(dueDate.getTime())) return null;
+
+    return dueDate.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
   const isFromProperty = Boolean(new URLSearchParams(location.search).get('property'));
 
   const handleBackClick = () => {
@@ -260,6 +276,17 @@ export default function TenantManagement() {
   };
 
   const handleEvictionFinalize = async (tenant) => {
+    const due = isEvictionDue(tenant);
+    if (!due) {
+      const availableAt = formatEvictionFinalizeAt(tenant);
+      toast.error(
+        availableAt
+          ? `Eviction can be finalized on ${availableAt}.`
+          : 'Eviction is still in grace period and cannot be finalized yet.',
+      );
+      return;
+    }
+
     const confirmed = window.confirm(`Finalize eviction for ${tenant.first_name} ${tenant.last_name}?`);
     if (!confirmed) return;
 
@@ -1370,6 +1397,7 @@ const TenantListView = ({
               const hasPendingEviction = Boolean(tenant.pending_eviction);
               const canUndoEviction = Boolean(tenant.can_undo_eviction);
               const evictionDue = isEvictionDue ? isEvictionDue(tenant) : false;
+              const evictionFinalizeAt = formatEvictionFinalizeAt(tenant);
 
               return (
                 <React.Fragment key={tenant.id}>
@@ -1519,10 +1547,16 @@ const TenantListView = ({
                               <button
                                 onClick={() => { setOpenMenuId(null); onEvictionFinalize?.(tenant); }}
                                 disabled={!canTransfer || !evictionDue}
+                                title={!evictionDue && evictionFinalizeAt ? `Available on ${evictionFinalizeAt}` : undefined}
                                 className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <UserX className="w-3.5 h-3.5" /> Finalize Eviction
                               </button>
+                              {!evictionDue && evictionFinalizeAt && (
+                                <p className="px-4 pb-2 text-[10px] text-amber-700 dark:text-amber-300">
+                                  Finalize available on {evictionFinalizeAt}
+                                </p>
+                              )}
                               <button
                                 onClick={() => { setOpenMenuId(null); onEvictionCancel?.(tenant); }}
                                 disabled={!canTransfer}

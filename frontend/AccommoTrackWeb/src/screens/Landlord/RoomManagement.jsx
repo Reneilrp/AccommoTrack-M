@@ -48,15 +48,13 @@ const resolveRoomUiStatus = (room) => {
     ? Math.max(0, explicitAvailableSlots)
     : Math.max(0, capacity - occupiedCount);
 
-  if (typeof room?.is_available === 'boolean') {
-    if (room.is_available && availableSlots > 0) return 'available';
-    if (!room.is_available && availableSlots > 0) return 'reserved';
+  if (availableSlots > 0) {
+    return rawStatus === 'reserved' ? 'reserved' : 'available';
   }
 
-  if (availableSlots > 0) return 'available';
   if (occupiedCount >= capacity) return 'occupied';
 
-  return rawStatus === 'occupied' ? 'occupied' : 'reserved';
+  return rawStatus === 'reserved' ? 'reserved' : 'occupied';
 };
 
 const deriveRoomStats = (rooms = []) => {

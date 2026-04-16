@@ -668,7 +668,59 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
   const SETTLED_INVOICE_STATUSES = new Set(['paid', 'settled', 'succeeded', 'verified', 'completed']);
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
+  const totalPendingCount = (pendingBookings?.length || 0) + (pendingCheckIns?.length || 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
+  const [overdueTab, setOverdueTab] = useState('all');
+
+  const hasOverdueStays = (stays || []).some((stay) =>
+    Boolean(stay?.booking?.is_overdue || stay?.booking?.isOverdue),
+  );
+  const hasOverduePendingBookings = (pendingBookings || []).some((bookingEntry) =>
+    Boolean(bookingEntry?.is_overdue || bookingEntry?.isOverdue),
+  );
+  const hasOverduePendingCheckIns = (pendingCheckIns || []).length > 0;
+  const hasAnyOverdue = hasOverdueStays || hasOverduePendingBookings || hasOverduePendingCheckIns;
+
+  const filteredStays = React.useMemo(() => {
+    const source = Array.isArray(stays) ? stays : [];
+    if (!hasAnyOverdue || overdueTab === 'all') return source;
+
+    if (overdueTab === 'active') {
+      return source.filter((stay) => !(stay?.booking?.is_overdue || stay?.booking?.isOverdue));
+    }
+
+    if (overdueTab === 'pending') {
+      return [];
+    }
+
+    return source.filter((stay) => stay?.booking?.is_overdue || stay?.booking?.isOverdue);
+  }, [stays, hasAnyOverdue, overdueTab]);
+
+  const filteredPendingBookings = React.useMemo(() => {
+    const source = Array.isArray(pendingBookings) ? pendingBookings : [];
+    if (!hasAnyOverdue || overdueTab === 'all') return source;
+
+    if (overdueTab === 'active') {
+      return source.filter((bookingEntry) => !(bookingEntry?.is_overdue || bookingEntry?.isOverdue));
+    }
+
+    if (overdueTab === 'pending') {
+      return source.filter((bookingEntry) => !(bookingEntry?.is_overdue || bookingEntry?.isOverdue));
+    }
+
+    return source.filter((bookingEntry) => bookingEntry?.is_overdue || bookingEntry?.isOverdue);
+  }, [pendingBookings, hasAnyOverdue, overdueTab]);
+
+  const filteredPendingCheckIns = React.useMemo(() => {
+    const source = Array.isArray(pendingCheckIns) ? pendingCheckIns : [];
+    if (!hasAnyOverdue || overdueTab === 'all') return source;
+
+    if (overdueTab === 'pending') {
+      return [];
+    }
+
+    return source;
+  }, [pendingCheckIns, hasAnyOverdue, overdueTab]);
 
   useEffect(() => {
     if (hasStays && !hasPending && viewMode !== 'active') {
@@ -683,6 +735,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
   const showActiveView = hasStays && (viewMode === 'active' || !hasPending);
   const showPendingView = hasPending && (viewMode === 'pending' || !hasStays);
+  const displayedStays = showActiveView ? filteredStays : [];
+  const displayedPendingBookings = showPendingView ? filteredPendingBookings : [];
+  const displayedPendingCheckIns = showPendingView ? filteredPendingCheckIns : [];
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -953,7 +1008,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                 }`}
             >
-              Pending ({pendingBookings.length})
+              Pending ({totalPendingCount})
             </button>
           </div>
         ) : <div />}
@@ -968,10 +1023,51 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
         )}
       </div>
 
+      {hasAnyOverdue && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setOverdueTab('all')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'all'
+              ? 'bg-green-600 text-white border-green-600'
+              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700'
+              }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setOverdueTab('active')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'active'
+              ? 'bg-emerald-600 text-white border-emerald-600'
+              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700'
+              }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setOverdueTab('pending')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'pending'
+              ? 'bg-amber-600 text-white border-amber-600'
+              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700'
+              }`}
+          >
+            Pending
+          </button>
+          <button
+            onClick={() => setOverdueTab('overdue')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'overdue'
+              ? 'bg-red-600 text-white border-red-600'
+              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700'
+              }`}
+          >
+            Overdue
+          </button>
+        </div>
+      )}
+
       {/* PENDING VIEW */}
       {showPendingView && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {pendingCheckIns.map(pc => (
+          {displayedPendingCheckIns.map(pc => (
             <div key={pc.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4 animate-pulse" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Check-in Overdue</h3>
@@ -1020,7 +1116,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
               </div>
             </div>
           ))}
-          {pendingBookings.map(pb => {
+          {displayedPendingBookings.map(pb => {
             const startDate = pb?.start_date ? new Date(pb.start_date) : null;
             if (startDate) startDate.setHours(0, 0, 0, 0);
             const now = new Date();
@@ -1108,14 +1204,31 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                 </div>
               </div>
             );
-          })}        </div>
+          })}
+          {displayedPendingCheckIns.length === 0 && displayedPendingBookings.length === 0 && (
+            <div className="md:col-span-2 text-center py-10 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
+              <AlertCircle className="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No matching bookings</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Try switching the filter to view other booking states.</p>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ACTIVE STAY VIEW */}
       {showActiveView && (
         <div className="space-y-6">
           {(() => {
-            const data = stays[selectedIndex] || stays[0];
+            const data = displayedStays[selectedIndex] || displayedStays[0];
+            if (!data) {
+              return (
+                <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
+                  <Home className="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No matching active stays</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Try switching the filter to view other booking states.</p>
+                </div>
+              );
+            }
             const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
             const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
             const effectivePaymentStatus = booking.is_overdue || booking.isOverdue ? 'overdue' : booking.paymentStatus;

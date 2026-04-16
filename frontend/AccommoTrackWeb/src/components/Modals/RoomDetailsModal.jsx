@@ -929,6 +929,16 @@ export default function RoomDetailsModal({
   const normalizedPropertyType = normalizePropertyTypeToken(property?.property_type);
   const showGenderBadge = !(propertyType === "apartment" && roomGender === "mixed");
   const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
+  const parsedCapacity = Number(room.capacity ?? 1);
+  const parsedAvailableSlots = Number(room.available_slots ?? room.availableSlots);
+  const hasOpenSlots = Number.isFinite(parsedAvailableSlots)
+    ? parsedAvailableSlots > 0
+    : parsedCapacity > 0;
+  const effectiveDisplayStatus = (() => {
+    if (displayStatus === "maintenance") return "maintenance";
+    if (hasOpenSlots) return displayStatus === "reserved" ? "reserved" : "available";
+    return displayStatus === "reserved" ? "reserved" : "occupied";
+  })();
 
   const isTargetGenderRestrictedType = ["dormitory", "boardinghouse", "bedspacer"].includes(normalizedPropertyType);
   const tenantSex = normalizeTenantGender(resolveStoredTenantGender());
@@ -946,7 +956,7 @@ export default function RoomDetailsModal({
     : fallbackSexCompatible;
   const isRoomAvailable = room.is_available !== undefined ? room.is_available : (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
 
-  const canOpenBookingFlow = displayStatus === "available" && isRoomAvailable;
+  const canOpenBookingFlow = effectiveDisplayStatus === "available" && isRoomAvailable;
   const canBook = canOpenBookingFlow && (bookingMode === "proxy" || isSexCompatible);
   const baseTotalPrice = Number(totalPrice || 0);
   const promoDiscountedTotal = Number(promoOffer?.discounted_total ?? baseTotalPrice);
@@ -1002,10 +1012,10 @@ export default function RoomDetailsModal({
                           <span
                             className={`
                             px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm max-w-full truncate
-                            ${displayStatus === "available" ? "bg-green-100 text-green-700" : displayStatus === "reserved" ? "bg-amber-100 text-amber-800" : displayStatus === "maintenance" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}
+                            ${effectiveDisplayStatus === "available" ? "bg-green-100 text-green-700" : effectiveDisplayStatus === "reserved" ? "bg-amber-100 text-amber-800" : effectiveDisplayStatus === "maintenance" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}
                           `}
                           >
-                            {(room.display_status_label || displayStatus || "").toString()}
+                            {(room.display_status_label || effectiveDisplayStatus || "").toString()}
                           </span>
                         )}
 

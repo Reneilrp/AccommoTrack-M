@@ -452,25 +452,6 @@ export default function InvoiceCheckout() {
 
                     <div>
                       <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                        Upload Proof of Payment <span className="text-red-500 text-sm">*</span>
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleProofImageChange}
-                        className="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 dark:file:bg-gray-800 dark:file:text-white file:transition-colors"
-                      />
-                      {proofImagePreview && (
-                        <img
-                          src={proofImagePreview}
-                          alt="Proof of payment preview"
-                          className="mt-4 max-h-32 object-contain rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
-                        />
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
                         Notes / Message (Optional)
                       </label>
                       <textarea

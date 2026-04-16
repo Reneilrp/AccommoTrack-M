@@ -112,15 +112,13 @@ function resolveRoomAvailabilityStatus(room) {
     ? Math.max(0, explicitAvailableSlots)
     : Math.max(0, capacity - occupiedCount);
 
-  if (typeof room?.is_available === 'boolean') {
-    if (room.is_available && availableSlots > 0) return 'available';
-    if (!room.is_available && availableSlots > 0) return 'reserved';
+  if (availableSlots > 0) {
+    return rawStatus === 'reserved' ? 'reserved' : 'available';
   }
 
-  if (availableSlots > 0) return 'available';
   if (occupiedCount >= capacity) return 'occupied';
 
-  return rawStatus === 'occupied' ? 'occupied' : 'reserved';
+  return rawStatus === 'reserved' ? 'reserved' : 'occupied';
 }
 
 function extractSuggestedPrice(value) {
@@ -740,8 +738,8 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
                   key={key}
                   onClick={() => setActiveFilter(key)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${active
-                      ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-sm'
-                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-sm'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
                     }`}
                 >
                   {Icon && <Icon className="w-3 h-3" />}
@@ -749,8 +747,8 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
                   {count > 0 && (
                     <span
                       className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${active
-                          ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                        ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                         }`}
                     >
                       {count}
@@ -810,10 +808,10 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
                       <td className="px-5 py-3.5">
                         <span
                           className={`text-xs font-semibold ${item.status === 'Overdue' || item.status === 'Open'
-                              ? 'text-red-600 dark:text-red-400'
-                              : item.status === 'Pending'
-                                ? 'text-orange-500 dark:text-orange-400'
-                                : 'text-gray-500 dark:text-gray-300'
+                            ? 'text-red-600 dark:text-red-400'
+                            : item.status === 'Pending'
+                              ? 'text-orange-500 dark:text-orange-400'
+                              : 'text-gray-500 dark:text-gray-300'
                             }`}
                         >
                           {item.status}

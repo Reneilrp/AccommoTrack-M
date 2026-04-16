@@ -107,6 +107,43 @@ const getInvoiceStatsDate = (invoice) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const buildTenantName = (invoice) => {
+  const directTenant = invoice?.tenant;
+  const bookingTenant = invoice?.booking?.tenant;
+
+  const fromProfile =
+    directTenant?.full_name ||
+    [directTenant?.first_name, directTenant?.last_name].filter(Boolean).join(' ').trim() ||
+    bookingTenant?.full_name ||
+    [bookingTenant?.first_name, bookingTenant?.last_name].filter(Boolean).join(' ').trim();
+
+  return (
+    fromProfile ||
+    invoice?.tenant_name ||
+    invoice?.booking?.tenant_name ||
+    'Tenant —'
+  );
+};
+
+const buildRoomLabel = (invoice) => {
+  const room = invoice?.booking?.room || invoice?.room || null;
+  const rawRoomValue =
+    room?.room_number ||
+    room?.name ||
+    room?.room_name ||
+    invoice?.room_number ||
+    invoice?.room_name ||
+    invoice?.booking?.room_number ||
+    invoice?.booking?.room_name ||
+    null;
+
+  if (!rawRoomValue) return 'Room —';
+
+  const value = String(rawRoomValue).trim();
+  if (!value) return 'Room —';
+  return /^room\b/i.test(value) ? value : `Room ${value}`;
+};
+
 const toDateOnly = (value) => {
   if (!value) return null;
   const date = new Date(value);
@@ -634,10 +671,11 @@ export default function Payments({ navigation, route }) {
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       const ref = (inv.reference || inv.id || '').toString().toLowerCase();
-      const tenant = ((inv.tenant?.full_name || `${inv.tenant?.first_name || ''} ${inv.tenant?.last_name || ''}`) || '').toLowerCase();
+      const tenant = buildTenantName(inv).toLowerCase();
       const property = (inv.property?.title || inv.property_title || inv.booking?.property?.title || '').toLowerCase();
+      const room = buildRoomLabel(inv).toLowerCase();
 
-      return ref.includes(q) || tenant.includes(q) || property.includes(q);
+      return ref.includes(q) || tenant.includes(q) || property.includes(q) || room.includes(q);
     });
   }, [invoices, activeFilter, searchQuery]);
 
@@ -739,9 +777,9 @@ export default function Payments({ navigation, route }) {
 
     const statusStyle = getStatusStyle(status);
     const amount = item.amount || (item.amount_cents ? item.amount_cents / 100 : 0);
-    const tenantName = item.tenant?.full_name || (item.tenant ? `${item.tenant.first_name} ${item.tenant.last_name}` : '—');
+    const tenantName = buildTenantName(item);
     const propertyTitle = item.property?.title || item.property_title || item.booking?.property?.title || '—';
-    const roomNumber = item.booking?.room?.room_number || '—';
+    const roomLabel = buildRoomLabel(item);
 
     return (
       <View style={[styles.invoiceCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
@@ -755,12 +793,12 @@ export default function Payments({ navigation, route }) {
         <View style={styles.invoiceBody}>
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />
-            <Text style={[styles.infoText, { color: theme.colors.textSecondary }]} numberOfLines={1}>{tenantName}</Text>
+            <Text style={[styles.infoText, { color: theme.colors.textSecondary }]} numberOfLines={1}>{`Tenant: ${tenantName}`}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="business-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={[styles.infoText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {propertyTitle} {roomNumber !== '—' ? `• Room ${roomNumber}` : ''}
+              {`${propertyTitle} • ${roomLabel}`}
             </Text>
           </View>
           <View style={styles.infoRow}>
@@ -1023,7 +1061,7 @@ export default function Payments({ navigation, route }) {
                   const paidAmount = getSettledAmount(selectedInvoice);
                   const remainingAmount = getRemainingAmount(selectedInvoice);
                   const propertyTitle = selectedInvoice?.property?.title || selectedInvoice?.property_title || selectedInvoice?.booking?.property?.title || '—';
-                  const roomNumber = selectedInvoice?.booking?.room?.room_number || '—';
+                  const roomLabel = buildRoomLabel(selectedInvoice);
                   const dueDate = selectedInvoice?.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
                   return (
@@ -1040,7 +1078,7 @@ export default function Payments({ navigation, route }) {
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Tenant</Text>
                           <Text style={[styles.summaryValue, { color: theme.colors.text }]} numberOfLines={1}>
-                            {selectedInvoice?.tenant?.full_name || (selectedInvoice?.tenant ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` : '—')}
+                            {buildTenantName(selectedInvoice)}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
@@ -1056,7 +1094,7 @@ export default function Payments({ navigation, route }) {
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Property</Text>
                           <Text style={[styles.summaryValue, { color: theme.colors.text, fontSize: 13 }]} numberOfLines={1}>
-                            {propertyTitle} {roomNumber !== '—' ? `• Room ${roomNumber}` : ''}
+                            {`${propertyTitle} • ${roomLabel}`}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>

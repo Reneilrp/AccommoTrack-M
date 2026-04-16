@@ -32,11 +32,14 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
       : 1;
     return acc + tCount;
   }, 0);
-  const occupiedCount = calculatedOccupiedCount > 0 ? calculatedOccupiedCount : Number(room.occupied || 0);
   const normalizedStatus = String(room.status || '').toLowerCase();
   const normalizedDisplayStatus = String(displayStatus || '').toLowerCase();
   const capacity = Math.max(1, Number(room.capacity || room.raw_capacity || 1));
   const availableSlots = Number(room.available_slots ?? room.availableSlots);
+  const fallbackOccupied = Number(room.occupied || 0);
+  const occupiedCount = Number.isFinite(availableSlots)
+    ? Math.max(0, capacity - Math.max(0, availableSlots))
+    : (calculatedOccupiedCount > 0 ? calculatedOccupiedCount : fallbackOccupied);
   const normalizedAvailableSlots = Number.isFinite(availableSlots)
     ? Math.max(0, availableSlots)
     : Math.max(0, capacity - occupiedCount);
@@ -44,20 +47,11 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   let effectiveStatus = normalizedStatus;
   if (normalizedStatus === 'maintenance') {
     effectiveStatus = 'maintenance';
-  } else if (typeof room.is_available === 'boolean') {
-    if (room.is_available && normalizedAvailableSlots > 0) {
-      effectiveStatus = 'available';
-    } else if (!room.is_available && normalizedAvailableSlots > 0) {
-      effectiveStatus = normalizedDisplayStatus === 'reserved' ? 'reserved' : 'occupied';
-    } else if (normalizedAvailableSlots === 0) {
-      effectiveStatus = normalizedDisplayStatus === 'reserved' ? 'reserved' : 'occupied';
-    }
   } else if (normalizedAvailableSlots > 0) {
-    effectiveStatus = 'available';
-  } else if (occupiedCount >= capacity) {
-    effectiveStatus = 'occupied';
-  } else if (normalizedDisplayStatus === 'reserved') {
-    effectiveStatus = 'reserved';
+    // With remaining slots, room should never be shown as fully occupied.
+    effectiveStatus = normalizedDisplayStatus === 'reserved' ? 'reserved' : 'available';
+  } else {
+    effectiveStatus = normalizedDisplayStatus === 'reserved' ? 'reserved' : 'occupied';
   }
 
   const selectValue = effectiveStatus === 'reserved'
@@ -91,10 +85,10 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
               </span>
               {showGenderBadge && (
                 <span className={`px-2 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider border ${room.sex_restriction === 'male'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
-                    : room.sex_restriction === 'female'
-                      ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
-                      : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
+                  : room.sex_restriction === 'female'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
                   }`}>
                   {room.sex_restriction === 'male' ? 'Boys Only' : room.sex_restriction === 'female' ? 'Girls Only' : 'Mixed Sex'}
                 </span>
