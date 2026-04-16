@@ -69,6 +69,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   // Hide header/bottom nav on routes that implement their own header/navigation
   const hideHeaderRoutes = new Set([
     'Profile', 
+    'MyWallet',
     'PreferencesLifestyle',
     'VerificationStatus',
     'UpdatePassword', 
