@@ -151,6 +151,34 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     }
   };
 
+  const handleUnsend = async (messageId) => {
+    if (readOnlyGuard()) return;
+    
+    try {
+      const response = await api.patch(`/messages/${messageId}/unsend`);
+      const updatedMessage = response.data;
+      
+      setMessages((prev) => 
+        prev.map((msg) => 
+          String(msg.id) === String(messageId) ? updatedMessage : msg
+        )
+      );
+
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === selectedChat.id && String(conv.last_message?.id) === String(messageId)
+            ? { ...conv, last_message: updatedMessage }
+            : conv
+        )
+      );
+
+      toast.success('Message unsent');
+    } catch (err) {
+      console.error('Failed to unsend message:', err);
+      toast.error(err.response?.data?.message || 'Failed to unsend message');
+    }
+  };
+
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
     const date = new Date(timestamp);
@@ -262,7 +290,16 @@ export const useMessaging = (user, accessRole = 'landlord') => {
           echoRef.current
             .private(`conversation.${selectedChat.id}`)
             .listen('.message.sent', (e) => {
-              setMessages((prev) => appendUniqueMessage(prev, e.message));
+              const incomingMessage = e.message;
+              setMessages((prev) => {
+                const exists = prev.some((msg) => String(msg.id) === String(incomingMessage.id));
+                if (exists) {
+                  return prev.map((msg) => 
+                    String(msg.id) === String(incomingMessage.id) ? incomingMessage : msg
+                  );
+                }
+                return [...prev, incomingMessage];
+              });
               scrollToBottom();
             });
         } catch (err) { console.warn('Echo subscription failed:', err); }
@@ -296,6 +333,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     canSendMessages,
     caretakerMessagingRestricted,
     handleSendMessage,
+    handleUnsend,
     formatTime,
     getInitials,
     currentUserId,

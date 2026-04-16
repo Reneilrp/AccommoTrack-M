@@ -51,6 +51,7 @@ class Message extends Model
         'receiver_id',
         'room_id',
         'message',
+        'is_unsent',
         'image_url',
         'is_read',
         'read_at',
@@ -58,6 +59,7 @@ class Message extends Model
 
     protected $casts = [
         'is_read' => 'boolean',
+        'is_unsent' => 'boolean',
         'read_at' => 'datetime',
     ];
 

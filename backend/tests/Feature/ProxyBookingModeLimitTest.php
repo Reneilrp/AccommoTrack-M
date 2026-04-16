@@ -52,7 +52,7 @@ class ProxyBookingModeLimitTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error', 'Normal booking allows only 1 active or pending booking in this property.');
+            ->assertJsonPath('message', 'Normal booking allows only 1 active or pending booking(s) in this property.');
     }
 
     public function test_normal_and_proxy_booking_limits_are_independent(): void
@@ -92,7 +92,8 @@ class ProxyBookingModeLimitTest extends TestCase
             'end_date' => now()->addDays(35)->toDateString(),
             'occupants' => [
                 [
-                    'full_name' => 'Proxy Occupant',
+                    'first_name' => 'Proxy',
+                    'last_name' => 'Occupant',
                     'date_of_birth' => '2000-01-01',
                     'sex' => 'male',
                     'relationship_to_booker' => 'child',
@@ -144,7 +145,8 @@ class ProxyBookingModeLimitTest extends TestCase
             'end_date' => now()->addDays(35)->toDateString(),
             'occupants' => [
                 [
-                    'full_name' => 'Proxy Occupant',
+                    'first_name' => 'Proxy',
+                    'last_name' => 'Occupant',
                     'date_of_birth' => '2000-01-01',
                     'sex' => 'male',
                     'relationship_to_booker' => 'child',
@@ -153,7 +155,7 @@ class ProxyBookingModeLimitTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error', 'Proxy booking limit reached. Only up to 3 active or pending bookings are allowed in this property.');
+            ->assertJsonPath('message', 'Proxy booking limit reached. Only up to 3 active or pending bookings are allowed in this property.');
     }
 
     public function test_proxy_booking_requires_occupants_and_persists_mode_and_occupants(): void
@@ -183,7 +185,8 @@ class ProxyBookingModeLimitTest extends TestCase
             'end_date' => now()->addDays(40)->toDateString(),
             'occupants' => [
                 [
-                    'full_name' => 'Child One',
+                    'first_name' => 'Child',
+                    'last_name' => 'One',
                     'date_of_birth' => '1990-01-01',
                     'sex' => 'female',
                     'relationship_to_booker' => 'child',
@@ -191,7 +194,8 @@ class ProxyBookingModeLimitTest extends TestCase
                     'email' => 'child.one@example.com',
                 ],
                 [
-                    'full_name' => 'Child Two',
+                    'first_name' => 'Child',
+                    'last_name' => 'Two',
                     'date_of_birth' => '1992-06-01',
                     'sex' => 'male',
                     'relationship_to_booker' => 'child',
@@ -200,9 +204,9 @@ class ProxyBookingModeLimitTest extends TestCase
         ]);
 
         $successResponse->assertStatus(201)
-            ->assertJsonPath('booking.booking_mode', 'proxy');
+            ->assertJsonPath('data.booking.booking_mode', 'proxy');
 
-        $bookingId = (int) $successResponse->json('booking.id');
+        $bookingId = (int) $successResponse->json('data.booking.id');
         $booking = Booking::findOrFail($bookingId);
 
         $this->assertSame('proxy', $booking->booking_mode);
@@ -236,13 +240,15 @@ class ProxyBookingModeLimitTest extends TestCase
 
         $booking->occupants()->createMany([
             [
-                'full_name' => 'Proxy Occupant One',
+                'first_name' => 'Proxy',
+                'last_name' => 'Occupant One',
                 'date_of_birth' => '1990-01-01',
                 'sex' => 'female',
                 'relationship_to_booker' => 'child',
             ],
             [
-                'full_name' => 'Proxy Occupant Two',
+                'first_name' => 'Proxy',
+                'last_name' => 'Occupant Two',
                 'date_of_birth' => '1991-01-01',
                 'sex' => 'male',
                 'relationship_to_booker' => 'child',
@@ -259,8 +265,10 @@ class ProxyBookingModeLimitTest extends TestCase
             ->assertJsonPath('0.booking_mode', 'proxy')
             ->assertJsonPath('0.bed_count', 2)
             ->assertJsonPath('0.occupant_count', 2)
-            ->assertJsonPath('0.occupants.0.full_name', 'Proxy Occupant One')
-            ->assertJsonPath('0.occupants.1.full_name', 'Proxy Occupant Two')
+            ->assertJsonPath('0.occupants.0.first_name', 'Proxy')
+            ->assertJsonPath('0.occupants.0.last_name', 'Occupant One')
+            ->assertJsonPath('0.occupants.1.first_name', 'Proxy')
+            ->assertJsonPath('0.occupants.1.last_name', 'Occupant Two')
             ->assertJsonPath('0.room.capacity', 4);
 
         $currentStayResponse = $this->getJson('/api/tenant/current-stay');
@@ -270,8 +278,10 @@ class ProxyBookingModeLimitTest extends TestCase
             ->assertJsonPath('stays.0.booking.booking_mode', 'proxy')
             ->assertJsonPath('stays.0.booking.bed_count', 2)
             ->assertJsonPath('stays.0.booking.occupant_count', 2)
-            ->assertJsonPath('stays.0.booking.occupants.0.full_name', 'Proxy Occupant One')
-            ->assertJsonPath('stays.0.booking.occupants.1.full_name', 'Proxy Occupant Two')
+            ->assertJsonPath('stays.0.booking.occupants.0.first_name', 'Proxy')
+            ->assertJsonPath('stays.0.booking.occupants.0.last_name', 'Occupant One')
+            ->assertJsonPath('stays.0.booking.occupants.1.first_name', 'Proxy')
+            ->assertJsonPath('stays.0.booking.occupants.1.last_name', 'Occupant Two')
             ->assertJsonPath('stays.0.room.capacity', 4);
 
         Sanctum::actingAs($landlord);
@@ -282,8 +292,10 @@ class ProxyBookingModeLimitTest extends TestCase
             ->assertJsonPath('0.booking_mode', 'proxy')
             ->assertJsonPath('0.bed_count', 2)
             ->assertJsonPath('0.occupant_count', 2)
-            ->assertJsonPath('0.occupants.0.full_name', 'Proxy Occupant One')
-            ->assertJsonPath('0.occupants.1.full_name', 'Proxy Occupant Two');
+            ->assertJsonPath('0.occupants.0.first_name', 'Proxy')
+            ->assertJsonPath('0.occupants.0.last_name', 'Occupant One')
+            ->assertJsonPath('0.occupants.1.first_name', 'Proxy')
+            ->assertJsonPath('0.occupants.1.last_name', 'Occupant Two');
 
         $landlordBookingDetailResponse = $this->getJson('/api/bookings/'.$booking->id);
 
@@ -291,8 +303,10 @@ class ProxyBookingModeLimitTest extends TestCase
             ->assertJsonPath('booking_mode', 'proxy')
             ->assertJsonPath('bed_count', 2)
             ->assertJsonPath('occupant_count', 2)
-            ->assertJsonPath('occupants.0.full_name', 'Proxy Occupant One')
-            ->assertJsonPath('occupants.1.full_name', 'Proxy Occupant Two');
+            ->assertJsonPath('occupants.0.first_name', 'Proxy')
+            ->assertJsonPath('occupants.0.last_name', 'Occupant One')
+            ->assertJsonPath('occupants.1.first_name', 'Proxy')
+            ->assertJsonPath('occupants.1.last_name', 'Occupant Two');
     }
 
     public function test_normal_booking_limit_counts_pending_reservation_status(): void
@@ -332,7 +346,7 @@ class ProxyBookingModeLimitTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error', 'Normal booking allows only 1 active or pending booking in this property.');
+            ->assertJsonPath('message', 'Normal booking allows only 1 active or pending booking(s) in this property.');
     }
 
     public function test_proxy_booking_limit_counts_reserved_confirmed_and_active_statuses(): void
@@ -376,7 +390,8 @@ class ProxyBookingModeLimitTest extends TestCase
             'end_date' => now()->addDays(35)->toDateString(),
             'occupants' => [
                 [
-                    'full_name' => 'Scope Occupant',
+                    'first_name' => 'Scope',
+                    'last_name' => 'Occupant',
                     'date_of_birth' => '2000-01-01',
                     'sex' => 'male',
                     'relationship_to_booker' => 'child',
@@ -385,7 +400,7 @@ class ProxyBookingModeLimitTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error', 'Proxy booking limit reached. Only up to 3 active or pending bookings are allowed in this property.');
+            ->assertJsonPath('message', 'Proxy booking limit reached. Only up to 3 active or pending bookings are allowed in this property.');
     }
 
     public function test_proxy_booking_rejects_when_occupants_exceed_requested_bed_count(): void
@@ -404,13 +419,15 @@ class ProxyBookingModeLimitTest extends TestCase
             'end_date' => now()->addDays(40)->toDateString(),
             'occupants' => [
                 [
-                    'full_name' => 'Occupant One',
+                    'first_name' => 'Occupant',
+                    'last_name' => 'One',
                     'date_of_birth' => '1990-01-01',
                     'sex' => 'female',
                     'relationship_to_booker' => 'child',
                 ],
                 [
-                    'full_name' => 'Occupant Two',
+                    'first_name' => 'Occupant',
+                    'last_name' => 'Two',
                     'date_of_birth' => '1991-01-01',
                     'sex' => 'male',
                     'relationship_to_booker' => 'child',
@@ -419,7 +436,7 @@ class ProxyBookingModeLimitTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error', 'Occupant count cannot exceed requested bed slots for this booking.');
+            ->assertJsonPath('message', 'Occupant count cannot exceed requested bed slots for this booking.');
     }
 
     public function test_proxy_booking_rejects_when_occupant_gender_mismatches_room_restriction(): void
@@ -438,7 +455,8 @@ class ProxyBookingModeLimitTest extends TestCase
             'end_date' => now()->addDays(40)->toDateString(),
             'occupants' => [
                 [
-                    'full_name' => 'Occupant One',
+                    'first_name' => 'Occupant',
+                    'last_name' => 'One',
                     'date_of_birth' => '1990-01-01',
                     'sex' => 'male',
                     'relationship_to_booker' => 'child',
@@ -447,7 +465,71 @@ class ProxyBookingModeLimitTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error', 'Occupant 1 sex must match the room restriction (female).');
+            ->assertJsonPath('message', 'Occupant 1 sex must match the room restriction (female).');
+    }
+
+    public function test_proxy_booking_allows_tenant_sex_mismatch_when_occupant_matches_room_restriction(): void
+    {
+        [$landlord, $tenant] = $this->createUsers();
+        $tenant->update(['sex' => 'female']);
+
+        $property = $this->createProperty($landlord->id);
+        $property->update(['property_type' => 'dormitory']);
+
+        $room = $this->createRoom($property->id, '502', 1, 'per_bed', 'male');
+
+        Sanctum::actingAs($tenant);
+
+        $normalResponse = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'booking_mode' => 'normal',
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(40)->toDateString(),
+        ]);
+
+        $normalResponse->assertStatus(422);
+        $this->assertSame(
+            'Sorry, this room is only for specifically male only',
+            $normalResponse->json('error') ?? $normalResponse->json('message'),
+        );
+
+        $proxyResponse = $this->postJson('/api/bookings', [
+            'room_id' => $room->id,
+            'booking_mode' => 'proxy',
+            'bed_count' => 1,
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(40)->toDateString(),
+            'occupants' => [
+                [
+                    'first_name' => 'Proxy Male',
+                    'last_name' => 'Occupant',
+                    'date_of_birth' => '1990-01-01',
+                    'sex' => 'male',
+                    'relationship_to_booker' => 'sibling',
+                ],
+            ],
+        ]);
+
+        $proxyResponse->assertStatus(201);
+
+        $this->assertSame(
+            'proxy',
+            $proxyResponse->json('booking.booking_mode') ?? $proxyResponse->json('data.booking.booking_mode'),
+        );
+
+        $bookingId = (int) ($proxyResponse->json('booking.id') ?? $proxyResponse->json('data.booking.id'));
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $bookingId,
+            'tenant_id' => $tenant->id,
+            'room_id' => $room->id,
+            'booking_mode' => 'proxy',
+        ]);
+
+        $this->assertDatabaseHas('booking_occupants', [
+            'booking_id' => $bookingId,
+            'sex' => 'male',
+        ]);
     }
 
     private function createUsers(): array
@@ -504,8 +586,7 @@ class ProxyBookingModeLimitTest extends TestCase
         int $capacity = 1,
         string $pricingModel = 'full_room',
         string $sexRestriction = 'mixed',
-    ): Room
-    {
+    ): Room {
         return Room::create([
             'property_id' => $propertyId,
             'room_number' => $roomNumber,

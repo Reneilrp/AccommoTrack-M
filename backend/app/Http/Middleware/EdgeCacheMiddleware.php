@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class EdgeCacheMiddleware
 {
@@ -19,7 +19,7 @@ class EdgeCacheMiddleware
         $response = $next($request);
 
         // Do not cache error responses or non-successful requests
-        if (!$response->isSuccessful()) {
+        if (! $response->isSuccessful()) {
             return $response;
         }
 

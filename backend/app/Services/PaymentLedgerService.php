@@ -5,13 +5,10 @@ namespace App\Services;
 use App\Models\Invoice;
 use App\Services\Subscription\SubscriptionCheckoutService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class PaymentLedgerService
 {
-    public function __construct(private readonly SubscriptionCheckoutService $subscriptionCheckoutService)
-    {
-    }
+    public function __construct(private readonly SubscriptionCheckoutService $subscriptionCheckoutService) {}
 
     public function recomputeInvoiceAndBookingStatus(Invoice $invoice, ?int $actorUserId = null): Invoice
     {
@@ -21,13 +18,13 @@ class PaymentLedgerService
         $invoice->status = $resolvedStatus;
         if ($resolvedStatus === 'paid') {
             $invoice->paid_at = $invoice->paid_at ?? now();
-            
-            if (!$invoice->receipt_reference) {
+
+            if (! $invoice->receipt_reference) {
                 // Generate a unique receipt key
                 do {
-                    $ref = 'RCPT-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+                    $ref = 'RCPT-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
                 } while (Invoice::where('receipt_reference', $ref)->exists());
-                
+
                 $invoice->receipt_reference = $ref;
             }
         } else {
@@ -51,9 +48,9 @@ class PaymentLedgerService
                     'error' => $subscriptionError->getMessage(),
                 ]);
             }
-            
+
             // Dispatch Receipt Email if not sent
-            if (!$invoice->receipt_sent_at && $invoice->tenant) {
+            if (! $invoice->receipt_sent_at && $invoice->tenant) {
                 try {
                     \Illuminate\Support\Facades\Mail::to($invoice->tenant->email)->send(new \App\Mail\PaymentReceiptMail($invoice));
                     $invoice->receipt_sent_at = now();

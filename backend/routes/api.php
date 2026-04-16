@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
+use App\Http\Controllers\Admin\AdminBroadcastController;
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AdminDisputeController;
 use App\Http\Controllers\Admin\AdminPaymentOversightController;
 use App\Http\Controllers\Admin\AdminSubscriptionGrantController;
-use App\Http\Controllers\Admin\AdminDisputeController;
-use App\Http\Controllers\Admin\AdminBroadcastController;
 use App\Http\Controllers\Common\AuthController;
 use App\Http\Controllers\Common\ClaimAccountController;
 use App\Http\Controllers\Common\ForgotPasswordController;
@@ -22,7 +22,6 @@ use App\Http\Controllers\Common\ReportController;
 use App\Http\Controllers\Common\ReviewController;
 use App\Http\Controllers\Common\SystemToggleController;
 use App\Http\Controllers\Common\TransactionController;
-use App\Http\Controllers\ReservationDisputeController;
 use App\Http\Controllers\Landlord\AddonController;
 use App\Http\Controllers\Landlord\AnalyticsController;
 use App\Http\Controllers\Landlord\CaretakerController;
@@ -34,16 +33,17 @@ use App\Http\Controllers\Landlord\LandlordVerificationController;
 use App\Http\Controllers\Landlord\PropertyController;
 use App\Http\Controllers\Landlord\RoomController;
 use App\Http\Controllers\Landlord\TenantController;
+use App\Http\Controllers\ReservationDisputeController;
 use App\Http\Controllers\Tenant\TenantBookingController;
 use App\Http\Controllers\Tenant\TenantDashboardController;
 use App\Http\Controllers\Tenant\TenantPaymentController;
 use App\Http\Controllers\Tenant\TenantSettingsController;
+use App\Http\Middleware\EdgeCacheMiddleware;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
-use App\Http\Middleware\EdgeCacheMiddleware;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -90,7 +90,6 @@ Route::middleware([EdgeCacheMiddleware::class])->group(function () {
     Route::get('/system/toggles', [SystemToggleController::class, 'index']);
     Route::get('/system/toggle', [SystemToggleController::class, 'index']); // Alias for singular
 });
-
 
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
 
@@ -343,7 +342,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reports', [ReportController::class, 'store']);
     Route::post('/reservation-disputes', [ReservationDisputeController::class, 'store']);
 
-
     Route::get('/bookings', [LandlordBookingController::class, 'index']);
     Route::post('/bookings', [LandlordBookingController::class, 'store'])->middleware('throttle:5,1');
     Route::get('/bookings/stats', [LandlordBookingController::class, 'getStats']);
@@ -364,6 +362,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/invoices/{id}/charge', [InvoiceController::class, 'charge']);
     Route::post('/invoices/{id}/record', [InvoiceController::class, 'recordOffline']);
     Route::post('/invoices/{id}/verify-cash', [InvoiceController::class, 'verifyCash']);
+    Route::post('/invoices/{id}/refund', [TransactionController::class, 'refundInvoice']);
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
     Route::post('/transactions/{id}/refund', [TransactionController::class, 'refund']);
     // Stripe webhook (public endpoint - ensure secret verification)
@@ -471,5 +470,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{conversationId}', [MessageController::class, 'getMessages']);
         Route::post('/send', [MessageController::class, 'sendMessage']);
         Route::post('/start', [MessageController::class, 'startConversation']);
+        Route::patch('/{id}/unsend', [MessageController::class, 'unsend']);
     });
 });

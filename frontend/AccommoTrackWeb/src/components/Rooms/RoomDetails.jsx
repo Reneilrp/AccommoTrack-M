@@ -256,7 +256,10 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
                           ) : (
                             <div className="space-y-2">
                               {proxyOccupants.map((occupant, occIdx) => {
-                                const occupantName = occupant?.full_name || `Occupant ${occIdx + 1}`;
+                                const occupantName = [occupant?.first_name, occupant?.middle_name, occupant?.last_name]
+                                  .filter(Boolean)
+                                  .join(' ')
+                                  .trim() || `Occupant ${occIdx + 1}`;
                                 const relationship = occupant?.relationship_to_booker ? ` • ${occupant.relationship_to_booker}` : '';
 
                                 return (

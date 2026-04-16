@@ -70,6 +70,7 @@ class NotifyExtensionReminders extends Command
                 try {
                     if (! $booking->tenant) {
                         $skippedCount++;
+
                         continue;
                     }
 
@@ -80,6 +81,7 @@ class NotifyExtensionReminders extends Command
 
                     if ($hasPendingOrApprovedExtension) {
                         $skippedCount++;
+
                         continue;
                     }
 
@@ -93,6 +95,7 @@ class NotifyExtensionReminders extends Command
 
                     if ($alreadySentToday) {
                         $skippedCount++;
+
                         continue;
                     }
 

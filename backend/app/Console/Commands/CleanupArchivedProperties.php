@@ -39,6 +39,7 @@ class CleanupArchivedProperties extends Command
 
         if ($expiredProperties->isEmpty()) {
             $this->info('No archived properties found older than 30 days.');
+
             return;
         }
 
@@ -50,7 +51,7 @@ class CleanupArchivedProperties extends Command
                 $propertyService->forceDeleteProperty($property);
                 $this->line("Successfully purged property ID: {$property->id}");
             } catch (\Exception $e) {
-                $this->error("Failed to purge property ID {$property->id}: " . $e->getMessage());
+                $this->error("Failed to purge property ID {$property->id}: ".$e->getMessage());
             }
         }
 

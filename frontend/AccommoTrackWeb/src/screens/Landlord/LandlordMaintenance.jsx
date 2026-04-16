@@ -31,6 +31,7 @@ export default function LandlordMaintenance() {
   const [loading, setLoading] = useState(!cachedData);
   const [filterStatus, setFilterStatus] = useState(savedState.filterStatus || 'all');
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [drilldownApplied, setDrilldownApplied] = useState(false);
 
   const fetchRequests = useCallback(async (statusToLoad) => {
     try {
@@ -45,6 +46,17 @@ export default function LandlordMaintenance() {
           : [];
 
       setRequests(list);
+
+      // Handle requestId drilldown
+      const drilldownId = new URLSearchParams(location.search).get('requestId');
+      if (drilldownId && !drilldownApplied && list.length > 0) {
+        const target = list.find(r => String(r.id) === String(drilldownId));
+        if (target) {
+          setDrilldownApplied(true);
+          setSelectedRequest(target);
+        }
+      }
+
       const nextCache = { requests: list };
       updateData('landlord_maintenance', nextCache);
       cacheManager.set('landlord_maintenance', nextCache);

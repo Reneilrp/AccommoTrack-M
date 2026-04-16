@@ -25,7 +25,7 @@ return new class extends Migration
             $table->json('occupants')->nullable()->comment('Proxy booking occupants');
             $table->text('notes')->nullable();
             $table->timestamps();
-            
+
             $table->foreign('cart_id')->references('id')->on('carts')->onDelete('cascade');
             $table->foreign('room_id')->references('id')->on('rooms')->onDelete('cascade');
         });

@@ -19,9 +19,7 @@ class TransactionController extends Controller
     public function __construct(
         protected AuditLogService $auditLogService,
         private readonly PaymentLedgerService $paymentLedgerService,
-    )
-    {
-    }
+    ) {}
 
     public function show(Request $request, $id)
     {
@@ -162,7 +160,7 @@ class TransactionController extends Controller
                     'property_id' => $invoice->property_id,
                     'amount_cents' => $refundAmount,
                     'type' => 'refund',
-                    'description' => 'Refund for transaction #' . $tx->id . ' from invoice #' . $invoice->id,
+                    'description' => 'Refund for transaction #'.$tx->id.' from invoice #'.$invoice->id,
                 ]);
             }
 
@@ -186,6 +184,188 @@ class TransactionController extends Controller
                 'message' => 'Refund failed: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Refund an entire invoice (merging multiple transactions if needed)
+     */
+    public function refundInvoice(Request $request, $id)
+    {
+        $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
+
+        $invoice = Invoice::with(['booking.room', 'transactions'])->findOrFail($id);
+
+        if ($invoice->landlord_id !== $context['landlord_id']) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        if ($invoice->property_id) {
+            $this->checkPropertyAccess($context, (int) $invoice->property_id);
+        }
+
+        $validated = $request->validate([
+            'amount_cents' => 'nullable|integer|min:1',
+            'reason' => 'nullable|string',
+        ]);
+
+        $maxRefundByPolicy = $this->computeMaxRefundForInvoice($invoice);
+        $refundAmount = (int) ($validated['amount_cents'] ?? $maxRefundByPolicy);
+
+        if ($maxRefundByPolicy <= 0) {
+            return response()->json([
+                'success' => false,
+                'data' => ['max_refundable_cents' => 0],
+                'message' => 'No refundable amount remains for this invoice.',
+            ], 422);
+        }
+
+        if ($refundAmount > $maxRefundByPolicy) {
+            return response()->json([
+                'success' => false,
+                'data' => [
+                    'max_refundable_cents' => $maxRefundByPolicy,
+                    'requested_amount_cents' => $refundAmount,
+                ],
+                'message' => 'Requested refund exceeds the current refundable cap for this invoice',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $invoiceStatusBefore = $invoice->status;
+
+            // Create ONE merged refund transaction record
+            $refund = PaymentTransaction::create([
+                'invoice_id' => $invoice->id,
+                'tenant_id' => $invoice->tenant_id,
+                'amount_cents' => -1 * intval($refundAmount),
+                'currency' => $invoice->transactions->first()?->currency ?? 'PHP',
+                'status' => 'refunded',
+                'method' => 'merged_refund',
+                'gateway_reference' => null,
+                'gateway_response' => [
+                    'reason' => $validated['reason'] ?? 'Merged refund for multiple payments',
+                    'is_merged' => true,
+                ],
+            ]);
+
+            // Distribute the refund amount across source transactions for accurate individual status tracking
+            $remainingToDistribute = $refundAmount;
+            $positiveTransactions = $invoice->transactions
+                ->filter(fn ($tx) => (int) $tx->amount_cents > 0)
+                ->sortByDesc('created_at'); // Refund newest first usually
+
+            foreach ($positiveTransactions as $tx) {
+                if ($remainingToDistribute <= 0) {
+                    break;
+                }
+
+                $txRefundable = max(0, (int) $tx->amount_cents - (int) ($tx->refunded_amount_cents ?? 0));
+                if ($txRefundable <= 0) {
+                    continue;
+                }
+
+                $allocation = min($remainingToDistribute, $txRefundable);
+                $tx->refunded_amount_cents = (int) ($tx->refunded_amount_cents ?? 0) + $allocation;
+
+                if ($tx->refunded_amount_cents >= $tx->amount_cents) {
+                    $tx->status = 'refunded';
+                } elseif ($tx->refunded_amount_cents > 0) {
+                    $tx->status = 'partially_refunded';
+                }
+                $tx->save();
+
+                $remainingToDistribute -= $allocation;
+            }
+
+            // Recompute invoice and booking payment state
+            $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, auth()->id());
+
+            $this->auditLogService->invoiceEvent('invoice.refunded', [
+                'subject_type' => 'invoice',
+                'subject_id' => $invoice->id,
+                'booking_id' => $invoice->booking_id,
+                'invoice_id' => $invoice->id,
+                'payment_transaction_id' => $refund->id,
+                'property_id' => $invoice->property_id,
+                'tenant_id' => $invoice->tenant_id,
+                'landlord_id' => $invoice->landlord_id,
+                'status_before' => $invoiceStatusBefore,
+                'status_after' => $invoice->status,
+                'summary' => 'Merged invoice refund processed.',
+                'metadata' => [
+                    'refund_transaction_id' => $refund->id,
+                    'refund_amount_cents' => $refundAmount,
+                    'reason' => $validated['reason'] ?? null,
+                ],
+            ]);
+
+            if ($invoice->tenant_id && $invoice->property_id) {
+                \App\Models\TenantCredit::create([
+                    'tenant_id' => $invoice->tenant_id,
+                    'property_id' => $invoice->property_id,
+                    'amount_cents' => $refundAmount,
+                    'type' => 'refund',
+                    'description' => 'Merged refund for invoice #'.$invoice->id,
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'refund' => $refund,
+                    'max_refundable_cents' => $maxRefundByPolicy,
+                    'applied_refund_cents' => $refundAmount,
+                ],
+                'message' => 'Merged refund processed successfully',
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json(['success' => false, 'message' => 'Refund failed: '.$e->getMessage()], 500);
+        }
+    }
+
+    private function computeMaxRefundForInvoice($invoice): int
+    {
+        $transactions = $invoice->transactions ?? collect();
+        $positiveTransactions = $transactions->filter(fn ($line) => (int) $line->amount_cents > 0);
+
+        $totalPaidCents = (int) $positiveTransactions->sum(fn ($line) => (int) $line->amount_cents);
+        $alreadyRefundedCents = (int) $positiveTransactions->sum(fn ($line) => max(0, (int) ($line->refunded_amount_cents ?? 0)));
+        $remainingTotalCents = max(0, $totalPaidCents - $alreadyRefundedCents);
+
+        $booking = $invoice->booking;
+        if (! $booking || ! $booking->start_date || ! $booking->end_date || $totalPaidCents <= 0) {
+            return $remainingTotalCents;
+        }
+
+        $startDate = Carbon::parse($booking->start_date)->startOfDay();
+        $endDate = Carbon::parse($booking->end_date)->startOfDay();
+        $today = now()->startOfDay();
+
+        $billingPolicy = strtolower((string) ($booking->room->billing_policy ?? $booking->billing_policy ?? 'monthly'));
+        $proratedCents = 0;
+
+        if ($billingPolicy === 'daily') {
+            $totalDays = max(1, $startDate->diffInDays($endDate) + 1);
+            $elapsedDays = $today->lt($startDate) ? 0 : ($today->gt($endDate) ? $totalDays : $startDate->diffInDays($today) + 1);
+            $unusedDays = max(0, $totalDays - $elapsedDays);
+            $proratedCents = (int) floor(($totalPaidCents * $unusedDays) / $totalDays);
+        } else {
+            $totalMonths = max(1, (int) ($booking->total_months ?: ceil(($startDate->diffInDays($endDate) + 1) / 30)));
+            $elapsedDays = $today->lt($startDate) ? 0 : ($today->gt($endDate) ? $totalMonths * 30 : $startDate->diffInDays($today));
+            $usedMonths = min($totalMonths, max(0, (int) floor($elapsedDays / 30)));
+            $unusedMonths = max(0, $totalMonths - $usedMonths);
+            $proratedCents = (int) floor(($totalPaidCents * $unusedMonths) / $totalMonths);
+        }
+
+        $fixedPenaltyCents = max(0, (int) config('refunds.fixed_penalty_cents', 0));
+
+        return max(0, min($remainingTotalCents, $proratedCents - $fixedPenaltyCents - $alreadyRefundedCents));
     }
 
     private function computeMaxRefundForTransaction($invoice, PaymentTransaction $tx, int $remainingForTx): int

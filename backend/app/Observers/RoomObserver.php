@@ -2,8 +2,8 @@
 
 namespace App\Observers;
 
-use App\Models\Room;
 use App\Jobs\PurgeCloudflareCacheJob;
+use App\Models\Room;
 
 class RoomObserver
 {

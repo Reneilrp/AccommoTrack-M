@@ -162,7 +162,8 @@ export default function LandlordLayout({
     {
       path: '/addons',
       label: 'Add-ons',
-      icon: <Sparkles className="w-5 h-5" />
+      icon: <Sparkles className="w-5 h-5" />,
+      onlyCaretaker: true
     },
     {
       path: '/payments',
@@ -422,17 +423,17 @@ export default function LandlordLayout({
         {/* Page Content */}
         <div
           className={`flex-1 overflow-y-auto ${(
-              (location.pathname.startsWith('/properties/') && location.pathname !== '/properties') ||
-              (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') ||
-              location.pathname === '/rooms' ||
-              location.pathname.startsWith('/rooms/') ||
-              location.pathname === '/tenants' ||
-              location.pathname.startsWith('/tenants/') ||
-              location.pathname === '/maintenance' ||
-              location.pathname === '/reviews' ||
-              location.pathname === '/transfers' ||
-              location.pathname === '/addons'
-            ) ? 'p-0' : 'p-4 lg:p-8'
+            (location.pathname.startsWith('/properties/') && location.pathname !== '/properties') ||
+            (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') ||
+            location.pathname === '/rooms' ||
+            location.pathname.startsWith('/rooms/') ||
+            location.pathname === '/tenants' ||
+            location.pathname.startsWith('/tenants/') ||
+            location.pathname === '/maintenance' ||
+            location.pathname === '/reviews' ||
+            location.pathname === '/transfers' ||
+            location.pathname === '/addons'
+          ) ? 'p-0' : 'p-4 lg:p-8'
             }`}
           style={{ scrollbarGutter: 'stable' }}
         >

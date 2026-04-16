@@ -10,14 +10,14 @@ class PaymongoKeyResolver
     public static function getSecretKey(): string
     {
         $testModeEnabled = SystemToggle::getBool('paymongo_test_mode_enabled', false);
-        
+
         if ($testModeEnabled) {
             $testKey = config('services.paymongo.test_secret_key');
             if ($testKey && trim($testKey) !== '') {
                 return $testKey;
             }
         }
-        
+
         return config('services.paymongo.secret_key');
     }
 
@@ -27,14 +27,14 @@ class PaymongoKeyResolver
     public static function getPublicKey(): string
     {
         $testModeEnabled = SystemToggle::getBool('paymongo_test_mode_enabled', false);
-        
+
         if ($testModeEnabled) {
             $testKey = config('services.paymongo.test_public_key');
             if ($testKey && trim($testKey) !== '') {
                 return $testKey;
             }
         }
-        
+
         return config('services.paymongo.public_key');
     }
 

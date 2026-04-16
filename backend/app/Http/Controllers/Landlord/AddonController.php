@@ -454,7 +454,7 @@ class AddonController extends Controller
                 ->whereIn('status', ['active', 'approved'])
                 ->first();
 
-            if (!$bookingAddon) {
+            if (! $bookingAddon) {
                 return response()->json([
                     'message' => 'Active addon not found',
                 ], 404);

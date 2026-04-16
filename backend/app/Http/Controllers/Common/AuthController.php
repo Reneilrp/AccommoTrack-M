@@ -26,20 +26,24 @@ use Laravel\Sanctum\PersonalAccessToken;
 class AuthController extends Controller
 {
     private const ACCESS_TOKEN_NAME = 'access_token';
+
     private const REFRESH_TOKEN_NAME = 'refresh_token';
+
     private const REFRESH_TOKEN_ABILITY = 'token:refresh';
+
     private const LANDLORD_EMAIL_RECOVERY_OTP_TTL_MINUTES = 10;
 
     protected AuthService $authService;
+
     protected LegalConsentService $legalConsentService;
+
     protected AuditLogService $auditLogService;
 
     public function __construct(
         AuthService $authService,
         LegalConsentService $legalConsentService,
         AuditLogService $auditLogService
-    )
-    {
+    ) {
         $this->authService = $authService;
         $this->legalConsentService = $legalConsentService;
         $this->auditLogService = $auditLogService;
@@ -224,7 +228,7 @@ class AuthController extends Controller
         return match ($normalized) {
             'male' => 'male',
             'female' => 'female',
-            
+
             default => null,
         };
     }
@@ -752,6 +756,7 @@ class AuthController extends Controller
             throw $e;
         } catch (\Exception $e) {
             Log::error('updateProfile error', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
             return response()->json([
                 'message' => 'Failed to update profile',
                 'error' => $e->getMessage(),

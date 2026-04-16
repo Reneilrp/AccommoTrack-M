@@ -12,9 +12,7 @@ use Illuminate\Support\Facades\Mail;
 
 class InquiryController extends Controller
 {
-    public function __construct(protected AuditLogService $auditLogService)
-    {
-    }
+    public function __construct(protected AuditLogService $auditLogService) {}
 
     /**
      * Store a new inquiry from a guest.

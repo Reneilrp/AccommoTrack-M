@@ -2,8 +2,8 @@
 
 namespace App\Observers;
 
-use App\Models\Property;
 use App\Jobs\PurgeCloudflareCacheJob;
+use App\Models\Property;
 
 class PropertyObserver
 {
@@ -21,10 +21,10 @@ class PropertyObserver
     public function updated(Property $property): void
     {
         // Check if property was transitioned to "hidden" (unpublished)
-        if ($property->isDirty('is_published') && !$property->is_published) {
+        if ($property->isDirty('is_published') && ! $property->is_published) {
             // Dispatch immediately in case queue workers aren't running
             PurgeCloudflareCacheJob::dispatchSync();
-            
+
             // Also explicitly clear Laravel cache for the property if any
             try {
                 \Illuminate\Support\Facades\Artisan::call('cache:clear');

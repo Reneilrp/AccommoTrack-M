@@ -280,7 +280,7 @@ class GenerateMonthlyInvoices extends Command
                         ->where('billing_period_key', "addon-{$addon->id}-{$periodKey}")
                         ->exists();
 
-                    if (!$addonExists) {
+                    if (! $addonExists) {
                         $priceCents = (int) round($addon->pivot->price_at_booking * $addon->pivot->quantity * 100);
 
                         $addonInvoice = Invoice::create([
@@ -403,7 +403,7 @@ class GenerateMonthlyInvoices extends Command
             // Add-ons Decoupling: Generate discrete standalone invoices for active add-ons instead of merging into Rent.
             foreach ($activeMonthlyAddons as $addon) {
                 $priceCents = (int) round($addon->pivot->price_at_booking * $addon->pivot->quantity * 100);
-                
+
                 $addonInvoice = Invoice::create([
                     'reference' => 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6)),
                     'landlord_id' => $booking->landlord_id,
@@ -481,7 +481,7 @@ class GenerateMonthlyInvoices extends Command
             $booking->save();
         }
     }
-    
+
     /**
      * Generate separate recurring invoices for each occupant in a proxy booking
      */
@@ -528,11 +528,18 @@ class GenerateMonthlyInvoices extends Command
             $index = $slotNumber - 1;
             /** @var \App\Models\BookingOccupant|null $occupant */
             $occupant = $occupants->get($index);
-            $occupantName = $occupant?->full_name ?? ('Occupant #'.$slotNumber);
+            $occupantName = $occupant
+                ? trim(implode(' ', array_filter([$occupant->first_name, $occupant->middle_name, $occupant->last_name])))
+                : ('Occupant #'.$slotNumber);
+
+            if (empty($occupantName)) {
+                $occupantName = 'Occupant #'.$slotNumber;
+            }
+
             $slotBillingPeriodKey = $slotNumber === 1 ? $periodKey : $periodKey.'#'.$slotNumber;
 
             $reference = 'INV-'.$periodStart->format('Ym').'-'.strtoupper(Str::random(6));
-            
+
             Invoice::create([
                 'reference' => $reference,
                 'landlord_id' => $booking->landlord_id,
@@ -562,7 +569,7 @@ class GenerateMonthlyInvoices extends Command
             ]);
 
             $generatedCount++;
-            
+
             Log::info('Generated recurring invoice for proxy occupant', [
                 'booking_id' => $booking->id,
                 'occupant_id' => $occupant?->id,

@@ -33,7 +33,7 @@ export default function RoomDetailsModal({
 }) {
   const PROXY_MINIMUM_AGE = 18;
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { addToCart, addItem } = useCart();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
   const [isCartMode, setIsCartMode] = useState(false);
   const [bedCount, setBedCount] = useState(1);
@@ -62,7 +62,9 @@ export default function RoomDetailsModal({
   const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(DEFAULT_TOGGLES.reservationFeeDisabled);
 
   const createEmptyOccupant = (defaultSex = "") => ({
-    full_name: "",
+    first_name: "",
+    middle_name: "",
+    last_name: "",
     date_of_birth: "",
     sex: defaultSex,
     relationship_to_booker: "",
@@ -94,8 +96,7 @@ export default function RoomDetailsModal({
     if (!normalized) return "";
     if (["male", "boy", "boys"].includes(normalized)) return "male";
     if (["female", "girl", "girls"].includes(normalized)) return "female";
-    if (["other", "prefer_not_to_say"].includes(normalized)) return normalized;
-    return normalized;
+    return "";
   };
 
   const resolveStoredTenantGender = () => {
@@ -196,6 +197,79 @@ export default function RoomDetailsModal({
     today.setFullYear(today.getFullYear() - PROXY_MINIMUM_AGE);
     return toDateInputValue(today);
   })();
+
+  const OCCUPANT_FIELD_LABELS = {
+    first_name: "first name",
+    middle_name: "middle name",
+    last_name: "last name",
+    date_of_birth: "date of birth",
+    sex: "sex",
+    relationship_to_booker: "relationship to booker",
+    phone: "phone",
+    email: "email",
+  };
+
+  const hasAnyProxyOccupantValue = (occupant) =>
+    [
+      occupant.first_name,
+      occupant.middle_name,
+      occupant.last_name,
+      occupant.date_of_birth,
+      occupant.sex,
+      occupant.relationship_to_booker,
+      occupant.phone,
+      occupant.email,
+    ].some((value) => Boolean(String(value || "").trim()));
+
+  const getProxyOccupantMissingFieldMessage = (occupant, index) => {
+    const prefix = `Occupant ${index + 1}:`;
+    if (!occupant.first_name) return `${prefix} first name is required.`;
+    if (!occupant.last_name) return `${prefix} last name is required.`;
+    if (!occupant.date_of_birth) return `${prefix} date of birth is required.`;
+    if (!occupant.sex) return `${prefix} sex is required.`;
+    if (!occupant.relationship_to_booker) return `${prefix} relationship to booker is required.`;
+    return null;
+  };
+
+  const formatApiValidationMessage = (errors) => {
+    if (!errors || typeof errors !== "object") {
+      return null;
+    }
+
+    const firstEntry = Object.entries(errors).find(([, value]) =>
+      Array.isArray(value) ? value.length > 0 : Boolean(value),
+    );
+
+    if (!firstEntry) {
+      return null;
+    }
+
+    const [rawPath, rawMessage] = firstEntry;
+    const normalizedPath = String(rawPath).replace(/\[(\d+)\]/g, ".$1");
+    const message = Array.isArray(rawMessage) ? rawMessage[0] : String(rawMessage || "");
+
+    const itemOccupantMatch = normalizedPath.match(/items\.(\d+)\.occupants\.(\d+)\.([a-zA-Z_]+)/);
+    if (itemOccupantMatch) {
+      const [, itemIndex, occupantIndex, rawField] = itemOccupantMatch;
+      const fieldLabel = OCCUPANT_FIELD_LABELS[rawField] || rawField.replace(/_/g, " ");
+      return `Cart item ${Number(itemIndex) + 1}, occupant ${Number(occupantIndex) + 1} ${fieldLabel}: ${message}`;
+    }
+
+    const occupantMatch = normalizedPath.match(/occupants\.(\d+)\.([a-zA-Z_]+)/);
+    if (occupantMatch) {
+      const [, occupantIndex, rawField] = occupantMatch;
+      const fieldLabel = OCCUPANT_FIELD_LABELS[rawField] || rawField.replace(/_/g, " ");
+      return `Occupant ${Number(occupantIndex) + 1} ${fieldLabel}: ${message}`;
+    }
+
+    const rawField = normalizedPath.split(".").pop() || "";
+    const fieldLabel = OCCUPANT_FIELD_LABELS[rawField] || rawField.replace(/_/g, " ");
+    if (!fieldLabel) {
+      return message;
+    }
+
+    return `${fieldLabel.charAt(0).toUpperCase()}${fieldLabel.slice(1)}: ${message}`;
+  };
 
   const toBooleanFlag = (value) => {
     if (value === undefined || value === null) return null;
@@ -406,7 +480,7 @@ export default function RoomDetailsModal({
     }
 
     setProxyOccupants((prev) => {
-      const base = prev.length > 0 ? prev : [createEmptyOccupant("")];
+      const base = prev.length > 0 ? prev : [createEmptyOccupant(requiredProxyGender)];
       return base.slice(0, occupantLimit);
     });
   }, [bookingMode, occupantLimit, requiredProxyGender]);
@@ -477,7 +551,7 @@ export default function RoomDetailsModal({
   const handleAddProxyOccupant = () => {
     setProxyOccupants((prev) => {
       if (prev.length >= occupantLimit) return prev;
-      return [...prev, createEmptyOccupant("")];
+      return [...prev, createEmptyOccupant(requiredProxyGender)];
     });
   };
 
@@ -562,19 +636,19 @@ export default function RoomDetailsModal({
     }
 
     const normalizedOccupants = proxyOccupants
-      .map((occupant) => ({
-        full_name: String(occupant.full_name || "").trim(),
-        date_of_birth: String(occupant.date_of_birth || "").trim(),
-        sex: normalizeProxyOccupantGender(occupant.sex),
-        relationship_to_booker: String(
-          occupant.relationship_to_booker || "",
-        ).trim(),
-        phone: String(occupant.phone || "").trim(),
-        email: String(occupant.email || "").trim(),
-      }))
-      .filter((occupant) =>
-        Object.values(occupant).some((fieldValue) => Boolean(fieldValue)),
-      );
+      .map((occupant) => {
+        return {
+          first_name: String(occupant.first_name || "").trim(),
+          middle_name: String(occupant.middle_name || "").trim(),
+          last_name: String(occupant.last_name || "").trim(),
+          date_of_birth: String(occupant.date_of_birth || "").trim(),
+          sex: normalizeProxyOccupantGender(occupant.sex || requiredProxyGender),
+          relationship_to_booker: String(occupant.relationship_to_booker || "").trim(),
+          phone: String(occupant.phone || "").trim(),
+          email: String(occupant.email || "").trim(),
+        };
+      })
+      .filter((occupant) => hasAnyProxyOccupantValue(occupant));
 
     if (bookingMode === "proxy") {
       if (normalizedOccupants.length === 0) {
@@ -594,15 +668,9 @@ export default function RoomDetailsModal({
 
       for (let i = 0; i < normalizedOccupants.length; i += 1) {
         const occupant = normalizedOccupants[i];
-        if (
-          !occupant.full_name ||
-          !occupant.date_of_birth ||
-          !occupant.sex ||
-          !occupant.relationship_to_booker
-        ) {
-          toast.error(
-            `Occupant ${i + 1} is missing required information (name, birth date, sex, relationship).`,
-          );
+        const missingFieldMessage = getProxyOccupantMissingFieldMessage(occupant, i);
+        if (missingFieldMessage) {
+          toast.error(missingFieldMessage);
           return;
         }
 
@@ -675,27 +743,44 @@ export default function RoomDetailsModal({
 
       if (isCartMode) {
         if (payload.occupants) {
-          payload.occupants = payload.occupants.map((o) => {
-            const parts = o.full_name.split(" ");
+          payload.occupants = payload.occupants.map((o, index) => {
             return {
-              ...o,
-              first_name: parts[0] || "Unknown",
-              last_name: parts.slice(1).join(" ") || "Unknown",
-              bed_number: null,
+              first_name: o.first_name,
+              middle_name: o.middle_name || null,
+              last_name: o.last_name,
+              sex: o.sex,
+              date_of_birth: o.date_of_birth,
+              relationship_to_booker: o.relationship_to_booker,
+              phone: o.phone,
+              email: o.email,
+              bed_number: index + 1,
             };
           });
         }
 
         try {
-          const result = await addToCart(payload);
+          const addToCartAction = typeof addToCart === "function" ? addToCart : addItem;
+          if (typeof addToCartAction !== "function") {
+            toast.error("Cart is not ready. Please refresh and try again.");
+            setIsSubmitting(false);
+            return;
+          }
+
+          const result = await addToCartAction(payload);
           if (result && result.success) {
             toast.success("Room added to cart successfully!");
             onClose();
           } else {
-            toast.error(result?.error || "Failed to add room to cart.");
+            const validationMessage = formatApiValidationMessage(result?.details || result?.errors);
+            toast.error(validationMessage || result?.error || "Failed to add room to cart.");
           }
         } catch (error) {
-          toast.error("Failed to add room to cart.");
+          const validationMessage = formatApiValidationMessage(error?.response?.data?.errors);
+          toast.error(
+            validationMessage
+            || error?.response?.data?.message
+            || "Failed to add room to cart.",
+          );
         }
         setIsSubmitting(false);
         return;
@@ -738,6 +823,12 @@ export default function RoomDetailsModal({
       setAutoNavTimer(t);
     } catch (error) {
       console.error("Booking failed", error?.response?.data || error);
+      const validationMessage = formatApiValidationMessage(error?.response?.data?.errors);
+      if (validationMessage) {
+        toast.error(validationMessage);
+        return;
+      }
+
       const errMsg =
         error?.response?.data?.error ||
         error?.response?.data?.message ||
@@ -855,7 +946,8 @@ export default function RoomDetailsModal({
     : fallbackSexCompatible;
   const isRoomAvailable = room.is_available !== undefined ? room.is_available : (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
 
-  const canBook = displayStatus === "available" && isRoomAvailable && isSexCompatible;
+  const canOpenBookingFlow = displayStatus === "available" && isRoomAvailable;
+  const canBook = canOpenBookingFlow && (bookingMode === "proxy" || isSexCompatible);
   const baseTotalPrice = Number(totalPrice || 0);
   const promoDiscountedTotal = Number(promoOffer?.discounted_total ?? baseTotalPrice);
   const hasPromoOffer = Boolean(
@@ -968,7 +1060,7 @@ export default function RoomDetailsModal({
                       {!isSexCompatible && isAuthenticated && (
                         <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 px-4 py-2 rounded-lg shadow-sm">
                           <Shield className="w-4 h-4 shrink-0" />
-                          <span className="font-semibold text-xs text-pretty">Incompatible with your sex profile</span>
+                          <span className="font-semibold text-xs text-pretty">Normal booking is incompatible with your sex profile</span>
                         </div>
                       )}
                       {(room.require_advance || room.requireAdvance || property?.require_advance) && (
@@ -1061,7 +1153,7 @@ export default function RoomDetailsModal({
               </div>
               {isAuthenticated ? (
                 <div className="flex flex-col sm:flex-row items-center gap-3">
-                  {canBook && (
+                  {canOpenBookingFlow && (
                     <button
                       onClick={() => { setIsCartMode(true); setViewMode("booking"); }}
                       className="px-6 py-4 border-2 border-green-600 dark:border-green-500 text-green-700 dark:text-green-400 font-bold rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition-all"
@@ -1071,14 +1163,14 @@ export default function RoomDetailsModal({
                   )}
                   <button
                     onClick={() => { setIsCartMode(false); setViewMode("booking"); }}
-                    disabled={!canBook}
+                    disabled={!canOpenBookingFlow}
                     className={`px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
-                              ${canBook
+                              ${canOpenBookingFlow
                         ? "bg-green-600 hover:bg-green-700"
                         : "bg-gray-400 cursor-not-allowed"
                       }`}
                   >
-                    {canBook
+                    {canOpenBookingFlow
                       ? "Book This Room"
                       : "Not Available"}
                   </button>
@@ -1178,13 +1270,13 @@ export default function RoomDetailsModal({
                 </div>
               ) : (
                 <div className="max-w-xl mx-auto space-y-6">
-                  {isAuthenticated && !isSexCompatible && (
+                  {isAuthenticated && bookingMode === "normal" && !isSexCompatible && (
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-xl">
                       <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-                        This room is restricted to {genderMeta.label.toLowerCase()}.
+                        Normal booking for this room is restricted to {genderMeta.label.toLowerCase()}.
                       </p>
                       <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                        Choose a compatible room or update your profile sex before booking this room type.
+                        You can still continue with Proxy booking as long as occupant sex matches the room restriction.
                       </p>
                     </div>
                   )}
@@ -1409,15 +1501,45 @@ export default function RoomDetailsModal({
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Full Name <span className="text-red-500">*</span>
+                                First Name <span className="text-red-500">*</span>
                               </label>
                               <input
                                 type="text"
-                                value={occupant.full_name}
+                                value={occupant.first_name}
                                 onChange={(e) =>
-                                  handleProxyOccupantChange(index, "full_name", e.target.value)
+                                  handleProxyOccupantChange(index, "first_name", e.target.value)
                                 }
-                                placeholder="Full name"
+                                placeholder="First name"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Middle Name (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={occupant.middle_name}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "middle_name", e.target.value)
+                                }
+                                placeholder="Middle name"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Last Name <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={occupant.last_name}
+                                onChange={(e) =>
+                                  handleProxyOccupantChange(index, "last_name", e.target.value)
+                                }
+                                placeholder="Last name"
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                               />
                             </div>
@@ -1461,8 +1583,6 @@ export default function RoomDetailsModal({
                                     <option value="">Select sex</option>
                                     <option value="male">Male</option>
                                     <option value="female">Female</option>
-                                    <option value="other">Other</option>
-                                    <option value="prefer_not_to_say">Prefer not to say</option>
                                   </>
                                 )}
                               </select>

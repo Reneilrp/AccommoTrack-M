@@ -51,6 +51,7 @@ class FinalizeDailyCheckouts extends Command
 
         if ($candidates->isEmpty()) {
             $this->info('No overdue daily checkouts to finalize.');
+
             return self::SUCCESS;
         }
 

@@ -1023,19 +1023,22 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   </div>
                   {Array.isArray(selectedBooking.occupants) && selectedBooking.occupants.length > 0 ? (
                     <div className="space-y-3">
-                      {selectedBooking.occupants.map((occupant, index) => (
-                        <div key={occupant.id || `${occupant.full_name}-${index}`} className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-gray-50/70 dark:bg-gray-700/40">
-                          <p className="font-semibold text-gray-900 dark:text-white">{occupant.full_name || `Occupant ${index + 1}`}</p>
-                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                            {occupant.relationship_to_booker || 'Relationship not provided'} · {occupant.sex || 'Sex not provided'}
-                          </p>
-                          {(occupant.phone || occupant.email) && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              {[occupant.phone, occupant.email].filter(Boolean).join(' · ')}
+                      {selectedBooking.occupants.map((occupant, index) => {
+                        const fullName = [occupant.first_name, occupant.middle_name, occupant.last_name].filter(Boolean).join(' ').trim() || `Occupant ${index + 1}`;
+                        return (
+                          <div key={occupant.id || `${fullName}-${index}`} className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-gray-50/70 dark:bg-gray-700/40">
+                            <p className="font-semibold text-gray-900 dark:text-white">{fullName}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                              {occupant.relationship_to_booker || 'Relationship not provided'} · {occupant.sex || 'Sex not provided'}
                             </p>
-                          )}
-                        </div>
-                      ))}
+                            {(occupant.phone || occupant.email) && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {[occupant.phone, occupant.email].filter(Boolean).join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">

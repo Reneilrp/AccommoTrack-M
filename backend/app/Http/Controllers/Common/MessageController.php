@@ -225,6 +225,51 @@ class MessageController extends Controller
         return response()->json(['unread_count' => $count]);
     }
 
+    // Unsend a message
+    public function unsend(Request $request, $id)
+    {
+        $user = $request->user();
+        $message = Message::findOrFail($id);
+
+        // Check if the user is the sender (or the landlord/caretaker of the sender)
+        $isOwner = false;
+        if ($user->role === 'landlord') {
+            $isOwner = (int) $message->sender_id === (int) $user->id;
+        } elseif ($user->role === 'caretaker') {
+            $isOwner = (int) $message->sender_id === (int) $user->effectiveLandlordId();
+        } else {
+            $isOwner = (int) $message->sender_id === (int) $user->id;
+        }
+
+        if (! $isOwner) {
+            throw new AccessDeniedHttpException('You can only unsend your own messages.');
+        }
+
+        if ($message->is_unsent) {
+            return response()->json(['message' => 'Message already unsent.'], 422);
+        }
+
+        // Delete image if exists
+        if ($message->image_url) {
+            \Illuminate\Support\Facades\Storage::delete($message->image_url);
+        }
+
+        $message->update([
+            'is_unsent' => true,
+            'message' => '',
+            'image_url' => null,
+        ]);
+
+        // Broadcast the update
+        try {
+            broadcast(new MessageSent($message->load(['sender', 'actualSender'])))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('Broadcasting unsend failed: '.$e->getMessage());
+        }
+
+        return response()->json(new MessageResource($message));
+    }
+
     protected function resolveMessageContext(Request $request): array
     {
         $user = $request->user();

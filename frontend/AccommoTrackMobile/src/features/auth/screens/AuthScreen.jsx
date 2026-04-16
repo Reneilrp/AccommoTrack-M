@@ -71,7 +71,7 @@ const TermsModal = ({ visible, onClose, theme }) => {
               )}
             </View>
           ))}
-          
+
           <View style={{ marginTop: 8, padding: 15, backgroundColor: theme.colors.card, borderRadius: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
               If you have any questions about these terms, please contact us through the Help & Support page.
@@ -79,7 +79,7 @@ const TermsModal = ({ visible, onClose, theme }) => {
           </View>
         </ScrollView>
         <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={{ backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
             onPress={onClose}
           >
@@ -94,7 +94,7 @@ const TermsModal = ({ visible, onClose, theme }) => {
 const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress, theme }) => {
   const isPending = data.status === 'pending_verification';
   const styles = getStyles(theme);
-  
+
   return (
     <Modal
       animationType="fade"
@@ -124,7 +124,7 @@ const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress, the
 
           <View style={styles.modalActions}>
             {!isPending && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={onResubmitPress}
                 style={styles.resubmitButton}
               >
@@ -132,8 +132,8 @@ const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress, the
                 <Text style={styles.resubmitButtonText}>Resubmit Documents</Text>
               </TouchableOpacity>
             )}
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               onPress={onClose}
               style={[styles.modalCloseButton, { backgroundColor: isPending ? theme.colors.primary : theme.colors.backgroundSecondary }]}
             >
@@ -256,7 +256,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
       const formData = new FormData();
       formData.append('valid_id_type', form.validIdType);
       if (form.validIdType === 'Other') formData.append('valid_id_other', form.validIdOther);
-      
+
       const appendToFormData = (key, asset) => {
         if (!asset) return;
         formData.append(key, {
@@ -265,7 +265,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
           type: asset.mimeType || asset.type || 'image/jpeg'
         });
       };
-      
+
       appendToFormData('valid_id', form.validId);
       appendToFormData('permit', form.permit);
 
@@ -313,8 +313,8 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
           <View style={styles.idTypeContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.idTypeScroll}>
               {idTypes.map(type => (
-                <TouchableOpacity 
-                  key={type} 
+                <TouchableOpacity
+                  key={type}
                   onPress={() => setForm(prev => ({ ...prev, validIdType: type }))}
                   style={[styles.idTypeBadge, { backgroundColor: form.validIdType === type ? theme.colors.primary : theme.colors.backgroundSecondary }]}
                 >
@@ -324,7 +324,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
             </ScrollView>
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => pickImage('validId')}
             style={[styles.uploadButton, { borderColor: form.validId ? theme.colors.primary : theme.colors.border, backgroundColor: form.validId ? theme.colors.primaryLight : theme.colors.backgroundSecondary }]}
           >
@@ -338,7 +338,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => pickImage('permit')}
             style={[styles.uploadButton, { borderColor: form.permit ? theme.colors.primary : theme.colors.border, marginBottom: 32, backgroundColor: form.permit ? theme.colors.primaryLight : theme.colors.backgroundSecondary }]}
           >
@@ -352,7 +352,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleSubmit}
             disabled={loading}
             style={styles.submitButtonRe}
@@ -865,7 +865,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         dateOfBirth: newFormData.dateOfBirth,
         sex: newFormData.sex,
       };
-      AsyncStorage.setItem('signup_form_draft', JSON.stringify(toSave)).catch(() => {});
+      AsyncStorage.setItem('signup_form_draft', JSON.stringify(toSave)).catch(() => { });
     }
   };
 
@@ -907,7 +907,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     }
 
     if (!passwordChecks.minLen || !passwordChecks.hasUpper || !passwordChecks.numCount || !passwordChecks.hasSpecial) {
-        errors.password = 'Password does not meet all requirements.';
+      errors.password = 'Password does not meet all requirements.';
     }
 
     if (!agreedToTerms) {
@@ -1020,16 +1020,16 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           refresh_token: refreshToken,
           trusted_device: rememberDevice,
         };
-        
+
         // Restore previously switched role if any (helps for unverified landlords)
         let effectiveRole = data.user.role;
         try {
           const savedRole = await AsyncStorage.getItem(`user_role_${data.user.id}`);
           // Only override if the backend returns tenant or landlord, and we have a local preference for the other.
           // This avoids touching special roles like 'caretaker' unless explicitly desired.
-          if (savedRole && savedRole !== effectiveRole && 
-              (effectiveRole === 'landlord' || effectiveRole === 'tenant') && 
-              (savedRole === 'landlord' || savedRole === 'tenant')) {
+          if (savedRole && savedRole !== effectiveRole &&
+            (effectiveRole === 'landlord' || effectiveRole === 'tenant') &&
+            (savedRole === 'landlord' || savedRole === 'tenant')) {
             console.log(`🔄 Restoring persisted role preference: ${savedRole} (Backend was: ${effectiveRole})`);
             effectiveRole = savedRole;
             userObj.role = savedRole;
@@ -1061,11 +1061,11 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           activeRole: effectiveRole,
         });
 
-        
+
         console.log('✅ Login successful! Role:', effectiveRole, (effectiveRole !== data.user.role ? `(Backend: ${data.user.role})` : ''));
         console.log('✅ Token saved');
         console.log('✅ User ID saved:', data.user.id);
-        
+
         if (onLoginSuccess) {
           onLoginSuccess(effectiveRole);
         }
@@ -1164,7 +1164,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         showSuccess('Success', 'Registration successful! Please verify your email.');
         console.log('User registered:', data.user);
         // W8: Clear saved form draft after successful registration
-        AsyncStorage.removeItem('signup_form_draft').catch(() => {});
+        AsyncStorage.removeItem('signup_form_draft').catch(() => { });
         // Navigate to OTP verification screen
         navigation.navigate('OtpVerification', { email: formData.email.trim() });
         // Reset form
@@ -1231,9 +1231,9 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     <View style={styles.safeArea}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
       <BlockedUserModal visible={showBlockedModal} onClose={() => setShowBlockedModal(false)} />
-      <PendingVerificationModal 
-        visible={pendingModalVisible} 
-        onClose={() => setPendingModalVisible(false)} 
+      <PendingVerificationModal
+        visible={pendingModalVisible}
+        onClose={() => setPendingModalVisible(false)}
         data={pendingModalData}
         onResubmitPress={() => {
           setPendingModalVisible(false);
@@ -1241,12 +1241,12 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         }}
         theme={theme}
       />
-      <ResubmitModal 
-        visible={resubmitModalVisible} 
-        onClose={() => setResubmitModalVisible(false)} 
+      <ResubmitModal
+        visible={resubmitModalVisible}
+        onClose={() => setResubmitModalVisible(false)}
         theme={theme}
       />
-      <ForgotPasswordModal 
+      <ForgotPasswordModal
         visible={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}
       />
@@ -1256,10 +1256,10 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         onClaimed={handleClaimSuccess}
         theme={theme}
       />
-      <TermsModal 
-        visible={showTermsModal} 
-        onClose={() => setShowTermsModal(false)} 
-        theme={theme} 
+      <TermsModal
+        visible={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        theme={theme}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -1321,445 +1321,444 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>
-              {isLogin ? 'Sign In' : 'Create Account'}
-            </Text>
-            {!isLogin && (
-              <Text style={styles.subtitle}>
-                Sign up to get started
+                {isLogin ? 'Sign In' : 'Create Account'}
               </Text>
-            )}
-            <Text style={styles.subtitle}>
-              {isLogin ? 'Sign in to continue' : !isLogin && signupStep === 1 ? 'Step 1 of 2' : 'Step 2 of 2'}
-            </Text>
-          </View>
-
-          {/* Error Message */}
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={20} color="#EF4444" />
-              <Text style={styles.errorText}>{error}</Text>
+              {!isLogin && (
+                <Text style={styles.subtitle}>
+                  Sign up to get started
+                </Text>
+              )}
+              <Text style={styles.subtitle}>
+                {isLogin ? 'Sign in to continue' : !isLogin && signupStep === 1 ? 'Step 1 of 2' : 'Step 2 of 2'}
+              </Text>
             </View>
-          ) : null}
 
-          {/* LOGIN FORM */}
-          {isLogin ? (
-            <View style={styles.form}>
-              {/* Email Field */}
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.email}
-                  onChangeText={(text) => handleInputChange('email', text)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  editable={!loading}
+            {/* Error Message */}
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* LOGIN FORM */}
+            {isLogin ? (
+              <View style={styles.form}>
+                {/* Email Field */}
+                <View style={styles.inputContainer}>
+                  <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor="#9CA3AF"
+                    value={formData.email}
+                    onChangeText={(text) => handleInputChange('email', text)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    editable={!loading}
                     returnKeyType="next"
                     onSubmitEditing={() => { /* move focus or let user press Return on password */ }}
-                />
-              </View>
-              {fieldErrors.email && <Text style={styles.inlineErrorText}>{fieldErrors.email}</Text>}
-
-              {/* Password Field */}
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.password}
-                  onChangeText={(text) => handleInputChange('password', text)}
-                  secureTextEntry={!showPassword}
-                  editable={!loading}
-                  returnKeyType="done"
-                  onSubmitEditing={handleSubmit}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                  disabled={loading}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color="#9CA3AF"
                   />
-                </TouchableOpacity>
-              </View>
-              {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
-
-              <View style={styles.authQuickActionsRow}>
-                <TouchableOpacity
-                  onPress={() => setRememberDevice((prev) => !prev)}
-                  style={styles.rememberDeviceAction}
-                  disabled={loading}
-                >
-                  <View style={[styles.checkbox, styles.rememberDeviceCheckbox, rememberDevice && styles.checkboxChecked]}>
-                    {rememberDevice ? (
-                      <Ionicons name="checkmark" size={14} color={theme.colors.textInverse} />
-                    ) : null}
-                  </View>
-                  <Text style={styles.rememberDeviceText}>Remember this device</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setShowForgotPasswordModal(true)}
-                  style={styles.forgotPassword}
-                  disabled={loading}
-                >
-                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Submit Button */}
-              <TouchableOpacity
-                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                onPress={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator color="#FFFFFF" />
-                    <Text style={styles.submitButtonText}>Signing In...</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.submitButtonText}>Sign In</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          ) : (
-            /* SIGNUP FORM - MULTI STEP */
-            <>
-              {signupStep === 1 ? (
-                /* STEP 1: Role, First Name, Last Name */
-                <View style={styles.form}>
-                  {/* First Name */}
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="First Name"
-                      placeholderTextColor="#9CA3AF"
-                      value={formData.firstName}
-                      onChangeText={(text) => handleInputChange('firstName', text)}
-                      autoCapitalize="words"
-                      editable={!loading}
-                        returnKeyType="next"
-                        onSubmitEditing={() => { /* proceed to next field */ }}
-                    />
-                  </View>
-                  {fieldErrors.firstName && <Text style={styles.inlineErrorText}>{fieldErrors.firstName}</Text>}
-
-                  {/* Middle Name (optional) */}
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Middle Name (optional)"
-                      placeholderTextColor="#9CA3AF"
-                      value={formData.middleName}
-                      onChangeText={(text) => handleInputChange('middleName', text)}
-                      autoCapitalize="words"
-                      editable={!loading}
-                      returnKeyType="next"
-                      onSubmitEditing={() => { /* proceed to last name */ }}
-                    />
-                  </View>
-
-                  {/* Last Name */}
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Last Name"
-                      placeholderTextColor="#9CA3AF"
-                      value={formData.lastName}
-                      onChangeText={(text) => handleInputChange('lastName', text)}
-                      autoCapitalize="words"
-                      editable={!loading}
-                      returnKeyType="done"
-                      onSubmitEditing={handleNextStep}
-                    />
-                  </View>
-                  {fieldErrors.lastName && <Text style={styles.inlineErrorText}>{fieldErrors.lastName}</Text>}
-
-                  {/* Date of Birth Field */}
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="calendar-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <TouchableOpacity
-                      style={[styles.input, { justifyContent: 'center' }]}
-                      onPress={() => setShowDatePicker(true)}
-                    >
-                      <Text style={{ color: formData.dateOfBirth ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}>
-                        {formData.dateOfBirth ? formData.dateOfBirth.toISOString().split('T')[0] : 'Select Date of Birth'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={formData.dateOfBirth || new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
-                      mode="date"
-                      maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 17))}
-                      display="default"
-                      onChange={(event, date) => {
-                        setShowDatePicker(Platform.OS === 'ios');
-                        if (date) {
-                          handleInputChange('dateOfBirth', date);
-                        }
-                      }}
-                    />
-                  )}
-                  {fieldErrors.dateOfBirth && <Text style={styles.inlineErrorText}>{fieldErrors.dateOfBirth}</Text>}
-
-                  {/* Sex Field */}
-                  <View style={[styles.inputContainer, { paddingVertical: Platform.OS === 'ios' ? 4 : 0 }]}>
-                    <Ionicons name="transgender-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <View style={{ flex: 1, justifyContent: 'center', height: Platform.OS === 'ios' ? 40 : 50 }}>
-                      <Picker
-                        selectedValue={formData.sex}
-                        onValueChange={(itemValue) => handleInputChange('sex', itemValue)}
-                        style={{ color: formData.sex ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}
-                        dropdownIconColor="#9CA3AF"
-                      >
-                        <Picker.Item label="Select Sex" value="" color="#9CA3AF" />
-                        <Picker.Item label="Male" value="male" />
-                        <Picker.Item label="Female" value="female" />
-                        <Picker.Item label="Prefer not to say" value="prefer_not_to_say" />
-                      </Picker>
-                    </View>
-                  </View>
-                  {fieldErrors.sex && <Text style={styles.inlineErrorText}>{fieldErrors.sex}</Text>}
-
-                  {/* Next Button */}
-                  <TouchableOpacity
-                    style={styles.submitButton}
-                    onPress={handleNextStep}
-                  >
-                    <Text style={styles.submitButtonText}>Next</Text>
-                  </TouchableOpacity>
                 </View>
-              ) : (
-                /* STEP 2: Email, Password, Confirm Password, Terms */
-                <View style={styles.form}>
-                  {/* Back Button */}
-                  <TouchableOpacity style={styles.backButton} onPress={handleBackStep}>
-                    <Ionicons name="arrow-back" size={20} color="#16a34a" />
-                    <Text style={styles.backButtonText}>Back</Text>
-                  </TouchableOpacity>
+                {fieldErrors.email && <Text style={styles.inlineErrorText}>{fieldErrors.email}</Text>}
 
-                  {/* Email */}
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Email"
-                      placeholderTextColor="#9CA3AF"
-                      value={formData.email}
-                      onChangeText={(text) => handleInputChange('email', text)}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      editable={!loading}
-                      returnKeyType="next"
-                      onSubmitEditing={() => { /* focus password */ }}
-                    />
-                    {emailCheckLoading && <ActivityIndicator style={{ position: 'absolute', right: 15 }} />}
-                  </View>
-                  {emailCheckMsg && (
-                    <Text style={[styles.emailAvailabilityText, { color: emailAvailable ? 'green' : 'red' }]}>
-                      {emailCheckMsg}
-                    </Text>
-                  )}
-                  {fieldErrors.email && <Text style={styles.inlineErrorText}>{fieldErrors.email}</Text>}
-
-                  {/* Phone (Optional) */}
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="call-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Phone (Optional)"
-                      placeholderTextColor="#9CA3AF"
-                      value={formData.phone}
-                      onChangeText={(text) => handleInputChange('phone', text)}
-                      keyboardType="phone-pad"
-                      editable={!loading}
-                      maxLength={13}
-                      returnKeyType="next"
-                    />
-                  </View>
-                  {fieldErrors.phone && <Text style={styles.inlineErrorText}>{fieldErrors.phone}</Text>}
-
-                  {/* Password */}
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Password"
-                      placeholderTextColor="#9CA3AF"
-                      value={formData.password}
-                      onChangeText={(text) => handleInputChange('password', text)}
-                      secureTextEntry={!showPassword}
-                      editable={!loading}
-                      returnKeyType="next"
-                      onSubmitEditing={() => { /* focus confirm password */ }}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={styles.eyeIcon}
-                      disabled={loading}
-                    >
-                      <Ionicons
-                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                        size={20}
-                        color="#9CA3AF"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.passwordChecksContainer}>
-                    {!passwordChecks.minLen && (
-                      <View style={styles.passwordCheckItem}>
-                        <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
-                        <Text style={styles.passwordCheckText}>Minimum 8 characters</Text>
-                      </View>
-                    )}
-                    {!passwordChecks.hasUpper && (
-                      <View style={styles.passwordCheckItem}>
-                        <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
-                        <Text style={styles.passwordCheckText}>At least 1 uppercase letter</Text>
-                      </View>
-                    )}
-                    {!passwordChecks.numCount && (
-                      <View style={styles.passwordCheckItem}>
-                        <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
-                        <Text style={styles.passwordCheckText}>At least 2 numbers</Text>
-                      </View>
-                    )}
-                    {!passwordChecks.hasSpecial && (
-                      <View style={styles.passwordCheckItem}>
-                        <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
-                        <Text style={styles.passwordCheckText}>At least 1 special character</Text>
-                      </View>
-                    )}
-                  </View>
-                  {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
-
-                  {/* Confirm Password */}
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Confirm Password"
-                      placeholderTextColor="#9CA3AF"
-                      value={formData.confirmPassword}
-                      onChangeText={(text) => handleInputChange('confirmPassword', text)}
-                      secureTextEntry={!showConfirmPassword}
-                      editable={!loading}
-                      returnKeyType="done"
-                      onSubmitEditing={handleSubmit}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                      style={styles.eyeIcon}
-                      disabled={loading}
-                    >
-                      <Ionicons
-                        name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                        size={20}
-                        color="#9CA3AF"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  {fieldErrors.confirmPassword && <Text style={styles.inlineErrorText}>{fieldErrors.confirmPassword}</Text>}
-
-                  {/* Terms and Conditions */}
-                  <View style={styles.termsContainer}>
-                    <TouchableOpacity
-                      style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}
-                      onPress={() => setAgreedToTerms(!agreedToTerms)}
-                      activeOpacity={0.7}
-                    >
-                      {agreedToTerms && (
-                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                      )}
-                    </TouchableOpacity>
-                    <Text style={styles.termsText}>
-                      Creating your account means you must agree with our{' '}
-                      <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>terms and conditions</Text>
-                      {' '}and{' '}
-                      <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>privacy policy</Text>
-                    </Text>
-                  </View>
-                  {fieldErrors.terms && <Text style={styles.inlineErrorText}>{fieldErrors.terms}</Text>}
-
-                  {/* Submit Button */}
+                {/* Password Field */}
+                <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor="#9CA3AF"
+                    value={formData.password}
+                    onChangeText={(text) => handleInputChange('password', text)}
+                    secureTextEntry={!showPassword}
+                    editable={!loading}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSubmit}
+                  />
                   <TouchableOpacity
-                    style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                    onPress={handleSubmit}
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeIcon}
                     disabled={loading}
                   >
-                    {loading ? (
-                      <View style={styles.loadingContainer}>
-                        <ActivityIndicator color="#FFFFFF" />
-                        <Text style={styles.submitButtonText}>Signing Up...</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.submitButtonText}>Sign Up</Text>
-                    )}
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#9CA3AF"
+                    />
                   </TouchableOpacity>
                 </View>
-              )}
-            </>
-          )}
+                {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
 
-          {/* Toggle Login/Signup */}
-          <View style={styles.toggleContainer}>
-            <Text style={styles.toggleText}>
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
-            </Text>
-            <TouchableOpacity onPress={toggleScreen}>
-              <Text style={styles.toggleLink}>
-                {isLogin ? 'Sign Up' : 'Sign In'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+                <View style={styles.authQuickActionsRow}>
+                  <TouchableOpacity
+                    onPress={() => setRememberDevice((prev) => !prev)}
+                    style={styles.rememberDeviceAction}
+                    disabled={loading}
+                  >
+                    <View style={[styles.checkbox, styles.rememberDeviceCheckbox, rememberDevice && styles.checkboxChecked]}>
+                      {rememberDevice ? (
+                        <Ionicons name="checkmark" size={14} color={theme.colors.textInverse} />
+                      ) : null}
+                    </View>
+                    <Text style={styles.rememberDeviceText}>Remember this device</Text>
+                  </TouchableOpacity>
 
-          {/* Continue as Guest Button - Only show when user logged out */}
-          {onContinueAsGuest && (
-            <View style={styles.guestOptionContainer}>
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
+                  <TouchableOpacity
+                    onPress={() => setShowForgotPasswordModal(true)}
+                    style={styles.forgotPassword}
+                    disabled={loading}
+                  >
+                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Submit Button */}
+                <TouchableOpacity
+                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                  onPress={handleSubmit}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color="#FFFFFF" />
+                      <Text style={styles.submitButtonText}>Signing In...</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.submitButtonText}>Sign In</Text>
+                  )}
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.guestButton}
-                onPress={onContinueAsGuest}
-                disabled={loading}
-              >
-                <Ionicons name="person-outline" size={18} color={theme.colors.primary} />
-                <Text style={styles.guestButtonText}>Continue as Guest</Text>
-              </TouchableOpacity>
-              <Text style={styles.guestHintText}>
-                Browse properties without signing in
-              </Text>
-            </View>
-          )}
+            ) : (
+              /* SIGNUP FORM - MULTI STEP */
+              <>
+                {signupStep === 1 ? (
+                  /* STEP 1: Role, First Name, Last Name */
+                  <View style={styles.form}>
+                    {/* First Name */}
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="First Name"
+                        placeholderTextColor="#9CA3AF"
+                        value={formData.firstName}
+                        onChangeText={(text) => handleInputChange('firstName', text)}
+                        autoCapitalize="words"
+                        editable={!loading}
+                        returnKeyType="next"
+                        onSubmitEditing={() => { /* proceed to next field */ }}
+                      />
+                    </View>
+                    {fieldErrors.firstName && <Text style={styles.inlineErrorText}>{fieldErrors.firstName}</Text>}
 
-          {/* Register as Landlord */}
-          {isLogin && (
-            <View style={{ alignItems: 'center', marginTop: onContinueAsGuest ? 16 : 8, marginBottom: 12 }}>
-              <TouchableOpacity onPress={() => navigation.navigate('LandlordRegister')}>
-                <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
-                  Want to list your property?{' '}
-                  <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Register as Landlord</Text>
+                    {/* Middle Name (optional) */}
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Middle Name (optional)"
+                        placeholderTextColor="#9CA3AF"
+                        value={formData.middleName}
+                        onChangeText={(text) => handleInputChange('middleName', text)}
+                        autoCapitalize="words"
+                        editable={!loading}
+                        returnKeyType="next"
+                        onSubmitEditing={() => { /* proceed to last name */ }}
+                      />
+                    </View>
+
+                    {/* Last Name */}
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Last Name"
+                        placeholderTextColor="#9CA3AF"
+                        value={formData.lastName}
+                        onChangeText={(text) => handleInputChange('lastName', text)}
+                        autoCapitalize="words"
+                        editable={!loading}
+                        returnKeyType="done"
+                        onSubmitEditing={handleNextStep}
+                      />
+                    </View>
+                    {fieldErrors.lastName && <Text style={styles.inlineErrorText}>{fieldErrors.lastName}</Text>}
+
+                    {/* Date of Birth Field */}
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="calendar-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <TouchableOpacity
+                        style={[styles.input, { justifyContent: 'center' }]}
+                        onPress={() => setShowDatePicker(true)}
+                      >
+                        <Text style={{ color: formData.dateOfBirth ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}>
+                          {formData.dateOfBirth ? formData.dateOfBirth.toISOString().split('T')[0] : 'Select Date of Birth'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {showDatePicker && (
+                      <DateTimePicker
+                        value={formData.dateOfBirth || new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                        mode="date"
+                        maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 17))}
+                        display="default"
+                        onChange={(event, date) => {
+                          setShowDatePicker(Platform.OS === 'ios');
+                          if (date) {
+                            handleInputChange('dateOfBirth', date);
+                          }
+                        }}
+                      />
+                    )}
+                    {fieldErrors.dateOfBirth && <Text style={styles.inlineErrorText}>{fieldErrors.dateOfBirth}</Text>}
+
+                    {/* Sex Field */}
+                    <View style={[styles.inputContainer, { paddingVertical: Platform.OS === 'ios' ? 4 : 0 }]}>
+                      <Ionicons name="transgender-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <View style={{ flex: 1, justifyContent: 'center', height: Platform.OS === 'ios' ? 40 : 50 }}>
+                        <Picker
+                          selectedValue={formData.sex}
+                          onValueChange={(itemValue) => handleInputChange('sex', itemValue)}
+                          style={{ color: formData.sex ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}
+                          dropdownIconColor="#9CA3AF"
+                        >
+                          <Picker.Item label="Select Sex" value="" color="#9CA3AF" />
+                          <Picker.Item label="Male" value="male" />
+                          <Picker.Item label="Female" value="female" />
+                        </Picker>
+                      </View>
+                    </View>
+                    {fieldErrors.sex && <Text style={styles.inlineErrorText}>{fieldErrors.sex}</Text>}
+
+                    {/* Next Button */}
+                    <TouchableOpacity
+                      style={styles.submitButton}
+                      onPress={handleNextStep}
+                    >
+                      <Text style={styles.submitButtonText}>Next</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  /* STEP 2: Email, Password, Confirm Password, Terms */
+                  <View style={styles.form}>
+                    {/* Back Button */}
+                    <TouchableOpacity style={styles.backButton} onPress={handleBackStep}>
+                      <Ionicons name="arrow-back" size={20} color="#16a34a" />
+                      <Text style={styles.backButtonText}>Back</Text>
+                    </TouchableOpacity>
+
+                    {/* Email */}
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Email"
+                        placeholderTextColor="#9CA3AF"
+                        value={formData.email}
+                        onChangeText={(text) => handleInputChange('email', text)}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        editable={!loading}
+                        returnKeyType="next"
+                        onSubmitEditing={() => { /* focus password */ }}
+                      />
+                      {emailCheckLoading && <ActivityIndicator style={{ position: 'absolute', right: 15 }} />}
+                    </View>
+                    {emailCheckMsg && (
+                      <Text style={[styles.emailAvailabilityText, { color: emailAvailable ? 'green' : 'red' }]}>
+                        {emailCheckMsg}
+                      </Text>
+                    )}
+                    {fieldErrors.email && <Text style={styles.inlineErrorText}>{fieldErrors.email}</Text>}
+
+                    {/* Phone (Optional) */}
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="call-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Phone (Optional)"
+                        placeholderTextColor="#9CA3AF"
+                        value={formData.phone}
+                        onChangeText={(text) => handleInputChange('phone', text)}
+                        keyboardType="phone-pad"
+                        editable={!loading}
+                        maxLength={13}
+                        returnKeyType="next"
+                      />
+                    </View>
+                    {fieldErrors.phone && <Text style={styles.inlineErrorText}>{fieldErrors.phone}</Text>}
+
+                    {/* Password */}
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Password"
+                        placeholderTextColor="#9CA3AF"
+                        value={formData.password}
+                        onChangeText={(text) => handleInputChange('password', text)}
+                        secureTextEntry={!showPassword}
+                        editable={!loading}
+                        returnKeyType="next"
+                        onSubmitEditing={() => { /* focus confirm password */ }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeIcon}
+                        disabled={loading}
+                      >
+                        <Ionicons
+                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={20}
+                          color="#9CA3AF"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.passwordChecksContainer}>
+                      {!passwordChecks.minLen && (
+                        <View style={styles.passwordCheckItem}>
+                          <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
+                          <Text style={styles.passwordCheckText}>Minimum 8 characters</Text>
+                        </View>
+                      )}
+                      {!passwordChecks.hasUpper && (
+                        <View style={styles.passwordCheckItem}>
+                          <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
+                          <Text style={styles.passwordCheckText}>At least 1 uppercase letter</Text>
+                        </View>
+                      )}
+                      {!passwordChecks.numCount && (
+                        <View style={styles.passwordCheckItem}>
+                          <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
+                          <Text style={styles.passwordCheckText}>At least 2 numbers</Text>
+                        </View>
+                      )}
+                      {!passwordChecks.hasSpecial && (
+                        <View style={styles.passwordCheckItem}>
+                          <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
+                          <Text style={styles.passwordCheckText}>At least 1 special character</Text>
+                        </View>
+                      )}
+                    </View>
+                    {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
+
+                    {/* Confirm Password */}
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Confirm Password"
+                        placeholderTextColor="#9CA3AF"
+                        value={formData.confirmPassword}
+                        onChangeText={(text) => handleInputChange('confirmPassword', text)}
+                        secureTextEntry={!showConfirmPassword}
+                        editable={!loading}
+                        returnKeyType="done"
+                        onSubmitEditing={handleSubmit}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={styles.eyeIcon}
+                        disabled={loading}
+                      >
+                        <Ionicons
+                          name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={20}
+                          color="#9CA3AF"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {fieldErrors.confirmPassword && <Text style={styles.inlineErrorText}>{fieldErrors.confirmPassword}</Text>}
+
+                    {/* Terms and Conditions */}
+                    <View style={styles.termsContainer}>
+                      <TouchableOpacity
+                        style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}
+                        onPress={() => setAgreedToTerms(!agreedToTerms)}
+                        activeOpacity={0.7}
+                      >
+                        {agreedToTerms && (
+                          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                        )}
+                      </TouchableOpacity>
+                      <Text style={styles.termsText}>
+                        Creating your account means you must agree with our{' '}
+                        <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>terms and conditions</Text>
+                        {' '}and{' '}
+                        <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>privacy policy</Text>
+                      </Text>
+                    </View>
+                    {fieldErrors.terms && <Text style={styles.inlineErrorText}>{fieldErrors.terms}</Text>}
+
+                    {/* Submit Button */}
+                    <TouchableOpacity
+                      style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                      onPress={handleSubmit}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator color="#FFFFFF" />
+                          <Text style={styles.submitButtonText}>Signing Up...</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.submitButtonText}>Sign Up</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Toggle Login/Signup */}
+            <View style={styles.toggleContainer}>
+              <Text style={styles.toggleText}>
+                {isLogin ? "Don't have an account? " : "Already have an account? "}
+              </Text>
+              <TouchableOpacity onPress={toggleScreen}>
+                <Text style={styles.toggleLink}>
+                  {isLogin ? 'Sign Up' : 'Sign In'}
                 </Text>
               </TouchableOpacity>
             </View>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+            {/* Continue as Guest Button - Only show when user logged out */}
+            {onContinueAsGuest && (
+              <View style={styles.guestOptionContainer}>
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>OR</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+                <TouchableOpacity
+                  style={styles.guestButton}
+                  onPress={onContinueAsGuest}
+                  disabled={loading}
+                >
+                  <Ionicons name="person-outline" size={18} color={theme.colors.primary} />
+                  <Text style={styles.guestButtonText}>Continue as Guest</Text>
+                </TouchableOpacity>
+                <Text style={styles.guestHintText}>
+                  Browse properties without signing in
+                </Text>
+              </View>
+            )}
+
+            {/* Register as Landlord */}
+            {isLogin && (
+              <View style={{ alignItems: 'center', marginTop: onContinueAsGuest ? 16 : 8, marginBottom: 12 }}>
+                <TouchableOpacity onPress={() => navigation.navigate('LandlordRegister')}>
+                  <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
+                    Want to list your property?{' '}
+                    <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Register as Landlord</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

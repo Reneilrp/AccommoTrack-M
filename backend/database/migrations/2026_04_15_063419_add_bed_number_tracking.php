@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::table('room_tenant_assignments', function (Blueprint $table) {
             $table->string('bed_numbers')->nullable()->after('bed_count')
-                  ->comment('Comma-separated bed numbers assigned (e.g., "1,3,5")');
+                ->comment('Comma-separated bed numbers assigned (e.g., "1,3,5")');
         });
 
         Schema::table('booking_occupants', function (Blueprint $table) {
             $table->integer('bed_number')->nullable()->after('sex')
-                  ->comment('Specific bed number assigned to this occupant');
+                ->comment('Specific bed number assigned to this occupant');
         });
     }
 

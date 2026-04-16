@@ -98,6 +98,19 @@ export const invoiceService = {
       return { success: false, error: err.response?.data?.message || err.message };
     }
   },
+
+  /**
+   * Issue a merged refund for an entire invoice
+   * POST /invoices/:id/refund
+   */
+  async refundInvoice(invoiceId, data = {}) {
+    try {
+      const res = await api.post(`/invoices/${invoiceId}/refund`, data);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
 };
 
 export default invoiceService;

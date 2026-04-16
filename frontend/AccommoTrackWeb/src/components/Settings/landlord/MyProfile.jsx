@@ -55,14 +55,14 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column - Avatar Only */}
         <div className="md:col-span-1">
-          <div className={`flex flex-col items-center justify-center h-full p-6 rounded-xl border transition-all ${isEditingProfile ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700'}`}> 
+          <div className={`flex flex-col items-center justify-center h-full p-6 rounded-xl border transition-all ${isEditingProfile ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700'}`}>
             {/* Profile Photo */}
             <div className="relative mb-4">
-              <div className={`w-32 h-32 rounded-full flex items-center justify-center overflow-hidden transition-all ${isEditingProfile ? 'ring-4 ring-green-300 dark:ring-green-600' : ''} ${(photoPreview || profilePhoto) ? '' : (isEditingProfile ? 'bg-green-200 dark:bg-green-800' : 'bg-green-100 dark:bg-green-900')}`}> 
+              <div className={`w-32 h-32 rounded-full flex items-center justify-center overflow-hidden transition-all ${isEditingProfile ? 'ring-4 ring-green-300 dark:ring-green-600' : ''} ${(photoPreview || profilePhoto) ? '' : (isEditingProfile ? 'bg-green-200 dark:bg-green-800' : 'bg-green-100 dark:bg-green-900')}`}>
                 {photoPreview || profilePhoto ? (
-                  <img 
-                    src={photoPreview || getImageUrl(profilePhoto)} 
-                    alt="Profile" 
+                  <img
+                    src={photoPreview || getImageUrl(profilePhoto)}
+                    alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -195,7 +195,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                           onChange={e => setProfileData({ ...profileData, sex: e.target.value })}
                           className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         >
-                          <option value="">Select Sex</option>
+                          <option value="" disabled hidden>Sex</option>
                           <option value="male">Male</option>
                           <option value="female">Female</option>
                         </select>
@@ -227,7 +227,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                   </div>
                 </div>
                 <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 mt-2">
-                  <button 
+                  <button
                     onClick={() => {
                       setProfileData({
                         firstName: user.first_name || '',

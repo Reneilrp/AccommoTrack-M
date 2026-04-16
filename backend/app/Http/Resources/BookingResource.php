@@ -75,7 +75,7 @@ class BookingResource extends JsonResource
             'billing_policy' => $this->room?->billing_policy ?? 'monthly',
             'status' => $this->status,
             'is_overdue' => $this->end_date
-                ? now()->gt($this->end_date) && !in_array($this->status, ['completed', 'cancelled'])
+                ? now()->gt($this->end_date) && ! in_array($this->status, ['completed', 'cancelled'])
                 : false,
             'paymentStatus' => $this->payment_status,
             'payment_status' => $this->payment_status,
@@ -87,7 +87,7 @@ class BookingResource extends JsonResource
             'reference_number' => $this->reference_number,
             'move_in_date' => $this->move_in_date,
             'reservation_policy' => $reservationPolicy,
-            'can_request_addon' => $this->payment_status !== 'refunded' && !in_array($this->status, ['cancelled', 'rejected']),
+            'can_request_addon' => $this->payment_status !== 'refunded' && ! in_array($this->status, ['cancelled', 'rejected']),
             'notes' => $this->notes,
             'cancellation_reason' => $this->cancellation_reason,
             'cancelled_at' => $this->cancelled_at,
@@ -106,7 +106,9 @@ class BookingResource extends JsonResource
             ] : null),
             'occupants' => $this->whenLoaded('occupants', fn () => $this->occupants->map(fn ($occupant) => [
                 'id' => $occupant->id,
-                'full_name' => $occupant->full_name,
+                'first_name' => $occupant->first_name,
+                'middle_name' => $occupant->middle_name,
+                'last_name' => $occupant->last_name,
                 'date_of_birth' => $occupant->date_of_birth,
                 'sex' => $occupant->sex,
                 'relationship_to_booker' => $occupant->relationship_to_booker,

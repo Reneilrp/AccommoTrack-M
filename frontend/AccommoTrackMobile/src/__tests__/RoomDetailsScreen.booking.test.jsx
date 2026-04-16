@@ -6,6 +6,7 @@ import RoomDetailsScreen from '../features/tenant/screens/Explore/RoomDetailsScr
 import BookingService from '../services/BookingService.js';
 import PropertyService from '../services/PropertyService.js';
 import PaymentService from '../services/PaymentService.js';
+import CartService from '../services/CartService.js';
 import { showError } from '../utils/toast.js';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -94,6 +95,29 @@ jest.mock('../services/PaymentService.js', () => ({
   default: {
     generateCashInvoice: jest.fn(),
     createPaymentLink: jest.fn(),
+  },
+}));
+
+jest.mock('../services/CartService.js', () => ({
+  __esModule: true,
+  default: {
+    addToCart: jest.fn(),
+  },
+}));
+
+jest.mock('../services/SystemToggleService.js', () => ({
+  __esModule: true,
+  default: {
+    getDefaults: () => ({
+      reservationFeeDisabled: false,
+      manualGcashReservationDisabled: false,
+    }),
+    getToggles: jest.fn().mockResolvedValue({
+      data: {
+        reservationFeeDisabled: false,
+        manualGcashReservationDisabled: false,
+      },
+    }),
   },
 }));
 
@@ -218,8 +242,9 @@ describe('RoomDetailsScreen proxy booking', () => {
     });
 
     PaymentService.generateCashInvoice.mockResolvedValue({ success: true });
+    CartService.addToCart.mockResolvedValue({ success: true });
 
-    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    jest.spyOn(Alert, 'alert').mockImplementation(() => { });
   });
 
   afterEach(() => {
@@ -252,7 +277,8 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Book This Room'));
     fireEvent.press(screen.getByText('Proxy'));
 
-    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Jane Proxy');
+    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Jane');
+    fireEvent.changeText(screen.getByPlaceholderText('Last name'), 'Proxy');
     selectProxyDateOfBirth(0, 1995, 6, 1);
     fireEvent(screen.getByTestId('proxy-occupant-sex-0'), 'valueChange', 'female');
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'child');
@@ -267,7 +293,8 @@ describe('RoomDetailsScreen proxy booking', () => {
     expect(payload.fields).toEqual(
       expect.arrayContaining([
         ['booking_mode', 'proxy'],
-        ['occupants[0][full_name]', 'Jane Proxy'],
+        ['occupants[0][first_name]', 'Jane'],
+        ['occupants[0][last_name]', 'Proxy'],
         ['occupants[0][date_of_birth]', '1995-06-01'],
         ['occupants[0][sex]', 'female'],
         ['occupants[0][relationship_to_booker]', 'child'],
@@ -282,7 +309,8 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Book This Room'));
     fireEvent.press(screen.getByText('Proxy'));
 
-    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Young Occupant');
+    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Young');
+    fireEvent.changeText(screen.getByPlaceholderText('Last name'), 'Occupant');
     selectProxyDateOfBirth(0, 2012, 6, 1);
     fireEvent(screen.getByTestId('proxy-occupant-sex-0'), 'valueChange', 'female');
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
@@ -326,7 +354,9 @@ describe('RoomDetailsScreen proxy booking', () => {
     fireEvent.press(screen.getByText('Book This Room'));
     fireEvent.press(screen.getByText('Proxy'));
 
-    fireEvent.changeText(screen.getByPlaceholderText('Full name'), 'Default Sex Occupant');
+    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Default');
+    fireEvent.changeText(screen.getByPlaceholderText('Middle name'), 'Sex');
+    fireEvent.changeText(screen.getByPlaceholderText('Last name'), 'Occupant');
     selectProxyDateOfBirth(0, 1994, 6, 1);
     fireEvent.changeText(screen.getByPlaceholderText('Relationship to booker'), 'sister');
 

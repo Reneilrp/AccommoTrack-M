@@ -47,7 +47,7 @@ class SystemToggle
 
         $settings = self::loadSettings();
 
-        if (!isset($settings[$key])) {
+        if (! isset($settings[$key])) {
             return $default;
         }
 
@@ -73,6 +73,7 @@ class SystemToggle
         if (app()->runningUnitTests()) {
             try {
                 $setting = SystemSetting::query()->where('key', $key)->first();
+
                 return $setting ? (string) $setting->value : $default;
             } catch (\Throwable $e) {
                 return $default;

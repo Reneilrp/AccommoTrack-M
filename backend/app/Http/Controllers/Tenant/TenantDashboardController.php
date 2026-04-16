@@ -198,7 +198,7 @@ class TenantDashboardController extends Controller
                     'property_id' => $b->property_id,
                     'propertyId' => $b->property_id,
                     'status' => $b->status,
-                    'isOverdue' => true
+                    'isOverdue' => true,
                 ];
             });
 
@@ -229,7 +229,9 @@ class TenantDashboardController extends Controller
                 $occupants = $booking->occupants->map(function ($occupant) {
                     return [
                         'id' => $occupant->id,
-                        'full_name' => $occupant->full_name,
+                        'first_name' => $occupant->first_name,
+                        'middle_name' => $occupant->middle_name,
+                        'last_name' => $occupant->last_name,
                         'date_of_birth' => $occupant->date_of_birth,
                         'sex' => $occupant->sex,
                         'relationship_to_booker' => $occupant->relationship_to_booker,
@@ -271,7 +273,7 @@ class TenantDashboardController extends Controller
                         'billing_day' => $booking->billing_day,
                         'notice_given_at' => $booking->notice_given_at ? $booking->notice_given_at->toISOString() : null,
                         'hasReview' => (bool) $booking->review,
-                        'isOverdue' => $booking->end_date ? (now()->gt($booking->end_date) && !in_array($booking->status, ['completed', 'cancelled'])) : false,
+                        'isOverdue' => $booking->end_date ? (now()->gt($booking->end_date) && ! in_array($booking->status, ['completed', 'cancelled'])) : false,
                         'due_day' => (int) $booking->start_date->format('d'),
                         'daysRemaining' => $booking->end_date
                             ? (now()->diffInDays($booking->end_date, false) < 0 ? 0 : (int) floor(now()->diffInDays($booking->end_date)))

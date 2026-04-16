@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 class DatabaseChannel
 {
-    public function __construct(protected ExpoPushNotificationService $expoPushNotificationService)
-    {
-    }
+    public function __construct(protected ExpoPushNotificationService $expoPushNotificationService) {}
 
     /**
      * Send the given notification.

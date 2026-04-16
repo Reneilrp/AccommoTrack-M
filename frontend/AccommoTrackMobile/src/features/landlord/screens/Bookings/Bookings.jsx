@@ -1097,17 +1097,20 @@ export default function BookingsScreen({ navigation, route }) {
                 <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Proxy Occupants</Text>
                   {Array.isArray(selectedBooking.occupants) && selectedBooking.occupants.length > 0 ? (
-                    selectedBooking.occupants.map((occupant, index) => (
-                      <View key={occupant.id || `${occupant.full_name}-${index}`} style={[styles.occupantCard, { borderBottomColor: theme.colors.border }]}>
-                        <Text style={[styles.occupantName, { color: theme.colors.text }]}>{occupant.full_name || `Occupant ${index + 1}`}</Text>
-                        <Text style={[styles.occupantMeta, { color: theme.colors.textSecondary }]}>
-                          {occupant.relationship_to_booker || 'Relationship not provided'} • {occupant.sex || 'Sex not provided'}
-                        </Text>
-                        {(occupant.phone || occupant.email) ? (
-                          <Text style={[styles.occupantMeta, { color: theme.colors.textSecondary }]}>{[occupant.phone, occupant.email].filter(Boolean).join(' • ')}</Text>
-                        ) : null}
-                      </View>
-                    ))
+                    selectedBooking.occupants.map((occupant, index) => {
+                      const fullName = [occupant.first_name, occupant.middle_name, occupant.last_name].filter(Boolean).join(' ').trim() || `Occupant ${index + 1}`;
+                      return (
+                        <View key={occupant.id || `${fullName}-${index}`} style={[styles.occupantCard, { borderBottomColor: theme.colors.border }]}>
+                          <Text style={[styles.occupantName, { color: theme.colors.text }]}>{fullName}</Text>
+                          <Text style={[styles.occupantMeta, { color: theme.colors.textSecondary }]}>
+                            {occupant.relationship_to_booker || 'Relationship not provided'} • {occupant.sex || 'Sex not provided'}
+                          </Text>
+                          {(occupant.phone || occupant.email) ? (
+                            <Text style={[styles.occupantMeta, { color: theme.colors.textSecondary }]}>{[occupant.phone, occupant.email].filter(Boolean).join(' • ')}</Text>
+                          ) : null}
+                        </View>
+                      );
+                    })
                   ) : (
                     <Text style={[styles.requestEmptyText, { color: theme.colors.textTertiary }]}>No occupant profiles are attached yet for this proxy booking.</Text>
                   )}

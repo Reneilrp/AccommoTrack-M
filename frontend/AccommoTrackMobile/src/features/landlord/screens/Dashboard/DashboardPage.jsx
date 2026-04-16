@@ -79,6 +79,7 @@ const activityIconMap = {
   booking: 'calendar',
   room: 'bed',
   payment: 'cash-outline',
+  invoice: 'cash-outline',
   maintenance: 'construct-outline',
   default: 'notifications-outline'
 };
@@ -533,14 +534,9 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         if (!ensureActivityAccess('bookings', 'Bookings')) return;
 
         const params = {
-          searchQuery: tenantName,
           focusBookingId: entityId || null,
           drilldownToken: Date.now(),
         };
-        const status = String(activity.status || '').toLowerCase();
-        if (status) {
-          params.filter = status;
-        }
         navigation.navigate('Bookings', params);
         break;
       }
@@ -549,41 +545,38 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
         const invoiceId = activity.invoice_id || activity.data?.invoice_id || entityId;
         const params = {
-          searchQuery: tenantName,
           focusInvoiceId: invoiceId || null,
           drilldownToken: Date.now(),
         };
-        const status = String(activity.status || '').toLowerCase();
-        if (status === 'overdue') params.filter = 'overdue';
-        else if (status === 'refunded' || status === 'partially_refunded') params.filter = 'refunded';
-        else if (status === 'paid' || status === 'confirmed' || status === 'succeeded') params.filter = 'paid';
-        else if (status === 'pending_verification' || status === 'pending_offline') params.filter = 'pending_verification';
-        else params.filter = 'pending';
         navigation.navigate('Payments', params);
         break;
       }
       case 'room': {
         if (!ensureActivityAccess('rooms', 'Rooms')) return;
 
-        const params = {};
-        if (entityId) params.focusRoomId = entityId;
+        const params = {
+          focusRoomId: entityId,
+          drilldownToken: Date.now(),
+        };
         navigation.navigate('RoomManagement', params);
         break;
       }
       case 'property': {
         if (!ensureActivityAccess('properties', 'Properties')) return;
 
-        const params = {};
-        if (entityId) params.focusPropertyId = entityId;
-        navigation.navigate('Properties', params);
+        navigation.navigate('Properties', {
+          focusPropertyId: entityId,
+          drilldownToken: Date.now(),
+        });
         break;
       }
       case 'maintenance': {
         if (!ensureActivityAccess('maintenance', 'Maintenance')) return;
 
-        const params = {};
-        if (entityId) params.focusRequestId = entityId;
-        navigation.navigate('MaintenanceRequests', params);
+        navigation.navigate('MaintenanceRequests', {
+          focusRequestId: entityId,
+          drilldownToken: Date.now(),
+        });
         break;
       }
       case 'addon': {
@@ -592,9 +585,10 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           return;
         }
 
-        const params = {};
-        if (entityId) params.focusRequestId = entityId;
-        navigation.navigate('AddonManagement', params);
+        navigation.navigate('AddonManagement', {
+          focusRequestId: entityId,
+          drilldownToken: Date.now(),
+        });
         break;
       }
       default:

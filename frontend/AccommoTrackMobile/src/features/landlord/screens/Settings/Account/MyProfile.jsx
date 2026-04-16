@@ -117,7 +117,7 @@ export default function MyProfileScreen({ navigation }) {
   // Handle image picker
   const handlePickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (!permissionResult.granted) {
       showAlert('Permission Required', 'Please allow access to your photo library to upload a profile picture.');
       return;
@@ -154,13 +154,13 @@ export default function MyProfileScreen({ navigation }) {
         identified_as: tempUser.identified_as || null,
         date_of_birth: tempUser.date_of_birth || null,
       }, selectedImage);
-      
+
       if (response.success) {
         const updatedUser = response.data || tempUser;
         setUser(updatedUser);
         setTempUser(updatedUser);
         queryClient.setQueryData(landlordQueryKeys.myProfile(), updatedUser);
-        
+
         // Persist updated user data to AsyncStorage
         try {
           const stored = await AsyncStorage.getItem('user');
@@ -295,8 +295,8 @@ export default function MyProfileScreen({ navigation }) {
         )}
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -309,16 +309,16 @@ export default function MyProfileScreen({ navigation }) {
       >
         {/* Profile Avatar Section */}
         <View style={styles.avatarSection}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.avatarContainer}
             onPress={isEditing ? handlePickImage : null}
             disabled={!isEditing}
             activeOpacity={isEditing ? 0.7 : 1}
           >
             {getProfileImage() ? (
-              <Image 
-                source={{ uri: getProfileImage() }} 
-                style={styles.profileAvatarImage} 
+              <Image
+                source={{ uri: getProfileImage() }}
+                style={styles.profileAvatarImage}
               />
             ) : (
               <View style={styles.profileAvatar}>
@@ -383,7 +383,7 @@ export default function MyProfileScreen({ navigation }) {
             <TouchableOpacity
               onPress={() => {
                 if (!isEditing) return;
-                showAlert("Select Sex", "Choose your sex", [
+                showAlert("Sex", "Choose your sex", [
                   { text: "Male", onPress: () => setTempUser({ ...tempUser, sex: "male" }) },
                   { text: "Female", onPress: () => setTempUser({ ...tempUser, sex: "female" }) },
                   { text: "Cancel", style: "cancel" },
@@ -393,7 +393,7 @@ export default function MyProfileScreen({ navigation }) {
               style={[styles.fieldValue, isEditing && styles.fieldValueEditable]}
             >
               <Text style={{ color: tempUser?.sex ? theme.colors.text : "#9CA3AF", fontSize: 16, textTransform: "capitalize" }}>
-                {tempUser?.sex ? tempUser.sex.replace(/_/g, ' ') : "Select Sex"}
+                {tempUser?.sex ? tempUser.sex.replace(/_/g, ' ') : "Not set"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -443,10 +443,10 @@ export default function MyProfileScreen({ navigation }) {
           <Text style={styles.statusCardTitle}>Account Status</Text>
           <View style={styles.statusRow}>
             <View style={styles.statusItem}>
-              <Ionicons 
-                name={user?.is_active ? "checkmark-circle" : "close-circle"} 
-                size={20} 
-                color={user?.is_active ? theme.colors.primary : "#DC2626"} 
+              <Ionicons
+                name={user?.is_active ? "checkmark-circle" : "close-circle"}
+                size={20}
+                color={user?.is_active ? theme.colors.primary : "#DC2626"}
               />
               <Text style={styles.statusLabel}>
                 {user?.is_active ? 'Active' : 'Inactive'}

@@ -76,7 +76,7 @@ class UpdateOverdueInvoices extends Command
             Log::info("Updated {$updatedCount} invoices to overdue status.");
             $this->info("Updated {$updatedCount} invoices to overdue status.");
         } else {
-            $this->info("No overdue invoices found.");
+            $this->info('No overdue invoices found.');
         }
     }
 }

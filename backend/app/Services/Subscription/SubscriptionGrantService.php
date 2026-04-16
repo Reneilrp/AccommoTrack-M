@@ -13,9 +13,7 @@ use InvalidArgumentException;
 
 class SubscriptionGrantService
 {
-    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService)
-    {
-    }
+    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService) {}
 
     public function grantPlan(User $landlord, SubscriptionPlan $plan, User $admin, array $attributes): array
     {

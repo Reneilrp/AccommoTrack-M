@@ -33,7 +33,7 @@ class CartController extends Controller
             $request->property_id
         );
 
-        if (!$cart) {
+        if (! $cart) {
             return response()->json([
                 'cart' => null,
                 'items' => [],

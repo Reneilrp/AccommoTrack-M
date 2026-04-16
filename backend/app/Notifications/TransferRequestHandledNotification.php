@@ -13,6 +13,7 @@ class TransferRequestHandledNotification extends Notification implements ShouldQ
     use Queueable;
 
     protected TransferRequest $transferRequest;
+
     protected string $action; // 'approved' | 'rejected'
 
     public function __construct(TransferRequest $transferRequest, string $action)
@@ -33,13 +34,13 @@ class TransferRequestHandledNotification extends Notification implements ShouldQ
 
         $currentRoom = $this->transferRequest->currentRoom?->room_number ?? 'N/A';
         $requestedRoom = $this->transferRequest->requestedRoom?->room_number ?? 'N/A';
-        $message = 'Your request to transfer from Room ' . $currentRoom . ' to Room ' . $requestedRoom;
+        $message = 'Your request to transfer from Room '.$currentRoom.' to Room '.$requestedRoom;
         if ($isApproved) {
             $message .= ' has been approved. Please coordinate with your landlord.';
         } else {
             $message .= ' was rejected.';
-            if (!empty($this->transferRequest->landlord_notes)) {
-                $message .= ' Reason: "' . $this->transferRequest->landlord_notes . '"';
+            if (! empty($this->transferRequest->landlord_notes)) {
+                $message .= ' Reason: "'.$this->transferRequest->landlord_notes.'"';
             }
         }
 
@@ -55,6 +56,7 @@ class TransferRequestHandledNotification extends Notification implements ShouldQ
     public function toDatabase(object $notifiable): array
     {
         $data = $this->toArray($notifiable);
+
         return [
             'type' => $data['type'],
             'title' => $data['title'],

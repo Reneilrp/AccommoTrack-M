@@ -4,21 +4,21 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Booking\RequestMoveOutNoticeRequest;
-use App\Notifications\MoveOutRequestedNotification;
-use App\Services\AuditLogService;
-use App\Services\BillingCycleCalculator;
-use Illuminate\Support\Facades\Notification;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\Room;
 use App\Models\TenantProfile;
+use App\Notifications\MoveOutRequestedNotification;
+use App\Services\AuditLogService;
+use App\Services\BillingCycleCalculator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class TenantBookingController extends Controller
@@ -284,12 +284,14 @@ class TenantBookingController extends Controller
                             'billing_period_start' => $periodStart->toDateString(),
                             'reason' => 'outside_booking_end_date',
                         ];
+
                         continue;
                     }
 
                     $existing = $this->findMonthlyRentInvoiceForPeriod($booking, $periodStart);
                     if ($existing) {
                         $existingInvoices[] = $existing;
+
                         continue;
                     }
 

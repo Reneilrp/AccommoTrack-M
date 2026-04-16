@@ -13,11 +13,9 @@ use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\BookingDepositSettlement;
 use App\Services\BookingService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class LandlordBookingController extends Controller
 {
@@ -111,7 +109,7 @@ class LandlordBookingController extends Controller
     /**
      * Store a new booking (tenant books a room)
      */
-            public function store(StoreBookingRequest $request)
+    public function store(StoreBookingRequest $request)
     {
         try {
             $validated = $request->validated();
@@ -130,24 +128,24 @@ class LandlordBookingController extends Controller
                 if ($user && in_array($user->role, ['landlord', 'caretaker'], true)) {
                     $context = $this->resolveLandlordContext($request);
                     $this->ensureCaretakerCan($context, 'can_view_bookings');
-                    
+
                     // Verify access to all rooms
                     foreach ($validated['items'] as $item) {
                         $room = \App\Models\Room::query()->select('id', 'property_id')->findOrFail($item['room_id']);
                         $this->checkPropertyAccess($context, (int) $room->property_id);
                     }
                 }
-                
+
                 $result = $this->bookingService->createCartBookings($validated, $tenantId);
-                
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Cart checkout successful.',
                     'data' => [
                         'bookings' => $result['bookings'],
                         'reservation_invoice_id' => $result['reservation_invoice']?->id,
-                        'booking_group_reference' => $result['booking_group_reference']
-                    ]
+                        'booking_group_reference' => $result['booking_group_reference'],
+                    ],
                 ], 201);
             } else {
                 // Existing single checkout flow
@@ -187,6 +185,7 @@ class LandlordBookingController extends Controller
             }
         } catch (\DomainException $e) {
             Log::warning('Booking validation failed', ['message' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -197,6 +196,7 @@ class LandlordBookingController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create booking due to a server error.',
@@ -224,14 +224,15 @@ class LandlordBookingController extends Controller
             $this->checkPropertyAccess($context, $booking->property_id);
 
             // Validate room relationship exists
-            if (!$booking->room) {
+            if (! $booking->room) {
                 Log::error('Cannot update booking status: room record missing', [
                     'booking_id' => $booking->id,
                     'room_id' => $booking->room_id,
                     'requested_status' => $request->validated()['status'] ?? 'unknown',
                 ]);
+
                 return response()->json([
-                    'message' => 'Cannot update booking status: The room associated with this booking no longer exists. Please contact support with booking ID: ' . $id,
+                    'message' => 'Cannot update booking status: The room associated with this booking no longer exists. Please contact support with booking ID: '.$id,
                 ], 422);
             }
 
@@ -262,7 +263,7 @@ class LandlordBookingController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Failed to update booking status due to a system error. Please contact support with booking ID: ' . $id,
+                'message' => 'Failed to update booking status due to a system error. Please contact support with booking ID: '.$id,
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
@@ -335,12 +336,13 @@ class LandlordBookingController extends Controller
             $this->checkPropertyAccess($context, $booking->property_id);
 
             // Validate room exists
-            if (!$booking->room) {
+            if (! $booking->room) {
                 Log::error('Cannot finalize checkout: room record missing', [
                     'booking_id' => $booking->id,
                     'room_id' => $booking->room_id,
                     'tenant_id' => $booking->tenant_id,
                 ]);
+
                 return response()->json([
                     'success' => false,
                     'data' => null,
@@ -349,12 +351,13 @@ class LandlordBookingController extends Controller
             }
 
             // Validate property exists
-            if (!$booking->room->property) {
+            if (! $booking->room->property) {
                 Log::error('Cannot finalize checkout: property record missing', [
                     'booking_id' => $booking->id,
                     'room_id' => $booking->room_id,
                     'property_id' => $booking->room->property_id,
                 ]);
+
                 return response()->json([
                     'success' => false,
                     'data' => null,
@@ -367,7 +370,7 @@ class LandlordBookingController extends Controller
                 return response()->json([
                     'success' => false,
                     'data' => null,
-                    'message' => 'Please settle the deposit balance of ₱' . number_format($booking->deposit_balance, 2) . ' before finalizing checkout.',
+                    'message' => 'Please settle the deposit balance of ₱'.number_format($booking->deposit_balance, 2).' before finalizing checkout.',
                 ], 422);
             }
 
@@ -409,7 +412,7 @@ class LandlordBookingController extends Controller
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'Failed to finalize checkout due to a system error. Please contact support with booking ID: ' . $id,
+                'message' => 'Failed to finalize checkout due to a system error. Please contact support with booking ID: '.$id,
             ], 500);
         }
     }
@@ -658,11 +661,12 @@ class LandlordBookingController extends Controller
 
             return response()->json([
                 'message' => 'Reservation approved successfully.',
-                'booking' => (new BookingResource($booking))->resolve()
+                'booking' => (new BookingResource($booking))->resolve(),
             ], 200);
 
         } catch (\Exception $e) {
             Log::error('Failed to approve reservation', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Failed to approve reservation',
                 'error' => $e->getMessage(),
@@ -691,13 +695,14 @@ class LandlordBookingController extends Controller
 
             return response()->json([
                 'message' => 'Tenant checked in successfully.',
-                'booking' => (new BookingResource($result['booking']))->resolve()
+                'booking' => (new BookingResource($result['booking']))->resolve(),
             ], 200);
 
         } catch (\DomainException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             Log::error('Failed to check in tenant', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Failed to check in tenant',
                 'error' => $e->getMessage(),

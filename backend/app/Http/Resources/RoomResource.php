@@ -62,8 +62,12 @@ class RoomResource extends JsonResource
 
                 $tenantSex = null;
                 $g = strtolower(trim($tenant->sex ?? ''));
-                if (in_array($g, ['male', 'boy', 'boys'])) $tenantSex = 'male';
-                if (in_array($g, ['female', 'girl', 'girls'])) $tenantSex = 'female';
+                if (in_array($g, ['male', 'boy', 'boys'])) {
+                    $tenantSex = 'male';
+                }
+                if (in_array($g, ['female', 'girl', 'girls'])) {
+                    $tenantSex = 'female';
+                }
 
                 return $roomRestriction === $tenantSex;
             }),
@@ -84,7 +88,9 @@ class RoomResource extends JsonResource
                     $occupants = collect($tenantBooking?->occupants ?? [])->map(function ($occupant) {
                         return [
                             'id' => $occupant->id,
-                            'full_name' => $occupant->full_name,
+                            'first_name' => $occupant->first_name,
+                            'middle_name' => $occupant->middle_name,
+                            'last_name' => $occupant->last_name,
                             'sex' => $occupant->sex,
                             'date_of_birth' => $occupant->date_of_birth,
                             'relationship_to_booker' => $occupant->relationship_to_booker,
@@ -128,9 +134,10 @@ class RoomResource extends JsonResource
                         $occupants = $b->occupants->map(function ($occupant) {
                             return [
                                 'id' => $occupant->id,
-                                'full_name' => $occupant->full_name,
-                                'sex' => $occupant->sex,
-                                'date_of_birth' => $occupant->date_of_birth,
+                                'first_name' => $occupant->first_name,
+                                'middle_name' => $occupant->middle_name,
+                                'last_name' => $occupant->last_name,
+                                'sex' => $occupant->sex,                                'date_of_birth' => $occupant->date_of_birth,
                                 'relationship_to_booker' => $occupant->relationship_to_booker,
                                 'email' => $occupant->email,
                                 'phone' => $occupant->phone,

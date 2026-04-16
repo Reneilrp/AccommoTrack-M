@@ -18,9 +18,7 @@ use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 class PropertyService
 {
-    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService)
-    {
-    }
+    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService) {}
 
     public function canLandlordSubmitProperties(User $user): bool
     {

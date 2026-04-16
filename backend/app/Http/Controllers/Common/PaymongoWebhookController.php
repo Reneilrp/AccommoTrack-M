@@ -18,9 +18,7 @@ class PaymongoWebhookController extends Controller
     public function __construct(
         private readonly SubscriptionCheckoutService $subscriptionCheckoutService,
         private readonly PaymentLedgerService $paymentLedgerService,
-    )
-    {
-    }
+    ) {}
 
     private function isSettledTransactionStatus(?string $status): bool
     {

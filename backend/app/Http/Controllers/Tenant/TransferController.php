@@ -281,12 +281,12 @@ class TransferController extends Controller
         $tenant = Auth::user();
         $tenantId = $tenant?->id;
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
         $validated = $request->validate([
-            'booking_id'        => 'required|integer|exists:bookings,id',
+            'booking_id' => 'required|integer|exists:bookings,id',
             'requested_room_id' => 'required|integer|exists:rooms,id',
         ]);
 
@@ -296,12 +296,12 @@ class TransferController extends Controller
             ->with('room')
             ->first();
 
-        if (!$activeBooking) {
+        if (! $activeBooking) {
             return response()->json(['success' => false, 'message' => 'No active booking found.'], 422);
         }
 
         $newRoom = Room::find($validated['requested_room_id']);
-        if (!$newRoom) {
+        if (! $newRoom) {
             return response()->json(['success' => false, 'message' => 'Requested room not found.'], 422);
         }
 
@@ -311,37 +311,37 @@ class TransferController extends Controller
         // Proration credit from current booking
         $creditCalc = $this->refundService->calculateProratedCredit($activeBooking, 0, $transferFee);
 
-        $remainingDays      = (int) ($creditCalc['remaining_days'] ?? 0);
-        $paidAmount         = (float) ($creditCalc['paid_amount'] ?? 0);
-        $creditAvailable    = (float) ($creditCalc['final_credit'] ?? 0);
-        $unusedValue        = (float) ($creditCalc['unused_value'] ?? 0);
-        $nextBillingDate    = $creditCalc['next_billing_date'] ?? null;
+        $remainingDays = (int) ($creditCalc['remaining_days'] ?? 0);
+        $paidAmount = (float) ($creditCalc['paid_amount'] ?? 0);
+        $creditAvailable = (float) ($creditCalc['final_credit'] ?? 0);
+        $unusedValue = (float) ($creditCalc['unused_value'] ?? 0);
+        $nextBillingDate = $creditCalc['next_billing_date'] ?? null;
 
-        $currentRoomRate    = (float) ($activeBooking->monthly_rent ?? 0);
-        $newRoomRate        = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
+        $currentRoomRate = (float) ($activeBooking->monthly_rent ?? 0);
+        $newRoomRate = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
 
-        $newRoomCostCents       = (int) round(($newRoomRate * 100 * $remainingDays) / 30);
-        $unusedValueCents       = (int) round($unusedValue * 100);
+        $newRoomCostCents = (int) round(($newRoomRate * 100 * $remainingDays) / 30);
+        $unusedValueCents = (int) round($unusedValue * 100);
         $suggestedAdjustmentCents = $newRoomCostCents - $unusedValueCents;
-        $suggestedAdjustment    = round($suggestedAdjustmentCents / 100, 2);
-        $newRoomCost            = round($newRoomCostCents / 100, 2);
+        $suggestedAdjustment = round($suggestedAdjustmentCents / 100, 2);
+        $newRoomCost = round($newRoomCostCents / 100, 2);
 
-        $hasPaymentThisPeriod   = $paidAmount > 0;
+        $hasPaymentThisPeriod = $paidAmount > 0;
 
         return response()->json([
             'success' => true,
             'data' => [
-                'current_room_rate'        => $currentRoomRate,
-                'new_room_rate'            => $newRoomRate,
-                'remaining_days'           => $remainingDays,
-                'next_billing_date'        => $nextBillingDate,
-                'old_room_unused_value'    => $unusedValue,
-                'paid_amount'              => $paidAmount,
-                'credit_available'         => $creditAvailable,
-                'transfer_fee'             => $transferFee,
-                'new_room_cost'            => $newRoomCost,
-                'suggested_adjustment'     => $suggestedAdjustment,
-                'has_payment_this_period'  => $hasPaymentThisPeriod,
+                'current_room_rate' => $currentRoomRate,
+                'new_room_rate' => $newRoomRate,
+                'remaining_days' => $remainingDays,
+                'next_billing_date' => $nextBillingDate,
+                'old_room_unused_value' => $unusedValue,
+                'paid_amount' => $paidAmount,
+                'credit_available' => $creditAvailable,
+                'transfer_fee' => $transferFee,
+                'new_room_cost' => $newRoomCost,
+                'suggested_adjustment' => $suggestedAdjustment,
+                'has_payment_this_period' => $hasPaymentThisPeriod,
             ],
         ]);
     }

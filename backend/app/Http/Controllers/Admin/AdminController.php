@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\PurgeCloudflareFilesJob;
 use App\Mail\AdminForcedPasswordResetLink;
 use App\Models\LandlordVerification;
 use App\Models\LandlordVerificationHistory;
@@ -14,7 +15,6 @@ use App\Services\AuditLogService;
 use App\Services\PropertyService;
 use App\Support\AdminPermission;
 use App\Support\SystemToggle;
-use App\Jobs\PurgeCloudflareFilesJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,9 +23,7 @@ use Illuminate\Support\Facades\Mail;
 
 class AdminController extends Controller
 {
-    public function __construct(protected AuditLogService $auditLogService)
-    {
-    }
+    public function __construct(protected AuditLogService $auditLogService) {}
 
     /**
      * Get payment control system settings.
@@ -82,7 +80,7 @@ class AdminController extends Controller
         }
         SystemToggle::setBool('reservation_fee_disabled', (bool) $validated['reservation_fee_disabled'], $actorId);
         SystemToggle::setBool('manual_gcash_reservation_disabled', (bool) $validated['manual_gcash_reservation_disabled'], $actorId);
-        
+
         if (isset($validated['mobile_latest_version'])) {
             SystemToggle::setString('mobile_latest_version', $validated['mobile_latest_version'], $actorId);
         }
@@ -92,7 +90,7 @@ class AdminController extends Controller
         if (isset($validated['mobile_force_update'])) {
             SystemToggle::setBool('mobile_force_update', (bool) $validated['mobile_force_update'], $actorId);
         }
-        
+
         // Handle system time override
         if (isset($request->system_forced_now)) {
             SystemToggle::setString('system_forced_now', (string) $request->system_forced_now, $actorId);
@@ -151,9 +149,11 @@ class AdminController extends Controller
         try {
             \App\Jobs\PurgeCloudflareCacheJob::dispatchSync();
             \Illuminate\Support\Facades\Artisan::call('cache:clear');
+
             return response()->json(['success' => true, 'message' => 'Global cache successfully cleared.']);
         } catch (\Exception $e) {
-            \Log::error('Failed to clear global cache: ' . $e->getMessage());
+            \Log::error('Failed to clear global cache: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Failed to clear cache.', 'error' => $e->getMessage()], 500);
         }
     }
@@ -383,7 +383,7 @@ class AdminController extends Controller
                 'reviewed_by' => Auth::id(),
             ]);
         } else {
-            $verification = new LandlordVerification();
+            $verification = new LandlordVerification;
             $verification->user_id = $user->id;
             $verification->first_name = $user->first_name;
             $verification->middle_name = $user->middle_name;
@@ -422,7 +422,7 @@ class AdminController extends Controller
         $approvedCount = 0;
 
         foreach ($users as $user) {
-            if (!$user->is_verified) {
+            if (! $user->is_verified) {
                 $user->is_verified = true;
                 $user->save();
 
@@ -594,7 +594,7 @@ class AdminController extends Controller
         }
 
         $statusBefore = $user->is_blocked ? 'blocked' : 'active';
-        
+
         if ($suspensionDuration === 'permanent') {
             $user->is_blocked = true;
             $user->suspended_until = null;
@@ -608,7 +608,7 @@ class AdminController extends Controller
                 $user->suspended_until = now()->addDays(30);
             }
         }
-        
+
         $user->save();
 
         $actionType = $suspensionDuration === 'permanent' ? 'blocked' : 'suspended';
@@ -753,7 +753,7 @@ class AdminController extends Controller
                     'user' => [
                         'id' => $user->id,
                         'email' => $user->email,
-                        'name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                        'name' => trim(($user->first_name ?? '').' '.($user->last_name ?? '')),
                     ],
                     'reset_url' => $resetUrl,
                     'expires_in_minutes' => 10,
@@ -871,7 +871,7 @@ class AdminController extends Controller
         try {
             $user = User::findOrFail($id);
             $userEmail = $user->email;
-            
+
             // Log it before deletion
             $this->auditLogService->log('user', 'user.deleted', [
                 'severity' => 'warning',
@@ -894,6 +894,7 @@ class AdminController extends Controller
     public function getArchivedUsers()
     {
         $users = User::onlyTrashed()->orderBy('deleted_at', 'desc')->get();
+
         return response()->json($users);
     }
 
@@ -1257,7 +1258,7 @@ class AdminController extends Controller
     public function enablePaymongoBypass(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        
+
         if ($user->role !== 'landlord') {
             return response()->json([
                 'message' => 'Only landlord accounts can have PayMongo verification bypass enabled.',
@@ -1294,7 +1295,7 @@ class AdminController extends Controller
     public function disablePaymongoBypass(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        
+
         $user->paymongo_verification_bypass = false;
         $user->save();
 

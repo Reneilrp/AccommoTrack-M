@@ -78,7 +78,7 @@ class AuthService
         }
 
         // Prevent OTP bypass: users must complete email verification before login.
-        if (! $user->is_verified && !in_array($user->role, ['admin', 'landlord'])) {
+        if (! $user->is_verified && ! in_array($user->role, ['admin', 'landlord'])) {
             $retryAfterSeconds = null;
             $otpResent = false;
 
@@ -147,7 +147,7 @@ class AuthService
         return match ($normalized) {
             'male' => 'male',
             'female' => 'female',
-            
+
             default => null,
         };
     }

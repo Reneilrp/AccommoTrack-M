@@ -13,7 +13,7 @@ return new class extends Migration
             $table->unsignedTinyInteger('proxy_booking_limit')->default(3)->after('normal_booking_limit');
             $table->unsignedTinyInteger('min_partial_payment_pct')->default(20)->after('proxy_booking_limit');
         });
-        
+
         Schema::table('invoices', function (Blueprint $table) {
             $table->string('booking_group_reference')->nullable()->after('booking_id')->index();
         });
@@ -24,7 +24,7 @@ return new class extends Migration
         Schema::table('properties', function (Blueprint $table) {
             $table->dropColumn(['normal_booking_limit', 'proxy_booking_limit', 'min_partial_payment_pct']);
         });
-        
+
         Schema::table('invoices', function (Blueprint $table) {
             $table->dropColumn('booking_group_reference');
         });

@@ -138,6 +138,20 @@ export default function MaintenanceRequests({ route }) {
     }
   }, [requests, selectedRequest?.id]);
 
+  const [drilldownApplied, setDrilldownApplied] = useState(false);
+
+  useEffect(() => {
+    const focusId = route?.params?.focusRequestId;
+    if (focusId && !drilldownApplied && requests.length > 0) {
+      const target = requests.find(r => String(r.id) === String(focusId));
+      if (target) {
+        setDrilldownApplied(true);
+        setSelectedRequest(target);
+        setDetailsVisible(true);
+      }
+    }
+  }, [route?.params?.focusRequestId, requests, drilldownApplied]);
+
   const handleUpdateStatus = async (id, newStatus) => {
     try {
       const res = await updateStatusMutation.mutateAsync({ id, status: newStatus });

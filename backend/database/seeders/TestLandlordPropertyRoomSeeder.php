@@ -3,10 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\Amenity;
+use App\Models\LandlordVerification;
 use App\Models\Property;
 use App\Models\PropertyCredential;
 use App\Models\PropertyImage;
-use App\Models\LandlordVerification;
 use App\Models\Room;
 use App\Models\RoomImage;
 use App\Models\User;

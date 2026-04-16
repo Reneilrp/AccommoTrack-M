@@ -87,8 +87,8 @@ export default function CaretakerDashboard({ __user }) {
     const status = String(activity?.status || '').toLowerCase();
     const type = String(activity?.type || '').toLowerCase();
 
-    if (type === 'property' && (status === 'updated' || status === 'changed')) return 'blue';
-    if (type === 'room' && status === 'occupied') return 'blue';
+    if (type === 'property' && (status === 'updated' || status === 'changed')) return 'green';
+    if (type === 'room' && status === 'occupied') return 'green';
     if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'red';
     if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
     if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
@@ -100,7 +100,6 @@ export default function CaretakerDashboard({ __user }) {
   const getActivityColor = (activity) => {
     switch (resolveActivityColor(activity)) {
       case 'green': return 'bg-green-100 text-green-600';
-      case 'blue': return 'bg-blue-100 text-blue-600';
       case 'yellow': return 'bg-yellow-100 text-yellow-600';
       case 'red': return 'bg-red-100 text-red-600';
       case 'gray': return 'bg-gray-100 text-gray-600';
@@ -111,7 +110,7 @@ export default function CaretakerDashboard({ __user }) {
   const getStatusColor = (activity) => {
     const status = String(activity?.status || '').toLowerCase();
 
-    if (status === 'updated' || status === 'changed') return 'bg-blue-100 text-blue-600';
+    if (status === 'updated' || status === 'changed') return 'bg-green-100 text-green-600';
     if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'bg-yellow-100 text-yellow-600';
     if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'bg-green-100 text-green-600';
     if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'bg-red-100 text-red-600';
@@ -214,7 +213,7 @@ export default function CaretakerDashboard({ __user }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Building2 className="w-6 h-6 text-blue-600" /></div>
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"><Building2 className="w-6 h-6 text-green-600" /></div>
             <span className="text-xs text-green-600 font-medium">{stats?.properties.active}/{stats?.properties.total} Active</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.properties.total}</p>
@@ -224,7 +223,7 @@ export default function CaretakerDashboard({ __user }) {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"><Home className="w-6 h-6 text-green-600" /></div>
-            <span className="text-xs text-blue-600 font-medium">{stats?.rooms.occupancyRate}% Occupied</span>
+            <span className="text-xs text-green-600 font-medium">{stats?.rooms.occupancyRate}% Occupied</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.rooms.total}</p>
           <p className="text-sm text-gray-500">{stats?.rooms.occupied} Occupied · {stats?.rooms.available} Available</p>

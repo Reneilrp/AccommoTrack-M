@@ -105,7 +105,8 @@ export default function DashboardPage({ user }) {
       case 'booking': return <Calendar className="w-5 h-5" />;
       case 'room': return <Home className="w-5 h-5" />;
       case 'property': return <Building2 className="w-5 h-5" />;
-      case 'payment': return <LucidePhilippinePeso className="w-5 h-5" />;
+      case 'payment':
+      case 'invoice': return <LucidePhilippinePeso className="w-5 h-5" />;
       default: return <AlertCircle className="w-5 h-5" />;
     }
   };
@@ -208,73 +209,39 @@ export default function DashboardPage({ user }) {
     const entityId = activity.id;
     const description = activity.description || '';
 
-    // Extract tenant name from description if available
-    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/);
-    const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
-
     switch (type) {
       case 'booking': {
         const params = new URLSearchParams();
-        if (entityId) {
-          params.set('bookingId', String(entityId));
-        }
-        if (tenantName) {
-          params.set('search', tenantName);
-        }
-        const status = String(activity.status || '').toLowerCase();
-        if (status) {
-          params.set('status', status);
-        }
+        if (entityId) params.set('bookingId', String(entityId));
         __navigate(`/bookings?${params.toString()}`);
         break;
       }
       case 'payment': {
         const params = new URLSearchParams();
         const invoiceId = activity.invoice_id || activity.data?.invoice_id || entityId;
-        if (invoiceId) {
-          params.set('invoiceId', String(invoiceId));
-        }
-        if (tenantName) {
-          params.set('search', tenantName);
-        }
-        const status = String(activity.status || '').toLowerCase();
-        if (status === 'overdue') params.set('filter', 'overdue');
-        else if (status === 'refunded' || status === 'partially_refunded') params.set('filter', 'refunded');
-        else if (status === 'paid' || status === 'confirmed' || status === 'succeeded') params.set('filter', 'paid');
-        else if (status === 'pending_verification' || status === 'pending_offline') params.set('filter', 'pending_verification');
-        else params.set('filter', 'pending');
+        if (invoiceId) params.set('invoiceId', String(invoiceId));
         __navigate(`/payments?${params.toString()}`);
         break;
       }
       case 'room': {
         const params = new URLSearchParams();
-        if (entityId) {
-          params.set('roomId', String(entityId));
-        }
+        if (entityId) params.set('roomId', String(entityId));
         __navigate(`/rooms?${params.toString()}`);
         break;
       }
       case 'property': {
-        const params = new URLSearchParams();
-        if (entityId) {
-          params.set('propertyId', String(entityId));
-        }
-        __navigate(`/properties?${params.toString()}`);
+        __navigate(`/properties/${entityId}`);
         break;
       }
       case 'maintenance': {
         const params = new URLSearchParams();
-        if (entityId) {
-          params.set('requestId', String(entityId));
-        }
+        if (entityId) params.set('requestId', String(entityId));
         __navigate(`/maintenance?${params.toString()}`);
         break;
       }
       case 'addon': {
         const params = new URLSearchParams();
-        if (entityId) {
-          params.set('requestId', String(entityId));
-        }
+        if (entityId) params.set('requestId', String(entityId));
         __navigate(`/addons?${params.toString()}`);
         break;
       }

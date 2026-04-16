@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\TenantCredit;
 use App\Models\TenantProfile;
 use App\Models\User;
-use App\Models\TenantCredit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +49,7 @@ class TenantSettingsController extends Controller
             if ($user->profile_image) {
                 $rawPath = ltrim($user->profile_image, '/');
                 $cleanPath = str_replace('storage/', '', $rawPath);
-                
+
                 try {
                     $profileImage = Storage::url($cleanPath);
                 } catch (\Exception $e) {
@@ -264,7 +264,7 @@ class TenantSettingsController extends Controller
         return match ($normalized) {
             'male' => 'male',
             'female' => 'female',
-            
+
             default => null,
         };
     }

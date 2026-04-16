@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Models\Cart;
 use App\Models\CartItem;
-use App\Models\Room;
 use App\Models\Property;
+use App\Models\Room;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -29,7 +29,7 @@ class CartService
             ->active()
             ->first();
 
-        if (!$cart) {
+        if (! $cart) {
             $cart = Cart::create([
                 'user_id' => $userId,
                 'property_id' => $propertyId,
@@ -83,7 +83,7 @@ class CartService
      */
     public function removeItem(int $userId, int $itemId): bool
     {
-        $item = CartItem::whereHas('cart', function($q) use ($userId) {
+        $item = CartItem::whereHas('cart', function ($q) use ($userId) {
             $q->where('user_id', $userId);
         })->findOrFail($itemId);
 
@@ -95,7 +95,7 @@ class CartService
      */
     public function updateItem(int $userId, int $itemId, array $data): CartItem
     {
-        $item = CartItem::with('room')->whereHas('cart', function($q) use ($userId) {
+        $item = CartItem::with('room')->whereHas('cart', function ($q) use ($userId) {
             $q->where('user_id', $userId);
         })->findOrFail($itemId);
 
@@ -140,6 +140,7 @@ class CartService
         if ($cart) {
             $cart->items()->delete();
             $cart->delete();
+
             return true;
         }
 
@@ -173,10 +174,10 @@ class CartService
         DB::beginTransaction();
         try {
             $bookings = [];
-            $bookingGroupReference = 'GRP-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+            $bookingGroupReference = 'GRP-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
 
             // Prepare cart items for batch booking
-            $cartItems = $cart->items->map(function($item) use ($checkoutData, $bookingGroupReference) {
+            $cartItems = $cart->items->map(function ($item) {
                 return [
                     'room_id' => $item->room_id,
                     'bed_count' => $item->bed_count,
@@ -246,8 +247,8 @@ class CartService
             ->count();
 
         // Count items in cart by mode
-        $normalItemsInCart = $cart->items->filter(fn($item) => !$item->isProxyBooking())->count();
-        $proxyItemsInCart = $cart->items->filter(fn($item) => $item->isProxyBooking())->count();
+        $normalItemsInCart = $cart->items->filter(fn ($item) => ! $item->isProxyBooking())->count();
+        $proxyItemsInCart = $cart->items->filter(fn ($item) => $item->isProxyBooking())->count();
 
         // Get property limits (with max cap of 4)
         $normalLimit = min(4, (int) ($property->normal_booking_limit ?? 1));

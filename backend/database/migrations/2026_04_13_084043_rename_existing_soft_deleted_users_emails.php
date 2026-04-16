@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -18,7 +16,7 @@ return new class extends Migration
 
         foreach ($deletedUsers as $user) {
             $originalEmail = $user->email;
-            $user->email = $originalEmail . '.deleted.' . time();
+            $user->email = $originalEmail.'.deleted.'.time();
             $user->save();
         }
     }

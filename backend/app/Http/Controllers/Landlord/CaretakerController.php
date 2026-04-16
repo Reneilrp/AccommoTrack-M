@@ -137,9 +137,9 @@ class CaretakerController extends Controller
                 'can_view_properties' => data_get($validated, 'permissions.can_view_properties', false),
                 'can_manage_maintenance' => data_get($validated, 'permissions.can_manage_maintenance', false),
                 'can_manage_payments' => data_get($validated, 'permissions.can_manage_payments', false),
-                 'can_view_analytics' => data_get($validated, 'permissions.can_view_analytics', false),
-                 'can_add_tenant_manually' => data_get($validated, 'permissions.can_add_tenant_manually', false),
-                 'can_add_manual_bookings' => data_get($validated, 'permissions.can_add_manual_bookings', false),
+                'can_view_analytics' => data_get($validated, 'permissions.can_view_analytics', false),
+                'can_add_tenant_manually' => data_get($validated, 'permissions.can_add_tenant_manually', false),
+                'can_add_manual_bookings' => data_get($validated, 'permissions.can_add_manual_bookings', false),
             ];
 
             $assignment = CaretakerAssignment::create(array_merge(

@@ -853,7 +853,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     const source = Array.isArray(bookingEntry?.occupants) ? bookingEntry.occupants : [];
 
     return source.map((occupant, index) => {
-      const fullName = String(occupant?.full_name || occupant?.fullName || '').trim() || `Occupant ${index + 1}`;
+      const fullName = [occupant?.first_name, occupant?.middle_name, occupant?.last_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || `Occupant ${index + 1}`;
       const relationship = String(occupant?.relationship_to_booker || occupant?.relationshipToBooker || '').trim();
       const sex = String(occupant?.sex || '').trim();
       const contact = [occupant?.phone, occupant?.email].filter(Boolean).join(' • ');

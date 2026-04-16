@@ -13,13 +13,13 @@ return new class extends Migration
     {
         Schema::table('properties', function (Blueprint $table) {
             // Check if columns don't already exist (they might from earlier schema)
-            if (!Schema::hasColumn('properties', 'normal_booking_limit')) {
+            if (! Schema::hasColumn('properties', 'normal_booking_limit')) {
                 $table->integer('normal_booking_limit')->default(1)->after('proxy_booking_limit')
-                      ->comment('Max concurrent normal bookings per tenant (1-4)');
+                    ->comment('Max concurrent normal bookings per tenant (1-4)');
             }
-            if (!Schema::hasColumn('properties', 'proxy_booking_limit')) {
+            if (! Schema::hasColumn('properties', 'proxy_booking_limit')) {
                 $table->integer('proxy_booking_limit')->default(3)->after('allow_partial_payments')
-                      ->comment('Max concurrent proxy bookings per tenant (1-4)');
+                    ->comment('Max concurrent proxy bookings per tenant (1-4)');
             }
         });
     }

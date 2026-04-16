@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -19,7 +19,7 @@ return new class extends Migration
                 $table->renameColumn('gender', 'sex');
             });
         }
-        
+
         // Rooms
         if (Schema::hasColumn('rooms', 'gender_restriction')) {
             Schema::table('rooms', function (Blueprint $table) {
@@ -29,7 +29,7 @@ return new class extends Migration
                 $table->renameColumn('gender_restriction', 'sex_restriction');
             });
         }
-        
+
         // Properties
         if (Schema::hasColumn('properties', 'gender_restriction')) {
             Schema::table('properties', function (Blueprint $table) {
@@ -39,25 +39,25 @@ return new class extends Migration
                 $table->renameColumn('gender_restriction', 'sex_restriction');
             });
         }
-        
+
         // Booking Occupants
         if (Schema::hasColumn('booking_occupants', 'gender')) {
             Schema::table('booking_occupants', function (Blueprint $table) {
                 $table->renameColumn('gender', 'sex');
             });
         }
-        
-        if (!Schema::hasColumn('booking_occupants', 'first_name')) {
+
+        if (! Schema::hasColumn('booking_occupants', 'first_name')) {
             Schema::table('booking_occupants', function (Blueprint $table) {
                 $table->string('first_name')->nullable()->after('booking_id');
             });
         }
-        if (!Schema::hasColumn('booking_occupants', 'last_name')) {
+        if (! Schema::hasColumn('booking_occupants', 'last_name')) {
             Schema::table('booking_occupants', function (Blueprint $table) {
                 $table->string('last_name')->nullable()->after('first_name');
             });
         }
-        
+
         // Migrate data
         if (Schema::hasColumn('booking_occupants', 'full_name')) {
             $occupants = DB::table('booking_occupants')->get();
@@ -67,23 +67,21 @@ return new class extends Migration
                 $last_name = array_pop($parts);
                 $first_name = implode(' ', $parts);
                 if (empty($first_name)) {
-                    $first_name = rtrim((string)$last_name);
+                    $first_name = rtrim((string) $last_name);
                     $last_name = null;
                 }
-                
+
                 DB::table('booking_occupants')->where('id', $occupant->id)->update([
-                    'first_name' => rtrim((string)$first_name) ?: null,
-                    'last_name' => rtrim((string)$last_name) ?: null,
+                    'first_name' => rtrim((string) $first_name) ?: null,
+                    'last_name' => rtrim((string) $last_name) ?: null,
                 ]);
             }
-            
+
             Schema::table('booking_occupants', function (Blueprint $table) {
                 $table->dropColumn('full_name');
             });
         }
     }
 
-    public function down(): void
-    {
-    }
+    public function down(): void {}
 };

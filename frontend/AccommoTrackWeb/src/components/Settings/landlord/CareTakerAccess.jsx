@@ -1009,8 +1009,8 @@ export default function CareTakerAccess({
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Current Caretakers</h2>
@@ -1030,7 +1030,7 @@ export default function CareTakerAccess({
           <div className="p-0">
             {safeState.loading && safeCaretakers.length === 0 ? (
               <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-4">
-                <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+                <Loader2 className="w-10 h-10 animate-spin text-green-600" />
                 <p className="font-medium">Fetching team members...</p>
               </div>
             ) : safeCaretakers.length === 0 ? (
@@ -1277,7 +1277,7 @@ export default function CareTakerAccess({
               </button>
               <button
                 onClick={() => handleEditClick(selectedCaretaker)}
-                className="py-4 px-2 rounded-2xl border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all flex flex-col items-center justify-center gap-2"
+                className="py-4 px-2 rounded-2xl border border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-all flex flex-col items-center justify-center gap-2"
                 title="Edit Details"
               >
                 <Plus className="w-4 h-4 rotate-45" />

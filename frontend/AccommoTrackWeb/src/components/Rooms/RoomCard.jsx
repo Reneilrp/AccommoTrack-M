@@ -6,17 +6,17 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   const url = (room.images && room.images.length > 0)
     ? getImageUrl(typeof room.images[0] === 'string' ? room.images[0] : (room.images[0].image_url || room.images[0].url))
     : null;
-  const getStatusClasses = (status, occupied, capacity, displayStatus) => {
-    if (displayStatus === 'reserved') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-    if (status === 'maintenance') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-    if (status === 'occupied' || occupied >= capacity) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+  const getStatusClasses = (effectiveStatus) => {
+    if (effectiveStatus === 'reserved') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+    if (effectiveStatus === 'maintenance') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+    if (effectiveStatus === 'occupied') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
     return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
   };
 
-  const statusLabel = (status, occupied, capacity, displayStatus) => {
-    if (displayStatus === 'reserved') return 'Reserved';
-    if (status === 'maintenance') return 'Maintenance';
-    if (status === 'occupied' || occupied >= capacity) return 'Occupied';
+  const statusLabel = (effectiveStatus) => {
+    if (effectiveStatus === 'reserved') return 'Reserved';
+    if (effectiveStatus === 'maintenance') return 'Maintenance';
+    if (effectiveStatus === 'occupied') return 'Occupied';
     return 'Available';
   };
 
@@ -27,12 +27,42 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
 
   const calculatedOccupiedCount = (room.tenants || []).reduce((acc, t) => {
     const isProxy = Boolean(t?.is_proxy_account) || String(t?.booking_mode || '').toLowerCase() === 'proxy';
-    const tCount = isProxy 
+    const tCount = isProxy
       ? Math.max(1, Number(t?.occupant_count || (Array.isArray(t?.occupants) ? t.occupants.length : 0) || t?.bed_count || 1))
       : 1;
     return acc + tCount;
   }, 0);
   const occupiedCount = calculatedOccupiedCount > 0 ? calculatedOccupiedCount : Number(room.occupied || 0);
+  const normalizedStatus = String(room.status || '').toLowerCase();
+  const normalizedDisplayStatus = String(displayStatus || '').toLowerCase();
+  const capacity = Math.max(1, Number(room.capacity || room.raw_capacity || 1));
+  const availableSlots = Number(room.available_slots ?? room.availableSlots);
+  const normalizedAvailableSlots = Number.isFinite(availableSlots)
+    ? Math.max(0, availableSlots)
+    : Math.max(0, capacity - occupiedCount);
+
+  let effectiveStatus = normalizedStatus;
+  if (normalizedStatus === 'maintenance') {
+    effectiveStatus = 'maintenance';
+  } else if (typeof room.is_available === 'boolean') {
+    if (room.is_available && normalizedAvailableSlots > 0) {
+      effectiveStatus = 'available';
+    } else if (!room.is_available && normalizedAvailableSlots > 0) {
+      effectiveStatus = normalizedDisplayStatus === 'reserved' ? 'reserved' : 'occupied';
+    } else if (normalizedAvailableSlots === 0) {
+      effectiveStatus = normalizedDisplayStatus === 'reserved' ? 'reserved' : 'occupied';
+    }
+  } else if (normalizedAvailableSlots > 0) {
+    effectiveStatus = 'available';
+  } else if (occupiedCount >= capacity) {
+    effectiveStatus = 'occupied';
+  } else if (normalizedDisplayStatus === 'reserved') {
+    effectiveStatus = 'reserved';
+  }
+
+  const selectValue = effectiveStatus === 'reserved'
+    ? 'available'
+    : (['available', 'occupied', 'maintenance'].includes(effectiveStatus) ? effectiveStatus : 'available');
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col ${className}`} onClick={onClick}>
@@ -45,8 +75,8 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
           </div>
         )}
 
-        <span className={`absolute top-3 right-3 px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider shadow-sm ${getStatusClasses(room.status, occupiedCount, room.capacity || 1, displayStatus)}`}>
-          {statusLabel(room.status, occupiedCount, room.capacity || 1, displayStatus)}
+        <span className={`absolute top-3 right-3 px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider shadow-sm ${getStatusClasses(effectiveStatus)}`}>
+          {statusLabel(effectiveStatus)}
         </span>
       </div>
 
@@ -60,13 +90,12 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
                 {room.pricing_model === 'per_bed' ? 'Per Bed' : (room.capacity > 1 ? 'Full Room (split)' : 'Full Room')}
               </span>
               {showGenderBadge && (
-                <span className={`px-2 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                  room.sex_restriction === 'male' 
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
+                <span className={`px-2 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider border ${room.sex_restriction === 'male'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
                     : room.sex_restriction === 'female'
-                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
-                    : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
-                }`}>
+                      ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                      : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                  }`}>
                   {room.sex_restriction === 'male' ? 'Boys Only' : room.sex_restriction === 'female' ? 'Girls Only' : 'Mixed Sex'}
                 </span>
               )}
@@ -127,7 +156,7 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
 
         <div className="flex gap-2 mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
           <select
-            value={room.status}
+            value={selectValue}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => {
               e.stopPropagation();
@@ -135,12 +164,12 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
                 onStatusChange(room.id, e.target.value);
               }
             }}
-            className={`flex-1 px-4 py-2 text-sm font-bold rounded-lg border transition-colors outline-none focus:ring-2 focus:ring-green-500/20 ${room.status === 'occupied'
+            className={`flex-1 px-4 py-2 text-sm font-bold rounded-lg border transition-colors outline-none focus:ring-2 focus:ring-green-500/20 ${selectValue === 'occupied'
               ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/50'
-              : room.status === 'available'
+              : selectValue === 'available'
                 ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800/50'
                 : 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800/50'
-            }`}
+              }`}
           >
             <option value="available">Available</option>
             <option value="occupied">Occupied</option>
@@ -148,10 +177,10 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
           </select>
 
           {onEdit && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); onEdit(room); }} 
-              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors border border-transparent hover:border-blue-100 dark:hover:border-blue-800/50" 
-              title="Edit Room" 
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(room); }}
+              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors border border-transparent hover:border-blue-100 dark:hover:border-blue-800/50"
+              title="Edit Room"
               aria-label="Edit room"
             >
               <Edit className="w-5 h-5" />

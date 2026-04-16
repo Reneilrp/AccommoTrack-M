@@ -16,8 +16,7 @@ class AdminForcedPasswordResetLink extends Mailable
     public function __construct(
         public User $user,
         public string $resetUrl,
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {

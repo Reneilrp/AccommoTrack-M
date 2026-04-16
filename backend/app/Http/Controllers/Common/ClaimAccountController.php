@@ -17,7 +17,9 @@ use Illuminate\Support\Str;
 class ClaimAccountController extends Controller
 {
     private const CHALLENGE_TTL_MINUTES = 20;
+
     private const OTP_TTL_MINUTES = 15;
+
     private const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
     public function verifyCode(Request $request): JsonResponse

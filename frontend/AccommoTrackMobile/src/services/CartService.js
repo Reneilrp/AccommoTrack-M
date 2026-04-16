@@ -37,6 +37,8 @@ class CartService {
       return {
         success: false,
         error: error.response?.data?.message || 'Failed to add to cart',
+        details: error.response?.data?.errors || null,
+        errors: error.response?.data?.errors || null,
       };
     }
   }

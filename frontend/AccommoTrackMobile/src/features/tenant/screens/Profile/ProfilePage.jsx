@@ -676,7 +676,7 @@ export default function ProfilePage() {
             <TouchableOpacity
               onPress={() => {
                 if (!isEditing) return;
-                showAlert("Select Sex", "Choose your sex", [
+                showAlert("Sex", "Choose your sex", [
                   { text: "Male", onPress: () => handleInputChange("sex", "male") },
                   { text: "Female", onPress: () => handleInputChange("sex", "female") },
                   { text: "Cancel", style: "cancel" },
@@ -708,7 +708,7 @@ export default function ProfilePage() {
                   },
                 ]}
               >
-                {profileData.sex || "Select Sex"}
+                {profileData.sex || "Not set"}
               </Text>
             </TouchableOpacity>
           </View>

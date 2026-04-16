@@ -25,7 +25,7 @@ class HandleSystemTimeOverride
                 Carbon::setTestNow(Carbon::parse($forcedNow));
             } catch (\Exception $e) {
                 // If parsing fails, just ignore and use real time
-                \Log::error('System forced time override failed: ' . $e->getMessage());
+                \Log::error('System forced time override failed: '.$e->getMessage());
             }
         }
 

@@ -27,64 +27,66 @@ class MigrateToSpaces extends Command
     public function handle()
     {
         $this->info("Starting migration from 'public' disk to 's3' disk...");
-        
+
         $localDisk = Storage::disk('public');
         $s3Disk = Storage::disk('s3');
-        
+
         // Ensure s3 disk is reachable
         try {
             $s3Disk->exists('test-connection.txt');
         } catch (\Exception $e) {
-            $this->error("Failed to connect to S3/DO Spaces. Check your credentials.");
+            $this->error('Failed to connect to S3/DO Spaces. Check your credentials.');
             $this->error($e->getMessage());
+
             return Command::FAILURE;
         }
 
         $allFiles = $localDisk->allFiles();
-        
+
         $total = count($allFiles);
         $this->info("Found {$total} files to migrate.");
-        
+
         $bar = $this->output->createProgressBar($total);
         $bar->start();
-        
+
         $successCount = 0;
         $failCount = 0;
-        
+
         foreach ($allFiles as $file) {
             // Skip hidden or explicitly ignored files (e.g., .gitignore)
             if (str_starts_with($file, '.') || str_starts_with(basename($file), '.')) {
                 $bar->advance();
+
                 continue;
             }
-            
+
             try {
                 $contents = $localDisk->get($file);
-                
+
                 // Put file to s3
                 $s3Disk->put($file, $contents);
-                
+
                 if ($this->option('delete')) {
                     $localDisk->delete($file);
                 }
                 $successCount++;
             } catch (\Exception $e) {
-                $this->error("\nFailed to migrate: {$file}. Error: " . $e->getMessage());
+                $this->error("\nFailed to migrate: {$file}. Error: ".$e->getMessage());
                 $failCount++;
             }
-            
+
             $bar->advance();
         }
-        
+
         $bar->finish();
         $this->newLine(2);
-        
-        $this->info("Migration completed.");
+
+        $this->info('Migration completed.');
         $this->info("Successfully migrated: {$successCount}");
         if ($failCount > 0) {
             $this->error("Failed to migrate: {$failCount}");
         }
-        
+
         return Command::SUCCESS;
     }
 }

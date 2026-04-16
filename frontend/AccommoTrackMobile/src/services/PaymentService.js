@@ -332,6 +332,27 @@ class PaymentService {
   }
 
   /**
+   * LANDLORD: Refund entire invoice (merged)
+   */
+  async refundInvoice(invoiceId, amountCents) {
+    try {
+      const response = await api.post(`/invoices/${invoiceId}/refund`, {
+        amount_cents: amountCents,
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error("Error refunding invoice:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to refund invoice",
+      };
+    }
+  }
+
+  /**
    * LANDLORD: Verify or reject a tenant-reported cash payment.
    */
   async verifyCash(invoiceId, payloadOrAction) {

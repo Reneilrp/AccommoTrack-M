@@ -7,6 +7,7 @@ use App\Models\User;
 class AdminPermission
 {
     public const TIER_SUPER_ADMIN = 'super_admin';
+
     public const TIER_SUPPORT_ADMIN = 'support_admin';
 
     public static function resolveTier(?User $admin): string

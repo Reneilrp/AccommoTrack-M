@@ -196,18 +196,18 @@ class LandlordDashboardService
                 if (preg_match('/suggested\s+price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i', $requestNote, $matches)) {
                     $suggestedPrice = (float) str_replace(',', '', $matches[1]);
                 }
-                
+
                 // Use suggested price if available, otherwise use addon price or price_at_booking
                 $displayPrice = $suggestedPrice ?? ($addon->price_at_booking ?? $addon->addon_price ?? null);
-                
+
                 $description = "{$addon->first_name} requested {$addon->addon_name}";
                 if ($displayPrice !== null) {
-                    $description .= " (₱" . number_format($displayPrice, 2) . ")";
+                    $description .= ' (₱'.number_format($displayPrice, 2).')';
                 }
-                
+
                 // Use updated_at as timestamp so status changes move activity to top
                 $timestamp = $addon->updated_at ?? $addon->created_at;
-                
+
                 $activities->push([
                     'id' => $addon->id,
                     'type' => 'addon',

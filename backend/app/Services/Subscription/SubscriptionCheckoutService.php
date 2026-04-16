@@ -18,9 +18,7 @@ use InvalidArgumentException;
 
 class SubscriptionCheckoutService
 {
-    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService)
-    {
-    }
+    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService) {}
 
     public function checkout(User $landlord, SubscriptionPlan $plan, string $billingCycle, array $attributes = []): array
     {

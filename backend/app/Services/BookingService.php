@@ -7,11 +7,9 @@ use App\Models\PaymentTransaction;
 use App\Models\Room;
 use App\Models\TenantProfile;
 use App\Models\User;
-use App\Notifications\RentPaidSuccess;
 use App\Notifications\NewBookingNotification;
+use App\Notifications\RentPaidSuccess;
 use App\Support\SystemToggle;
-use App\Services\AuditLogService;
-use App\Services\BillingCycleCalculator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,9 +20,7 @@ class BookingService
     public function __construct(
         protected AuditLogService $auditLogService,
         private readonly PaymentLedgerService $paymentLedgerService,
-    )
-    {
-    }
+    ) {}
 
     private const BOOKING_LIMIT_STATUSES = [
         'pending',
@@ -37,38 +33,38 @@ class BookingService
     /**
      * Create a new booking
      */
-        /**
+    /**
      * Create multiple bookings inside a Cart (one transaction).
      */
     public function createCartBookings(array $data, ?int $tenantId = null): array
     {
         $bookings = [];
         $totalReservationFee = 0;
-        
-        $bookingGroupReference = 'GRP-' . date('Ymd') . '-' . strtoupper(Str::random(6));
-        
+
+        $bookingGroupReference = 'GRP-'.date('Ymd').'-'.strtoupper(Str::random(6));
+
         DB::beginTransaction();
         try {
             foreach ($data['items'] as $itemData) {
                 $itemData['booking_mode'] = $data['booking_mode'] ?? 'normal';
                 $itemData['notes'] = $data['notes'] ?? null;
                 $itemData['payment_plan'] = $data['payment_plan'] ?? 'full';
-                $itemData['receipt_image'] = $data['receipt_image'] ?? null; 
+                $itemData['receipt_image'] = $data['receipt_image'] ?? null;
                 $itemData['booking_group_reference'] = $bookingGroupReference;
                 $itemData['skip_reservation_invoice'] = true;
-                
+
                 $booking = $this->createBooking($itemData, $tenantId);
                 $bookings[] = $booking;
-                
+
                 $room = \App\Models\Room::with('property')->find($itemData['room_id']);
                 $reservationFeeTemporarilyDisabled = \App\Models\SystemToggle::getBool(
                     'reservation_fee_disabled',
                     (bool) config('app.reservation_fee_disabled', false)
                 );
-                
+
                 $reservationFeeEnabled = ! $reservationFeeTemporarilyDisabled
                     && (bool) ($room->property->require_reservation_fee ?? false);
-                
+
                 if ($reservationFeeEnabled && ($room->property->reservation_fee ?? 0) > 0) {
                     $startDate = \Carbon\Carbon::parse($itemData['start_date']);
                     $daysUntilMoveIn = max(0, \Carbon\Carbon::today()->diffInDays($startDate, false));
@@ -78,19 +74,19 @@ class BookingService
                     }
                 }
             }
-            
+
             $reservationInvoice = null;
             if ($totalReservationFee > 0) {
-                $reference = 'RES-' . $bookingGroupReference;
+                $reference = 'RES-'.$bookingGroupReference;
                 $firstBooking = $bookings[0];
-                
+
                 $reservationInvoice = \App\Models\Invoice::create([
                     'reference' => $reference,
                     'landlord_id' => $firstBooking->landlord_id,
                     'property_id' => $firstBooking->property_id,
-                    'booking_id' => $firstBooking->id, 
+                    'booking_id' => $firstBooking->id,
                     'tenant_id' => $tenantId,
-                    'description' => 'Cart Group Reservation Fee for ' . count($bookings) . ' rooms',
+                    'description' => 'Cart Group Reservation Fee for '.count($bookings).' rooms',
                     'invoice_type' => 'reservation_fee',
                     'amount_cents' => (int) round($totalReservationFee * 100),
                     'currency' => 'PHP',
@@ -99,7 +95,7 @@ class BookingService
                     'due_date' => now()->addHours(24),
                     'booking_group_reference' => $bookingGroupReference,
                 ]);
-                
+
                 $this->auditLogService->invoiceEvent('invoice.created', [
                     'subject_type' => 'invoice',
                     'subject_id' => $reservationInvoice->id,
@@ -111,13 +107,13 @@ class BookingService
                     'summary' => 'Consolidated Group Reservation fee invoice generated.',
                 ]);
             }
-            
+
             DB::commit();
-            
+
             return [
                 'bookings' => collect($bookings)->load(['property', 'tenant', 'room', 'occupants'])->toArray(),
                 'reservation_invoice' => $reservationInvoice,
-                'booking_group_reference' => $bookingGroupReference
+                'booking_group_reference' => $bookingGroupReference,
             ];
         } catch (\Exception $e) {
             DB::rollBack();
@@ -135,13 +131,13 @@ class BookingService
             if ($tenantId) {
                 // 1. High-Priority Fix: Overdue Invoice Check
                 $hasOverdue = \App\Models\Invoice::where('tenant_id', $tenantId)
-                      ->where(function ($query) {
-                          $query->where('status', 'overdue')
-                              ->orWhere(function ($partialQuery) {
-                                  $partialQuery->where('status', 'partial')
-                                      ->whereDate('due_date', '<', now()->toDateString());
-                              });
-                      })
+                    ->where(function ($query) {
+                        $query->where('status', 'overdue')
+                            ->orWhere(function ($partialQuery) {
+                                $partialQuery->where('status', 'partial')
+                                    ->whereDate('due_date', '<', now()->toDateString());
+                            });
+                    })
                     ->exists();
 
                 if ($hasOverdue) {
@@ -226,7 +222,8 @@ class BookingService
 
             $roomRestriction = $this->normalizeRoomRestriction((string) ($room->sex_restriction ?? 'mixed'));
 
-            // Check Sex Compatibility
+            // Check tenant sex compatibility only for normal bookings.
+            // Proxy bookings are validated by occupant sex below.
             $tenant = $tenantId ? User::find($tenantId) : null;
             if ($tenant && $tenant->role === 'tenant') {
                 $property = $room->property;
@@ -235,7 +232,7 @@ class BookingService
                 $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
 
                 // Only enforce for specific property types
-                if ($propertyType !== 'apartment' && in_array($propertyType, $targetTypes)) {
+                if ($bookingMode === 'normal' && $propertyType !== 'apartment' && in_array($propertyType, $targetTypes)) {
                     $tenantSex = $this->normalizeGender($tenant->sex);
 
                     if ($roomRestriction !== 'mixed') {
@@ -255,6 +252,16 @@ class BookingService
 
                     if ($occupantSex !== $roomRestriction) {
                         throw new \DomainException('Occupant '.($index + 1).' sex must match the room restriction ('.$roomRestriction.').');
+                    }
+                }
+            }
+
+            if ($bookingMode === 'proxy') {
+                foreach ($occupantsPayload as $index => $occupant) {
+                    $occupantSex = $this->normalizeGender((string) ($occupant['sex'] ?? ''));
+
+                    if (! $occupantSex) {
+                        throw new \DomainException('Occupant '.($index + 1).' sex must be male or female.');
                     }
                 }
             }
@@ -307,10 +314,10 @@ class BookingService
             // Open-ended monthly stays don't need minimum stay validation
             if ($endDate && $days < $minStay) {
                 $stayType = $contractMode === 'monthly' ? 'month' : 'day';
-                $minStayDisplay = $minStay >= 30 && $contractMode === 'monthly' 
-                    ? ($minStay / 30) . ' ' . ($minStay === 30 ? 'month' : 'months')
-                    : $minStay . ' ' . ($minStay === 1 ? 'day' : 'days');
-                    
+                $minStayDisplay = $minStay >= 30 && $contractMode === 'monthly'
+                    ? ($minStay / 30).' '.($minStay === 30 ? 'month' : 'months')
+                    : $minStay.' '.($minStay === 1 ? 'day' : 'days');
+
                 throw new \DomainException(
                     "This room requires a minimum stay of {$minStayDisplay}. Your requested stay is {$days} days."
                 );
@@ -367,7 +374,7 @@ class BookingService
             }
 
             if ($requestedPaymentPlan === 'promo_one_time') {
-                if ($contractMode !== 'monthly' || !$endDate) {
+                if ($contractMode !== 'monthly' || ! $endDate) {
                     throw new \DomainException('Long-term promo one-time payment is only available for fixed monthly stays.');
                 }
 
@@ -389,10 +396,10 @@ class BookingService
                 $status = 'pending_reservation';
                 // Store image in default disk
                 $receiptImagePath = $data['receipt_image']->store('receipts');
-                $reservationRef = 'RES-' . strtoupper(Str::random(8));
+                $reservationRef = 'RES-'.strtoupper(Str::random(8));
             } elseif ($requiresReservationFee) {
-               // If property requires reservation but no image was provided 
-               // (handled loosely here, can depend on UI strictness)
+                // If property requires reservation but no image was provided
+                // (handled loosely here, can depend on UI strictness)
             }
 
             $booking = Booking::create([
@@ -442,9 +449,9 @@ class BookingService
                 $booking->occupants()->createMany($occupantsPayload);
             }
 
-                        // GENERATE RESERVATION FEE INVOICE IF REQUIRED
+            // GENERATE RESERVATION FEE INVOICE IF REQUIRED
             if ($requiresReservationFee && empty($data['skip_reservation_invoice'])) {
-                $reference = 'RES-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+                $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
 
                 $reservationInvoice = \App\Models\Invoice::create([
                     'reference' => $reference,
@@ -535,10 +542,23 @@ class BookingService
         }
 
         return collect($occupants)
-            ->filter(fn ($occupant) => is_array($occupant) && filled($occupant['full_name'] ?? null))
+            ->filter(function ($occupant) {
+                if (! is_array($occupant)) {
+                    return false;
+                }
+
+                return filled($occupant['first_name'] ?? null)
+                    || filled($occupant['last_name'] ?? null);
+            })
             ->map(function (array $occupant): array {
+                $firstName = trim((string) ($occupant['first_name'] ?? ''));
+                $middleName = trim((string) ($occupant['middle_name'] ?? ''));
+                $lastName = trim((string) ($occupant['last_name'] ?? ''));
+
                 return [
-                    'full_name' => trim((string) ($occupant['full_name'] ?? '')),
+                    'first_name' => $firstName !== '' ? $firstName : null,
+                    'middle_name' => $middleName !== '' ? $middleName : null,
+                    'last_name' => $lastName !== '' ? $lastName : null,
                     'date_of_birth' => $occupant['date_of_birth'] ?? null,
                     'sex' => isset($occupant['sex']) ? strtolower((string) $occupant['sex']) : null,
                     'relationship_to_booker' => $occupant['relationship_to_booker'] ?? null,
@@ -691,8 +711,8 @@ class BookingService
 
             $booking->status = 'confirmed';
             $booking->save();
-            
-            // This will assign tenant and generate rent invoice 
+
+            // This will assign tenant and generate rent invoice
             $this->handleConfirmation($booking);
 
             $this->auditLogService->bookingEvent('booking.confirmed', [
@@ -750,7 +770,7 @@ class BookingService
             $oldStatus = $booking->status;
 
             // Validate room relationship exists
-            if (!$booking->room) {
+            if (! $booking->room) {
                 Log::error('Room relationship is null', [
                     'booking_id' => $booking->id,
                     'room_id' => $booking->room_id,
@@ -826,7 +846,7 @@ class BookingService
             ]);
 
             $booking->status = $resolvedStatus;
-            
+
             Log::info('About to call handleCompletion');
             $this->handleCompletion($booking, $resolvedStatus);
             Log::info('handleCompletion completed');
@@ -881,7 +901,7 @@ class BookingService
     protected function handleConfirmation(Booking $booking): void
     {
         // Validate room relationship exists
-        if (!$booking->room) {
+        if (! $booking->room) {
             throw new \DomainException('Booking room relationship is missing. Cannot confirm booking.');
         }
 
@@ -919,7 +939,7 @@ class BookingService
             ->first();
         if (! $existingInvoice) {
             // Validate room relationship before accessing billing_policy
-            if (!$booking->room) {
+            if (! $booking->room) {
                 Log::error('Cannot generate invoice: booking room relationship missing', ['booking_id' => $booking->id]);
                 throw new \DomainException('Cannot generate invoice: room data is missing.');
             }
@@ -929,7 +949,7 @@ class BookingService
             $occupiedSlots = $isProxyMode
                 ? max((int) ($booking->bed_count ?? 1), (int) $booking->occupants()->count(), 1)
                 : 1;
-            
+
             // For proxy bookings with multiple occupied slots, generate separate invoices.
             if ($isProxyMode && $occupiedSlots > 1) {
                 $this->generateProxyOccupantInvoices($booking, $billingPolicy, $occupiedSlots);
@@ -981,7 +1001,7 @@ class BookingService
         }
 
         // Validate room relationship exists before checking tenant assignment
-        if (!$booking->room) {
+        if (! $booking->room) {
             Log::warning('Booking completion: room relationship missing', ['booking_id' => $booking->id]);
         } else {
             $hasActiveAssignment = $booking->tenant_id
@@ -1307,7 +1327,7 @@ class BookingService
                 'invoice_slots' => $invoiceSlots,
             ]);
         }
-        
+
         // Get recurring addons and split among occupants
         $recurringAddonAmount = 0;
         if ($billingPolicy !== 'daily' && $booking->payment_plan === 'monthly') {
@@ -1316,16 +1336,22 @@ class BookingService
                 ->where('price_type', 'monthly')
                 ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
         }
-        
+
         $perOccupantAddonAmount = (float) $recurringAddonAmount / $invoiceSlots;
-        
+
         for ($index = 0; $index < $invoiceSlots; $index++) {
             /** @var \App\Models\BookingOccupant|null $occupant */
             $occupant = $occupants->get($index);
-            $occupantName = $occupant?->full_name ?? ('Occupant #'.($index + 1));
+            $occupantName = $occupant
+                ? trim(implode(' ', array_filter([$occupant->first_name, $occupant->middle_name, $occupant->last_name])))
+                : ('Occupant #'.($index + 1));
+
+            if (empty($occupantName)) {
+                $occupantName = 'Occupant #'.($index + 1);
+            }
 
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
-            
+
             if ($billingPolicy !== 'daily') {
                 if (in_array($booking->payment_plan, ['full', 'promo_one_time'], true)) {
                     $amount = (float) $booking->total_amount / $invoiceSlots;
@@ -1340,14 +1366,14 @@ class BookingService
                 $amount = (float) $booking->total_amount / $invoiceSlots;
                 $description = "Initial invoice for {$occupantName} - Booking {$booking->booking_reference}";
             }
-            
+
             // Handle 1 month advance if room or property requires it
             if ($billingPolicy !== 'daily' && $booking->room->requiresAdvance()) {
                 $advanceAmount = $perOccupantAmount;
                 $amount += $advanceAmount;
                 $description .= ' (includes 1 month advance)';
             }
-            
+
             $generatedInvoice = \App\Models\Invoice::create([
                 'reference' => $reference,
                 'landlord_id' => $booking->landlord_id,
@@ -1368,7 +1394,7 @@ class BookingService
                     'proxy_booking' => true,
                 ],
             ]);
-            
+
             $this->auditLogService->invoiceEvent('invoice.created', [
                 'subject_type' => 'invoice',
                 'subject_id' => $generatedInvoice->id,
@@ -1387,7 +1413,7 @@ class BookingService
                     'occupant_slot' => $index + 1,
                 ],
             ]);
-            
+
             Log::info('Auto-generated proxy occupant invoice', [
                 'booking_id' => $booking->id,
                 'occupant_id' => $occupant?->id,
@@ -1397,20 +1423,20 @@ class BookingService
             ]);
         }
     }
-    
+
     /**
      * Generate single invoice for normal bookings
      */
     protected function generateSingleBookingInvoice(Booking $booking, string $billingPolicy): void
     {
         // Validate room relationship
-        if (!$booking->room) {
+        if (! $booking->room) {
             Log::error('Cannot generate single invoice: booking room relationship missing', ['booking_id' => $booking->id]);
             throw new \DomainException('Cannot generate invoice: room data is missing.');
         }
 
         $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
-        
+
         // For monthly billing policies:
         // - monthly plan starts with one monthly invoice and then recurring cycles
         // - full and promo_one_time plans issue one upfront invoice for total_amount
@@ -1423,26 +1449,26 @@ class BookingService
             } else {
                 $amount = $booking->monthly_rent;
                 $description = 'Monthly rent for booking '.$booking->booking_reference;
-                
+
                 $recurringAddonAmount = $booking->addons()
                     ->where('booking_addons.status', 'active')
                     ->where('price_type', 'monthly')
                     ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
-                
+
                 $amount += $recurringAddonAmount;
             }
         } else {
             $amount = $booking->total_amount;
             $description = 'Initial invoice for booking '.$booking->booking_reference;
         }
-        
+
         // Handle 1 month advance if room or property requires it
         if ($billingPolicy !== 'daily' && $booking->room->requiresAdvance()) {
             $advanceAmount = $booking->monthly_rent;
             $amount += $advanceAmount;
             $description .= ' (includes 1 month advance)';
         }
-        
+
         $generatedInvoice = \App\Models\Invoice::create([
             'reference' => $reference,
             'landlord_id' => $booking->landlord_id,
@@ -1457,7 +1483,7 @@ class BookingService
             'issued_at' => now(),
             'due_date' => Carbon::parse($booking->start_date)->addDays(3),
         ]);
-        
+
         $this->auditLogService->invoiceEvent('invoice.created', [
             'subject_type' => 'invoice',
             'subject_id' => $generatedInvoice->id,
@@ -1474,7 +1500,7 @@ class BookingService
                 'amount_cents' => $generatedInvoice->amount_cents,
             ],
         ]);
-        
+
         Log::info('Auto-generated invoice for confirmed booking', [
             'booking_id' => $booking->id,
             'reference' => $reference,

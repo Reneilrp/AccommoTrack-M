@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Booking;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\User;
@@ -14,8 +13,11 @@ class MinimumStayEnforcementTest extends TestCase
     use RefreshDatabase;
 
     protected User $landlord;
+
     protected User $tenant;
+
     protected Property $property;
+
     protected Room $room;
 
     protected function setUp(): void

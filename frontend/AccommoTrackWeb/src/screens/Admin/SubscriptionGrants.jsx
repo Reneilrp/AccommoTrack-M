@@ -957,14 +957,14 @@ export default function SubscriptionGrants() {
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => useGrantForExtend(grant.id)}
+                          onClick={() => handleUseGrantForExtend(grant.id)}
                           className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
                         >
                           Extend This
                         </button>
                         <button
                           type="button"
-                          onClick={() => useGrantForRevoke(grant.id)}
+                          onClick={() => handleUseGrantForRevoke(grant.id)}
                           className="px-3 py-1.5 rounded-md bg-red-600 text-white text-xs font-semibold hover:bg-red-700"
                         >
                           Revoke This

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
-use App\Services\BillingCycleCalculator;
 use Carbon\Carbon;
 
 class RefundService
@@ -28,7 +27,7 @@ class RefundService
         $today = Carbon::today();
         $startDate = Carbon::parse($booking->start_date)->startOfDay();
         $billingDay = $booking->billing_day ?? $startDate->day;
-        
+
         // Find next billing date using anniversary-based calculation
         $nextBillingDate = $startDate->copy();
         while ($nextBillingDate->lte($today)) {
@@ -39,7 +38,7 @@ class RefundService
         // Handle month-end edge cases
         $maxDayInMonth = $periodStartDate->daysInMonth;
         $periodStartDate->day(min($billingDay, $maxDayInMonth))->startOfDay();
-        
+
         $daysInCycle = max(1, (int) $periodStartDate->diffInDays($nextBillingDate));
 
         // Carbon 3 diffInDays can return signed fractional values. Use whole calendar days only.
@@ -62,8 +61,8 @@ class RefundService
         $transferFeeCents = $this->toCents($transferFee);
 
         // Deduct only the generic cancellation penalty from the credit.
-        // Damage and Transfer Fees are issued as standalone invoices during transfer, 
-        //, so we DO NOT deduct them from the credit here, preventing double-charging.
+        // Damage and Transfer Fees are issued as standalone invoices during transfer,
+        // , so we DO NOT deduct them from the credit here, preventing double-charging.
         $finalCreditCents = max(0, $refundableAmountCents - $penaltyCents);
 
         return [
@@ -89,7 +88,7 @@ class RefundService
             'next_billing_date' => $nextBillingDate->format('Y-m-d'),
         ];
     }
-    
+
     /**
      * Calculate how much tenant paid for the current billing period
      */
@@ -114,7 +113,7 @@ class RefundService
 
         return max(0, (int) ($netPaidCents ?? 0));
     }
-    
+
     /**
      * Apply credit to new booking's first invoice
      */
@@ -122,20 +121,20 @@ class RefundService
     {
         $creditCents = (int) round($creditAmount * 100);
         $newAmountCents = max(0, $invoice->amount_cents - $creditCents);
-        
-        $description = $invoice->description . " (Credit of ₱" . number_format($creditAmount, 2) . " applied from previous room)";
-        
+
+        $description = $invoice->description.' (Credit of ₱'.number_format($creditAmount, 2).' applied from previous room)';
+
         $updateData = [
             'amount_cents' => $newAmountCents,
             'description' => $description,
         ];
-        
+
         // If fully credited, mark as paid
         if ($newAmountCents == 0) {
             $updateData['status'] = 'paid';
             $updateData['paid_at'] = now();
         }
-        
+
         // Store credit metadata
         $existingMetadata = $invoice->metadata ?? [];
         $updateData['metadata'] = array_merge($existingMetadata, [
@@ -143,10 +142,10 @@ class RefundService
             'credit_applied_at' => now()->toISOString(),
             'original_amount' => $invoice->amount_cents / 100,
         ], $metadata);
-        
+
         $invoice->update($updateData);
     }
-    
+
     /**
      * Record refund information in booking
      */

@@ -2,8 +2,8 @@
 
 namespace App\Observers;
 
-use App\Models\Review;
 use App\Jobs\PurgeCloudflareCacheJob;
+use App\Models\Review;
 
 class ReviewObserver
 {

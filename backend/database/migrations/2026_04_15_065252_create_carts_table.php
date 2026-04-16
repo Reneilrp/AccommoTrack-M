@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('session_id')->nullable()->index();
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();
-            
+
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('property_id')->references('id')->on('properties')->onDelete('cascade');
         });

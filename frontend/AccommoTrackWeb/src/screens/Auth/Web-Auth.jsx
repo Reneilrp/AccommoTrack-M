@@ -774,7 +774,7 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
   );
 };
 
-function AuthScreen({ isRegister = false, onLogin = () => {} }) {
+function AuthScreen({ isRegister = false, onLogin = () => { } }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { effectiveTheme } = usePreferences();
@@ -1090,7 +1090,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       }
     }
 
-    const allowedGenders = ["male", "female", "prefer_not_to_say"];
+    const allowedGenders = ["male", "female"];
     if (formData.sex && !allowedGenders.includes(formData.sex)) {
       errors.sex = "Please select a valid sex";
     }
@@ -1413,7 +1413,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       await ensureCsrfCookieOrFallback();
 
       const result = await api.post("/register", registerPayload);
-      
+
       // Store email for OTP screen
       setRegisteredEmail(formData.email);
       setOtpInitialCooldown(0);
@@ -2007,7 +2007,6 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     <option value="">Select your sex</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
                   </select>
                   {fieldErrors.sex && (
                     <p className="text-xs text-red-500 mt-2">{fieldErrors.sex}</p>

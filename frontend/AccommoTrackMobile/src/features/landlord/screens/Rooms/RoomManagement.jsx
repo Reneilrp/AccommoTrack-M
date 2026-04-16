@@ -1373,10 +1373,10 @@ export default function RoomManagementScreen({ navigation, route }) {
                                   <View style={styles.proxyOccupantList}>
                                     {occupantProfiles.length > 0 ? (
                                       occupantProfiles.map((occupant, occupantIndex) => {
-                                        const occupantName =
-                                          occupant?.full_name
-                                          || occupant?.name
-                                          || `Occupant ${occupantIndex + 1}`;
+                                        const occupantName = [occupant?.first_name, occupant?.middle_name, occupant?.last_name]
+                                          .filter(Boolean)
+                                          .join(' ')
+                                          .trim() || `Occupant ${occupantIndex + 1}`;
                                         const occupantMeta = [
                                           occupant?.relationship_to_booker,
                                           occupant?.sex,

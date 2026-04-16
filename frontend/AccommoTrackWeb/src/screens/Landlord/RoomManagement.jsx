@@ -26,6 +26,60 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 
+const toCountNumber = (value, fallback = null) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, n);
+};
+
+const resolveRoomUiStatus = (room) => {
+  const rawStatus = String(room?.status || '').toLowerCase();
+  if (rawStatus === 'maintenance') return 'maintenance';
+
+  const capacity = Math.max(1, toCountNumber(room?.capacity ?? room?.raw_capacity, 1));
+  const explicitAvailableSlots = toCountNumber(room?.available_slots ?? room?.availableSlots, null);
+  const explicitOccupied = toCountNumber(room?.occupied_count ?? room?.occupied, null);
+
+  const occupiedCount = explicitOccupied !== null
+    ? Math.min(capacity, explicitOccupied)
+    : (explicitAvailableSlots !== null ? Math.max(0, capacity - explicitAvailableSlots) : 0);
+
+  const availableSlots = explicitAvailableSlots !== null
+    ? Math.max(0, explicitAvailableSlots)
+    : Math.max(0, capacity - occupiedCount);
+
+  if (typeof room?.is_available === 'boolean') {
+    if (room.is_available && availableSlots > 0) return 'available';
+    if (!room.is_available && availableSlots > 0) return 'reserved';
+  }
+
+  if (availableSlots > 0) return 'available';
+  if (occupiedCount >= capacity) return 'occupied';
+
+  return rawStatus === 'occupied' ? 'occupied' : 'reserved';
+};
+
+const deriveRoomStats = (rooms = []) => {
+  const totals = { total: rooms.length, occupied: 0, available: 0, maintenance: 0 };
+
+  rooms.forEach((room) => {
+    const effectiveStatus = resolveRoomUiStatus(room);
+    if (effectiveStatus === 'maintenance') {
+      totals.maintenance += 1;
+      return;
+    }
+
+    if (effectiveStatus === 'occupied' || effectiveStatus === 'reserved') {
+      totals.occupied += 1;
+      return;
+    }
+
+    totals.available += 1;
+  });
+
+  return totals;
+};
+
 const LONG_TERM_PROMO_TERMS = ['3', '6', '9', '12'];
 
 const createDurationPricingDefaults = () =>
@@ -92,7 +146,7 @@ export default function RoomManagement() {
   const { uiState, updateData } = useUIState();
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   const cachedProps = uiState.data?.accessible_properties || cacheManager.get('accessible_properties');
 
   // Synchronously determine initial property ID from URL or cache to prevent flicker
@@ -110,10 +164,11 @@ export default function RoomManagement() {
   const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
   const [showRoomDetails, setShowRoomDetails] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
-  
+
   const [properties, setProperties] = useState(cachedProps || []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(getInitialPropertyId());
-  
+  const [drilldownApplied, setDrilldownApplied] = useState(false);
+
   // Dynamic cache key for rooms based on property
   const roomCacheKey = selectedPropertyId ? `rooms_property_${selectedPropertyId}` : null;
   const cachedRoomsData = roomCacheKey ? (uiState.data?.[roomCacheKey] || cacheManager.get(roomCacheKey)) : null;
@@ -161,7 +216,7 @@ export default function RoomManagement() {
         setTotalFloors(p.total_floors || 1);
         const pGender = p.sex_restriction || "mixed";
         setPropertyGender(pGender);
-        
+
         if (pGender !== "mixed") {
           setSelectedRoom(prev => prev ? { ...prev, sexRestriction: pGender } : prev);
         }
@@ -276,6 +331,34 @@ export default function RoomManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPropertyId]);
 
+  const handleOpenRoomDetails = (room) => {
+    // Ensure room object has tenants loaded as array for RoomDetails
+    const preparedRoom = {
+      ...room,
+      property_type: properties.find((p) => p.id === selectedPropertyId)?.property_type,
+      tenants: room.tenants || (room.tenant ? [{ name: room.tenant }] : [])
+    };
+    setSelectedRoomDetails(preparedRoom);
+    setShowRoomDetails(true);
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const roomId = params.get('roomId');
+
+    if (!roomId || drilldownApplied || rooms.length === 0) {
+      return;
+    }
+
+    const targetRoom = rooms.find((room) => String(room.id) === String(roomId));
+    if (!targetRoom) {
+      return;
+    }
+
+    setDrilldownApplied(true);
+    handleOpenRoomDetails(targetRoom);
+  }, [location.search, rooms, drilldownApplied, selectedPropertyId]);
+
   // Get rooms
   const fetchRooms = async () => {
     if (!selectedPropertyId) return;
@@ -286,19 +369,24 @@ export default function RoomManagement() {
       if (!currentCached) setLoadingRooms(true);
       setError(null);
 
-      const [roomsRes, statsRes] = await Promise.all([
-        roomService.getRoomsByProperty(selectedPropertyId, { t: Date.now() }),
-        roomService.getRoomStats(selectedPropertyId)
-      ]);
+      const roomsRes = await roomService.getRoomsByProperty(selectedPropertyId, { t: Date.now() });
 
       const roomsData = roomsRes.success
         ? (Array.isArray(roomsRes.data) ? roomsRes.data : (Array.isArray(roomsRes.data?.data) ? roomsRes.data.data : []))
         : [];
-      const statsData = statsRes.success
-        ? (statsRes.data || { total: 0, occupied: 0, available: 0, maintenance: 0 })
-        : { total: 0, occupied: 0, available: 0, maintenance: 0 };
+      const statsData = deriveRoomStats(roomsData);
       setRooms(roomsData);
       setStats(statsData);
+
+      // Handle roomId drilldown once rooms are loaded
+      const drilldownRoomId = new URLSearchParams(location.search).get('roomId');
+      if (drilldownRoomId && !drilldownApplied && roomsData.length > 0) {
+        const target = roomsData.find(r => String(r.id) === String(drilldownRoomId));
+        if (target) {
+          setDrilldownApplied(true);
+          handleOpenRoomDetails(target);
+        }
+      }
 
       const newState = { rooms: roomsData, stats: statsData };
       updateData(currentCacheKey, newState);
@@ -400,24 +488,24 @@ export default function RoomManagement() {
 
   const handleRemoveEditImage = (index) => {
     const imageToRemove = editPreviewImages[index];
-    
+
     // Check if it's an existing image (string URL) or new image (blob URL)
     if (typeof imageToRemove === 'string' && !imageToRemove.startsWith('blob:')) {
       // Existing image - mark for deletion
       setEditImagesToDelete(prev => [...prev, imageToRemove]);
     } else {
       // New image - just remove from new images array
-      const blobIndex = editPreviewImages.slice(0, index).filter(img => 
+      const blobIndex = editPreviewImages.slice(0, index).filter(img =>
         typeof img === 'string' && img.startsWith('blob:')
       ).length;
       setEditNewImages(prev => prev.filter((_, i) => i !== blobIndex));
-      
+
       // Revoke blob URL
       if (typeof imageToRemove === 'string' && imageToRemove.startsWith('blob:')) {
         URL.revokeObjectURL(imageToRemove);
       }
     }
-    
+
     setEditPreviewImages(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -441,7 +529,7 @@ export default function RoomManagement() {
       updateData.append('sex_restriction', selectedRoom.sexRestriction);
       updateData.append('floor', floorNumber);
       updateData.append('monthly_rate', parseInt(selectedRoom.price, 10) || 0);
-      
+
       if (selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '') {
         updateData.append('daily_rate', parseInt(selectedRoom.dailyRate, 10) || 0);
       }
@@ -458,7 +546,7 @@ export default function RoomManagement() {
       if (selectedRoom.description) {
         updateData.append('description', selectedRoom.description);
       }
-      
+
       // Append amenities and rules
       (selectedRoom.amenities || []).forEach((amenity, idx) => {
         updateData.append(`amenities[${idx}]`, amenity);
@@ -471,12 +559,12 @@ export default function RoomManagement() {
         selectedRoom.durationPricing,
       );
       updateData.append('duration_pricing', JSON.stringify(durationPricingPayload));
-      
+
       // Append new images
       editNewImages.forEach(file => {
         updateData.append('images[]', file);
       });
-      
+
       // Append images to delete
       editImagesToDelete.forEach(img => {
         updateData.append('delete_images[]', img);
@@ -557,22 +645,21 @@ export default function RoomManagement() {
       const updatedRoom = response.data || {};
 
       // Update the room in state
-      setRooms(prev => prev.map(r =>
-      r.id === roomId
-        ? { ...r, status: updatedRoom.status, tenant: updatedRoom.tenant }
-        : r
-    ));
+      setRooms((prev) => {
+        const nextRooms = prev.map((room) => (
+          room.id === roomId
+            ? {
+              ...room,
+              ...updatedRoom,
+              status: updatedRoom.status ?? newStatus,
+              tenant: updatedRoom.tenant ?? room.tenant,
+            }
+            : room
+        ));
+        setStats(deriveRoomStats(nextRooms));
+        return nextRooms;
+      });
 
-      // Update stats
-      const oldStatus = rooms.find(r => r.id === roomId)?.status;
-    setStats(prev => {
-      const delta = (from, to) => (from === to ? 0 : -1) + (newStatus === to ? 1 : 0);
-      return {
-        available: prev.available + delta(oldStatus, 'available'),
-        occupied: prev.occupied + delta(oldStatus, 'occupied'),
-        maintenance: prev.maintenance + delta(oldStatus, 'maintenance'),
-      };
-    });
       toast.success('Room status updated successfully');
 
     } catch (__error) {
@@ -583,7 +670,7 @@ export default function RoomManagement() {
   // Filtering & UI helpers
   const filteredRooms = filterStatus === 'all'
     ? rooms
-    : rooms.filter(room => room.status === filterStatus);
+    : rooms.filter((room) => resolveRoomUiStatus(room) === filterStatus);
 
   const __getStatusColor = (status) => {
     switch (status) {
@@ -828,16 +915,7 @@ export default function RoomManagement() {
                 room={room}
                 propertyType={properties.find((p) => p.id === selectedPropertyId)?.property_type}
                 onEdit={handleEditRoom}
-                onClick={() => { 
-                  // Ensure room object has tenants loaded as array for RoomDetails
-                  const preparedRoom = {
-                    ...room,
-                    property_type: properties.find((p) => p.id === selectedPropertyId)?.property_type,
-                    tenants: room.tenants || (room.tenant ? [{ name: room.tenant }] : [])
-                  };
-                  setSelectedRoomDetails(preparedRoom); 
-                  setShowRoomDetails(true); 
-                }}
+                onClick={() => handleOpenRoomDetails(room)}
                 onStatusChange={handleStatusChange}
               />
             ))
@@ -884,17 +962,17 @@ export default function RoomManagement() {
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between bg-gray-50 dark:bg-gray-700/30">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Room {selectedRoom.roomNumber}</h2>
               <button
-                onClick={() => { 
+                onClick={() => {
                   // Clean up blob URLs
                   editPreviewImages.forEach(img => {
                     if (typeof img === 'string' && img.startsWith('blob:')) {
                       URL.revokeObjectURL(img);
                     }
                   });
-                  setShowEditModal(false); 
-                  setSelectedRoom(null); 
-                  setError(null); 
-                  setFieldErrors({}); 
+                  setShowEditModal(false);
+                  setSelectedRoom(null);
+                  setError(null);
+                  setFieldErrors({});
                   setEditPreviewImages([]);
                   setEditNewImages([]);
                   setEditImagesToDelete([]);
@@ -977,26 +1055,26 @@ export default function RoomManagement() {
                   </select>
                 </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sex</label>
-                    <select
-                      value={selectedRoom.sexRestriction}
-                      onChange={(e) => setSelectedRoom({ ...selectedRoom, sexRestriction: e.target.value })}
-                      disabled={propertySex !== "mixed"}
-                      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${propertySex !== "mixed" ? "bg-gray-50 dark:bg-gray-800 cursor-not-allowed opacity-70" : ""}`}
-                    >
-                      <option value="male">Male Only</option>
-                      <option value="female">Female Only</option>
-                      {!['dormitory', 'boardingHouse', 'bedSpacer'].includes(properties.find(p => p.id === selectedPropertyId)?.property_type) && (
-                        <option value="mixed">Mixed</option>
-                      )}
-                    </select>
-                    {propertySex !== "mixed" && (
-                      <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 italic">
-                        * Property is restricted to {propertySex} only.
-                      </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sex</label>
+                  <select
+                    value={selectedRoom.sexRestriction}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, sexRestriction: e.target.value })}
+                    disabled={propertySex !== "mixed"}
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${propertySex !== "mixed" ? "bg-gray-50 dark:bg-gray-800 cursor-not-allowed opacity-70" : ""}`}
+                  >
+                    <option value="male">Male Only</option>
+                    <option value="female">Female Only</option>
+                    {!['dormitory', 'boardingHouse', 'bedSpacer'].includes(properties.find(p => p.id === selectedPropertyId)?.property_type) && (
+                      <option value="mixed">Mixed</option>
                     )}
-                  </div>
+                  </select>
+                  {propertySex !== "mixed" && (
+                    <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                      * Property is restricted to {propertySex} only.
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1254,7 +1332,7 @@ export default function RoomManagement() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Room Images
                 </label>
-                
+
                 {/* Image Preview Grid */}
                 {editPreviewImages.length > 0 && (
                   <div className="grid grid-cols-3 gap-3 mb-4">
@@ -1432,9 +1510,9 @@ export default function RoomManagement() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
               </div>
             </div>
-            
+
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-white">Room {deleteConfirmModal.room.room_number || deleteConfirmModal.room.roomNumber}</span>? 
+              Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-white">Room {deleteConfirmModal.room.room_number || deleteConfirmModal.room.roomNumber}</span>?
               All data associated with this room will be permanently removed.
             </p>
 

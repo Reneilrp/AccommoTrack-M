@@ -14,8 +14,7 @@ class ExtensionReminderNotification extends Notification
     public function __construct(
         private readonly Booking $booking,
         private readonly int $daysRemaining = 1,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {

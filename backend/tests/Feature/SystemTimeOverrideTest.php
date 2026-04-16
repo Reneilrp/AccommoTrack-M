@@ -55,7 +55,7 @@ class SystemTimeOverrideTest extends TestCase
         SystemToggle::setString('system_forced_now', $forcedTime);
 
         $response = $this->getJson('/api/me');
-        
+
         $response->assertOk();
     }
 
@@ -64,17 +64,18 @@ class SystemTimeOverrideTest extends TestCase
         $forcedTime = '2028-05-20 15:30:00';
         SystemToggle::setString('system_forced_now', $forcedTime);
 
-        $middleware = new \App\Http\Middleware\HandleSystemTimeOverride();
-        $request = new \Illuminate\Http\Request();
-        
+        $middleware = new \App\Http\Middleware\HandleSystemTimeOverride;
+        $request = new \Illuminate\Http\Request;
+
         $middleware->handle($request, function ($req) use ($forcedTime) {
             $this->assertEquals(
                 Carbon::parse($forcedTime)->toDateTimeString(),
                 Carbon::now()->toDateTimeString()
             );
-            return new \Symfony\Component\HttpFoundation\Response();
+
+            return new \Symfony\Component\HttpFoundation\Response;
         });
-        
+
         // Clean up
         Carbon::setTestNow();
     }

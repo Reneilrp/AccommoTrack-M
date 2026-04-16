@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Auth;
 
 class AdminBroadcastController extends Controller
 {
-    public function __construct(protected AuditLogService $auditLogService)
-    {
-    }
+    public function __construct(protected AuditLogService $auditLogService) {}
 
     /**
      * List all broadcasts (most recent first).
@@ -72,7 +70,7 @@ class AdminBroadcastController extends Controller
     public function toggle(Request $request, $id)
     {
         $broadcast = SystemBroadcast::findOrFail($id);
-        $broadcast->update(['is_active' => !$broadcast->is_active]);
+        $broadcast->update(['is_active' => ! $broadcast->is_active]);
 
         return response()->json([
             'success' => true,

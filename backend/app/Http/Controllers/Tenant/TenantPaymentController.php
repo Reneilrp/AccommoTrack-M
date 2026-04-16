@@ -55,7 +55,7 @@ class TenantPaymentController extends Controller
                         'remainingBalance' => (float) $remainingCents / 100,
                         'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
                         'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : '—',
-                        'status' => match($invoice->status) {
+                        'status' => match ($invoice->status) {
                             'pending_verification' => 'Awaiting Verification',
                             'paid' => 'Paid',
                             'partial' => 'Partially Paid',

@@ -158,6 +158,27 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
   };
 };
 
+const getInvoiceRefundPreview = (invoice, booking) => {
+  const stayProgress = getStayProgress(booking);
+  if (!stayProgress) return { maxRefundableCents: 0, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS };
+
+  const transactions = invoice.transactions || [];
+  const positiveTransactions = transactions.filter(t => (t.amount_cents || 0) > 0);
+  const totalPaidCents = positiveTransactions.reduce((sum, t) => sum + (t.amount_cents || 0), 0);
+  const alreadyRefundedCents = positiveTransactions.reduce((sum, t) => sum + Math.max(0, Number(t.refunded_amount_cents || 0)), 0);
+  const remainingTotalCents = Math.max(0, totalPaidCents - alreadyRefundedCents);
+
+  if (totalPaidCents <= 0) return { maxRefundableCents: 0, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS };
+
+  const proratedCents = (totalPaidCents * stayProgress.refundableUnits) / stayProgress.totalUnits;
+  const invoiceCapCents = Math.max(0, proratedCents - REFUND_FIXED_PENALTY_CENTS - alreadyRefundedCents);
+
+  return {
+    maxRefundableCents: Math.min(remainingTotalCents, invoiceCapCents),
+    fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS,
+  };
+};
+
 export default function Payments() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -182,6 +203,9 @@ export default function Payments() {
   const [rejectReasonCode, setRejectReasonCode] = useState("unclear_image");
   const [rejectReason, setRejectReason] = useState("");
   const [isRefunding, setIsRefunding] = useState(null);
+  const [isRefundingInvoice, setIsRefundingInvoice] = useState(false);
+  const [showMergedRefundModal, setShowMergedRefundModal] = useState(false);
+  const [mergedRefundPreview, setMergedRefundPreview] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [invoiceDrilldownApplied, setInvoiceDrilldownApplied] = useState(false);
   const [recordData, setRecordData] = useState({
@@ -616,6 +640,47 @@ export default function Payments() {
       setIsRefunding(null);
       setRefundAmount("");
     }
+  };
+
+  const handleRefundInvoice = async (invoiceId, amountCents) => {
+    setIsRefundingInvoice(true);
+    try {
+      const response = await invoiceService.refundInvoice(invoiceId, {
+        amount_cents: amountCents,
+        reason: "Merged refund for multiple partial payments",
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to process refund');
+      }
+
+      await updateBookingPayment(selectedInvoice.booking_id, "refunded");
+      toast.success(
+        `Merged refund of ₱${(amountCents / 100).toLocaleString()} processed successfully`,
+        { icon: "💰" }
+      );
+      
+      setShowMergedRefundModal(false);
+      setMergedRefundPreview(null);
+      
+      // Refresh current invoice details
+      const updatedInv = await invoiceService.getInvoice(invoiceId);
+      if (updatedInv.success) setSelectedInvoice(updatedInv.data);
+      loadInvoices(false);
+    } catch (e) {
+      console.error("Failed to process merged refund", e);
+      toast.error(getPaymentError(e, "Unable to process refund."));
+    } finally {
+      setIsRefundingInvoice(false);
+    }
+  };
+
+  const openMergedRefundConfirm = () => {
+    const preview = getInvoiceRefundPreview(selectedInvoice, selectedBooking);
+    const suggested = Math.max(0, Number(preview?.maxRefundableCents || 0));
+    setMergedRefundPreview(preview);
+    setRefundAmount((suggested / 100).toFixed(2));
+    setShowMergedRefundModal(true);
   };
 
   const openRefundConfirm = (tx) => {
@@ -1769,6 +1834,23 @@ export default function Payments() {
                               </div>
                             );
                           })}
+
+                        {/* Merged Refund Button for multiple partial payments */}
+                        {selectedInvoice.transactions.filter(t => t.amount_cents > 0 && (t.status !== 'refunded')).length > 1 && (
+                          <div className="mt-4 pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
+                            <button
+                              onClick={openMergedRefundConfirm}
+                              disabled={isRefundingInvoice}
+                              className="w-full py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-red-200 dark:shadow-none flex items-center justify-center gap-2"
+                            >
+                              {isRefundingInvoice ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                              Refund Total (Merged)
+                            </button>
+                            <p className="text-[10px] text-gray-500 mt-2 text-center italic font-medium">
+                              This will merge multiple partial payments into a single refund record.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1820,6 +1902,84 @@ export default function Payments() {
                   className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Merged Refund Confirmation Modal */}
+        {showMergedRefundModal && mergedRefundPreview && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full shadow-2xl animate-in zoom-in duration-200 overflow-hidden border border-gray-100 dark:border-gray-700">
+              <div className="p-8 text-center">
+                <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6 text-red-600">
+                  <RotateCcw className="w-10 h-10" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">
+                  Merged Refund
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed px-4">
+                  You are about to issue a single merged refund for this invoice.
+                </p>
+
+                <div className="mt-8 p-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                  <div className="flex justify-between items-center text-sm font-bold uppercase tracking-wider text-gray-500">
+                    <span>Invoice Ref</span>
+                    <span className="text-gray-900 dark:text-white">{selectedInvoice.referenceNo}</span>
+                  </div>
+                  <div className="h-px bg-gray-200 dark:bg-gray-700 w-full" />
+                  <div className="space-y-4 pt-2">
+                    <label className="block text-xs font-black text-gray-400 uppercase text-left">
+                      Amount to Refund (₱)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-400">₱</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={refundAmount}
+                        onChange={(e) => setRefundAmount(e.target.value)}
+                        className="w-full pl-10 pr-4 py-4 bg-white dark:bg-gray-800 border-2 border-red-100 dark:border-red-900/30 focus:border-red-500 rounded-2xl text-2xl font-black text-gray-900 dark:text-white outline-none transition-all"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-[10px] text-gray-500 font-bold uppercase">
+                        Max Refundable
+                      </p>
+                      <p className="text-[10px] text-red-600 font-black">
+                        ₱{(mergedRefundPreview.maxRefundableCents / 100).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-gray-50 dark:bg-gray-900/30 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowMergedRefundModal(false);
+                    setMergedRefundPreview(null);
+                  }}
+                  disabled={isRefundingInvoice}
+                  className="flex-1 py-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all uppercase text-xs tracking-widest disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const cents = Math.round(parseFloat(refundAmount) * 100);
+                    if (!cents || isNaN(cents)) return toast.error("Please enter a valid amount");
+                    handleRefundInvoice(selectedInvoice.id, cents);
+                  }}
+                  disabled={isRefundingInvoice || !refundAmount}
+                  className="flex-[1.5] py-4 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-all shadow-xl shadow-red-200 dark:shadow-none flex items-center justify-center gap-2 uppercase text-xs tracking-widest disabled:opacity-50"
+                >
+                  {isRefundingInvoice ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Proceed Refund"
+                  )}
                 </button>
               </div>
             </div>

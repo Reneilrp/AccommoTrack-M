@@ -16,8 +16,7 @@ class AdminSubscriptionGrantController extends Controller
     public function __construct(
         private readonly SubscriptionGrantService $subscriptionGrantService,
         private readonly SubscriptionResolverService $subscriptionResolverService,
-    ) {
-    }
+    ) {}
 
     public function plans(Request $request)
     {

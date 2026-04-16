@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Auth;
 
 class AdminDisputeController extends Controller
 {
-    public function __construct(protected AuditLogService $auditLogService)
-    {
-    }
+    public function __construct(protected AuditLogService $auditLogService) {}
 
     /**
      * List all disputes with eager-loaded relations.

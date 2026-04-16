@@ -46,11 +46,16 @@ export const CartProvider = ({ children }) => {
         return { success: true };
       } else {
         setError(result.error);
-        return { success: false, error: result.error };
+        return {
+          success: false,
+          error: result.error,
+          details: result.details,
+          errors: result.errors,
+        };
       }
     } catch (err) {
       setError(err.message);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message, details: null, errors: null };
     } finally {
       setLoading(false);
     }
@@ -200,6 +205,7 @@ export const CartProvider = ({ children }) => {
     loading,
     error,
     fetchCart,
+    addToCart: addItem,
     addItem,
     updateItem,
     removeItem,

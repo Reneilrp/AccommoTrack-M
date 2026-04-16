@@ -8,7 +8,6 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\Property;
 use App\Models\Room;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -263,12 +262,14 @@ class AnalyticsService
 
         // Income Breakdown: Rent vs Add-ons
         $addonRevenue = DB::table('booking_addons')
-            ->whereIn('invoice_id', function($query) use ($landlordId, $propertyId, $dateRange) {
+            ->whereIn('invoice_id', function ($query) use ($landlordId, $propertyId, $dateRange) {
                 $query->select('id')->from('invoices')
                     ->where('landlord_id', $landlordId)
                     ->where('status', 'paid')
                     ->whereBetween('paid_at', [$dateRange['start'], $dateRange['end']]);
-                if ($propertyId) $query->where('property_id', $propertyId);
+                if ($propertyId) {
+                    $query->where('property_id', $propertyId);
+                }
             })
             ->sum(DB::raw('quantity * price_at_booking'));
 
@@ -285,7 +286,7 @@ class AnalyticsService
             'income_breakdown' => [ // NEW
                 ['name' => 'Rent', 'value' => round($rentRevenue, 2)],
                 ['name' => 'Add-ons', 'value' => round($addonRevenue, 2)],
-            ]
+            ],
         ];
     }
 
@@ -415,7 +416,7 @@ class AnalyticsService
 
                 return [
                     'id' => $room->id,
-                    'name' => "Room " . ($room->room_number ?? $room->id),
+                    'name' => 'Room '.($room->room_number ?? $room->id),
                     'type' => $this->getRoomTypeLabel($room->room_type),
                     'capacity' => (int) $room->capacity,
                     'occupied' => (int) $room->active_tenants,
@@ -541,9 +542,11 @@ class AnalyticsService
         $collectedQuery = PaymentTransaction::where('status', 'succeeded')
             ->whereHas('invoice', function ($q) use ($landlordId, $propertyId) {
                 $q->where('landlord_id', $landlordId);
-                if ($propertyId) $q->where('property_id', $propertyId);
+                if ($propertyId) {
+                    $q->where('property_id', $propertyId);
+                }
             });
-        
+
         $collectedCents = (int) $collectedQuery->sum('amount_cents');
 
         $total = (int) ($stats->total ?? 0);

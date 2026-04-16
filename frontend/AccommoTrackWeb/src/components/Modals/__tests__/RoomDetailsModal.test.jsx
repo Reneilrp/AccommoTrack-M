@@ -5,6 +5,7 @@ import api from '../../../utils/api';
 import RoomDetailsModal from '../RoomDetailsModal';
 
 const mockNavigate = jest.fn();
+const mockAddToCart = jest.fn();
 
 jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
@@ -28,6 +29,13 @@ jest.mock('../../../services/systemToggleService', () => ({
     getDefaults: () => ({ reservationFeeDisabled: false }),
     getToggles: jest.fn().mockResolvedValue({}),
   },
+}));
+
+jest.mock('../../../contexts/CartContext.jsx', () => ({
+  useCart: () => ({
+    addToCart: mockAddToCart,
+    addItem: mockAddToCart,
+  }),
 }));
 
 jest.mock('../../Shared/ImageCarousel', () => () => <div data-testid="image-carousel" />);
@@ -158,8 +166,14 @@ describe('RoomDetailsModal proxy booking', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
 
-    fireEvent.change(screen.getByPlaceholderText('Full name'), {
-      target: { value: 'Default Sex Occupant' },
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Default' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Middle name'), {
+      target: { value: 'Sex' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Occupant' },
     });
     fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
       target: { value: 'sister' },
@@ -180,14 +194,16 @@ describe('RoomDetailsModal proxy booking', () => {
     const payload = createBooking.mock.calls[0][0];
     expect(payload.booking_mode).toBe('proxy');
     expect(payload.occupants).toEqual([
-      {
-        full_name: 'Default Sex Occupant',
+      expect.objectContaining({
+        first_name: 'Default',
+        middle_name: 'Sex',
+        last_name: 'Occupant',
         date_of_birth: '1992-05-01',
         sex: 'female',
         relationship_to_booker: 'sister',
         phone: '',
         email: '',
-      },
+      }),
     ]);
   });
 
@@ -210,8 +226,11 @@ describe('RoomDetailsModal proxy booking', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
 
-    fireEvent.change(screen.getByPlaceholderText('Full name'), {
-      target: { value: 'Jane Occupant' },
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jane' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Occupant' },
     });
     fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
       target: { value: 'child' },
@@ -237,14 +256,16 @@ describe('RoomDetailsModal proxy booking', () => {
 
     expect(payload.booking_mode).toBe('proxy');
     expect(payload.occupants).toEqual([
-      {
-        full_name: 'Jane Occupant',
+      expect.objectContaining({
+        first_name: 'Jane',
+        middle_name: '',
+        last_name: 'Occupant',
         date_of_birth: '1990-05-01',
         sex: 'female',
         relationship_to_booker: 'child',
         phone: '',
         email: '',
-      },
+      }),
     ]);
   });
 
@@ -260,8 +281,11 @@ describe('RoomDetailsModal proxy booking', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
 
-    fireEvent.change(screen.getByPlaceholderText('Full name'), {
-      target: { value: 'Young Occupant' },
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Young' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Occupant' },
     });
     fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
       target: { value: 'child' },
@@ -357,12 +381,19 @@ describe('RoomDetailsModal proxy booking', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add Occupant' }));
 
-    const fullNameInputs = screen.getAllByPlaceholderText('Full name');
-    fireEvent.change(fullNameInputs[0], {
-      target: { value: 'Proxy Occupant One' },
+    const firstNameInputs = screen.getAllByPlaceholderText('First name');
+    const lastNameInputs = screen.getAllByPlaceholderText('Last name');
+    fireEvent.change(firstNameInputs[0], {
+      target: { value: 'ProxyOne' },
     });
-    fireEvent.change(fullNameInputs[1], {
-      target: { value: 'Proxy Occupant Two' },
+    fireEvent.change(lastNameInputs[0], {
+      target: { value: 'Occupant' },
+    });
+    fireEvent.change(firstNameInputs[1], {
+      target: { value: 'ProxyTwo' },
+    });
+    fireEvent.change(lastNameInputs[1], {
+      target: { value: 'Occupant' },
     });
 
     const relationshipInputs = screen.getAllByPlaceholderText('Relationship to booker');
@@ -486,16 +517,14 @@ describe('RoomDetailsModal proxy booking', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
-    fireEvent.change(screen.getByPlaceholderText('Full name'), {
-      target: { value: 'Toast Occupant' },
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Toast' },
     });
 
     agreeToRulesAndSubmit();
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        'Occupant 1 is missing required information (name, birth date, sex, relationship).',
-      );
+      expect(toast.error).toHaveBeenCalledWith('Occupant 1: last name is required.');
     });
     expect(createBooking).not.toHaveBeenCalled();
 
@@ -516,8 +545,11 @@ describe('RoomDetailsModal proxy booking', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
-    fireEvent.change(screen.getByPlaceholderText('Full name'), {
-      target: { value: 'Future DOB Occupant' },
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Future DOB' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Occupant' },
     });
     fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
       target: { value: 'child' },
@@ -593,15 +625,22 @@ describe('RoomDetailsModal proxy booking', () => {
     ).toBeInTheDocument();
   });
 
-  it('blocks incompatible sex-restricted room booking when API compatibility flag is absent', async () => {
-    const createBooking = jest.fn();
+  it('allows proxy booking on sex-restricted rooms even when normal mode is incompatible', async () => {
+    const createBooking = jest.fn().mockResolvedValue({
+      data: {
+        booking: {
+          id: 888,
+          status: 'pending',
+        },
+      },
+    });
 
     window.localStorage.setItem(
       'userData',
       JSON.stringify({ sex: 'female' }),
     );
 
-    render(
+    const { container } = render(
       <RoomDetailsModal
         room={{ ...baseRoom, sex_restriction: 'male' }}
         property={{ ...baseProperty, property_type: 'dormitory' }}
@@ -614,17 +653,48 @@ describe('RoomDetailsModal proxy booking', () => {
       />,
     );
 
-    expect(
-      screen.getByText('This room is restricted to boys only.'),
-    ).toBeInTheDocument();
-
-    const submitButton = screen.getByRole('button', {
-      name: 'Confirm Booking Request',
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateInputs[0], {
+      target: { value: getTomorrowDateValue() },
     });
 
-    expect(submitButton).toBeDisabled();
-    fireEvent.click(submitButton);
+    const normalSubmitButton = screen.getByRole('button', {
+      name: 'Confirm Booking Request',
+    });
+    expect(normalSubmitButton).toBeDisabled();
 
-    expect(createBooking).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Proxy' }));
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Proxy' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Occupant' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Relationship to booker'), {
+      target: { value: 'brother' },
+    });
+
+    const occupantDateInputs = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(occupantDateInputs[occupantDateInputs.length - 1], {
+      target: { value: '1992-05-01' },
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Booking Request' }));
+
+    await waitFor(() => {
+      expect(createBooking).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = createBooking.mock.calls[0][0];
+    expect(payload.booking_mode).toBe('proxy');
+    expect(payload.occupants).toEqual([
+      expect.objectContaining({
+        first_name: 'Proxy',
+        last_name: 'Occupant',
+        sex: 'male',
+      }),
+    ]);
   });
 });

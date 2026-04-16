@@ -208,6 +208,29 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
   return { maxRefundableCents: Math.min(txRemainingCents, invoiceCapCents), txRemainingCents, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress };
 };
 
+const getInvoiceRefundPreview = (invoice, booking) => {
+  if (!invoice) return null;
+  const stayProgress = getStayProgress(booking);
+  if (!stayProgress) return { maxRefundableCents: 0, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress: null };
+
+  const transactions = invoice.transactions || [];
+  const positiveTransactions = transactions.filter(t => (t.amount_cents || 0) > 0);
+  const totalPaidCents = positiveTransactions.reduce((sum, t) => sum + (t.amount_cents || 0), 0);
+  const alreadyRefundedCents = positiveTransactions.reduce((sum, t) => sum + Math.max(0, Number(t.refunded_amount_cents || 0)), 0);
+  const remainingTotalCents = Math.max(0, totalPaidCents - alreadyRefundedCents);
+
+  if (totalPaidCents <= 0) return { maxRefundableCents: 0, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress };
+
+  const proratedCents = Math.floor((totalPaidCents * stayProgress.refundableUnits) / stayProgress.totalUnits);
+  const invoiceCapCents = Math.max(0, proratedCents - REFUND_FIXED_PENALTY_CENTS - alreadyRefundedCents);
+
+  return {
+    maxRefundableCents: Math.min(remainingTotalCents, invoiceCapCents),
+    fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS,
+    stayProgress,
+  };
+};
+
 export default function Payments({ navigation, route }) {
   const { theme } = useTheme();
   const { showAlert } = useUIState();
@@ -227,6 +250,57 @@ export default function Payments({ navigation, route }) {
   const [updating, setUpdating] = useState(false);
   const [recording, setRecording] = useState(false);
   const [refundingTxId, setRefundingTxId] = useState(null);
+  const [isRefundingInvoice, setIsRefundingInvoice] = useState(false);
+
+  const handleMergedRefund = async () => {
+    if (!selectedInvoice) return;
+
+    const booking = selectedInvoice.booking || null;
+    const preview = getInvoiceRefundPreview(selectedInvoice, booking);
+    const maxRefund = preview ? preview.maxRefundableCents : 0;
+
+    if (maxRefund <= 0) {
+      showAlert('No Refund Available', 'This invoice has no refundable amount remaining based on the stay progress.');
+      return;
+    }
+
+    const stayInfo = preview?.stayProgress
+      ? `\n\nStay Progress: ${preview.stayProgress.usedUnits}/${preview.stayProgress.totalUnits} ${preview.stayProgress.unitLabel} used`
+      + (preview.fixedPenaltyCents > 0 ? `\nPenalty: ₱${(preview.fixedPenaltyCents / 100).toLocaleString()}` : '')
+      : '';
+
+    showAlert(
+      'Confirm Merged Refund',
+      `You are about to issue a merged refund for all payments on this invoice.\n\nMax refundable: ₱${(maxRefund / 100).toLocaleString()}${stayInfo}\n\nProceed?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Refund All',
+          style: 'destructive',
+          onPress: async () => {
+            setIsRefundingInvoice(true);
+            try {
+              const res = await PaymentService.refundInvoice(selectedInvoice.id, maxRefund);
+              if (res.success) {
+                if (selectedInvoice.booking_id) {
+                  await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
+                }
+                showAlert('Success', `Merged refund of ₱${(maxRefund / 100).toLocaleString()} processed successfully.`);
+                await refetchLandlordQueries(invoiceRefetchers);
+                setShowModal(false);
+              } else {
+                showAlert('Error', getPaymentError(res.error, 'Unable to process merged refund.'));
+              }
+            } catch (error) {
+              showAlert('Error', getPaymentError(error, 'Unable to process merged refund.'));
+            } finally {
+              setIsRefundingInvoice(false);
+            }
+          }
+        }
+      ]
+    );
+  };
   const [verifyingAction, setVerifyingAction] = useState(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReasonCode, setRejectReasonCode] = useState('unclear_image');
@@ -1280,6 +1354,29 @@ export default function Payments({ navigation, route }) {
                         </View>
                       );
                     })}
+
+                    {/* Merged Refund Button for multiple partial payments */}
+                    {selectedInvoice.transactions.filter(t => (t.amount_cents || t.amount) > 0 && (t.status !== 'refunded')).length > 1 && (
+                      <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.border, borderStyle: 'dashed' }}>
+                        <TouchableOpacity
+                          style={[styles.recordButton, { backgroundColor: '#DC2626' }, isRefundingInvoice && { opacity: 0.6 }]}
+                          onPress={handleMergedRefund}
+                          disabled={isRefundingInvoice}
+                        >
+                          {isRefundingInvoice ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <>
+                              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+                              <Text style={styles.recordButtonText}>Refund Total (Merged)</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                        <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 6, textAlign: 'center', fontStyle: 'italic' }}>
+                          This will merge multiple partial payments into one refund.
+                        </Text>
+                      </View>
+                    )}
                   </>
                 )}
 

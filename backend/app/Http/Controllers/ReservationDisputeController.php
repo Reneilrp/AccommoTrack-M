@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-
 use App\Models\Booking;
 use App\Models\ReservationDispute;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ReservationDisputeController extends Controller
@@ -33,7 +32,7 @@ class ReservationDisputeController extends Controller
             'booking_id' => $booking->id,
             'tenant_id' => $booking->tenant_id,
             'landlord_id' => $booking->landlord_id,
-            'reason' => "Reported by User ({$user->id}): " . $request->reason,
+            'reason' => "Reported by User ({$user->id}): ".$request->reason,
             'status' => 'open',
         ]);
 

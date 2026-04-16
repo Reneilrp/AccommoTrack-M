@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
-import { 
+import {
   Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star,
   AlertCircle, Clock, Home, PackagePlus, CreditCard, BookOpen, ArrowLeftRight, ChevronRight, Check, X
 } from 'lucide-react';
@@ -88,6 +88,39 @@ function normalizeAmount(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function toCountNumber(value, fallback = null) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, n);
+}
+
+function resolveRoomAvailabilityStatus(room) {
+  const rawStatus = String(room?.status || '').toLowerCase();
+  if (rawStatus === 'maintenance') return 'maintenance';
+
+  const capacity = Math.max(1, toCountNumber(room?.capacity ?? room?.raw_capacity, 1));
+  const explicitAvailableSlots = toCountNumber(room?.available_slots ?? room?.availableSlots, null);
+  const explicitOccupied = toCountNumber(room?.occupied_count ?? room?.occupied, null);
+
+  const occupiedCount = explicitOccupied !== null
+    ? Math.min(capacity, explicitOccupied)
+    : (explicitAvailableSlots !== null ? Math.max(0, capacity - explicitAvailableSlots) : 0);
+
+  const availableSlots = explicitAvailableSlots !== null
+    ? Math.max(0, explicitAvailableSlots)
+    : Math.max(0, capacity - occupiedCount);
+
+  if (typeof room?.is_available === 'boolean') {
+    if (room.is_available && availableSlots > 0) return 'available';
+    if (!room.is_available && availableSlots > 0) return 'reserved';
+  }
+
+  if (availableSlots > 0) return 'available';
+  if (occupiedCount >= capacity) return 'occupied';
+
+  return rawStatus === 'occupied' ? 'occupied' : 'reserved';
 }
 
 function extractSuggestedPrice(value) {
@@ -196,7 +229,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
 
       const rooms = get(roomsRes);
       const totalRooms = rooms.length;
-      const occupiedRooms = rooms.filter(r => r.status === 'occupied' || r.available_slots === 0).length;
+      const occupiedRooms = rooms.filter((room) => resolveRoomAvailabilityStatus(room) === 'occupied').length;
       const pendingAddonRequests = addonRequestsRes.status === 'fulfilled'
         ? (addonRequestsRes.value?.data?.pendingRequests || [])
         : [];
@@ -234,12 +267,26 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     }
   };
 
-  const handleBookingAction = async (bookingId, action) => {
+  const handleBookingAction = async (bookingId, action, cancellationReason = null) => {
+    if (!bookingId) {
+      toast.error('Booking reference is missing. Please refresh and try again.');
+      return;
+    }
+
     const key = `booking_${bookingId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
     const toastId = toast.loading(action === 'confirm' ? 'Confirming booking...' : 'Declining booking...');
     try {
-      await api.patch(`/bookings/${bookingId}/status`, { status: action === 'confirm' ? 'confirmed' : 'cancelled' });
+      const status = action === 'confirm' ? 'confirmed' : 'cancelled';
+      const payload = { status };
+
+      if (status === 'cancelled') {
+        payload.cancellation_reason = String(
+          cancellationReason || 'Cancelled from Property Summary quick action.',
+        ).trim();
+      }
+
+      await api.patch(`/bookings/${bookingId}/status`, payload);
       setDashData(p => ({ ...p, pendingBookings: p.pendingBookings.filter(b => b.id !== bookingId) }));
       toast.success(action === 'confirm' ? 'Booking confirmed!' : 'Booking declined.', { id: toastId });
     } catch (err) {
@@ -251,6 +298,11 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
   };
 
   const handleTransferAction = async (transferId, action) => {
+    if (!transferId) {
+      toast.error('Transfer request ID is missing. Please refresh and try again.');
+      return;
+    }
+
     const key = `transfer_${transferId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
     const toastId = toast.loading(action === 'approve' ? 'Approving transfer...' : 'Rejecting transfer...');
@@ -267,6 +319,11 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
   };
 
   const handleAddonRequestAction = async (requestId, bookingId, addonId, action, note = null, approvedPrice = null) => {
+    if (!requestId || !bookingId || !addonId) {
+      toast.error('Add-on request data is incomplete. Please refresh and try again.');
+      return false;
+    }
+
     const key = `addon_${requestId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
     const toastId = toast.loading(action === 'approve' ? 'Approving add-on...' : 'Rejecting add-on...');
@@ -484,7 +541,13 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
             {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           </button>
           <button
-            onClick={() => handleBookingAction(item.id, 'decline')}
+            onClick={() =>
+              handleBookingAction(
+                item.id,
+                'decline',
+                'Cancelled by landlord from Property Summary quick action.',
+              )
+            }
             title="Decline booking"
             aria-label="Decline booking"
             className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-60"
@@ -676,21 +739,19 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
                 <button
                   key={key}
                   onClick={() => setActiveFilter(key)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                    active
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${active
                       ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-sm'
                       : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
-                  }`}
+                    }`}
                 >
                   {Icon && <Icon className="w-3 h-3" />}
                   {label}
                   {count > 0 && (
                     <span
-                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
-                        active
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${active
                           ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                      }`}
+                        }`}
                     >
                       {count}
                     </span>
@@ -748,13 +809,12 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
                       </td>
                       <td className="px-5 py-3.5">
                         <span
-                          className={`text-xs font-semibold ${
-                            item.status === 'Overdue' || item.status === 'Open'
+                          className={`text-xs font-semibold ${item.status === 'Overdue' || item.status === 'Open'
                               ? 'text-red-600 dark:text-red-400'
                               : item.status === 'Pending'
                                 ? 'text-orange-500 dark:text-orange-400'
                                 : 'text-gray-500 dark:text-gray-300'
-                          }`}
+                            }`}
                         >
                           {item.status}
                         </span>
@@ -890,9 +950,9 @@ export default function PropertySummary() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { uiState, updateData } = useUIState();
-  
+
   const cacheKey = `property_summary_${id}`;
-  
+
   const getCachedData = () => {
     return uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
   };
@@ -1008,7 +1068,7 @@ export default function PropertySummary() {
   };
 
   useEffect(() => {
-    if (collapse) collapse().catch(() => {});
+    if (collapse) collapse().catch(() => { });
   }, [collapse]);
 
   if (loading) {
@@ -1035,9 +1095,9 @@ export default function PropertySummary() {
 
   if (!property) {
     return (
-      <NotFoundPage 
-        title="Property Not Found" 
-        message="The property you are looking for does not exist or has been removed." 
+      <NotFoundPage
+        title="Property Not Found"
+        message="The property you are looking for does not exist or has been removed."
       />
     );
   }
@@ -1289,9 +1349,9 @@ export default function PropertySummary() {
           <div className="mb-6 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Overview</h2>
           </div>
-          <PropertyDashboard 
-            propertyId={id} 
-            navigate={navigate} 
+          <PropertyDashboard
+            propertyId={id}
+            navigate={navigate}
             onCountsChange={(counts) => setNotificationCounts(counts)}
           />
         </div>

@@ -111,9 +111,9 @@ class TenantDashboardService
                 // Bookings that are confirmed, completed, or partial-completed
                 $query->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
                       // Lease hasn't ended OR it's past end_date but still 'confirmed' (overdue)
-                    ->where(function($q) {
+                    ->where(function ($q) {
                         $q->where('end_date', '>=', now()->startOfDay())
-                          ->orWhere('status', 'confirmed');
+                            ->orWhere('status', 'confirmed');
                     });
             })
             // Only bookings where the tenant is actually still actively assigned to the room!
@@ -255,7 +255,7 @@ class TenantDashboardService
             'quantity' => $data['quantity'] ?? 1,
             'price_at_booking' => $addon->price,
             'status' => 'pending',
-            'request_note' => trim(($data['note'] ?? '') . ($suggestedPrice ? ' | Suggested price: ₱' . number_format((float) $suggestedPrice, 2) : '')),
+            'request_note' => trim(($data['note'] ?? '').($suggestedPrice ? ' | Suggested price: ₱'.number_format((float) $suggestedPrice, 2) : '')),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -347,7 +347,7 @@ class TenantDashboardService
                 // Currently confirmed and active bookings
                 $query->where(function ($q) {
                     $q->where('status', 'confirmed');
-                        // No end date restriction here for confirmed stays to show overdue ones
+                    // No end date restriction here for confirmed stays to show overdue ones
                 })
                 // OR recently completed bookings (last 30 days)
                     ->orWhere(function ($q) {
@@ -355,7 +355,7 @@ class TenantDashboardService
                             ->where('end_date', '>=', now()->subDays(30));
                     });
             })
-                    ->withCount('occupants')
+            ->withCount('occupants')
             ->with($relations)
             ->orderByDesc('start_date')
             ->first();

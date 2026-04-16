@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Cart extends Model
 {
@@ -89,10 +88,10 @@ class Cart extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active')
-                     ->where(function($q) {
-                         $q->whereNull('expires_at')
-                           ->orWhere('expires_at', '>', now());
-                     });
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            });
     }
 
     /**
@@ -101,6 +100,6 @@ class Cart extends Model
     public function scopeExpired($query)
     {
         return $query->where('status', 'active')
-                     ->where('expires_at', '<=', now());
+            ->where('expires_at', '<=', now());
     }
 }

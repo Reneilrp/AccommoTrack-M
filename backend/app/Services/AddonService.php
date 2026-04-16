@@ -132,36 +132,36 @@ class AddonService
                 $reference = 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6));
 
                 $invoice = Invoice::create([
-                        'reference' => $reference,
-                        'landlord_id' => $booking->landlord_id,
-                        'property_id' => $booking->property_id,
-                        'booking_id' => $booking->id,
-                        'tenant_id' => $booking->tenant_id,
-                        'description' => "Add-on: {$addon->name} (".($addon->price_type === 'monthly' ? 'Monthly recurring' : 'One-time fee').')',
-                        'invoice_type' => 'addon',
-                        'amount_cents' => $amountCents,
-                        'currency' => 'PHP',
-                        'status' => 'pending',
-                        'issued_at' => now(),
-                        'due_date' => now()->addDays(3),
-                        'metadata' => [
-                            'addons' => [
-                                [
-                                    'addon_id' => $addon->id,
-                                    'addon_name' => $addon->name,
-                                    'quantity' => $addonRequest->pivot->quantity ?? 1,
-                                    'price' => $amountCents,
-                                    'price_type' => $addon->price_type,
-                                ],
+                    'reference' => $reference,
+                    'landlord_id' => $booking->landlord_id,
+                    'property_id' => $booking->property_id,
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $booking->tenant_id,
+                    'description' => "Add-on: {$addon->name} (".($addon->price_type === 'monthly' ? 'Monthly recurring' : 'One-time fee').')',
+                    'invoice_type' => 'addon',
+                    'amount_cents' => $amountCents,
+                    'currency' => 'PHP',
+                    'status' => 'pending',
+                    'issued_at' => now(),
+                    'due_date' => now()->addDays(3),
+                    'metadata' => [
+                        'addons' => [
+                            [
+                                'addon_id' => $addon->id,
+                                'addon_name' => $addon->name,
+                                'quantity' => $addonRequest->pivot->quantity ?? 1,
+                                'price' => $amountCents,
+                                'price_type' => $addon->price_type,
                             ],
                         ],
-                    ]);
+                    ],
+                ]);
 
-                    // Link invoice back to the addon request
-                    $booking->addons()->updateExistingPivot($addonId, [
-                        'invoice_id' => $invoice->id,
-                        'invoiced_at' => now(),
-                    ]);
+                // Link invoice back to the addon request
+                $booking->addons()->updateExistingPivot($addonId, [
+                    'invoice_id' => $invoice->id,
+                    'invoiced_at' => now(),
+                ]);
 
                 DB::commit();
 

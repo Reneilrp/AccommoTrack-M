@@ -28,9 +28,9 @@ class BackfillBillingDay extends Command
     public function handle()
     {
         $this->info('Starting billing_day backfill for existing bookings...');
-        
+
         $updated = 0;
-        
+
         Booking::whereNull('billing_day')
             ->whereNotNull('start_date')
             ->chunk(100, function ($bookings) use (&$updated) {
@@ -39,15 +39,15 @@ class BackfillBillingDay extends Command
                     $booking->billing_day = $startDate->day;
                     $booking->save();
                     $updated++;
-                    
+
                     if ($updated % 50 === 0) {
                         $this->info("Processed {$updated} bookings...");
                     }
                 }
             });
-        
+
         $this->info("✓ Backfilled billing_day for {$updated} bookings.");
-        
+
         return Command::SUCCESS;
     }
 }

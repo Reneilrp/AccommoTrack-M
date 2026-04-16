@@ -203,7 +203,6 @@ class Room extends Model
             ->oldestOfMany('scheduled_for');
     }
 
-
     /**
      * Get available bed numbers for assignment
      */
@@ -213,9 +212,9 @@ class Room extends Model
         $assignedBeds = $this->tenantAssignments()
             ->where('status', 'active')
             ->get()
-            ->flatMap(fn($a) => explode(',', $a->bed_numbers ?? ''))
+            ->flatMap(fn ($a) => explode(',', $a->bed_numbers ?? ''))
             ->filter()
-            ->map(fn($n) => (int)$n)
+            ->map(fn ($n) => (int) $n)
             ->unique()
             ->values();
 
@@ -360,8 +359,8 @@ class Room extends Model
      *
      * Rules:
      * - maintenance stays maintenance
-    * - if pending requests consume all remaining slots, show reserved
-    * - if the room is fully occupied, show occupied
+     * - if pending requests consume all remaining slots, show reserved
+     * - if the room is fully occupied, show occupied
      * - otherwise use canonical status
      */
     public function getDisplayStatusAttribute()
@@ -479,11 +478,11 @@ class Room extends Model
 
     /**
      * Assign tenant to room (supports multiple tenants and beds)
-     * 
-     * @param int $tenantId
-     * @param string|null $moveInDate
-     * @param int $bedCount
-     * @param string|null $bedNumbers Comma-separated bed numbers (e.g., "1,3,5")
+     *
+     * @param  int  $tenantId
+     * @param  string|null  $moveInDate
+     * @param  int  $bedCount
+     * @param  string|null  $bedNumbers  Comma-separated bed numbers (e.g., "1,3,5")
      */
     public function assignTenant($tenantId, $moveInDate = null, $bedCount = 1, $bedNumbers = null)
     {

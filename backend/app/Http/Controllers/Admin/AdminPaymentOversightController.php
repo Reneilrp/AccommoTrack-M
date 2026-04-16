@@ -24,9 +24,7 @@ class AdminPaymentOversightController extends Controller
     public function __construct(
         protected AuditLogService $auditLogService,
         private readonly PaymentLedgerService $paymentLedgerService,
-    )
-    {
-    }
+    ) {}
 
     public function queue(Request $request)
     {

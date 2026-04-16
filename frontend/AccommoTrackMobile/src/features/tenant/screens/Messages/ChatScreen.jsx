@@ -159,6 +159,24 @@ export default function ChatScreen({ navigation, route }) {
         }
     });
 
+    const unsendMutation = useMutation({
+        mutationFn: (messageId) => MessageService.unsend(messageId),
+        onSuccess: (result) => {
+            if (result.success) {
+                queryClient.setQueryData(messagesQueryKey, (old) => {
+                    const messages = old || [];
+                    return messages.map(m => String(m.id) === String(result.data.id) ? result.data : m);
+                });
+                queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
+            } else {
+                showError('Error', result.error || 'Failed to unsend message');
+            }
+        },
+        onError: (err) => {
+            showError('Error', err.message || 'Failed to unsend message');
+        }
+    });
+
     useEffect(() => {
         const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
         const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -183,9 +201,9 @@ export default function ChatScreen({ navigation, route }) {
 
                     queryClient.setQueryData(messagesQueryKey, (old) => {
                         const messages = old || [];
-                        // Avoid duplicates by checking ID (convert to string for safe comparison)
-                        if (messages.some((messageItem) => String(messageItem.id) === String(incomingMessage.id))) {
-                            return old;
+                        const exists = messages.some((m) => String(m.id) === String(incomingMessage.id));
+                        if (exists) {
+                            return messages.map((m) => String(m.id) === String(incomingMessage.id) ? incomingMessage : m);
                         }
                         return [...messages, incomingMessage];
                     });
@@ -414,6 +432,24 @@ export default function ChatScreen({ navigation, route }) {
                             const isMine = msg.is_mine || (currentUserId && String(msg.sender_id) === String(currentUserId));
                             const isCaretakerMessage = msg.sender_role === 'caretaker';
                             const actualSenderName = msg.actual_sender ? `${msg.actual_sender.first_name} ${msg.actual_sender.last_name}` : 'Caretaker';
+                            const isUnsent = Boolean(msg.is_unsent);
+
+                            const handleLongPress = () => {
+                                if (isMine && !isUnsent) {
+                                    showAlert(
+                                        'Unsend Message',
+                                        'Unsend this message for everyone?',
+                                        [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            { 
+                                                text: 'Unsend', 
+                                                style: 'destructive',
+                                                onPress: () => unsendMutation.mutate(msg.id)
+                                            }
+                                        ]
+                                    );
+                                }
+                            };
 
                             return (
                                 <View key={msg.id} style={[styles.messageWrapper, isMine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
@@ -423,18 +459,38 @@ export default function ChatScreen({ navigation, route }) {
                                                 via {actualSenderName}
                                             </Text>
                                         )}
-                                        <View style={[styles.messageBubble, isMine ? styles.myMessageBubble : styles.theirMessageBubble, isMine && { backgroundColor: theme.colors.primary }]}>
-                                            {msg.image_url && (
-                                                <Image 
-                                                    source={{ uri: msg.image_url }} 
-                                                    style={{ width: 200, height: 200, borderRadius: 8, marginBottom: msg.message ? 8 : 0 }} 
-                                                    resizeMode="cover" 
-                                                />
+                                        <TouchableOpacity
+                                            activeOpacity={isMine && !isUnsent ? 0.7 : 1}
+                                            onLongPress={handleLongPress}
+                                            style={[
+                                                styles.messageBubble, 
+                                                isMine ? styles.myMessageBubble : styles.theirMessageBubble, 
+                                                isMine && { backgroundColor: theme.colors.primary },
+                                                isUnsent && { 
+                                                    backgroundColor: theme.colors.backgroundSecondary, 
+                                                    borderWidth: 1, 
+                                                    borderColor: theme.colors.border, 
+                                                    borderStyle: 'dashed' 
+                                                }
+                                            ]}
+                                        >
+                                            {isUnsent ? (
+                                                <Text style={[styles.messageText, { color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 12 }]}>This message was unsent</Text>
+                                            ) : (
+                                                <>
+                                                    {msg.image_url && (
+                                                        <Image 
+                                                            source={{ uri: msg.image_url }} 
+                                                            style={{ width: 200, height: 200, borderRadius: 8, marginBottom: msg.message ? 8 : 0 }} 
+                                                            resizeMode="cover" 
+                                                        />
+                                                    )}
+                                                    {msg.message ? (
+                                                        <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
+                                                    ) : null}
+                                                </>
                                             )}
-                                            {msg.message ? (
-                                                <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
-                                            ) : null}
-                                        </View>
+                                        </TouchableOpacity>
                                         <Text style={[styles.messageTime, { color: theme.colors.textTertiary }]}>{formatTime(msg.created_at)}</Text>
                                     </View>
                                 </View>

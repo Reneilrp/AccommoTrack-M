@@ -23,7 +23,12 @@ const cartService = {
       const res = await api.post('/cart/items', payload);
       return { success: true, data: res.data?.data || res.data };
     } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+      return {
+        success: false,
+        error: err.response?.data?.message || err.message,
+        details: err.response?.data?.errors || null,
+        errors: err.response?.data?.errors || null,
+      };
     }
   },
 

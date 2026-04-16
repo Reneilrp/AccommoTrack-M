@@ -197,49 +197,48 @@ export default function AllActivities({ navigation, route }) {
     switch (type) {
       case 'booking': {
         const params = {
-          searchQuery: tenantName,
           focusBookingId: entityId || null,
           drilldownToken: Date.now(),
         };
-        const status = String(activity.status || '').toLowerCase();
-        if (status) {
-          params.filter = status;
-        }
         navigation.navigate('Bookings', params);
         break;
       }
       case 'payment': {
         const invoiceId = activity.invoice_id || activity.data?.invoice_id || entityId;
         const params = {
-          searchQuery: tenantName,
           focusInvoiceId: invoiceId || null,
           drilldownToken: Date.now(),
         };
-        const status = String(activity.status || '').toLowerCase();
-        if (status === 'overdue') params.filter = 'overdue';
-        else if (status === 'refunded' || status === 'partially_refunded') params.filter = 'refunded';
-        else if (status === 'paid' || status === 'confirmed' || status === 'succeeded') params.filter = 'paid';
-        else if (status === 'pending_verification' || status === 'pending_offline') params.filter = 'pending_verification';
-        else params.filter = 'pending';
         navigation.navigate('Payments', params);
         break;
       }
       case 'room': {
-        const params = {};
-        if (entityId) params.focusRoomId = entityId;
+        const params = {
+          focusRoomId: entityId,
+          drilldownToken: Date.now(),
+        };
         navigation.navigate('RoomManagement', params);
         break;
       }
       case 'property': {
-        const params = {};
-        if (entityId) params.focusPropertyId = entityId;
-        navigation.navigate('Properties', params);
+        navigation.navigate('Properties', {
+          focusPropertyId: entityId,
+          drilldownToken: Date.now(),
+        });
         break;
       }
       case 'maintenance': {
-        const params = {};
-        if (entityId) params.focusRequestId = entityId;
-        navigation.navigate('MaintenanceRequests', params);
+        navigation.navigate('MaintenanceRequests', {
+          focusRequestId: entityId,
+          drilldownToken: Date.now(),
+        });
+        break;
+      }
+      case 'addon': {
+        navigation.navigate('AddonManagement', {
+          focusRequestId: entityId,
+          drilldownToken: Date.now(),
+        });
         break;
       }
       default:

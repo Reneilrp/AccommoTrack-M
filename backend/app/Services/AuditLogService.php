@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\User;
+
 class AuditLogService
 {
     public function log(string $domain, string $event, array $context = []): AuditLog

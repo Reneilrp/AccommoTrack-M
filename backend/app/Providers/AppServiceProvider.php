@@ -2,16 +2,16 @@
 
 namespace App\Providers;
 
+use App\Models\Property;
+use App\Models\Review;
+use App\Models\Room;
+use App\Observers\PropertyObserver;
+use App\Observers\ReviewObserver;
+use App\Observers\RoomObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use App\Models\Property;
-use App\Models\Room;
-use App\Models\Review;
-use App\Observers\PropertyObserver;
-use App\Observers\RoomObserver;
-use App\Observers\ReviewObserver;
 
 class AppServiceProvider extends ServiceProvider
 {

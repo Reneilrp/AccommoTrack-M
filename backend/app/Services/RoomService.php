@@ -18,9 +18,7 @@ use Intervention\Image\ImageManager;
 
 class RoomService
 {
-    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService)
-    {
-    }
+    public function __construct(private readonly SubscriptionResolverService $subscriptionResolverService) {}
 
     /**
      * Create a new room.
@@ -35,7 +33,6 @@ class RoomService
             if ($this->isRoomNumberDuplicate($validatedData['room_number'], $property->id)) {
                 throw ValidationException::withMessages(['room_number' => 'Room number already exists for this property.']);
             }
-
 
             $capacity = $validatedData['capacity'] ?? 1;
             $pricingModel = $validatedData['pricing_model'] ?? (($validatedData['room_type'] === 'bedSpacer') ? 'per_bed' : 'full_room');
@@ -139,7 +136,7 @@ class RoomService
             $room->amenities()->detach();
             foreach ($room->images as $image) {
                 $filename = basename($image->image_url);
-                Storage::delete('room_images/' . $filename);
+                Storage::delete('room_images/'.$filename);
                 $image->delete();
             }
             DB::table('room_tenant_assignments')->where('room_id', $room->id)->delete();

@@ -301,8 +301,7 @@ class BookingReservationFeeGapRuleTest extends TestCase
         bool $requireReservationFee,
         float $reservationFee,
         int $reservationFeeGapDays = 3
-    ): Property
-    {
+    ): Property {
         return Property::create([
             'landlord_id' => $landlordId,
             'title' => 'Reservation Gap Rule Property',

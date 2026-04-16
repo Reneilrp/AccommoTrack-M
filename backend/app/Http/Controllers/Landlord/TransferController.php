@@ -35,7 +35,7 @@ class TransferController extends Controller
             // Authorization check for caretakers
             if ($context['is_caretaker'] && $context['assignment']) {
                 $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
-                if (!in_array($request->property_id, $assignedPropertyIds)) {
+                if (! in_array($request->property_id, $assignedPropertyIds)) {
                     return response()->json(['message' => 'Unauthorized access to this property'], 403);
                 }
             }
@@ -58,9 +58,9 @@ class TransferController extends Controller
                 });
             });
         }
-    
+
         $requests = $query->get();
-    
+
         return response()->json($requests);
     }
 
@@ -88,7 +88,7 @@ class TransferController extends Controller
 
             if ($submittedFee > $quotedFee) {
                 return response()->json([
-                    'message' => "You cannot charge more than the ₱" . number_format($quotedFee, 2) . " fee quoted to the tenant at the time of request."
+                    'message' => 'You cannot charge more than the ₱'.number_format($quotedFee, 2).' fee quoted to the tenant at the time of request.',
                 ], 422);
             }
         }
@@ -119,7 +119,7 @@ class TransferController extends Controller
             if ($transferReq->booking_id) {
                 $activeBooking = \App\Models\Booking::find($transferReq->booking_id);
             }
-            
+
             $creditCalculation = null;
             $creditAmount = 0;
             if ($activeBooking) {
@@ -183,14 +183,14 @@ class TransferController extends Controller
             $activeBooking = \App\Models\Booking::find($transferReq->booking_id);
         }
 
-        if (!$activeBooking) {
+        if (! $activeBooking) {
             $activeBooking = \App\Models\Booking::where('tenant_id', $transferReq->tenant_id)
                 ->where('room_id', $transferReq->current_room_id)
                 ->whereIn('status', ['confirmed', 'active'])
                 ->first();
         }
 
-        if (!$activeBooking) {
+        if (! $activeBooking) {
             return response()->json([
                 'suggested_adjustment' => 0,
                 'remaining_days' => 0,
@@ -204,7 +204,7 @@ class TransferController extends Controller
         $damageCharge = $request->input('damage_charge', 0);
         $transferFee = $request->input('transfer_fee', $transferReq->quoted_transfer_fee ?? 0);
         $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge, $transferFee);
-        
+
         // Calculate new room cost for remaining days
         $newRoom = $transferReq->requestedRoom;
         $remainingDays = (int) ($creditCalculation['remaining_days'] ?? 0);

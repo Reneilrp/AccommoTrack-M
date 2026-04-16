@@ -66,6 +66,15 @@ const MessageService = {
     } catch (error) {
       return { success: false, error: extractError(error, 'Unable to start conversation') };
     }
+  },
+
+  async unsend(messageId) {
+    try {
+      const response = await api.patch(`/messages/${messageId}/unsend`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: extractError(error, 'Unable to unsend message') };
+    }
   }
 };
 

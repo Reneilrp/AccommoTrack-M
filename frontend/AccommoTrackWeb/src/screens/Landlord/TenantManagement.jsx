@@ -105,7 +105,7 @@ export default function TenantManagement() {
     phone: '',
     password: '',
     confirm_password: '',
-    sex: 'prefer_not_to_say',
+    sex: '',
     room_id: '',
     move_in_date: '',
     end_date: '',
@@ -381,7 +381,7 @@ export default function TenantManagement() {
       phone: '',
       password: '',
       confirm_password: '',
-      sex: 'prefer_not_to_say',
+      sex: '',
       room_id: '',
       move_in_date: '',
       end_date: '',
@@ -976,11 +976,9 @@ const CreateTenantModal = ({ data, setData, availableRooms, loading, isSubmittin
               value={data.sex}
               onChange={e => setData({ ...data, sex: e.target.value })}
             >
-              <option value="prefer_not_to_say">Prefer Not to Say</option>
+              <option value="">Select sex</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
-              <option value="rather_not_say">Rather Not Say</option>
-              <option value="other">Other</option>
             </select>
           </div>
           <div>

@@ -7,8 +7,8 @@ use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Services\PaymentLedgerService;
-use App\Support\SystemToggle;
 use App\Support\PaymongoKeyResolver;
+use App\Support\SystemToggle;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,9 +19,7 @@ class PaymongoController extends Controller
 {
     use ResolvesLandlordAccess;
 
-    public function __construct(private readonly PaymentLedgerService $paymentLedgerService)
-    {
-    }
+    public function __construct(private readonly PaymentLedgerService $paymentLedgerService) {}
 
     private function tenantPaymentsTemporarilyDisabledResponse()
     {

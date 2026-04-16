@@ -82,8 +82,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (!normalized) return '';
     if (['male', 'boy', 'boys'].includes(normalized)) return 'male';
     if (['female', 'girl', 'girls'].includes(normalized)) return 'female';
-    if (['other', 'prefer_not_to_say'].includes(normalized)) return normalized;
-    return normalized;
+    return '';
   };
 
   const normalizeRoomRestriction = (value) => {
@@ -107,13 +106,88 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     SystemToggleService.getDefaults().manualGcashReservationDisabled,
   );
   const createEmptyOccupant = (defaultSex = '') => ({
-    full_name: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
     date_of_birth: '',
     sex: defaultSex,
     relationship_to_booker: '',
     phone: '',
     email: '',
   });
+
+  const OCCUPANT_FIELD_LABELS = {
+    first_name: 'first name',
+    middle_name: 'middle name',
+    last_name: 'last name',
+    date_of_birth: 'date of birth',
+    sex: 'sex',
+    relationship_to_booker: 'relationship to booker',
+    phone: 'phone',
+    email: 'email',
+  };
+
+  const hasAnyProxyOccupantValue = (occupant) =>
+    [
+      occupant.first_name,
+      occupant.middle_name,
+      occupant.last_name,
+      occupant.date_of_birth,
+      occupant.sex,
+      occupant.relationship_to_booker,
+      occupant.phone,
+      occupant.email,
+    ].some((value) => Boolean(String(value || '').trim()));
+
+  const getProxyOccupantMissingFieldMessage = (occupant, index) => {
+    const prefix = `Occupant ${index + 1}:`;
+    if (!occupant.first_name) return `${prefix} first name is required.`;
+    if (!occupant.last_name) return `${prefix} last name is required.`;
+    if (!occupant.date_of_birth) return `${prefix} date of birth is required.`;
+    if (!occupant.sex) return `${prefix} sex is required.`;
+    if (!occupant.relationship_to_booker) return `${prefix} relationship to booker is required.`;
+    return null;
+  };
+
+  const formatBookingValidationError = (details) => {
+    if (!details || typeof details !== 'object') {
+      return null;
+    }
+
+    const firstEntry = Object.entries(details).find(([, value]) =>
+      Array.isArray(value) ? value.length > 0 : Boolean(value),
+    );
+
+    if (!firstEntry) {
+      return null;
+    }
+
+    const [rawPath, rawMessage] = firstEntry;
+    const normalizedPath = String(rawPath).replace(/\[(\d+)\]/g, '.$1');
+    const message = Array.isArray(rawMessage) ? rawMessage[0] : String(rawMessage || '');
+
+    const occupantMatch = normalizedPath.match(/occupants\.(\d+)\.([a-zA-Z_]+)/);
+    if (occupantMatch) {
+      const [, occupantIndex, rawField] = occupantMatch;
+      const fieldLabel = OCCUPANT_FIELD_LABELS[rawField] || rawField.replace(/_/g, ' ');
+      return `Occupant ${Number(occupantIndex) + 1} ${fieldLabel}: ${message}`;
+    }
+
+    const itemOccupantMatch = normalizedPath.match(/items\.(\d+)\.occupants\.(\d+)\.([a-zA-Z_]+)/);
+    if (itemOccupantMatch) {
+      const [, itemIndex, occupantIndex, rawField] = itemOccupantMatch;
+      const fieldLabel = OCCUPANT_FIELD_LABELS[rawField] || rawField.replace(/_/g, ' ');
+      return `Cart item ${Number(itemIndex) + 1}, occupant ${Number(occupantIndex) + 1} ${fieldLabel}: ${message}`;
+    }
+
+    const rawField = normalizedPath.split('.').pop() || '';
+    const fieldLabel = OCCUPANT_FIELD_LABELS[rawField] || rawField.replace(/_/g, ' ');
+    if (!fieldLabel) {
+      return message;
+    }
+
+    return `${fieldLabel.charAt(0).toUpperCase()}${fieldLabel.slice(1)}: ${message}`;
+  };
 
   const parseIsoDateOnly = (rawDate) => {
     const trimmed = String(rawDate || '').trim();
@@ -320,7 +394,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (bookingMode !== 'proxy') return;
 
     setProxyOccupants((prev) => {
-      const next = (prev.length > 0 ? prev : [createEmptyOccupant()]).slice(0, occupantLimit);
+      const next = (prev.length > 0 ? prev : [createEmptyOccupant(requiredProxyGender)]).slice(0, occupantLimit);
       return next;
     });
   }, [bookingMode, occupantLimit, requiredProxyGender]);
@@ -633,7 +707,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       payment_plan: 'full',
     });
     setBookingMode('normal');
-    setProxyOccupants([createEmptyOccupant()]);
+    setProxyOccupants([createEmptyOccupant(requiredProxyGender)]);
     setActiveProxyDobPickerIndex(null);
     setReceiptImage(null);
 
@@ -708,14 +782,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const handleAddProxyOccupant = () => {
     setProxyOccupants((prev) => {
       if (prev.length >= occupantLimit) return prev;
-      return [...prev, createEmptyOccupant()];
+      return [...prev, createEmptyOccupant(requiredProxyGender)];
     });
   };
 
   const handleRemoveProxyOccupant = (index) => {
     setProxyOccupants((prev) => {
       const next = prev.filter((_, idx) => idx !== index);
-      return next.length > 0 ? next : [createEmptyOccupant()];
+      return next.length > 0 ? next : [createEmptyOccupant(requiredProxyGender)];
     });
 
     setActiveProxyDobPickerIndex((prevIndex) => {
@@ -829,15 +903,19 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       if (!validateDates()) return;
 
       const normalizedOccupants = proxyOccupants
-        .map((occupant) => ({
-          full_name: String(occupant.full_name || '').trim(),
-          date_of_birth: String(occupant.date_of_birth || '').trim(),
-          sex: normalizeGenderValue(occupant.sex),
-          relationship_to_booker: String(occupant.relationship_to_booker || '').trim(),
-          phone: String(occupant.phone || '').trim(),
-          email: String(occupant.email || '').trim(),
-        }))
-        .filter((occupant) => Object.values(occupant).some((fieldValue) => Boolean(fieldValue)));
+        .map((occupant) => {
+          return {
+            first_name: String(occupant.first_name || '').trim(),
+            middle_name: String(occupant.middle_name || '').trim(),
+            last_name: String(occupant.last_name || '').trim(),
+            date_of_birth: String(occupant.date_of_birth || '').trim(),
+            sex: normalizeGenderValue(occupant.sex || requiredProxyGender),
+            relationship_to_booker: String(occupant.relationship_to_booker || '').trim(),
+            phone: String(occupant.phone || '').trim(),
+            email: String(occupant.email || '').trim(),
+          };
+        })
+        .filter((occupant) => hasAnyProxyOccupantValue(occupant));
 
       if (bookingMode === 'proxy') {
         if (normalizedOccupants.length === 0) {
@@ -855,11 +933,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
         for (let i = 0; i < normalizedOccupants.length; i += 1) {
           const occupant = normalizedOccupants[i];
-          if (!occupant.full_name || !occupant.date_of_birth || !occupant.sex || !occupant.relationship_to_booker) {
-            showError(
-              'Missing Information',
-              `Occupant ${i + 1} is missing required information (full name, date of birth, sex, relationship).`,
-            );
+          const missingFieldMessage = getProxyOccupantMissingFieldMessage(occupant, i);
+          if (missingFieldMessage) {
+            showError('Missing Information', missingFieldMessage);
             return;
           }
 
@@ -908,20 +984,17 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         let occupantsPayload = undefined;
         if (bookingMode === 'proxy') {
           const inferredBedCount = Math.max(1, normalizedOccupants.length);
-          occupantsPayload = normalizedOccupants.map(o => {
-            const parts = o.full_name.split(' ');
-            return {
-              first_name: parts[0] || 'Unknown',
-              last_name: parts.slice(1).join(' ') || 'Unknown',
-              full_name: o.full_name,
-              sex: o.sex,
-              date_of_birth: o.date_of_birth,
-              relationship_to_booker: o.relationship_to_booker,
-              phone: o.phone || '',
-              email: o.email || '',
-              bed_number: 1
-            };
-          });
+          occupantsPayload = normalizedOccupants.map((o, index) => ({
+            first_name: o.first_name,
+            middle_name: o.middle_name || null,
+            last_name: o.last_name,
+            sex: o.sex,
+            date_of_birth: o.date_of_birth,
+            relationship_to_booker: o.relationship_to_booker,
+            phone: o.phone || '',
+            email: o.email || '',
+            bed_number: index + 1,
+          }));
         }
 
         let payload = {
@@ -948,7 +1021,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             ]
           );
         } else {
-          showError('Failed to Add', result.error || 'Something went wrong.');
+          const validationMessage = formatBookingValidationError(result.details || result.errors);
+          showError('Failed to Add', validationMessage || result.error || 'Something went wrong.');
         }
         setIsSubmitting(false);
         return;
@@ -968,7 +1042,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         data.append('bed_count', String(inferredBedCount));
 
         normalizedOccupants.forEach((occupant, index) => {
-          data.append(`occupants[${index}][full_name]`, occupant.full_name);
+          data.append(`occupants[${index}][first_name]`, occupant.first_name);
+          if (occupant.middle_name) data.append(`occupants[${index}][middle_name]`, occupant.middle_name);
+          data.append(`occupants[${index}][last_name]`, occupant.last_name);
           data.append(`occupants[${index}][date_of_birth]`, occupant.date_of_birth);
           data.append(`occupants[${index}][sex]`, occupant.sex);
           data.append(`occupants[${index}][relationship_to_booker]`, occupant.relationship_to_booker);
@@ -1045,35 +1121,36 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
         // Enhanced error messages for booking limits
         if (result.error && result.error.includes('Normal booking allows only 1')) {
-          showAlert(
+          showError(
             'Normal Booking Limit Reached',
-            'You already have 1 active or pending normal booking in this property.\n\nNote: Normal (1) and Proxy (3) booking limits are independent. You can still create proxy bookings.'
+            'You already have 1 active or pending normal booking in this property. Normal and proxy limits are independent.'
           );
         } else if (result.error && result.error.includes('Proxy booking limit reached')) {
-          showAlert(
+          showError(
             'Proxy Booking Limit Reached',
-            'You have reached the maximum of 3 active or pending proxy bookings in this property.\n\nNote: Normal (1) and Proxy (3) booking limits are independent. You can still create 1 normal booking.'
+            'You have reached the maximum proxy bookings allowed in this property. Normal and proxy limits are independent.'
           );
         } else if (result.error && result.error.includes('already have an active or pending booking for this room')) {
-          showAlert(
+          showError(
             'Room Already Reserved',
-            'You already have an active or pending booking for this specific room.\n\nTip: Check your bookings page to view or manage your existing reservation.'
+            'You already have an active or pending booking for this specific room.'
           );
         } else if (result.error && result.error.includes('overdue invoices')) {
-          showAlert(
+          showError(
             'Payment Required',
-            'You cannot create new bookings while you have overdue invoices.\n\nTip: Please settle your outstanding balance in the Payments section first.'
+            'You cannot create new bookings while you have overdue invoices. Please settle your outstanding balance first.'
           );
         } else if (result.details) {
-          const errorMessages = Object.values(result.details).flat().join('\n');
-          showAlert('Validation Error', errorMessages);
+          const validationMessage = formatBookingValidationError(result.details);
+          showError('Validation Error', validationMessage || Object.values(result.details).flat().join('\n'));
         } else {
-          showAlert('Error', result.error || 'Failed to submit booking.');
+          showError('Booking Error', result.error || 'Failed to submit booking.');
         }
       }
     } catch (error) {
       console.error('Booking submission error:', error);
-      showAlert('Error', error.message || 'An unexpected error occurred.');
+      const validationMessage = formatBookingValidationError(error?.response?.data?.errors);
+      showError('Booking Error', validationMessage || error.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1354,20 +1431,35 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
           {/* Action Buttons */}
           {roomIsBookable && (
-            <TouchableOpacity style={styles.bookButton} onPress={() => handleBook(false)}>
-              <Text style={styles.bookButtonText}>
-                {isGuest ? 'Sign In to Book' : 'Book This Room'}
-              </Text>
-            </TouchableOpacity>
-          )}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+              <TouchableOpacity
+                style={[styles.bookButton, { width: isGuest ? '100%' : '78%', marginTop: 0 }]}
+                onPress={() => handleBook(false)}
+              >
+                <Text style={styles.bookButtonText}>
+                  {isGuest ? 'Sign In to Book' : 'Book This Room'}
+                </Text>
+              </TouchableOpacity>
 
-          {roomIsBookable && !isGuest && (
-            <TouchableOpacity
-              style={[styles.bookButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10 }]}
-              onPress={() => handleBook(true)}
-            >
-              <Text style={[styles.bookButtonText, { color: theme.colors.primary }]}>Add to Cart</Text>
-            </TouchableOpacity>
+              {!isGuest && (
+                <TouchableOpacity
+                  style={[
+                    styles.bookButton,
+                    {
+                      width: '20%',
+                      backgroundColor: 'transparent',
+                      borderWidth: 1,
+                      borderColor: theme.colors.primary,
+                      marginTop: 0,
+                      paddingHorizontal: 0,
+                    },
+                  ]}
+                  onPress={() => handleBook(true)}
+                >
+                  <Ionicons name="cart-outline" size={24} color={theme.colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
           )}
 
           <TouchableOpacity style={styles.contactButton} onPress={handleContactLandlord}>
@@ -1587,13 +1679,31 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                         )}
                       </View>
 
-                      <Text style={styles.proxyFieldLabel}>Full Name <Text style={styles.requiredAsterisk}>*</Text></Text>
+                      <Text style={styles.proxyFieldLabel}>First Name <Text style={styles.requiredAsterisk}>*</Text></Text>
                       <TextInput
                         style={[styles.input, { marginBottom: 10 }]}
-                        placeholder="Full name"
+                        placeholder="First name"
                         placeholderTextColor="#999"
-                        value={occupant.full_name}
-                        onChangeText={(text) => handleProxyOccupantChange(index, 'full_name', text)}
+                        value={occupant.first_name}
+                        onChangeText={(text) => handleProxyOccupantChange(index, 'first_name', text)}
+                      />
+
+                      <Text style={styles.proxyFieldLabel}>Middle Name (Optional)</Text>
+                      <TextInput
+                        style={[styles.input, { marginBottom: 10 }]}
+                        placeholder="Middle name"
+                        placeholderTextColor="#999"
+                        value={occupant.middle_name}
+                        onChangeText={(text) => handleProxyOccupantChange(index, 'middle_name', text)}
+                      />
+
+                      <Text style={styles.proxyFieldLabel}>Last Name <Text style={styles.requiredAsterisk}>*</Text></Text>
+                      <TextInput
+                        style={[styles.input, { marginBottom: 10 }]}
+                        placeholder="Last name"
+                        placeholderTextColor="#999"
+                        value={occupant.last_name}
+                        onChangeText={(text) => handleProxyOccupantChange(index, 'last_name', text)}
                       />
 
                       <Text style={styles.proxyFieldLabel}>Date of Birth <Text style={styles.requiredAsterisk}>*</Text></Text>

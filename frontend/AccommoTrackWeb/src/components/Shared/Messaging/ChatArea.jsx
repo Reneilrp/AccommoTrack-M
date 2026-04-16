@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X } from 'lucide-react';
+import { MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X, RotateCcw } from 'lucide-react';
 
 const ChatArea = ({
   selectedChat,
@@ -10,6 +10,7 @@ const ChatArea = ({
   canSendMessages,
   caretakerMessagingRestricted,
   handleSendMessage,
+  handleUnsend,
   getInitials,
   formatTime,
   currentUserId,
@@ -34,7 +35,7 @@ const ChatArea = ({
     return messages
       .filter((msg) => {
         const imageUrl = msg?.image_url;
-        if (!imageUrl || seen.has(imageUrl)) return false;
+        if (!imageUrl || msg.is_unsent || seen.has(imageUrl)) return false;
         seen.add(imageUrl);
         return true;
       })
@@ -153,42 +154,71 @@ const ChatArea = ({
             const isMine = msg.is_mine;
             const actualSenderId = msg.actual_sender_id;
             const isCaretakerMessage = msg.sender_role === 'caretaker';
+            const isLandlordMessage = msg.sender_role === 'landlord';
             const isSentByCurrentCaretaker = isCaretakerMessage && actualSenderId && String(actualSenderId) === String(currentUserId);
             
             const ts = msg.created_at || new Date().toISOString();
+            const isUnsent = Boolean(msg.is_unsent);
 
             return (
               <div
                 key={msg.id || idx}
-                className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-1 duration-300`}
+                className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-1 duration-300 group/msg`}
               >
                 <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-xs lg:max-w-md`}> 
-                  {isCaretakerMessage && msg.actual_sender && (
-                    <p className="text-[10px] mb-2 text-gray-500 dark:text-gray-400 font-medium">
-                      {isSentByCurrentCaretaker
-                        ? 'You (Caretaker)'
-                        : `via ${msg.actual_sender.first_name} ${msg.actual_sender.last_name} (Caretaker)`
-                      }
+                  {/* Role Indicator */}
+                  {isLandlordView && (isLandlordMessage || isCaretakerMessage) && (
+                    <p className="text-[10px] mb-2 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
+                      {isLandlordMessage ? (
+                        isMine ? 'You (Landlord)' : 'Landlord'
+                      ) : (
+                        isSentByCurrentCaretaker
+                          ? 'You (Caretaker)'
+                          : `via ${msg.actual_sender?.first_name || ''} ${msg.actual_sender?.last_name || ''} (Caretaker)`.trim()
+                      )}
                     </p>
                   )}
-                  <div
-                    className={`w-auto px-4 py-2 rounded-2xl shadow-sm ${
-                      isMine
-                        ? 'bg-green-600 dark:bg-green-700 text-white rounded-tr-none'
-                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-tl-none'
-                    }`}
-                  >
-                    {msg.image_url && (
-                      <div className="mb-2 max-w-full">
-                        <img 
-                          src={msg.image_url} 
-                          alt="Attachment" 
-                          className="rounded-lg max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => window.open(msg.image_url, '_blank')}
-                        />
-                      </div>
+                  <div className="flex items-center gap-2 max-w-full">
+                    {isMine && !isUnsent && !caretakerMessagingRestricted && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Unsend this message for everyone?')) {
+                            handleUnsend(msg.id);
+                          }
+                        }}
+                        className="opacity-0 group-hover/msg:opacity-100 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all text-gray-400 hover:text-red-500"
+                        title="Unsend for everyone"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
                     )}
-                    {msg.message && <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>}
+                    <div
+                      className={`w-auto px-4 py-2 rounded-2xl shadow-sm ${
+                        isUnsent
+                          ? 'bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700 italic'
+                          : isMine
+                            ? 'bg-green-600 dark:bg-green-700 text-white rounded-tr-none'
+                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-tl-none'
+                      }`}
+                    >
+                      {isUnsent ? (
+                        <p className="text-xs">This message was unsent</p>
+                      ) : (
+                        <>
+                          {msg.image_url && (
+                            <div className="mb-2 max-w-full">
+                              <img 
+                                src={msg.image_url} 
+                                alt="Attachment" 
+                                className="rounded-lg max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => window.open(msg.image_url, '_blank')}
+                              />
+                            </div>
+                          )}
+                          {msg.message && <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>}
+                        </>
+                      )}
+                    </div>
                   </div>
                   <p className="text-[10px] mt-2 text-gray-500 dark:text-gray-500 px-2">
                     {formatTime(ts)}

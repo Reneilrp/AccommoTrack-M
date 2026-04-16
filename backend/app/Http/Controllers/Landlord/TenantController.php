@@ -25,9 +25,11 @@ class TenantController extends Controller
     use ResolvesLandlordAccess;
 
     private const EVICTION_UNDO_WINDOW_HOURS = 24;
+
     private const CLAIM_CODE_TTL_HOURS = 24;
 
     protected $bookingService;
+
     protected $refundService;
 
     public function __construct(BookingService $bookingService, RefundService $refundService)
@@ -74,7 +76,7 @@ class TenantController extends Controller
                     },
                     'scheduledEviction' => function ($q) use ($landlordId) {
                         $q->where('landlord_id', $landlordId)
-                          ->where('status', 'scheduled');
+                            ->where('status', 'scheduled');
                     },
                     'latestEvictionRecord' => function ($q) use ($landlordId) {
                         $q->where('landlord_id', $landlordId);
@@ -710,7 +712,7 @@ class TenantController extends Controller
                 'error' => 'This tenant has a pending eviction schedule. Cancel it before transferring rooms.',
             ], 422);
         }
-        
+
         $activeBooking = null;
         if (! empty($validated['booking_id'])) {
             $activeBooking = \App\Models\Booking::find($validated['booking_id']);
@@ -803,7 +805,7 @@ class TenantController extends Controller
             $originalEndDate = null;
             if ($oldRoom) {
                 // If not already identified, find latest active booking for the old room
-                if (!$activeBooking) {
+                if (! $activeBooking) {
                     $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
                         ->where('room_id', $oldRoom->id)
                         ->whereIn('status', ['confirmed', 'active'])
@@ -836,7 +838,7 @@ class TenantController extends Controller
             // 3. Start new booking for the new room
             $moveInDate = now()->format('Y-m-d');
 
-            if (!empty($validated['new_end_date'])) {
+            if (! empty($validated['new_end_date'])) {
                 $endDate = \Carbon\Carbon::parse($validated['new_end_date'])->format('Y-m-d');
             } else {
                 if ($originalEndDate) {
@@ -870,20 +872,20 @@ class TenantController extends Controller
                 $transferFee = $validated['transfer_fee'] ?? 0;
                 $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge, $transferFee);
                 $creditAmount = $creditCalculation['final_credit'];
-                
+
                 // Record refund in old booking
                 if ($creditAmount > 0) {
                     $this->refundService->recordRefundInBooking($activeBooking, $creditAmount);
                 }
             }
-            
+
             // Apply credit to new booking's first invoice
             if ($creditAmount > 0) {
                 $initialInvoice = Invoice::where('booking_id', $newBooking->id)
                     ->where('status', 'pending')
                     ->orderBy('id', 'asc')
                     ->first();
-                
+
                 if ($initialInvoice) {
                     $this->refundService->applyCreditToInvoice($initialInvoice, $creditAmount, [
                         'transfer_from_booking_id' => $activeBooking->id,
@@ -900,10 +902,10 @@ class TenantController extends Controller
                     $newBooking->save();
                 }
             }
-            
+
             // Handle manual prorated adjustment if provided (for room rate differences)
-            if (isset($validated['prorated_adjustment']) && round((float)$validated['prorated_adjustment'], 2) !== 0.00) {
-                $adj = round((float)$validated['prorated_adjustment'], 2);
+            if (isset($validated['prorated_adjustment']) && round((float) $validated['prorated_adjustment'], 2) !== 0.00) {
+                $adj = round((float) $validated['prorated_adjustment'], 2);
                 if ($adj > 0) {
                     $reference = 'ADJ-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
                     Invoice::create([
@@ -926,7 +928,7 @@ class TenantController extends Controller
             if ($tenant->tenantProfile) {
                 $currentNotes = $tenant->tenantProfile->notes ?? '';
                 $tReason = $validated['transfer_reason'] ?? 'Tenant Request';
-                $transferLog = "\n[".now()->toDateString()."] Room Transfer: ".($oldRoom ? $oldRoom->room_number : 'N/A')." -> ".$newRoom->room_number.". Type: ".$tReason.". Reason: ".$validated['reason'];
+                $transferLog = "\n[".now()->toDateString().'] Room Transfer: '.($oldRoom ? $oldRoom->room_number : 'N/A').' -> '.$newRoom->room_number.'. Type: '.$tReason.'. Reason: '.$validated['reason'];
                 $tenant->tenantProfile->update([
                     'notes' => $currentNotes.$transferLog,
                 ]);
@@ -1592,7 +1594,7 @@ class TenantController extends Controller
         return match ($normalized) {
             'male' => 'male',
             'female' => 'female',
-            
+
             default => null,
         };
     }
@@ -1646,5 +1648,4 @@ class TenantController extends Controller
             throw new AccessDeniedHttpException('You do not have permission to manage this tenant.');
         }
     }
-
 }

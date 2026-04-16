@@ -19,8 +19,7 @@ class LandlordSubscriptionController extends Controller
     public function __construct(
         private readonly SubscriptionResolverService $subscriptionResolverService,
         private readonly SubscriptionCheckoutService $subscriptionCheckoutService,
-    ) {
-    }
+    ) {}
 
     public function plans(Request $request)
     {

@@ -109,14 +109,24 @@ class LandlordDashboardController extends Controller
                 }
                 if ($item instanceof \App\Models\Invoice) {
                     $status = strtolower((string) $item->status);
+                    $isNew = $item->created_at->diffInMinutes($item->updated_at) < 5;
+
+                    $action = 'Invoice Status Updated';
+                    if ($isNew) {
+                        $action = 'New Invoice Generated';
+                    } elseif ($status === 'paid') {
+                        $action = 'Invoice Paid';
+                    } elseif ($status === 'overdue') {
+                        $action = 'Invoice Overdue';
+                    }
 
                     return [
                         'id' => $item->id, 'type' => 'payment',
-                        'action' => 'New Invoice Generated',
-                        'description' => "Invoice #{$item->reference} created for room ".($item->booking->room->room_number ?? 'N/A'),
+                        'action' => $action,
+                        'description' => "Invoice #{$item->reference} for room ".($item->booking->room->room_number ?? 'N/A').' is now '.ucfirst($status),
                         'by' => 'System',
                         'status' => $status,
-                        'timestamp' => $item->created_at,
+                        'timestamp' => $item->updated_at,
                         'icon' => 'cash-outline',
                         'color' => $this->resolveActivityColor('payment', $status, 'gray'),
                     ];
