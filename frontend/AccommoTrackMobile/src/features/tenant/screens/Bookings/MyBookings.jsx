@@ -1095,20 +1095,32 @@ export default function MyBookings() {
 
     if (submittingMoveOut) return;
 
-    setSubmittingMoveOut(true);
-    const result = await BookingService.requestMoveOut(moveOutContext.booking.id, {
-      move_out_date: formatIsoDate(plannedDate),
-      reason: moveOutReason.trim(),
-    });
+    const submitMoveOutRequest = async () => {
+      setSubmittingMoveOut(true);
+      const result = await BookingService.requestMoveOut(moveOutContext.booking.id, {
+        move_out_date: formatIsoDate(plannedDate),
+        reason: moveOutReason.trim(),
+      });
 
-    if (result.success) {
-      showAlert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
-      closeMoveOutModal();
-      await refetchMyBookingsBundle();
-    } else {
-      showAlert('Request Failed', result.error || 'Failed to request move-out notice.');
-      setSubmittingMoveOut(false);
-    }
+      if (result.success) {
+        showAlert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
+        closeMoveOutModal();
+        await refetchMyBookingsBundle();
+      } else {
+        showAlert('Request Failed', result.error || 'Failed to request move-out notice.');
+        setSubmittingMoveOut(false);
+      }
+    };
+
+    Alert.alert(
+      'Confirm Move-out',
+      'Send this move-out notice to your landlord?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Confirm', onPress: submitMoveOutRequest },
+      ],
+      { cancelable: true },
+    );
   };
 
   const openCancelBookingModal = (booking) => {
@@ -1753,6 +1765,7 @@ export default function MyBookings() {
       : Math.max(0, totalCycleCharges - totalPaidAmount);
 
     const hasMoveOutNotice = Boolean(booking.notice_given_at || booking.noticeGivenAt);
+    const isCurrentMonthPaidForMoveOut = !isMonthlyBilling || ['paid', 'settled', 'succeeded', 'verified', 'completed'].includes(paymentStatusRaw);
     const reviewAlreadySubmitted = Boolean(booking.hasReview || booking.has_review);
 
     const translateX = slideAnim.interpolate({
@@ -2030,8 +2043,8 @@ export default function MyBookings() {
                 <View style={styles.actionRow}>
                   {!hasMoveOutNotice ? (
                     <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: submittingMoveOut ? theme.colors.textTertiary : (theme.isDark ? '#3730a3' : '#4F46E5') }]}
-                      disabled={submittingMoveOut}
+                      style={[styles.actionBtn, { backgroundColor: (!isCurrentMonthPaidForMoveOut || submittingMoveOut) ? theme.colors.textTertiary : (theme.isDark ? '#3730a3' : '#4F46E5') }]}
+                      disabled={submittingMoveOut || !isCurrentMonthPaidForMoveOut}
                       onPress={() => handleRequestMoveOut(booking, property, room)}
                     >
                       <Text style={styles.actionBtnText}>
@@ -2073,6 +2086,14 @@ export default function MyBookings() {
                     <Ionicons name="exit-outline" size={14} color={theme.isDark ? '#2dd4bf' : '#0D9488'} />
                     <Text style={{ fontSize: 11, fontWeight: '700', color: theme.isDark ? '#2dd4bf' : '#0D9488' }}>
                       Notice Submitted
+                    </Text>
+                  </View>
+                )}
+
+                {!hasMoveOutNotice && !isCurrentMonthPaidForMoveOut && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: theme.colors.textSecondary }}>
+                      Move-out is available only when current month status is Paid.
                     </Text>
                   </View>
                 )}

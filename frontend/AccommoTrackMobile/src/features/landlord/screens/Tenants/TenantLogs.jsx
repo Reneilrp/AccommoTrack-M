@@ -22,6 +22,13 @@ import { getStyles } from '../../../../styles/Landlord/TenantLogs.js';
 
 const EMPTY_PAYMENTS = [];
 
+const readRoomNumber = (roomLike) => {
+  const raw = roomLike?.room_number ?? roomLike?.roomNumber;
+  if (raw === null || raw === undefined) return '';
+  const normalized = String(raw).trim();
+  return normalized.length > 0 ? normalized : '';
+};
+
 export default function TenantLogs({ route, navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -154,7 +161,7 @@ export default function TenantLogs({ route, navigation }) {
         <View style={styles.cardBody}>
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Room</Text>
-            <Text style={styles.cardValue}>{item.room?.room_number || 'N/A'}</Text>
+            <Text style={styles.cardValue}>{readRoomNumber(item.room) || 'N/A'}</Text>
           </View>
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Period</Text>
@@ -273,11 +280,11 @@ export default function TenantLogs({ route, navigation }) {
         <View style={styles.cardBody}>
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>From</Text>
-            <Text style={styles.cardValue}>Room {item.current_room?.room_number || 'N/A'}</Text>
+            <Text style={styles.cardValue}>Room {readRoomNumber(item.current_room) || 'N/A'}</Text>
           </View>
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>To</Text>
-            <Text style={styles.cardValue}>Room {item.requested_room?.room_number || 'N/A'}</Text>
+            <Text style={styles.cardValue}>Room {readRoomNumber(item.requested_room) || 'N/A'}</Text>
           </View>
           {item.reason && (
             <View style={styles.cardRow}>
@@ -452,7 +459,7 @@ export default function TenantLogs({ route, navigation }) {
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Room</Text>
               <Text style={styles.infoValue}>
-                {tenant?.room ? `Room ${tenant.room.room_number}` : 'No Room'}
+                {readRoomNumber(tenant?.room) ? `Room ${readRoomNumber(tenant?.room)}` : 'No Room'}
               </Text>
             </View>
             <View style={styles.infoItem}>

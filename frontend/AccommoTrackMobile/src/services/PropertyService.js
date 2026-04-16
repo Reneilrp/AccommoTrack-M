@@ -1,7 +1,7 @@
 import api from "./api.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImageUrl } from "../utils/imageUtils.js";
-import { extractErrorMessage } from "../utils/error.js";
+import { extractErrorMessage, normalizeActionError } from "../utils/error.js";
 import cacheStore from "../utils/cache.js";
 
 const cacheManager = cacheStore;
@@ -729,6 +729,14 @@ const PropertyService = {
    * Matches: PATCH /api/rooms/{id}/status
    */
   async updateRoomStatus(roomId, status) {
+    if (!roomId) {
+      return {
+        success: false,
+        data: null,
+        error: "Unable to update room status: room id is missing.",
+      };
+    }
+
     try {
       const response = await api.patch(`/rooms/${roomId}/status`, { status });
       return {
@@ -744,7 +752,7 @@ const PropertyService = {
       return {
         success: false,
         data: null,
-        error: extractErrorMessage(error),
+        error: normalizeActionError(error, "Failed to update room status."),
       };
     }
   },

@@ -207,7 +207,6 @@ export default function DashboardPage({ user }) {
 
     const type = String(activity.type || '').toLowerCase();
     const entityId = activity.id;
-    const description = activity.description || '';
 
     switch (type) {
       case 'booking': {

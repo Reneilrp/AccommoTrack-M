@@ -639,7 +639,6 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     }
 
     if (item.type === 'addon') {
-      const savedActionNote = addonActionNotes[item.id] || '';
       const approving = !!actionLoading[`addon_${item.id}_approve`];
       const rejecting = !!actionLoading[`addon_${item.id}_reject`];
       return (

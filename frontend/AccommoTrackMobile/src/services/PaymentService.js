@@ -526,6 +526,50 @@ class PaymentService {
   }
 
   /**
+   * TENANT: Get wallet credit balance.
+   * Uses tenant profile payload where wallet_balance is already exposed by backend.
+   */
+  async getWalletBalance() {
+    try {
+      const response = await api.get('/tenant/profile');
+      const balance = Number(response?.data?.wallet_balance ?? 0);
+      return {
+        success: true,
+        data: Number.isFinite(balance) ? balance : 0,
+      };
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to fetch wallet balance',
+      };
+    }
+  }
+
+  /**
+   * TENANT: Apply wallet credits to an invoice.
+   * Matches: POST /api/tenant/invoices/{id}/apply-wallet-credit
+   */
+  async applyWalletCredit(invoiceId, amountCents) {
+    try {
+      const response = await api.post(`/tenant/invoices/${invoiceId}/apply-wallet-credit`, {
+        amount_cents: amountCents,
+      });
+
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error('Error applying wallet credit:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to apply wallet credits',
+      };
+    }
+  }
+
+  /**
    * Get the stored auth token from AsyncStorage (used for raw fetch calls)
    */
   async getAuthToken() {

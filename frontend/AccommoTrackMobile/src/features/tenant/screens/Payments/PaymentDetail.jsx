@@ -128,6 +128,7 @@ export default function PaymentDetail() {
   const [isPaying, setIsPaying] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentAmountError, setPaymentAmountError] = useState('');
+  const [walletBalance, setWalletBalance] = useState(0);
   const [offlineDetails, setOfflineDetails] = useState({ reference: '', notes: '' });
   const [proofImage, setProofImage] = useState(null);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
@@ -215,6 +216,23 @@ export default function PaymentDetail() {
     console.error('Error fetching invoice:', paymentDetailQuery.error);
     showAlert('Error', paymentDetailQuery.error.message || 'Failed to load invoice');
   }, [paymentDetailQuery.error]);
+
+  useEffect(() => {
+    let mounted = true;
+    PaymentService.getWalletBalance()
+      .then((result) => {
+        if (!mounted || !result?.success) return;
+        const balance = Number(result.data ?? 0);
+        setWalletBalance(Number.isFinite(balance) ? balance : 0);
+      })
+      .catch(() => {
+        // Non-critical: wallet button remains hidden when balance is unavailable.
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [invoiceId]);
 
   const addonLines = React.useMemo(() => normalizeInvoiceAddonLines(invoice), [invoice]);
   const addonTotalCents = React.useMemo(
@@ -451,6 +469,51 @@ export default function PaymentDetail() {
     }
   };
 
+  const handleWalletCreditPayment = async () => {
+    if (tenantPaymentsTempDisabled) {
+      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return;
+    }
+
+    const { amount: amountToPay, error } = resolveAmountToPay();
+    if (error) {
+      showAlert('Invalid Amount', error);
+      return;
+    }
+
+    const amountCents = Math.round(amountToPay * 100);
+    const walletCents = Math.round(Math.max(0, Number(walletBalance || 0)) * 100);
+
+    if (amountCents > walletCents) {
+      showAlert('Insufficient Wallet Credits', `Available wallet credits: ₱${walletBalance.toLocaleString()}`);
+      return;
+    }
+
+    try {
+      setIsPaying(true);
+      const result = await PaymentService.applyWalletCredit(invoice.id, amountCents);
+      if (!result?.success) {
+        showAlert('Payment Error', result?.error || 'Failed to apply wallet credits.');
+        return;
+      }
+
+      showAlert('Payment Success', 'Wallet credits applied successfully.');
+      await refetchPaymentDetail();
+      queryClient.invalidateQueries(tenantQueryKeys.all);
+
+      const balanceResult = await PaymentService.getWalletBalance();
+      if (balanceResult?.success) {
+        const refreshedBalance = Number(balanceResult.data ?? 0);
+        setWalletBalance(Number.isFinite(refreshedBalance) ? refreshedBalance : 0);
+      }
+    } catch (error) {
+      console.error('Wallet payment error', error);
+      showAlert('Payment Error', 'Failed to apply wallet credits.');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
@@ -614,11 +677,13 @@ export default function PaymentDetail() {
                 </Text>
                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
                   {showOnline && !isPaymentDisabled ? 'Online (GCash, Card)' : null}
-                  {showOnline && !isPaymentDisabled && (showCash || showManualGcash) ? ' • ' : ''}
+                  {showOnline && !isPaymentDisabled && (showCash || showManualGcash || walletBalance > 0) ? ' • ' : ''}
                   {showCash ? 'Cash' : null}
-                  {showCash && showManualGcash ? ' • ' : ''}
+                  {showCash && (showManualGcash || walletBalance > 0) ? ' • ' : ''}
                   {showManualGcash ? 'Manual GCash Transfer' : null}
-                  {(isPaymentDisabled || !showOnline) && !showCash && !showManualGcash ? 'No payment method is currently enabled for this property.' : ''}
+                  {showManualGcash && walletBalance > 0 ? ' • ' : ''}
+                  {walletBalance > 0 ? `Wallet Credits (₱${walletBalance.toLocaleString()})` : null}
+                  {(isPaymentDisabled || !showOnline) && !showCash && !showManualGcash && walletBalance <= 0 ? 'No payment method is currently enabled for this property.' : ''}
                 </Text>
               </View>
 
@@ -728,6 +793,18 @@ export default function PaymentDetail() {
                       <Text style={styles.payBtnText}>Request Cash Payment</Text>
                     </TouchableOpacity>
                   )}
+                </View>
+              )}
+
+              {!tenantPaymentsTempDisabled && walletBalance > 0 && (
+                <View style={{ marginTop: 16 }}>
+                  <TouchableOpacity
+                    onPress={handleWalletCreditPayment}
+                    disabled={tenantPaymentsTempDisabled || !!paymentAmountError}
+                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: (tenantPaymentsTempDisabled || paymentAmountError) ? 0.6 : 1 }]}
+                  >
+                    <Text style={styles.payBtnText}>Pay with Wallet Credits (₱{walletBalance.toLocaleString()})</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>

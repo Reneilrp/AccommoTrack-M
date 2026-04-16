@@ -769,6 +769,7 @@ export default function TenantManagement() {
             canTransfer={true}
             searchQuery={searchQuery}
             isEvictionDue={isEvictionDue}
+            formatEvictionFinalizeAt={formatEvictionFinalizeAt}
           />
         )}
       </div>
@@ -1318,6 +1319,7 @@ const TenantListView = ({
   canTransfer,
   searchQuery,
   isEvictionDue,
+  formatEvictionFinalizeAt,
 }) => {
   const navigate = useNavigate();
   const [openMenuId, setOpenMenuId] = useState(null);

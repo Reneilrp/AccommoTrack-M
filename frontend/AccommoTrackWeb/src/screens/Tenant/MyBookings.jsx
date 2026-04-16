@@ -1489,12 +1489,26 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                 const effectiveStatus = rawStatus || 'confirmed';
                                 const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
                                 const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
+                                const billingMode = String(booking.billing_policy || booking.payment_plan || '').toLowerCase();
+                                const isMonthlyBilling = billingMode === 'monthly';
+                                const paymentStatus = String(
+                                  booking.is_overdue || booking.isOverdue
+                                    ? 'overdue'
+                                    : (booking.paymentStatus || booking.payment_status || ''),
+                                ).toLowerCase();
+                                const isCurrentMonthPaid = !isMonthlyBilling || ['paid', 'settled', 'succeeded', 'verified', 'completed'].includes(paymentStatus);
+
                                 if (!canRequestMoveOut || hasNotice) return null;
 
                                 return (
                                   <button
                                     onClick={() => onRequestMoveOut?.()}
-                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 transition-all active:scale-95"
+                                    disabled={!isCurrentMonthPaid}
+                                    title={!isCurrentMonthPaid ? 'Move-out is available only when current month status is Paid.' : ''}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 ${!isCurrentMonthPaid
+                                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed shadow-none'
+                                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
+                                      }`}
                                   >
                                     <DoorOpen className="w-4 h-4" />
                                     Move-out
@@ -2638,6 +2652,11 @@ const MoveOutModal = ({ booking, onClose, onSubmit, loading }) => {
 
     if (!moveOutDate) {
       toast.error('Please select your move-out date.');
+      return;
+    }
+
+    const confirmed = window.confirm('Confirm move-out request? This will notify your landlord.');
+    if (!confirmed) {
       return;
     }
 

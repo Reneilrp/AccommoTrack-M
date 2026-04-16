@@ -212,9 +212,19 @@ class TenantController extends Controller
 
     private function getTenantDetails($tenant, $landlordId)
     {
-        $confirmedStatuses = ['confirmed', 'completed', 'partial-completed'];
-        $latestBooking = $tenant->bookings->whereIn('status', $confirmedStatuses)->first();
-        $room = $latestBooking?->room ?? $tenant->room;
+        $roomRelevantStatuses = ['active', 'confirmed', 'reserved', 'pending_reservation', 'completed', 'partial-completed'];
+        $latestBooking = \App\Models\Booking::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('landlord_id', $landlordId)
+            ->whereIn('status', $roomRelevantStatuses)
+            ->with(['room.property'])
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->first();
+
+        // Prefer active tenant assignment room when present; otherwise use latest
+        // relevant booking room to keep room number deterministic across reloads.
+        $room = $tenant->room ?? $latestBooking?->room;
 
         $bookings = \App\Models\Booking::where('tenant_id', $tenant->id)
             ->where('landlord_id', $landlordId)

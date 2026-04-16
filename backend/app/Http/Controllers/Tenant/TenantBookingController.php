@@ -562,6 +562,48 @@ class TenantBookingController extends Controller
                 ], 422);
             }
 
+            $isMonthlyStay = in_array(strtolower((string) ($booking->billing_policy ?? $booking->payment_plan ?? '')), ['monthly'], true);
+            if ($isMonthlyStay) {
+                $monthStart = now()->startOfMonth()->toDateString();
+                $monthEnd = now()->endOfMonth()->toDateString();
+                $settledStatuses = ['paid', 'settled', 'succeeded', 'verified', 'completed'];
+
+                $hasUnpaidCurrentMonthInvoice = Invoice::where('booking_id', $booking->id)
+                    ->where('tenant_id', Auth::id())
+                    ->where('invoice_type', 'rent')
+                    ->where(function ($query) use ($monthStart, $monthEnd) {
+                        $query->whereBetween('billing_period_start', [$monthStart, $monthEnd])
+                            ->orWhereBetween('due_date', [$monthStart, $monthEnd]);
+                    })
+                    ->whereNotIn('status', $settledStatuses)
+                    ->exists();
+
+                if ($hasUnpaidCurrentMonthInvoice) {
+                    return response()->json([
+                        'success' => false,
+                        'data' => null,
+                        'message' => 'Move-out is only available after your current month rent is fully paid.',
+                    ], 422);
+                }
+
+                $hasCurrentMonthInvoice = Invoice::where('booking_id', $booking->id)
+                    ->where('tenant_id', Auth::id())
+                    ->where('invoice_type', 'rent')
+                    ->where(function ($query) use ($monthStart, $monthEnd) {
+                        $query->whereBetween('billing_period_start', [$monthStart, $monthEnd])
+                            ->orWhereBetween('due_date', [$monthStart, $monthEnd]);
+                    })
+                    ->exists();
+
+                if (! $hasCurrentMonthInvoice && ! in_array(strtolower((string) $booking->payment_status), $settledStatuses, true)) {
+                    return response()->json([
+                        'success' => false,
+                        'data' => null,
+                        'message' => 'Move-out is only available after your current month rent is fully paid.',
+                    ], 422);
+                }
+            }
+
             $moveOutDate = Carbon::parse($request->validated()['move_out_date'])->startOfDay();
             if ($booking->start_date && $moveOutDate->lt(Carbon::parse($booking->start_date)->startOfDay())) {
                 return response()->json([

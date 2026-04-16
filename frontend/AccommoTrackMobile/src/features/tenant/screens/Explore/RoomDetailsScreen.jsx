@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
+import { navigate as rootNavigate, triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -715,6 +715,30 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setBookingModalVisible(true);
   };
 
+  const navigateToCart = React.useCallback(() => {
+    const state = navigation?.getState?.();
+    const localRoutes = Array.isArray(state?.routeNames) ? state.routeNames : [];
+
+    // Prefer local stack route first.
+    if (localRoutes.includes('Cart')) {
+      navigation.navigate('Cart');
+      return;
+    }
+
+    // Fallback for nested navigator context.
+    const parent = navigation?.getParent?.();
+    const parentState = parent?.getState?.();
+    const parentRoutes = Array.isArray(parentState?.routeNames) ? parentState.routeNames : [];
+
+    if (parentRoutes.includes('Main')) {
+      parent.navigate('Main', { screen: 'Cart' });
+      return;
+    }
+
+    // Final fallback through root navigation ref.
+    rootNavigate('Main', { screen: 'Cart' });
+  }, [navigation]);
+
   const refetchRoomPaymentOptions = roomPaymentOptionsQuery.refetch;
   const refetchPropertySnapshotQuery = propertySnapshotQuery.refetch;
   const refetchPropertySnapshot = React.useCallback(async () => {
@@ -1019,7 +1043,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             'Room added to your cart successfully!',
             [
               { text: 'Continue Exploring', onPress: () => setBookingModalVisible(false) },
-              { text: 'Go to Cart', onPress: () => { setBookingModalVisible(false); navigation.navigate('Cart'); } }
+              {
+                text: 'Go to Cart',
+                onPress: () => {
+                  setBookingModalVisible(false);
+                  navigateToCart();
+                },
+              }
             ]
           );
         } else {

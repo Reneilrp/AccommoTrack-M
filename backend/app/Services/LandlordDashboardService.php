@@ -107,6 +107,34 @@ class LandlordDashboardService
         }
         $activities = $activities->merge($recentBookingsQuery->limit(20)->get());
 
+        $moveOutNoticesQuery = Booking::where('landlord_id', $landlordId)
+            ->whereNotNull('notice_given_at')
+            ->with(['tenant', 'property', 'room'])
+            ->orderBy('notice_given_at', 'desc');
+        if ($roomId) {
+            $moveOutNoticesQuery->where('room_id', $roomId);
+        } elseif ($propertyId) {
+            $moveOutNoticesQuery->where('property_id', $propertyId);
+        } elseif ($assignedPropertyIds) {
+            $moveOutNoticesQuery->whereIn('property_id', $assignedPropertyIds);
+        }
+
+        $moveOutNotices = $moveOutNoticesQuery->limit(10)->get();
+        foreach ($moveOutNotices as $noticeBooking) {
+            $activities->push([
+                'id' => $noticeBooking->id,
+                'type' => 'booking',
+                'action' => 'Move-out Notice Submitted',
+                'description' => ($noticeBooking->tenant->first_name ?? 'Tenant').' submitted a move-out notice for '.($noticeBooking->property->title ?? 'Property').' - Room '.($noticeBooking->room->room_number ?? 'N/A'),
+                'status' => 'pending',
+                'timestamp' => $noticeBooking->notice_given_at,
+                'created_at' => $noticeBooking->notice_given_at,
+                'icon' => 'log-out-outline',
+                'color' => 'yellow',
+                'booking_id' => $noticeBooking->id,
+            ]);
+        }
+
         $roomsQuery = Room::whereHas('property', function ($query) use ($landlordId, $propertyId, $assignedPropertyIds) {
             $query->where('landlord_id', $landlordId);
             if ($propertyId) {
