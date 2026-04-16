@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  DeviceEventEmitter,
   RefreshControl,
   Linking,
   useWindowDimensions,
@@ -1012,12 +1013,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
         const result = await CartService.addToCart(payload);
         if (result.success) {
+          DeviceEventEmitter.emit('accommo:cart-updated');
           showAlert(
             'Added to Cart',
             'Room added to your cart successfully!',
             [
               { text: 'Continue Exploring', onPress: () => setBookingModalVisible(false) },
-              { text: 'Go to Cart', onPress: () => { setBookingModalVisible(false); navigation.navigate('CartStack'); } }
+              { text: 'Go to Cart', onPress: () => { setBookingModalVisible(false); navigation.navigate('Cart'); } }
             ]
           );
         } else {

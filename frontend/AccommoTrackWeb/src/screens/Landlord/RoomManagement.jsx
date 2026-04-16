@@ -90,6 +90,14 @@ const createDurationPricingDefaults = () =>
     return acc;
   }, {});
 
+const parsePromoDiscountValue = (value) => {
+  const sanitized = String(value ?? '')
+    .replace(/,/g, '')
+    .trim();
+  const parsed = parseFloat(sanitized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
 const normalizeDurationPricing = (value) => {
   const normalized = createDurationPricingDefaults();
 
@@ -129,7 +137,7 @@ const buildDurationPricingPayload = (durationPricing) =>
     const entry = durationPricing?.[term];
     if (!entry?.enabled) return acc;
 
-    const parsedValue = parseFloat(entry.discountValue);
+    const parsedValue = parsePromoDiscountValue(entry.discountValue);
     if (!Number.isFinite(parsedValue) || parsedValue <= 0) return acc;
 
     acc[term] = {

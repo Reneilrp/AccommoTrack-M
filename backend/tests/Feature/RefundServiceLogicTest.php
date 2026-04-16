@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\Property;
 use App\Models\Room;
+use App\Models\TenantCredit;
 use App\Models\User;
 use App\Services\RefundService;
 use Carbon\Carbon;
@@ -192,6 +193,45 @@ class RefundServiceLogicTest extends TestCase
         $this->assertSame(0, (int) $invoice->amount_cents);
         $this->assertSame('paid', $invoice->status);
         $this->assertNotNull($invoice->paid_at);
+    }
+
+    public function test_apply_credit_to_invoice_stores_excess_credit_in_tenant_wallet(): void
+    {
+        [$landlord, $tenant, $booking] = $this->buildScenario(now()->toDateString(), now()->addMonth()->toDateString());
+
+        $invoice = Invoice::create([
+            'reference' => 'INV-EXCESS-CREDIT-'.uniqid(),
+            'landlord_id' => $landlord->id,
+            'property_id' => $booking->property_id,
+            'booking_id' => $booking->id,
+            'tenant_id' => $tenant->id,
+            'description' => 'Rent Invoice',
+            'invoice_type' => 'rent',
+            'amount_cents' => 10000,
+            'currency' => 'PHP',
+            'status' => 'pending',
+            'issued_at' => now(),
+            'due_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        $service = app(RefundService::class);
+        $service->applyCreditToInvoice($invoice, 150.00, ['source' => 'transfer']);
+
+        $invoice->refresh();
+
+        $this->assertSame(0, (int) $invoice->amount_cents);
+        $this->assertSame('paid', $invoice->status);
+        $this->assertEquals(100.00, (float) $invoice->metadata['credit_applied']);
+        $this->assertEquals(50.00, (float) $invoice->metadata['credit_excess_to_wallet']);
+
+        $walletCredit = TenantCredit::where('tenant_id', $tenant->id)
+            ->where('property_id', $booking->property_id)
+            ->where('type', 'credit')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($walletCredit);
+        $this->assertSame(5000, (int) $walletCredit->amount_cents);
     }
 
     public function test_record_refund_in_booking_sets_amount_and_timestamp(): void

@@ -43,6 +43,7 @@ export const CartProvider = ({ children }) => {
       const result = await cartService.addToCart(payload);
       if (result.success) {
         await fetchCart();
+        window.dispatchEvent(new CustomEvent('accommo:cart-updated'));
         return { success: true };
       } else {
         setError(result.error);
@@ -69,6 +70,7 @@ export const CartProvider = ({ children }) => {
       const result = await cartService.updateCartItem(itemId, payload);
       if (result.success) {
         await fetchCart();
+        window.dispatchEvent(new CustomEvent('accommo:cart-updated'));
         return { success: true };
       } else {
         setError(result.error);
@@ -90,6 +92,7 @@ export const CartProvider = ({ children }) => {
       const result = await cartService.removeFromCart(itemId);
       if (result.success) {
         await fetchCart();
+        window.dispatchEvent(new CustomEvent('accommo:cart-updated'));
         return { success: true };
       } else {
         setError(result.error);
@@ -111,6 +114,7 @@ export const CartProvider = ({ children }) => {
       const result = await cartService.clearCart();
       if (result.success) {
         setCart(null);
+        window.dispatchEvent(new CustomEvent('accommo:cart-updated'));
         return { success: true };
       } else {
         setError(result.error);
@@ -136,6 +140,7 @@ export const CartProvider = ({ children }) => {
       const result = await cartService.checkout(cart.id);
       if (result.success) {
         setCart(null);
+        window.dispatchEvent(new CustomEvent('accommo:cart-updated'));
         return { success: true, data: result.data };
       } else {
         setError(result.error);
@@ -196,8 +201,19 @@ export const CartProvider = ({ children }) => {
       }
     };
 
+    const handleCartUpdated = () => {
+      const userData = localStorage.getItem('userData');
+      if (userData) {
+        fetchCart();
+      }
+    };
+
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener('accommo:cart-updated', handleCartUpdated);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('accommo:cart-updated', handleCartUpdated);
+    };
   }, [fetchCart]);
 
   const value = {

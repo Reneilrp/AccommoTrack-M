@@ -153,11 +153,22 @@ class RoomService
      */
     public function updateStatus(Room $room, string $status): Room
     {
+        // Room status updates should not mutate tenant assignments.
+        // Previous behavior called removeTenant() when setting available,
+        // which could trigger unintended side effects and 500 errors.
+        $updatePayload = ['status' => $status];
+
         if ($status === 'available') {
-            $room->removeTenant(); // This also updates status internally
-        } else {
-            $room->update(['status' => $status]);
+            $hasActiveTenants = $room->tenants()
+                ->wherePivot('status', 'active')
+                ->exists();
+
+            if (! $hasActiveTenants) {
+                $updatePayload['current_tenant_id'] = null;
+            }
         }
+
+        $room->update($updatePayload);
 
         $room->property->updateAvailableRooms();
 

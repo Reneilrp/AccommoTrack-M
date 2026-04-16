@@ -277,8 +277,9 @@ export default function InvoiceCheckout() {
       return toast.error('Partial payments are disabled. Please pay the exact remaining balance.');
     }
 
-    if (!offlineDetails.proofImage) {
-      return toast.error('Proof of payment (receipt image) is required.');
+    const hasProofImage = offlineDetails.proofImage instanceof File;
+    if (!hasProofImage) {
+      return toast.error('Please upload a proof of payment image before checkout.');
     }
 
     setProcessing(true);

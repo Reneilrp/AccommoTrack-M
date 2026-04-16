@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../../services/tenantService';
 import { getImageUrl } from '../../../utils/api';
+import { hasAnyValidationError, normalizeNameInput, validateProfileNameField } from '../../../utils/nameValidation';
 import { SkeletonProfileTab } from '../../Shared/Skeleton';
 import { useUIState } from '../../../contexts/UIStateContext';
 import { CircleUser, Camera } from 'lucide-react';
@@ -93,19 +94,30 @@ const ProfileTab = ({ onUserUpdate }) => {
   };
 
   const NAME_FIELDS = ['first_name', 'middle_name', 'last_name'];
-  const NAME_REGEX = /^[\p{L}\s'-]+$/u;
+  const NAME_LABELS = {
+    first_name: 'First name',
+    middle_name: 'Middle name',
+    last_name: 'Last name',
+  };
   const PHONE_REGEX = /^(09|\+639)\d{9}$/;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
     if (NAME_FIELDS.includes(name)) {
-      if (value && !NAME_REGEX.test(value)) {
-        setNameErrors(prev => ({ ...prev, [name]: 'Only letters, spaces, hyphens and apostrophes are allowed.' }));
-      } else {
-        setNameErrors(prev => ({ ...prev, [name]: '' }));
-      }
+      const normalizedValue = normalizeNameInput(value);
+      setFormData(prev => ({ ...prev, [name]: normalizedValue }));
+      setNameErrors(prev => ({
+        ...prev,
+        [name]: validateProfileNameField(normalizedValue, {
+          required: name === 'first_name' || name === 'last_name',
+          label: NAME_LABELS[name] || 'Name',
+        }),
+      }));
+      return;
     }
+
+    setFormData(prev => ({ ...prev, [name]: value }));
+
     if (name === 'phone') {
       if (value && !PHONE_REGEX.test(value)) {
         setNameErrors(prev => ({ ...prev, phone: 'Must be a valid PH mobile number (e.g. 09123456789 or +639123456789).' }));
@@ -127,16 +139,34 @@ const ProfileTab = ({ onUserUpdate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (Object.values(nameErrors).some(e => e)) {
+
+    const nextNameErrors = {
+      first_name: validateProfileNameField(formData.first_name, { required: true, label: 'First name' }),
+      middle_name: validateProfileNameField(formData.middle_name, { required: false, label: 'Middle name' }),
+      last_name: validateProfileNameField(formData.last_name, { required: true, label: 'Last name' }),
+      phone: formData.phone && !PHONE_REGEX.test(formData.phone)
+        ? 'Must be a valid PH mobile number (e.g. 09123456789 or +639123456789).'
+        : '',
+    };
+
+    setNameErrors(prev => ({ ...prev, ...nextNameErrors }));
+
+    if (hasAnyValidationError(nextNameErrors)) {
       setMessage({ type: 'error', text: 'Please fix the name errors before saving.' });
       return;
     }
+
     setSaving(true);
     setMessage({ type: '', text: '' });
 
     try {
       const data = new FormData();
       Object.keys(formData).forEach(key => {
+        if (NAME_FIELDS.includes(key)) {
+          data.append(key, normalizeNameInput(formData[key]));
+          return;
+        }
+
         // Skip profile_image if it's null (not changed)
         if (key === 'profile_image') {
           if (formData[key] instanceof File) {

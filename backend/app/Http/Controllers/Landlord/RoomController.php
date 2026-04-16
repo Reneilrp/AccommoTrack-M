@@ -13,6 +13,7 @@ use App\Services\RoomService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class RoomController extends Controller
@@ -136,6 +137,10 @@ class RoomController extends Controller
             $updatedRoom = $this->roomService->updateStatus($room, $validated['status']);
 
             return response()->json((new RoomResource($updatedRoom->load(['tenants', 'bookings.occupants'])))->resolve());
+        } catch (ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found'], 404);
         } catch (\Exception $e) {

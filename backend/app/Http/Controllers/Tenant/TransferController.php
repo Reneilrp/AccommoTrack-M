@@ -79,7 +79,8 @@ class TransferController extends Controller
             ->orderBy('room_number')
             ->get()
             ->filter(function (Room $room) use ($tenant) {
-                return $room->status === 'available'
+                return $room->status !== 'maintenance'
+                    && $room->isAvailable()
                     && $room->available_slots > 0
                     && $this->isRoomSexCompatible($room, $tenant);
             })

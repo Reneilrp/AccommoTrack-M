@@ -198,6 +198,11 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     actionNote: '',
     rejectReason: '',
   });
+  const [actionConfirmModal, setActionConfirmModal] = useState({
+    isOpen: false,
+    action: null,
+    item: null,
+  });
 
   useEffect(() => {
     if (!propertyId) return;
@@ -425,6 +430,61 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     }
   };
 
+  const openActionConfirmModal = (action, item) => {
+    setActionConfirmModal({
+      isOpen: true,
+      action,
+      item,
+    });
+  };
+
+  const closeActionConfirmModal = () => {
+    setActionConfirmModal({
+      isOpen: false,
+      action: null,
+      item: null,
+    });
+  };
+
+  const executeConfirmedAction = async () => {
+    const { action, item } = actionConfirmModal;
+    if (!action || !item?.id) {
+      closeActionConfirmModal();
+      return;
+    }
+
+    closeActionConfirmModal();
+
+    if (action === 'booking_confirm') {
+      await handleBookingAction(item.id, 'confirm');
+      return;
+    }
+
+    if (action === 'booking_decline') {
+      await handleBookingAction(
+        item.id,
+        'decline',
+        'Cancelled by landlord from Property Summary quick action.',
+      );
+      return;
+    }
+
+    if (action === 'transfer_approve') {
+      await handleTransferAction(item.id, 'approve');
+      return;
+    }
+
+    if (action === 'transfer_reject') {
+      await handleTransferAction(item.id, 'reject');
+      return;
+    }
+
+    if (action === 'addon_approve') {
+      const savedActionNote = addonActionNotes[item.id] || '';
+      await handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve', savedActionNote, item.amount);
+    }
+  };
+
   const {
     pendingBookings,
     overdueInvoices,
@@ -530,7 +590,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       return (
         <div className="inline-flex items-center gap-1">
           <button
-            onClick={() => handleBookingAction(item.id, 'confirm')}
+            onClick={() => openActionConfirmModal('booking_confirm', item)}
             title="Confirm booking"
             aria-label="Confirm booking"
             className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
@@ -539,13 +599,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
             {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           </button>
           <button
-            onClick={() =>
-              handleBookingAction(
-                item.id,
-                'decline',
-                'Cancelled by landlord from Property Summary quick action.',
-              )
-            }
+            onClick={() => openActionConfirmModal('booking_decline', item)}
             title="Decline booking"
             aria-label="Decline booking"
             className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-60"
@@ -563,7 +617,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       return (
         <div className="inline-flex items-center gap-1">
           <button
-            onClick={() => handleTransferAction(item.id, 'approve')}
+            onClick={() => openActionConfirmModal('transfer_approve', item)}
             title="Approve transfer request"
             aria-label="Approve transfer request"
             className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
@@ -572,7 +626,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
             {approvingTransfer ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           </button>
           <button
-            onClick={() => handleTransferAction(item.id, 'reject')}
+            onClick={() => openActionConfirmModal('transfer_reject', item)}
             title="Reject transfer request"
             aria-label="Reject transfer request"
             className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-60"
@@ -591,7 +645,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       return (
         <div className="inline-flex items-center gap-1">
           <button
-            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve', savedActionNote, item.amount)}
+            onClick={() => openActionConfirmModal('addon_approve', item)}
             title="Approve add-on request"
             aria-label="Approve add-on request"
             className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
@@ -859,6 +913,45 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
           </>
         )}
       </section>
+
+      {actionConfirmModal.isOpen && actionConfirmModal.item && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={closeActionConfirmModal}>
+          <div
+            className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Confirm Action</h3>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+              {actionConfirmModal.action === 'booking_confirm' && 'Confirm this booking request?'}
+              {actionConfirmModal.action === 'booking_decline' && 'Cancel this booking request?'}
+              {actionConfirmModal.action === 'transfer_approve' && 'Approve this transfer request?'}
+              {actionConfirmModal.action === 'transfer_reject' && 'Reject this transfer request?'}
+              {actionConfirmModal.action === 'addon_approve' && 'Approve this add-on request?'}
+            </p>
+
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3 mb-5 text-sm space-y-1">
+              <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Tenant:</span> {actionConfirmModal.item.tenant}</p>
+              <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Room:</span> {actionConfirmModal.item.room}</p>
+              <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Date:</span> {formatDisplayDate(actionConfirmModal.item.date)}</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={closeActionConfirmModal}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeConfirmedAction}
+                className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {addonActionModal.isOpen && addonActionModal.request && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={closeAddonActionModal}>

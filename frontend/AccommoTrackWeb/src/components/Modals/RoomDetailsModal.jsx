@@ -768,6 +768,7 @@ export default function RoomDetailsModal({
 
           const result = await addToCartAction(payload);
           if (result && result.success) {
+            window.dispatchEvent(new CustomEvent('accommo:cart-updated'));
             toast.success("Room added to cart successfully!");
             onClose();
           } else {

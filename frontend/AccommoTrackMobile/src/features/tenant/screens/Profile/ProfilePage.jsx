@@ -28,6 +28,7 @@ import {
   tenantQueryKeys,
   useTenantFocusRefetch,
 } from "../../hooks/useTenantQueryHelpers.js";
+import { hasAnyValidationError, normalizeNameInput, validateProfileNameField } from '../../../../utils/nameValidation.js';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
@@ -38,6 +39,11 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [nameErrors, setNameErrors] = useState({
+    firstName: '',
+    middleName: '',
+    lastName: '',
+  });
   const [profileData, setProfileData] = useState({
     firstName: "",
     middleName: "",
@@ -143,6 +149,8 @@ export default function ProfilePage() {
         preferences: parsedPreferences,
       };
     });
+
+    setNameErrors({ firstName: '', middleName: '', lastName: '' });
   }, [profilePageQuery.data]);
 
   useEffect(() => {
@@ -188,23 +196,48 @@ export default function ProfilePage() {
   };
 
   const handleInputChange = (field, value) => {
+    if (["firstName", "middleName", "lastName"].includes(field)) {
+      const normalizedValue = normalizeNameInput(value);
+      const required = field !== "middleName";
+      const label = field === "firstName" ? "First name" : field === "middleName" ? "Middle name" : "Last name";
+
+      setNameErrors((prev) => ({
+        ...prev,
+        [field]: validateProfileNameField(normalizedValue, { required, label }),
+      }));
+
+      setProfileData((prev) => ({ ...prev, [field]: normalizedValue }));
+      return;
+    }
+
     setProfileData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
-    // Basic validation
-    if (!profileData.firstName?.trim() || !profileData.lastName?.trim()) {
-      showAlert("Validation Error", "First and Last name are required.");
+    const nextNameErrors = {
+      firstName: validateProfileNameField(profileData.firstName, { required: true, label: 'First name' }),
+      middleName: validateProfileNameField(profileData.middleName, { required: false, label: 'Middle name' }),
+      lastName: validateProfileNameField(profileData.lastName, { required: true, label: 'Last name' }),
+    };
+
+    setNameErrors(nextNameErrors);
+
+    if (hasAnyValidationError(nextNameErrors)) {
+      showAlert("Validation Error", "Please fix the name fields before saving.");
       return;
     }
+
+    const normalizedFirstName = normalizeNameInput(profileData.firstName);
+    const normalizedMiddleName = normalizeNameInput(profileData.middleName);
+    const normalizedLastName = normalizeNameInput(profileData.lastName);
 
     try {
       setSaving(true);
 
       const updateData = {
-        first_name: profileData.firstName.trim(),
-        middle_name: profileData.middleName?.trim() || null,
-        last_name: profileData.lastName.trim(),
+        first_name: normalizedFirstName,
+        middle_name: normalizedMiddleName || null,
+        last_name: normalizedLastName,
         email: profileData.email.trim(),
         phone: profileData.phone?.trim() || "",
         notes: profileData.bio?.trim() || "",
@@ -333,12 +366,19 @@ export default function ProfilePage() {
   };
 
   const uploadProfileImage = async (imageAsset) => {
+    const firstNameError = validateProfileNameField(profileData.firstName, { required: true, label: 'First name' });
+    const lastNameError = validateProfileNameField(profileData.lastName, { required: true, label: 'Last name' });
+    if (firstNameError || lastNameError) {
+      showAlert('Validation Error', firstNameError || lastNameError);
+      return;
+    }
+
     try {
       setSaving(true);
 
       const updateData = {
-        first_name: profileData.firstName,
-        last_name: profileData.lastName,
+        first_name: normalizeNameInput(profileData.firstName),
+        last_name: normalizeNameInput(profileData.lastName),
       };
 
       const res = await ProfileService.updateProfile(updateData, imageAsset);
@@ -540,6 +580,9 @@ export default function ProfilePage() {
                 placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
+            {nameErrors.firstName ? (
+              <Text style={[styles.helperText, { color: theme.colors.error || '#DC2626' }]}>{nameErrors.firstName}</Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -571,6 +614,9 @@ export default function ProfilePage() {
                 placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
+            {nameErrors.middleName ? (
+              <Text style={[styles.helperText, { color: theme.colors.error || '#DC2626' }]}>{nameErrors.middleName}</Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -602,6 +648,9 @@ export default function ProfilePage() {
                 placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
+            {nameErrors.lastName ? (
+              <Text style={[styles.helperText, { color: theme.colors.error || '#DC2626' }]}>{nameErrors.lastName}</Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>

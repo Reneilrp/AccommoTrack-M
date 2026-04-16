@@ -17,12 +17,20 @@ const createInitialDurationPricing = () =>
     return acc;
   }, {});
 
+const parsePromoDiscountValue = (value) => {
+  const sanitized = String(value ?? "")
+    .replace(/,/g, "")
+    .trim();
+  const parsed = parseFloat(sanitized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
 const buildDurationPricingPayload = (durationPricing) =>
   LONG_TERM_PROMO_TERMS.reduce((acc, term) => {
     const entry = durationPricing?.[term];
     if (!entry?.enabled) return acc;
 
-    const parsedValue = parseFloat(entry.discountValue);
+    const parsedValue = parsePromoDiscountValue(entry.discountValue);
     if (!Number.isFinite(parsedValue) || parsedValue <= 0) return acc;
 
     acc[term] = {
@@ -121,7 +129,7 @@ export default function AddRoomModal({
         if (mounted) {
           setPropertyRules(Array.isArray(rules) ? rules : []);
           setLocalAmenities(Array.isArray(amenities) ? amenities : []);
-          
+
           let maxFloor = p.total_floors || 1;
           if (maxFloor === 1 && p.floor_level) {
             // Extract numbers from "5th floor", "Level 4", "12", etc.
@@ -232,13 +240,13 @@ export default function AddRoomModal({
 
   const floors = managedFloors.length > 0
     ? managedFloors.map(f => ({
-        value: f,
-        label: `${f}${getOrdinalSuffix(f)} Floor`,
-      }))
+      value: f,
+      label: `${f}${getOrdinalSuffix(f)} Floor`,
+    }))
     : Array.from({ length: totalFloors }, (_, i) => ({
-        value: i + 1,
-        label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`,
-      }));
+      value: i + 1,
+      label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`,
+    }));
 
   function getOrdinalSuffix(num) {
     const j = num % 10;
@@ -345,7 +353,7 @@ export default function AddRoomModal({
       const promo = data.durationPricing?.[term];
       if (!promo?.enabled) return;
 
-      const parsedValue = parseFloat(promo.discountValue);
+      const parsedValue = parsePromoDiscountValue(promo.discountValue);
       if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
         errors[`durationPricing_${term}`] = `Enter a valid discount for ${term}-month term.`;
         hasDurationPricingErrors = true;
@@ -869,7 +877,7 @@ export default function AddRoomModal({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Monthly Rate (₱/month)
                   {formData.billingPolicy === "monthly" ||
-                  formData.billingPolicy === "monthly_with_daily" ? (
+                    formData.billingPolicy === "monthly_with_daily" ? (
                     <span className="text-red-500 ml-2">*</span>
                   ) : null}
                 </label>
@@ -893,7 +901,7 @@ export default function AddRoomModal({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Daily Rate (₱/day)
                   {formData.billingPolicy === "daily" ||
-                  formData.billingPolicy === "monthly_with_daily" ? (
+                    formData.billingPolicy === "monthly_with_daily" ? (
                     <span className="text-red-500 ml-2">*</span>
                   ) : null}
                 </label>
@@ -1122,11 +1130,11 @@ export default function AddRoomModal({
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-blue-700 dark:text-blue-400 font-medium">Estimated Monthly Revenue:</span>
                     <span className="text-lg font-bold text-blue-900 dark:text-blue-200">
-                      <PriceRow 
-                        amount={formData.pricingModel === 'per_bed' 
+                      <PriceRow
+                        amount={formData.pricingModel === 'per_bed'
                           ? (parseFloat(formData.monthlyRate) || 0) * (parseInt(formData.capacity) || 1)
                           : (parseFloat(formData.monthlyRate) || 0)
-                        } 
+                        }
                       />
                     </span>
                   </div>
@@ -1142,20 +1150,20 @@ export default function AddRoomModal({
             {/* Simple Revenue Preview for Single/BedSpacer rooms where model is fixed */}
             {(formData.roomType === "single" || formData.roomType === "bedSpacer") && (
               <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600 dark:text-gray-400 font-medium">Estimated Monthly Revenue:</span>
-                    <span className="text-lg font-bold text-gray-900 dark:text-white">
-                      <PriceRow 
-                        amount={formData.roomType === 'bedSpacer'
-                          ? (parseFloat(formData.monthlyRate) || 0) * (parseInt(formData.capacity) || 1)
-                          : (parseFloat(formData.monthlyRate) || 0)
-                        } 
-                      />
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-500 mt-2 italic">
-                    {formData.roomType === 'single' ? "* Based on single occupancy" : `* Based on ${formData.capacity} beds at the monthly rate`}
-                  </p>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">Estimated Monthly Revenue:</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">
+                    <PriceRow
+                      amount={formData.roomType === 'bedSpacer'
+                        ? (parseFloat(formData.monthlyRate) || 0) * (parseInt(formData.capacity) || 1)
+                        : (parseFloat(formData.monthlyRate) || 0)
+                      }
+                    />
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-500 mt-2 italic">
+                  {formData.roomType === 'single' ? "* Based on single occupancy" : `* Based on ${formData.capacity} beds at the monthly rate`}
+                </p>
               </div>
             )}
 
@@ -1332,11 +1340,10 @@ export default function AddRoomModal({
                       key={amenity}
                       type="button"
                       onClick={() => toggleAmenity(amenity)}
-                      className={`px-4 py-4 rounded-lg border-2 text-left text-sm transition-all ${
-                        formData.amenities.includes(amenity)
+                      className={`px-4 py-4 rounded-lg border-2 text-left text-sm transition-all ${formData.amenities.includes(amenity)
                           ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
                           : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500"
-                      }`}
+                        }`}
                     >
                       {amenity}
                     </button>

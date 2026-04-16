@@ -1,6 +1,71 @@
 import api from "./api.js";
 import { API_BASE_URL as API_URL } from "../config/index.js";
 
+const toNonEmptyString = (value) => {
+  if (value === null || value === undefined) return "";
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized : "";
+};
+
+const normalizeRoomPayload = (room) => {
+  if (!room || typeof room !== "object") {
+    return room;
+  }
+
+  const resolvedRoomNumber =
+    toNonEmptyString(room.room_number) || toNonEmptyString(room.roomNumber);
+
+  return {
+    ...room,
+    room_number: resolvedRoomNumber,
+    roomNumber: resolvedRoomNumber,
+  };
+};
+
+const unwrapPayload = (payload) => {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  if (payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
+    return payload.data;
+  }
+
+  return payload;
+};
+
+const normalizeTenantDetails = (payload) => {
+  const tenant = unwrapPayload(payload);
+  if (!tenant || typeof tenant !== "object") {
+    return tenant;
+  }
+
+  const normalizedHistory = tenant.history && typeof tenant.history === "object"
+    ? {
+        ...tenant.history,
+        bookings: Array.isArray(tenant.history.bookings)
+          ? tenant.history.bookings.map((booking) => ({
+              ...booking,
+              room: normalizeRoomPayload(booking?.room),
+            }))
+          : [],
+        transfers: Array.isArray(tenant.history.transfers)
+          ? tenant.history.transfers.map((transfer) => ({
+              ...transfer,
+              current_room: normalizeRoomPayload(transfer?.current_room),
+              requested_room: normalizeRoomPayload(transfer?.requested_room),
+            }))
+          : [],
+      }
+    : tenant.history;
+
+  return {
+    ...tenant,
+    room: normalizeRoomPayload(tenant.room),
+    history: normalizedHistory,
+  };
+};
+
 class TenantService {
   /**
    * Get current stay details (active booking with room, property, landlord info)
@@ -533,7 +598,7 @@ class TenantService {
   async getTenantDetails(tenantId) {
     try {
       const response = await api.get(`/landlord/tenants/${tenantId}`);
-      return { success: true, data: response.data };
+      return { success: true, data: normalizeTenantDetails(response.data), raw: response.data };
     } catch (error) {
       console.error("Error fetching tenant details:", error);
       return {

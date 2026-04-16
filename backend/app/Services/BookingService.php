@@ -486,11 +486,6 @@ class BookingService
                 ]);
             }
 
-            // Update room status to occupied if it's now full (confirmed + pending)
-            if ($effectiveOccupancy + $requestedBeds >= $room->capacity) {
-                $room->update(['status' => 'occupied']);
-            }
-
             // Update property stats
             $room->property->updateAvailableRooms();
 

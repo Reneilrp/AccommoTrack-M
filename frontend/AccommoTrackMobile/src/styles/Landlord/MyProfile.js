@@ -165,6 +165,16 @@ export const getStyles = (theme) => StyleSheet.create({
     borderBottomColor: theme.colors.primary,
     paddingBottom: 8,
   },
+  fieldValueError: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: theme.colors.error || '#DC2626',
+    paddingBottom: 8,
+  },
+  fieldErrorText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: theme.colors.error || '#DC2626',
+  },
 
   // Status Card
   statusCard: {

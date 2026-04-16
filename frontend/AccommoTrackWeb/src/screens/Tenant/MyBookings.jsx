@@ -670,7 +670,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const totalPendingCount = (pendingBookings?.length || 0) + (pendingCheckIns?.length || 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
-  const [overdueTab, setOverdueTab] = useState('all');
+  const [overdueTab, setOverdueTab] = useState('active');
 
   const hasOverdueStays = (stays || []).some((stay) =>
     Boolean(stay?.booking?.is_overdue || stay?.booking?.isOverdue),
@@ -683,7 +683,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
   const filteredStays = React.useMemo(() => {
     const source = Array.isArray(stays) ? stays : [];
-    if (!hasAnyOverdue || overdueTab === 'all') return source;
+    if (!hasAnyOverdue) return source;
 
     if (overdueTab === 'active') {
       return source.filter((stay) => !(stay?.booking?.is_overdue || stay?.booking?.isOverdue));
@@ -698,7 +698,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
   const filteredPendingBookings = React.useMemo(() => {
     const source = Array.isArray(pendingBookings) ? pendingBookings : [];
-    if (!hasAnyOverdue || overdueTab === 'all') return source;
+    if (!hasAnyOverdue) return source;
 
     if (overdueTab === 'active') {
       return source.filter((bookingEntry) => !(bookingEntry?.is_overdue || bookingEntry?.isOverdue));
@@ -713,7 +713,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
   const filteredPendingCheckIns = React.useMemo(() => {
     const source = Array.isArray(pendingCheckIns) ? pendingCheckIns : [];
-    if (!hasAnyOverdue || overdueTab === 'all') return source;
+    if (!hasAnyOverdue) return source;
 
     if (overdueTab === 'pending') {
       return [];
@@ -1025,15 +1025,6 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
       {hasAnyOverdue && (
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setOverdueTab('all')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'all'
-              ? 'bg-green-600 text-white border-green-600'
-              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700'
-              }`}
-          >
-            All
-          </button>
           <button
             onClick={() => setOverdueTab('active')}
             className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'active'

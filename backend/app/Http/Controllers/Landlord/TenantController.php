@@ -7,6 +7,7 @@ use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Room;
+use App\Models\TenantCredit;
 use App\Models\TenantClaimCode;
 use App\Models\TenantEviction;
 use App\Models\User;
@@ -900,6 +901,14 @@ class TenantController extends Controller
                         default => 'unpaid',
                     };
                     $newBooking->save();
+                } else {
+                    TenantCredit::create([
+                        'tenant_id' => $tenant->id,
+                        'property_id' => $newRoom->property_id,
+                        'amount_cents' => (int) round($creditAmount * 100),
+                        'type' => 'credit',
+                        'description' => 'Transfer credit (no pending invoice to apply)',
+                    ]);
                 }
             }
 
@@ -920,6 +929,14 @@ class TenantController extends Controller
                         'status' => 'pending',
                         'issued_at' => now(),
                         'due_date' => now()->addDays(3),
+                    ]);
+                } else {
+                    TenantCredit::create([
+                        'tenant_id' => $tenant->id,
+                        'property_id' => $newRoom->property_id,
+                        'amount_cents' => (int) round(abs($adj) * 100),
+                        'type' => 'credit',
+                        'description' => 'Room transfer rate adjustment credit',
                     ]);
                 }
             }

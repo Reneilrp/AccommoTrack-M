@@ -7,6 +7,7 @@ import {
   Image,
   RefreshControl,
   Alert,
+  DeviceEventEmitter,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -58,6 +59,7 @@ export default function CartScreen() {
             setRemovingItemId(itemId);
             const result = await CartService.removeFromCart(itemId);
             if (result.success) {
+              DeviceEventEmitter.emit('accommo:cart-updated');
               await fetchCart();
             } else {
               Alert.alert('Error', result.error || 'Failed to remove item');
@@ -81,6 +83,7 @@ export default function CartScreen() {
           onPress: async () => {
             const result = await CartService.clearCart();
             if (result.success) {
+              DeviceEventEmitter.emit('accommo:cart-updated');
               setCart(null);
             } else {
               Alert.alert('Error', result.error || 'Failed to clear cart');
@@ -96,8 +99,9 @@ export default function CartScreen() {
 
     setCheckingOut(true);
     const result = await CartService.checkout(cart.id);
-    
+
     if (result.success) {
+      DeviceEventEmitter.emit('accommo:cart-updated');
       Alert.alert(
         'Success',
         'Your bookings have been created successfully!',
@@ -154,7 +158,7 @@ export default function CartScreen() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: theme.colors.textSecondary }}>Loading cart...</Text>
+        <Text style={{ color: theme.colors.textSecondary }}>Loading bookings...</Text>
       </View>
     );
   }
@@ -196,7 +200,7 @@ export default function CartScreen() {
       <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text }}>
-            My Cart ({cart.items.length})
+            Add to Book ({cart.items.length})
           </Text>
           {cart.items.length > 0 && (
             <TouchableOpacity onPress={handleClearCart}>

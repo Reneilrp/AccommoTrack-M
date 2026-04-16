@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, DeviceEventEmitter } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
@@ -29,6 +29,16 @@ export default function CartIcon({ isGuest = false, onAuthRequired }) {
       fetchCartCount();
     }, [isGuest])
   );
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('accommo:cart-updated', () => {
+      fetchCartCount();
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isGuest]);
 
   const handlePress = () => {
     if (isGuest) {

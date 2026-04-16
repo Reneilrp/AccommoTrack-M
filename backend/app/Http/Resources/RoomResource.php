@@ -18,6 +18,7 @@ class RoomResource extends JsonResource
     {
         $lock = $this->active_eviction_lock;
         $durationPricing = $this->normalizedDurationPricing();
+        $resolvedStatus = $this->resolveStatus();
 
         return [
             'id' => $this->id,
@@ -166,7 +167,7 @@ class RoomResource extends JsonResource
 
                 return array_merge($list, $walkins);
             }),
-            'status' => $this->status,
+            'status' => $resolvedStatus,
             'display_status' => $this->display_status,
             'display_status_label' => ucfirst((string) $this->display_status),
             'require_1month_advance' => (bool) $this->require_1month_advance,
@@ -245,5 +246,17 @@ class RoomResource extends JsonResource
     private function normalizePropertyTypeToken(?string $propertyType): string
     {
         return strtolower(str_replace([' ', '_', '-'], '', (string) $propertyType));
+    }
+
+    private function resolveStatus(): string
+    {
+        if ($this->status === 'maintenance') {
+            return 'maintenance';
+        }
+
+        $capacity = max(1, (int) ($this->capacity ?? 1));
+        $occupiedCount = (int) $this->occupied;
+
+        return $occupiedCount >= $capacity ? 'occupied' : 'available';
     }
 }

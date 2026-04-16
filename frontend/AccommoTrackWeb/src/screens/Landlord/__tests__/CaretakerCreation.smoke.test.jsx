@@ -134,14 +134,20 @@ describe('Landlord caretaker creation smoke', () => {
           password_confirmation: 'StrongPass1!',
           property_ids: [1],
           permissions: {
-            can_view_bookings: false,
-            can_view_messages: false,
+            can_view_bookings: true,
+            can_approve_bookings: false,
+            can_cancel_bookings: false,
+            can_add_manual_bookings: false,
+            can_manage_add_ons: false,
+            can_view_messages: true,
             can_view_tenants: false,
+            can_add_tenant_manually: false,
             can_view_rooms: false,
             can_view_properties: false,
             can_manage_maintenance: false,
             can_manage_payments: false,
             can_view_analytics: false,
+            can_view_audit_logs: false,
           },
         },
       );
@@ -157,23 +163,7 @@ describe('Landlord caretaker creation smoke', () => {
     fillRequiredCaretakerFields();
     fireEvent.click(screen.getByRole('button', { name: /Next: Modules and Properties/i }));
 
-    fireEvent.click(screen.getByLabelText(/Bookings/i));
-    fireEvent.click(screen.getByLabelText(/Tenants/i));
-    fireEvent.click(screen.getByLabelText(/Messages/i));
-
-    fireEvent.click(screen.getByLabelText(/Room Management/i));
-    fireEvent.click(await screen.findByRole('button', { name: 'Grant Access' }));
-
-    fireEvent.click(screen.getByLabelText(/Properties/i));
-    fireEvent.click(await screen.findByRole('button', { name: 'Grant Access' }));
-
-    fireEvent.click(screen.getByLabelText(/Maintenance/i));
-    fireEvent.click(await screen.findByRole('button', { name: 'Grant Access' }));
-
-    fireEvent.click(screen.getByLabelText(/Payments/i));
-    fireEvent.click(await screen.findByRole('button', { name: 'Grant Access' }));
-
-    fireEvent.click(screen.getByLabelText(/Analytics/i));
+    fireEvent.click(screen.getByRole('button', { name: /Select All/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Grant Access' }));
 
     fireEvent.click(screen.getByText('Dorm One'));
@@ -194,13 +184,19 @@ describe('Landlord caretaker creation smoke', () => {
           property_ids: [1],
           permissions: {
             can_view_bookings: true,
+            can_approve_bookings: true,
+            can_cancel_bookings: true,
+            can_add_manual_bookings: true,
+            can_manage_add_ons: true,
             can_view_messages: true,
             can_view_tenants: true,
+            can_add_tenant_manually: true,
             can_view_rooms: true,
             can_view_properties: true,
             can_manage_maintenance: true,
             can_manage_payments: true,
             can_view_analytics: true,
+            can_view_audit_logs: true,
           },
         },
       );

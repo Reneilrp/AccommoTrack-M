@@ -28,6 +28,7 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../../hooks/useLandlordQueryHelpers.js';
+import { hasAnyValidationError, normalizeNameInput, validateProfileNameField } from '../../../../../utils/nameValidation.js';
 
 export default function MyProfileScreen({ navigation }) {
   const { theme } = useTheme();
@@ -40,6 +41,7 @@ export default function MyProfileScreen({ navigation }) {
   const [tempUser, setTempUser] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [nameErrors, setNameErrors] = useState({ first_name: '', last_name: '' });
   const queryClient = useQueryClient();
 
   const profileQuery = useQuery({
@@ -72,6 +74,7 @@ export default function MyProfileScreen({ navigation }) {
     setUser(profileQuery.data);
     setTempUser(profileQuery.data);
     setSelectedImage(null);
+    setNameErrors({ first_name: '', last_name: '' });
   }, [profileQuery.data]);
 
   useEffect(() => {
@@ -135,20 +138,41 @@ export default function MyProfileScreen({ navigation }) {
     }
   };
 
+  const handleNameChange = (field, value) => {
+    const normalizedValue = normalizeNameInput(value);
+    const label = field === 'first_name' ? 'First name' : 'Last name';
+
+    setNameErrors((prev) => ({
+      ...prev,
+      [field]: validateProfileNameField(normalizedValue, { required: true, label }),
+    }));
+
+    setTempUser({ ...tempUser, [field]: normalizedValue });
+  };
+
   // Function to handle saving changes
   const handleSave = async () => {
-    // Basic validation
-    if (!tempUser.first_name?.trim() || !tempUser.last_name?.trim()) {
-      showAlert('Validation Error', 'First and Last name are required.');
+    const nextNameErrors = {
+      first_name: validateProfileNameField(tempUser?.first_name, { required: true, label: 'First name' }),
+      last_name: validateProfileNameField(tempUser?.last_name, { required: true, label: 'Last name' }),
+    };
+
+    setNameErrors(nextNameErrors);
+
+    if (hasAnyValidationError(nextNameErrors)) {
+      showAlert('Validation Error', 'Please fix the name fields before saving.');
       return;
     }
+
+    const normalizedFirstName = normalizeNameInput(tempUser.first_name);
+    const normalizedLastName = normalizeNameInput(tempUser.last_name);
 
     setSaving(true);
     try {
       const response = await ProfileService.updateProfile({
-        first_name: tempUser.first_name.trim(),
+        first_name: normalizedFirstName,
         middle_name: tempUser.middle_name?.trim() || '',
-        last_name: tempUser.last_name.trim(),
+        last_name: normalizedLastName,
         phone: tempUser.phone?.trim() || '',
         sex: tempUser.sex || null,
         identified_as: tempUser.identified_as || null,
@@ -191,6 +215,7 @@ export default function MyProfileScreen({ navigation }) {
   const handleCancel = () => {
     setTempUser(user);
     setSelectedImage(null);
+    setNameErrors({ first_name: '', last_name: '' });
     setIsEditing(false);
   };
 
@@ -240,14 +265,18 @@ export default function MyProfileScreen({ navigation }) {
   };
 
   // Define a reusable component for profile fields
-  const ProfileField = ({ label, value, editable, onChangeText, iconName, keyboardType = 'default', maxLength, styles }) => (
+  const ProfileField = ({ label, value, editable, onChangeText, iconName, keyboardType = 'default', maxLength, styles, errorText = '' }) => (
     <View style={styles.fieldContainer}>
       <View style={styles.fieldLabelContainer}>
         <Ionicons name={iconName} size={20} color="#6B7280" />
         <Text style={styles.fieldLabel}>{label}</Text>
       </View>
       <TextInput
-        style={[styles.fieldValue, editable && styles.fieldValueEditable]}
+        style={[
+          styles.fieldValue,
+          editable && styles.fieldValueEditable,
+          errorText ? styles.fieldValueError : null,
+        ]}
         value={value || ''}
         onChangeText={onChangeText}
         editable={editable}
@@ -256,6 +285,7 @@ export default function MyProfileScreen({ navigation }) {
         keyboardType={keyboardType}
         maxLength={maxLength}
       />
+      {errorText ? <Text style={styles.fieldErrorText}>{errorText}</Text> : null}
     </View>
   );
 
@@ -343,19 +373,21 @@ export default function MyProfileScreen({ navigation }) {
             label="First Name"
             value={tempUser?.first_name}
             editable={isEditing}
-            onChangeText={(text) => setTempUser({ ...tempUser, first_name: text })}
+            onChangeText={(text) => handleNameChange('first_name', text)}
             iconName="person-outline"
             maxLength={100}
             styles={styles}
+            errorText={nameErrors.first_name}
           />
           <ProfileField
             label="Last Name"
             value={tempUser?.last_name}
             editable={isEditing}
-            onChangeText={(text) => setTempUser({ ...tempUser, last_name: text })}
+            onChangeText={(text) => handleNameChange('last_name', text)}
             iconName="person-outline"
             maxLength={100}
             styles={styles}
+            errorText={nameErrors.last_name}
           />
           <ProfileField
             label="Email"

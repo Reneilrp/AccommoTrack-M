@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
+use App\Models\TenantCredit;
 use Carbon\Carbon;
 
 class RefundService
@@ -119,10 +120,12 @@ class RefundService
      */
     public function applyCreditToInvoice(Invoice $invoice, float $creditAmount, array $metadata = []): void
     {
-        $creditCents = (int) round($creditAmount * 100);
-        $newAmountCents = max(0, $invoice->amount_cents - $creditCents);
+        $creditCents = max(0, (int) round($creditAmount * 100));
+        $appliedCreditCents = min((int) $invoice->amount_cents, $creditCents);
+        $excessCreditCents = max(0, $creditCents - $appliedCreditCents);
+        $newAmountCents = max(0, (int) $invoice->amount_cents - $appliedCreditCents);
 
-        $description = $invoice->description.' (Credit of ₱'.number_format($creditAmount, 2).' applied from previous room)';
+        $description = $invoice->description.' (Credit of ₱'.number_format($this->fromCents($appliedCreditCents), 2).' applied from previous room)';
 
         $updateData = [
             'amount_cents' => $newAmountCents,
@@ -138,12 +141,24 @@ class RefundService
         // Store credit metadata
         $existingMetadata = $invoice->metadata ?? [];
         $updateData['metadata'] = array_merge($existingMetadata, [
-            'credit_applied' => $creditAmount,
+            'credit_applied' => $this->fromCents($appliedCreditCents),
+            'credit_excess_to_wallet' => $this->fromCents($excessCreditCents),
             'credit_applied_at' => now()->toISOString(),
             'original_amount' => $invoice->amount_cents / 100,
         ], $metadata);
 
         $invoice->update($updateData);
+
+        // If transfer credit exceeds invoice amount, keep the remaining value in tenant wallet credits.
+        if ($excessCreditCents > 0 && $invoice->tenant_id) {
+            TenantCredit::create([
+                'tenant_id' => $invoice->tenant_id,
+                'property_id' => $invoice->property_id,
+                'amount_cents' => $excessCreditCents,
+                'type' => 'credit',
+                'description' => 'Excess transfer credit from invoice #'.$invoice->id,
+            ]);
+        }
     }
 
     /**

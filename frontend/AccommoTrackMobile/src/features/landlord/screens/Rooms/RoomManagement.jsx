@@ -148,12 +148,20 @@ const createInitialDurationPricing = () =>
     return acc;
   }, {});
 
+const parsePromoDiscountValue = (value) => {
+  const sanitized = String(value ?? "")
+    .replace(/,/g, "")
+    .trim();
+  const parsed = parseFloat(sanitized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
 const buildDurationPricingPayload = (durationPricing) =>
   LONG_TERM_PROMO_TERMS.reduce((acc, term) => {
     const entry = durationPricing?.[term];
     if (!entry?.enabled) return acc;
 
-    const parsedValue = parseFloat(entry.discountValue);
+    const parsedValue = parsePromoDiscountValue(entry.discountValue);
     if (!Number.isFinite(parsedValue) || parsedValue <= 0) return acc;
 
     acc[term] = {
@@ -596,6 +604,17 @@ export default function RoomManagementScreen({ navigation, route }) {
         },
       },
     }));
+
+    setFieldErrors((prev) => {
+      if (!prev.durationPricing && !prev[`durationPricing_${term}`]) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next.durationPricing;
+      delete next[`durationPricing_${term}`];
+      return next;
+    });
   };
 
   const validateForm = (data) => {
@@ -622,6 +641,28 @@ export default function RoomManagementScreen({ navigation, route }) {
 
     if (data.roomType === "bedSpacer" && data.pricingModel !== "per_bed") {
       errors.pricingModel = "Bed Spacer must use per-bed pricing";
+    }
+
+    let hasDurationPricingErrors = false;
+    LONG_TERM_PROMO_TERMS.forEach((term) => {
+      const promo = data.durationPricing?.[term];
+      if (!promo?.enabled) return;
+
+      const parsedDiscount = parsePromoDiscountValue(promo.discountValue);
+      if (!Number.isFinite(parsedDiscount) || parsedDiscount <= 0) {
+        errors[`durationPricing_${term}`] = `Enter a valid discount for ${term}-month term.`;
+        hasDurationPricingErrors = true;
+        return;
+      }
+
+      if (promo.discountType === "percent" && parsedDiscount > 100) {
+        errors[`durationPricing_${term}`] = `Percentage discount for ${term}-month term cannot exceed 100.`;
+        hasDurationPricingErrors = true;
+      }
+    });
+
+    if (hasDurationPricingErrors) {
+      errors.durationPricing = "Fix long-term promo discounts before submitting.";
     }
 
     return { valid: Object.keys(errors).length === 0, errors };
@@ -1826,6 +1867,9 @@ export default function RoomManagementScreen({ navigation, route }) {
             <Text style={[styles.helperText, { marginBottom: 16 }]}>
               Enable discounts for exact 3, 6, 9, or 12-month stays.
             </Text>
+            {fieldErrors.durationPricing ? (
+              <Text style={styles.errorText}>{fieldErrors.durationPricing}</Text>
+            ) : null}
 
             <View style={{ gap: 12 }}>
               {LONG_TERM_PROMO_TERMS.map((term) => {
@@ -1871,6 +1915,9 @@ export default function RoomManagementScreen({ navigation, route }) {
                         />
                       </View>
                     )}
+                    {fieldErrors[`durationPricing_${term}`] ? (
+                      <Text style={styles.errorText}>{fieldErrors[`durationPricing_${term}`]}</Text>
+                    ) : null}
                   </View>
                 );
               })}

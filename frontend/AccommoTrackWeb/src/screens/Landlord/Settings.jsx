@@ -4,6 +4,7 @@ import { useSearchParams, useLocation } from 'react-router-dom';
 import { ShieldCheck, Palette, User, Bell, Lock, Users, CreditCard, ArrowLeftRight, Rocket, Receipt } from 'lucide-react';
 import api from '../../utils/api';
 import MyProfile from '../../components/Settings/landlord/MyProfile';
+import { normalizeNameInput, validateProfileNameField } from '../../utils/nameValidation';
 import Notifications from '../../components/Settings/landlord/Notifications';
 import Security from '../../components/Settings/landlord/Security';
 import CareTakerAccess from '../../components/Settings/landlord/CareTakerAccess';
@@ -23,8 +24,10 @@ const createCaretakerPermissionDefaults = () => ({
   bookings: true,
   approve_bookings: false,
   cancel_bookings: false,
+  manual_bookings: false,
   manage_add_ons: false,
   tenants: false,
+  add_tenant_manually: false,
   messages: true,
   rooms: false,
   properties: false,
@@ -211,10 +214,20 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   };
 
   const handleSaveProfile = async () => {
+    const firstName = normalizeNameInput(profileData.firstName);
+    const lastName = normalizeNameInput(profileData.lastName);
+    const firstNameError = validateProfileNameField(firstName, { required: true, label: 'First name' });
+    const lastNameError = validateProfileNameField(lastName, { required: true, label: 'Last name' });
+
+    if (firstNameError || lastNameError) {
+      toast.error(firstNameError || lastNameError);
+      return;
+    }
+
     try {
       const formData = new FormData();
-      formData.append('first_name', profileData.firstName || '');
-      formData.append('last_name', profileData.lastName || '');
+      formData.append('first_name', firstName);
+      formData.append('last_name', lastName);
       formData.append('_method', 'PUT');
 
       // Only append optional fields if they have real values
@@ -391,9 +404,11 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_view_bookings: !!caretakerPermissions.bookings,
         can_approve_bookings: !!caretakerPermissions.approve_bookings,
         can_cancel_bookings: !!caretakerPermissions.cancel_bookings,
+        can_add_manual_bookings: !!caretakerPermissions.manual_bookings,
         can_manage_add_ons: !!caretakerPermissions.manage_add_ons,
         can_view_messages: !!caretakerPermissions.messages,
         can_view_tenants: !!caretakerPermissions.tenants,
+        can_add_tenant_manually: !!caretakerPermissions.add_tenant_manually,
         can_view_rooms: !!caretakerPermissions.rooms,
         can_view_properties: !!caretakerPermissions.properties,
         can_manage_maintenance: !!caretakerPermissions.maintenance,
@@ -428,9 +443,11 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_view_bookings: !!caretakerPermissions.bookings,
         can_approve_bookings: !!caretakerPermissions.approve_bookings,
         can_cancel_bookings: !!caretakerPermissions.cancel_bookings,
+        can_add_manual_bookings: !!caretakerPermissions.manual_bookings,
         can_manage_add_ons: !!caretakerPermissions.manage_add_ons,
         can_view_messages: !!caretakerPermissions.messages,
         can_view_tenants: !!caretakerPermissions.tenants,
+        can_add_tenant_manually: !!caretakerPermissions.add_tenant_manually,
         can_view_rooms: !!caretakerPermissions.rooms,
         can_view_properties: !!caretakerPermissions.properties,
         can_manage_maintenance: !!caretakerPermissions.maintenance,

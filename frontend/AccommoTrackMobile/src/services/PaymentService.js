@@ -1,6 +1,78 @@
 import api from "./api.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const toNonEmptyString = (value) => {
+  if (value === null || value === undefined) return "";
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized : "";
+};
+
+const resolveInvoiceRoomNumber = (invoice) => {
+  const roomNumber =
+    invoice?.booking?.room?.room_number ??
+    invoice?.booking?.room?.roomNumber ??
+    invoice?.booking?.room_number ??
+    invoice?.room?.room_number ??
+    invoice?.room_number ??
+    invoice?.roomNumber ??
+    invoice?.metadata?.room_number ??
+    invoice?.metadata?.roomNumber;
+
+  return toNonEmptyString(roomNumber);
+};
+
+const normalizeInvoiceItem = (invoice) => {
+  if (!invoice || typeof invoice !== "object") {
+    return invoice;
+  }
+
+  const resolvedRoomNumber = resolveInvoiceRoomNumber(invoice);
+
+  return {
+    ...invoice,
+    room_number: resolvedRoomNumber || invoice.room_number || "",
+    roomNumber: resolvedRoomNumber || invoice.roomNumber || "",
+    booking: invoice.booking
+      ? {
+          ...invoice.booking,
+          room_number:
+            toNonEmptyString(invoice.booking.room_number) || resolvedRoomNumber,
+          room: invoice.booking.room
+            ? {
+                ...invoice.booking.room,
+                room_number:
+                  toNonEmptyString(invoice.booking.room.room_number) ||
+                  resolvedRoomNumber,
+                roomNumber:
+                  toNonEmptyString(invoice.booking.room.roomNumber) ||
+                  resolvedRoomNumber,
+              }
+            : invoice.booking.room,
+        }
+      : invoice.booking,
+  };
+};
+
+const unwrapInvoiceList = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  if (Array.isArray(payload?.invoices)) {
+    return payload.invoices;
+  }
+
+  if (Array.isArray(payload?.results)) {
+    return payload.results;
+  }
+
+  return [];
+};
+
 class PaymentService {
   /**
    * Get all payments for the authenticated tenant
@@ -243,8 +315,13 @@ class PaymentService {
   async getInvoicesByTenant(tenantId) {
     try {
       const response = await api.get(`/invoices?tenant_id=${tenantId}`);
+      const invoices = unwrapInvoiceList(response.data).map(normalizeInvoiceItem);
 
-      return { success: true, data: response.data };
+      return {
+        success: true,
+        data: invoices,
+        raw: response.data,
+      };
     } catch (error) {
       console.error("Error fetching tenant invoices:", error);
       return {

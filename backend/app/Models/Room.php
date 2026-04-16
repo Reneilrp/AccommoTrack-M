@@ -378,11 +378,11 @@ class Room extends Model
             return 'reserved';
         }
 
-        if ($isFullyOccupied || $this->status === 'occupied') {
+        if ($isFullyOccupied) {
             return 'occupied';
         }
 
-        return $this->status ?: 'available';
+        return 'available';
     }
 
     /**

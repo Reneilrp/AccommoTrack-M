@@ -1,18 +1,20 @@
 
 import React, { useState } from 'react';
+import { hasAnyValidationError, normalizeNameInput, validateProfileNameField } from '../../../utils/nameValidation';
 
 export default function MyProfile({ user, profileData, setProfileData, isEditingProfile, setIsEditingProfile, handleSaveProfile, profilePhoto, photoPreview, setPhotoPreview, fileInputRef, handlePhotoSelect, handleRemovePhoto }) {
-  const NAME_REGEX = /^[\p{L}\s'-]+$/u;
   const PHONE_REGEX = /^(09|\+639)\d{9}$/;
   const [nameErrors, setNameErrors] = useState({ firstName: '', lastName: '', phone: '' });
 
   const handleNameChange = (field, value) => {
-    if (value && !NAME_REGEX.test(value)) {
-      setNameErrors(prev => ({ ...prev, [field]: 'Only letters, spaces, hyphens and apostrophes are allowed.' }));
-    } else {
-      setNameErrors(prev => ({ ...prev, [field]: '' }));
-    }
-    setProfileData({ ...profileData, [field]: value });
+    const normalizedValue = normalizeNameInput(value);
+    const fieldLabel = field === 'firstName' ? 'First name' : 'Last name';
+
+    setNameErrors(prev => ({
+      ...prev,
+      [field]: validateProfileNameField(normalizedValue, { required: true, label: fieldLabel }),
+    }));
+    setProfileData({ ...profileData, [field]: normalizedValue });
   };
 
   const handlePhoneChange = (value) => {
@@ -24,7 +26,20 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
     setProfileData({ ...profileData, phone: value });
   };
 
-  const hasNameErrors = Object.values(nameErrors).some(e => e !== '');
+  const validateBeforeSave = () => {
+    const nextErrors = {
+      firstName: validateProfileNameField(profileData.firstName, { required: true, label: 'First name' }),
+      lastName: validateProfileNameField(profileData.lastName, { required: true, label: 'Last name' }),
+      phone: profileData.phone && !PHONE_REGEX.test(profileData.phone)
+        ? 'Must be a valid PH mobile number.'
+        : '',
+    };
+
+    setNameErrors(prev => ({ ...prev, ...nextErrors }));
+    return !hasAnyValidationError(nextErrors);
+  };
+
+  const hasNameErrors = hasAnyValidationError(nameErrors);
 
   // Helper to get initials for avatar fallback
   const getUserInitials = () => {
@@ -238,6 +253,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         sex: user.sex || '',
                         identified_as: user.identified_as || ''
                       });
+                      setNameErrors({ firstName: '', lastName: '', phone: '' });
                       setIsEditingProfile(false);
                     }}
                     className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -246,7 +262,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                   </button>
                   <button
                     onClick={() => {
-                      if (!hasNameErrors) {
+                      if (validateBeforeSave()) {
                         handleSaveProfile();
                       }
                     }}
