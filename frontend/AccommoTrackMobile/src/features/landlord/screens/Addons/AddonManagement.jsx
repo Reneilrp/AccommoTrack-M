@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Modal,
   useWindowDimensions,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';

@@ -15,6 +15,7 @@ import {
   RefreshControl,
   Linking,
   useWindowDimensions,
+  Pressable
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
