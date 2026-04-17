@@ -5,7 +5,7 @@ import api from '../../utils/api';
 import { SkeletonWallet } from '../../components/Shared/Skeleton';
 import { useUIState } from "../../contexts/UIStateContext";
 import toast from 'react-hot-toast';
-import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt, X } from 'lucide-react';
+import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt, X, FileText } from 'lucide-react';
 import createEcho from '../../utils/echo';
 import systemToggleService from '../../services/systemToggleService';
 
@@ -427,6 +427,14 @@ export default function TenantPayments({ user }) {
                   </button>
                 ))}
               </div>
+              <button
+                onClick={() => navigate('/payments/logs')}
+                title="Payment Logs"
+                className="flex items-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-bold shadow-md shadow-green-500/20 whitespace-nowrap"
+              >
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">Logs</span>
+              </button>
               <button
                 onClick={async () => {
                   setIsRefreshing(true);

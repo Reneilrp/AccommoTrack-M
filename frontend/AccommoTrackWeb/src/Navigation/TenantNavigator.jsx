@@ -11,6 +11,7 @@ const MyBookings = lazy(() => import('../screens/Tenant/MyBookings'));
 const TenantMessages = lazy(() => import('../screens/Tenant/TenantMessages'));
 const TenantSettings = lazy(() => import('../screens/Tenant/TenantSettings'));
 const TenantPayments = lazy(() => import('../screens/Tenant/TenantPayments'));
+const TenantPaymentLogs = lazy(() => import('../screens/Tenant/TenantPaymentLogs'));
 const InvoiceCheckout = lazy(() => import('../screens/Tenant/InvoiceCheckout'));
 const TenantMaintenance = lazy(() => import('../screens/Tenant/TenantMaintenance'));
 const Notifications = lazy(() => import('../screens/Tenant/Notifications'));
@@ -34,6 +35,7 @@ export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="/property/:id" element={withSuspense(<TenantPropertyDetails />, 'Loading property details')} />
           <Route path="/bookings" element={withSuspense(<MyBookings />, 'Loading bookings')} />
           <Route path="/payments" element={withSuspense(<TenantPayments user={user} />, 'Loading payments')} />
+          <Route path="/payments/logs" element={withSuspense(<TenantPaymentLogs user={user} />, 'Loading payment logs')} />
           <Route path="/maintenance" element={withSuspense(<TenantMaintenance />, 'Loading maintenance')} />
           <Route path="/checkout/:id" element={withSuspense(<InvoiceCheckout />, 'Loading checkout')} />
           <Route path="/messages" element={withSuspense(<TenantMessages user={user} />, 'Loading messages')} />

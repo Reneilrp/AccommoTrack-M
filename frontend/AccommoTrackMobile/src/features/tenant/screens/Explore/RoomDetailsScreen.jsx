@@ -19,7 +19,7 @@ import {
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { navigate as rootNavigate, triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
@@ -2090,7 +2090,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 {isSubmitting ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.submitButtonText}>{isCartMode ? 'Add to Cart' : 'Submit Booking'}</Text>
+                  <Text style={styles.submitButtonText}>{isCartMode ? 'Add to Book' : 'Submit Booking'}</Text>
                 )}
               </TouchableOpacity>
 

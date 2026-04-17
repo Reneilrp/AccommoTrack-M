@@ -121,18 +121,17 @@ class RoomResource extends JsonResource
                 })->toArray();
 
                 // Add confirmed walk-in guests
-                $walkins = \App\Models\Booking::where('room_id', $this->id)
-                    ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-                    ->whereNull('tenant_id')
-                    ->where('start_date', '<=', now())
-                    ->where(function ($query) {
-                        $query->whereNull('end_date')
-                            ->orWhere('end_date', '>=', now());
+                $walkins = collect($this->whenLoaded('bookings', function () {
+                    return $this->bookings;
+                }, collect()))
+                    ->filter(function ($b) {
+                        return is_null($b->tenant_id)
+                            && in_array($b->status, ['confirmed', 'completed', 'partial-completed'])
+                            && (! $b->start_date || \Carbon\Carbon::parse($b->start_date)->startOfDay() <= now()->startOfDay())
+                            && (! $b->end_date || \Carbon\Carbon::parse($b->end_date)->startOfDay() >= now()->startOfDay());
                     })
-                    ->with('occupants')
-                    ->get()
                     ->map(function ($b) {
-                        $occupants = $b->occupants->map(function ($occupant) {
+                        $occupants = collect($b->occupants)->map(function ($occupant) {
                             return [
                                 'id' => $occupant->id,
                                 'first_name' => $occupant->first_name,

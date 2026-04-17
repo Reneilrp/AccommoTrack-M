@@ -77,14 +77,13 @@ class PaymentService {
   /**
    * Get all payments for the authenticated tenant
    */
-  async getPayments(status = "all") {
+  async getPayments(status = "all", archiveFilter = null) {
     try {
-      const url =
-        status !== "all"
-          ? `/tenant/payments?status=${status}`
-          : `/tenant/payments`;
+      const params = {};
+      if (status && status !== "all") params.status = status;
+      if (archiveFilter) params.archive_filter = archiveFilter;
 
-      const response = await api.get(url);
+      const response = await api.get("/tenant/payments", { params });
 
       return {
         success: true,

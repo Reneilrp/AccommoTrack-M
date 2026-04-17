@@ -222,24 +222,50 @@ class Room extends Model
     }
 
     /**
+     * Scope: Eager load aggregated sums to prevent N+1 queries.
+     */
+    public function scopeWithAggregates($query)
+    {
+        return $query
+            ->withSum(['tenantAssignments as occupied_tenant_beds' => function ($q) {
+                $q->where('status', 'active');
+            }], 'bed_count')
+            ->withSum(['bookings as occupied_walkin_beds' => function ($q) {
+                $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                  ->whereNull('tenant_id')
+                  ->where('start_date', '<=', now())
+                  ->where(function ($q2) {
+                      $q2->whereNull('end_date')
+                         ->orWhere('end_date', '>=', now());
+                  });
+            }], 'bed_count')
+            ->withSum(['bookings as pending_beds' => function ($q) {
+                $q->whereIn('status', ['pending', 'pending_reservation', 'reserved']);
+            }], 'bed_count');
+    }
+
+    /**
      * Get occupied count (actual number of beds taken)
      */
     public function getOccupiedAttribute()
     {
         // 1. Sum bed_count for all active tenants in this room (registered users)
-        $occupiedByTenants = (int) $this->tenants()->sum('room_tenant_assignments.bed_count');
+        $occupiedByTenants = array_key_exists('occupied_tenant_beds', $this->attributes)
+            ? (int) $this->attributes['occupied_tenant_beds']
+            : (int) $this->tenants()->sum('room_tenant_assignments.bed_count');
 
         // 2. Add beds from confirmed walk-in guests (who don't have a tenant_id/user account yet)
-        // These are currently staying (start_date <= today <= end_date)
-        $occupiedByWalkins = (int) Booking::where('room_id', $this->id)
-            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-            ->whereNull('tenant_id')
-            ->where('start_date', '<=', now())
-            ->where(function ($query) {
-                $query->whereNull('end_date')
-                    ->orWhere('end_date', '>=', now());
-            })
-            ->sum('bed_count');
+        $occupiedByWalkins = array_key_exists('occupied_walkin_beds', $this->attributes)
+            ? (int) $this->attributes['occupied_walkin_beds']
+            : (int) Booking::where('room_id', $this->id)
+                ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                ->whereNull('tenant_id')
+                ->where('start_date', '<=', now())
+                ->where(function ($query) {
+                    $query->whereNull('end_date')
+                        ->orWhere('end_date', '>=', now());
+                })
+                ->sum('bed_count');
 
         $totalOccupied = $occupiedByTenants + $occupiedByWalkins;
 
@@ -264,15 +290,24 @@ class Room extends Model
         });
 
         // Add walk-in guests (confirmed active bookings with no tenant_id)
-        $walkins = Booking::where('room_id', $this->id)
-            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-            ->whereNull('tenant_id')
-            ->where('start_date', '<=', now())
-            ->where(function ($query) {
-                $query->whereNull('end_date')
-                    ->orWhere('end_date', '>=', now());
-            })
-            ->pluck('guest_name');
+        if ($this->relationLoaded('bookings')) {
+            $walkins = $this->bookings->filter(function ($b) {
+                return is_null($b->tenant_id)
+                    && in_array($b->status, ['confirmed', 'completed', 'partial-completed'])
+                    && (! $b->start_date || \Carbon\Carbon::parse($b->start_date)->startOfDay() <= now()->startOfDay())
+                    && (! $b->end_date || \Carbon\Carbon::parse($b->end_date)->startOfDay() >= now()->startOfDay());
+            })->pluck('guest_name');
+        } else {
+            $walkins = Booking::where('room_id', $this->id)
+                ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                ->whereNull('tenant_id')
+                ->where('start_date', '<=', now())
+                ->where(function ($query) {
+                    $query->whereNull('end_date')
+                        ->orWhere('end_date', '>=', now());
+                })
+                ->pluck('guest_name');
+        }
 
         $names = $names->merge($walkins)->filter()->unique();
 
@@ -349,6 +384,10 @@ class Room extends Model
      */
     public function getPendingBedsAttribute()
     {
+        if (array_key_exists('pending_beds', $this->attributes)) {
+            return (int) $this->attributes['pending_beds'];
+        }
+
         return (int) Booking::where('room_id', $this->id)
             ->whereIn('status', ['pending', 'pending_reservation', 'reserved'])
             ->sum('bed_count');

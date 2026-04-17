@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { useUIState } from '../../../../contexts/UIStateContext.jsx';
@@ -849,6 +849,12 @@ export default function Payments({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>Payments & Invoices</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('PaymentLogs')}
+          style={{ padding: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.18)' }}
+        >
+          <Ionicons name="reader-outline" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       {/* ── Stats Summary Cards (W4) ── */}

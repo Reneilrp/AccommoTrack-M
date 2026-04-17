@@ -24,6 +24,7 @@ import AllActivities from '../screens/Dashboard/AllActivities.jsx';
 import AddonManagement from '../screens/Addons/AddonManagement.jsx';
 import AddBooking from '../screens/Bookings/AddBooking.jsx';
 import Payments from '../screens/Payments/Payments.jsx';
+import PaymentLogs from '../screens/Payments/PaymentLogs.jsx';
 import VerificationStatus from '../screens/Settings/Account/VerificationStatus.jsx';
 import PropertyActivityLogs from '../screens/Properties/PropertyActivityLogs.jsx';
 import TenantLogs from '../screens/Tenants/TenantLogs.jsx';
@@ -173,6 +174,9 @@ export default function LandlordNavigator({ onLogout }) {
       )}
       {canAccessPayments && (
         <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
+      )}
+      {canAccessPayments && (
+        <Stack.Screen name="PaymentLogs" component={PaymentLogs} options={{ animation: 'slide_from_right' }} />
       )}
       <Stack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
       {canAccessPropertyActivityLogs && (

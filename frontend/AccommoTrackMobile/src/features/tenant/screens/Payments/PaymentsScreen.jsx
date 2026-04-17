@@ -520,7 +520,6 @@ export default function PaymentsScreen() {
               backgroundColor: theme.colors.backgroundSecondary,
               borderRadius: 10,
               padding: 2,
-              marginRight: 16
             }}>
               {timeRangeOptions.map((r) => (
                 <TouchableOpacity
@@ -545,6 +544,22 @@ export default function PaymentsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* Payment Logs Button */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('PaymentHistory')}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                backgroundColor: theme.colors.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 16,
+              }}
+            >
+              <Ionicons name="reader-outline" size={18} color="#fff" />
+            </TouchableOpacity>
           </View>
 
           {/* Payment List */}

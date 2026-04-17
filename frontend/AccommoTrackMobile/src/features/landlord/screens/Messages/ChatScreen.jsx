@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking, useWindowDimensions, Animated, Pressable, Keyboard } from 'react-native';
+import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking, useWindowDimensions, Animated, Pressable, Keyboard, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,7 +10,6 @@ import MessageService from '../../../../services/MessageService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../../styles/Landlord/Messages.js';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
-import { Picker } from '@react-native-picker/picker';
 import api from '../../../../services/api.js';
 import {
     landlordQueryKeys,
@@ -56,6 +55,7 @@ export default function ChatScreen({ navigation, route }) {
     const [caretakers, setCaretakers] = useState([]);
     const [assignedId, setAssignedId] = useState(conv?.caretaker_id || '');
     const [isAssigning, setIsAssigning] = useState(false);
+    const [caretakerSelectVisible, setCaretakerSelectVisible] = useState(false);
 
     const scrollViewRef = useRef(null);
     const echoRef = useRef(null);
@@ -666,23 +666,78 @@ export default function ChatScreen({ navigation, route }) {
                                      Delegate this conversation to a specific caretaker. Once assigned, other caretakers will lose access.
                                  </Text>
                                  <View style={[{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: theme.colors.background, opacity: isAssigning ? 0.5 : 1 }]}>
-                                     <Picker
-                                         selectedValue={assignedId}
-                                         onValueChange={(itemValue) => handleAssignCaretaker(itemValue)}
-                                         style={{ color: theme.colors.text }}
-                                         dropdownIconColor={theme.colors.textSecondary}
-                                         enabled={!isAssigning}
+                                     <TouchableOpacity
+                                         style={{ padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}
+                                         onPress={() => !isAssigning && setCaretakerSelectVisible(true)}
+                                         disabled={isAssigning}
                                      >
-                                         <Picker.Item label="Unassigned (Available to all)" value="" color={theme.colors.textSecondary} />
-                                         {caretakers.map((c) => (
-                                             <Picker.Item key={c.id} label={`${c.first_name} ${c.last_name}`} value={c.id} color={theme.colors.text} />
-                                         ))}
-                                     </Picker>
+                                         <Text style={{ color: assignedId ? theme.colors.text : theme.colors.textSecondary, fontSize: 14 }}>
+                                             {assignedId ? caretakers.find(c => c.id === assignedId)?.first_name + ' ' + caretakers.find(c => c.id === assignedId)?.last_name : "Unassigned (Available to all)"}
+                                         </Text>
+                                         <Ionicons name="chevron-down" size={20} color={theme.colors.textSecondary} />
+                                     </TouchableOpacity>
                                  </View>
                              </View>
                         )}
                     </ScrollView>
                 </Animated.View>
+                    <Modal
+                        visible={caretakerSelectVisible}
+                        transparent
+                        animationType="fade"
+                        statusBarTranslucent={true}
+                        navigationBarTranslucent={true}
+                        onRequestClose={() => setCaretakerSelectVisible(false)}
+                    >
+                        <Pressable
+                            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}
+                            onPress={() => setCaretakerSelectVisible(false)}
+                        >
+                            <Pressable style={{ backgroundColor: theme.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10 }} onPress={() => { }}>
+                                <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 20, color: theme.colors.text }}>Assign Caretaker</Text>
+                                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }}>
+                                    <TouchableOpacity
+                                        style={{ paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}
+                                        onPress={() => {
+                                            handleAssignCaretaker("");
+                                            setCaretakerSelectVisible(false);
+                                        }}
+                                    >
+                                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                                            <Text style={[{ fontSize: 16, color: theme.colors.text }, !assignedId && { color: theme.colors.primary, fontWeight: 'bold' }]}>Unassigned (Available to all)</Text>
+                                            {!assignedId && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                                        </View>
+                                    </TouchableOpacity>
+                                    {caretakers.map((c, index) => {
+                                        const isLast = index === caretakers.length - 1;
+                                        const isActive = c.id === assignedId;
+                                        return (
+                                            <TouchableOpacity
+                                                key={c.id}
+                                                style={[{ paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border }, isLast && { borderBottomWidth: 0 }]}
+                                                onPress={() => {
+                                                    handleAssignCaretaker(c.id);
+                                                    setCaretakerSelectVisible(false);
+                                                }}
+                                            >
+                                                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                                                    <Text style={[{ fontSize: 16, color: theme.colors.text }, isActive && { color: theme.colors.primary, fontWeight: 'bold' }]}>{`${c.first_name} ${c.last_name}`}</Text>
+                                                    {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </ScrollView>
+                                <TouchableOpacity
+                                    style={{ paddingVertical: 16, marginTop: 8 }}
+                                    onPress={() => setCaretakerSelectVisible(false)}
+                                >
+                                    <Text style={{ fontSize: 16, color: theme.colors.error || "#EF4444", fontWeight: '500' }}>Cancel</Text>
+                                </TouchableOpacity>
+                            </Pressable>
+                        </Pressable>
+                    </Modal>
+
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

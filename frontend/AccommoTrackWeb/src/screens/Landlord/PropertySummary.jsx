@@ -1036,12 +1036,16 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PropertySummary() {
+export default function PropertySummary({ caretakerPermissions = null }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { uiState, updateData } = useUIState();
 
   const cacheKey = `property_summary_${id}`;
+
+  // ── Caretaker permission gating ─────────────────────────────────────────────
+  const isCaretaker = !!caretakerPermissions;
+  const ctPerms = caretakerPermissions || {};
 
   const getCachedData = () => {
     return uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
@@ -1238,51 +1242,66 @@ export default function PropertySummary() {
               >
                 <List className="w-5 h-5" />
               </button>
-              <button
-                onClick={() => navigate(`/addons?property_id=${id}`, { state: { propertyId: id } })}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors relative"
-                title="Add-ons service"
-              >
-                <PackagePlus className="w-5 h-5" />
-                {notificationCounts.addons > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg">
-                    {notificationCounts.addons > 99 ? '99+' : notificationCounts.addons}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => navigate(`/rooms?property=${id}`)}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Room management"
-              >
-                <Building2 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => navigate(`/tenants?property=${id}`)}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Tenant management"
-              >
-                <Users className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => navigate(`/maintenance?property_id=${id}`)}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors relative"
-                title="Maintenance Requests"
-              >
-                <Wrench className="w-5 h-5" />
-                {notificationCounts.maintenance > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg">
-                    {notificationCounts.maintenance > 99 ? '99+' : notificationCounts.maintenance}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => navigate(`/reviews?property_id=${id}`)}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Reviews"
-              >
-                <Star className="w-5 h-5" />
-              </button>
+              {/* Add-ons shortcut — requires canManageAddons */}
+              {(!isCaretaker || ctPerms.canManageAddons) && (
+                <button
+                  onClick={() => navigate(`/addons?property_id=${id}`, { state: { propertyId: id } })}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors relative"
+                  title="Add-ons service"
+                >
+                  <PackagePlus className="w-5 h-5" />
+                  {notificationCounts.addons > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg">
+                      {notificationCounts.addons > 99 ? '99+' : notificationCounts.addons}
+                    </span>
+                  )}
+                </button>
+              )}
+              {/* Rooms shortcut — requires canManageRooms */}
+              {(!isCaretaker || ctPerms.canManageRooms) && (
+                <button
+                  onClick={() => navigate(`/rooms?property=${id}`)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Room management"
+                >
+                  <Building2 className="w-5 h-5" />
+                </button>
+              )}
+              {/* Tenants shortcut — requires canManageTenants */}
+              {(!isCaretaker || ctPerms.canManageTenants) && (
+                <button
+                  onClick={() => navigate(`/tenants?property=${id}`)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Tenant management"
+                >
+                  <Users className="w-5 h-5" />
+                </button>
+              )}
+              {/* Maintenance shortcut — requires canManageMaintenance */}
+              {(!isCaretaker || ctPerms.canManageMaintenance) && (
+                <button
+                  onClick={() => navigate(`/maintenance?property_id=${id}`)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors relative"
+                  title="Maintenance Requests"
+                >
+                  <Wrench className="w-5 h-5" />
+                  {notificationCounts.maintenance > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg">
+                      {notificationCounts.maintenance > 99 ? '99+' : notificationCounts.maintenance}
+                    </span>
+                  )}
+                </button>
+              )}
+              {/* Reviews — landlord-only, never shown to caretakers */}
+              {!isCaretaker && (
+                <button
+                  onClick={() => navigate(`/reviews?property_id=${id}`)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Reviews"
+                >
+                  <Star className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1296,14 +1315,17 @@ export default function PropertySummary() {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Details & Information</h2>
           </div>
 
-          <button
-            onClick={goToEdit}
-            className="absolute top-4 right-4 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-            title="Edit property"
-            aria-label="Edit property"
-          >
-            <Edit className="w-5 h-5 text-green-600" />
-          </button>
+          {/* Edit — hidden for caretakers (read-only view) */}
+            {!isCaretaker && (
+              <button
+                onClick={goToEdit}
+                className="absolute top-4 right-4 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                title="Edit property"
+                aria-label="Edit property"
+              >
+                <Edit className="w-5 h-5 text-green-600" />
+              </button>
+            )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 m-2 items-stretch">
             {/* Gallery */}

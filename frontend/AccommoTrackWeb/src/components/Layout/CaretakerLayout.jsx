@@ -5,10 +5,10 @@ import { useSidebar } from '../../contexts/SidebarContext.jsx';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import __api, { getImageUrl } from '../../utils/api';
 import NotificationDropdown from '../Shared/NotificationDropdown';
+import StaffToolbelt from '../Shared/StaffToolbelt';
 import { useUIState } from '../../contexts/UIStateContext';
+import { useCaretakerPermissions } from '../../hooks/useCaretakerPermissions';
 import {
-  Plus,
-  Banknote,
   LayoutDashboard,
   Building2,
   Wrench,
@@ -17,14 +17,33 @@ import {
   Calendar,
   MessageSquare,
   BarChart3,
+  Banknote,
+  Home,
   Settings as SettingsIcon,
   LogOut,
   Menu,
   ChevronLeft,
+  ShieldCheck,
+  Info,
 } from 'lucide-react';
 
-// Landlord-only layout. Caretaker layout lives in CaretakerLayout.jsx.
-export default function LandlordLayout({ user, onLogout, children, accessRole = 'landlord' }) {
+// Full ordered list of caretaker-capable sidebar items.
+// Each entry declares which permission key must be truthy for it to appear.
+const CARETAKER_MENU_DEFINITIONS = [
+  { path: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard, permKey: null /* always */ },
+  { path: '/properties', label: 'My Properties', icon: Building2,       permKey: 'canManageProperties' },
+  { path: '/rooms',      label: 'Rooms',         icon: Home,            permKey: 'canManageRooms' },
+  { path: '/maintenance',label: 'Maintenance',   icon: Wrench,          permKey: 'canManageMaintenance' },
+  { path: '/addons',     label: 'Add-ons',       icon: Sparkles,        permKey: 'canManageAddons' },
+  { path: '/bookings',   label: 'Bookings',      icon: Calendar,        permKey: 'canManageBookings' },
+  { path: '/payments',   label: 'Payments',      icon: Banknote,        permKey: 'canManagePayments' },
+  { path: '/tenants',    label: 'Tenants',       icon: Users,           permKey: 'canManageTenants' },
+  { path: '/messages',   label: 'Messages',      icon: MessageSquare,   permKey: 'canManageMessages' },
+  { path: '/analytics',  label: 'Analytics',     icon: BarChart3,       permKey: 'canManageAnalytics' },
+  { path: '/settings',   label: 'Settings',      icon: SettingsIcon,    permKey: null /* always */ },
+];
+
+export default function CaretakerLayout({ user, onLogout, children, onUserUpdate }) {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const { uiState } = useUIState();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -32,20 +51,28 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
   const location = useLocation();
   const navigate = useNavigate();
 
-  const landlordMenu = [
-    { path: '/dashboard',   label: 'Dashboard',    icon: <LayoutDashboard className="w-5 h-5" /> },
-    { path: '/properties',  label: 'My Properties', icon: <Building2 className="w-5 h-5" /> },
-    { path: '/bookings',    label: 'Bookings',      icon: <Calendar className="w-5 h-5" /> },
-    { path: '/maintenance', label: 'Maintenance',   icon: <Wrench className="w-5 h-5" /> },
-    { path: '/addons',      label: 'Add-ons',       icon: <Sparkles className="w-5 h-5" /> },
-    { path: '/payments',    label: 'Payments',      icon: <Banknote className="w-5 h-5" /> },
-    { path: '/tenants',     label: 'Tenants',       icon: <Users className="w-5 h-5" /> },
-    { path: '/messages',    label: 'Messages',      icon: <MessageSquare className="w-5 h-5" /> },
-    { path: '/analytics',   label: 'Analytics',     icon: <BarChart3 className="w-5 h-5" /> },
-    { path: '/settings',    label: 'Settings',      icon: <SettingsIcon className="w-5 h-5" /> },
-  ];
+  const perms = useCaretakerPermissions(user);
+  const {
+    canManageMessages,
+    canManageProperties,
+    fullAccess,
+  } = perms;
 
+  // ── Build the sidebar menu from the permission map ───────────────────────────
+  const menuItems = CARETAKER_MENU_DEFINITIONS.filter(({ permKey }) => {
+    if (!permKey) return true; // always-visible items
+    return perms[permKey] === true;
+  });
+
+  // When only Dashboard + Settings remain the caretaker has no module access
+  const hasNoModuleAccess = menuItems.length <= 2;
+
+  // ── Unread message badge ─────────────────────────────────────────────────────
   const refreshMessageUnreadCount = useCallback(async () => {
+    if (!canManageMessages) {
+      setMessageUnreadCount(0);
+      return;
+    }
     try {
       const response = await __api.get('/messages/conversations');
       const rows = Array.isArray(response.data) ? response.data : [];
@@ -54,7 +81,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
     } catch (_error) {
       // Keep the previous count if refresh fails.
     }
-  }, []);
+  }, [canManageMessages]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -82,18 +109,10 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
     };
   }, [refreshMessageUnreadCount]);
 
-  const handleLogoutClick = () => setShowLogoutModal(true);
-  const confirmLogout = () => { setShowLogoutModal(false); onLogout(); };
-
+  // ── Page title ───────────────────────────────────────────────────────────────
   const getPageTitle = () => {
-    if (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') {
-      return 'Add New Property';
-    }
-
-    const item = landlordMenu.find((m) => m.path === location.pathname);
+    const item = CARETAKER_MENU_DEFINITIONS.find((m) => m.path === location.pathname);
     if (item) return item.label;
-    if (location.pathname === '/settings') return 'Settings';
-
     if (location.pathname.startsWith('/properties/')) {
       const parts = location.pathname.split('/');
       const propId = parts[2];
@@ -103,26 +122,26 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
       }
       return 'Property Details';
     }
-
     if (location.pathname.startsWith('/tenants/')) return 'Tenant Logs';
     return 'AccommoTrack';
   };
 
+  // ── Header suppression (full-page screens manage their own header) ────────────
   const suppressHeader =
     (location.pathname.startsWith('/properties/') && location.pathname !== '/properties') ||
-    (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') ||
     location.pathname === '/rooms' ||
     location.pathname.startsWith('/rooms/') ||
     location.pathname === '/tenants' ||
     location.pathname.startsWith('/tenants/') ||
     location.pathname === '/maintenance' ||
-    location.pathname === '/reviews' ||
-    location.pathname === '/transfers' ||
     location.pathname === '/addons';
+
+  const handleLogoutClick = () => setShowLogoutModal(true);
+  const confirmLogout = () => { setShowLogoutModal(false); onLogout(); };
 
   const fullName = user?.first_name
     ? `${user.first_name} ${user.last_name || ''}`.trim()
-    : (user?.name || 'Landlord');
+    : (user?.name || 'Caretaker');
 
   const avatarUrl =
     getImageUrl(user?.profile_image) ||
@@ -130,7 +149,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Sidebar */}
+      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside
         ref={asideRef}
         className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
@@ -139,7 +158,11 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
       >
         {/* Logo */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="cursor-pointer" onClick={() => navigate('/dashboard')} title="Go to Dashboard">
+          <div
+            className="cursor-pointer"
+            onClick={() => navigate('/dashboard')}
+            title="Go to Dashboard"
+          >
             {isSidebarOpen ? (
               <div className="flex items-center gap-2">
                 <img src={Logo} alt="AccommoTrack Logo" className="h-8 w-auto" />
@@ -169,7 +192,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
           </div>
         )}
 
-        {/* User Profile Summary */}
+        {/* Profile summary */}
         <div
           className="p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           onClick={() => navigate('/settings')}
@@ -184,7 +207,15 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{fullName}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{accessRole}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">Caretaker</p>
+                  {fullAccess && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-[10px] font-bold leading-none">
+                      <ShieldCheck className="w-2.5 h-2.5" />
+                      Full Access
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -192,7 +223,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
 
         {/* Navigation */}
         <nav className="flex-1 py-4 overflow-y-auto">
-          {landlordMenu.map((item) => (
+          {menuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
@@ -204,7 +235,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
                 ${!isSidebarOpen && 'justify-center'}
               `}
             >
-              {item.icon}
+              <item.icon className="w-5 h-5 flex-shrink-0" />
               {isSidebarOpen && <span className="font-medium truncate">{item.label}</span>}
               {item.path === '/messages' && messageUnreadCount > 0 && (
                 <span
@@ -217,9 +248,22 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
               )}
             </NavLink>
           ))}
+
+          {/* No-module-access hint */}
+          {hasNoModuleAccess && isSidebarOpen && (
+            <div className="mx-3 mt-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-700 dark:text-blue-300 leading-snug">
+                  No modules assigned yet.{' '}
+                  <span className="font-semibold">Contact your landlord</span> to unlock features.
+                </p>
+              </div>
+            </div>
+          )}
         </nav>
 
-        {/* Bottom Actions */}
+        {/* Logout */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={handleLogoutClick}
@@ -233,7 +277,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
         </div>
       </aside>
 
-      {/* Mobile Backdrop */}
+      {/* Mobile backdrop */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-10 lg:hidden"
@@ -242,7 +286,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
         />
       )}
 
-      {/* Mobile Sidebar Trigger */}
+      {/* Mobile sidebar trigger */}
       {!isSidebarOpen && (
         <button
           onClick={() => setIsSidebarOpen(true)}
@@ -253,35 +297,25 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
         </button>
       )}
 
-      {/* Main Content */}
+      {/* ── Main content ────────────────────────────────────────────────────── */}
       <main
         className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${
           isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
         }`}
       >
-        {/* Top Header */}
+        {/* Top header */}
         {!suppressHeader && (
           <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-start px-4 lg:px-8 flex-shrink-0 z-10 relative">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white text-left">
               {getPageTitle()}
             </h1>
             <div className="absolute right-4 lg:right-8 flex items-center gap-4">
-              {location.pathname === '/properties' && uiState.data?.landlord_property_view !== 'add' && (
+              {location.pathname === '/properties' && canManageProperties && (
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-add-property'))}
                   className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
                 >
-                  <Plus className="w-5 h-5" />
                   <span className="hidden lg:inline">Add Property</span>
-                </button>
-              )}
-              {location.pathname === '/bookings' && uiState.data?.landlord_booking_view !== 'add' && (
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('open-add-booking'))}
-                  className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span className="hidden lg:inline">Add Booking</span>
                 </button>
               )}
               {location.pathname === '/dashboard' && <NotificationDropdown />}
@@ -289,7 +323,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
           </header>
         )}
 
-        {/* Page Content */}
+        {/* Page content */}
         <div
           className={`flex-1 overflow-y-auto ${suppressHeader ? 'p-0' : 'p-4 lg:p-8'}`}
           style={{ scrollbarGutter: 'stable' }}
@@ -298,12 +332,15 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
         </div>
       </main>
 
-      {/* Logout Confirmation Modal */}
+      {/* Logout modal */}
       <LogoutConfirmModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={confirmLogout}
       />
+
+      {/* Staff toolbelt — always present for caretakers */}
+      <StaffToolbelt user={user} />
     </div>
   );
 }

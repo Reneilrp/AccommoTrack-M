@@ -110,7 +110,7 @@ class PropertyController extends Controller
         try {
             $tenantId = Auth::id();
             $blockedStatuses = ['pending', 'confirmed', 'active', 'completed', 'partial-completed'];
-            $roomEagerLoads = ['amenities', 'images'];
+            $roomEagerLoads = ['amenities', 'images', 'activeEvictionLock'];
             if ($tenantId) {
                 $roomEagerLoads['bookings'] = function ($bq) use ($tenantId) {
                     $bq->where('tenant_id', $tenantId)
@@ -131,7 +131,7 @@ class PropertyController extends Controller
                             });
                         }
 
-                        $q->with($roomEagerLoads);
+                        $q->withAggregates()->with($roomEagerLoads);
                     },
                     'images', 'landlord:id,first_name,last_name,email,phone,payment_methods_settings',
                     'reviews' => function ($q) {
@@ -166,7 +166,9 @@ class PropertyController extends Controller
         }
 
         $data = $properties->withCount(['rooms', 'rooms as available_rooms_count' => fn ($q) => $q->where('status', 'available')])
-            ->with(['images', 'amenities', 'credentials', 'rooms'])
+            ->with(['images', 'amenities', 'credentials', 'rooms' => function($q) {
+                $q->withAggregates()->with('activeEvictionLock');
+            }])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -220,7 +222,9 @@ class PropertyController extends Controller
         $this->ensureCaretakerCan($context, 'can_view_properties');
         $this->checkPropertyAccess($context, (int) $id);
 
-        $property = Property::with(['rooms', 'images', 'amenities', 'credentials'])
+        $property = Property::with(['rooms' => function($q) {
+                $q->withAggregates()->with('activeEvictionLock');
+            }, 'images', 'amenities', 'credentials'])
             ->findOrFail($id);
 
         return response()->json((new PropertyResource($property))->resolve());

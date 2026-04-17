@@ -116,16 +116,19 @@ export default function TenantHomePage({
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState("Explore");
   const [showGuestBanner, setShowGuestBanner] = useState(true);
-  const [searchSectionHeight, setSearchSectionHeight] = useState(0);
-  const [filterSectionHeight, setFilterSectionHeight] = useState(0);
-  const [isTopHeaderHidden, setIsTopHeaderHidden] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(200);
 
-  const searchSectionVisibility = React.useRef(new Animated.Value(1)).current;
-  const filterSectionVisibility = React.useRef(new Animated.Value(1)).current;
-  const lastScrollY = React.useRef(0);
-  const topHeaderHiddenRef = React.useRef(false);
-  const searchSectionHiddenRef = React.useRef(false);
-  const filterSectionHiddenRef = React.useRef(false);
+  const scrollY = React.useRef(new Animated.Value(0)).current;
+  
+  const clampedScrollY = React.useMemo(() => {
+    return Animated.diffClamp(scrollY, 0, headerHeight);
+  }, [headerHeight, scrollY]);
+
+  const headerTranslateY = clampedScrollY.interpolate({
+    inputRange: [0, headerHeight],
+    outputRange: [0, -headerHeight],
+    extrapolate: 'clamp',
+  });
 
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -134,45 +137,12 @@ export default function TenantHomePage({
     () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 980, alignSelf: 'center' } : null),
     [viewportWidth],
   );
-  const searchSectionAnimatedHeight = searchSectionHeight + (isTopHeaderHidden ? insets.top : 0);
-
-  const setTopHeaderHidden = useCallback((hidden) => {
-    if (topHeaderHiddenRef.current === hidden) return;
-
-    topHeaderHiddenRef.current = hidden;
-    setIsTopHeaderHidden(hidden);
-    navigation.setParams({ hideTopHeader: hidden });
-  }, [navigation]);
-
-  const setSearchSectionHidden = useCallback((hidden) => {
-    if (searchSectionHiddenRef.current === hidden) return;
-
-    searchSectionHiddenRef.current = hidden;
-    Animated.timing(searchSectionVisibility, {
-      toValue: hidden ? 0 : 1,
-      duration: 180,
-      useNativeDriver: false,
-    }).start();
-  }, [searchSectionVisibility]);
-
-  const setFilterSectionHidden = useCallback((hidden) => {
-    if (filterSectionHiddenRef.current === hidden) return;
-
-    filterSectionHiddenRef.current = hidden;
-    Animated.timing(filterSectionVisibility, {
-      toValue: hidden ? 0 : 1,
-      duration: 180,
-      useNativeDriver: false,
-    }).start();
-  }, [filterSectionVisibility]);
 
   useEffect(() => {
     return () => {
-      setSearchSectionHidden(false);
-      setFilterSectionHidden(false);
-      navigation.setParams({ hideTopHeader: false, hideLayoutChrome: false });
+      navigation.setParams({ hideLayoutChrome: false });
     };
-  }, [navigation, setFilterSectionHidden, setSearchSectionHidden]);
+  }, [navigation]);
 
   const cachedExplore = uiState.data?.[BUCKET];
   const [properties, setProperties] = useState(cachedExplore || []);
@@ -679,54 +649,12 @@ export default function TenantHomePage({
     }
   };
 
-  const handleFilterSectionLayout = useCallback((event) => {
+  const handleHeaderLayout = useCallback((event) => {
     const nextHeight = event?.nativeEvent?.layout?.height || 0;
-    if (nextHeight > 0 && nextHeight !== filterSectionHeight) {
-      setFilterSectionHeight(nextHeight);
+    if (nextHeight > 0 && Math.abs(nextHeight - headerHeight) > 5) {
+      setHeaderHeight(nextHeight);
     }
-  }, [filterSectionHeight]);
-
-  const handleSearchSectionLayout = useCallback((event) => {
-    const nextHeight = event?.nativeEvent?.layout?.height || 0;
-    if (nextHeight > 0 && nextHeight !== searchSectionHeight) {
-      setSearchSectionHeight(nextHeight);
-    }
-  }, [searchSectionHeight]);
-
-  const handleExploreScroll = useCallback((event) => {
-    const currentY = Math.max(0, event?.nativeEvent?.contentOffset?.y || 0);
-    const deltaY = currentY - lastScrollY.current;
-
-    if (currentY <= 0) {
-      setSearchSectionHidden(false);
-      setFilterSectionHidden(false);
-      setTopHeaderHidden(false);
-      lastScrollY.current = 0;
-      return;
-    }
-
-    if (deltaY > SCROLL_DIRECTION_DELTA) {
-      if (currentY > HEADER_HIDE_GAP) {
-        setTopHeaderHidden(true);
-      }
-      if (currentY > FILTER_HIDE_GAP) {
-        setFilterSectionHidden(true);
-      }
-      if (currentY > SEARCH_HIDE_GAP) {
-        setSearchSectionHidden(true);
-      }
-    } else if (deltaY < -SCROLL_DIRECTION_DELTA) {
-      setSearchSectionHidden(false);
-      if (currentY < FILTER_SHOW_GAP) {
-        setFilterSectionHidden(false);
-      }
-      if (currentY < HEADER_SHOW_GAP) {
-        setTopHeaderHidden(false);
-      }
-    }
-
-    lastScrollY.current = currentY;
-  }, [setFilterSectionHidden, setSearchSectionHidden, setTopHeaderHidden]);
+  }, [headerHeight]);
 
   if (loading && properties.length === 0) {
     return (
@@ -771,16 +699,17 @@ export default function TenantHomePage({
     >
       <Animated.View
         style={{
-          paddingTop: isTopHeaderHidden ? insets.top : 0,
-          height: searchSectionVisibility.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, searchSectionAnimatedHeight || 1],
-          }),
-          opacity: searchSectionVisibility,
-          overflow: "hidden",
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          backgroundColor: theme.colors.background,
+          transform: [{ translateY: headerTranslateY }],
         }}
+        onLayout={handleHeaderLayout}
       >
-        <View onLayout={handleSearchSectionLayout}>
+        <SafeAreaView edges={['top']} style={{ backgroundColor: theme.colors.background }}>
           <SearchBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -824,24 +753,11 @@ export default function TenantHomePage({
               </TouchableOpacity>
             </View>
           )}
-        </View>
-      </Animated.View>
-
-      <Animated.View
-        style={{
-          height: filterSectionVisibility.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, filterSectionHeight || 1],
-          }),
-          opacity: filterSectionVisibility,
-        }}
-      >
-        <View onLayout={handleFilterSectionLayout}>
           {renderFilterControls()}
-        </View>
+        </SafeAreaView>
       </Animated.View>
 
-      <FlatList
+      <Animated.FlatList
         data={filteredProperties}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
@@ -851,10 +767,13 @@ export default function TenantHomePage({
             onLikePress={handleLikePress}
           />
         )}
-        contentContainerStyle={[styles.contentContainerPadding, contentWrapStyle]}
+        contentContainerStyle={[styles.contentContainerPadding, contentWrapStyle, { paddingTop: headerHeight + 10 }]}
         refreshing={refreshing}
         onRefresh={onRefresh}
-        onScroll={handleExploreScroll}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
         scrollEventThrottle={16}
         ListEmptyComponent={
           !loading ? (

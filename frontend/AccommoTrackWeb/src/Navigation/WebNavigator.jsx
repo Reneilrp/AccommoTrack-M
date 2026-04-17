@@ -5,12 +5,14 @@ import LandingPage from '../screens/Guest/LandingPage.jsx';
 
 const loadAdminNavigator = () => import('./AdminNavigator.jsx');
 const loadLandlordNavigator = () => import('./LandlordNavigator.jsx');
+const loadCaretakerNavigator = () => import('./CaretakerNavigator.jsx');
 const loadTenantNavigator = () => import('./TenantNavigator.jsx');
 const loadPropertyDetails = () => import('../screens/Tenant/PropertyDetails.jsx');
 const loadBrowsingPropertyPage = () => import('../screens/Tenant/ExploreProperties.jsx');
 
 const AdminNavigator = lazy(loadAdminNavigator);
 const LandlordNavigator = lazy(loadLandlordNavigator);
+const CaretakerNavigator = lazy(loadCaretakerNavigator);
 const TenantNavigator = lazy(loadTenantNavigator);
 const PropertyDetails = lazy(loadPropertyDetails);
 const BrowsingPropertyPage = lazy(loadBrowsingPropertyPage);
@@ -18,7 +20,7 @@ const BrowsingPropertyPage = lazy(loadBrowsingPropertyPage);
 const prefetchByRole = {
   admin: [loadAdminNavigator],
   landlord: [loadLandlordNavigator],
-  caretaker: [loadLandlordNavigator],
+  caretaker: [loadCaretakerNavigator],
   tenant: [loadTenantNavigator],
 };
 
@@ -108,8 +110,16 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
     );
   }
 
-  // Landlord and caretaker roles
-  if (role === 'landlord' || role === 'caretaker') {
+  // Caretaker role — dedicated navigator
+  if (role === 'caretaker') {
+    return renderWithFallback(
+      <CaretakerNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />,
+      roleGateFallback,
+    );
+  }
+
+  // Landlord role
+  if (role === 'landlord') {
     return renderWithFallback(
       <LandlordNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />,
       roleGateFallback,

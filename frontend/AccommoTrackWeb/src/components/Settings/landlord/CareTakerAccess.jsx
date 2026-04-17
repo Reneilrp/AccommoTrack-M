@@ -20,12 +20,197 @@ import {
   KeyRound,
   ChevronDown,
   ChevronUp,
-  BarChart3,
-  Wallet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../../utils/api';
+import {
+  CARETAKER_PERMISSION_FIELDS,
+  MODULE_GROUPS,
+  LANDLORD_LEVEL_PERMISSION_KEYS,
+  LANDLORD_LEVEL_PERMISSION_MESSAGES,
+  humanizePermissions,
+  countActivePermissions,
+} from '../../../utils/caretakerPermissions';
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const isLandlordLevelPermission = (key) => LANDLORD_LEVEL_PERMISSION_KEYS.has(key);
+
+const TOTAL_PERMISSIONS = CARETAKER_PERMISSION_FIELDS.length;
+
+function PermissionGroupCard({ group, permissions, onToggleAll, onToggleSingle, expandedGroups, setExpandedGroups }) {
+  const groupFields = CARETAKER_PERMISSION_FIELDS.filter((f) => group.keys.includes(f.key));
+  const activeCount = groupFields.filter((f) => !!permissions[f.key]).length;
+  const allGroupOn = groupFields.every((f) => !!permissions[f.key]);
+  const isModuleActive = activeCount > 0;
+  const isExpanded = expandedGroups.includes(group.title);
+
+  const toggleExpand = () =>
+    setExpandedGroups((prev) =>
+      prev.includes(group.title) ? prev.filter((t) => t !== group.title) : [...prev, group.title],
+    );
+
+  return (
+    <div
+      className={`rounded-2xl overflow-hidden border-2 transition-all duration-200 ${
+        isModuleActive
+          ? 'border-emerald-500 shadow-lg shadow-emerald-100 dark:shadow-emerald-900/20'
+          : 'border-gray-200 dark:border-gray-700'
+      }`}
+    >
+      {/* Header — expand/collapse only */}
+      <button
+        onClick={toggleExpand}
+        className={`w-full flex items-center gap-3 p-4 text-left transition-colors ${
+          isModuleActive ? 'bg-emerald-600 dark:bg-emerald-700' : 'bg-white dark:bg-gray-800'
+        }`}
+      >
+        <div
+          className={`p-1.5 rounded-lg ${
+            isModuleActive ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'
+          }`}
+        >
+          <span className={isModuleActive ? 'text-white' : 'text-gray-500 dark:text-gray-400'}>
+            {group.icon}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p
+            className={`font-bold text-sm ${
+              isModuleActive ? 'text-white' : 'text-gray-900 dark:text-white'
+            }`}
+          >
+            {group.title}
+          </p>
+          <p
+            className={`text-[10px] font-semibold ${
+              isModuleActive ? 'text-emerald-100' : 'text-gray-400 dark:text-gray-500'
+            }`}
+          >
+            {activeCount}/{groupFields.length} active
+          </p>
+        </div>
+        {isExpanded ? (
+          <ChevronUp
+            className={`w-4 h-4 flex-shrink-0 ${isModuleActive ? 'text-white' : 'text-gray-400'}`}
+          />
+        ) : (
+          <ChevronDown
+            className={`w-4 h-4 flex-shrink-0 ${isModuleActive ? 'text-white' : 'text-gray-400'}`}
+          />
+        )}
+      </button>
+
+      {/* Expanded sub-permissions */}
+      {isExpanded && (
+        <div className="bg-gray-50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700">
+          {/* Group-level Select All — inside expanded area */}
+          <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              {group.title} permissions
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleAll(group.keys, permissions);
+              }}
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                allGroupOn
+                  ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-100'
+                  : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
+              }`}
+            >
+              {allGroupOn ? '✕ Deselect group' : '✓ Select group'}
+            </button>
+          </div>
+
+          {groupFields.map((field, idx) => {
+            const isChecked = !!permissions[field.key];
+            return (
+              <label
+                key={field.key}
+                className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
+                  idx < groupFields.length - 1 ? 'border-b border-gray-100 dark:border-gray-700/60' : ''
+                } ${
+                  isChecked
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <div className="pr-4">
+                  <p
+                    className={`text-[13px] font-semibold ${
+                      isChecked
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    {field.label}
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                    {field.description}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => onToggleSingle(field.key)}
+                  className="w-4 h-4 accent-emerald-600 cursor-pointer flex-shrink-0 rounded"
+                />
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepBar({ step }) {
+  return (
+    <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
+      {[
+        { num: 1, label: 'Personal Details' },
+        { num: 2, label: 'Permissions & Properties' },
+      ].map((s, i) => (
+        <React.Fragment key={s.num}>
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                step >= s.num
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 dark:shadow-none'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+              }`}
+            >
+              {step > s.num ? <CheckCircle2 className="w-4 h-4" /> : s.num}
+            </div>
+            <span
+              className={`text-xs font-bold hidden sm:block ${
+                step >= s.num ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'
+              }`}
+            >
+              {s.label}
+            </span>
+          </div>
+          {i < 1 && (
+            <div className="flex-1 h-0.5 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700">
+              <div
+                className={`h-full bg-emerald-500 transition-all duration-500 ${
+                  step >= 2 ? 'w-full' : 'w-0'
+                }`}
+              />
+            </div>
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
 export default function CareTakerAccess({
   caretakers,
   caretakerForm,
@@ -39,21 +224,23 @@ export default function CareTakerAccess({
   handleRevokeCaretaker,
   fetchCaretakers,
   resetCaretakerPermissions,
-  handlePermissionToggle
+  handlePermissionToggle,
 }) {
-  const [permissionPrompt, setPermissionPrompt] = useState({ 
-    open: false, 
-    key: null, 
-    target: 'create', 
-    isBulk: false, 
-    keys: [] 
+  const [permissionPrompt, setPermissionPrompt] = useState({
+    open: false,
+    key: null,
+    target: 'create',
+    isBulk: false,
+    keys: [],
   });
   const [showPasswords, setShowPasswords] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Unified modal: 'closed' | 'create' | 'edit'
+  const [modalMode, setModalMode] = useState('closed');
   const [createStep, setCreateStep] = useState(1);
-  const [selectedCaretaker, setSelectedCaretaker] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
+
   const [editFormData, setEditFormData] = useState({
+    id: null,
     first_name: '',
     middle_name: '',
     last_name: '',
@@ -63,9 +250,15 @@ export default function CareTakerAccess({
     password: '',
     password_confirmation: '',
     permissions: {},
-    property_ids: []
+    property_ids: [],
   });
-  const [passwordResetModal, setPasswordResetModal] = useState({ show: false, caretaker: null, loading: false, tempPassword: '' });
+
+  const [passwordResetModal, setPasswordResetModal] = useState({
+    show: false,
+    caretaker: null,
+    loading: false,
+    tempPassword: '',
+  });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
   const [propertyError, setPropertyError] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState([]);
@@ -77,15 +270,25 @@ export default function CareTakerAccess({
     phone: '',
     date_of_birth: '',
   });
+  const [selectedCaretaker, setSelectedCaretaker] = useState(null);
+
   const fetchCaretakersRef = useRef(fetchCaretakers);
   const navigate = useNavigate();
 
-  // Safe access to props
   const safeCaretakers = Array.isArray(caretakers) ? caretakers : [];
   const safeProperties = Array.isArray(landlordProperties) ? landlordProperties : [];
   const safeSelectedIds = Array.isArray(selectedPropertyIds) ? selectedPropertyIds : [];
   const safePermissions = caretakerPermissions || {};
-  const safeForm = caretakerForm || { first_name: '', middle_name: '', last_name: '', email: '', password: '', password_confirmation: '', phone: '', date_of_birth: '' };
+  const safeForm = caretakerForm || {
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+    phone: '',
+    date_of_birth: '',
+  };
   const safeState = caretakerState || { loading: false, error: '' };
 
   useEffect(() => {
@@ -98,222 +301,167 @@ export default function CareTakerAccess({
     }
   }, []);
 
-  const CARETAKER_PERMISSION_FIELDS = [
-    {
-      key: 'bookings',
-      label: 'Bookings',
-      description: 'View reservation requests.',
-      icon: <CheckCircle2 className="w-4 h-4" />,
-    },
-    {
-      key: 'approve_bookings',
-      label: 'Approve Bookings',
-      description: 'Accept pending bookings.',
-      icon: <CheckCircle2 className="w-4 h-4" />,
-    },
-    {
-      key: 'cancel_bookings',
-      label: 'Cancel Bookings',
-      description: 'Cancel active/pending bookings.',
-      icon: <XCircle className="w-4 h-4" />,
-    },
-    {
-      key: 'manual_bookings',
-      label: 'Manual Bookings',
-      description: 'Create bookings on behalf of tenants.',
-      icon: <Plus className="w-4 h-4" />,
-    },
-    {
-      key: 'tenants',
-      label: 'Tenants',
-      description: 'Access profiles and room assignments.',
-      icon: <Users className="w-4 h-4" />,
-    },
-    {
-      key: 'add_tenant_manually',
-      label: 'Add Tenant Manually',
-      description: 'Create tenant profiles without invites.',
-      icon: <Plus className="w-4 h-4" />,
-    },
-    {
-      key: 'messages',
-      label: 'Messages',
-      description: 'Chat with prospects and residents.',
-      icon: <Mail className="w-4 h-4" />,
-    },
-    {
-      key: 'rooms',
-      label: 'Room Management',
-      description: 'Full control over room availability.',
-      icon: <Building2 className="w-4 h-4" />,
-    },
-    {
-      key: 'properties',
-      label: 'Properties',
-      description: 'View and manage property details.',
-      icon: <Shield className="w-4 h-4" />,
-    },
-    {
-      key: 'manage_add_ons',
-      label: 'Manage Add-ons',
-      description: 'Approve/reject tenant add-ons.',
-      icon: <Plus className="w-4 h-4" />,
-    },
-    {
-      key: 'maintenance',
-      label: 'Maintenance',
-      description: 'Handle repairs and upkeep requests.',
-      icon: <Shield className="w-4 h-4" />,
-    },
-    {
-      key: 'payments',
-      label: 'Payments',
-      description: 'Track and verify rental transactions.',
-      icon: <Users className="w-4 h-4" />,
-    },
-    {
-      key: 'analytics',
-      label: 'Analytics',
-      description: 'View performance dashboards and trends.',
-      icon: <Shield className="w-4 h-4" />,
-    },
-    {
-      key: 'view_audit_logs',
-      label: 'Audit Logs',
-      description: 'View tracking of actions & recent activity.',
-      icon: <CheckCircle2 className="w-4 h-4" />,
-    },
-  ];
+  // ── Permission helpers ──────────────────────────────────────────────────
+  const closePermissionPrompt = () =>
+    setPermissionPrompt({ open: false, key: null, target: 'create', isBulk: false, keys: [] });
 
-  const MODULE_GROUPS = [
-    {
-      title: 'Bookings',
-      icon: <Calendar className="w-5 h-5" />,
-      keys: ['bookings', 'approve_bookings', 'cancel_bookings', 'manual_bookings']
-    },
-    {
-      title: 'Tenant Management',
-      icon: <Users className="w-5 h-5" />,
-      keys: ['tenants', 'messages', 'add_tenant_manually']
-    },
-    {
-      title: 'Properties & Rooms',
-      icon: <Building2 className="w-5 h-5" />,
-      keys: ['properties', 'rooms', 'maintenance', 'manage_add_ons']
-    },
-    {
-      title: 'Payments',
-      icon: <Wallet className="w-5 h-5" />,
-      keys: ['payments']
-    },
-    {
-      title: 'Analytics & Admin',
-      icon: <BarChart3 className="w-5 h-5" />,
-      keys: ['analytics', 'view_audit_logs']
-    }
-  ];
-
-  const LANDLORD_LEVEL_PERMISSION_KEYS = new Set(['rooms', 'properties', 'maintenance', 'payments', 'analytics', 'view_audit_logs', 'approve_bookings', 'cancel_bookings', 'manage_add_ons', 'add_tenant_manually', 'manual_bookings']);
-  const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
-    rooms: 'Enabling this allows caretakers to modify room availability and tenant placements.',
-    properties: 'Enabling this allows caretakers to edit core property details and settings.',
-    maintenance: 'Enabling this allows caretakers to process and update maintenance workflows.',
-    payments: 'Enabling this allows caretakers to manage sensitive billing and payment operations.',
-    analytics: 'Enabling this allows caretakers to view occupancy, revenue, and trend insights.',
-    view_audit_logs: 'Enabling this allows caretakers to view exact tracking of property actions.',
-    approve_bookings: 'Enabling this gives explicit right to accept or approve new booking requests.',
-    cancel_bookings: 'Enabling this gives explicit right to decline, cancel, or reject bookings.',
-    manage_add_ons: 'Enabling this allows the caretaker to approve or modify tenant add-ons.',
-    add_tenant_manually: 'Enabling this allows caretakers to securely add new tenants into the system.',
-    manual_bookings: 'Enabling this allows caretakers to place override bookings forcefully behind the scenes.',
-  };
-
-  const handleGroupSelectAll = (e, keys, target, currentState) => {
-    e.stopPropagation();
-    const allSelected = keys.every(k => !!currentState[k]);
-    const nextState = !allSelected;
-
-    if (nextState === true) {
-      const sensitiveKeys = keys.filter(k => isLandlordLevelPermission(k) && !currentState[k]);
-      
-      if (sensitiveKeys.length > 0) {
-        setPermissionPrompt({
-          open: true,
-          key: null,
-          target,
-          isBulk: true,
-          keys: keys
-        });
-        return;
-      }
-    }
-
-    applyBulkPermissions(keys, nextState, target);
-  };
-
-  const handleGlobalSelectAll = (target, currentState) => {
-    const allKeys = CARETAKER_PERMISSION_FIELDS.map(f => f.key);
-    const allSelected = allKeys.every(k => !!currentState[k]);
-    const nextState = !allSelected;
-
-    if (nextState === true) {
-      const sensitiveKeys = allKeys.filter(k => isLandlordLevelPermission(k) && !currentState[k]);
-
-      if (sensitiveKeys.length > 0) {
-        setPermissionPrompt({
-          open: true,
-          key: null,
-          target,
-          isBulk: true,
-          keys: allKeys
-        });
-        return;
-      }
-    }
-
-    applyBulkPermissions(allKeys, nextState, target);
-  };
+  const requestPermissionPrompt = (key, target) =>
+    setPermissionPrompt({ open: true, key, target, isBulk: false, keys: [] });
 
   const applyBulkPermissions = (keys, value, target) => {
     if (target === 'create') {
-      keys.forEach(k => handlePermissionToggle(k, value));
+      keys.forEach((k) => handlePermissionToggle(k, value));
     } else {
-      setEditFormData(prev => {
+      setEditFormData((prev) => {
         const newPerms = { ...prev.permissions };
-        keys.forEach(k => newPerms[k] = value);
+        keys.forEach((k) => (newPerms[k] = value));
         return { ...prev, permissions: newPerms };
       });
     }
   };
 
-  const isLandlordLevelPermission = (key) => LANDLORD_LEVEL_PERMISSION_KEYS.has(key);
+  const handleGroupToggleAll = (keys, currentPerms) => {
+    const target = modalMode === 'create' ? 'create' : 'edit';
+    const allOn = keys.every((k) => !!(modalMode === 'create' ? safePermissions[k] : editFormData.permissions[k]));
+    const nextState = !allOn;
 
-  const closePermissionPrompt = () => {
-    setPermissionPrompt({ open: false, key: null, target: 'create', isBulk: false, keys: [] });
+    if (nextState === true) {
+      const sensitiveKeys = keys.filter(
+        (k) => isLandlordLevelPermission(k) && !(modalMode === 'create' ? safePermissions[k] : editFormData.permissions[k]),
+      );
+      if (sensitiveKeys.length > 0) {
+        setPermissionPrompt({ open: true, key: null, target, isBulk: true, keys });
+        return;
+      }
+    }
+    applyBulkPermissions(keys, nextState, target);
   };
 
-  const requestPermissionPrompt = (key, target) => {
-    setPermissionPrompt({ open: true, key, target, isBulk: false, keys: [] });
+  const handleGlobalSelectAll = (target, currentState) => {
+    const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
+    const allSelected = allKeys.every((k) => !!currentState[k]);
+    const nextState = !allSelected;
+
+    if (nextState === true) {
+      const sensitiveKeys = allKeys.filter(
+        (k) => isLandlordLevelPermission(k) && !currentState[k],
+      );
+      if (sensitiveKeys.length > 0) {
+        setPermissionPrompt({ open: true, key: null, target, isBulk: true, keys: allKeys });
+        return;
+      }
+    }
+    applyBulkPermissions(allKeys, nextState, target);
   };
+
+  const handleSinglePermissionToggle = (key) => {
+    const target = modalMode === 'create' ? 'create' : 'edit';
+    const currentPerms = modalMode === 'create' ? safePermissions : editFormData.permissions;
+    const isEnabling = !currentPerms[key];
+
+    if (isEnabling && isLandlordLevelPermission(key)) {
+      requestPermissionPrompt(key, target);
+      return;
+    }
+
+    if (target === 'create') {
+      if (typeof handlePermissionToggle === 'function') handlePermissionToggle(key);
+    } else {
+      setEditFormData((prev) => ({
+        ...prev,
+        permissions: { ...prev.permissions, [key]: !prev.permissions[key] },
+      }));
+    }
+  };
+
+  const confirmPermissionGrant = () => {
+    if (permissionPrompt.isBulk) {
+      applyBulkPermissions(permissionPrompt.keys, true, permissionPrompt.target);
+    } else {
+      const { key, target } = permissionPrompt;
+      if (target === 'create') {
+        handlePermissionToggle(key, true);
+      } else {
+        setEditFormData((prev) => ({
+          ...prev,
+          permissions: { ...prev.permissions, [key]: true },
+        }));
+      }
+    }
+    closePermissionPrompt();
+  };
+
+  const promptedPermission = CARETAKER_PERMISSION_FIELDS.find((f) => f.key === permissionPrompt.key);
+  const promptedPermissionLabel = promptedPermission?.label || 'this module';
+  const promptedPermissionMessage =
+    LANDLORD_LEVEL_PERMISSION_MESSAGES[permissionPrompt.key] ||
+    'Enabling this grants landlord-level access. Please confirm before proceeding.';
+
+  // ── Validation ──────────────────────────────────────────────────────────
+  const validateField = (name, value) => {
+    let error = '';
+    if (name === 'first_name' || name === 'last_name') {
+      if (!value || !value.trim()) error = 'This field is required';
+    }
+    if (name === 'phone') {
+      if (/[a-zA-Z]/.test(value)) error = 'Phone must contain only numbers';
+      else if (value && value.length < 10) error = 'Phone number is too short';
+    }
+    if (name === 'email') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (value && !emailRegex.test(value)) error = 'Please enter a valid email address';
+    }
+    setFieldErrors((prev) => ({ ...prev, [name]: error }));
+    return error;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    if (typeof setCaretakerForm === 'function') {
+      setCaretakerForm((prev) => ({ ...prev, [name]: value }));
+    }
+    validateField(name, value);
+  };
+
+  // ── Create modal ────────────────────────────────────────────────────────
   const resetCreationForm = () => {
-    if (setCaretakerForm) setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
+    if (setCaretakerForm)
+      setCaretakerForm({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        date_of_birth: '',
+        password: '',
+        password_confirmation: '',
+      });
     if (resetCaretakerPermissions) resetCaretakerPermissions();
     if (setSelectedPropertyIds) setSelectedPropertyIds([]);
     setPropertyError(false);
-    setFieldErrors({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '' });
+    setFieldErrors({
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      date_of_birth: '',
+    });
   };
 
   const openCreateModal = () => {
     resetCreationForm();
     setShowPasswords(false);
     setCreateStep(1);
-    setShowCreateModal(true);
+    setExpandedGroups([]);
+    setModalMode('create');
   };
 
-  const closeCreateModal = () => {
-    setShowCreateModal(false);
+  const closeModal = () => {
+    setModalMode('closed');
     setShowPasswords(false);
     setCreateStep(1);
+    setExpandedGroups([]);
   };
 
   const handleCreateStepNext = () => {
@@ -328,25 +476,67 @@ export default function CareTakerAccess({
       toast.error('Please fix the errors before continuing');
       return;
     }
-
     if (!safeForm.first_name || !safeForm.last_name || !safeForm.email) {
       toast.error('Please fill in all required fields');
       return;
     }
-
     if (!safeForm.password) {
       toast.error('Password is required when creating a caretaker');
       return;
     }
-
     if (safeForm.password !== safeForm.password_confirmation) {
       toast.error('Passwords do not match');
       return;
     }
-
     setCreateStep(2);
   };
 
+  const handleRegister = async (ev) => {
+    if (ev && ev.preventDefault) ev.preventDefault();
+
+    const errors = {
+      first_name: validateField('first_name', safeForm.first_name),
+      last_name: validateField('last_name', safeForm.last_name),
+      email: validateField('email', safeForm.email),
+      phone: validateField('phone', safeForm.phone),
+    };
+
+    if (Object.values(errors).some((err) => err !== '')) {
+      toast.error('Please fix the errors before submitting');
+      return;
+    }
+    if (!safeForm.first_name || !safeForm.last_name || !safeForm.email) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    if (!safeForm.password) {
+      toast.error('Password is required when creating a caretaker');
+      return;
+    }
+    if (safeProperties.length > 0 && safeSelectedIds.length === 0) {
+      toast.error('Please assign a property to the caretaker');
+      setPropertyError(true);
+      return;
+    }
+    setPropertyError(false);
+    if (safeForm.password && safeForm.password !== safeForm.password_confirmation) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    try {
+      await handleCreateCaretaker();
+      resetCreationForm();
+      setShowPasswords(false);
+      setCreateStep(1);
+      setModalMode('closed');
+      if (typeof fetchCaretakers === 'function') fetchCaretakers();
+    } catch {
+      // Error handled by parent
+    }
+  };
+
+  // ── Edit modal ──────────────────────────────────────────────────────────
   const handleEditClick = (c) => {
     setEditFormData({
       id: c.id,
@@ -355,7 +545,9 @@ export default function CareTakerAccess({
       last_name: c.caretaker.last_name || '',
       email: c.caretaker.email || '',
       phone: c.caretaker.phone || '',
-      date_of_birth: c.caretaker.date_of_birth ? new Date(c.caretaker.date_of_birth).toISOString().split('T')[0] : '',
+      date_of_birth: c.caretaker.date_of_birth
+        ? new Date(c.caretaker.date_of_birth).toISOString().split('T')[0]
+        : '',
       password: '',
       password_confirmation: '',
       permissions: {
@@ -374,104 +566,69 @@ export default function CareTakerAccess({
         analytics: !!c.permissions.analytics,
         view_audit_logs: !!c.permissions.view_audit_logs,
       },
-      property_ids: (c.assigned_properties || []).map(p => p.id)
+      property_ids: (c.assigned_properties || []).map((p) => p.id),
     });
-    setShowEditModal(true);
+    setExpandedGroups([]);
+    setShowPasswords(false);
     setSelectedCaretaker(null);
-  };
-
-  const handleResetPassword = (c) => {
-    setPasswordResetModal({ show: true, caretaker: c, loading: false, tempPassword: '' });
-    setSelectedCaretaker(null);
-  };
-
-  const confirmResetPassword = async () => {
-    const { caretaker } = passwordResetModal;
-    setPasswordResetModal(prev => ({ ...prev, loading: true }));
-    try {
-      const res = await api.post(`/landlord/caretakers/${caretaker.id}/reset-password`);
-      setPasswordResetModal(prev => ({ ...prev, loading: false, tempPassword: res.data.temporary_password }));
-      toast.success('Password has been reset');
-    } catch {
-      toast.error('Failed to reset password');
-      setPasswordResetModal(prev => ({ ...prev, loading: false }));
-    }
-  };
-
-  const toggleEditPermission = (key) => {
-    const isEnabling = !editFormData.permissions[key];
-    if (isEnabling && isLandlordLevelPermission(key)) {
-      requestPermissionPrompt(key, 'edit');
-      return;
-    }
-
-    setEditFormData(prev => ({
-      ...prev,
-      permissions: { ...prev.permissions, [key]: !prev.permissions[key] }
-    }));
+    setModalMode('edit');
   };
 
   const handleUpdateSubmit = async (ev) => {
     if (ev && ev.preventDefault) ev.preventDefault();
 
-    // Validate required
     if (!editFormData.first_name || !editFormData.last_name || !editFormData.email) {
       toast.error('Please fill in all required fields');
       return;
     }
-
     if (editFormData.property_ids.length === 0) {
-      toast.error("Please assign at least one property");
+      toast.error('Please assign at least one property');
+      return;
+    }
+    if (!editFormData.id) {
+      toast.error('Invalid caretaker ID');
       return;
     }
 
+    const mappedPermissions = {
+      can_view_bookings: !!editFormData.permissions.bookings,
+      can_approve_bookings: !!editFormData.permissions.approve_bookings,
+      can_cancel_bookings: !!editFormData.permissions.cancel_bookings,
+      can_add_manual_bookings: !!editFormData.permissions.manual_bookings,
+      can_manage_add_ons: !!editFormData.permissions.manage_add_ons,
+      can_view_messages: !!editFormData.permissions.messages,
+      can_view_tenants: !!editFormData.permissions.tenants,
+      can_add_tenant_manually: !!editFormData.permissions.add_tenant_manually,
+      can_view_rooms: !!editFormData.permissions.rooms,
+      can_view_properties: !!editFormData.permissions.properties,
+      can_manage_maintenance: !!editFormData.permissions.maintenance,
+      can_manage_payments: !!editFormData.permissions.payments,
+      can_view_analytics: !!editFormData.permissions.analytics,
+      can_view_audit_logs: !!editFormData.permissions.view_audit_logs,
+    };
+
+    const updateData = {
+      first_name: editFormData.first_name,
+      middle_name: editFormData.middle_name,
+      last_name: editFormData.last_name,
+      email: editFormData.email,
+      phone: editFormData.phone,
+      date_of_birth: editFormData.date_of_birth,
+      property_ids: editFormData.property_ids,
+      permissions: mappedPermissions,
+    };
+
+    if (editFormData.password && editFormData.password.trim() !== '') {
+      updateData.password = editFormData.password;
+      updateData.password_confirmation = editFormData.password_confirmation;
+    }
+
     try {
-      if (!editFormData.id) {
-        toast.error("Invalid caretaker ID");
-        return;
-      }
-
-      // Map to backend keys
-      const mappedPermissions = {
-        can_view_bookings:      !!editFormData.permissions.bookings,
-        can_approve_bookings:   !!editFormData.permissions.approve_bookings,
-        can_cancel_bookings:    !!editFormData.permissions.cancel_bookings,
-        can_add_manual_bookings: !!editFormData.permissions.manual_bookings,
-        can_manage_add_ons:     !!editFormData.permissions.manage_add_ons,
-        can_view_messages:      !!editFormData.permissions.messages,
-        can_view_tenants:       !!editFormData.permissions.tenants,
-        can_add_tenant_manually: !!editFormData.permissions.add_tenant_manually,
-        can_view_rooms:         !!editFormData.permissions.rooms,
-        can_view_properties:    !!editFormData.permissions.properties,
-        can_manage_maintenance: !!editFormData.permissions.maintenance,
-        can_manage_payments:    !!editFormData.permissions.payments,
-        can_view_analytics:     !!editFormData.permissions.analytics,
-        can_view_audit_logs:    !!editFormData.permissions.view_audit_logs,
-      };
-
-      const updateData = {
-        first_name: editFormData.first_name,
-        middle_name: editFormData.middle_name,
-        last_name: editFormData.last_name,
-        email: editFormData.email,
-        phone: editFormData.phone,
-        date_of_birth: editFormData.date_of_birth,
-        property_ids: editFormData.property_ids,
-        permissions: mappedPermissions
-      };
-
-      if (editFormData.password && editFormData.password.trim() !== '') {
-        updateData.password = editFormData.password;
-        updateData.password_confirmation = editFormData.password_confirmation;
-      }
-
       await api.patch(`/landlord/caretakers/${editFormData.id}`, updateData);
-
       toast.success('Caretaker updated successfully');
-      setShowEditModal(false);
+      setModalMode('closed');
       fetchCaretakers();
     } catch (err) {
-      console.error('Update caretaker failed:', err);
       const msg = err.response?.data?.message || 'Failed to update caretaker';
       const errors = err.response?.data?.errors;
       if (errors) {
@@ -483,9 +640,10 @@ export default function CareTakerAccess({
     }
   };
 
+  // ── Misc actions ────────────────────────────────────────────────────────
   const handleMessageCaretaker = (c) => {
     if (!c?.caretaker?.id) {
-      toast.error("Cannot message: Caretaker user ID not found");
+      toast.error('Cannot message: Caretaker user ID not found');
       return;
     }
     setSelectedCaretaker(null);
@@ -496,35 +654,32 @@ export default function CareTakerAccess({
         recipient: {
           id: c.caretaker.id,
           name: `${c.caretaker.first_name} ${c.caretaker.last_name}`,
-          role: 'caretaker'
-        }
-      }
+          role: 'caretaker',
+        },
+      },
     });
   };
 
-  const validateField = (name, value) => {
-    let error = '';
-    if (name === 'first_name' || name === 'last_name') {
-      if (!value || !value.trim()) error = 'This field is required';
-    }
-    if (name === 'phone') {
-      if (/[a-zA-Z]/.test(value)) error = 'Phone must contain only numbers';
-      else if (value && value.length < 10) error = 'Phone number is too short';
-    }
-    if (name === 'email') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (value && !emailRegex.test(value)) error = 'Please enter a valid email address';
-    }
-    setFieldErrors(prev => ({ ...prev, [name]: error }));
-    return error;
+  const handleResetPassword = (c) => {
+    setPasswordResetModal({ show: true, caretaker: c, loading: false, tempPassword: '' });
+    setSelectedCaretaker(null);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    if (typeof setCaretakerForm === 'function') {
-      setCaretakerForm(prev => ({ ...prev, [name]: value }));
+  const confirmResetPassword = async () => {
+    const { caretaker } = passwordResetModal;
+    setPasswordResetModal((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await api.post(`/landlord/caretakers/${caretaker.id}/reset-password`);
+      setPasswordResetModal((prev) => ({
+        ...prev,
+        loading: false,
+        tempPassword: res.data.temporary_password,
+      }));
+      toast.success('Password has been reset');
+    } catch {
+      toast.error('Failed to reset password');
+      setPasswordResetModal((prev) => ({ ...prev, loading: false }));
     }
-    validateField(name, value);
   };
 
   const handleRevokeConfirm = async () => {
@@ -532,7 +687,6 @@ export default function CareTakerAccess({
       toast.error('Please provide a reason for revocation');
       return;
     }
-
     try {
       await handleRevokeCaretaker(revocationModal.caretaker.id, revocationModal.reason);
       setRevocationModal({ show: false, caretaker: null, reason: '' });
@@ -543,464 +697,467 @@ export default function CareTakerAccess({
     }
   };
 
-  const handlePermissionFieldToggle = (key) => {
-    const isEnabling = !safePermissions[key];
-    if (isEnabling && isLandlordLevelPermission(key)) {
-      requestPermissionPrompt(key, 'create');
-      return;
-    }
+  // Active permissions/props for the current modal mode
+  const activePermissions = modalMode === 'create' ? safePermissions : editFormData.permissions;
+  const isModalOpen = modalMode !== 'closed';
 
-    if (typeof handlePermissionToggle === 'function') {
-      handlePermissionToggle(key);
-    }
-  };
+  // ── Shared permission section (used in both create step-2 and edit) ──────
+  const renderPermissionSection = () => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {MODULE_GROUPS.map((group) => (
+          <PermissionGroupCard
+            key={group.title}
+            group={group}
+            permissions={activePermissions}
+            onToggleAll={handleGroupToggleAll}
+            onToggleSingle={handleSinglePermissionToggle}
+            expandedGroups={expandedGroups}
+            setExpandedGroups={setExpandedGroups}
+          />
+        ))}
+      </div>
 
-  const confirmPermissionGrant = () => {
-    if (permissionPrompt.isBulk) {
-      applyBulkPermissions(permissionPrompt.keys, true, permissionPrompt.target);
-    } else {
-      const { key, target } = permissionPrompt;
-      if (target === 'create') {
-        handlePermissionToggle(key, true);
-      } else {
-        setEditFormData(prev => ({
-          ...prev,
-          permissions: { ...prev.permissions, [key]: true }
-        }));
-      }
-    }
-    closePermissionPrompt();
-  };
+      {/* Global Select All — below all groups, with warning notice */}
+      {(() => {
+        const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
+        const allSelected = allKeys.every((k) => !!activePermissions[k]);
+        const target = modalMode === 'create' ? 'create' : 'edit';
+        return (
+          <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-xl flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <p className="text-[11px] font-semibold leading-snug">
+                Selecting all grants full landlord-level access to this caretaker.
+              </p>
+            </div>
+            <button
+              onClick={() => handleGlobalSelectAll(target, activePermissions)}
+              className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all whitespace-nowrap ${
+                allSelected
+                  ? 'bg-red-600 text-white border-red-600 hover:bg-red-700'
+                  : 'bg-amber-600 text-white border-amber-600 hover:bg-amber-700'
+              }`}
+            >
+              {allSelected ? '✕ Deselect All' : '✓ Select All'}
+            </button>
+          </div>
+        );
+      })()}
+    </div>
+  );
 
-  const promptedPermission = CARETAKER_PERMISSION_FIELDS.find((field) => field.key === permissionPrompt.key);
-  const promptedPermissionLabel = promptedPermission?.label || 'this module';
-  const promptedPermissionMessage = LANDLORD_LEVEL_PERMISSION_MESSAGES[permissionPrompt.key]
-    || 'Enabling this grants landlord-level access. Please confirm before proceeding.';
+  const renderPropertySection = (propertyIds, onToggle, hasError) => (
+    safeProperties.length > 0 && (
+      <div
+        className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${
+          hasError
+            ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800'
+            : ''
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <h3
+            className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${
+              hasError ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
+            }`}
+          >
+            <Building2 className="w-4 h-4" /> Assigned Properties
+          </h3>
+          {hasError && (
+            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-2 animate-pulse">
+              <AlertCircle className="w-3 h-3" /> At least one property required
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {safeProperties.map((property) => {
+            const selected = propertyIds.includes(property.id);
+            return (
+              <label
+                key={property.id}
+                className={`flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none ${
+                  selected
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
+                    : hasError
+                    ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-900/50 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
+                    : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-gray-600'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => onToggle(property.id)}
+                  className="hidden"
+                />
+                <span className="whitespace-nowrap">
+                  {property.name || property.title || 'Unnamed Property'}
+                </span>
+                <Building2
+                  className={`w-4 h-4 shrink-0 ${selected ? 'text-emerald-100' : 'text-gray-500'}`}
+                />
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    )
+  );
 
-  const handleRegister = async (ev) => {
-    if (ev && ev.preventDefault) ev.preventDefault();
-
-    // Final check for errors
-    const errors = {
-      first_name: validateField('first_name', safeForm.first_name),
-      last_name: validateField('last_name', safeForm.last_name),
-      email: validateField('email', safeForm.email),
-      phone: validateField('phone', safeForm.phone),
-    };
-
-    if (Object.values(errors).some(err => err !== '')) {
-      toast.error('Please fix the errors before submitting');
-      return;
-    }
-
-    if (!safeForm.first_name || !safeForm.last_name || !safeForm.email) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    if (!safeForm.password) {
-      toast.error('Password is required when creating a caretaker');
-      return;
-    }
-
-    if (safeProperties.length > 0 && safeSelectedIds.length === 0) {
-      toast.error("Please assign a property to the caretaker");
-      setPropertyError(true);
-      return;
-    }
-    setPropertyError(false);
-
-    if (safeForm.password && safeForm.password !== safeForm.password_confirmation) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    try {
-      await handleCreateCaretaker();
-      resetCreationForm();
-      setShowPasswords(false);
-      setCreateStep(1);
-      setShowCreateModal(false);
-      if (typeof fetchCaretakers === 'function') {
-        fetchCaretakers();
-      }
-    } catch {
-      // Error handled by parent
-    }
-  };
-
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <>
       <div className="space-y-8 animate-in fade-in duration-500">
-        {showCreateModal && (
+        {/* ── Unified Create / Edit Modal ────────────────────────────────── */}
+        {isModalOpen && (
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4"
-            onClick={closeCreateModal}
+            onClick={closeModal}
           >
             <div
               className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
+              {/* Modal header */}
               <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add New Caretaker</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Step-by-step setup for personal details, modules, and property assignment.</p>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {modalMode === 'create' ? 'Add New Caretaker' : 'Edit Caretaker'}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {modalMode === 'create'
+                      ? 'Step-by-step setup for personal details, modules, and property assignment.'
+                      : 'Update permissions and property assignments for this caretaker.'}
+                  </p>
                 </div>
                 <button
-                  onClick={closeCreateModal}
+                  onClick={closeModal}
                   className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
                 >
                   <XCircle className="w-6 h-6 text-gray-500" />
                 </button>
               </div>
 
-              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
-                <span className={`px-3 py-1 rounded-full ${createStep === 1 ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
-                  1. Personal Details
-                </span>
-                <span className="text-gray-400">&gt;</span>
-                <span className={`px-3 py-1 rounded-full ${createStep === 2 ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
-                  2. Modules and Properties
-                </span>
-              </div>
+              {/* Step bar — only for create */}
+              {modalMode === 'create' && <StepBar step={createStep} />}
 
-              <div className="p-6 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-8">
-                {createStep === 1 && (
-                  <section className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                      <Users className="w-4 h-4" /> Personal Information
-                    </h3>
-
-                    {Object.values(fieldErrors).some((err) => err !== '') && (
-                      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-2xl animate-in slide-in-from-top-2 duration-300">
-                        <div className="flex gap-4">
-                          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              {/* Scrollable body */}
+              <div className="p-6 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-6">
+                {/* ── STEP 1 / Edit identity form ── */}
+                {(modalMode === 'create' ? createStep === 1 : true) && (
+                  <>
+                    {/* For edit: personal info first */}
+                    {modalMode === 'edit' && (
+                      <section className="space-y-4">
+                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                          <Users className="w-4 h-4" /> Personal Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {[
+                            { label: 'First Name', key: 'first_name' },
+                            { label: 'Middle Name', key: 'middle_name' },
+                            { label: 'Last Name', key: 'last_name' },
+                            { label: 'Email Address', key: 'email', type: 'email' },
+                            { label: 'Phone (Optional)', key: 'phone' },
+                          ].map(({ label, key, type = 'text' }) => (
+                            <div key={key} className="space-y-2">
+                              <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                                {label}
+                              </label>
+                              <input
+                                type={type}
+                                value={editFormData[key]}
+                                onChange={(e) =>
+                                  setEditFormData((prev) => ({ ...prev, [key]: e.target.value }))
+                                }
+                                className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                              />
+                            </div>
+                          ))}
                           <div className="space-y-2">
-                            <p className="text-sm font-bold text-red-800 dark:text-red-300">Please correct the following:</p>
-                            <ul className="list-disc list-inside text-xs text-red-700 dark:text-red-400 space-y-0.5">
-                              {Object.entries(fieldErrors).map(([key, err]) => err && (
-                                <li key={key}>{err}</li>
-                              ))}
-                            </ul>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                              Date of Birth
+                            </label>
+                            <input
+                              type="date"
+                              value={editFormData.date_of_birth}
+                              onChange={(e) =>
+                                setEditFormData((prev) => ({ ...prev, date_of_birth: e.target.value }))
+                              }
+                              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                            />
                           </div>
                         </div>
-                      </div>
-                    )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2.5">
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">First Name</label>
-                        <input
-                          name="first_name"
-                          type="text"
-                          placeholder="e.g. John"
-                          value={safeForm.first_name}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.first_name ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
-                        />
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Middle Name (Optional)</label>
-                        <input
-                          name="middle_name"
-                          type="text"
-                          placeholder="e.g. Quency"
-                          value={safeForm.middle_name}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.middle_name ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
-                        />
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Last Name</label>
-                        <input
-                          name="last_name"
-                          type="text"
-                          placeholder="e.g. Doe"
-                          value={safeForm.last_name}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.last_name ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
-                        />
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Email Address</label>
-                        <input
-                          name="email"
-                          type="email"
-                          placeholder="caretaker@example.com"
-                          value={safeForm.email}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.email ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
-                        />
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Phone (Optional)</label>
-                        <input
-                          name="phone"
-                          type="text"
-                          placeholder="09123456789"
-                          value={safeForm.phone}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.phone ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
-                        />
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Date of Birth (Optional)</label>
-                        <input
-                          name="date_of_birth"
-                          type="date"
-                          value={safeForm.date_of_birth}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.date_of_birth ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
-                        />
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Account Password</label>
-                        <div className="relative">
-                          <input
-                            type={showPasswords ? 'text' : 'password'}
-                            placeholder="••••••••"
-                            value={safeForm.password}
-                            onChange={(e) => setCaretakerForm && setCaretakerForm((f) => ({ ...f, password: e.target.value }))}
-                            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPasswords(!showPasswords)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                          >
-                            {showPasswords ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Confirm Password</label>
-                        <div className="relative">
-                          <input
-                            type={showPasswords ? 'text' : 'password'}
-                            placeholder="••••••••"
-                            value={safeForm.password_confirmation}
-                            onChange={(e) => setCaretakerForm && setCaretakerForm((f) => ({ ...f, password_confirmation: e.target.value }))}
-                            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPasswords(!showPasswords)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                          >
-                            {showPasswords ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                )}
-
-                {createStep === 2 && (
-                  <>
-                    <section className="space-y-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                          <Shield className="w-4 h-4" /> Module Permissions
-                        </h3>
-                        {(() => {
-                          const allKeys = CARETAKER_PERMISSION_FIELDS.map(f => f.key);
-                          const allSelected = allKeys.every(k => !!safePermissions[k]);
-                          return (
-                            <button
-                              onClick={() => handleGlobalSelectAll('create', safePermissions)}
-                              className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all ${allSelected ? 'bg-red-600 text-white border-red-600 hover:bg-red-700' : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'}`}
-                            >
-                              {allSelected ? '✕ Deselect All' : '✓ Select All'}
-                            </button>
-                          );
-                        })()}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {MODULE_GROUPS.map((group) => {
-                          const isExpanded = expandedGroups.includes(group.title);
-                          const groupFields = CARETAKER_PERMISSION_FIELDS.filter(f => group.keys.includes(f.key));
-                          const activeCount = groupFields.filter(f => !!safePermissions[f.key]).length;
-                          const isModuleActive = activeCount > 0;
-
-                          const toggleGroup = () => {
-                            setExpandedGroups(prev => 
-                              prev.includes(group.title) 
-                                ? prev.filter(t => t !== group.title) 
-                                : [...prev, group.title]
-                            );
-                          };
-
-                          return (
-                            <div key={group.title} className={`rounded-2xl overflow-hidden border-2 transition-all duration-200 ${
-                              isModuleActive
-                                ? 'border-emerald-500 shadow-lg shadow-emerald-100 dark:shadow-emerald-900/20'
-                                : 'border-gray-200 dark:border-gray-700'
-                            }`}>
-                              {/* Card Header — always visible */}
-                              <div className={`flex items-center transition-colors ${
-                                isModuleActive
-                                  ? 'bg-emerald-600 dark:bg-emerald-700'
-                                  : 'bg-white dark:bg-gray-800'
-                              }`}>
-                                {/* Left: checkbox + icon + title — toggles all */}
+                        {/* Password change section */}
+                        <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-2xl space-y-3">
+                          <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                            Change Password (leave blank to keep current)
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[
+                              { placeholder: 'New password', key: 'password' },
+                              { placeholder: 'Confirm new password', key: 'password_confirmation' },
+                            ].map(({ placeholder, key }) => (
+                              <div key={key} className="relative">
+                                <input
+                                  type={showPasswords ? 'text' : 'password'}
+                                  placeholder={placeholder}
+                                  value={editFormData[key]}
+                                  onChange={(e) =>
+                                    setEditFormData((prev) => ({ ...prev, [key]: e.target.value }))
+                                  }
+                                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all pr-10"
+                                />
                                 <button
-                                  onClick={(e) => handleGroupSelectAll(e, group.keys, 'create', safePermissions)}
-                                  className="flex-1 flex items-center gap-3 p-4 text-left"
+                                  type="button"
+                                  onClick={() => setShowPasswords((v) => !v)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                                 >
-                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                                    isModuleActive
-                                      ? 'bg-white border-white'
-                                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                                  }`}>
-                                    {isModuleActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                                  </div>
-                                  <div className={`p-1.5 rounded-lg ${
-                                    isModuleActive ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'
-                                  }`}>
-                                    <span className={isModuleActive ? 'text-white' : 'text-gray-500 dark:text-gray-400'}>
-                                      {group.icon}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <p className={`font-bold text-sm ${ isModuleActive ? 'text-white' : 'text-gray-900 dark:text-white'}`}>{group.title}</p>
-                                    <p className={`text-[10px] font-semibold ${ isModuleActive ? 'text-emerald-100' : 'text-gray-400 dark:text-gray-500'}`}>
-                                      {activeCount}/{groupFields.length} active
-                                    </p>
-                                  </div>
-                                </button>
-                                {/* Right: expand arrow only */}
-                                <button
-                                  onClick={toggleGroup}
-                                  className={`p-4 border-l transition-colors ${
-                                    isModuleActive
-                                      ? 'border-emerald-500/40 hover:bg-emerald-700/50 text-white'
-                                      : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-400'
-                                  }`}
-                                >
-                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                  {showPasswords ? (
+                                    <EyeOff className="w-4 h-4" />
+                                  ) : (
+                                    <Eye className="w-4 h-4" />
+                                  )}
                                 </button>
                               </div>
-
-                              {/* Expanded sub-perms */}
-                              {isExpanded && (
-                                <div className="bg-gray-50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700">
-                                  {groupFields.map((field, idx) => {
-                                    const isChecked = !!safePermissions[field.key];
-                                    return (
-                                      <label
-                                        key={field.key}
-                                        className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
-                                          idx < groupFields.length - 1 ? 'border-b border-gray-100 dark:border-gray-700/60' : ''
-                                        } ${
-                                          isChecked
-                                            ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
-                                            : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                                        }`}
-                                      >
-                                        <div className="pr-4">
-                                          <p className={`text-[13px] font-semibold ${ isChecked ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>{field.label}</p>
-                                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{field.description}</p>
-                                        </div>
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          onChange={() => handlePermissionFieldToggle(field.key)}
-                                          className="w-4 h-4 accent-emerald-600 cursor-pointer flex-shrink-0 rounded"
-                                        />
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </section>
-
-                    {safeProperties.length > 0 && (
-                      <section className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${propertyError
-                          ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800'
-                          : ''
-                        }`}>
-                        <div className="flex items-center justify-between">
-                          <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${propertyError ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
-                            }`}>
-                            <Building2 className="w-4 h-4" /> Assigned Properties
-                          </h3>
-                          {propertyError && (
-                            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-2 animate-pulse">
-                              <AlertCircle className="w-3 h-3" /> Still didn't assign a property
-                            </span>
-                          )}
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-4">
-                          {safeProperties.map((property) => (
-                            <label
-                              key={property.id}
-                              className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${safeSelectedIds.includes(property.id)
-                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
-                                  : propertyError
-                                    ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-900/50 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
-                                    : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-gray-600'
-                                }`}
-                            >
+                      </section>
+                    )}
+
+                    {/* Create step 1 — personal info */}
+                    {modalMode === 'create' && (
+                      <section className="space-y-4">
+                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                          <Users className="w-4 h-4" /> Personal Information
+                        </h3>
+
+                        {Object.values(fieldErrors).some((err) => err !== '') && (
+                          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-2xl animate-in slide-in-from-top-2 duration-300">
+                            <div className="flex gap-3">
+                              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                              <div className="space-y-1">
+                                <p className="text-sm font-bold text-red-800 dark:text-red-300">
+                                  Please correct the following:
+                                </p>
+                                <ul className="list-disc list-inside text-xs text-red-700 dark:text-red-400 space-y-0.5">
+                                  {Object.entries(fieldErrors).map(
+                                    ([key, err]) => err && <li key={key}>{err}</li>,
+                                  )}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {[
+                            { label: 'First Name', name: 'first_name', placeholder: 'e.g. John' },
+                            { label: 'Middle Name (Optional)', name: 'middle_name', placeholder: 'e.g. Quency' },
+                            { label: 'Last Name', name: 'last_name', placeholder: 'e.g. Doe' },
+                            { label: 'Email Address', name: 'email', type: 'email', placeholder: 'caretaker@example.com' },
+                            { label: 'Phone (Optional)', name: 'phone', placeholder: '09123456789' },
+                          ].map(({ label, name, type = 'text', placeholder }) => (
+                            <div key={name} className="space-y-2">
+                              <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                                {label}
+                              </label>
                               <input
-                                type="checkbox"
-                                checked={safeSelectedIds.includes(property.id)}
-                                onChange={(event) => {
-                                  if (typeof setSelectedPropertyIds === 'function') {
-                                    setPropertyError(false);
-                                    if (event.target.checked) {
-                                      setSelectedPropertyIds((ids) => [...(ids || []), property.id]);
-                                    } else {
-                                      setSelectedPropertyIds((ids) => (ids || []).filter((id) => id !== property.id));
-                                    }
-                                  }
-                                }}
-                                className="hidden"
+                                name={name}
+                                type={type}
+                                placeholder={placeholder}
+                                value={safeForm[name]}
+                                onChange={handleInputChange}
+                                className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${
+                                  fieldErrors[name]
+                                    ? 'border-red-500 ring-red-50'
+                                    : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'
+                                }`}
                               />
-                              <span className="whitespace-nowrap">{property.name || property.title || 'Unnamed Property'}</span>
-                              <Building2 className={`w-4 h-4 shrink-0 ${safeSelectedIds.includes(property.id) ? 'text-emerald-100' : 'text-gray-500'}`} />
+                            </div>
+                          ))}
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                              Date of Birth (Optional)
                             </label>
+                            <input
+                              name="date_of_birth"
+                              type="date"
+                              value={safeForm.date_of_birth}
+                              onChange={handleInputChange}
+                              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                            />
+                          </div>
+
+                          {/* Password fields */}
+                          {[
+                            { label: 'Account Password', field: 'password' },
+                            { label: 'Confirm Password', field: 'password_confirmation' },
+                          ].map(({ label, field }) => (
+                            <div key={field} className="space-y-2">
+                              <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                                {label}
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type={showPasswords ? 'text' : 'password'}
+                                  placeholder="••••••••"
+                                  value={safeForm[field]}
+                                  onChange={(e) =>
+                                    setCaretakerForm &&
+                                    setCaretakerForm((f) => ({ ...f, [field]: e.target.value }))
+                                  }
+                                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPasswords((v) => !v)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                >
+                                  {showPasswords ? (
+                                    <EyeOff className="w-4 h-4" />
+                                  ) : (
+                                    <Eye className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </section>
                     )}
                   </>
                 )}
+
+                {/* ── STEP 2 / Edit permissions ── */}
+                {(modalMode === 'create' ? createStep === 2 : true) && (
+                  <>
+                    {modalMode === 'create' ? (
+                      /* Two-panel layout for create step 2 */
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left: permissions */}
+                        <div className="lg:col-span-2 space-y-4">
+                          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <Shield className="w-4 h-4" /> Module Permissions
+                          </h3>
+                          {renderPermissionSection()}
+                        </div>
+
+                        {/* Right: property selector (sticky) */}
+                        <div className="lg:col-span-1">
+                          <div className="sticky top-0 space-y-3">
+                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                              <Building2 className="w-4 h-4" /> Assigned Properties
+                            </h3>
+                            {renderPropertySection(
+                              safeSelectedIds,
+                              (id) => {
+                                setPropertyError(false);
+                                if (typeof setSelectedPropertyIds === 'function') {
+                                  setSelectedPropertyIds((ids) =>
+                                    ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id],
+                                  );
+                                }
+                              },
+                              propertyError,
+                            )}
+                            {safeProperties.length === 0 && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                                No properties available. You can add properties later.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Edit: two-panel as well */
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 space-y-4">
+                          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <Shield className="w-4 h-4" /> Module Permissions
+                          </h3>
+                          {renderPermissionSection()}
+                        </div>
+                        <div className="lg:col-span-1">
+                          <div className="sticky top-0 space-y-3">
+                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                              <Building2 className="w-4 h-4" /> Assigned Properties
+                            </h3>
+                            {renderPropertySection(
+                              editFormData.property_ids,
+                              (id) => {
+                                const ids = [...editFormData.property_ids];
+                                const idx = ids.indexOf(id);
+                                if (idx > -1) ids.splice(idx, 1);
+                                else ids.push(id);
+                                setEditFormData((prev) => ({ ...prev, property_ids: ids }));
+                              },
+                              editFormData.property_ids.length === 0,
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
+              {/* Footer */}
               <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex gap-4">
-                {createStep === 1 ? (
+                {modalMode === 'create' && createStep === 1 && (
                   <>
                     <button
-                      onClick={closeCreateModal}
+                      onClick={closeModal}
                       className="flex-1 py-4 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleCreateStepNext}
-                      className="flex-[2] py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2"
+                      className="flex-[2] py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none"
                     >
-                      Next: Modules and Properties
+                      Next: Permissions & Properties →
                     </button>
                   </>
-                ) : (
+                )}
+                {modalMode === 'create' && createStep === 2 && (
                   <>
                     <button
                       onClick={() => setCreateStep(1)}
                       className="flex-1 py-4 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all"
                     >
-                      Back
+                      ← Back
                     </button>
                     <button
                       className="flex-[2] py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50"
                       onClick={handleRegister}
                       disabled={safeState.loading}
                     >
-                      {safeState.loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                      {safeState.loading ? 'Creating Account...' : 'Confirm and Add Caretaker'}
+                      {safeState.loading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Plus className="w-5 h-5" />
+                      )}
+                      {safeState.loading ? 'Creating...' : 'Confirm & Add Caretaker'}
+                    </button>
+                  </>
+                )}
+                {modalMode === 'edit' && (
+                  <>
+                    <button
+                      onClick={closeModal}
+                      className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpdateSubmit}
+                      className="flex-[2] py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 className="w-5 h-5" /> Save Changes
                     </button>
                   </>
                 )}
@@ -1009,7 +1166,7 @@ export default function CareTakerAccess({
           </div>
         )}
 
-        {/* List Card */}
+        {/* ── Caretaker List Card ────────────────────────────────────────── */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -1018,16 +1175,16 @@ export default function CareTakerAccess({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Current Caretakers</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{safeCaretakers.length} active staff members</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {safeCaretakers.length} active staff members
+                </p>
               </div>
             </div>
-
             <button
               onClick={openCreateModal}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-bold text-sm transition-all shadow-lg shadow-emerald-200 dark:shadow-none"
             >
-              <Plus className="w-4 h-4" />
-              Add CareTaker
+              <Plus className="w-4 h-4" /> Add Caretaker
             </button>
           </div>
 
@@ -1041,7 +1198,9 @@ export default function CareTakerAccess({
               <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-4">
                 <Users className="w-16 h-16 text-gray-200" />
                 <p className="font-medium text-lg">No caretakers assigned yet</p>
-                <p className="text-sm max-w-xs">Once you add staff members, they will appear here with their assigned properties.</p>
+                <p className="text-sm max-w-xs">
+                  Once you add staff members, they will appear here with their assigned properties.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto no-scrollbar">
@@ -1060,9 +1219,15 @@ export default function CareTakerAccess({
                       const name = `${obj.first_name || ''} ${obj.last_name || ''}`.trim() || 'Staff Member';
                       const assigned = Array.isArray(c?.assigned_properties) ? c.assigned_properties : [];
                       const profileImage = obj.profile_image;
+                      const activeCount = countActivePermissions(c.permissions || {});
+                      const permSummary = humanizePermissions(c.permissions || {});
 
                       return (
-                        <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                        <tr
+                          key={c.id}
+                          className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors"
+                        >
+                          {/* Identity */}
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-4">
                               {profileImage ? (
@@ -1077,32 +1242,61 @@ export default function CareTakerAccess({
                                 </div>
                               )}
                               <div>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">{name}</p>
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">{obj.email}</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">
+                                  {name}
+                                </p>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                  {obj.email}
+                                </p>
                               </div>
                             </div>
                           </td>
+
+                          {/* Assigned properties */}
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-2">
-                              {assigned.length > 0 ? assigned.map(p => (
-                                <span key={p.id} className="inline-flex items-center gap-2.5 px-2.5 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold border border-gray-200 dark:border-gray-600 shadow-sm">
-                                  <Building2 className="w-3 h-3 text-gray-500" />
-                                  {p.name || p.title}
-                                </span>
-                              )) : (
-                                <span className="text-xs text-amber-600 font-bold flex items-center gap-2">
+                              {assigned.length > 0 ? (
+                                assigned.map((p) => (
+                                  <span
+                                    key={p.id}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold border border-gray-200 dark:border-gray-600"
+                                  >
+                                    <Building2 className="w-3 h-3 text-gray-500" />
+                                    {p.name || p.title}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-xs text-amber-600 font-bold flex items-center gap-1.5">
                                   <AlertCircle className="w-3.5 h-3.5" /> No assignment
                                 </span>
                               )}
                             </div>
                           </td>
+
+                          {/* Permissions — humanized summary */}
                           <td className="px-6 py-4">
-                            <div className="flex gap-2.5">
-                              {Object.entries(c.permissions || {}).map(([key, val]) => (
-                                <div key={key} title={key} className={`w-2 h-2 rounded-full ${val ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-600'}`} />
-                              ))}
+                            <div className="space-y-1.5">
+                              <p
+                                className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate max-w-[180px]"
+                                title={permSummary}
+                              >
+                                {permSummary}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500 rounded-full transition-all"
+                                    style={{ width: `${(activeCount / TOTAL_PERMISSIONS) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                                  {activeCount}/{TOTAL_PERMISSIONS}
+                                </span>
+                              </div>
                             </div>
                           </td>
+
+                          {/* Actions */}
                           <td className="px-6 py-4 text-right">
                             <button
                               onClick={() => setSelectedCaretaker(c)}
@@ -1122,11 +1316,10 @@ export default function CareTakerAccess({
         </div>
       </div>
 
-      {/* Caretaker Details Modal */}
+      {/* ── Caretaker Details Modal ──────────────────────────────────────── */}
       {selectedCaretaker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
             <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Caretaker Details</h3>
               <button
@@ -1137,12 +1330,8 @@ export default function CareTakerAccess({
               </button>
             </div>
 
-            {/* Scrollable Content */}
             <div className="p-8 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-8">
-              {/* Identity Section - Vertical Split with 2 column base */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 bg-gray-50/50 dark:bg-gray-700/30 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-700">
-
-                {/* Left Column: Picture & Name (Stacked) */}
                 <div className="flex flex-col items-center justify-center space-y-6 text-center">
                   <div className="relative group">
                     {selectedCaretaker.caretaker?.profile_image ? (
@@ -1158,92 +1347,81 @@ export default function CareTakerAccess({
                     )}
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-[0.2em] mb-2">Caretaker Account</p>
+                    <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-[0.2em] mb-2">
+                      Caretaker Account
+                    </p>
                     <h3 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
                       {selectedCaretaker.caretaker?.first_name} {selectedCaretaker.caretaker?.last_name}
                     </h3>
                   </div>
                 </div>
 
-                {/* Right Column: Key Details */}
                 <div className="flex flex-col justify-center space-y-6 border-l border-gray-200 dark:border-gray-600 md:pl-10">
-                  <div className="flex items-center gap-4 group">
-                    <div className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 group-hover:scale-110 transition-transform">
-                      <Mail className="w-5 h-5 text-emerald-600" />
+                  {[
+                    { icon: <Mail className="w-5 h-5 text-emerald-600" />, label: 'Email Address', value: selectedCaretaker.caretaker?.email },
+                    { icon: <Phone className="w-5 h-5 text-emerald-600" />, label: 'Phone Number', value: selectedCaretaker.caretaker?.phone || 'Not provided' },
+                    { icon: <User className="w-5 h-5 text-emerald-600" />, label: 'Sex', value: selectedCaretaker.caretaker?.sex || 'Not specified' },
+                    {
+                      icon: <Calendar className="w-5 h-5 text-emerald-600" />,
+                      label: 'Current Age',
+                      value: selectedCaretaker.caretaker?.date_of_birth
+                        ? `${Math.floor((new Date() - new Date(selectedCaretaker.caretaker.date_of_birth)) / 31557600000)} Years Old`
+                        : 'Not provided',
+                    },
+                  ].map(({ icon, label, value }) => (
+                    <div key={label} className="flex items-center gap-4 group">
+                      <div className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 group-hover:scale-110 transition-transform">
+                        {icon}
+                      </div>
+                      <div className="flex flex-col">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</p>
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200 capitalize truncate">
+                          {value}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Email Address</p>
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200 truncate">{selectedCaretaker.caretaker?.email}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 group">
-                    <div className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 group-hover:scale-110 transition-transform">
-                      <Phone className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Phone Number</p>
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{selectedCaretaker.caretaker?.phone || 'Not provided'}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 group">
-                    <div className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 group-hover:scale-110 transition-transform">
-                      <User className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sex</p>
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200 capitalize">{selectedCaretaker.caretaker?.sex || 'Not specified'}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 group">
-                    <div className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 group-hover:scale-110 transition-transform">
-                      <Calendar className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Current Age</p>
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                        {selectedCaretaker.caretaker?.date_of_birth
-                          ? `${Math.floor((new Date() - new Date(selectedCaretaker.caretaker.date_of_birth)) / 31557600000)} Years Old`
-                          : 'Not provided'}
-                      </span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Permissions Section */}
+              {/* Permissions in details modal — humanized */}
               <div className="space-y-4">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                   <Shield className="w-3 h-3" /> Module Permissions
                 </p>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {Object.entries(selectedCaretaker.permissions || {})
-                    .map(([key, val]) => (
+                  {CARETAKER_PERMISSION_FIELDS.map((field) => {
+                    const val = !!(selectedCaretaker.permissions || {})[field.key];
+                    return (
                       <div
-                        key={key}
-                        className={`flex items-center gap-2 p-4 rounded-2xl border text-xs font-bold transition-all ${val
+                        key={field.key}
+                        className={`flex items-center gap-2 p-4 rounded-2xl border text-xs font-bold transition-all ${
+                          val
                             ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 text-green-700 dark:text-green-400'
-                            : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700 text-gray-500'
-                          }`}
+                            : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700 text-gray-400'
+                        }`}
                       >
                         {val ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                        <span className="capitalize">{key}</span>
+                        <span>{field.label}</span>
                       </div>
-                    ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Properties Section in Modal */}
+              {/* Properties in details modal */}
               <div className="space-y-4">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                   <Building2 className="w-3 h-3" /> Managed Properties
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {Array.isArray(selectedCaretaker.assigned_properties) && selectedCaretaker.assigned_properties.length > 0 ? (
-                    selectedCaretaker.assigned_properties.map(p => (
-                      <div key={p.id} className="flex items-center gap-4 p-6 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-[1.25rem] shadow-sm hover:border-emerald-200 dark:hover:border-emerald-900/50 transition-colors group">
+                  {Array.isArray(selectedCaretaker.assigned_properties) &&
+                  selectedCaretaker.assigned_properties.length > 0 ? (
+                    selectedCaretaker.assigned_properties.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-4 p-6 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-[1.25rem] shadow-sm hover:border-emerald-200 dark:hover:border-emerald-900/50 transition-colors group"
+                      >
                         <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                           <Building2 className="w-6 h-6 text-emerald-600" />
                         </div>
@@ -1254,47 +1432,32 @@ export default function CareTakerAccess({
                     ))
                   ) : (
                     <div className="col-span-full p-8 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-3xl text-center">
-                      <p className="text-sm text-amber-600 dark:text-amber-400 font-bold italic">No properties assigned to this caretaker.</p>
+                      <p className="text-sm text-amber-600 dark:text-amber-400 font-bold italic">
+                        No properties assigned to this caretaker.
+                      </p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Modal Footer */}
+            {/* Details modal footer */}
             <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 grid grid-cols-2 sm:grid-cols-5 gap-4">
-              <button
-                onClick={() => handleMessageCaretaker(selectedCaretaker)}
-                className="py-4 px-2 rounded-2xl border border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-all flex flex-col items-center justify-center gap-2"
-                title="Message Caretaker"
-              >
-                <Mail className="w-4 h-4" />
-                <span className="text-[10px]">Message</span>
-              </button>
-              <button
-                onClick={() => handleResetPassword(selectedCaretaker)}
-                className="py-4 px-2 rounded-2xl border border-amber-200 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all flex flex-col items-center justify-center gap-2"
-                title="Reset Password"
-              >
-                <Key className="w-4 h-4" />
-                <span className="text-[10px]">Reset Key</span>
-              </button>
-              <button
-                onClick={() => handleEditClick(selectedCaretaker)}
-                className="py-4 px-2 rounded-2xl border border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-all flex flex-col items-center justify-center gap-2"
-                title="Edit Details"
-              >
-                <Plus className="w-4 h-4 rotate-45" />
-                <span className="text-[10px]">Edit</span>
-              </button>
-              <button
-                onClick={() => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' })}
-                className="py-4 px-2 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex flex-col items-center justify-center gap-2"
-                title="Revoke Access"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span className="text-[10px]">Revoke</span>
-              </button>
+              {[
+                { label: 'Message', icon: <Mail className="w-4 h-4" />, onClick: () => handleMessageCaretaker(selectedCaretaker), cls: 'border border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30' },
+                { label: 'Reset Key', icon: <Key className="w-4 h-4" />, onClick: () => handleResetPassword(selectedCaretaker), cls: 'border border-amber-200 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30' },
+                { label: 'Edit', icon: <KeyRound className="w-4 h-4" />, onClick: () => handleEditClick(selectedCaretaker), cls: 'border border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30' },
+                { label: 'Revoke', icon: <Trash2 className="w-4 h-4" />, onClick: () => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' }), cls: 'border-2 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' },
+              ].map(({ label, icon, onClick, cls }) => (
+                <button
+                  key={label}
+                  onClick={onClick}
+                  className={`py-4 px-2 rounded-2xl font-bold transition-all flex flex-col items-center justify-center gap-2 ${cls}`}
+                >
+                  {icon}
+                  <span className="text-[10px]">{label}</span>
+                </button>
+              ))}
               <button
                 onClick={() => setSelectedCaretaker(null)}
                 className="py-4 px-2 rounded-2xl bg-gray-900 dark:bg-green-600 text-white font-bold hover:bg-black dark:hover:bg-green-700 transition-all shadow-lg shadow-gray-200 dark:shadow-none flex flex-col items-center justify-center gap-2 col-span-2 sm:col-span-1"
@@ -1307,7 +1470,7 @@ export default function CareTakerAccess({
         </div>
       )}
 
-      {/* Revocation Reason Modal */}
+      {/* ── Revocation Modal ─────────────────────────────────────────────── */}
       {revocationModal.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1318,12 +1481,17 @@ export default function CareTakerAccess({
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Revoke Access</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Are you sure you want to remove <span className="font-bold text-gray-900 dark:text-white">{revocationModal.caretaker?.caretaker?.first_name}</span>? This action is permanent.
+                  Are you sure you want to remove{' '}
+                  <span className="font-bold text-gray-900 dark:text-white">
+                    {revocationModal.caretaker?.caretaker?.first_name}
+                  </span>
+                  ? This action is permanent.
                 </p>
               </div>
-
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-2">Reason for Revocation</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-2">
+                  Reason for Revocation
+                </label>
                 <textarea
                   value={revocationModal.reason}
                   onChange={(e) => setRevocationModal({ ...revocationModal, reason: e.target.value })}
@@ -1331,7 +1499,6 @@ export default function CareTakerAccess({
                   className="w-full px-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-red-500 transition-all min-h-[100px]"
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <button
                   onClick={() => setRevocationModal({ show: false, caretaker: null, reason: '' })}
@@ -1351,7 +1518,7 @@ export default function CareTakerAccess({
         </div>
       )}
 
-      {/* Permission Modal */}
+      {/* ── Security / Permission Alert Modal ───────────────────────────── */}
       {permissionPrompt.open && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100001] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1363,10 +1530,15 @@ export default function CareTakerAccess({
                 {permissionPrompt.isBulk ? 'Bulk Access Grant' : 'Landlord-Level Access'}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {permissionPrompt.isBulk 
+                {permissionPrompt.isBulk
                   ? 'You are enabling multiple sensitive features. This grants this caretaker elevated control over bookings, payments, and system settings. Are you sure?'
-                  : <>Enabling <span className="font-bold text-gray-900 dark:text-white">{promptedPermissionLabel}</span> grants elevated landlord-level permissions.<br />{promptedPermissionMessage}</>
-                }
+                  : (
+                    <>
+                      Enabling <span className="font-bold text-gray-900 dark:text-white">{promptedPermissionLabel}</span> grants elevated landlord-level permissions.
+                      <br />
+                      {promptedPermissionMessage}
+                    </>
+                  )}
               </p>
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <button
@@ -1387,295 +1559,7 @@ export default function CareTakerAccess({
         </div>
       )}
 
-      {/* Edit Caretaker Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Caretaker</h3>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-              >
-                <XCircle className="w-6 h-6 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="p-8 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-8">
-              {/* Info Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">First Name</label>
-                  <input
-                    type="text"
-                    value={editFormData.first_name}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, first_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
-                  />
-                </div>
-                <div className="space-y-2.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Middle Name</label>
-                  <input
-                    type="text"
-                    value={editFormData.middle_name}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, middle_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
-                  />
-                </div>
-                <div className="space-y-2.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Last Name</label>
-                  <input
-                    type="text"
-                    value={editFormData.last_name}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, last_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
-                  />
-                </div>
-                <div className="space-y-2.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Email Address</label>
-                  <input
-                    type="email"
-                    value={editFormData.email}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
-                  />
-                </div>
-                <div className="space-y-2.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Phone (Optional)</label>
-                  <input
-                    type="text"
-                    value={editFormData.phone}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
-                  />
-                </div>
-                <div className="space-y-2.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Date of Birth</label>
-                  <input
-                    type="date"
-                    value={editFormData.date_of_birth}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, date_of_birth: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Password Section */}
-              <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-2xl space-y-4">
-                <p className="text-xs font-bold text-amber-800 dark:text-amber-300">Change Password (leave blank to keep current)</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative">
-                    <input
-                      type={showPasswords ? "text" : "password"}
-                      placeholder="New password"
-                      value={editFormData.password}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, password: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
-                    />
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showPasswords ? "text" : "password"}
-                      placeholder="Confirm new password"
-                      value={editFormData.password_confirmation}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, password_confirmation: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Permissions Section */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <Shield className="w-4 h-4" /> Update Permissions
-                  </h4>
-                  {(() => {
-                    const allKeys = CARETAKER_PERMISSION_FIELDS.map(f => f.key);
-                    const allSelected = allKeys.every(k => !!editFormData.permissions[k]);
-                    return (
-                      <button
-                        onClick={() => handleGlobalSelectAll('edit', editFormData.permissions)}
-                        className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all ${allSelected ? 'bg-red-600 text-white border-red-600 hover:bg-red-700' : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'}`}
-                      >
-                        {allSelected ? '✕ Deselect All' : '✓ Select All'}
-                      </button>
-                    );
-                  })()}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {MODULE_GROUPS.map((group) => {
-                    const isExpanded = expandedGroups.includes(group.title);
-                    const groupFields = CARETAKER_PERMISSION_FIELDS.filter(f => group.keys.includes(f.key));
-                    const activeCount = groupFields.filter(f => !!editFormData.permissions[f.key]).length;
-                    const isModuleActive = activeCount > 0;
-
-                    const toggleGroup = () => {
-                      setExpandedGroups(prev => 
-                        prev.includes(group.title) 
-                          ? prev.filter(t => t !== group.title) 
-                          : [...prev, group.title]
-                      );
-                    };
-
-                    return (
-                      <div key={group.title} className={`rounded-2xl overflow-hidden border-2 transition-all duration-200 ${
-                        isModuleActive
-                          ? 'border-emerald-500 shadow-lg shadow-emerald-100 dark:shadow-emerald-900/20'
-                          : 'border-gray-200 dark:border-gray-700'
-                      }`}>
-                        {/* Card Header */}
-                        <div className={`flex items-center transition-colors ${
-                          isModuleActive
-                            ? 'bg-emerald-600 dark:bg-emerald-700'
-                            : 'bg-white dark:bg-gray-800'
-                        }`}>
-                          {/* Left: checkbox + icon + title — toggles all */}
-                          <button
-                            onClick={(e) => handleGroupSelectAll(e, group.keys, 'edit', editFormData.permissions)}
-                            className="flex-1 flex items-center gap-3 p-4 text-left"
-                          >
-                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                              isModuleActive
-                                ? 'bg-white border-white'
-                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                            }`}>
-                              {isModuleActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                            </div>
-                            <div className={`p-1.5 rounded-lg ${
-                              isModuleActive ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'
-                            }`}>
-                              <span className={isModuleActive ? 'text-white' : 'text-gray-500 dark:text-gray-400'}>
-                                {group.icon}
-                              </span>
-                            </div>
-                            <div>
-                              <p className={`font-bold text-sm ${ isModuleActive ? 'text-white' : 'text-gray-900 dark:text-white'}`}>{group.title}</p>
-                              <p className={`text-[10px] font-semibold ${ isModuleActive ? 'text-emerald-100' : 'text-gray-400 dark:text-gray-500'}`}>
-                                {activeCount}/{groupFields.length} active
-                              </p>
-                            </div>
-                          </button>
-                          {/* Right: expand arrow only */}
-                          <button
-                            onClick={toggleGroup}
-                            className={`p-4 border-l transition-colors ${
-                              isModuleActive
-                                ? 'border-emerald-500/40 hover:bg-emerald-700/50 text-white'
-                                : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-400'
-                            }`}
-                          >
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                        </div>
-
-                        {/* Expanded sub-perms */}
-                        {isExpanded && (
-                          <div className="bg-gray-50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700">
-                            {groupFields.map((field, idx) => {
-                              const isChecked = !!editFormData.permissions[field.key];
-                              return (
-                                <label
-                                  key={field.key}
-                                  className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
-                                    idx < groupFields.length - 1 ? 'border-b border-gray-100 dark:border-gray-700/60' : ''
-                                  } ${
-                                    isChecked
-                                      ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
-                                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                                  }`}
-                                >
-                                  <div className="pr-4">
-                                    <p className={`text-[13px] font-semibold ${ isChecked ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>{field.label}</p>
-                                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{field.description}</p>
-                                  </div>
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => toggleEditPermission(field.key)}
-                                    className="w-4 h-4 accent-emerald-600 cursor-pointer flex-shrink-0 rounded"
-                                  />
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Properties Section */}
-              <div className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${editFormData.property_ids.length === 0
-                  ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800'
-                  : ''
-                }`}>
-                <div className="flex items-center justify-between">
-                  <h4 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${editFormData.property_ids.length === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
-                    }`}>
-                    <Building2 className="w-4 h-4" /> Assigned Properties
-                  </h4>
-                  {editFormData.property_ids.length === 0 && (
-                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-2 animate-pulse">
-                      <AlertCircle className="w-3 h-3" /> Still didn't assign a property
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-4">
-                  {safeProperties.map((property) => (
-                    <label
-                      key={property.id}
-                      className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${editFormData.property_ids.includes(property.id)
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
-                          : editFormData.property_ids.length === 0
-                            ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-900/50 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
-                            : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editFormData.property_ids.includes(property.id)}
-                        onChange={e => {
-                          const ids = [...editFormData.property_ids];
-                          if (e.target.checked) ids.push(property.id);
-                          else {
-                            const index = ids.indexOf(property.id);
-                            if (index > -1) ids.splice(index, 1);
-                          }
-                          setEditFormData(prev => ({ ...prev, property_ids: ids }));
-                        }}
-                        className="hidden"
-                      />
-                      <span className="whitespace-nowrap">{property.name || property.title || 'Unnamed Property'}</span>
-                      <Building2 className={`w-4 h-4 shrink-0 ${editFormData.property_ids.includes(property.id) ? 'text-emerald-100' : 'text-gray-500'}`} />
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex gap-4">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateSubmit}
-                className="flex-[2] py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Password Reset Modal */}
+      {/* ── Password Reset Modal ─────────────────────────────────────────── */}
       {passwordResetModal.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1686,13 +1570,19 @@ export default function CareTakerAccess({
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Reset Password</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Generate a new temporary password for <span className="font-bold text-gray-900 dark:text-white">{passwordResetModal.caretaker?.caretaker?.first_name}</span>?
+                  Generate a new temporary password for{' '}
+                  <span className="font-bold text-gray-900 dark:text-white">
+                    {passwordResetModal.caretaker?.caretaker?.first_name}
+                  </span>
+                  ?
                 </p>
               </div>
 
               {passwordResetModal.tempPassword ? (
                 <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
-                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center mb-2">New Temporary Password</p>
+                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center mb-2">
+                    New Temporary Password
+                  </p>
                   <div className="bg-white dark:bg-gray-800 py-4 px-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-700 flex items-center justify-between group">
                     <span className="text-xl font-mono font-bold text-gray-900 dark:text-white tracking-widest">
                       {passwordResetModal.tempPassword}
@@ -1714,7 +1604,9 @@ export default function CareTakerAccess({
               ) : (
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <button
-                    onClick={() => setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
+                    onClick={() =>
+                      setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })
+                    }
                     className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                     disabled={passwordResetModal.loading}
                   >
@@ -1725,7 +1617,11 @@ export default function CareTakerAccess({
                     className="py-4 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none flex items-center justify-center gap-2"
                     disabled={passwordResetModal.loading}
                   >
-                    {passwordResetModal.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                    {passwordResetModal.loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Key className="w-4 h-4" />
+                    )}
                     Confirm
                   </button>
                 </div>
@@ -1733,7 +1629,9 @@ export default function CareTakerAccess({
 
               {passwordResetModal.tempPassword && (
                 <button
-                  onClick={() => setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
+                  onClick={() =>
+                    setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })
+                  }
                   className="w-full py-4 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all"
                 >
                   Done

@@ -20,7 +20,7 @@ import {
 import { WebView } from "react-native-webview";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import { Picker } from "@react-native-picker/picker";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import PropertyService from "../../../../services/PropertyService.js";

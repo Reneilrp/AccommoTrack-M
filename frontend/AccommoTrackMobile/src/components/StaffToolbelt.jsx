@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Modal, TextInput, ActivityIndicator, Alert, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import PropertyService from '../services/PropertyService.js';
 import MessageService from '../services/MessageService.js';
@@ -113,6 +112,7 @@ export default function StaffToolbelt() {
 function QuickReportModal({ visible, onClose, theme, queryClient }) {
   const [properties, setProperties] = useState([]);
   const [propertyId, setPropertyId] = useState('');
+  const [propertySelectVisible, setPropertySelectVisible] = useState(false);
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -182,17 +182,15 @@ function QuickReportModal({ visible, onClose, theme, queryClient }) {
             <View style={styles.formContainer}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>PROPERTY</Text>
               <View style={[styles.pickerWrapper, { borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}>
-                <Picker
-                  selectedValue={propertyId}
-                  onValueChange={(itemValue) => setPropertyId(itemValue)}
-                  style={{ color: theme.colors.text }}
-                  dropdownIconColor={theme.colors.textSecondary}
+                <TouchableOpacity
+                  style={styles.pickerDisplay}
+                  onPress={() => setPropertySelectVisible(true)}
                 >
-                  <Picker.Item label="Select a property..." value="" color={theme.colors.textSecondary} />
-                  {properties.map((p) => (
-                    <Picker.Item key={p.id} label={p.title} value={p.id} color={theme.colors.text} />
-                  ))}
-                </Picker>
+                  <Text style={[styles.pickerDisplayText, { color: propertyId ? theme.colors.text : theme.colors.textSecondary }]}>
+                    {properties.find(p => p.id === propertyId)?.title || "Select a property..."}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
               </View>
 
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>ACTIVITY DESCRIPTION</Text>
@@ -228,6 +226,63 @@ function QuickReportModal({ visible, onClose, theme, queryClient }) {
           )}
         </View>
       </View>
+
+      <Modal
+        visible={propertySelectVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        onRequestClose={() => setPropertySelectVisible(false)}
+      >
+        <Pressable
+          style={styles.statusModalOverlay}
+          onPress={() => setPropertySelectVisible(false)}
+        >
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={styles.sectionTitle}>Select Property</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }}>
+              <TouchableOpacity
+                style={styles.statusOption}
+                onPress={() => {
+                  setPropertyId("");
+                  setPropertySelectVisible(false);
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <Text style={[styles.statusOptionText, !propertyId && { color: theme.colors.primary, fontWeight: 'bold' }]}>Select a property...</Text>
+                  {!propertyId && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                </View>
+              </TouchableOpacity>
+              {properties.map((p, index) => {
+                const isLast = index === properties.length - 1;
+                const isActive = p.id === propertyId;
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => {
+                      setPropertyId(p.id);
+                      setPropertySelectVisible(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                      <Text style={[styles.statusOptionText, isActive && { color: theme.colors.primary, fontWeight: 'bold' }]}>{p.title}</Text>
+                      {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast, { marginTop: 8 }]}
+              onPress={() => setPropertySelectVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Modal>
   );
 }
@@ -358,5 +413,51 @@ const styles = StyleSheet.create({
   submitBtnText: {
     color: '#FFF',
     fontWeight: 'bold',
+  },
+  pickerDisplay: {
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 48,
+  },
+  pickerDisplayText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  statusModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  statusSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 20,
+    color: "#111827",
+  },
+  statusOption: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  statusOptionLast: {
+    borderBottomWidth: 0,
+  },
+  statusOptionText: {
+    fontSize: 16,
+    color: "#374151",
   }
 });

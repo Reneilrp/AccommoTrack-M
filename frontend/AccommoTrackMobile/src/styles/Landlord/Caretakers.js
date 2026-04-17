@@ -38,9 +38,11 @@ export const getStyles = (theme) => StyleSheet.create({
     padding: 16,
     gap: 16,
   },
+
+  // ── List card ────────────────────────────────────────────────────────────
   card: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -53,20 +55,23 @@ export const getStyles = (theme) => StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
     color: theme.colors.primaryDark,
+  },
+  cardIdentity: {
+    flex: 1,
   },
   name: {
     fontSize: 16,
@@ -76,34 +81,123 @@ export const getStyles = (theme) => StyleSheet.create({
   email: {
     fontSize: 12,
     color: theme.colors.textSecondary,
+    marginTop: 2,
   },
-  editButton: {
-    padding: 8,
+
+  // ── Action buttons (icon + label) ────────────────────────────────────────
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
-  deleteButton: {
-    padding: 8,
+  actionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: theme.colors.backgroundSecondary,
+    gap: 4,
   },
+  actionBtnDanger: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FEF2F2',
+    gap: 4,
+  },
+  actionBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  actionBtnTextDanger: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+
+  // ── Permission summary in list card ─────────────────────────────────────
+  permSummarySection: {
+    marginTop: 12,
+    gap: 6,
+  },
+  permSummaryLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: theme.colors.textTertiary,
+  },
+  permGroupPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  permGroupPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: theme.colors.primary + '18',
+  },
+  permGroupPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  permCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  permProgressOuter: {
+    flex: 1,
+    height: 4,
+    backgroundColor: theme.colors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  permProgressInner: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+    borderRadius: 2,
+  },
+  permCountText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.textTertiary,
+  },
+
+  // ── Properties pill ──────────────────────────────────────────────────────
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    marginBottom: 8,
+    letterSpacing: 0.5,
+    marginBottom: 6,
     color: theme.colors.textTertiary,
-    marginTop: 16,
+    marginTop: 14,
   },
   pillContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
   },
   pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
     backgroundColor: theme.colors.backgroundSecondary,
   },
   pillText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
     color: theme.colors.textSecondary,
   },
@@ -121,6 +215,8 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     color: theme.colors.textSecondary,
   },
+
+  // ── Modal ────────────────────────────────────────────────────────────────
   modalContainer: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -139,22 +235,66 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.text,
   },
+
+  // ── Segmented tab bar ────────────────────────────────────────────────────
+  tabBar: {
+    flexDirection: 'row',
+    margin: 16,
+    marginBottom: 0,
+    borderRadius: 12,
+    backgroundColor: theme.colors.backgroundSecondary,
+    padding: 4,
+  },
+  tabBarItem: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 9,
+  },
+  tabBarItemActive: {
+    backgroundColor: theme.colors.primary,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tabBarItemText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  tabBarItemTextActive: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // ── Form ─────────────────────────────────────────────────────────────────
   formScroll: {
     padding: 16,
   },
+  sectionHeader: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 12,
+    color: theme.colors.text,
+  },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    marginBottom: 8,
-    marginTop: 16,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    marginTop: 14,
     color: theme.colors.textTertiary,
   },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 10,
+    padding: 14,
     fontSize: 16,
     backgroundColor: theme.colors.surface,
     color: theme.colors.text,
@@ -163,18 +303,135 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: theme.colors.surface,
   },
   eyeIcon: {
-    padding: 16,
+    padding: 14,
   },
   fieldError: {
     color: '#EF4444',
     fontSize: 11,
-    marginTop: 8,
-    marginLeft: 8,
+    marginTop: 4,
+    marginLeft: 4,
   },
+
+  // ── Warning banner (Select All) ──────────────────────────────────────────
+  warnBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  warnBannerDark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#422006',
+    borderWidth: 1,
+    borderColor: '#713F12',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  warnBannerText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#92400E',
+    lineHeight: 16,
+  },
+  warnBannerTextDark: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FCD34D',
+    lineHeight: 16,
+  },
+  warnSelectAllBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#D97706',
+  },
+  warnSelectAllBtnDeselect: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#DC2626',
+  },
+  warnSelectAllText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+
+  // ── Property checkbox row ────────────────────────────────────────────────
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border + '60',
+  },
+  checkLabel: {
+    fontSize: 15,
+    color: theme.colors.text,
+    flex: 1,
+  },
+  checkSelected: {
+    fontSize: 15,
+    color: theme.colors.primary,
+    flex: 1,
+    fontWeight: '700',
+  },
+
+  // ── Footer / save button ─────────────────────────────────────────────────
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  cancelButtonText: {
+    fontWeight: 'bold',
+    color: theme.colors.textSecondary,
+    fontSize: 15,
+  },
+  saveButton: {
+    flex: 2,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+  },
+  saveButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+
+  // ── Alert / modals ────────────────────────────────────────────────────────
   alertOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -244,54 +501,6 @@ export const getStyles = (theme) => StyleSheet.create({
     padding: 16,
     marginBottom: 24,
     textAlignVertical: 'top',
-  },
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 24,
-    marginBottom: 16,
-    color: theme.colors.text,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderLight,
-  },
-  switchLabel: {
-    fontSize: 16,
-    color: theme.colors.text,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderLight,
-  },
-  checkLabel: {
-    fontSize: 16,
-    color: theme.colors.text,
-  },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
-  saveButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    backgroundColor: theme.colors.primary,
-  },
-  saveButtonText: {
-    color: theme.colors.textInverse,
-    fontWeight: 'bold',
-    fontSize: 16,
   },
 });
 

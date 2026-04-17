@@ -40,13 +40,14 @@ class RoomController extends Controller
             $this->checkPropertyAccess($context, (int) $propertyId);
 
             $rooms = Room::where('property_id', $propertyId)
+                ->withAggregates()
                 ->with([
                     'tenants',
                     'amenities',
                     'images',
+                    'activeEvictionLock',
                     'bookings' => function ($query) {
-                        $query->whereNotNull('tenant_id')
-                            ->whereIn('status', ['reserved', 'confirmed', 'active', 'completed', 'partial-completed'])
+                        $query->whereIn('status', ['reserved', 'confirmed', 'active', 'completed', 'partial-completed'])
                             ->where(function ($bookingQuery) {
                                 $bookingQuery->whereNull('end_date')
                                     ->orWhereDate('end_date', '>=', now()->startOfDay());

@@ -1169,7 +1169,7 @@ export default function RoomDetailsModal({
                       onClick={() => { setIsCartMode(true); setViewMode("booking"); }}
                       className="px-6 py-4 border-2 border-green-600 dark:border-green-500 text-green-700 dark:text-green-400 font-bold rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition-all"
                     >
-                      Add to Cart
+                      Add to Book
                     </button>
                   )}
                   <button
@@ -1211,7 +1211,7 @@ export default function RoomDetailsModal({
                   <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" />
                 </button>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {isCartMode ? 'Add to Cart' : 'Book This Room'}
+                  {isCartMode ? 'Add to Book' : 'Book This Room'}
                 </h2>
               </div>
               <button
@@ -1855,7 +1855,7 @@ export default function RoomDetailsModal({
                         {isSubmitting
                           ? "Processing..."
                           : isCartMode
-                            ? "Add to Cart"
+                            ? "Add to Book"
                             : (isReservationFeeRequired
                               ? `Pay ₱${reservationFeeAmount.toLocaleString()} to Reserve`
                               : "Confirm Booking Request")}

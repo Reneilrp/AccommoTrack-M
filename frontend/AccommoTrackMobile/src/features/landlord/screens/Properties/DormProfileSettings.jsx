@@ -14,7 +14,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
