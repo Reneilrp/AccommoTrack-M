@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
 import { addonService } from "../../services/addonService";
 import { useUIState } from "../../contexts/UIStateContext";
 import { cacheManager } from "../../utils/cache";
@@ -15,9 +16,13 @@ import {
   RefreshCw,
   Loader2,
   ArrowLeft,
+  Building2,
+  MapPin,
+  ChevronRight,
 } from "lucide-react";
+import api from "../../utils/api";
 
-const AddonManagement = ({ propertyId }) => {
+const AddonManagement = ({ propertyId, user, accessRole }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -27,8 +32,44 @@ const AddonManagement = ({ propertyId }) => {
     location.state?.propertyId ||
     null;
 
-  const { uiState, updateData } = useUIState();
-  const cacheKey = `landlord_addons_${resolvedPropertyId || "all"}`;
+  const isCaretaker = user?.role === 'caretaker' || accessRole === 'caretaker';
+
+  // ── Caretaker property auto-resolution ───────────────────────────────────────
+  // When no property_id comes from props/URL and the user is a caretaker,
+  // fetch their assigned properties and auto-select if there's exactly one.
+  const [caretakerProperties, setCaretakerProperties] = useState([]);
+  const [caretakerPropsLoading, setCaretakerPropsLoading] = useState(false);
+  const [pickedPropertyId, setPickedPropertyId] = useState(null);
+
+  // The effective property ID used by the rest of the component
+  const effectivePropertyId = resolvedPropertyId || pickedPropertyId;
+
+  useEffect(() => {
+    if (resolvedPropertyId || !isCaretaker) return;
+    // No property in URL — fetch caretaker's assigned properties
+    setCaretakerPropsLoading(true);
+    api
+      .get('/landlord/properties')
+      .then((res) => {
+        const payload = res.data;
+        const list = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        setCaretakerProperties(list);
+        // Auto-select when there's exactly one assigned property
+        if (list.length === 1) {
+          setPickedPropertyId(String(list[0].id));
+        }
+      })
+      .catch(() => setCaretakerProperties([]))
+      .finally(() => setCaretakerPropsLoading(false));
+  }, [resolvedPropertyId, isCaretaker]);
+
+  // ──────────────────────────────────────────────────────────────
+
+  const cacheKey = `landlord_addons_${effectivePropertyId || "all"}`;
   const cachedData = uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
 
   const [addons, setAddons] = useState(cachedData?.addons || []);
@@ -38,9 +79,9 @@ const AddonManagement = ({ propertyId }) => {
   const [activeAddons, setActiveAddons] = useState(
     cachedData?.activeAddons || { activeAddons: [], summary: {} },
   );
-  const [loading, setLoading] = useState(!cachedData);
+  const [loading, setLoading] = useState(false);
   const [togglingAddonId, setTogglingAddonId] = useState(null);
-  const [activeTab, setActiveTab] = useState("manage"); // 'manage', 'requests', 'active'
+  const [activeTab, setActiveTab] = useState("manage");
   const [showModal, setShowModal] = useState(false);
   const [editingAddon, setEditingAddon] = useState(null);
   const [formData, setFormData] = useState({
@@ -54,15 +95,15 @@ const AddonManagement = ({ propertyId }) => {
   });
 
   useEffect(() => {
-    if (!resolvedPropertyId) {
+    if (!effectivePropertyId) {
       setLoading(false);
       return;
     }
     fetchData();
-  }, [resolvedPropertyId]);
+  }, [effectivePropertyId]);
 
   const fetchData = async () => {
-    if (!resolvedPropertyId) return;
+    if (!effectivePropertyId) return;
     if (!cachedData) setLoading(true);
     try {
       const [addonsRes, pendingRes, activeRes] = await Promise.all([
@@ -84,8 +125,9 @@ const AddonManagement = ({ propertyId }) => {
         pendingRequests: pendingList,
         activeAddons: activeData,
       };
-      updateData(cacheKey, combined);
-      cacheManager.set(cacheKey, combined);
+      const ck = `landlord_addons_${effectivePropertyId}`;
+      updateData(ck, combined);
+      cacheManager.set(ck, combined);
     } catch (error) {
       console.error("Failed to fetch addon data:", error);
       toast.error(
@@ -106,10 +148,10 @@ const AddonManagement = ({ propertyId }) => {
       };
 
       if (editingAddon) {
-        await addonService.updateAddon(resolvedPropertyId, editingAddon.id, data);
+        await addonService.updateAddon(effectivePropertyId, editingAddon.id, data);
         toast.success("Addon updated successfully!");
       } else {
-        await addonService.createAddon(resolvedPropertyId, data);
+        await addonService.createAddon(effectivePropertyId, data);
         toast.success("Addon created successfully!");
       }
 
@@ -124,7 +166,7 @@ const AddonManagement = ({ propertyId }) => {
   const handleDelete = async (addonId) => {
     if (!confirm("Are you sure you want to delete this addon?")) return;
     try {
-      await addonService.deleteAddon(resolvedPropertyId, addonId);
+      await addonService.deleteAddon(effectivePropertyId, addonId);
       toast.success("Addon deleted successfully!");
       fetchData();
     } catch (error) {
@@ -135,7 +177,7 @@ const AddonManagement = ({ propertyId }) => {
   const handleToggleActive = async (addon) => {
     setTogglingAddonId(addon.id);
     try {
-      await addonService.updateAddon(resolvedPropertyId, addon.id, {
+      await addonService.updateAddon(effectivePropertyId, addon.id, {
         is_active: !addon.isActive,
       });
       toast.success(
@@ -228,10 +270,78 @@ const AddonManagement = ({ propertyId }) => {
 
 
 
-  if (!resolvedPropertyId) {
+  if (!effectivePropertyId) {
+    // Loading caretaker's properties
+    if (caretakerPropsLoading) {
+      return (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        </div>
+      );
+    }
+
+    // Caretaker has multiple properties — show a picker
+    if (isCaretaker && caretakerProperties.length > 1) {
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 mb-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center justify-center relative min-h-[40px]">
+                <div className="absolute left-0">
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="p-2 bg-white dark:bg-gray-800 text-green-600 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                </div>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Add-on Services</h1>
+              </div>
+            </div>
+          </header>
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              You manage multiple properties. Select one to view and manage its add-ons.
+            </p>
+            <div className="space-y-3">
+              {caretakerProperties.map((prop) => (
+                <button
+                  key={prop.id}
+                  onClick={() => setPickedPropertyId(String(prop.id))}
+                  className="w-full flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:border-green-400 dark:hover:border-green-600 hover:shadow-md transition-all text-left"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 dark:text-white truncate">{prop.title}</p>
+                    {prop.street_address && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />
+                        {prop.street_address}, {prop.city}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Caretaker has no properties assigned at all
     return (
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 text-sm text-amber-700 dark:text-amber-300">
-        Select a property first to manage add-ons.
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-center px-4">
+        <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+          <Building2 className="w-8 h-8 text-amber-500" />
+        </div>
+        <h3 className="font-semibold text-gray-900 dark:text-white">No Property Assigned</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+          You don't have any properties assigned yet. Contact your landlord to get access.
+        </p>
       </div>
     );
   }

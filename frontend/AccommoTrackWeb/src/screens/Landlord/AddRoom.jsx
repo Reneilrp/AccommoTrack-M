@@ -306,7 +306,7 @@ export default function AddRoomModal({
     const errors = {};
     // Room number
     if (!data.roomNumber || !String(data.roomNumber).trim()) {
-      errors.roomNumber = "Room number is required";
+      errors.roomNumber = "Please fill in the Room Number to continue.";
     }
 
     // Billing policy / rates
@@ -314,7 +314,7 @@ export default function AddRoomModal({
     if (bp === "monthly" || bp === "monthly_with_daily") {
       const m = parseFloat(data.monthlyRate);
       if (!Number.isFinite(m) || m <= 0) {
-        errors.monthlyRate = "Enter a valid monthly rate greater than 0";
+        errors.monthlyRate = "Monthly rate must be greater than 0.";
       }
     }
     if (bp === "daily" || bp === "monthly_with_daily") {
@@ -329,7 +329,7 @@ export default function AddRoomModal({
     if (!Number.isFinite(cap) || cap < 1) {
       errors.capacity = "Capacity must be 1 or more";
     } else if (cap > 10) {
-      errors.capacity = "Capacity cannot exceed 10";
+      errors.capacity = "Room capacity cannot exceed 10 persons.";
     }
 
     // Min stay
@@ -361,7 +361,7 @@ export default function AddRoomModal({
       }
 
       if (promo.discountType === "percent" && parsedValue > 100) {
-        errors[`durationPricing_${term}`] = `Percentage discount for ${term}-month term cannot exceed 100.`;
+        errors[`durationPricing_${term}`] = "Promo discount cannot exceed 100%.";
         hasDurationPricingErrors = true;
       }
     });
@@ -443,22 +443,23 @@ export default function AddRoomModal({
   };
 
   const updateDurationPricing = (term, patch) => {
-    setFormData((prev) => ({
-      ...prev,
-      durationPricing: {
-        ...prev.durationPricing,
-        [term]: {
-          ...prev.durationPricing?.[term],
-          ...patch,
+    setFormData((prev) => {
+      const nextData = {
+        ...prev,
+        durationPricing: {
+          ...prev.durationPricing,
+          [term]: {
+            ...prev.durationPricing?.[term],
+            ...patch,
+          },
         },
-      },
-    }));
-
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      delete next.durationPricing;
-      delete next[`durationPricing_${term}`];
-      return next;
+      };
+      
+      const { valid, errors } = validateForm(nextData);
+      setFieldErrors(errors);
+      setIsFormValid(valid);
+      
+      return nextData;
     });
   };
 
@@ -703,7 +704,7 @@ export default function AddRoomModal({
       }, 1200);
     } catch (err) {
       const msg =
-        err.response?.data?.message || err.message || "Failed to add room";
+        err.response?.data?.message || err.message || "Unable to save room details. Please try again.";
       // If server returned field errors, map them
       const serverErrors = err.response?.data?.errors;
       if (serverErrors && typeof serverErrors === "object") {

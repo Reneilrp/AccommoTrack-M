@@ -15,23 +15,24 @@ class PropertyResource extends JsonResource
     public function toArray(Request $request): array
     {
         // Calculations for price and ratings
-        $availableRooms = $this->whenLoaded('rooms', function () {
-            return $this->rooms->filter(function ($room) {
-                return $room->isAvailable();
-            });
-        }, collect());
+        $availableRooms = $this->relationLoaded('rooms') ? $this->rooms->filter(function ($room) {
+            return $room->isAvailable();
+        }) : collect();
         $minPrice = $availableRooms->min('monthly_rate');
         $maxPrice = $availableRooms->max('monthly_rate');
         $avgRating = $this->whenLoaded('reviews', fn () => $this->reviews->count() > 0 ? round($this->reviews->avg('rating'), 1) : null);
 
         // Image and Video logic
-        $coverImage = $this->whenLoaded('images', function () {
-            $images = $this->images->where('media_type', 'image');
-            $primary = $images->where('is_primary', true)->first();
+        $coverImage = null;
+        $video = null;
 
-            return $primary ?? $images->sortBy('display_order')->first();
-        });
-        $video = $this->whenLoaded('images', fn () => $this->images->where('media_type', 'video')->first());
+        if ($this->relationLoaded('images')) {
+            $imageMedia = $this->images->where('media_type', 'image');
+            $primary = $imageMedia->where('is_primary', true)->first();
+            $coverImage = $primary ?? $imageMedia->sortBy('display_order')->first();
+
+            $video = $this->images->where('media_type', 'video')->first();
+        }
 
         return [
             'id' => $this->id,
@@ -64,7 +65,7 @@ class PropertyResource extends JsonResource
             'property_rules' => $this->property_rules ?? [],
             'curfew_time' => $this->curfew_time,
             'curfew_policy' => $this->curfew_policy,
-            'total_rooms' => $this->rooms_count ?? $this->whenLoaded('rooms', fn () => $this->rooms->count()),
+            'total_rooms' => $this->rooms_count ?? ($this->relationLoaded('rooms') ? $this->rooms->count() : 0),
             'available_rooms' => $this->available_rooms_count ?? (
                 $this->relationLoaded('rooms')
                 ? $this->rooms->filter(fn ($room) => $room->isAvailable())->count()
@@ -102,6 +103,7 @@ class PropertyResource extends JsonResource
             'current_status' => $this->current_status,
             'require_1month_advance' => (bool) $this->require_1month_advance,
             'allow_partial_payments' => (bool) $this->allow_partial_payments,
+            'force_wallet_refunds' => (bool) ($this->force_wallet_refunds ?? true),
             'normal_booking_limit' => (int) $this->normal_booking_limit,
             'proxy_booking_limit' => (int) $this->proxy_booking_limit,
             'min_partial_payment_pct' => (int) $this->min_partial_payment_pct,

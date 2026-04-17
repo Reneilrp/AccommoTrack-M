@@ -27,8 +27,19 @@ import {
   Info,
 } from 'lucide-react';
 
-// Full ordered list of caretaker-capable sidebar items.
-// Each entry declares which permission key must be truthy for it to appear.
+// Menu shown when caretaker has full landlord access — mirrors the landlord sidebar.
+const LANDLORD_STYLE_MENU = [
+  { path: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard, permKey: null },
+  { path: '/properties', label: 'My Properties', icon: Building2,       permKey: null },
+  { path: '/bookings',   label: 'Bookings',      icon: Calendar,        permKey: null },
+  { path: '/payments',   label: 'Payments',      icon: Banknote,        permKey: null },
+  { path: '/messages',   label: 'Messages',      icon: MessageSquare,   permKey: null },
+  { path: '/analytics',  label: 'Analytics',     icon: BarChart3,       permKey: null },
+  { path: '/settings',   label: 'Settings',      icon: SettingsIcon,    permKey: null },
+];
+
+// Menu shown when caretaker has limited / partial access.
+// Each entry is conditionally shown based on the specific permission granted.
 const CARETAKER_MENU_DEFINITIONS = [
   { path: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard, permKey: null /* always */ },
   { path: '/properties', label: 'My Properties', icon: Building2,       permKey: 'canManageProperties' },
@@ -58,14 +69,18 @@ export default function CaretakerLayout({ user, onLogout, children, onUserUpdate
     fullAccess,
   } = perms;
 
-  // ── Build the sidebar menu from the permission map ───────────────────────────
-  const menuItems = CARETAKER_MENU_DEFINITIONS.filter(({ permKey }) => {
-    if (!permKey) return true; // always-visible items
-    return perms[permKey] === true;
-  });
+  // ── Build the sidebar menu ───────────────────────────────────────────────────
+  // Full access → landlord-style menu (clean, no operational sub-modules)
+  // Limited access → permission-filtered caretaker menu
+  const menuItems = fullAccess
+    ? LANDLORD_STYLE_MENU
+    : CARETAKER_MENU_DEFINITIONS.filter(({ permKey }) => {
+        if (!permKey) return true;
+        return perms[permKey] === true;
+      });
 
   // When only Dashboard + Settings remain the caretaker has no module access
-  const hasNoModuleAccess = menuItems.length <= 2;
+  const hasNoModuleAccess = !fullAccess && menuItems.length <= 2;
 
   // ── Unread message badge ─────────────────────────────────────────────────────
   const refreshMessageUnreadCount = useCallback(async () => {

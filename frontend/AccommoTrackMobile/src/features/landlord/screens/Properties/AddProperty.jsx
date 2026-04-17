@@ -90,6 +90,7 @@ const initialForm = {
   acceptedPayments: ["cash"],
   require1MonthAdvance: false,
   allowPartialPayments: true,
+  forceWalletRefunds: true,
   requireReservationFee: false,
   reservationFeeAmount: "",
 };
@@ -613,6 +614,7 @@ export default function AddProperty({ navigation }) {
       is_draft: isDraft ? "1" : "0",
       require_1month_advance: form.require1MonthAdvance ? "1" : "0",
       allow_partial_payments: form.allowPartialPayments ? "1" : "0",
+      force_wallet_refunds: form.forceWalletRefunds ? "1" : "0",
       require_reservation_fee: form.requireReservationFee ? "1" : "0",
       reservation_fee_amount: form.requireReservationFee
         ? form.reservationFeeAmount || "0"
@@ -1058,6 +1060,21 @@ export default function AddProperty({ navigation }) {
                   <Switch
                     value={form.allowPartialPayments}
                     onValueChange={(value) => updateForm("allowPartialPayments", value)}
+                    trackColor={{ true: theme.colors.primary, false: "#CBD5E1" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.switchRowContainer, styles.switchRowLast]}>
+                  <View style={styles.switchTextBlock}>
+                    <Text style={styles.switchTitle}>Force Refunds to Wallet</Text>
+                    <Text style={styles.switchHelpText}>
+                      Excess transfer credits automatically go to tenant wallet.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={form.forceWalletRefunds}
+                    onValueChange={(value) => updateForm("forceWalletRefunds", value)}
                     trackColor={{ true: theme.colors.primary, false: "#CBD5E1" }}
                     thumbColor="#FFFFFF"
                   />

@@ -104,6 +104,7 @@ class UpdatePropertyRequest extends FormRequest
             'is_eligible' => 'sometimes|boolean',
             'require_1month_advance' => 'sometimes|boolean',
             'allow_partial_payments' => 'sometimes|boolean',
+            'force_wallet_refunds' => 'sometimes|boolean',
             'normal_booking_limit' => 'sometimes|integer|min:1|max:4',
             'proxy_booking_limit' => 'sometimes|integer|min:1|max:4',
             'min_partial_payment_pct' => 'sometimes|integer|min:1|max:100',

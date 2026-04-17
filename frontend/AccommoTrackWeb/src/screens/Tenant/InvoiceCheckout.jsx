@@ -213,25 +213,13 @@ export default function InvoiceCheckout() {
       return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
     }
 
-    const amountToPay = Number(paymentAmount);
-    if (isNaN(amountToPay) || amountToPay <= 0) {
-      return toast.error('Please enter a valid amount');
-    }
-
-    const prop = invoice?.property || invoice?.booking?.property;
-    const allowPartial = prop?.allow_partial_payments !== 0 && prop?.allow_partial_payments !== false;
-    if (!allowPartial && amountToPay !== remainingBalance) {
-      return toast.error('Partial payments are disabled. Please pay the exact remaining balance.');
-    }
-
-    if (amountToPay > remainingBalance) {
-      return toast.error(`Amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString()}`);
+    const amountToPay = Math.min(remainingBalance, walletBalance);
+    
+    if (amountToPay <= 0) {
+      return toast.error('No remaining balance or wallet credits available.');
     }
 
     const amountCents = Math.round(amountToPay * 100);
-    if (amountCents > Math.round(walletBalance * 100)) {
-      return toast.error(`Insufficient wallet credits. Available: ₱${walletBalance.toLocaleString()}`);
-    }
 
     setProcessing(true);
     try {
@@ -374,11 +362,40 @@ export default function InvoiceCheckout() {
                 Online invoice payments are temporarily unavailable while payment compliance updates are in progress.
               </div>
             )}
-            {!tenantPaymentsTempDisabled && !invoicePaymongoDisabled && isPendingManualVerification && (
-              <div className="mx-8 mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.
-              </div>
-            )}
+            {!tenantPaymentsTempDisabled && !invoicePaymongoDisabled && isPendingManualVerification && (() => {
+              const pendingTx = invoice?.transactions?.find(tx => tx.status === 'pending_offline');
+              const proofUrl = pendingTx?.gateway_response?.proof_image_url;
+              return (
+                <div className="mx-8 mt-8 space-y-4">
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-start gap-3">
+                    <svg className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <div>
+                      <p className="font-bold">Awaiting Verification</p>
+                      <p className="mt-0.5 text-amber-700">Your payment has been submitted and is pending landlord review. You will be notified once it is approved or rejected.</p>
+                      {pendingTx && (
+                        <p className="mt-1 text-[11px] font-semibold text-amber-600">
+                          Submitted: ₱{(pendingTx.amount_cents / 100).toLocaleString()} via {(pendingTx.method || '').replace('_', ' ')}
+                          {pendingTx.gateway_reference ? ` · Ref: ${pendingTx.gateway_reference}` : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {proofUrl && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Your Submitted Proof</p>
+                      <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="block group">
+                        <img
+                          src={proofUrl}
+                          alt="Your submitted proof of payment"
+                          className="w-full max-h-52 object-contain rounded-xl border-2 border-amber-200 dark:border-amber-700 bg-black/5 transition-transform group-hover:scale-[1.01]"
+                        />
+                        <p className="text-[10px] text-center text-amber-600 dark:text-amber-400 mt-1 italic">Click to open full image</p>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <div className="p-8 md:p-10 border-b border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
               <div className="flex flex-col md:flex-row justify-between items-start gap-6">
                 <div>
@@ -612,12 +629,7 @@ export default function InvoiceCheckout() {
                     {/* Wallet Credit */}
                     {!tenantPaymentsTempDisabled && walletBalance > 0 && (
                       <button
-                        onClick={() => {
-                          const parsed = Number(paymentAmount);
-                          if (isNaN(parsed) || parsed <= 0) return toast.error('Please enter a valid amount first.');
-                          if (parsed > remainingBalance) return toast.error(`Amount cannot exceed ₱${remainingBalance.toLocaleString()}`);
-                          handleWalletCreditPayment();
-                        }}
+                        onClick={handleWalletCreditPayment}
                         disabled={processing}
                         className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50/30 dark:hover:bg-purple-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
                       >
@@ -626,10 +638,13 @@ export default function InvoiceCheckout() {
                             <Wallet className="w-7 h-7" />
                           </div>
                           <div>
-                            <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Wallet Credits</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Pay instantly using your credits</p>
+                            <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Apply Wallet Credits</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Instantly apply up to ₱{Math.min(remainingBalance, walletBalance).toLocaleString()}</p>
                             <p className="text-xs text-purple-600 dark:text-purple-400 font-bold mt-1">
                               Available: ₱{walletBalance.toLocaleString()}
+                            </p>
+                            <p className="text-[10px] text-purple-500/80 dark:text-purple-400/80 mt-2 font-medium italic">
+                              *Credits are earned from transfers/refunds. Modifying/Top-ups via external methods are restricted.
                             </p>
                           </div>
                         </div>

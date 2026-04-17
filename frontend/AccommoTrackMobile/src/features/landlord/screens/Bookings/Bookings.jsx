@@ -33,9 +33,10 @@ const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
 const STATUS_BADGES = {
   pending: { bg: '#FEF3C7', color: '#B45309', label: 'Pending' },
   confirmed: { bg: '#DCFCE7', color: '#15803D', label: 'Confirmed' },
-  completed: { bg: '#E0F2FE', color: '#0369A1', label: 'Completed' },
+  'completed': { bg: '#ECFDF5', color: '#047857', label: 'Completed' },
   'partial-completed': { bg: '#FEF3C7', color: '#B45309', label: 'Partial Complete' },
-  cancelled: { bg: '#FEE2E2', color: '#B91C1C', label: 'Cancelled' }
+  'transferred': { bg: '#EEF2FF', color: '#4F46E5', label: 'Transferred' },
+  'cancelled': { bg: '#FEE2E2', color: '#B91C1C', label: 'Cancelled' },
 };
 
 const PAYMENT_BADGES = {

@@ -125,6 +125,7 @@ export default function CaretakerNavigator({ user, onLogout, onUserUpdate }) {
             />
           )}
 
+
           {canManageBookings && (
             <Route
               path="bookings"

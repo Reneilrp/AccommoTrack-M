@@ -234,6 +234,8 @@ export default function TransferRequests({ hideHeader = false, historyOnly = fal
               const requestedRoomLabel =
                 resolveRoomLabel(request?.requested_room) || resolveRoomLabel(request?.target_room);
 
+              const isProxy = String(request?.booking?.booking_mode || request?.booking?.bookingMode || '').toLowerCase() === 'proxy';
+
               return (
                 <View
                   key={String(request?.id || `${request?.booking_id}-${request?.created_at}`)}
@@ -246,21 +248,37 @@ export default function TransferRequests({ hideHeader = false, historyOnly = fal
                     marginBottom: 10,
                   }}
                 >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
                     <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '700', flex: 1, paddingRight: 8 }}>
                       {resolvePropertyLabel(request)}
                     </Text>
-                    <View
-                      style={{
-                        backgroundColor: meta.bg,
-                        borderWidth: 1,
-                        borderColor: meta.border,
-                        borderRadius: 999,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                      }}
-                    >
-                      <Text style={{ color: meta.text, fontSize: 11, fontWeight: '700' }}>{meta.label}</Text>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      {isProxy && (
+                        <View
+                          style={{
+                            backgroundColor: '#F3E8FF',
+                            borderWidth: 1,
+                            borderColor: '#D8B4FE',
+                            borderRadius: 999,
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                          }}
+                        >
+                          <Text style={{ color: '#7E22CE', fontSize: 11, fontWeight: '700' }}>Proxy</Text>
+                        </View>
+                      )}
+                      <View
+                        style={{
+                          backgroundColor: meta.bg,
+                          borderWidth: 1,
+                          borderColor: meta.border,
+                          borderRadius: 999,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                        }}
+                      >
+                        <Text style={{ color: meta.text, fontSize: 11, fontWeight: '700' }}>{meta.label}</Text>
+                      </View>
                     </View>
                   </View>
 

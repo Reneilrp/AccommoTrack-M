@@ -475,19 +475,14 @@ export default function PaymentDetail() {
       return;
     }
 
-    const { amount: amountToPay, error } = resolveAmountToPay();
-    if (error) {
-      showAlert('Invalid Amount', error);
+    const amountToPay = Math.min(remainingBalance, walletBalance);
+    
+    if (amountToPay <= 0) {
+      showAlert('Invalid Amount', 'No remaining balance or wallet credits available.');
       return;
     }
 
     const amountCents = Math.round(amountToPay * 100);
-    const walletCents = Math.round(Math.max(0, Number(walletBalance || 0)) * 100);
-
-    if (amountCents > walletCents) {
-      showAlert('Insufficient Wallet Credits', `Available wallet credits: ₱${walletBalance.toLocaleString()}`);
-      return;
-    }
 
     try {
       setIsPaying(true);
@@ -633,13 +628,43 @@ export default function PaymentDetail() {
                   </Text>
                 </View>
               )}
-              {!tenantPaymentsTempDisabled && (invoicePaymongoDisabled || isPendingManualVerification) && (
-                <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
-                  <Text style={{ color: '#92400e', fontWeight: '600' }}>
-                    {paymentDisabledReason}
-                  </Text>
-                </View>
-              )}
+              {!tenantPaymentsTempDisabled && (invoicePaymongoDisabled || isPendingManualVerification) && (() => {
+                const pendingTx = invoice?.transactions?.find(tx => tx.status === 'pending_offline');
+                const proofUrl = pendingTx?.gateway_response?.proof_image_url;
+                return (
+                  <View style={{ marginBottom: 16 }}>
+                    <View style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb', marginBottom: proofUrl ? 10 : 0 }}>
+                      <Text style={{ color: '#92400e', fontWeight: '700', marginBottom: 4 }}>
+                        {isPendingManualVerification ? 'Awaiting Verification' : 'Payments Temporarily Unavailable'}
+                      </Text>
+                      <Text style={{ color: '#92400e', fontWeight: '400', fontSize: 13 }}>
+                        {paymentDisabledReason}
+                      </Text>
+                      {pendingTx && (
+                        <Text style={{ color: '#B45309', fontWeight: '600', fontSize: 11, marginTop: 6 }}>
+                          Submitted: ₱{(pendingTx.amount_cents / 100).toLocaleString()} via {(pendingTx.method || '').replace('_', ' ')}
+                          {pendingTx.gateway_reference ? ` · Ref: ${pendingTx.gateway_reference}` : ''}
+                        </Text>
+                      )}
+                    </View>
+                    {proofUrl && (
+                      <View>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                          Your Submitted Proof
+                        </Text>
+                        <Image
+                          source={{ uri: proofUrl }}
+                          style={{ width: '100%', height: 160, borderRadius: 10, borderWidth: 1.5, borderColor: '#fde68a' }}
+                          resizeMode="contain"
+                        />
+                        <Text style={{ fontSize: 10, color: '#B45309', fontStyle: 'italic', textAlign: 'center', marginTop: 4 }}>
+                          This is the proof you submitted
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
               <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>Amount to Pay (₱)</Text>
               <TextInput
                 style={{
@@ -800,11 +825,14 @@ export default function PaymentDetail() {
                 <View style={{ marginTop: 16 }}>
                   <TouchableOpacity
                     onPress={handleWalletCreditPayment}
-                    disabled={tenantPaymentsTempDisabled || !!paymentAmountError}
-                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: (tenantPaymentsTempDisabled || paymentAmountError) ? 0.6 : 1 }]}
+                    disabled={tenantPaymentsTempDisabled}
+                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: tenantPaymentsTempDisabled ? 0.6 : 1, marginBottom: 8 }]}
                   >
-                    <Text style={styles.payBtnText}>Pay with Wallet Credits (₱{walletBalance.toLocaleString()})</Text>
+                    <Text style={styles.payBtnText}>Apply Wallet Credits (₱{Math.min(remainingBalance, walletBalance).toLocaleString()})</Text>
                   </TouchableOpacity>
+                  <Text style={{ fontSize: 11, color: theme.colors.textSecondary, textAlign: 'center', fontStyle: 'italic', paddingHorizontal: 16 }}>
+                    * Credits are automatically earned from room transfers and refunds. Manual top-ups are not supported.
+                  </Text>
                 </View>
               )}
             </View>

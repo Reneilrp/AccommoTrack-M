@@ -118,7 +118,7 @@ class RefundService
     /**
      * Apply credit to new booking's first invoice
      */
-    public function applyCreditToInvoice(Invoice $invoice, float $creditAmount, array $metadata = []): void
+    public function applyCreditToInvoice(Invoice $invoice, float $creditAmount, array $metadata = [], string $refundPreference = 'wallet'): void
     {
         $creditCents = max(0, (int) round($creditAmount * 100));
         $appliedCreditCents = min((int) $invoice->amount_cents, $creditCents);
@@ -142,22 +142,43 @@ class RefundService
         $existingMetadata = $invoice->metadata ?? [];
         $updateData['metadata'] = array_merge($existingMetadata, [
             'credit_applied' => $this->fromCents($appliedCreditCents),
-            'credit_excess_to_wallet' => $this->fromCents($excessCreditCents),
+            'credit_excess_to_wallet' => $refundPreference === 'wallet' ? $this->fromCents($excessCreditCents) : 0,
+            'credit_excess_to_cash' => $refundPreference === 'cash' ? $this->fromCents($excessCreditCents) : 0,
             'credit_applied_at' => now()->toISOString(),
             'original_amount' => $invoice->amount_cents / 100,
         ], $metadata);
 
         $invoice->update($updateData);
 
-        // If transfer credit exceeds invoice amount, keep the remaining value in tenant wallet credits.
+        // If transfer credit exceeds invoice amount, handle based on preference.
         if ($excessCreditCents > 0 && $invoice->tenant_id) {
-            TenantCredit::create([
-                'tenant_id' => $invoice->tenant_id,
-                'property_id' => $invoice->property_id,
-                'amount_cents' => $excessCreditCents,
-                'type' => 'credit',
-                'description' => 'Excess transfer credit from invoice #'.$invoice->id,
-            ]);
+            if ($refundPreference === 'cash') {
+                // Log cash refund owed
+                \App\Models\PaymentTransaction::create([
+                    'tenant_id' => $invoice->tenant_id,
+                    'landlord_id' => $invoice->landlord_id,
+                    'invoice_id' => $invoice->id,
+                    'amount_cents' => $excessCreditCents,
+                    'currency' => 'PHP',
+                    'payment_method' => 'cash',
+                    'gateway' => 'manual',
+                    'description' => 'Cash Refund Owed to Tenant from Transfer',
+                    'status' => 'pending_refund',
+                    'metadata' => [
+                        'refund_type' => 'cash',
+                        'transfer_from_invoice' => $invoice->id,
+                    ],
+                ]);
+            } else {
+                // Default to wallet credits
+                TenantCredit::create([
+                    'tenant_id' => $invoice->tenant_id,
+                    'property_id' => $invoice->property_id,
+                    'amount_cents' => $excessCreditCents,
+                    'type' => 'credit',
+                    'description' => 'Excess transfer credit from invoice #'.$invoice->id,
+                ]);
+            }
         }
     }
 

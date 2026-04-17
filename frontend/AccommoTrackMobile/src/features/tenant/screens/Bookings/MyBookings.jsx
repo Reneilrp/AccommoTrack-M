@@ -116,6 +116,7 @@ export default function MyBookings() {
   const [transferContext, setTransferContext] = useState(null);
   const [transferPreview, setTransferPreview] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [refundPreference, setRefundPreference] = useState('wallet');
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewContext, setReviewContext] = useState(null);
@@ -231,7 +232,7 @@ export default function MyBookings() {
 
         const historyPayload = historyRes.success ? (historyRes.data || {}) : {};
         const fallbackHistory = allBookings.filter((bookingItem) =>
-          ['completed', 'partial-completed', 'cancelled', 'rejected', 'evicted'].includes(
+          ['completed', 'partial-completed', 'transferred', 'cancelled', 'rejected', 'evicted'].includes(
             String(bookingItem.status || '').toLowerCase(),
           ),
         );
@@ -1284,6 +1285,7 @@ export default function MyBookings() {
       property_id: transferContext.propertyId,
       requested_room_id: selectedTransferRoomId,
       reason: normalizedReason,
+      refund_preference: refundPreference,
     };
     if (leaseDurationPreference === 'new_lease' && newEndDate) {
       transferPayload.new_end_date = formatIsoDate(newEndDate);
@@ -1371,6 +1373,7 @@ export default function MyBookings() {
     const s = String(status || '').toLowerCase();
     const isDark = theme.isDark;
     if (s.includes('overdue')) return isDark ? '#f87171' : '#EF4444';
+    if (s === 'transferred') return isDark ? '#818cf8' : '#6366f1';
     if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.primary;
     if (s === 'reserved') return isDark ? '#2dd4bf' : '#0D9488';
     if (s === 'pending_reservation') return isDark ? '#fb923c' : '#EA580C';
@@ -3267,15 +3270,74 @@ export default function MyBookings() {
                               </View>
                             ) : transferPreview.suggested_adjustment < 0 ? (
                               <View style={{
-                                padding: 10, borderRadius: 8,
-                                backgroundColor: theme.isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5',
+                                marginTop: 8,
+                                borderTopWidth: 1,
+                                borderTopColor: theme.colors.border,
+                                paddingTop: 8,
                               }}>
-                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#16a34a' }}>
-                                  ✅ Estimated Credit: {formatCurrency(Math.abs(transferPreview.suggested_adjustment))}
-                                </Text>
-                                <Text style={{ fontSize: 11, color: '#047857', marginTop: 2 }}>
-                                  Great! Your unused credit covers the new room cost and fees. The remainder will be applied to your future invoices.
-                                </Text>
+                                {transferPreview.force_wallet_refunds ? (
+                                  <View style={{
+                                    padding: 10, borderRadius: 8,
+                                    backgroundColor: theme.isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5',
+                                  }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                      <Ionicons name="wallet" size={16} color="#16a34a" />
+                                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#16a34a', marginLeft: 6 }}>
+                                        Wallet Credits
+                                      </Text>
+                                    </View>
+                                    <Text style={{ fontSize: 11, color: '#047857' }}>
+                                      The excess amount of {formatCurrency(Math.abs(transferPreview.suggested_adjustment))} will be automatically credited to your tenant wallet upon approval.
+                                    </Text>
+                                  </View>
+                                ) : (
+                                  <View>
+                                    <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>
+                                      Excess Credit Preference *
+                                    </Text>
+                                    <View style={{ gap: 8 }}>
+                                      <TouchableOpacity
+                                        style={{
+                                          flexDirection: 'row', alignItems: 'flex-start',
+                                          padding: 12, borderRadius: 12, borderWidth: 1,
+                                          borderColor: refundPreference === 'wallet' ? theme.colors.primary : theme.colors.border,
+                                          backgroundColor: refundPreference === 'wallet' ? `${theme.colors.primary}10` : theme.colors.surface,
+                                        }}
+                                        onPress={() => setRefundPreference('wallet')}
+                                      >
+                                        <Ionicons 
+                                          name={refundPreference === 'wallet' ? "radio-button-on" : "radio-button-off"} 
+                                          size={20} 
+                                          color={refundPreference === 'wallet' ? theme.colors.primary : theme.colors.textTertiary} 
+                                        />
+                                        <View style={{ marginLeft: 10, flex: 1 }}>
+                                          <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.text }}>Convert to Wallet Credits</Text>
+                                          <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>Fastest. Use for future payments.</Text>
+                                        </View>
+                                      </TouchableOpacity>
+                                      
+                                      <TouchableOpacity
+                                        style={{
+                                          flexDirection: 'row', alignItems: 'flex-start',
+                                          padding: 12, borderRadius: 12, borderWidth: 1,
+                                          borderColor: refundPreference === 'cash' ? theme.colors.primary : theme.colors.border,
+                                          backgroundColor: refundPreference === 'cash' ? `${theme.colors.primary}10` : theme.colors.surface,
+                                        }}
+                                        onPress={() => setRefundPreference('cash')}
+                                      >
+                                        <Ionicons 
+                                          name={refundPreference === 'cash' ? "radio-button-on" : "radio-button-off"} 
+                                          size={20} 
+                                          color={refundPreference === 'cash' ? theme.colors.primary : theme.colors.textTertiary} 
+                                        />
+                                        <View style={{ marginLeft: 10, flex: 1 }}>
+                                          <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.text }}>Manual Cash Refund</Text>
+                                          <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>Requires landlord coordination to receive payout.</Text>
+                                        </View>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
+                                )}
                               </View>
                             ) : (
                               <View style={{

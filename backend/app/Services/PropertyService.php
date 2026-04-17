@@ -110,6 +110,9 @@ class PropertyService
                 'allow_partial_payments' => array_key_exists('allow_partial_payments', $validated)
                     ? (bool) $validated['allow_partial_payments']
                     : true,
+                'force_wallet_refunds' => array_key_exists('force_wallet_refunds', $validated)
+                    ? (bool) $validated['force_wallet_refunds']
+                    : true,
                 'normal_booking_limit' => $normalBookingLimit,
                 'proxy_booking_limit' => $proxyBookingLimit,
                 'min_partial_payment_pct' => $minPartialPaymentPct,
@@ -217,6 +220,10 @@ class PropertyService
 
             if (array_key_exists('allow_partial_payments', $validated)) {
                 $validated['allow_partial_payments'] = (bool) $validated['allow_partial_payments'];
+            }
+
+            if (array_key_exists('force_wallet_refunds', $validated)) {
+                $validated['force_wallet_refunds'] = (bool) $validated['force_wallet_refunds'];
             }
 
             if (array_key_exists('normal_booking_limit', $validated)) {

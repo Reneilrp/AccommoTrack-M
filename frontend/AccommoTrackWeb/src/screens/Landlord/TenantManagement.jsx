@@ -442,7 +442,7 @@ export default function TenantManagement() {
     const confirmPassword = createTenantData.confirm_password;
 
     if (!firstName || !lastName || !email) {
-      toast.error('First name, last name, and email are required.');
+      toast.error("Tenant's First Name, Last Name, and Email are required.");
       return;
     }
 
@@ -457,12 +457,12 @@ export default function TenantManagement() {
     }
 
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match.');
+      toast.error('Passwords do not match. Please re-type.');
       return;
     }
 
     if (!createTenantData.room_id) {
-      toast.error('Please select a room for immediate assignment.');
+      toast.error('Please assign a Room or save as floating tenant.');
       return;
     }
 
@@ -501,7 +501,7 @@ export default function TenantManagement() {
       setShowCreateTenantModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to add tenant right now.'));
+      toast.error(getTenantActionError(err, 'Unable to register tenant. Please check your connection and try again.'));
     } finally {
       setIsCreatingTenant(false);
     }

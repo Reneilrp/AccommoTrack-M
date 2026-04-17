@@ -159,7 +159,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const canShowDepositSettlement = (booking) => {
     const status = String(booking?.status || '').toLowerCase();
-    return ['confirmed', 'partial-completed', 'partial_completed', 'completed', 'cancelled'].includes(status);
+    return ['confirmed', 'partial-completed', 'partial_completed', 'completed', 'cancelled', 'transferred'].includes(status);
   };
 
   const handleRefresh = async () => {
@@ -715,6 +715,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       case 'reserved': return 'bg-teal-100 text-teal-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'transferred': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };

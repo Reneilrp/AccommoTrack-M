@@ -829,19 +829,20 @@ class TenantController extends Controller
                     $activeBooking->end_date = now()->format('Y-m-d');
                     $activeBooking->save();
 
-                    // Cancel pending/unpaid invoices for the old booking
+                    // Defer pending/unpaid invoices for the old booking (e.g. transfer fees, damage charges, or rent)
+                    // This allows proxy bookings to preserve their paper trail, and landlords can manually mark them as paid or cancelled later.
                     \App\Models\Invoice::where('booking_id', $activeBooking->id)
-                        ->whereNotIn('status', ['paid', 'cancelled', 'void', 'partial']) // Don't cancel partially paid ones automatically? Or handle them?
+                        ->whereNotIn('status', ['paid', 'cancelled', 'void', 'partial'])
                         ->update([
-                            'status' => 'cancelled',
-                            'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Cancelled due to room transfer)')"),
+                            'status' => 'deferred',
+                            'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Deferred due to room transfer)')"),
                         ]);
 
                     // End the physical stay first, then close the old booking lifecycle.
                     $oldRoom->removeTenant($tenant->id);
 
-                    // Use a valid booking enum status when ending a booking due to transfer.
-                    $this->bookingService->updateStatus($activeBooking, ['status' => 'partial-completed']);
+                    // Use the new transferred enum status when ending a booking due to transfer.
+                    $this->bookingService->updateStatus($activeBooking, ['status' => 'transferred']);
                 } else {
                     $oldRoom->removeTenant($tenant->id);
                 }

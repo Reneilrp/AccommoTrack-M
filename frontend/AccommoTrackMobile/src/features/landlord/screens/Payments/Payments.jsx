@@ -15,6 +15,8 @@ import {
   Platform,
   Dimensions,
   Pressable,
+  Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -346,6 +348,7 @@ export default function Payments({ navigation, route }) {
   const [rejectReason, setRejectReason] = useState('');
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
   const [pendingFocusInvoiceId, setPendingFocusInvoiceId] = useState(null);
+  const [proofLightboxUrl, setProofLightboxUrl] = useState(null);
 
   const getPaymentError = useCallback(
     (errorOrMessage, fallbackMessage) => normalizeActionError(errorOrMessage, fallbackMessage),
@@ -1145,6 +1148,8 @@ export default function Payments({ navigation, route }) {
                   if (isSettled) return null;
 
                   if (status === 'pending_verification') {
+                    const pendingTx = selectedInvoice?.transactions?.find(tx => tx.status === 'pending_offline');
+                    const proofUrl = pendingTx?.gateway_response?.proof_image_url;
                     return (
                       <View style={[styles.verificationSection, { backgroundColor: theme.isDark ? 'rgba(194,65,12,0.1)' : '#FFF7ED', borderColor: theme.isDark ? '#C2410C' : '#FFEDD5' }]}>
                         <View style={styles.verificationHeader}>
@@ -1156,6 +1161,82 @@ export default function Payments({ navigation, route }) {
                             </Text>
                           </View>
                         </View>
+
+                        {/* Proof of Payment Image */}
+                        {proofUrl ? (
+                          <View style={{ marginTop: 4 }}>
+                            <Text style={{
+                              fontSize: 11,
+                              fontWeight: '700',
+                              color: theme.isDark ? '#fb923c' : '#9A3412',
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.5,
+                              marginBottom: 6,
+                            }}>
+                              Proof of Payment
+                            </Text>
+                            <TouchableOpacity
+                              activeOpacity={0.85}
+                              onPress={() => setProofLightboxUrl(proofUrl)}
+                              style={{
+                                borderRadius: 10,
+                                overflow: 'hidden',
+                                borderWidth: 1.5,
+                                borderColor: theme.isDark ? '#C2410C' : '#FED7AA',
+                                backgroundColor: theme.isDark ? 'rgba(0,0,0,0.3)' : '#FFF',
+                              }}
+                            >
+                              <Image
+                                source={{ uri: proofUrl }}
+                                style={{ width: '100%', height: 180 }}
+                                resizeMode="contain"
+                              />
+                              <View style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                backgroundColor: 'rgba(0,0,0,0.45)',
+                                paddingVertical: 6,
+                                alignItems: 'center',
+                              }}>
+                                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>
+                                  Tap to enlarge
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                            {(pendingTx?.gateway_reference || pendingTx?.gateway_response?.notes) && (
+                              <Text style={{
+                                fontSize: 10,
+                                color: theme.isDark ? '#fdba74' : '#C2410C',
+                                marginTop: 4,
+                                fontStyle: 'italic',
+                              }}>
+                                {pendingTx?.gateway_reference ? `Ref: ${pendingTx.gateway_reference}` : ''}
+                                {pendingTx?.gateway_response?.notes
+                                  ? (pendingTx?.gateway_reference ? ' · ' : '') + `Note: ${pendingTx.gateway_response.notes}`
+                                  : ''}
+                              </Text>
+                            )}
+                          </View>
+                        ) : (
+                          <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: 10,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderStyle: 'dashed',
+                            borderColor: theme.isDark ? '#C2410C' : '#FED7AA',
+                            backgroundColor: theme.isDark ? 'rgba(194,65,12,0.08)' : '#FFF7ED',
+                          }}>
+                            <Ionicons name="image-outline" size={16} color={theme.isDark ? '#fb923c' : '#C2410C'} />
+                            <Text style={{ fontSize: 12, color: theme.isDark ? '#fdba74' : '#9A3412', flex: 1 }}>
+                              No proof image was attached with this submission.
+                            </Text>
+                          </View>
+                        )}
 
                         <View style={styles.verificationActionRow}>
                           <TouchableOpacity
@@ -1591,6 +1672,48 @@ export default function Payments({ navigation, route }) {
               <Text style={[styles.statusModalOptionText, { color: "#EF4444" }]}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
+        </Pressable>
+      </Modal>
+      {/* Proof of Payment Lightbox Modal */}
+      <Modal
+        visible={Boolean(proofLightboxUrl)}
+        transparent={true}
+        animationType="fade"
+        statusBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setProofLightboxUrl(null)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.88)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onPress={() => setProofLightboxUrl(null)}
+        >
+          <Pressable onPress={() => {}} style={{ width: '100%', maxHeight: '85%' }}>
+            {proofLightboxUrl && (
+              <Image
+                source={{ uri: proofLightboxUrl }}
+                style={{ width: '100%', height: undefined, aspectRatio: 1, borderRadius: 12 }}
+                resizeMode="contain"
+              />
+            )}
+          </Pressable>
+          <TouchableOpacity
+            onPress={() => setProofLightboxUrl(null)}
+            style={{
+              marginTop: 20,
+              paddingVertical: 10,
+              paddingHorizontal: 28,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              borderRadius: 999,
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Close</Text>
+          </TouchableOpacity>
         </Pressable>
       </Modal>
     </SafeAreaView>

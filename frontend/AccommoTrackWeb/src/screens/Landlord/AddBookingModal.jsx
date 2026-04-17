@@ -190,15 +190,16 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
     if ((!selectedGuest && !formData.guestName.trim()) || !formData.roomId || !formData.checkIn || (requiresCheckOut && !formData.checkOut)) {
       const msg = requiresCheckOut
-        ? 'Please complete all required fields: guest/tenant, room, check-in, and check-out.'
-        : 'Please complete all required fields: guest/tenant, room, and move-in.';
+        ? 'Please select a Tenant, Room, Check-in Date, and Check-out Date.'
+        : 'Please select a Tenant, Room, and Check-in Date.';
       setError(msg);
       toast.error(msg);
       return;
     }
 
     if (genderMismatch) {
-      const msg = 'Selected tenant is not eligible for this room because of the room sex restriction.';
+      const sexRest = selectedRoomData?.sex_restriction ? selectedRoomData.sex_restriction.charAt(0).toUpperCase() + selectedRoomData.sex_restriction.slice(1) : 'specific sex';
+      const msg = `Conflict: This tenant cannot be added because the room is restricted to ${sexRest} only.`;
       setError(msg);
       toast.error(msg);
       return;
@@ -213,7 +214,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     }
 
     if (formData.checkOut && formData.checkOut <= formData.checkIn) {
-      const msg = `${requiresCheckOut ? 'Check-out' : 'Move-out'} date must be after ${requiresCheckOut ? 'check-in' : 'move-in'} date.`;
+      const msg = 'Check-out date cannot be earlier than Check-in date.';
       setError(msg);
       toast.error(msg);
       return;
@@ -245,7 +246,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       if (errData?.errors) {
         setFieldErrors(errData.errors);
         setError('Booking failed. Please review the errors below.');
-        toast.error('Please fix the validation errors.');
+        toast.error('Some booking rules were not met. Please check the highlighted fields below.');
       } else {
         const msg = normalizeActionError(
           errData?.error || errData?.message || err,

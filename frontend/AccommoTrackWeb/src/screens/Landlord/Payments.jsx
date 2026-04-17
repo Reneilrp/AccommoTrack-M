@@ -209,6 +209,7 @@ export default function Payments() {
   const [mergedRefundPreview, setMergedRefundPreview] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [invoiceDrilldownApplied, setInvoiceDrilldownApplied] = useState(false);
+  const [proofLightboxUrl, setProofLightboxUrl] = useState(null);
   const [recordData, setRecordData] = useState({
     amount: "",
     method: "cash",
@@ -1547,6 +1548,42 @@ export default function Payments() {
                         <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">The tenant has reported paying this invoice in cash. Please verify and approve or reject.</p>
                       </div>
                     </div>
+
+                    {/* Proof of Payment Image */}
+                    {(() => {
+                      const pendingTx = selectedInvoice?.transactions?.find(tx => tx.status === 'pending_offline');
+                      const proofUrl = pendingTx?.gateway_response?.proof_image_url;
+                      return proofUrl ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-orange-800 dark:text-orange-300 uppercase tracking-wider">Proof of Payment</p>
+                          <div
+                            className="relative group cursor-zoom-in rounded-xl overflow-hidden border-2 border-orange-200 dark:border-orange-700 bg-black/5"
+                            onClick={() => setProofLightboxUrl(proofUrl)}
+                            title="Click to enlarge"
+                          >
+                            <img
+                              src={proofUrl}
+                              alt="Proof of payment"
+                              className="w-full max-h-64 object-contain rounded-xl transition-transform group-hover:scale-[1.02]"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-xl flex items-center justify-center">
+                              <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                                Click to enlarge
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-orange-700 dark:text-orange-400 italic">
+                            {pendingTx?.gateway_reference ? `Ref: ${pendingTx.gateway_reference}` : ''}
+                            {pendingTx?.gateway_response?.notes ? (pendingTx?.gateway_reference ? ' · ' : '') + `Note: ${pendingTx.gateway_response.notes}` : ''}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 p-3 bg-orange-100/60 dark:bg-orange-900/30 rounded-lg border border-dashed border-orange-300 dark:border-orange-700">
+                          <ShieldX className="w-4 h-4 text-orange-500 shrink-0" />
+                          <p className="text-xs text-orange-700 dark:text-orange-400">No proof image was attached with this submission.</p>
+                        </div>
+                      );
+                    })()}
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
@@ -1948,6 +1985,29 @@ export default function Payments() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Proof of Payment Lightbox */}
+        {proofLightboxUrl && (
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
+            onClick={() => setProofLightboxUrl(null)}
+          >
+            <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setProofLightboxUrl(null)}
+                className="absolute -top-10 right-0 p-2 text-white/80 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <img
+                src={proofLightboxUrl}
+                alt="Proof of payment (full size)"
+                className="w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
+              />
+              <p className="text-center text-white/60 text-xs mt-3">Click anywhere outside to close</p>
             </div>
           </div>
         )}

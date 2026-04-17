@@ -233,6 +233,7 @@ export default function DormProfileSettings({
         total_floors: data.total_floors || 1,
         require_1month_advance: parseBooleanFlag(data.require_1month_advance, false),
         allow_partial_payments: parseBooleanFlag(data.allow_partial_payments, true),
+        force_wallet_refunds: parseBooleanFlag(data.force_wallet_refunds, true),
         normal_booking_limit: data.normal_booking_limit ?? 1,
         proxy_booking_limit: data.proxy_booking_limit ?? 3,
         min_partial_payment_pct: data.min_partial_payment_pct ?? 20,
@@ -709,6 +710,7 @@ export default function DormProfileSettings({
         total_rooms: parseInt(dormData.total_rooms) || 0,
         require_1month_advance: dormData.require_1month_advance ? 1 : 0,
         allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
+        force_wallet_refunds: dormData.force_wallet_refunds ? 1 : 0,
         normal_booking_limit: parseInt(dormData.normal_booking_limit) || 1,
         proxy_booking_limit: parseInt(dormData.proxy_booking_limit) || 3,
         min_partial_payment_pct: parseInt(dormData.min_partial_payment_pct) || 20,
@@ -1510,6 +1512,26 @@ export default function DormProfileSettings({
                           </span>
                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                             If enabled, tenants can pay their invoice balance in smaller increments. If disabled, they will be required to pay the full remaining invoice balance in a single transaction.
+                          </span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start space-x-4 cursor-pointer group mt-6">
+                        <div className="flex items-center h-5 mt-0.5">
+                          <input
+                            type="checkbox"
+                            disabled={!isEditing}
+                            checked={dormData.force_wallet_refunds !== false}
+                            onChange={(e) => handleInputChange('force_wallet_refunds', e.target.checked)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                            Force Excess Refunds to App Wallet
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            If enabled, excess credits from room transfers will automatically be converted to tenant wallet credits. If disabled, tenants can choose between wallet credits or requesting manual cash refunds.
                           </span>
                         </div>
                       </label>

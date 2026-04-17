@@ -108,6 +108,7 @@ class TransferController extends Controller
             'requested_room_id' => 'required|exists:rooms,id',
             'new_end_date' => 'nullable|date|after_or_equal:today',
             'reason' => 'required|string|max:500',
+            'refund_preference' => 'required|in:wallet,cash',
         ]);
 
         $activeBooking = Booking::where('id', $validated['booking_id'])
@@ -182,6 +183,7 @@ class TransferController extends Controller
             'reason' => $validated['reason'],
             'status' => 'pending',
             'quoted_transfer_fee' => $property->transfer_fee ?? 0,
+            'refund_preference' => (bool) ($property->force_wallet_refunds ?? true) ? 'wallet' : $validated['refund_preference'],
         ]);
 
         return response()->json($transferRequest, 201);
@@ -343,6 +345,7 @@ class TransferController extends Controller
                 'new_room_cost' => $newRoomCost,
                 'suggested_adjustment' => $suggestedAdjustment,
                 'has_payment_this_period' => $hasPaymentThisPeriod,
+                'force_wallet_refunds' => (bool) ($property->force_wallet_refunds ?? true),
             ],
         ]);
     }

@@ -20,7 +20,12 @@ const WalletTab = () => {
       <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg border border-green-600 dark:from-green-600 dark:to-emerald-800 text-white flex items-center justify-between">
         <div>
           <h3 className="text-xl font-bold mb-1">Available Balance</h3>
-          <p className="text-green-100 text-sm">Use this balance for your next payment or invoice.</p>
+          <p className="text-green-100 text-sm mt-1 mb-2">Use this balance to automatically discount your next payment or invoice checkouts.</p>
+          <div className="bg-white/20 px-3 py-1.5 rounded-lg inline-block border border-white/30 backdrop-blur-sm">
+            <p className="text-white text-xs font-medium">
+              * Credits are automatically earned from room transfer adjustments and refunds. Manual top-ups are not supported.
+            </p>
+          </div>
         </div>
         <div className="text-right">
           <span className="text-3xl font-black tracking-tight">

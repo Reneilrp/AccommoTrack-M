@@ -2732,6 +2732,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
   const [newEndDate, setNewEndDate] = useState('');
   const [transferPreview, setTransferPreview] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [refundPreference, setRefundPreference] = useState('wallet');
   const [formData, setFormData] = useState({
     requested_room_id: '',
     reason: '',
@@ -2818,7 +2819,8 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
 
     onSubmit({
       ...formData,
-      new_end_date: leaseDurationPreference === 'new_lease' ? newEndDate : null
+      new_end_date: leaseDurationPreference === 'new_lease' ? newEndDate : null,
+      refund_preference: refundPreference
     });
   };
 
@@ -2923,10 +2925,60 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                               ₱{Math.abs(transferPreview.suggested_adjustment).toLocaleString()}
                             </p>
                             <p className="text-[10px] text-gray-400 font-medium">
-                              {transferPreview.suggested_adjustment > 0 ? 'Additional charge' : 'Credit to next month'}
+                              {transferPreview.suggested_adjustment > 0 ? 'Additional charge' : 'Excess credits'}
                             </p>
                           </div>
                         </div>
+
+                        {/* Refund Preference Selection */}
+                        {transferPreview.suggested_adjustment < 0 && (
+                          <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-700">
+                            {transferPreview.force_wallet_refunds ? (
+                              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg">
+                                <p className="text-xs font-semibold text-green-800 dark:text-green-300">
+                                  ℹ️ Wallet Credits
+                                </p>
+                                <p className="text-[10px] text-green-700 dark:text-green-400 mt-1">
+                                  The excess amount of ₱{Math.abs(transferPreview.suggested_adjustment).toLocaleString()} will be automatically credited to your tenant wallet upon landlord approval.
+                                </p>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Excess Credit Preference *</label>
+                                <div className="space-y-2">
+                                  <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition" onClick={() => setRefundPreference('wallet')}>
+                                    <input 
+                                      type="radio" 
+                                      name="refundPreference" 
+                                      value="wallet"
+                                      checked={refundPreference === 'wallet'}
+                                      onChange={() => setRefundPreference('wallet')}
+                                      className="mt-0.5"
+                                    />
+                                    <div>
+                                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Convert to Wallet Credits</p>
+                                      <p className="text-xs text-gray-500">Fastest. Use for future payments.</p>
+                                    </div>
+                                  </label>
+                                  <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition" onClick={() => setRefundPreference('cash')}>
+                                    <input 
+                                      type="radio" 
+                                      name="refundPreference" 
+                                      value="cash"
+                                      checked={refundPreference === 'cash'}
+                                      onChange={() => setRefundPreference('cash')}
+                                      className="mt-0.5"
+                                    />
+                                    <div>
+                                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Manual Cash Refund</p>
+                                      <p className="text-xs text-gray-500">Requires landlord coordination to receive the cash payout.</p>
+                                    </div>
+                                  </label>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
