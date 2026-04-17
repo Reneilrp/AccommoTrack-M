@@ -2241,10 +2241,10 @@ export default function RoomManagementScreen({ navigation, route }) {
               <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
-        </View>
-        </Modal>
+        </Pressable>
+      </Modal>
 
-        <Modal
+      <Modal
         visible={billingPolicySelectModalVisible}
         transparent
         animationType="fade"
@@ -2252,7 +2252,7 @@ export default function RoomManagementScreen({ navigation, route }) {
         navigationBarTranslucent={true}
         presentationStyle="overFullScreen"
         onRequestClose={() => setBillingPolicySelectModalVisible(false)}
-        >
+      >
         <Pressable
           style={styles.statusModalOverlay}
           onPress={() => setBillingPolicySelectModalVisible(false)}
@@ -2290,9 +2290,9 @@ export default function RoomManagementScreen({ navigation, route }) {
             </TouchableOpacity>
           </Pressable>
         </Pressable>
-        </Modal>
+      </Modal>
 
-        <Modal
+      <Modal
         visible={promoTermSelectModalVisible}
         transparent
         animationType="fade"
@@ -2300,7 +2300,7 @@ export default function RoomManagementScreen({ navigation, route }) {
         navigationBarTranslucent={true}
         presentationStyle="overFullScreen"
         onRequestClose={() => setPromoTermSelectModalVisible(false)}
-        >
+      >
         <Pressable
           style={styles.statusModalOverlay}
           onPress={() => setPromoTermSelectModalVisible(false)}
@@ -2339,9 +2339,9 @@ export default function RoomManagementScreen({ navigation, route }) {
             </TouchableOpacity>
           </Pressable>
         </Pressable>
-        </Modal>
+      </Modal>
 
-        <Modal
+      <Modal
         visible={statusModalVisible}
         transparent
         animationType="fade"

@@ -29,12 +29,12 @@ Mobile
 [x] Double-check payment reflection
 Settings
 [x] Add credits in settings
-[x] Payment drop-down
+[] Payment drop-down
 [x] Chop full name field (occupant name: LN, FN, MN (optional))
 
 Caretaker
 [x] Pre-check bookings and messages modules for caretaker (basic access)
-[x] Allow direct messages from caretaker to landlord (quick access)
+[] Allow direct messages from caretaker to landlord (quick access)
 [x] Give caretaker access to recent activity
 [x] Caretaker module access: do literal copy (click) from landlord level, especially once approved
 [x] Fix lists display for caretaker

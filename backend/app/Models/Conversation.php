@@ -38,6 +38,7 @@ class Conversation extends Model
         'user_one_id',
         'user_two_id',
         'property_id',
+        'caretaker_id',
         'last_message_at',
     ];
 
@@ -58,6 +59,11 @@ class Conversation extends Model
     public function property()
     {
         return $this->belongsTo(Property::class);
+    }
+
+    public function caretaker()
+    {
+        return $this->belongsTo(User::class, 'caretaker_id');
     }
 
     public function messages()

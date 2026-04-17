@@ -263,6 +263,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/rooms', [RoomController::class, 'index']);
         Route::get('/dashboard/stats', [LandlordDashboardController::class, 'getStats']);
         Route::get('/dashboard/recent-activities', [LandlordDashboardController::class, 'getRecentActivities']);
+        Route::post('/property-reports', [LandlordDashboardController::class, 'storeCaretakerReport']);
         Route::get('/dashboard/upcoming-payments', [LandlordDashboardController::class, 'getUpcomingPayments']);
         Route::get('/dashboard/revenue-chart', [LandlordDashboardController::class, 'getRevenueChart']);
         Route::get('/dashboard/property-performance', [LandlordDashboardController::class, 'getPropertyPerformance']);
@@ -465,11 +466,14 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('messages')->group(function () {
-        Route::get('/conversations', [MessageController::class, 'getConversations']);
+        // Messages (Tenant & Generic)
         Route::get('/unread-count', [MessageController::class, 'getUnreadCount']);
-        Route::get('/{conversationId}', [MessageController::class, 'getMessages']);
-        Route::post('/send', [MessageController::class, 'sendMessage']);
+        Route::get('/conversations', [MessageController::class, 'getConversations']);
+        Route::get('/conversations/{id}', [MessageController::class, 'getMessages']);
         Route::post('/start', [MessageController::class, 'startConversation']);
-        Route::patch('/{id}/unsend', [MessageController::class, 'unsend']);
+        Route::post('/start-landlord-chat', [MessageController::class, 'startDirectLandlordConversation']);
+        Route::patch('/{id}/caretaker', [MessageController::class, 'assignCaretaker']);
+        Route::post('/send', [MessageController::class, 'sendMessage']);
+        Route::post('/{id}/unsend', [MessageController::class, 'unsend']);
     });
 });

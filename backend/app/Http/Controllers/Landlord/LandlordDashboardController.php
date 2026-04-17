@@ -183,6 +183,18 @@ class LandlordDashboardController extends Controller
                         'color' => $this->resolveActivityColor('maintenance', $status),
                     ];
                 }
+                if ($item instanceof \App\Models\AuditLog) {
+                    return [
+                        'id' => $item->id, 'type' => 'report',
+                        'action' => 'Property Report / Log',
+                        'description' => $item->summary ?? 'New caretaker/landlord property log.',
+                        'by' => ($item->actor->first_name ?? 'Staff').' '.($item->actor->last_name ?? ''),
+                        'status' => 'confirmed',
+                        'timestamp' => $item->created_at,
+                        'icon' => 'clipboard',
+                        'color' => 'blue',
+                    ];
+                }
 
                 return $this->normalizeActivityPayload((array) $item);
             })->filter()->values();
@@ -208,6 +220,50 @@ class LandlordDashboardController extends Controller
         $payload['color'] = $this->resolveActivityColor($type, $status, $providedColor);
 
         return $payload;
+    }
+
+    public function storeCaretakerReport(Request $request)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            // Must have some form of permission, but we allow basic caretakers to report freely to the dashboard.
+
+            $request->validate([
+                'property_id' => 'required|exists:properties,id',
+                'description' => 'required|string|max:1000',
+            ]);
+
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                if (! in_array((int) $request->property_id, $assignedPropertyIds)) {
+                    return response()->json(['message' => 'Unauthorized access to this property'], 403);
+                }
+            }
+
+            $audit = \App\Models\AuditLog::create([
+                'domain' => 'caretaker_report',
+                'event' => 'property_activity_logged',
+                'severity' => 'info',
+                'actor_id' => $request->user()->id,
+                'actor_role' => $context['is_caretaker'] ? 'caretaker' : 'landlord',
+                'subject_type' => 'App\Models\Property',
+                'subject_id' => $request->property_id,
+                'property_id' => $request->property_id,
+                'landlord_id' => $context['landlord_id'],
+                'summary' => $request->description,
+                'metadata' => [
+                    'source' => 'quick_reporting_toolbelt',
+                ],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Report submitted successfully',
+                'data' => $audit,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to submit report', 'error' => $e->getMessage()], 500);
+        }
     }
 
     private function resolveActivityColor(string $type, ?string $status, ?string $providedColor = null): string

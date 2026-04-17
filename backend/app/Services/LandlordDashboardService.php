@@ -150,6 +150,15 @@ class LandlordDashboardService
         $activities = $activities->merge((clone $roomsQuery)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'currentTenant'])->orderBy('updated_at', 'desc')->limit(10)->get());
         $activities = $activities->merge((clone $roomsQuery)->where('created_at', '>=', now()->subDays(10))->with(['property'])->orderBy('created_at', 'desc')->limit(10)->get());
 
+        // Add Caretaker Property Reports
+        $auditQuery = \App\Models\AuditLog::where('domain', 'caretaker_report')->where('landlord_id', $landlordId)->with('actor')->orderBy('created_at', 'desc');
+        if ($propertyId) {
+            $auditQuery->where('property_id', $propertyId);
+        } elseif ($assignedPropertyIds) {
+            $auditQuery->whereIn('property_id', $assignedPropertyIds);
+        }
+        $activities = $activities->merge($auditQuery->limit(15)->get());
+
         if (! $isCaretaker) {
             if (! $roomId) {
                 $propertyUpdatesQuery = Property::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->orderBy('updated_at', 'desc');

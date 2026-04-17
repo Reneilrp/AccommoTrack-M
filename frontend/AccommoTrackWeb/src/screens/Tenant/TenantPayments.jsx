@@ -14,9 +14,10 @@ const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 export default function TenantPayments({ user }) {
   const navigate = useNavigate();
   const { uiState, updateScreenState, updateData } = useUIState();
-  const { statusFilter, timeRange, searchQuery } = uiState.wallet || {
+  const { statusFilter, archiveFilter, timeRange, searchQuery } = uiState.wallet || {
     searchQuery: "",
     statusFilter: "all",
+    archiveFilter: "active",
     timeRange: "m"
   };
 
@@ -47,7 +48,7 @@ export default function TenantPayments({ user }) {
       if (searchParams.get('payment_refresh') === 'true' && !tenantPaymentsTempDisabled) {
         // Find any pending/unpaid invoices and trigger a background refresh
         toast.loading('Updating payment status...', { id: 'refreshing' });
-        const listRes = await paymentService.getPayments('all');
+        const listRes = await paymentService.getPayments('all', archiveFilter || 'active');
         if (listRes.success && Array.isArray(listRes.data)) {
           const pending = listRes.data.filter(p => ['pending', 'unpaid', 'partial'].includes(p.status?.toLowerCase()));
           await Promise.all(pending.map(p => api.post(`/tenant/invoices/${p.id}/paymongo-refresh`)));
@@ -58,7 +59,7 @@ export default function TenantPayments({ user }) {
       }
 
       const [paymentsRes, statsRes] = await Promise.all([
-        paymentService.getPayments('all'),
+        paymentService.getPayments('all', archiveFilter || 'active'),
         paymentService.getStats()
       ]);
 
@@ -274,7 +275,7 @@ export default function TenantPayments({ user }) {
     });
 
     return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [payments, statusFilter, timeRange, searchQuery]);
+  }, [payments, statusFilter, archiveFilter, timeRange, searchQuery]);
 
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900 font-sans">
@@ -343,6 +344,36 @@ export default function TenantPayments({ user }) {
             Tip: For booking-linked items, you can pay Current Due, Next Month, or Next 2 Months.
           </div>
         )}
+
+        {/* Archive vs Active Tabs */}
+        <div className="flex gap-6 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => updateScreenState('wallet', { archiveFilter: 'active' })}
+            className={`pb-3 px-2 text-sm font-bold transition-all relative ${
+              (archiveFilter || 'active') === "active"
+                ? "text-green-600 dark:text-green-400"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            Active Billing
+            {(archiveFilter || 'active') === "active" && (
+              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-green-600 dark:bg-green-400 rounded-t-full"></span>
+            )}
+          </button>
+          <button
+            onClick={() => updateScreenState('wallet', { archiveFilter: 'archived' })}
+            className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${
+              archiveFilter === "archived"
+                ? "text-gray-900 dark:text-white"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            Payment Archive
+            {archiveFilter === "archived" && (
+              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-900 dark:bg-gray-400 rounded-t-full"></span>
+            )}
+          </button>
+        </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">

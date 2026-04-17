@@ -75,6 +75,24 @@ const MessageService = {
     } catch (error) {
       return { success: false, error: extractError(error, 'Unable to unsend message') };
     }
+  },
+
+  async startLandlordChat() {
+    try {
+      const response = await api.post('/messages/start-landlord-chat');
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: extractError(error, 'Unable to start chat with landlord') };
+    }
+  },
+
+  async assignCaretaker(conversationId, caretakerId) {
+    try {
+      const response = await api.patch(`/messages/${conversationId}/caretaker`, { caretaker_id: caretakerId });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: extractError(error, 'Unable to assign caretaker') };
+    }
   }
 };
 

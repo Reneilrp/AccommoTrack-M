@@ -5,9 +5,12 @@ export const paymentService = {
      * Get all payments for the authenticated tenant
      * @param {string} status - Filter by status: 'all', 'paid', 'pending', 'overdue'
      */
-    async getPayments(status = 'all') {
+    async getPayments(status = 'all', archiveFilter = 'active') {
         try {
-            const params = status !== 'all' ? { status } : {};
+            const params = {};
+            if (status !== 'all') params.status = status;
+            if (archiveFilter) params.archive_filter = archiveFilter;
+            
             const response = await api.get('/tenant/payments', { params });
             return {
                 success: true,

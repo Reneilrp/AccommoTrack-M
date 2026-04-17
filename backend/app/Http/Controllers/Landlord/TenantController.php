@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Illuminate\Support\Facades\Auth;
 
 class TenantController extends Controller
 {
@@ -847,34 +848,45 @@ class TenantController extends Controller
             }
 
             // 3. Start new booking for the new room
-            $moveInDate = now()->format('Y-m-d');
+            $isCurrentLease = empty($validated['new_end_date']) && $activeBooking;
+            $moveInDate = $isCurrentLease 
+                ? $activeBooking->start_date 
+                : now()->format('Y-m-d');
 
             if (! empty($validated['new_end_date'])) {
                 $endDate = \Carbon\Carbon::parse($validated['new_end_date'])->format('Y-m-d');
             } else {
                 if ($originalEndDate) {
                     $parsedOriginalEnd = \Carbon\Carbon::parse($originalEndDate);
-                    if ($parsedOriginalEnd->lte(\Carbon\Carbon::parse($moveInDate))) {
+                    if ($parsedOriginalEnd->lte(\Carbon\Carbon::parse(now()->format('Y-m-d')))) {
                         // Keep fallback aligned with 30-day monthly billing blocks.
-                        $endDate = \Carbon\Carbon::parse($moveInDate)->addDays(30)->format('Y-m-d');
+                        $endDate = \Carbon\Carbon::parse(now()->format('Y-m-d'))->addDays(30)->format('Y-m-d');
                     } else {
                         $endDate = $parsedOriginalEnd->format('Y-m-d');
                     }
                 } else {
                     // Default transfer lease: exactly 1 billing month (30 days).
-                    $endDate = \Carbon\Carbon::parse($moveInDate)->addDays(30)->format('Y-m-d');
+                    $endDate = \Carbon\Carbon::parse(now()->format('Y-m-d'))->addDays(30)->format('Y-m-d');
                 }
             }
 
             $newBooking = $this->bookingService->createBooking([
                 'room_id' => $newRoom->id,
-                'start_date' => $moveInDate,
+                'start_date' => $moveInDate, // Preserves identical billing cycle if "Current Lease"
                 'end_date' => $endDate,
+                'allow_past_start' => true,
+                'skip_reservation_invoice' => true,
                 'notes' => 'Transferred from '.($oldRoom ? $oldRoom->room_number : 'previous room').'. Reason: '.$validated['reason'],
             ], $tenant->id);
 
-            // Confirm the booking immediately
-            $this->bookingService->updateStatus($newBooking, ['status' => 'confirmed']);
+            // Confirm the booking immediately. Skip double-billing if we already charge the prorated difference manually.
+            $proratedAdjustment = round((float) ($validated['prorated_adjustment'] ?? 0), 2);
+            $skipInitialRent = $proratedAdjustment !== 0.00 || ($creditCalculation['final_credit'] ?? 0) > 0;
+            
+            $this->bookingService->updateStatus($newBooking, [
+                'status' => 'confirmed', 
+                'skip_initial_rent_invoice' => $skipInitialRent
+            ]);
 
             // 3.5. Calculate and Apply Prorated Credit
             $creditAmount = 0;

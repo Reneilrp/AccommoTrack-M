@@ -5,6 +5,7 @@ import { useSidebar } from '../../contexts/SidebarContext.jsx';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import __api, { getImageUrl } from '../../utils/api';
 import NotificationDropdown from '../Shared/NotificationDropdown';
+import StaffToolbelt from '../Shared/StaffToolbelt';
 import { useUIState } from '../../contexts/UIStateContext';
 import {
   Plus,
@@ -105,7 +106,7 @@ export default function LandlordLayout({
   }, [canManageMessages, isCaretaker]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
+    if(typeof window === 'undefined') return undefined;
 
     refreshMessageUnreadCount();
     const intervalId = window.setInterval(refreshMessageUnreadCount, 30000);
@@ -447,6 +448,7 @@ export default function LandlordLayout({
         onClose={() => setShowLogoutModal(false)}
         onConfirm={confirmLogout}
       />
+      {isCaretaker && <StaffToolbelt user={user} />}
     </div>
   );
 }

@@ -283,7 +283,7 @@ class BookingService
 
             $today = Carbon::today();
 
-            if ($startDate->lessThan($today)) {
+            if ($startDate->lessThan($today) && empty($data['allow_past_start'])) {
                 throw new \DomainException('Check-in date cannot be in the past.');
             }
 
@@ -583,7 +583,7 @@ class BookingService
 
             switch ($newStatus) {
                 case 'confirmed':
-                    $this->handleConfirmation($booking);
+                    $this->handleConfirmation($booking, $data);
                     break;
 
                 case 'completed':
@@ -893,7 +893,7 @@ class BookingService
     /**
      * Handle booking confirmation
      */
-    protected function handleConfirmation(Booking $booking): void
+    protected function handleConfirmation(Booking $booking, array $data = []): void
     {
         // Validate room relationship exists
         if (! $booking->room) {
@@ -926,31 +926,33 @@ class BookingService
             }
         }
 
-        // Auto-generate initial invoice if it doesn't exist
-        $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)
-            ->where(function ($query) {
-                $query->whereNull('invoice_type')->orWhere('invoice_type', 'rent');
-            })
-            ->first();
-        if (! $existingInvoice) {
-            // Validate room relationship before accessing billing_policy
-            if (! $booking->room) {
-                Log::error('Cannot generate invoice: booking room relationship missing', ['booking_id' => $booking->id]);
-                throw new \DomainException('Cannot generate invoice: room data is missing.');
-            }
-
-            $billingPolicy = $booking->room->billing_policy ?? 'monthly';
-            $isProxyMode = $booking->booking_mode === 'proxy';
-            $occupiedSlots = $isProxyMode
-                ? max((int) ($booking->bed_count ?? 1), (int) $booking->occupants()->count(), 1)
-                : 1;
-
-            // For proxy bookings with multiple occupied slots, generate separate invoices.
-            if ($isProxyMode && $occupiedSlots > 1) {
-                $this->generateProxyOccupantInvoices($booking, $billingPolicy, $occupiedSlots);
-            } else {
-                // Generate single invoice for normal bookings or proxy with 1 occupant
-                $this->generateSingleBookingInvoice($booking, $billingPolicy);
+        if (empty($data['skip_initial_rent_invoice'])) {
+            // Auto-generate initial invoice if it doesn't exist
+            $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)
+                ->where(function ($query) {
+                    $query->whereNull('invoice_type')->orWhere('invoice_type', 'rent');
+                })
+                ->first();
+            if (! $existingInvoice) {
+                // Validate room relationship before accessing billing_policy
+                if (! $booking->room) {
+                    Log::error('Cannot generate invoice: booking room relationship missing', ['booking_id' => $booking->id]);
+                    throw new \DomainException('Cannot generate invoice: room data is missing.');
+                }
+    
+                $billingPolicy = $booking->room->billing_policy ?? 'monthly';
+                $isProxyMode = $booking->booking_mode === 'proxy';
+                $occupiedSlots = $isProxyMode
+                    ? max((int) ($booking->bed_count ?? 1), (int) $booking->occupants()->count(), 1)
+                    : 1;
+    
+                // For proxy bookings with multiple occupied slots, generate separate invoices.
+                if ($isProxyMode && $occupiedSlots > 1) {
+                    $this->generateProxyOccupantInvoices($booking, $billingPolicy, $occupiedSlots);
+                } else {
+                    // Generate single invoice for normal bookings or proxy with 1 occupant
+                    $this->generateSingleBookingInvoice($booking, $billingPolicy);
+                }
             }
         }
 

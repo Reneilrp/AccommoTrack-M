@@ -1979,7 +1979,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
 
               return (
                 <div className="mt-4 p-4 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-300 mb-2">Cancellation / Eviction Reason</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-300 mb-2">Cancellation</p>
                   <p className="text-sm font-medium text-red-800 dark:text-red-200">{cancellationReason}</p>
                 </div>
               );
@@ -1992,7 +1992,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
               <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Activity Timeline</h5>
               <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100 dark:before:bg-gray-700">
                 {Array.isArray(booking.activityLog) && booking.activityLog.length > 0 ? (
-                  booking.activityLog.map((activity, idx) => (
+                  [...(booking.activityLog || [])].reverse().map((activity, idx) => (
                     <div key={idx} className="relative">
                       {/* Timeline dot */}
                       <div className={`absolute -left-[22px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${activity.status === 'pending' ? 'bg-amber-400' :
@@ -2969,6 +2969,17 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                     className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
                   />
                   <p className="text-[10px] text-gray-500 mt-2 font-medium">Pick a specific check-out date for your new room.</p>
+                </div>
+              )}
+
+              {leaseDurationPreference === 'keep_current' && (
+                <div className="mt-4 animate-in fade-in slide-in-from-top-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    ℹ️ Inheriting existing anniversary cycle
+                  </p>
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
+                    Your current billing schedule and lease terms will carry over seamlessly to the new room.
+                  </p>
                 </div>
               )}
             </div>

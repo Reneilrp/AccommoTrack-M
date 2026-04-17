@@ -35,6 +35,7 @@ class ConversationResource extends JsonResource
             ] : null,
             'last_message' => new MessageResource($this->lastMessage),
             'unread_count' => (int) ($this->unread_count ?? 0),
+            'caretaker_id' => $this->caretaker_id,
             'last_message_at' => $this->last_message_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
@@ -45,6 +46,12 @@ class ConversationResource extends JsonResource
     {
         $user = $request->user();
         if ($user && $user->isCaretaker()) {
+            // If the caretaker is an actual participant in this conversation
+            // (e.g., direct chat with landlord), prioritize their own ID.
+            if ($this->user_one_id === $user->id || $this->user_two_id === $user->id) {
+                return $user->id;
+            }
+
             return $user->effectiveLandlordId();
         }
 

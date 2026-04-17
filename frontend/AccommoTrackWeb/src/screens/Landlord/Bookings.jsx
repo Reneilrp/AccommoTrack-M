@@ -2017,7 +2017,7 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
               <div>
                 <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">New Lease Duration</p>
                 <p className="text-sm font-bold text-blue-900 dark:text-blue-200">
-                  {req.new_end_date ? 'Ends on: ' + new Date(req.new_end_date).toLocaleDateString() : 'Keep current lease logic'}
+                  {req.new_end_date ? 'Ends on: ' + new Date(req.new_end_date).toLocaleDateString() : 'Inherits existing anniversary cycle'}
                 </p>
               </div>
               <CalendarDays className="w-5 h-5 text-blue-500 opacity-50" />

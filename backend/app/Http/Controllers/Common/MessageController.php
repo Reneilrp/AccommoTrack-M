@@ -27,6 +27,12 @@ class MessageController extends Controller
             $q->where('user_one_id', $ownerId)
                 ->orWhere('user_two_id', $ownerId);
         })
+            ->when($context['is_caretaker'] ?? false, function ($q) use ($context) {
+                $q->where(function ($q2) use ($context) {
+                    $q2->whereNull('caretaker_id')
+                        ->orWhere('caretaker_id', $context['viewer_id']);
+                });
+            })
             ->with(['userOne', 'userTwo', 'property', 'lastMessage'])
             ->withCount(['messages as unread_count' => function ($q) use ($ownerId) {
                 $q->where('receiver_id', $ownerId)
@@ -48,6 +54,12 @@ class MessageController extends Controller
             ->where(function ($q) use ($ownerId) {
                 $q->where('user_one_id', $ownerId)
                     ->orWhere('user_two_id', $ownerId);
+            })
+            ->when($context['is_caretaker'] ?? false, function ($q) use ($context) {
+                $q->where(function ($q2) use ($context) {
+                    $q2->whereNull('caretaker_id')
+                        ->orWhere('caretaker_id', $context['viewer_id']);
+                });
             })
             ->firstOrFail();
 
@@ -212,6 +224,40 @@ class MessageController extends Controller
         return response()->json(new ConversationResource($conversation));
     }
 
+    public function startDirectLandlordConversation(Request $request)
+    {
+        $user = $request->user();
+        if (! $user?->isCaretaker()) {
+            return response()->json(['message' => 'Only caretakers can use this endpoint'], 403);
+        }
+
+        $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_view_messages');
+
+        $userId = Auth::id(); // The caretaker's own ID
+        $recipientId = $context['landlord_id'];
+
+        $conversation = Conversation::where(function ($q) use ($userId, $recipientId) {
+            $q->where('user_one_id', $userId)->where('user_two_id', $recipientId);
+        })
+            ->orWhere(function ($q) use ($userId, $recipientId) {
+                $q->where('user_one_id', $recipientId)->where('user_two_id', $userId);
+            })
+            ->first();
+
+        if (! $conversation) {
+            $conversation = Conversation::create([
+                'user_one_id' => $userId,
+                'user_two_id' => $recipientId,
+                'property_id' => null,
+            ]);
+        }
+
+        $conversation->load(['userOne', 'userTwo', 'property', 'lastMessage']);
+
+        return response()->json(new ConversationResource($conversation));
+    }
+
     // Get unread message count
     public function getUnreadCount(Request $request)
     {
@@ -223,6 +269,43 @@ class MessageController extends Controller
             ->count();
 
         return response()->json(['unread_count' => $count]);
+    }
+
+    public function assignCaretaker(Request $request, $id)
+    {
+        $user = $request->user();
+        if ($user->role !== 'landlord') {
+            return response()->json(['message' => 'Only landlords can assign caretakers to conversations'], 403);
+        }
+
+        $request->validate([
+            'caretaker_id' => 'nullable|exists:users,id',
+        ]);
+
+        $conversation = Conversation::where('id', $id)
+            ->where(function ($q) use ($user) {
+                $q->where('user_one_id', $user->id)
+                    ->orWhere('user_two_id', $user->id);
+            })
+            ->firstOrFail();
+
+        // Check if the assigned user is actually a caretaker of this landlord
+        if ($request->caretaker_id) {
+            $isCaretaker = \App\Models\CaretakerAssignment::where('landlord_id', $user->id)
+                ->where('caretaker_id', $request->caretaker_id)
+                ->exists();
+
+            if (! $isCaretaker) {
+                return response()->json(['message' => 'The selected user is not assigned to you as a caretaker.'], 403);
+            }
+        }
+
+        $conversation->update(['caretaker_id' => $request->caretaker_id]);
+
+        return response()->json([
+            'message' => 'Caretaker assignment updated.',
+            'caretaker_id' => $conversation->caretaker_id,
+        ]);
     }
 
     // Unsend a message

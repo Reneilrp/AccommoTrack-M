@@ -191,6 +191,7 @@ export default function Payments() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [archiveFilter, setArchiveFilter] = useState("active");
   const [statsRange, setStatsRange] = useState("month");
   const [summary, setSummary] = useState(cachedData?.summary || null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -225,6 +226,12 @@ export default function Payments() {
     // Initial fetch only; loadInvoices is intentionally not a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadInvoices();
+    // Re-fetch when archive filter changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archiveFilter]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search || "");
@@ -467,6 +474,7 @@ export default function Payments() {
       setError(null);
       const response = await invoiceService.getInvoices({
         exclude_invoice_type: "subscription",
+        archive_filter: archiveFilter,
         t: Date.now(),
       });
       if (!response.success) {
@@ -1237,6 +1245,36 @@ export default function Payments() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Archive vs Active Tabs */}
+        <div className="flex gap-6 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setArchiveFilter("active")}
+            className={`pb-3 px-2 text-sm font-bold transition-all relative ${
+              archiveFilter === "active"
+                ? "text-green-600 dark:text-green-400"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            Active Billing
+            {archiveFilter === "active" && (
+              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-green-600 dark:bg-green-400 rounded-t-full"></span>
+            )}
+          </button>
+          <button
+            onClick={() => setArchiveFilter("archived")}
+            className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${
+              archiveFilter === "archived"
+                ? "text-gray-900 dark:text-white"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            Payment Archive
+            {archiveFilter === "archived" && (
+              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-900 dark:bg-gray-400 rounded-t-full"></span>
+            )}
+          </button>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">

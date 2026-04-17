@@ -4,6 +4,10 @@ import { navigationRef, addNavigationStateListener } from '../../../navigation/R
 import LandlordNavigator from './LandlordNavigator.jsx';
 import Header from '../components/Header.jsx';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
+import StaffToolbelt from '../../../components/StaffToolbelt.jsx';
+import { useQuery } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { landlordQueryKeys } from '../hooks/useLandlordQueryHelpers.js';
 
 export default function LandlordLayout({ onLogout }) {
   const { theme } = useTheme();
@@ -26,6 +30,23 @@ export default function LandlordLayout({ onLogout }) {
   });
   
   const [activeRouteParams, setActiveRouteParams] = React.useState({});
+
+  const userQuery = useQuery({
+    queryKey: landlordQueryKeys.messagesCurrentUserId(), // Reusing to just get user info quickly
+    queryFn: async () => {
+        try {
+            const stored = await AsyncStorage.getItem('user');
+            if (!stored) return null;
+            return JSON.parse(stored);
+        } catch (e) {
+            return null;
+        }
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+  const isCaretaker = userQuery.data?.role === 'caretaker';
 
   React.useEffect(() => {
     const getDeepest = (route) => {
@@ -96,6 +117,8 @@ export default function LandlordLayout({ onLogout }) {
       <View style={{ flex: 1 }}>
         <LandlordNavigator onLogout={onLogout} />
       </View>
+      
+      {isCaretaker && <StaffToolbelt />}
     </View>
   );
 }

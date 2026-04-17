@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X, RotateCcw } from 'lucide-react';
+import api from '../../../utils/api';
+import toast from 'react-hot-toast';
 
 const ChatArea = ({
   selectedChat,
@@ -391,6 +393,10 @@ const ChatArea = ({
               </div>
             </section>
 
+            {isLandlordView && normalizedRole === 'landlord' && (
+              <CaretakerAssignmentSection conversationId={selectedChat?.id} initialCaretakerId={selectedChat?.caretaker_id} />
+            )}
+
             <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 dark:text-gray-400">Media</p>
@@ -423,6 +429,66 @@ const ChatArea = ({
         </div>
       </aside>
     </div>
+  );
+};
+
+const CaretakerAssignmentSection = ({ conversationId, initialCaretakerId }) => {
+  const [caretakers, setCaretakers] = React.useState([]);
+  const [assignedId, setAssignedId] = React.useState(initialCaretakerId || '');
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    setAssignedId(initialCaretakerId || '');
+  }, [initialCaretakerId, conversationId]);
+
+  React.useEffect(() => {
+    const fetchCaretakers = async () => {
+      try {
+        const res = await api.get('/landlord/caretakers');
+        if (res.data?.success) {
+          setCaretakers(res.data.data.map(c => c.caretaker));
+        }
+      } catch (_err) { 
+        // Fail silently or handle error
+      }
+    };
+    fetchCaretakers();
+  }, []);
+
+  const handleAssign = async (e) => {
+    const cId = e.target.value;
+    setIsLoading(true);
+    try {
+      await api.patch(`/messages/${conversationId}/caretaker`, { caretaker_id: cId || null });
+      setAssignedId(cId);
+      toast.success(cId ? 'Caretaker assigned to conversation.' : 'Caretaker unassigned.');
+    } catch (_err) {
+      toast.error('Failed to update caretaker assignment.');
+      setAssignedId(initialCaretakerId || '');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+      <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 dark:text-gray-400 mb-3">Role Assignment</p>
+      <div className="space-y-2 text-sm">
+        <label className="block text-gray-500 dark:text-gray-400 text-xs">Assigned Caretaker</label>
+        <select
+          value={assignedId}
+          onChange={handleAssign}
+          disabled={isLoading}
+          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none text-sm font-semibold"
+        >
+          <option value="">Unassigned (Landlord Only)</option>
+          {caretakers.map(c => (
+            <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+          ))}
+        </select>
+        {isLoading && <p className="text-xs text-blue-500">Saving...</p>}
+      </div>
+    </section>
   );
 };
 

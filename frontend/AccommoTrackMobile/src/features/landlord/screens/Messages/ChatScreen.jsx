@@ -10,6 +10,8 @@ import MessageService from '../../../../services/MessageService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../../styles/Landlord/Messages.js';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
+import { Picker } from '@react-native-picker/picker';
+import api from '../../../../services/api.js';
 import {
     landlordQueryKeys,
     useLandlordFocusRefetch,
@@ -49,6 +51,11 @@ export default function ChatScreen({ navigation, route }) {
     const insets = useSafeAreaInsets();
     const safeAreaEdges = ['top', 'bottom'];
     const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+    
+    // Assignment State
+    const [caretakers, setCaretakers] = useState([]);
+    const [assignedId, setAssignedId] = useState(conv?.caretaker_id || '');
+    const [isAssigning, setIsAssigning] = useState(false);
 
     const scrollViewRef = useRef(null);
     const echoRef = useRef(null);
@@ -78,7 +85,23 @@ export default function ChatScreen({ navigation, route }) {
         gcTime: Infinity,
     });
 
+    const currentUserQuery = useQuery({
+        queryKey: ['messagesCurrentUserFull'],
+        queryFn: async () => {
+            try {
+                const stored = await AsyncStorage.getItem('user');
+                if (!stored) return null;
+                return JSON.parse(stored);
+            } catch (e) {
+                return null;
+            }
+        },
+        staleTime: Infinity,
+        gcTime: Infinity,
+    });
+
     const currentUserId = currentUserIdQuery.data || null;
+    const isLandlordView = currentUserQuery.data?.role === 'landlord';
 
     const messagesQuery = useQuery({
         queryKey: messagesQueryKey,
@@ -165,6 +188,40 @@ export default function ChatScreen({ navigation, route }) {
             hideSubscription.remove();
         };
     }, []);
+
+    // Load available caretakers for assignment 
+    useEffect(() => {
+        if (!isDetailsOpen) return;
+        let isMounted = true;
+        const fetchCaretakers = async () => {
+             try {
+                 const res = await api.get('/landlord/caretakers');
+                 if (res.data?.success && isMounted) {
+                     setCaretakers(res.data.data.map((c) => c.caretaker));
+                 }
+             } catch (_e) { }
+        };
+        fetchCaretakers();
+        return () => { isMounted = false; };
+    }, [isDetailsOpen]);
+
+    const handleAssignCaretaker = async (caretakerId) => {
+        setIsAssigning(true);
+        try {
+             // Pass null or empty string if unassigning
+             const idToAssign = caretakerId || null;
+             const res = await MessageService.assignCaretaker(conv.id, idToAssign);
+             if (res.success) {
+                 setAssignedId(caretakerId);
+             } else {
+                 showAlert('Error', res.error || 'Failed to update assignment.');
+             }
+        } catch (_e) {
+             showAlert('Error', 'Network error.');
+        } finally {
+             setIsAssigning(false);
+        }
+    };
 
     useEffect(() => {
         if (!conv?.id) return;
@@ -599,6 +656,30 @@ export default function ChatScreen({ navigation, route }) {
                                     ))}
                                 </View>
                             </View>
+                        )}
+                        
+                        {/* Caretaker Assignment Section (Visible only to landlord) */}
+                        {conv && isLandlordView && (
+                             <View style={[styles.detailsSection, { borderColor: theme.colors.border }]}>
+                                 <Text style={[styles.detailsSectionTitle, { color: theme.colors.textSecondary }]}>Role Assignment</Text>
+                                 <Text style={[{ fontSize: 13, marginBottom: 8, color: theme.colors.textSecondary }]}>
+                                     Delegate this conversation to a specific caretaker. Once assigned, other caretakers will lose access.
+                                 </Text>
+                                 <View style={[{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: theme.colors.background, opacity: isAssigning ? 0.5 : 1 }]}>
+                                     <Picker
+                                         selectedValue={assignedId}
+                                         onValueChange={(itemValue) => handleAssignCaretaker(itemValue)}
+                                         style={{ color: theme.colors.text }}
+                                         dropdownIconColor={theme.colors.textSecondary}
+                                         enabled={!isAssigning}
+                                     >
+                                         <Picker.Item label="Unassigned (Available to all)" value="" color={theme.colors.textSecondary} />
+                                         {caretakers.map((c) => (
+                                             <Picker.Item key={c.id} label={`${c.first_name} ${c.last_name}`} value={c.id} color={theme.colors.text} />
+                                         ))}
+                                     </Picker>
+                                 </View>
+                             </View>
                         )}
                     </ScrollView>
                 </Animated.View>
