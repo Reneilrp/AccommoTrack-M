@@ -154,38 +154,64 @@ class PropertyController extends Controller
 
     public function getAccessibleProperties(Request $request)
     {
-        $context = $this->resolveLandlordContext($request);
-        $this->ensureCaretakerCan($context, 'can_view_properties');
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_properties');
 
-        if ($context['is_caretaker']) {
-            $assignment = $context['assignment'];
-            $propertyIds = $assignment->properties()->pluck('properties.id')->toArray();
-            $properties = Property::whereIn('id', $propertyIds);
-        } else {
-            $properties = Property::where('landlord_id', $context['landlord_id']);
-        }
-
-        $data = $properties->withCount(['rooms', 'rooms as available_rooms_count' => fn ($q) => $q->where('status', 'available')])
-            ->with(['images', 'amenities', 'credentials', 'rooms' => function($q) {
-                $q->withAggregates()->with('activeEvictionLock');
-            }])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Use the resource for consistent output, but manually map since it's a specific query
-        $formattedData = $data->map(function ($property) {
-            $propertyArray = (new PropertyResource($property))->resolve();
-            // Add credentials back in for the landlord view
-            if ($property->relationLoaded('credentials')) {
-                $propertyArray['credentials'] = $property->credentials->map(function ($c) {
-                    return ['id' => $c->id, 'file_url' => \Illuminate\Support\Facades\Storage::url($c->file_path), 'original_name' => $c->original_name];
-                })->toArray();
+            if ($context['is_caretaker']) {
+                $assignment = $context['assignment'];
+                $propertyIds = $assignment->properties()->pluck('properties.id')->toArray();
+                $properties = Property::whereIn('id', $propertyIds);
+            } else {
+                $properties = Property::where('landlord_id', $context['landlord_id']);
             }
 
-            return $propertyArray;
-        });
+            // Load rooms with aggregates first, then separately load activeEvictionLock.
+            // Combining withAggregates() (withSum subqueries) and ofMany relations like
+            // activeEvictionLock in a single with() chain can cause SQL conflicts on MySQL.
+            $data = $properties
+                ->withCount(['rooms', 'rooms as available_rooms_count' => fn ($q) => $q->where('status', 'available')])
+                ->with(['images', 'amenities', 'credentials', 'rooms' => function ($q) {
+                    $q->withAggregates();
+                }])
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-        return response()->json($formattedData, 200);
+            // Eager-load activeEvictionLock separately on the collected room models
+            // to avoid subquery conflicts with withSum aggregates.
+            $allRooms = $data->flatMap(fn ($p) => $p->rooms);
+            if ($allRooms->isNotEmpty()) {
+                $allRooms->loadMissing('activeEvictionLock');
+            }
+
+            // Use the resource for consistent output, but manually map since it's a specific query
+            $formattedData = $data->map(function ($property) {
+                $propertyArray = (new PropertyResource($property))->resolve();
+                // Add credentials back in for the landlord view
+                if ($property->relationLoaded('credentials')) {
+                    $propertyArray['credentials'] = $property->credentials->map(function ($c) {
+                        return ['id' => $c->id, 'file_url' => \Illuminate\Support\Facades\Storage::url($c->file_path), 'original_name' => $c->original_name];
+                    })->toArray();
+                }
+
+                return $propertyArray;
+            });
+
+            return response()->json($formattedData, 200);
+        } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 403);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('getAccessibleProperties error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load properties.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     public function index(Request $request)
@@ -218,16 +244,36 @@ class PropertyController extends Controller
 
     public function show(Request $request, $id)
     {
-        $context = $this->resolveLandlordContext($request);
-        $this->ensureCaretakerCan($context, 'can_view_properties');
-        $this->checkPropertyAccess($context, (int) $id);
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_properties');
+            $this->checkPropertyAccess($context, (int) $id);
 
-        $property = Property::with(['rooms' => function($q) {
-                $q->withAggregates()->with('activeEvictionLock');
-            }, 'images', 'amenities', 'credentials'])
-            ->findOrFail($id);
+            $property = Property::with(['rooms' => function ($q) {
+                    $q->withAggregates();
+                }, 'images', 'amenities', 'credentials'])
+                ->findOrFail($id);
 
-        return response()->json((new PropertyResource($property))->resolve());
+            // Load activeEvictionLock separately to avoid SQL conflicts with withSum aggregates.
+            $property->rooms->loadMissing('activeEvictionLock');
+
+            return response()->json((new PropertyResource($property))->resolve());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Property not found.'], 404);
+        } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 403);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('PropertyController@show error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load property.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     public function update(UpdatePropertyRequest $request, $id)

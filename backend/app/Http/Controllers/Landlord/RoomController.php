@@ -39,13 +39,12 @@ class RoomController extends Controller
             $this->ensureCaretakerCan($context, 'can_view_rooms');
             $this->checkPropertyAccess($context, (int) $propertyId);
 
-            $rooms = Room::where('property_id', $propertyId)
+            $roomsQuery = Room::where('property_id', $propertyId)
                 ->withAggregates()
                 ->with([
                     'tenants',
                     'amenities',
                     'images',
-                    'activeEvictionLock',
                     'bookings' => function ($query) {
                         $query->whereIn('status', ['reserved', 'confirmed', 'active', 'completed', 'partial-completed'])
                             ->where(function ($bookingQuery) {
@@ -56,8 +55,12 @@ class RoomController extends Controller
                             ->orderByDesc('start_date');
                     },
                 ])
-                ->orderBy('room_number')
-                ->get();
+                ->orderBy('room_number');
+                
+            $rooms = $roomsQuery->get();
+            if ($rooms->isNotEmpty()) {
+                $rooms->loadMissing('activeEvictionLock');
+            }
 
             return response()->json(RoomResource::collection($rooms)->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

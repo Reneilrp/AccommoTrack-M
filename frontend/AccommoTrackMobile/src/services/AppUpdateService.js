@@ -8,7 +8,6 @@ const APK_FILE_NAME = 'AccommoTrack_update.apk';
 const APK_MIME_TYPE = 'application/vnd.android.package-archive';
 const FLAG_GRANT_READ_URI_PERMISSION = 1;
 const FLAG_ACTIVITY_NEW_TASK = 0x10000000;
-const DOWNLOAD_PROBE_TIMEOUT_MS = 12_000;
 
 export const resolveAppDownloadUrl = (rawUrl) => {
   const trimmed = String(rawUrl || '').trim();
@@ -27,7 +26,9 @@ export const resolveAppDownloadUrl = (rawUrl) => {
 };
 
 const buildDestinationUri = () => {
-  const baseDirectory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+  // Must use documentDirectory (not cacheDirectory) because
+  // FileSystem.getContentUriAsync() only works on documentDirectory paths.
+  const baseDirectory = FileSystem.documentDirectory;
   if (!baseDirectory) {
     throw new Error('No writable app directory available for update download.');
   }
@@ -137,55 +138,6 @@ const openUnknownAppsSettings = async () => {
   }
 };
 
-const withFetchTimeout = async (url, options = {}, timeoutMs = DOWNLOAD_PROBE_TIMEOUT_MS) => {
-  if (typeof fetch !== 'function') {
-    return { ok: true, status: 0 };
-  }
-
-  if (typeof AbortController === 'undefined') {
-    return fetch(url, options);
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-};
-
-const assertDownloadUrlReachable = async (resolvedUrl) => {
-  try {
-    const headResponse = await withFetchTimeout(resolvedUrl, { method: 'HEAD' });
-
-    if (headResponse?.ok) return;
-
-    if (headResponse?.status === 405 || headResponse?.status === 501) {
-      const getResponse = await withFetchTimeout(resolvedUrl, { method: 'GET' });
-      if (getResponse?.ok) return;
-
-      throw new Error(`Download URL responded with HTTP ${getResponse?.status || 'error'}.`);
-    }
-
-    throw new Error(`Download URL responded with HTTP ${headResponse?.status || 'error'}.`);
-  } catch (error) {
-    const message = String(error?.message || '').toLowerCase();
-    if (message.includes('aborted') || message.includes('network request failed')) {
-      throw new Error('Unable to reach the update server. Please check your internet connection and try again.');
-    }
-
-    if (error instanceof Error) {
-      throw error;
-    }
-
-    throw new Error('Unable to verify update package URL.');
-  }
-};
-
 const toActionableInstallError = (error) => {
   const base = String(error?.message || 'Unable to install update package.');
   if (isLikelyInstallPermissionIssue(error)) {
@@ -201,8 +153,7 @@ export const downloadAndInstallUpdate = async ({ downloadUrl, onProgress } = {})
     throw new Error('Download URL is missing.');
   }
 
-  await assertDownloadUrlReachable(resolvedUrl);
-
+  // iOS and other non-Android platforms: open in browser/App Store
   if (Platform.OS !== 'android') {
     await Linking.openURL(resolvedUrl);
     return {
@@ -211,6 +162,11 @@ export const downloadAndInstallUpdate = async ({ downloadUrl, onProgress } = {})
     };
   }
 
+  // Android: attempt full in-app download + IntentLauncher install.
+  // We intentionally skip any URL preflight probe (HEAD/GET) — static APK
+  // servers commonly reject HEAD requests with 405, causing false failures
+  // before the download even begins. The FileSystem download attempt is the
+  // only source of truth for whether the URL is reachable.
   try {
     const destinationUri = buildDestinationUri();
     await removeExistingFile(destinationUri);
@@ -235,8 +191,8 @@ export const downloadAndInstallUpdate = async ({ downloadUrl, onProgress } = {})
       contentUri,
     };
   } catch (error) {
-    // Some Android devices/ROM policies block in-app APK installation intents.
-    // First try opening Unknown apps settings for this app, then fallback to browser/download manager.
+    // Some Android ROM policies block in-app APK installation intents.
+    // First offer to open Unknown Apps Settings, then fall back to browser.
     const installHelp = toActionableInstallError(error);
     const openedInstallSettings = await openUnknownAppsSettings();
 

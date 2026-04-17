@@ -11,9 +11,6 @@ import {
   Banknote,
   LayoutDashboard,
   Building2,
-  Wrench,
-  Sparkles,
-  Users,
   Calendar,
   MessageSquare,
   BarChart3,
@@ -32,17 +29,17 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Maintenance, Add-ons, and Tenants are intentionally excluded here.
+  // Landlords access those modules via PropertySummary shortcuts (property context).
+  // Those routes are still registered in LandlordNavigator for deep-link navigation.
   const landlordMenu = [
-    { path: '/dashboard',   label: 'Dashboard',    icon: <LayoutDashboard className="w-5 h-5" /> },
-    { path: '/properties',  label: 'My Properties', icon: <Building2 className="w-5 h-5" /> },
-    { path: '/bookings',    label: 'Bookings',      icon: <Calendar className="w-5 h-5" /> },
-    { path: '/maintenance', label: 'Maintenance',   icon: <Wrench className="w-5 h-5" /> },
-    { path: '/addons',      label: 'Add-ons',       icon: <Sparkles className="w-5 h-5" /> },
-    { path: '/payments',    label: 'Payments',      icon: <Banknote className="w-5 h-5" /> },
-    { path: '/tenants',     label: 'Tenants',       icon: <Users className="w-5 h-5" /> },
-    { path: '/messages',    label: 'Messages',      icon: <MessageSquare className="w-5 h-5" /> },
-    { path: '/analytics',   label: 'Analytics',     icon: <BarChart3 className="w-5 h-5" /> },
-    { path: '/settings',    label: 'Settings',      icon: <SettingsIcon className="w-5 h-5" /> },
+    { path: '/dashboard',  label: 'Dashboard',    icon: <LayoutDashboard className="w-5 h-5" /> },
+    { path: '/properties', label: 'My Properties', icon: <Building2 className="w-5 h-5" /> },
+    { path: '/bookings',   label: 'Bookings',      icon: <Calendar className="w-5 h-5" /> },
+    { path: '/payments',   label: 'Payments',      icon: <Banknote className="w-5 h-5" /> },
+    { path: '/messages',   label: 'Messages',      icon: <MessageSquare className="w-5 h-5" /> },
+    { path: '/analytics',  label: 'Analytics',     icon: <BarChart3 className="w-5 h-5" /> },
+    { path: '/settings',   label: 'Settings',      icon: <SettingsIcon className="w-5 h-5" /> },
   ];
 
   const refreshMessageUnreadCount = useCallback(async () => {
