@@ -1184,8 +1184,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       }
     } catch (error) {
       console.error('Booking submission error:', error);
-      const validationMessage = formatBookingValidationError(error?.response?.data?.errors);
-      showError('Booking Error', validationMessage || error.message || 'An unexpected error occurred.');
+      const errorData = error.response?.data;
+      const validationMessage = formatBookingValidationError(errorData?.errors || errorData?.details);
+      const finalMsg = validationMessage || errorData?.error || errorData?.message || error.message || 'An unexpected error occurred.';
+      showError('Booking Error', finalMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1521,7 +1523,27 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               contentContainerStyle={styles.modalScrollContent}
             >
               <Text style={styles.modalTitle}>{isCartMode ? 'Add Room' : 'Book Room'} {activeRoom.room_number}</Text>
-              <Text style={styles.psText}>Monthly = 30 days (no prorate)</Text>
+              
+              {!isDailyContract && (
+                <View style={{ backgroundColor: theme.colors.primary + '15', padding: 8, borderRadius: 8, marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="information-circle" size={16} color={theme.colors.primary} />
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.primary }}>Monthly Billing Policy</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
+                    Stays are billed in 30-day blocks. Partial months are charged as full months.
+                  </Text>
+                  
+                  {pricingBreakdown?.remaining_days > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: '#FEF3C7', padding: 6, borderRadius: 4 }}>
+                      <Ionicons name="alert-circle" size={16} color="#B45309" />
+                      <Text style={{ fontSize: 11, color: '#B45309', fontWeight: 'bold', flex: 1 }}>
+                        Stay has {pricingBreakdown.remaining_days} extra days. You will be charged for an additional month.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Booking Type</Text>

@@ -23,6 +23,7 @@ import {
 import api from "../../utils/api";
 
 const AddonManagement = ({ propertyId, user, accessRole }) => {
+  const { uiState, updateData } = useUIState();
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);

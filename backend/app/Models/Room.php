@@ -232,12 +232,12 @@ class Room extends Model
             }], 'bed_count')
             ->withSum(['bookings as occupied_walkin_beds' => function ($q) {
                 $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-                  ->whereNull('tenant_id')
-                  ->where('start_date', '<=', now())
-                  ->where(function ($q2) {
-                      $q2->whereNull('end_date')
-                         ->orWhere('end_date', '>=', now());
-                  });
+                    ->whereNull('tenant_id')
+                    ->where('start_date', '<=', now())
+                    ->where(function ($q2) {
+                        $q2->whereNull('end_date')
+                            ->orWhere('end_date', '>=', now());
+                    });
             }], 'bed_count')
             ->withSum(['bookings as pending_beds' => function ($q) {
                 $q->whereIn('status', ['pending', 'pending_reservation', 'reserved']);

@@ -709,4 +709,38 @@ class LandlordBookingController extends Controller
             ], 500);
         }
     }
+
+    public function convertOccupantToTenant(Request $request, $id, $occupantId)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $this->ensureCaretakerCan($context, 'can_manage_tenants'); // Assuming there's a permission for this, or use a broad one
+
+            $booking = Booking::with(['occupants'])
+                ->forLandlord($context['landlord_id'])
+                ->findOrFail($id);
+
+            $this->checkPropertyAccess($context, $booking->property_id);
+
+            $emailOverride = $request->input('email');
+
+            $result = $this->bookingService->convertOccupantToTenant($booking, $occupantId, $emailOverride);
+
+            return response()->json([
+                'message' => 'Occupant converted to tenant successfully.',
+                'tenant' => $result['user'],
+            ], 200);
+
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to convert occupant to tenant', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Failed to convert occupant to tenant',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

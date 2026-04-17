@@ -258,6 +258,19 @@ const bookingService = {
       return { success: false, error: err.response?.data?.message || err.message };
     }
   },
+
+  /**
+   * Convert an occupant of a proxy booking to a tenant user
+   * POST /landlord/bookings/:id/occupants/:occupantId/convert-to-tenant
+   */
+  async convertOccupantToTenant(bookingId, occupantId, data) {
+    try {
+      const res = await api.post(`/landlord/bookings/${bookingId}/occupants/${occupantId}/convert-to-tenant`, data);
+      return { success: true, data: res.data?.data || res.data, message: res.data?.message };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  }
 };
 
 export default bookingService;

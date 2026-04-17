@@ -7,8 +7,8 @@ use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Room;
-use App\Models\TenantCredit;
 use App\Models\TenantClaimCode;
+use App\Models\TenantCredit;
 use App\Models\TenantEviction;
 use App\Models\User;
 use App\Services\BookingService;
@@ -16,11 +16,11 @@ use App\Services\RefundService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Illuminate\Support\Facades\Auth;
 
 class TenantController extends Controller
 {
@@ -76,6 +76,10 @@ class TenantController extends Controller
                             ->with('room.property')
                             ->orderBy('created_at', 'desc');
                     },
+                    'bookingOccupantRecords.booking' => function ($q) use ($landlordId) {
+                        $q->where('landlord_id', $landlordId)
+                            ->with('room.property');
+                    },
                     'scheduledEviction' => function ($q) use ($landlordId) {
                         $q->where('landlord_id', $landlordId)
                             ->where('status', 'scheduled');
@@ -103,6 +107,17 @@ class TenantController extends Controller
                                         }
                                     });
                                 });
+                        })
+                        ->orWhereHas('bookingOccupantRecords.booking', function ($q2) use ($landlordId, $allowedPropertyIds, $confirmedStatuses) {
+                            $q2->whereIn('status', $confirmedStatuses)
+                                ->whereHas('room', function ($q3) use ($landlordId, $allowedPropertyIds) {
+                                    $q3->whereHas('property', function ($q4) use ($landlordId, $allowedPropertyIds) {
+                                        $q4->where('landlord_id', $landlordId);
+                                        if ($allowedPropertyIds) {
+                                            $q4->whereIn('id', $allowedPropertyIds);
+                                        }
+                                    });
+                                });
                         });
                 });
 
@@ -110,7 +125,8 @@ class TenantController extends Controller
             if ($propertyId) {
                 $query->where(function ($q) use ($propertyId, $confirmedStatuses) {
                     $q->whereHas('roomAssignments', fn ($q2) => $q2->where('property_id', $propertyId))
-                        ->orWhereHas('bookings', fn ($q2) => $q2->where('property_id', $propertyId)->whereIn('status', $confirmedStatuses));
+                        ->orWhereHas('bookings', fn ($q2) => $q2->where('property_id', $propertyId)->whereIn('status', $confirmedStatuses))
+                        ->orWhereHas('bookingOccupantRecords.booking', fn ($q2) => $q2->where('property_id', $propertyId)->whereIn('status', $confirmedStatuses));
                 });
             }
 
@@ -129,9 +145,18 @@ class TenantController extends Controller
             $tenants = $query->get()->map(function ($tenant) use ($propertyId) {
                 // ... map logic remains same ...
                 $legacyRoom = $tenant->room;
+
                 $latestBooking = $propertyId
                     ? $tenant->bookings->where('property_id', $propertyId)->first()
                     : $tenant->bookings->first();
+
+                if (! $latestBooking) {
+                    $latestOccupantRecord = $propertyId
+                        ? $tenant->bookingOccupantRecords->filter(fn ($rec) => $rec->booking && $rec->booking->property_id == $propertyId)->first()
+                        : $tenant->bookingOccupantRecords->first();
+                    $latestBooking = $latestOccupantRecord?->booking;
+                }
+
                 $bookingRoom = $latestBooking?->room;
                 $room = ($legacyRoom && (! $propertyId || (string) $legacyRoom->property_id === (string) $propertyId))
                     ? $legacyRoom : $bookingRoom;
@@ -182,8 +207,11 @@ class TenantController extends Controller
             // and if caretaker, check property isolation
             $tenantRoom = $tenant->room;
             $hasValidBooking = $tenant->bookings()->where('landlord_id', $landlordId)->exists();
+            $hasValidOccupantRecord = $tenant->bookingOccupantRecords()->whereHas('booking', function ($q) use ($landlordId) {
+                $q->where('landlord_id', $landlordId);
+            })->exists();
 
-            if (! $tenantRoom && ! $hasValidBooking) {
+            if (! $tenantRoom && ! $hasValidBooking && ! $hasValidOccupantRecord) {
                 throw new AccessDeniedHttpException('This tenant is not associated with your properties.');
             }
 
@@ -194,6 +222,16 @@ class TenantController extends Controller
                     ->pluck('property_id')
                     ->unique()
                     ->toArray();
+
+                $occupantPropertyIds = \App\Models\Booking::whereHas('occupants', function ($q) use ($tenant) {
+                    $q->where('user_id', $tenant->id);
+                })
+                    ->where('landlord_id', $landlordId)
+                    ->pluck('property_id')
+                    ->unique()
+                    ->toArray();
+
+                $tenantPropertyIds = array_unique(array_merge($tenantPropertyIds, $occupantPropertyIds));
 
                 if ($tenantRoom) {
                     $tenantPropertyIds[] = $tenantRoom->property_id;
@@ -279,6 +317,13 @@ class TenantController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $proxyOrigin = \App\Models\BookingOccupant::where('user_id', $tenant->id)
+            ->whereHas('booking', function ($q) use ($landlordId) {
+                $q->where('landlord_id', $landlordId);
+            })
+            ->with('booking.property')
+            ->first();
+
         return response()->json([
             'id' => $tenant->id,
             'first_name' => $tenant->first_name,
@@ -290,6 +335,10 @@ class TenantController extends Controller
             'date_of_birth' => $tenant->date_of_birth,
             'room' => $room ? ['room_number' => $room->room_number, 'property_name' => $room->property->title] : null,
             'tenantProfile' => $tenant->tenantProfile,
+            'proxy_origin' => $proxyOrigin ? [
+                'booking_reference' => $proxyOrigin->booking->booking_reference,
+                'property_name' => $proxyOrigin->booking->property->title,
+            ] : null,
             'history' => [
                 'bookings' => $bookings,
                 'maintenance' => $maintenanceRequests,
@@ -850,8 +899,8 @@ class TenantController extends Controller
 
             // 3. Start new booking for the new room
             $isCurrentLease = empty($validated['new_end_date']) && $activeBooking;
-            $moveInDate = $isCurrentLease 
-                ? $activeBooking->start_date 
+            $moveInDate = $isCurrentLease
+                ? $activeBooking->start_date
                 : now()->format('Y-m-d');
 
             if (! empty($validated['new_end_date'])) {
@@ -883,10 +932,10 @@ class TenantController extends Controller
             // Confirm the booking immediately. Skip double-billing if we already charge the prorated difference manually.
             $proratedAdjustment = round((float) ($validated['prorated_adjustment'] ?? 0), 2);
             $skipInitialRent = $proratedAdjustment !== 0.00 || ($creditCalculation['final_credit'] ?? 0) > 0;
-            
+
             $this->bookingService->updateStatus($newBooking, [
-                'status' => 'confirmed', 
-                'skip_initial_rent_invoice' => $skipInitialRent
+                'status' => 'confirmed',
+                'skip_initial_rent_invoice' => $skipInitialRent,
             ]);
 
             // 3.5. Calculate and Apply Prorated Credit

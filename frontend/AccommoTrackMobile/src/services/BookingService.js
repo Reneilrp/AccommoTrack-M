@@ -1,5 +1,4 @@
 import api from './api.js';
-import { API_BASE_URL as API_URL } from '../config/index.js';
 
 class BookingService {
 
@@ -131,6 +130,19 @@ class BookingService {
     } catch (error) {
       console.error('Error requesting move-out:', error.response?.data || error.message);
       return { success: false, error: error.response?.data?.message || 'Failed to request move-out' };
+    }
+  }
+
+  async convertOccupantToTenant(bookingId, occupantId, data) {
+    try {
+      const response = await api.post(
+        `/landlord/bookings/${bookingId}/occupants/${occupantId}/convert-to-tenant`,
+        data
+      );
+      return { success: true, data: response.data?.data || response.data, message: response.data?.message };
+    } catch (error) {
+      console.error('Error converting occupant to tenant:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.message || 'Failed to convert occupant to tenant' };
     }
   }
 }

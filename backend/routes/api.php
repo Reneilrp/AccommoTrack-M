@@ -354,6 +354,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{id}/deposit-settlements', [LandlordBookingController::class, 'getDepositSettlements']);
     Route::post('/bookings/{id}/approve-reservation', [LandlordBookingController::class, 'approveReservation']);
     Route::post('/bookings/{id}/check-in', [LandlordBookingController::class, 'checkInTenant']);
+    Route::post('/bookings/{id}/occupants/{occupantId}/convert-to-tenant', [LandlordBookingController::class, 'convertOccupantToTenant']);
 
     // ===== PAYMENTS / INVOICES =====
     Route::get('/invoices', [InvoiceController::class, 'index']);

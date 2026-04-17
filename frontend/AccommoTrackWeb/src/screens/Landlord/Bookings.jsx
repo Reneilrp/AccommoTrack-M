@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw, CalendarDays, Calculator, Users } from 'lucide-react';
+import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw, CalendarDays, Calculator, Users, UserPlus } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
@@ -73,6 +73,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [occupantToConvert, setOccupantToConvert] = useState(null);
+  const [convertEmail, setConvertEmail] = useState('');
   const [processing, setProcessing] = useState(false);
   const [cancellationData, setCancellationData] = useState({ reason: '', refundAmount: 0, shouldRefund: false });
   const [showAddBookingModal, setShowAddBookingModal] = useState(false);
@@ -697,6 +700,49 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     );
   };
 
+  const handleConvertOccupant = async () => {
+    if (!occupantToConvert) return;
+    if (!convertEmail.trim()) {
+      toast.error('Email is required');
+      return;
+    }
+    
+    setProcessing(true);
+    const toastId = toast.loading('Registering occupant as tenant...');
+    try {
+      const response = await bookingService.convertOccupantToTenant(selectedBooking.id, occupantToConvert.id, {
+        email: convertEmail.trim()
+      });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to convert occupant');
+      }
+      
+      toast.success(response.message || 'Occupant registered as tenant successfully!', { id: toastId });
+      setShowConvertModal(false);
+      setOccupantToConvert(null);
+      setConvertEmail('');
+      
+      // Refresh data
+      refreshLandlordMutationViews();
+      await fetchBookings();
+      // Reload booking detail explicitly to update occupant list
+      const updatedBookingRes = await bookingService.getBookings();
+      if (updatedBookingRes.success) {
+        const list = Array.isArray(updatedBookingRes.data)
+          ? updatedBookingRes.data
+          : (Array.isArray(updatedBookingRes.data?.data) ? updatedBookingRes.data.data : []);
+        const updatedBooking = list.find(b => b.id === selectedBooking.id);
+        if (updatedBooking) {
+          setSelectedBooking(updatedBooking);
+        }
+      }
+    } catch (err) {
+      toast.error(err.message || err.response?.data?.message || 'Failed to convert occupant', { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const filteredBookings = bookings.filter(booking => {
     if (filterStatus !== 'all' && booking.status !== filterStatus) return false;
     if (searchQuery.trim()) {
@@ -1028,15 +1074,32 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         const fullName = [occupant.first_name, occupant.middle_name, occupant.last_name].filter(Boolean).join(' ').trim() || `Occupant ${index + 1}`;
                         return (
                           <div key={occupant.id || `${fullName}-${index}`} className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-gray-50/70 dark:bg-gray-700/40">
-                            <p className="font-semibold text-gray-900 dark:text-white">{fullName}</p>
-                            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                              {occupant.relationship_to_booker || 'Relationship not provided'} · {occupant.sex || 'Sex not provided'}
-                            </p>
-                            {(occupant.phone || occupant.email) && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {[occupant.phone, occupant.email].filter(Boolean).join(' · ')}
-                              </p>
-                            )}
+                            <div className="flex justify-between items-start gap-2">
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-white">{fullName}</p>
+                                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                                  {occupant.relationship_to_booker || 'Relationship not provided'} · {occupant.sex || 'Sex not provided'}
+                                </p>
+                                {(occupant.phone || occupant.email) && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    {[occupant.phone, occupant.email].filter(Boolean).join(' · ')}
+                                  </p>
+                                )}
+                              </div>
+                              {!occupant.user_id && (
+                                <button
+                                  onClick={() => {
+                                    setOccupantToConvert(occupant);
+                                    setConvertEmail(occupant.email || '');
+                                    setShowConvertModal(true);
+                                  }}
+                                  className="shrink-0 p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                                  title="Register as Tenant"
+                                >
+                                  <UserPlus className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -1744,6 +1807,81 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   </span>
                 ) : (
                   'Confirm Checkout'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Convert Occupant Modal */}
+      {showConvertModal && occupantToConvert && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[120] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Register as Tenant</h3>
+              <button
+                onClick={() => {
+                  setShowConvertModal(false);
+                  setOccupantToConvert(null);
+                  setConvertEmail('');
+                }}
+                className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                disabled={processing}
+              >
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-500" />
+              </button>
+            </div>
+
+            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 mb-6 border border-indigo-100 dark:border-indigo-900/30">
+              <p className="text-sm text-indigo-800 dark:text-indigo-300 font-bold mb-2">
+                Occupant: {[occupantToConvert.first_name, occupantToConvert.last_name].filter(Boolean).join(' ') || 'Unnamed'}
+              </p>
+              <p className="text-xs text-indigo-700 dark:text-indigo-400 font-medium">
+                This will create a tenant account and send them an initial login email.
+              </p>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={convertEmail}
+                  onChange={(e) => setConvertEmail(e.target.value)}
+                  placeholder="Enter email for tenant account"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowConvertModal(false);
+                  setOccupantToConvert(null);
+                  setConvertEmail('');
+                }}
+                className="flex-1 px-5 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all"
+                disabled={processing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConvertOccupant}
+                disabled={processing || !convertEmail.trim()}
+                className="flex-1 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {processing ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Registering...
+                  </span>
+                ) : (
+                  'Register Tenant'
                 )}
               </button>
             </div>

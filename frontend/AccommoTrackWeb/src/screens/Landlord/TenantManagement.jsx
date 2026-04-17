@@ -1406,24 +1406,33 @@ const TenantListView = ({
                   <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group">
                     {/* Full Name + behavioral badges */}
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                          {tenant.first_name} {tenant.last_name}
-                        </span>
-                        {late && (
-                          <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-red-200 dark:border-red-800">
-                            <AlertCircle className="w-2.5 h-2.5" /> Late
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                            {tenant.first_name} {tenant.last_name}
                           </span>
-                        )}
-                        {expiring && !late && (
-                          <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-orange-200 dark:border-orange-800">
-                            <Clock className="w-2.5 h-2.5" /> Expiring
-                          </span>
-                        )}
-                        {hasPendingEviction && (
-                          <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-red-200 dark:border-red-800">
-                            <AlertOctagon className="w-2.5 h-2.5" /> Eviction Scheduled
-                          </span>
+                          {late && (
+                            <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-red-200 dark:border-red-800">
+                              <AlertCircle className="w-2.5 h-2.5" /> Late
+                            </span>
+                          )}
+                          {expiring && !late && (
+                            <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-orange-200 dark:border-orange-800">
+                              <Clock className="w-2.5 h-2.5" /> Expiring
+                            </span>
+                          )}
+                          {hasPendingEviction && (
+                            <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-red-200 dark:border-red-800">
+                              <AlertOctagon className="w-2.5 h-2.5" /> Eviction Scheduled
+                            </span>
+                          )}
+                        </div>
+                        {tenant.proxy_origin && (
+                          <div>
+                            <span className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-indigo-200 dark:border-indigo-800">
+                              Proxy: {tenant.proxy_origin.booking_reference}
+                            </span>
+                          </div>
                         )}
                       </div>
                     </td>

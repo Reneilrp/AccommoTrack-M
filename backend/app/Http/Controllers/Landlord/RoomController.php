@@ -56,7 +56,7 @@ class RoomController extends Controller
                     },
                 ])
                 ->orderBy('room_number');
-                
+
             $rooms = $roomsQuery->get();
             if ($rooms->isNotEmpty()) {
                 $rooms->loadMissing('activeEvictionLock');

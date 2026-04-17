@@ -8,6 +8,7 @@ import {
   Alert,
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -26,6 +27,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import PropertyService from "../../../../services/PropertyService.js";
+import BookingService from "../../../../services/BookingService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 import { getStyles } from "../../../../styles/Landlord/RoomManagement.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
@@ -246,6 +248,11 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [assigningTenant, setAssigningTenant] = useState(false);
   const [activeMenuRoomId, setActiveMenuRoomId] = useState(null);
   const [expandedProxyKeys, setExpandedProxyKeys] = useState({});
+  const [convertModalVisible, setConvertModalVisible] = useState(false);
+  const [occupantToConvert, setOccupantToConvert] = useState(null);
+  const [bookingForConversion, setBookingForConversion] = useState(null);
+  const [convertEmail, setConvertEmail] = useState('');
+  const [isConverting, setIsConverting] = useState(false);
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -813,6 +820,48 @@ export default function RoomManagementScreen({ navigation, route }) {
       await refetchLandlordQueries([refetchProperties]);
     } else {
       setActionError(res.error || "Failed to add property rule");
+    }
+  };
+
+  const handleConvertOccupant = async () => {
+    if (!occupantToConvert || !bookingForConversion) return;
+    if (!convertEmail.trim()) {
+      showAlert("Error", "Email address is required.");
+      return;
+    }
+
+    setIsConverting(true);
+    try {
+      const res = await BookingService.convertOccupantToTenant(
+        bookingForConversion.id,
+        occupantToConvert.id,
+        { email: convertEmail.trim() }
+      );
+
+      if (res.success) {
+        showAlert("Success", "Occupant registered as tenant successfully!");
+        setConvertModalVisible(false);
+        setOccupantToConvert(null);
+        setBookingForConversion(null);
+        setConvertEmail("");
+        // Refresh rooms to update occupant list
+        await refetchLandlordQueries(roomRefetchers);
+        // Also update detailRoom if it's currently showing
+        if (detailRoom) {
+          const updatedRooms = await PropertyService.getRooms(selectedPropertyId);
+          if (updatedRooms.success) {
+            const list = Array.isArray(updatedRooms.data) ? updatedRooms.data : (updatedRooms.data?.data || []);
+            const currentRoom = list.find(r => r.id === detailRoom.id);
+            if (currentRoom) setDetailRoom(currentRoom);
+          }
+        }
+      } else {
+        showAlert("Error", res.error || "Failed to convert occupant.");
+      }
+    } catch (err) {
+      showAlert("Error", "An unexpected error occurred during conversion.");
+    } finally {
+      setIsConverting(false);
     }
   };
 
@@ -1430,10 +1479,25 @@ export default function RoomManagementScreen({ navigation, route }) {
 
                                         return (
                                           <View key={`${proxyKey}-occupant-${occupant?.id || occupantIndex}`} style={styles.proxyOccupantRow}>
-                                            <Text style={styles.proxyOccupantName}>{occupantName}</Text>
-                                            {occupantMeta ? (
-                                              <Text style={styles.proxyOccupantMeta}>{occupantMeta}</Text>
-                                            ) : null}
+                                            <View style={styles.proxyOccupantInfo}>
+                                              <Text style={styles.proxyOccupantName}>{occupantName}</Text>
+                                              {occupantMeta ? (
+                                                <Text style={styles.proxyOccupantMeta}>{occupantMeta}</Text>
+                                              ) : null}
+                                            </View>
+                                            {!occupant.user_id && (
+                                              <TouchableOpacity
+                                                style={styles.registerButton}
+                                                onPress={() => {
+                                                  setOccupantToConvert(occupant);
+                                                  setBookingForConversion({ id: proxyAccount.booking_id || proxyAccount.id });
+                                                  setConvertEmail(occupant.email || "");
+                                                  setConvertModalVisible(true);
+                                                }}
+                                              >
+                                                <Ionicons name="person-add-outline" size={16} color={theme.colors.primary} />
+                                              </TouchableOpacity>
+                                            )}
                                           </View>
                                         );
                                       })
@@ -1478,6 +1542,91 @@ export default function RoomManagementScreen({ navigation, route }) {
               })()}
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+ 
+      {/* Proxy Occupant Conversion Modal */}
+      <Modal
+        visible={convertModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        onRequestClose={() => {
+          if (!isConverting) {
+            setConvertModalVisible(false);
+            setOccupantToConvert(null);
+          }
+        }}
+      >
+        <View style={styles.detailsModalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.convertModalCard}
+          >
+            <View style={styles.detailsModalHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailsModalTitle}>Register as Tenant</Text>
+                <Text style={styles.detailsModalMeta}>Creating account for proxy occupant</Text>
+              </View>
+              {!isConverting && (
+                <TouchableOpacity
+                  style={styles.detailsModalCloseButton}
+                  onPress={() => {
+                    setConvertModalVisible(false);
+                    setOccupantToConvert(null);
+                  }}
+                >
+                  <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.convertInfoBox}>
+              <Text style={styles.convertInfoText}>
+                Target: {[occupantToConvert?.first_name, occupantToConvert?.last_name].filter(Boolean).join(" ") || "Occupant"}
+              </Text>
+              <Text style={[styles.convertInfoText, { fontSize: 11, marginTop: 4, fontWeight: "400" }]}>
+                This will create a tenant account and send them an initial login email.
+              </Text>
+            </View>
+
+            <View style={{ gap: 8 }}>
+              <Text style={styles.convertEmailLabel}>Email Address *</Text>
+              <TextInput
+                style={styles.convertInput}
+                value={convertEmail}
+                onChangeText={setConvertEmail}
+                placeholder="tenant@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!isConverting}
+              />
+            </View>
+
+            <View style={styles.convertActions}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { flex: 1, backgroundColor: theme.colors.backgroundSecondary }]}
+                disabled={isConverting}
+                onPress={() => {
+                  setConvertModalVisible(false);
+                  setOccupantToConvert(null);
+                }}
+              >
+                <Text style={[styles.buttonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.primaryButton, { flex: 2 }]}
+                disabled={isConverting || !convertEmail.trim()}
+                onPress={handleConvertOccupant}
+              >
+                {isConverting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.buttonText}>Register Tenant</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 

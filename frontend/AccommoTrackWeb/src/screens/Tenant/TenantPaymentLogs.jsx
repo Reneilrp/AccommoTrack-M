@@ -102,7 +102,7 @@ function PaymentRow({ payment, navigate }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function TenantPaymentLogs({ user }) {
+export default function TenantPaymentLogs({ _user }) {
   const navigate = useNavigate();
 
   const [allPayments, setAllPayments] = useState([]);

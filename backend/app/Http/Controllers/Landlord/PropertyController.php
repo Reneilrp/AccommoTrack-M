@@ -250,8 +250,8 @@ class PropertyController extends Controller
             $this->checkPropertyAccess($context, (int) $id);
 
             $property = Property::with(['rooms' => function ($q) {
-                    $q->withAggregates();
-                }, 'images', 'amenities', 'credentials'])
+                $q->withAggregates();
+            }, 'images', 'amenities', 'credentials'])
                 ->findOrFail($id);
 
             // Load activeEvictionLock separately to avoid SQL conflicts with withSum aggregates.

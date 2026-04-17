@@ -11,6 +11,7 @@ class BookingOccupant extends Model
 
     protected $fillable = [
         'booking_id',
+        'user_id',
         'first_name',
         'middle_name',
         'last_name',
@@ -32,5 +33,10 @@ class BookingOccupant extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

@@ -262,6 +262,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Proxy occupant records linked to this tenant
+     */
+    public function bookingOccupantRecords()
+    {
+        return $this->hasMany(BookingOccupant::class, 'user_id');
+    }
+
+    /**
      * Eviction records where this user is the tenant.
      */
     public function tenantEvictions()

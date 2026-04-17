@@ -245,8 +245,13 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       const errData = err.response?.data;
       if (errData?.errors) {
         setFieldErrors(errData.errors);
-        setError('Booking failed. Please review the errors below.');
-        toast.error('Some booking rules were not met. Please check the highlighted fields below.');
+        
+        // Extract the first error message to show in the toast
+        const firstErrorKey = Object.keys(errData.errors)[0];
+        const firstErrorMessage = errData.errors[firstErrorKey][0];
+        
+        setError(`Booking failed: ${firstErrorMessage}`);
+        toast.error(`Booking Rule: ${firstErrorMessage}`);
       } else {
         const msg = normalizeActionError(
           errData?.error || errData?.message || err,
@@ -512,6 +517,13 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                   <p>Stay Duration: {pricingPreview.days} days</p>
                   <p>Billing Policy: {pricingPreview.policy?.replace('_', ' ')}</p>
                   <p className="italic">{pricingPreview.breakdown?.months > 0 && `${pricingPreview.breakdown.months} month(s)`} {pricingPreview.breakdown?.remaining_days > 0 && `+ ${pricingPreview.breakdown.remaining_days} day(s)`}</p>
+                  
+                  {selectedRoomBillingPolicy === 'monthly' && pricingPreview.breakdown?.remaining_days > 0 && (
+                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <p>Note: Extra days ({pricingPreview.breakdown.remaining_days}) are charged as a full month under Monthly policy.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

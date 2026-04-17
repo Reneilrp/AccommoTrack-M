@@ -54,7 +54,7 @@ const CARETAKER_MENU_DEFINITIONS = [
   { path: '/settings',   label: 'Settings',      icon: SettingsIcon,    permKey: null /* always */ },
 ];
 
-export default function CaretakerLayout({ user, onLogout, children, onUserUpdate }) {
+export default function CaretakerLayout({ user, onLogout, children, _onUserUpdate }) {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const { uiState } = useUIState();
   const [showLogoutModal, setShowLogoutModal] = useState(false);

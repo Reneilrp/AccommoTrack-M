@@ -320,7 +320,7 @@ export default function CareTakerAccess({
     }
   };
 
-  const handleGroupToggleAll = (keys, currentPerms) => {
+  const handleGroupToggleAll = (keys, _currentPerms) => {
     const target = modalMode === 'create' ? 'create' : 'edit';
     const allOn = keys.every((k) => !!(modalMode === 'create' ? safePermissions[k] : editFormData.permissions[k]));
     const nextState = !allOn;

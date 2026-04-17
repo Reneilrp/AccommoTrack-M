@@ -939,13 +939,13 @@ class BookingService
                     Log::error('Cannot generate invoice: booking room relationship missing', ['booking_id' => $booking->id]);
                     throw new \DomainException('Cannot generate invoice: room data is missing.');
                 }
-    
+
                 $billingPolicy = $booking->room->billing_policy ?? 'monthly';
                 $isProxyMode = $booking->booking_mode === 'proxy';
                 $occupiedSlots = $isProxyMode
                     ? max((int) ($booking->bed_count ?? 1), (int) $booking->occupants()->count(), 1)
                     : 1;
-    
+
                 // For proxy bookings with multiple occupied slots, generate separate invoices.
                 if ($isProxyMode && $occupiedSlots > 1) {
                     $this->generateProxyOccupantInvoices($booking, $billingPolicy, $occupiedSlots);
@@ -1503,5 +1503,63 @@ class BookingService
             'reference' => $reference,
             'plan' => $booking->payment_plan,
         ]);
+    }
+
+    public function convertOccupantToTenant(\App\Models\Booking $booking, int $occupantId, ?string $emailOverride = null): array
+    {
+        $occupant = $booking->occupants()->findOrFail($occupantId);
+
+        if ($occupant->user_id !== null) {
+            throw new \DomainException('This occupant has already been converted to a tenant.');
+        }
+
+        $email = $emailOverride ?? $occupant->email;
+
+        if (! $email) {
+            throw new \DomainException('An email address is required to create a tenant account.');
+        }
+
+        if (\App\Models\User::where('email', $email)->exists()) {
+            throw new \DomainException('A user with this email already exists.');
+        }
+
+        return DB::transaction(function () use ($booking, $occupant, $email) {
+            $user = \App\Models\User::create([
+                'first_name' => $occupant->first_name,
+                'last_name' => $occupant->last_name,
+                'email' => $email,
+                'phone' => $occupant->phone,
+                'role' => 'tenant',
+                'sex' => $occupant->sex,
+                'date_of_birth' => $occupant->date_of_birth,
+                'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(12)),
+            ]);
+
+            $tenantProfile = \App\Models\TenantProfile::create([
+                'user_id' => $user->id,
+                'status' => 'active',
+                'lease_status' => 'active',
+            ]);
+
+            $occupant->update(['user_id' => $user->id]);
+
+            $this->auditLogService->bookingEvent('booking.occupant_converted', [
+                'subject_type' => 'booking',
+                'subject_id' => $booking->id,
+                'booking_id' => $booking->id,
+                'property_id' => $booking->property_id,
+                'tenant_id' => $booking->tenant_id,
+                'landlord_id' => $booking->landlord_id,
+                'status_before' => null,
+                'status_after' => $booking->status,
+                'summary' => "Occupant {$occupant->first_name} {$occupant->last_name} was converted to a registered tenant.",
+                'metadata' => [
+                    'occupant_id' => $occupant->id,
+                    'new_user_id' => $user->id,
+                ],
+            ]);
+
+            return ['user' => $user, 'tenantProfile' => $tenantProfile];
+        });
     }
 }

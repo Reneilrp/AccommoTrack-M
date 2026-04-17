@@ -68,6 +68,11 @@ export default function TenantCard({
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-all relative overflow-hidden group">
       {/* Top Behavioral Badges */}
       <div className="flex flex-wrap gap-2 mb-4 justify-center">
+        {tenant.proxy_origin && (
+          <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-2 border border-indigo-200 dark:border-indigo-800 w-full justify-center">
+            Registered from Proxy Booking: {tenant.proxy_origin.booking_reference}
+          </span>
+        )}
         {isLate && (
           <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-2 border border-red-200 dark:border-red-800">
             <AlertCircle className="w-3 h-3" /> Late Payer

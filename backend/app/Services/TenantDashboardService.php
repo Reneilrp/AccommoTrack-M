@@ -106,19 +106,22 @@ class TenantDashboardService
 
     public function getActiveStays(int $tenantId)
     {
-        return Booking::where('tenant_id', $tenantId)
-            ->where(function ($query) {
-                // Bookings that are confirmed, completed, or partial-completed
-                $query->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-                      // Lease hasn't ended OR it's past end_date but still 'confirmed' (overdue)
-                    ->where(function ($q) {
-                        $q->where('end_date', '>=', now()->startOfDay())
-                            ->orWhere('status', 'confirmed');
+        return Booking::where(function ($query) {
+            // Bookings that are confirmed, completed, or partial-completed
+            $query->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                  // Lease hasn't ended OR it's past end_date but still 'confirmed' (overdue)
+                ->where(function ($q) {
+                    $q->where('end_date', '>=', now()->startOfDay())
+                        ->orWhere('status', 'confirmed');
+                });
+        })
+            ->where(function ($query) use ($tenantId) {
+                // The user is either the primary booker...
+                $query->where('tenant_id', $tenantId)
+                    // ...or they are a linked occupant in a proxy booking.
+                    ->orWhereHas('occupants', function ($occupantQuery) use ($tenantId) {
+                        $occupantQuery->where('user_id', $tenantId);
                     });
-            })
-            // Only bookings where the tenant is actually still actively assigned to the room!
-            ->whereHas('room.tenants', function ($query) use ($tenantId) {
-                $query->where('users.id', $tenantId);
             })
             ->withCount('occupants')
             ->with([

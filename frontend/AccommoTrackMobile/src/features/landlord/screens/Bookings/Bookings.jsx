@@ -116,6 +116,12 @@ export default function BookingsScreen({ navigation, route }) {
   const [submittingSettlement, setSubmittingSettlement] = useState(false);
   const [pendingFocusBookingId, setPendingFocusBookingId] = useState(null);
   const [user, setUser] = useState(null);
+  
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [occupantToConvert, setOccupantToConvert] = useState(null);
+  const [convertEmail, setConvertEmail] = useState('');
+  const [processingConvert, setProcessingConvert] = useState(false);
+
   const [settlementForm, setSettlementForm] = useState({
     damageFee: '',
     cleaningFee: '',

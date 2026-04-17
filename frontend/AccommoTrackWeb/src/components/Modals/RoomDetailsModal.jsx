@@ -10,6 +10,7 @@ import {
   Layers,
   Shield,
   ArrowLeft,
+  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../utils/api";
@@ -294,6 +295,7 @@ export default function RoomDetailsModal({
   const isDailyContract =
     billingPolicy === "daily" ||
     (supportsContractModeSwitch && contractMode === "daily");
+  const hasCheckout = Boolean(endDate) && new Date(endDate) > new Date(startDate);
   const resolvedCapacity = Math.max(
     1,
     toWholeNumber(room?.raw_capacity ?? room?.capacity, 1),
@@ -616,15 +618,27 @@ export default function RoomDetailsModal({
     const diffTime = end ? Math.abs(end - start) : 0;
     const diffDays = end ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
 
-    // Explicitly enforce minimum stay for monthly rooms
     const minStay = parseInt(room.min_stay_days) || 1;
     const effectiveMinStay = !isDailyContract
       ? Math.max(30, minStay)
       : minStay;
 
     if (hasCheckout && diffDays < effectiveMinStay) {
-      toast.error(`The minimum stay for this room is ${effectiveMinStay} days.`);
+      const msg = `The minimum stay for this room is ${effectiveMinStay} days.`;
+      toast.error(msg);
       return;
+    }
+
+    if (!isDailyContract && duration?.extraDays > 0 && !endDate) {
+      toast.error("A move-out date is required for stays with extra days.");
+      return;
+    }
+
+    if (hasCheckout && !isDailyContract && duration && duration.extraDays > 0) {
+      toast.error(
+        `Billing Policy: Stays with extra days (${duration.extraDays} days extra) will be charged for the full next month under the Monthly policy.`,
+        { duration: 6000 }
+      );
     }
 
     const threeMonthsFromNow = new Date(today);
@@ -773,7 +787,11 @@ export default function RoomDetailsModal({
             onClose();
           } else {
             const validationMessage = formatApiValidationMessage(result?.details || result?.errors);
-            toast.error(validationMessage || result?.error || "Failed to add room to cart.");
+            toast.error(
+              validationMessage
+              || result?.message
+              || "Failed to add room to cart.",
+            );
           }
         } catch (error) {
           const validationMessage = formatApiValidationMessage(error?.response?.data?.errors);
@@ -789,7 +807,18 @@ export default function RoomDetailsModal({
 
       const svc = bookingService || bookingServiceDefault;
       // bookingService.createBooking throws on error; returns data on success
-      const res = await svc.createBooking(payload);
+      let res;
+      try {
+        res = await svc.createBooking(payload);
+      } catch (svcError) {
+        const errorData = svcError.response?.data;
+        const validationMsg = formatApiValidationMessage(errorData?.errors || errorData?.details);
+        const finalMsg = validationMsg || errorData?.error || errorData?.message || "Booking failed. Please try again.";
+        toast.error(finalMsg);
+        setIsSubmitting(false);
+        return;
+      }
+
       // res may be the full response object or data depending on service
       const bookingObj = res?.booking || res?.data?.booking || res?.data || res;
       const invoiceObj = res?.reservation_invoice || res?.data?.reservation_invoice;
@@ -1806,7 +1835,16 @@ export default function RoomDetailsModal({
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+                      {hasCheckout && !isDailyContract && duration && duration.extraDays > 0 && (
+                        <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl text-xs text-amber-800 dark:text-amber-400 flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
+                          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <p>
+                            <strong>Billing Policy:</strong> Stays with extra days ({duration.extraDays} days) are charged for the full next month.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
                     {isAuthenticated && canBook && (
                       <div className="mb-4">
                         <label className="flex items-start gap-2 cursor-pointer group">
