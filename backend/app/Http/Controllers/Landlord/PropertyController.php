@@ -179,7 +179,7 @@ class PropertyController extends Controller
 
             // Eager-load activeEvictionLock separately on the collected room models
             // to avoid subquery conflicts with withSum aggregates.
-            $allRooms = $data->flatMap(fn ($p) => $p->rooms);
+            $allRooms = new \Illuminate\Database\Eloquent\Collection($data->flatMap(fn ($p) => $p->rooms));
             if ($allRooms->isNotEmpty()) {
                 $allRooms->loadMissing('activeEvictionLock');
             }
