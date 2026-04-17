@@ -1844,9 +1844,9 @@ export default function RoomDetailsModal({
                         </div>
                       )}
 
-                      <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
+                  <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4">
                     {isAuthenticated && canBook && (
-                      <div className="mb-4">
+                      <div className="flex items-start">
                         <label className="flex items-start gap-2 cursor-pointer group">
                           <div className="relative flex items-center">
                             <input
@@ -1886,7 +1886,7 @@ export default function RoomDetailsModal({
                             !canBook ||
                             !agreedToRules
                             ? "bg-gray-400 cursor-not-allowed opacity-70"
-                            : "bg-green-600 hover:bg-green-700"
+                            : "bg-green-600 hover:bg-green-700 active:scale-[0.98]"
                           }
                         `}
                       >
@@ -1906,7 +1906,7 @@ export default function RoomDetailsModal({
                         Login to Book
                       </button>
                     )}
-                    <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-4">
+                    <p className="text-xs text-center text-gray-500 dark:text-gray-400">
                       You won't be charged yet. The landlord will review your
                       request.
                     </p>

@@ -18,8 +18,6 @@ import {
   Calendar,
   Key,
   KeyRound,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../../utils/api';
@@ -39,133 +37,7 @@ const isLandlordLevelPermission = (key) => LANDLORD_LEVEL_PERMISSION_KEYS.has(ke
 
 const TOTAL_PERMISSIONS = CARETAKER_PERMISSION_FIELDS.length;
 
-function PermissionGroupCard({ group, permissions, onToggleAll, onToggleSingle, expandedGroups, setExpandedGroups }) {
-  const groupFields = CARETAKER_PERMISSION_FIELDS.filter((f) => group.keys.includes(f.key));
-  const activeCount = groupFields.filter((f) => !!permissions[f.key]).length;
-  const allGroupOn = groupFields.every((f) => !!permissions[f.key]);
-  const isModuleActive = activeCount > 0;
-  const isExpanded = expandedGroups.includes(group.title);
 
-  const toggleExpand = () =>
-    setExpandedGroups((prev) =>
-      prev.includes(group.title) ? prev.filter((t) => t !== group.title) : [...prev, group.title],
-    );
-
-  return (
-    <div
-      className={`rounded-2xl overflow-hidden border-2 transition-all duration-200 ${
-        isModuleActive
-          ? 'border-emerald-500 shadow-lg shadow-emerald-100 dark:shadow-emerald-900/20'
-          : 'border-gray-200 dark:border-gray-700'
-      }`}
-    >
-      {/* Header — expand/collapse only */}
-      <button
-        onClick={toggleExpand}
-        className={`w-full flex items-center gap-3 p-4 text-left transition-colors ${
-          isModuleActive ? 'bg-emerald-600 dark:bg-emerald-700' : 'bg-white dark:bg-gray-800'
-        }`}
-      >
-        <div
-          className={`p-1.5 rounded-lg ${
-            isModuleActive ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'
-          }`}
-        >
-          <span className={isModuleActive ? 'text-white' : 'text-gray-500 dark:text-gray-400'}>
-            {group.icon}
-          </span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p
-            className={`font-bold text-sm ${
-              isModuleActive ? 'text-white' : 'text-gray-900 dark:text-white'
-            }`}
-          >
-            {group.title}
-          </p>
-          <p
-            className={`text-[10px] font-semibold ${
-              isModuleActive ? 'text-emerald-100' : 'text-gray-400 dark:text-gray-500'
-            }`}
-          >
-            {activeCount}/{groupFields.length} active
-          </p>
-        </div>
-        {isExpanded ? (
-          <ChevronUp
-            className={`w-4 h-4 flex-shrink-0 ${isModuleActive ? 'text-white' : 'text-gray-400'}`}
-          />
-        ) : (
-          <ChevronDown
-            className={`w-4 h-4 flex-shrink-0 ${isModuleActive ? 'text-white' : 'text-gray-400'}`}
-          />
-        )}
-      </button>
-
-      {/* Expanded sub-permissions */}
-      {isExpanded && (
-        <div className="bg-gray-50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700">
-          {/* Group-level Select All — inside expanded area */}
-          <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-              {group.title} permissions
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleAll(group.keys, permissions);
-              }}
-              className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
-                allGroupOn
-                  ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-100'
-                  : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
-              }`}
-            >
-              {allGroupOn ? '✕ Deselect group' : '✓ Select group'}
-            </button>
-          </div>
-
-          {groupFields.map((field, idx) => {
-            const isChecked = !!permissions[field.key];
-            return (
-              <label
-                key={field.key}
-                className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
-                  idx < groupFields.length - 1 ? 'border-b border-gray-100 dark:border-gray-700/60' : ''
-                } ${
-                  isChecked
-                    ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-              >
-                <div className="pr-4">
-                  <p
-                    className={`text-[13px] font-semibold ${
-                      isChecked
-                        ? 'text-emerald-700 dark:text-emerald-400'
-                        : 'text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {field.label}
-                  </p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                    {field.description}
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => onToggleSingle(field.key)}
-                  className="w-4 h-4 accent-emerald-600 cursor-pointer flex-shrink-0 rounded"
-                />
-              </label>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function StepBar({ step }) {
   return (
@@ -262,6 +134,7 @@ export default function CareTakerAccess({
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
   const [propertyError, setPropertyError] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState([]);
+  const [activeModuleTab, setActiveModuleTab] = useState(0);
   const [fieldErrors, setFieldErrors] = useState({
     first_name: '',
     middle_name: '',
@@ -454,6 +327,7 @@ export default function CareTakerAccess({
     setShowPasswords(false);
     setCreateStep(1);
     setExpandedGroups([]);
+    setActiveModuleTab(0);
     setModalMode('create');
   };
 
@@ -462,6 +336,7 @@ export default function CareTakerAccess({
     setShowPasswords(false);
     setCreateStep(1);
     setExpandedGroups([]);
+    setActiveModuleTab(0);
   };
 
   const handleCreateStepNext = () => {
@@ -569,6 +444,7 @@ export default function CareTakerAccess({
       property_ids: (c.assigned_properties || []).map((p) => p.id),
     });
     setExpandedGroups([]);
+    setActiveModuleTab(0);
     setShowPasswords(false);
     setSelectedCaretaker(null);
     setModalMode('edit');
@@ -701,87 +577,230 @@ export default function CareTakerAccess({
   const activePermissions = modalMode === 'create' ? safePermissions : editFormData.permissions;
   const isModalOpen = modalMode !== 'closed';
 
-  // ── Shared permission section (used in both create step-2 and edit) ──────
-  const renderPermissionSection = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {MODULE_GROUPS.map((group) => (
-          <PermissionGroupCard
-            key={group.title}
-            group={group}
-            permissions={activePermissions}
-            onToggleAll={handleGroupToggleAll}
-            onToggleSingle={handleSinglePermissionToggle}
-            expandedGroups={expandedGroups}
-            setExpandedGroups={setExpandedGroups}
-          />
-        ))}
-      </div>
+  const renderPermissionSection = () => {
+    const activeGroup = MODULE_GROUPS[activeModuleTab];
+    const groupFields = CARETAKER_PERMISSION_FIELDS.filter((f) => activeGroup.keys.includes(f.key));
+    const allGroupOn = groupFields.every((f) => !!activePermissions[f.key]);
 
-      {/* Global Select All — below all groups, with warning notice */}
-      {(() => {
-        const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
-        const allSelected = allKeys.every((k) => !!activePermissions[k]);
-        const target = modalMode === 'create' ? 'create' : 'edit';
-        return (
-          <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-xl flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <p className="text-[11px] font-semibold leading-snug">
-                Selecting all grants full landlord-level access to this caretaker.
+    // Global Select All states
+    const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
+    const allSelected = allKeys.every((k) => !!activePermissions[k]);
+    const target = modalMode === 'create' ? 'create' : 'edit';
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row gap-6 bg-white dark:bg-gray-800/50 rounded-[2rem] border border-gray-100 dark:border-gray-700/50 overflow-hidden shadow-sm min-h-[480px]">
+          {/* Sidebar */}
+          <div className="w-full md:w-72 border-r border-gray-50 dark:border-gray-700/50 bg-gray-50/30 dark:bg-gray-900/10 p-5 flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <p className="px-3 pb-3 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                Permission Modules
               </p>
+              {MODULE_GROUPS.map((group, idx) => {
+                const activeCount = group.keys.filter((k) => !!activePermissions[k]).length;
+                const isActive = activeModuleTab === idx;
+                return (
+                  <button
+                    key={group.title}
+                    type="button"
+                    onClick={() => setActiveModuleTab(idx)}
+                    className={`w-full group flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300 ${
+                      isActive
+                        ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-100 dark:shadow-none font-bold'
+                        : 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`p-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-emerald-100/50 dark:group-hover:bg-emerald-900/30 text-gray-500'
+                        }`}
+                      >
+                        {group.icon}
+                      </div>
+                      <span className="text-xs tracking-tight">{group.title}</span>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                        isActive
+                          ? 'bg-white/20 text-white'
+                          : activeCount > 0
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
+                      }`}
+                    >
+                      {activeCount}/{group.keys.length}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
+
             <button
+              type="button"
               onClick={() => handleGlobalSelectAll(target, activePermissions)}
-              className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all whitespace-nowrap ${
+              className={`mt-6 w-full flex items-center justify-center gap-2 p-4 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all border ${
                 allSelected
-                  ? 'bg-red-600 text-white border-red-600 hover:bg-red-700'
-                  : 'bg-amber-600 text-white border-amber-600 hover:bg-amber-700'
+                  ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100'
+                  : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100'
               }`}
             >
-              {allSelected ? '✕ Deselect All' : '✓ Select All'}
+              {allSelected ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+              {allSelected ? 'Revoke All Access' : 'Full Access Grant'}
             </button>
           </div>
-        );
-      })()}
-    </div>
-  );
+
+          {/* Content area for active module */}
+          <div className="flex-1 p-8 overflow-y-auto max-h-[600px] custom-scrollbar">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+              <div>
+                <h4 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                    {activeGroup.icon}
+                  </span>
+                  {activeGroup.title} Permissions
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Manage capabilities related to {activeGroup.title.toLowerCase()}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleGroupToggleAll(activeGroup.keys, activePermissions)}
+                className={`text-[10px] font-extrabold px-4 py-2.5 rounded-xl border-2 transition-all uppercase tracking-wider ${
+                  allGroupOn
+                    ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100'
+                    : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100'
+                }`}
+              >
+                {allGroupOn ? 'Deselect Module' : 'Select Module'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {groupFields.map((field) => {
+                const isChecked = !!activePermissions[field.key];
+                const isSensitive = isLandlordLevelPermission(field.key);
+                return (
+                  <label
+                    key={field.key}
+                    className={`group relative flex items-start gap-5 p-5 rounded-[1.5rem] border-2 cursor-pointer transition-all duration-300 ${
+                      isChecked
+                        ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 shadow-lg shadow-emerald-100/50 dark:shadow-none'
+                        : 'bg-white dark:bg-gray-800/50 border-gray-100 dark:border-gray-700/50 hover:border-emerald-200 dark:hover:border-emerald-900/30'
+                    }`}
+                  >
+                    <div
+                      className={`mt-1 p-2.5 rounded-xl transition-all duration-300 ${
+                        isChecked
+                          ? 'bg-emerald-600 text-white translate-x-1'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/20 group-hover:text-emerald-500'
+                      }`}
+                    >
+                      {field.icon}
+                    </div>
+                    <div className="flex-1 pr-6">
+                      <div className="flex items-center gap-2">
+                        <p
+                          className={`text-sm font-bold ${
+                            isChecked ? 'text-emerald-900 dark:text-emerald-400' : 'text-gray-900 dark:text-gray-200'
+                          }`}
+                        >
+                          {field.label}
+                        </p>
+                        {isSensitive && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-md font-bold uppercase tracking-tighter">
+                            Sensitive
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                        {field.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center self-center">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleSinglePermissionToggle(field.key)}
+                        className="w-6 h-6 accent-emerald-600 cursor-pointer rounded-lg border-2"
+                      />
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Selection notice */}
+            <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-100 dark:border-gray-700/50 flex items-center gap-3">
+              <AlertCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium italic">
+                Caretakers assigned to specific modules will only see those modules in their dashboard.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sensitive Grant Notice */}
+        {(() => {
+          const sensitiveInGroup = groupFields.filter((f) => isLandlordLevelPermission(f.key));
+          const sensitiveActive = sensitiveInGroup.some((f) => !!activePermissions[f.key]);
+          if (!sensitiveActive) return null;
+          return (
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 leading-snug">
+                Warning: You have granted landlord-level permissions within this module. This caretaker will have high-level control over property operations.
+              </p>
+            </div>
+          );
+        })()}
+      </div>
+    );
+  };
 
   const renderPropertySection = (propertyIds, onToggle, hasError) => (
     safeProperties.length > 0 && (
       <div
-        className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${
+        className={`bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 p-6 rounded-[2rem] space-y-5 transition-all duration-300 ${
           hasError
-            ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800'
+            ? 'ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800'
             : ''
         }`}
       >
-        <div className="flex items-center justify-between">
-          <h3
-            className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${
-              hasError ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
-            }`}
-          >
-            <Building2 className="w-4 h-4" /> Assigned Properties
-          </h3>
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${hasError ? 'bg-red-100 text-red-600' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className={`text-sm font-extrabold uppercase tracking-widest ${hasError ? 'text-red-600' : 'text-gray-700 dark:text-gray-300'}`}>
+                Assigned Properties
+              </h3>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">Where will this caretaker operate?</p>
+            </div>
+          </div>
           {hasError && (
-            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-2 animate-pulse">
-              <AlertCircle className="w-3 h-3" /> At least one property required
+            <span className="text-[10px] font-extrabold text-red-600 uppercase flex items-center gap-1.5 animate-pulse">
+              <AlertCircle className="w-3.5 h-3.5" /> Required field
             </span>
           )}
         </div>
+
         <div className="flex flex-wrap gap-3">
           {safeProperties.map((property) => {
             const selected = propertyIds.includes(property.id);
             return (
               <label
                 key={property.id}
-                className={`flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none ${
+                className={`flex items-center gap-3 px-6 py-4 rounded-[1.25rem] border-2 text-sm font-bold transition-all duration-300 cursor-pointer select-none group ${
                   selected
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xl shadow-emerald-100 dark:shadow-none scale-[1.03]'
                     : hasError
-                    ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-900/50 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
-                    : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-gray-600'
+                    ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 text-red-900 dark:text-red-400'
+                    : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-900/30'
                 }`}
               >
                 <input
@@ -790,12 +809,15 @@ export default function CareTakerAccess({
                   onChange={() => onToggle(property.id)}
                   className="hidden"
                 />
-                <span className="whitespace-nowrap">
+                <div className={`p-1.5 rounded-lg transition-colors ${selected ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-emerald-100/50'}`}>
+                  <Building2 className={`w-4 h-4 ${selected ? 'text-white' : 'text-gray-500'}`} />
+                </div>
+                <span className="whitespace-nowrap tracking-tight">
                   {property.name || property.title || 'Unnamed Property'}
                 </span>
-                <Building2
-                  className={`w-4 h-4 shrink-0 ${selected ? 'text-emerald-100' : 'text-gray-500'}`}
-                />
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selected ? 'bg-white border-white' : 'border-gray-200 dark:border-gray-600'}`}>
+                  {selected && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                </div>
               </label>
             );
           })}
@@ -815,16 +837,16 @@ export default function CareTakerAccess({
             onClick={closeModal}
           >
             <div
-              className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+              className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl w-full max-w-6xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal header */}
-              <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+              <div className="p-8 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/30">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
                     {modalMode === 'create' ? 'Add New Caretaker' : 'Edit Caretaker'}
                   </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium italic">
                     {modalMode === 'create'
                       ? 'Step-by-step setup for personal details, modules, and property assignment.'
                       : 'Update permissions and property assignments for this caretaker.'}
@@ -832,9 +854,9 @@ export default function CareTakerAccess({
                 </div>
                 <button
                   onClick={closeModal}
-                  className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  className="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-2xl transition-all"
                 >
-                  <XCircle className="w-6 h-6 text-gray-500" />
+                  <XCircle className="w-6 h-6 text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
 
@@ -842,40 +864,46 @@ export default function CareTakerAccess({
               {modalMode === 'create' && <StepBar step={createStep} />}
 
               {/* Scrollable body */}
-              <div className="p-6 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-6">
+              <div className="p-8 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-10">
                 {/* ── STEP 1 / Edit identity form ── */}
                 {(modalMode === 'create' ? createStep === 1 : true) && (
                   <>
                     {/* For edit: personal info first */}
-                    {modalMode === 'edit' && (
-                      <section className="space-y-4">
-                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                          <Users className="w-4 h-4" /> Personal Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(modalMode === 'edit') && (
+                      <section className="space-y-6">
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="p-2.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl">
+                            <Users className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-sm font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-[0.2em]">
+                            Personal Information
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {[
-                            { label: 'First Name', key: 'first_name' },
-                            { label: 'Middle Name', key: 'middle_name' },
-                            { label: 'Last Name', key: 'last_name' },
-                            { label: 'Email Address', key: 'email', type: 'email' },
-                            { label: 'Phone (Optional)', key: 'phone' },
-                          ].map(({ label, key, type = 'text' }) => (
+                            { label: 'First Name', key: 'first_name', placeholder: 'e.g. John' },
+                            { label: 'Middle Name', key: 'middle_name', placeholder: 'Optional' },
+                            { label: 'Last Name', key: 'last_name', placeholder: 'e.g. Doe' },
+                            { label: 'Email Address', key: 'email', type: 'email', placeholder: 'john@example.com' },
+                            { label: 'Phone Number', key: 'phone', placeholder: '09123456789' },
+                          ].map(({ label, key, type = 'text', placeholder }) => (
                             <div key={key} className="space-y-2">
-                              <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                              <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 ml-4 uppercase tracking-wider">
                                 {label}
                               </label>
                               <input
                                 type={type}
+                                placeholder={placeholder}
                                 value={editFormData[key]}
                                 onChange={(e) =>
                                   setEditFormData((prev) => ({ ...prev, [key]: e.target.value }))
                                 }
-                                className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                                className="w-full px-5 py-3.5 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] bg-white dark:bg-gray-800 text-sm font-medium focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all placeholder:text-gray-300"
                               />
                             </div>
                           ))}
                           <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                            <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 ml-4 uppercase tracking-wider">
                               Date of Birth
                             </label>
                             <input
@@ -884,42 +912,51 @@ export default function CareTakerAccess({
                               onChange={(e) =>
                                 setEditFormData((prev) => ({ ...prev, date_of_birth: e.target.value }))
                               }
-                              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                              className="w-full px-5 py-3.5 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] bg-white dark:bg-gray-800 text-sm font-medium focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all"
                             />
                           </div>
                         </div>
 
                         {/* Password change section */}
-                        <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-2xl space-y-3">
-                          <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
-                            Change Password (leave blank to keep current)
+                        <div className="p-8 bg-amber-50 dark:bg-amber-900/10 border-2 border-dashed border-amber-200 dark:border-amber-800/40 rounded-[2rem] space-y-6">
+                          <div className="flex items-center gap-3">
+                            <KeyRound className="w-5 h-5 text-amber-600" />
+                            <p className="text-sm font-extrabold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                              Security Override
+                            </p>
+                          </div>
+                          <p className="text-xs text-amber-700/70 dark:text-amber-400/70 italic font-medium -mt-2 ml-8">
+                            Leave these fields blank to maintain the current caretaker password.
                           </p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-8">
                             {[
-                              { placeholder: 'New password', key: 'password' },
-                              { placeholder: 'Confirm new password', key: 'password_confirmation' },
-                            ].map(({ placeholder, key }) => (
-                              <div key={key} className="relative">
-                                <input
-                                  type={showPasswords ? 'text' : 'password'}
-                                  placeholder={placeholder}
-                                  value={editFormData[key]}
-                                  onChange={(e) =>
-                                    setEditFormData((prev) => ({ ...prev, [key]: e.target.value }))
-                                  }
-                                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all pr-10"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setShowPasswords((v) => !v)}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                                >
-                                  {showPasswords ? (
-                                    <EyeOff className="w-4 h-4" />
-                                  ) : (
-                                    <Eye className="w-4 h-4" />
-                                  )}
-                                </button>
+                              { label: 'New Password', placeholder: '••••••••', key: 'password' },
+                              { label: 'Confirm New Password', placeholder: '••••••••', key: 'password_confirmation' },
+                            ].map(({ label, placeholder, key }) => (
+                              <div key={key} className="relative space-y-2">
+                                <label className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-widest ml-4">{label}</label>
+                                <div className="relative">
+                                  <input
+                                    type={showPasswords ? 'text' : 'password'}
+                                    placeholder={placeholder}
+                                    value={editFormData[key]}
+                                    onChange={(e) =>
+                                      setEditFormData((prev) => ({ ...prev, [key]: e.target.value }))
+                                    }
+                                    className="w-full px-5 py-3.5 border border-amber-100 dark:border-amber-900/20 rounded-2xl bg-white dark:bg-gray-800 text-sm focus:ring-4 focus:ring-amber-500/10 focus:border-amber-400 transition-all pr-12"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPasswords((v) => !v)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-300 hover:text-amber-500"
+                                  >
+                                    {showPasswords ? (
+                                      <EyeOff className="w-5 h-5" />
+                                    ) : (
+                                      <Eye className="w-5 h-5" />
+                                    )}
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -929,22 +966,29 @@ export default function CareTakerAccess({
 
                     {/* Create step 1 — personal info */}
                     {modalMode === 'create' && (
-                      <section className="space-y-4">
-                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                          <Users className="w-4 h-4" /> Personal Information
-                        </h3>
+                      <section className="space-y-6">
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="p-2.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl">
+                            <Users className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-sm font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-[0.2em]">
+                            Personal Information
+                          </h3>
+                        </div>
 
                         {Object.values(fieldErrors).some((err) => err !== '') && (
-                          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-2xl animate-in slide-in-from-top-2 duration-300">
-                            <div className="flex gap-3">
-                              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                          <div className="mx-2 p-6 bg-red-50 dark:bg-red-900/20 border-2 border-red-100 dark:border-red-900/30 rounded-[2rem] animate-in slide-in-from-top-4 duration-500">
+                            <div className="flex gap-4">
+                              <div className="p-2 bg-white dark:bg-red-900/40 rounded-xl shadow-sm">
+                                <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 shadow-sm" />
+                              </div>
                               <div className="space-y-1">
-                                <p className="text-sm font-bold text-red-800 dark:text-red-300">
-                                  Please correct the following:
+                                <p className="text-sm font-black text-red-900 dark:text-red-300 uppercase tracking-wider">
+                                  Missing Requirements:
                                 </p>
-                                <ul className="list-disc list-inside text-xs text-red-700 dark:text-red-400 space-y-0.5">
+                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 text-[11px] font-bold text-red-700 dark:text-red-400/80 italic">
                                   {Object.entries(fieldErrors).map(
-                                    ([key, err]) => err && <li key={key}>{err}</li>,
+                                    ([key, err]) => err && <li key={key} className="flex items-center gap-2">• {err}</li>,
                                   )}
                                 </ul>
                               </div>
@@ -952,7 +996,7 @@ export default function CareTakerAccess({
                           </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-2">
                           {[
                             { label: 'First Name', name: 'first_name', placeholder: 'e.g. John' },
                             { label: 'Middle Name (Optional)', name: 'middle_name', placeholder: 'e.g. Quency' },
@@ -961,7 +1005,7 @@ export default function CareTakerAccess({
                             { label: 'Phone (Optional)', name: 'phone', placeholder: '09123456789' },
                           ].map(({ label, name, type = 'text', placeholder }) => (
                             <div key={name} className="space-y-2">
-                              <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                              <label className="text-[11px] font-extrabold text-gray-500 dark:text-gray-400 ml-4 uppercase tracking-[0.1em]">
                                 {label}
                               </label>
                               <input
@@ -970,17 +1014,17 @@ export default function CareTakerAccess({
                                 placeholder={placeholder}
                                 value={safeForm[name]}
                                 onChange={handleInputChange}
-                                className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${
+                                className={`w-full px-5 py-4 border rounded-[1.25rem] bg-white dark:bg-gray-800 text-sm font-medium focus:ring-4 transition-all ${
                                   fieldErrors[name]
-                                    ? 'border-red-500 ring-red-50'
-                                    : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'
+                                    ? 'border-red-400 ring-red-500/10'
+                                    : 'border-gray-100 dark:border-gray-700 focus:ring-green-500/10 focus:border-green-500'
                                 }`}
                               />
                             </div>
                           ))}
 
                           <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
+                            <label className="text-[11px] font-extrabold text-gray-500 dark:text-gray-400 ml-4 uppercase tracking-[0.1em]">
                               Date of Birth (Optional)
                             </label>
                             <input
@@ -988,44 +1032,50 @@ export default function CareTakerAccess({
                               type="date"
                               value={safeForm.date_of_birth}
                               onChange={handleInputChange}
-                              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                              className="w-full px-5 py-4 border border-gray-100 dark:border-gray-700 rounded-[1.25rem] bg-white dark:bg-gray-800 text-sm font-medium focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all"
                             />
                           </div>
+                        </div>
 
-                          {/* Password fields */}
-                          {[
-                            { label: 'Account Password', field: 'password' },
-                            { label: 'Confirm Password', field: 'password_confirmation' },
-                          ].map(({ label, field }) => (
-                            <div key={field} className="space-y-2">
-                              <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
-                                {label}
-                              </label>
-                              <div className="relative">
-                                <input
-                                  type={showPasswords ? 'text' : 'password'}
-                                  placeholder="••••••••"
-                                  value={safeForm[field]}
-                                  onChange={(e) =>
-                                    setCaretakerForm &&
-                                    setCaretakerForm((f) => ({ ...f, [field]: e.target.value }))
-                                  }
-                                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all pr-10"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setShowPasswords((v) => !v)}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                                >
-                                  {showPasswords ? (
-                                    <EyeOff className="w-4 h-4" />
-                                  ) : (
-                                    <Eye className="w-4 h-4" />
-                                  )}
-                                </button>
-                              </div>
+                        {/* Password fields block */}
+                        <div className="p-10 bg-gray-50 dark:bg-gray-900/20 rounded-[2.5rem] border border-gray-100 dark:border-gray-700/50 space-y-8">
+                          <div className="flex items-center gap-4">
+                            <div className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+                              <Shield className="w-5 h-5 text-emerald-600" />
                             </div>
-                          ))}
+                            <h4 className="text-sm font-black text-gray-800 dark:text-gray-200 uppercase tracking-widest">Initial Credentials</h4>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            {[
+                              { label: 'Portal Password', field: 'password' },
+                              { label: 'Confirm Password', field: 'password_confirmation' },
+                            ].map(({ label, field }) => (
+                              <div key={field} className="space-y-3">
+                                <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 ml-4 uppercase tracking-wider italic">
+                                  {label}
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type={showPasswords ? 'text' : 'password'}
+                                    placeholder="••••••••"
+                                    value={safeForm[field]}
+                                    onChange={(e) =>
+                                      setCaretakerForm &&
+                                      setCaretakerForm((f) => ({ ...f, [field]: e.target.value }))
+                                    }
+                                    className="w-full px-6 py-4.5 border border-white dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-800 shadow-sm text-sm focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all pr-14"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPasswords((v) => !v)}
+                                    className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                                  >
+                                    {showPasswords ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </section>
                     )}
@@ -1034,76 +1084,63 @@ export default function CareTakerAccess({
 
                 {/* ── STEP 2 / Edit permissions ── */}
                 {(modalMode === 'create' ? createStep === 2 : true) && (
-                  <>
-                    {modalMode === 'create' ? (
-                      /* Two-panel layout for create step 2 */
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Left: permissions */}
-                        <div className="lg:col-span-2 space-y-4">
-                          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <Shield className="w-4 h-4" /> Module Permissions
-                          </h3>
-                          {renderPermissionSection()}
+                  <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-700">
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-3 px-2">
+                        <div className="p-2.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl">
+                          <Shield className="w-5 h-5" />
                         </div>
+                        <h3 className="text-sm font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-[0.2em]">
+                          Access Configuration
+                        </h3>
+                      </div>
+                      
+                      {renderPermissionSection()}
+                    </section>
 
-                        {/* Right: property selector (sticky) */}
-                        <div className="lg:col-span-1">
-                          <div className="sticky top-0 space-y-3">
-                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                              <Building2 className="w-4 h-4" /> Assigned Properties
-                            </h3>
-                            {renderPropertySection(
-                              safeSelectedIds,
-                              (id) => {
-                                setPropertyError(false);
-                                if (typeof setSelectedPropertyIds === 'function') {
-                                  setSelectedPropertyIds((ids) =>
-                                    ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id],
-                                  );
-                                }
-                              },
-                              propertyError,
-                            )}
-                            {safeProperties.length === 0 && (
-                              <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                                No properties available. You can add properties later.
+                    <section className="space-y-6">
+                      {modalMode === 'create' ? (
+                        /* Create step 2: properties */
+                        <>
+                          {renderPropertySection(
+                            safeSelectedIds,
+                            (id) => {
+                              setPropertyError(false);
+                              if (typeof setSelectedPropertyIds === 'function') {
+                                setSelectedPropertyIds((ids) =>
+                                  ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id],
+                                );
+                              }
+                            },
+                            propertyError,
+                          )}
+                          {safeProperties.length === 0 && (
+                            <div className="p-8 bg-gray-50 dark:bg-gray-900/30 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700 text-center">
+                              <p className="text-xs text-gray-400 dark:text-gray-500 font-bold italic tracking-wide">
+                                No properties found in your account. You can complete setup now and assign properties later.
                               </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Edit: two-panel as well */
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 space-y-4">
-                          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <Shield className="w-4 h-4" /> Module Permissions
-                          </h3>
-                          {renderPermissionSection()}
-                        </div>
-                        <div className="lg:col-span-1">
-                          <div className="sticky top-0 space-y-3">
-                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                              <Building2 className="w-4 h-4" /> Assigned Properties
-                            </h3>
-                            {renderPropertySection(
-                              editFormData.property_ids,
-                              (id) => {
-                                const ids = [...editFormData.property_ids];
-                                const idx = ids.indexOf(id);
-                                if (idx > -1) ids.splice(idx, 1);
-                                else ids.push(id);
-                                setEditFormData((prev) => ({ ...prev, property_ids: ids }));
-                              },
-                              editFormData.property_ids.length === 0,
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        /* Edit: properties */
+                        renderPropertySection(
+                          editFormData.property_ids,
+                          (id) => {
+                            const ids = [...editFormData.property_ids];
+                            const idx = ids.indexOf(id);
+                            if (idx > -1) ids.splice(idx, 1);
+                            else ids.push(id);
+                            setEditFormData((prev) => ({ ...prev, property_ids: ids }));
+                          },
+                          editFormData.property_ids.length === 0,
+                        )
+                      )}
+                    </section>
+                  </div>
                 )}
               </div>
+
 
               {/* Footer */}
               <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex gap-4">
