@@ -33,6 +33,7 @@ class LandlordVerificationController extends Controller
             'permit' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
             'agree' => 'accepted',
             'dob' => 'required|date',
+            'sex' => 'required|in:male,female',
         ]);
 
         if ($validator->fails()) {
@@ -59,6 +60,7 @@ class LandlordVerificationController extends Controller
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'date_of_birth' => $request->dob,
+                'sex' => $request->sex,
                 'password' => Hash::make($request->password),
                 'role' => 'landlord',
                 'is_active' => true,

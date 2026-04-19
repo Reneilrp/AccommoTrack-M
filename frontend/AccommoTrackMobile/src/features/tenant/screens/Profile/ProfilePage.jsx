@@ -162,12 +162,38 @@ export default function ProfilePage() {
   const calculateAge = (dob) => {
     const today = new Date();
     const birthDate = new Date(dob);
+    if (isNaN(birthDate.getTime())) return null;
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
     return age;
+  };
+
+  const formatDateForDisplay = (dateString) => {
+    if (!dateString) return "";
+    try {
+      // Split YYYY-MM-DD to avoid timezone issues
+      const parts = dateString.split("-");
+      if (parts.length === 3) {
+        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+        return date.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      return date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const handleDateChange = (event, selectedDate) => {
@@ -271,6 +297,7 @@ export default function ProfilePage() {
           identifiedAs: u.identified_as || "",
           bio: tp.notes || "",
           dateOfBirth: u.date_of_birth || "",
+          age: u.age ? String(u.age) : prev.age,
           preferences: (() => {
             const raw = tp.preference;
             if (!raw) return prev.preferences;
@@ -289,7 +316,9 @@ export default function ProfilePage() {
         setIsEditing(false);
         showSuccess("Success", "Profile updated successfully!");
       } else {
-        showError("Error", res.error || "Failed to update profile");
+        const errMsg = res.error || "Failed to update profile";
+        const detailedErrors = res.errors ? Object.values(res.errors).flat().join("\n") : "";
+        showError("Update Failed", detailedErrors || errMsg);
       }
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -825,7 +854,7 @@ export default function ProfilePage() {
                 ]}
               >
                 {profileData.dateOfBirth
-                  ? profileData.dateOfBirth
+                  ? formatDateForDisplay(profileData.dateOfBirth)
                   : "Select Date of Birth"}
               </Text>
             </TouchableOpacity>

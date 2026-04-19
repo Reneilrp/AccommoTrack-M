@@ -57,34 +57,7 @@ class TenantSettingsController extends Controller
                 }
             }
 
-            return response()->json([
-                'id' => $user->id,
-                'first_name' => $user->first_name,
-                'middle_name' => $user->middle_name,
-                'last_name' => $user->last_name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'profile_image' => $profileImage,
-                'is_verified' => $user->is_verified,
-                'is_active' => $user->is_active,
-                'notification_preferences' => $user->notification_preferences,
-                'age' => $age,
-                'wallet_balance' => TenantCredit::getBalance($userId) / 100, // Send as regular value instead of cents for frontend
-                'sex' => $user->sex,
-                'identified_as' => $user->identified_as,
-                'date_of_birth' => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
-                'tenant_profile' => $tenantProfile ? [
-                    'move_in_date' => $tenantProfile->move_in_date ? $tenantProfile->move_in_date->format('Y-m-d') : null,
-                    'move_out_date' => $tenantProfile->move_out_date ? $tenantProfile->move_out_date->format('Y-m-d') : null,
-                    'status' => $tenantProfile->status,
-                    'notes' => $tenantProfile->notes,
-                    'emergency_contact_name' => $tenantProfile->emergency_contact_name,
-                    'emergency_contact_phone' => $tenantProfile->emergency_contact_phone,
-                    'emergency_contact_relationship' => $tenantProfile->emergency_contact_relationship,
-                    'current_address' => $tenantProfile->current_address,
-                    'preference' => $tenantProfile->preference,
-                ] : null,
-            ], 200);
+            return response()->json($this->formatProfileResponse($user, $tenantProfile), 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch profile',
@@ -234,7 +207,7 @@ class TenantSettingsController extends Controller
 
             return response()->json([
                 'message' => 'Profile updated successfully',
-                'user' => $updatedUser,
+                'user' => $this->formatProfileResponse($updatedUser, $updatedUser->tenantProfile),
             ], 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
@@ -267,6 +240,49 @@ class TenantSettingsController extends Controller
 
             default => null,
         };
+    }
+
+    private function formatProfileResponse(User $user, ?TenantProfile $tenantProfile): array
+    {
+        // Calculate age manually
+        $age = null;
+        if ($user->date_of_birth) {
+            $birthDate = \Carbon\Carbon::parse($user->date_of_birth);
+            $age = $birthDate->diffInYears(\Carbon\Carbon::now());
+        }
+
+        // Format profile image URL (using the model accessor but ensuring Storage::url is used if needed)
+        // Actually, the model already has an accessor getProfileImageAttribute.
+        // But we want a clean URL for the JSON.
+
+        return [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'middle_name' => $user->middle_name,
+            'last_name' => $user->last_name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'profile_image' => $user->profile_image, // Uses model accessor
+            'is_verified' => $user->is_verified,
+            'is_active' => $user->is_active,
+            'notification_preferences' => $user->notification_preferences,
+            'age' => $age,
+            'wallet_balance' => TenantCredit::getBalance($user->id) / 100,
+            'sex' => $user->sex,
+            'identified_as' => $user->identified_as,
+            'date_of_birth' => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
+            'tenant_profile' => $tenantProfile ? [
+                'move_in_date' => $tenantProfile->move_in_date ? $tenantProfile->move_in_date->format('Y-m-d') : null,
+                'move_out_date' => $tenantProfile->move_out_date ? $tenantProfile->move_out_date->format('Y-m-d') : null,
+                'status' => $tenantProfile->status,
+                'notes' => $tenantProfile->notes,
+                'emergency_contact_name' => $tenantProfile->emergency_contact_name,
+                'emergency_contact_phone' => $tenantProfile->emergency_contact_phone,
+                'emergency_contact_relationship' => $tenantProfile->emergency_contact_relationship,
+                'current_address' => $tenantProfile->current_address,
+                'preference' => $tenantProfile->preference,
+            ] : null,
+        ];
     }
 
     public function changePassword(Request $request)

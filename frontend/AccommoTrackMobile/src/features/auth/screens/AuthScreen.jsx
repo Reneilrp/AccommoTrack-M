@@ -25,7 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
 import BlockedUserModal from '../../../components/BlockedUserModal.jsx';
 import ForgotPasswordModal from '../../../components/ForgotPasswordModal.jsx';
-import { showSuccess } from '../../../utils/toast.js';
+import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { useAuthStore } from '../../../stores/auth/authStore.js';
 import { useUIState } from '../../../contexts/UIStateContext.jsx';
@@ -1185,6 +1185,10 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       } else {
         const errMsg = data.message || 'Registration failed. Please try again.';
         setError(errMsg);
+        if (data.errors) {
+          setFieldErrors(data.errors);
+        }
+        showError('Registration Error', errMsg);
       }
     } catch (err) {
       setError('Network error. Please check your connection.');

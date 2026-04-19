@@ -23,6 +23,7 @@ import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { useUIState } from '../../../contexts/UIStateContext.jsx';
+import { showError } from '../../../utils/toast.js';
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
 
@@ -117,6 +118,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
     validIdBack: null,
     permit: null,
     agree: false,
+    sex: '',
   });
 
   // Email check
@@ -135,6 +137,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [idTypeModalVisible, setIdTypeModalVisible] = useState(false);
+  const [sexModalVisible, setSexModalVisible] = useState(false);
 
   // ID types
   const [idTypes, setIdTypes] = useState([]);
@@ -218,6 +221,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
       if (form.middleName?.trim() && !nameRegex.test(form.middleName.trim())) errors.middleName = 'Middle name contains invalid characters';
       if (!form.lastName?.trim()) errors.lastName = 'Last name is required';
       else if (!nameRegex.test(form.lastName.trim())) errors.lastName = 'Last name contains invalid characters';
+      if (!form.sex) errors.sex = 'Sex is required';
       if (!form.dob) errors.dob = 'Date of birth is required';
       else {
         const bd = new Date(form.dob);
@@ -414,6 +418,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
       formData.append('email', form.email.trim());
       if (form.phone?.trim()) formData.append('phone', form.phone.trim());
       formData.append('password', form.password);
+      formData.append('sex', form.sex);
       formData.append('valid_id_type', form.validIdType);
       if (form.validIdType === 'other') formData.append('valid_id_other', form.validIdOther);
       formData.append('agree', form.agree ? '1' : '0');
@@ -462,14 +467,20 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
             map[local] = srvErrs[k][0];
           }
           setFieldErrors(map);
-          setError(data.message || 'Please fix highlighted fields.');
+          const topError = data.message || 'Please fix highlighted fields.';
+          setError(topError);
+          showError('Registration Error', topError);
         } else {
-          setError(data.message || 'Submission failed. Please try again.');
+          const topError = data.message || 'Submission failed. Please try again.';
+          setError(topError);
+          showError('Registration Error', topError);
         }
       }
     } catch (err) {
       console.error('Landlord registration error:', err);
-      setError('Network error. Please check your connection.');
+      const networkError = 'Network error. Please check your connection.';
+      setError(networkError);
+      showError('Network Error', networkError);
     } finally {
       setSubmitting(false);
     }
@@ -591,6 +602,27 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                   label: 'Last Name',
                   required: true,
                 })}
+
+                {/* Sex Selection */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>
+                    Sex
+                    <Text style={{ color: theme.colors.error }}> *</Text>
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.selectTrigger, fieldErrors.sex && { borderColor: theme.colors.error }]}
+                    onPress={() => setSexModalVisible(true)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Ionicons name="transgender-outline" size={20} color={theme.colors.textTertiary} style={styles.inputIcon} />
+                      <Text style={{ color: form.sex ? theme.colors.text : theme.colors.textTertiary, fontSize: 16 }}>
+                        {form.sex ? (form.sex === 'male' ? 'Male' : 'Female') : 'Select Sex'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-down" size={18} color={theme.colors.textTertiary} />
+                  </TouchableOpacity>
+                  {fieldErrors.sex && <Text style={styles.inlineErrorText}>{fieldErrors.sex}</Text>}
+                </View>
 
                 {/* Date of Birth */}
                 <View>
@@ -829,6 +861,49 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Sex Selection Modal */}
+      <Modal
+        visible={sexModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setSexModalVisible(false)}
+      >
+        <Pressable style={styles.statusModalOverlay} onPress={() => setSexModalVisible(false)}>
+          <Pressable style={styles.statusSheet} onPress={() => { }}>
+            <Text style={[styles.title, { fontSize: 18, marginBottom: 20, textAlign: 'center' }]}>Select Sex</Text>
+            {[
+              { label: "Male", value: "male" },
+              { label: "Female", value: "female" },
+            ].map((option, index, arr) => {
+              const isLast = index === arr.length - 1;
+              const isActive = form.sex === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                  onPress={() => {
+                    handleChange('sex', option.value);
+                    setSexModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.statusOptionText}>{option.label}</Text>
+                  {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast]}
+              onPress={() => setSexModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* ID Type Selection Modal */}
       <Modal
         visible={idTypeModalVisible}
@@ -841,31 +916,37 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
       >
         <Pressable style={styles.statusModalOverlay} onPress={() => setIdTypeModalVisible(false)}>
           <Pressable style={styles.statusSheet} onPress={() => { }}>
-            <Text style={[styles.title, { fontSize: 18, marginBottom: 20, textAlign: 'center' }]}>Select ID Type</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {[
-                ...idTypeOptions.map(type => ({ label: type, value: type })),
-                { label: "Other (specify below)", value: "other" }
-              ].map((option, index, arr) => {
-                const isLast = index === arr.length - 1;
-                const isActive = form.validIdType === option.value;
+            <Text style={[styles.title, { fontSize: 18, marginBottom: 20, textAlign: 'center' }]}>Select Valid ID Type</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
+              {idTypeOptions.map((type, index) => {
+                const isActive = form.validIdType === type;
                 return (
                   <TouchableOpacity
-                    key={option.value}
-                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    key={type}
+                    style={styles.statusOption}
                     onPress={() => {
-                      handleChange('validIdType', option.value);
+                      handleChange('validIdType', type);
                       setIdTypeModalVisible(false);
                     }}
                   >
-                    <Text style={styles.statusOptionText}>{option.label}</Text>
+                    <Text style={styles.statusOptionText}>{type}</Text>
                     {isActive && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
                   </TouchableOpacity>
                 );
               })}
+              <TouchableOpacity
+                style={styles.statusOption}
+                onPress={() => {
+                  handleChange('validIdType', 'other');
+                  setIdTypeModalVisible(false);
+                }}
+              >
+                <Text style={styles.statusOptionText}>Other</Text>
+                {form.validIdType === 'other' && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
+              </TouchableOpacity>
             </ScrollView>
             <TouchableOpacity
-              style={[styles.statusOption, styles.statusOptionLast]}
+              style={[styles.statusOption, styles.statusOptionLast, { marginTop: 10 }]}
               onPress={() => setIdTypeModalVisible(false)}
             >
               <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
